@@ -3,10 +3,12 @@
 // ==============================================================================
 // PitchSyncGranularShifter::beginSplice searched with `buffer_[idx % n]` per sample (two 64-bit divisions per sample
 // pair: ~93 % of the Iterum Freeze Harmonic Drones render, row P11). findRingSpliceMatch indexes without division and
-// scores four candidates per pass, keeping each candidate's accumulation order. This TU holds the original search
-// verbatim and asserts that both choose the same offset with the same score, bit for bit, over the shifter's buffer
-// geometry (44.1 and 96 kHz), both directions, windows wrapping past index 0, noise, periodic input (near-ties) and
-// silence. A bit-identity claim between two separately compiled computations: it lives in dsp_ieee_tests.
+// scores four (scalar), eight (SSE2) or sixteen (AVX) candidates per pass, keeping each candidate's accumulation order.
+// This TU holds the original search verbatim and asserts that every path this build and CPU run chooses the same offset
+// with the same score, bit for bit, over the shifter's buffer geometry (44.1 and 96 kHz), both directions, windows
+// wrapping past index 0, noise, periodic input (near-ties) and silence. A copy of the original summing oldest sample
+// first must differ in score bits on many searches, or the bit-for-bit assertion could not see a reordered sum. A
+// bit-identity claim between two separately compiled computations: it lives in dsp_ieee_tests.
 
 #include <krate/dsp/core/ring_splice_search.h>
 
@@ -63,6 +65,54 @@ Frozen frozenSearch(const std::vector<float>& buffer_, std::size_t base, bool ol
     return {true, bestOffset, bestScore};
 }
 
+// frozenSearch with each candidate's sums taken oldest sample first: the same products in another order, so in
+// general another rounding. Not a reference: the control that shows the bit-for-bit check can see a reordered sum.
+Frozen reorderedSearch(const std::vector<float>& buffer_, std::size_t base, bool older, std::size_t minOffset,
+                       std::size_t maxOffset, std::size_t matchLength) {
+    const std::size_t n = buffer_.size();
+    auto at = [&](std::size_t offset, std::size_t back) {
+        const std::size_t idx = older ? (base + 2 * n - offset - back) : (base + n + offset - back);
+        return buffer_[idx % n];
+    };
+
+    double outgoingEnergy = 0.0;
+    for (std::size_t j = 0; j < matchLength; ++j) {
+        const float x = at(0, j);
+        outgoingEnergy += static_cast<double>(x) * x;
+    }
+    if (outgoingEnergy <= 1e-12) return {};
+
+    std::size_t bestOffset = maxOffset;
+    double bestScore = -2.0;
+    for (std::size_t offset = minOffset; offset <= maxOffset; ++offset) {
+        double dot = 0.0;
+        double energy = 0.0;
+        for (std::size_t j = matchLength; j-- > 0;) {
+            const float x = at(0, j);
+            const float y = at(offset, j);
+            dot += static_cast<double>(x) * y;
+            energy += static_cast<double>(y) * y;
+        }
+        const double score = (energy > 1e-12) ? dot / std::sqrt(outgoingEnergy * energy) : -1.0;
+        if (score > bestScore) {
+            bestScore = score;
+            bestOffset = offset;
+        }
+    }
+    return {true, bestOffset, bestScore};
+}
+
+using Krate::DSP::detail::RingSplicePath;
+
+const char* pathName(RingSplicePath path) {
+    switch (path) {
+        case RingSplicePath::Scalar: return "scalar";
+        case RingSplicePath::Sse2: return "sse2";
+        case RingSplicePath::Avx: return "avx";
+    }
+    return "?";
+}
+
 enum class Fill : std::uint8_t { Noise, Sine, SineWithNoise, Sparse, Silence };
 
 std::vector<float> makeBuffer(std::size_t n, Fill fill, std::mt19937& rng) {
@@ -86,10 +136,22 @@ std::vector<float> makeBuffer(std::size_t n, Fill fill, std::mt19937& rng) {
 }  // namespace
 
 TEST_CASE("findRingSpliceMatch chooses the frozen search's offset and score bit for bit", "[core][ring_splice]") {
+    std::vector<RingSplicePath> paths;
+    for (const RingSplicePath path : {RingSplicePath::Scalar, RingSplicePath::Sse2, RingSplicePath::Avx}) {
+        if (Krate::DSP::detail::ringSplicePathAvailable(path)) {
+            paths.push_back(path);
+        }
+    }
+#if defined(_M_X64) || defined(__x86_64__)
+    REQUIRE(Krate::DSP::detail::ringSplicePathAvailable(RingSplicePath::Sse2));
+#endif
+    INFO("fastest path " << pathName(Krate::DSP::detail::ringSpliceFastestPath()) << ", " << paths.size()
+                         << " paths checked");
     std::mt19937 rng(0x5EED1234u);
     int compared = 0;
     int wrapped = 0;
     int silent = 0;
+    int reorderVisible = 0;
     for (const double sampleRate : {44100.0, 96000.0}) {
         // PitchSyncGranularShifter::prepare: maxGrainSamples_ = 30 ms, bufferSize_ = 4 * maxGrain + 64.
         const auto maxGrain = static_cast<std::size_t>(30.0f * 0.001f * static_cast<float>(sampleRate));
@@ -117,19 +179,38 @@ TEST_CASE("findRingSpliceMatch chooses the frozen search's offset and score bit 
                 if (minOffset > maxOffset) std::swap(minOffset, maxOffset);
 
                 const Frozen want = frozenSearch(buffer, base, older, minOffset, maxOffset, matchLength);
-                const auto got = Krate::DSP::detail::findRingSpliceMatch(buffer.data(), n, base, older, minOffset,
-                                                                         maxOffset, matchLength);
                 INFO("rate " << sampleRate << " fill " << static_cast<int>(fill) << " trial " << trial << " base "
                              << base << " older " << older << " offsets [" << minOffset << ", " << maxOffset
                              << "] match " << matchLength);
-                REQUIRE(got.found == want.found);
+                for (const RingSplicePath path : paths) {
+                    INFO("path " << pathName(path));
+                    const auto got = Krate::DSP::detail::findRingSpliceMatch(buffer.data(), n, base, older, minOffset,
+                                                                             maxOffset, matchLength, path);
+                    REQUIRE(got.found == want.found);
+                    if (want.found) {
+                        CHECK(got.offset == want.offset);
+                        CHECK(got.score == want.score);  // bit for bit: the same operations in the same order
+                    }
+                }
+                {
+                    INFO("path fastest (no path argument)");
+                    const auto got = Krate::DSP::detail::findRingSpliceMatch(buffer.data(), n, base, older, minOffset,
+                                                                             maxOffset, matchLength);
+                    REQUIRE(got.found == want.found);
+                    if (want.found) {
+                        CHECK(got.offset == want.offset);
+                        CHECK(got.score == want.score);
+                    }
+                }
                 if (!want.found) {
                     ++silent;
                     continue;
                 }
-                CHECK(got.offset == want.offset);
-                CHECK(got.score == want.score);  // bit for bit: the same operations in the same order
                 ++compared;
+                const Frozen reordered = reorderedSearch(buffer, base, older, minOffset, maxOffset, matchLength);
+                if (reordered.score != want.score) {
+                    ++reorderVisible;
+                }
                 for (std::size_t offset = minOffset; offset <= maxOffset; ++offset) {
                     const std::size_t end = older ? (base + n - offset) % n : (base + offset) % n;
                     if (end + 1 < matchLength) {  // this candidate's window crosses index 0
@@ -140,10 +221,12 @@ TEST_CASE("findRingSpliceMatch chooses the frozen search's offset and score bit 
             }
         }
     }
-    INFO("compared " << compared << ", wrapping " << wrapped << ", silent " << silent);
+    INFO("compared " << compared << ", wrapping " << wrapped << ", silent " << silent << ", reordered sum visible "
+                     << reorderVisible);
     CHECK(compared > 400);
     CHECK(wrapped > 50);  // windows that cross index 0 take the per-candidate path
     CHECK(silent >= 120);
+    CHECK(reorderVisible > compared / 4);  // the score comparison sees a sum taken in another order
 }
 
 TEST_CASE("findRingSpliceMatch on a periodic buffer lands a period away, as the frozen search does",

@@ -2945,7 +2945,7 @@
       "scope": "Krate::DSP::detail",
       "layer": "core",
       "header": "dsp/include/krate/dsp/core/ring_splice_search.h",
-      "line": 39
+      "line": 174
     },
     {
       "name": "RollingCaptureBuffer",
