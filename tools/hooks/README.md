@@ -9,6 +9,7 @@ hooks **fail open** (exit 0) on any parse/IO error — a hook must never wedge t
 |------|-------|----------|--------|
 | [`guard-version-h.js`](guard-version-h.js) | PreToolUse | `Edit` / `Write` / `MultiEdit` targeting `plugins/*/src/version.h` (generated) | **Blocks** — redirects to `version.json`, then rebuild |
 | [`guard-changelog.js`](guard-changelog.js) | PreToolUse | `Bash` `git commit` saying `release X.Y.Z` for a plugin whose `CHANGELOG.md` has no `## [X.Y.Z]` | **Blocks** — add the CHANGELOG entry in the same commit |
+| [`guard-ci-gates.js`](guard-ci-gates.js) | PreToolUse | `Bash` `git commit` | **Blocks** on stale generated artifacts, a failing CI lint, or a failing `node --test` suite of `feed-tools.yml` / `manager-ci.yml` (run only when a staged path matches that workflow's `on.push.paths`, ~25 s) |
 | [`remind-rt-safety.js`](remind-rt-safety.js) | PostToolUse | `Edit` / `Write` / `MultiEdit` under `**/src/processor/**`, `**/src/engine/**`, or `dsp/` (excl. `dsp/tests/`) | **Reminds** (once/session) to apply the RT-safety review lens + layer rule; never blocks |
 
 The RT-safety reminder deliberately does **not** grep for `new`/`malloc`/`lock` — those appear

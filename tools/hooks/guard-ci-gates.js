@@ -49,6 +49,80 @@ const LINTS = [
     { script: 'lint-wallclock-tags.js', what: 'wall-clock-asserting test case without [wallclock]' },
 ];
 
+// Node test suites of the other workflows (2026-11-13: an action-pin commit edited .github/workflows/*.yml and the PR
+// failed instantly in feed-tools.yml's node --test, which no gate above runs). A suite runs only when a staged path
+// matches the workflow's own on.push.paths filter, read from the workflow file, so the hook triggers exactly when CI
+// does (the feed-contract suite costs ~25 s).
+// `deps`: directories whose untracked node_modules the suite requires (ajv etc.); an exported staged tree gets a link to
+// the checkout's copy.
+const NODE_SUITES = [
+    { workflow: 'feed-tools.yml', cwd: '.', deps: ['tools/feed-contract'],
+      args: ['--test', '--test-reporter=dot', 'tools/feed-contract/tests/*.test.js'] },
+    { workflow: 'manager-ci.yml', cwd: 'apps/krate-manager', deps: ['apps/krate-manager'],
+      args: ['--test', '--test-reporter=dot', 'scripts/*.test.js'] },
+];
+
+/// Links <root>/<dep>/node_modules into an exported tree; returns the links made (removed before the tree is).
+function linkNodeModules(root, dir, suites) {
+    const links = [];
+    if (path.resolve(dir) === path.resolve(root)) return links;
+    for (const dep of new Set(suites.flatMap((s) => s.deps))) {
+        const target = path.join(root, dep, 'node_modules');
+        const link = path.join(dir, dep, 'node_modules');
+        if (!fs.existsSync(target) || fs.existsSync(link)) continue;
+        try {
+            fs.symlinkSync(target, link, 'junction');
+            links.push(link);
+        } catch { /* the suite then reports the missing module itself */ }
+    }
+    return links;
+}
+
+/// The `- '<glob>'` entries of on.push.paths in a workflow, as regexes (empty when there are none).
+function pushPathFilters(root, workflow) {
+    let lines;
+    try {
+        lines = fs.readFileSync(path.join(root, '.github', 'workflows', workflow), 'utf8').split(/\r?\n/);
+    } catch {
+        return [];
+    }
+    const out = [];
+    let inOn = false, inPush = false, inPaths = false;
+    for (const line of lines) {
+        if (/^\S/.test(line)) { inOn = /^on:/.test(line); inPush = inPaths = false; continue; }
+        if (!inOn) continue;
+        if (/^ {2}\S/.test(line)) { inPush = /^ {2}push:/.test(line); inPaths = false; continue; }
+        if (!inPush) continue;
+        if (/^ {4}\S/.test(line)) { inPaths = /^ {4}paths:/.test(line); continue; }
+        const m = inPaths && /^ {6}- '([^']+)'/.exec(line);
+        if (!m) continue;
+        const re = m[1].replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*\*/g, '\0').replace(/\*/g, '[^/]*').replace(/\0/g, '.*');
+        out.push(new RegExp(`^${re}$`));
+    }
+    return out;
+}
+
+function stagedPaths(root) {
+    try {
+        return execFileSync('git', ['diff', '--cached', '--name-only'], { cwd: root, maxBuffer: 64 << 20 })
+            .toString().split(/\r?\n/).filter(Boolean);
+    } catch {
+        return [];
+    }
+}
+
+/// Run a node --test suite; return its failure tail, or null when it passed or could not be run.
+function runNodeSuite(dir, suite) {
+    try {
+        execFileSync(process.execPath, suite.args, { cwd: path.join(dir, suite.cwd), stdio: 'pipe', timeout: 240000 });
+        return null;
+    } catch (err) {
+        if (typeof err.status !== 'number' || err.status === 0) return null;
+        const out = `${err.stdout || ''}${err.stderr || ''}`.toString().trim().split(/\r?\n/);
+        return out.slice(-40).join('\n') || `node ${suite.args.join(' ')} exited ${err.status}`;
+    }
+}
+
 function readStdin() {
     return new Promise((resolve) => {
         let data = '';
@@ -140,9 +214,17 @@ function runGate(root, script, args) {
     const cmd = (payload && payload.tool_input && payload.tool_input.command) || '';
     if (!cmd || !isGitCommit(cmd)) process.exit(0);
 
-    const tree = stagedTree(repoRoot());
+    const root = repoRoot();
+    const staged = stagedPaths(root);
+    const suites = NODE_SUITES.filter((s) => {
+        const filters = pushPathFilters(root, s.workflow);
+        return staged.some((p) => filters.some((re) => re.test(p)));
+    });
+    const tree = stagedTree(root);
     const stale = [];
     const lintFailures = [];
+    const suiteFailures = [];
+    const links = linkNodeModules(root, tree.dir, suites);
 
     try {
         for (const { script, artifact } of GENERATORS) {
@@ -152,11 +234,19 @@ function runGate(root, script, args) {
             const out = runGate(tree.dir, script, []);
             if (out !== null) lintFailures.push({ script, what, out });
         }
+        for (const suite of suites) {
+            const out = runNodeSuite(tree.dir, suite);
+            if (out !== null) suiteFailures.push({ suite, out });
+        }
     } finally {
-        tree.cleanup();
+        // Unlink first: the tree's recursive delete must never reach the checkout's node_modules through a link.
+        for (const link of links) {
+            try { fs.unlinkSync(link); } catch { try { fs.rmdirSync(link); } catch { /* left for the tree cleanup */ } }
+        }
+        if (links.every((l) => !fs.existsSync(l))) tree.cleanup();
     }
 
-    if (stale.length === 0 && lintFailures.length === 0) process.exit(0);
+    if (stale.length === 0 && lintFailures.length === 0 && suiteFailures.length === 0) process.exit(0);
 
     let msg = 'BLOCKED: cheap CI gates fail on this tree, so the push will go red.\n\n';
 
@@ -171,6 +261,10 @@ function runGate(root, script, args) {
 
     for (const f of lintFailures) {
         msg += `Lint failed: ${f.what}  (node tools/${f.script})\n\n${f.out}\n\n`;
+    }
+
+    for (const f of suiteFailures) {
+        msg += `${f.suite.workflow} node tests failed  (cd ${f.suite.cwd} && node ${f.suite.args.join(' ')})\n\n${f.out}\n\n`;
     }
 
     process.stderr.write(msg);
