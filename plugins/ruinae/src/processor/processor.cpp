@@ -280,7 +280,7 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
 
     // Process MIDI events (FR-006: branches on arp enabled state)
     if (data.inputEvents) {
-        processEvents(data.inputEvents);
+        processEvents(data.inputEvents, data.numSamples);
     }
 
     // Arp block processing (FR-007, FR-017, FR-018)
@@ -339,7 +339,10 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
                 }
                 // Only dispatch note events to engine in MIDI/MIDI+Mod modes
                 if (isArpDispatchingNotes) {
-                    engine_.noteOn(evt.note, evt.velocity, evt.legato);
+                    queueTimedEvent({.offset = static_cast<uint32_t>(std::clamp<Steinberg::int32>(
+                                         evt.sampleOffset, 0, std::max<Steinberg::int32>(data.numSamples - 1, 0))),
+                                     .kind = TimedEventKind::ArpNoteOn, .pitch = evt.note,
+                                     .velocity = evt.velocity, .legato = evt.legato});
                     if (midiOutEnabled && data.outputEvents) {
                         Steinberg::Vst::Event e{};
                         e.busIndex = 0;
@@ -356,7 +359,9 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
                 }
             } else if (evt.type == Krate::DSP::ArpEvent::Type::NoteOff) {
                 if (isArpDispatchingNotes) {
-                    engine_.noteOff(evt.note);
+                    queueTimedEvent({.offset = static_cast<uint32_t>(std::clamp<Steinberg::int32>(
+                                         evt.sampleOffset, 0, std::max<Steinberg::int32>(data.numSamples - 1, 0))),
+                                     .kind = TimedEventKind::ArpNoteOff, .pitch = evt.note});
                     if (midiOutEnabled && data.outputEvents) {
                         Steinberg::Vst::Event e{};
                         e.busIndex = 0;
@@ -427,13 +432,15 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
         }
     }
 
-    // Check if we have audio to process
+    // Check if we have audio to process (queued notes still take effect)
     if (data.numSamples == 0) {
+        flushTimedEvents();
         return Steinberg::kResultTrue;
     }
 
     // Verify we have valid output
     if (data.numOutputs == 0 || data.outputs[0].numChannels < 2) {
+        flushTimedEvents();
         return Steinberg::kResultTrue;
     }
 
@@ -441,6 +448,7 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
     float* outputR = data.outputs[0].channelBuffers32[1];
 
     if (!outputL || !outputR) {
+        flushTimedEvents();
         return Steinberg::kResultTrue;
     }
 
@@ -479,9 +487,6 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
         }
     }
 
-    // Pass sidechain to engine (overrides self-analysis when connected)
-    engine_.setSidechainInput(sidechainL, sidechainR);
-
     // Write sidechain active state as output parameter for UI indicator
     if (data.outputParameterChanges) {
         float activeVal = sidechainActive ? 1.0f : 0.0f;
@@ -497,8 +502,10 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
         }
     }
 
-    // Process audio through the engine
-    engine_.processBlock(outputL, outputR, numSamples);
+    // Process audio through the engine, in segments split at the queued note
+    // events so each note starts and stops at its own sample. The sidechain
+    // (which overrides self-analysis when connected) follows each segment.
+    renderEngineSegments(outputL, outputR, numSamples, blockCtx, sidechainL, sidechainR);
 
     // Update morph pad modulated position for UI animation
     {
