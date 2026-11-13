@@ -360,3 +360,22 @@ TEST_CASE("TransientDetector implements ModulationSource interface", "[processor
     REQUIRE(range.first == Approx(0.0f));
     REQUIRE(range.second == Approx(1.0f));
 }
+
+TEST_CASE("TransientDetector trigger fires the envelope to a level without audio", "[processors][transient]") {
+    TransientDetector detector = makeDetector(0.5f);  // attack 2 ms, decay 50 ms
+    detector.trigger(0.6f);
+    float peak = 0.0f;
+    for (int i = 0; i < 441; ++i) {  // 10 ms of silence: the attack runs to 0.6, then decays
+        detector.process(0.0f);
+        peak = std::max(peak, detector.getCurrentValue());
+    }
+    CHECK(peak == Approx(0.6f).margin(1e-6f));
+    CHECK(detector.getCurrentValue() < 0.6f);
+    const float before = detector.getCurrentValue();
+    detector.trigger(0.1f);  // below the running envelope: no change
+    detector.process(0.0f);
+    CHECK(detector.getCurrentValue() < before);
+    detector.trigger(1.0f);  // above it: rises again
+    for (int i = 0; i < 100; ++i) detector.process(0.0f);
+    CHECK(detector.getCurrentValue() > 0.9f);
+}

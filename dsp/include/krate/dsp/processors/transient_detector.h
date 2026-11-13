@@ -64,6 +64,7 @@ public:
         slowLevel_ = 0.0f;
         armed_ = true;
         envelope_ = 0.0f;
+        attackTarget_ = 1.0f;
         state_ = State::Idle;
     }
 
@@ -101,10 +102,10 @@ public:
                     // Retrigger from current level (FR-053)
                     triggerAttack();
                 }
-                // Linear ramp toward 1.0
+                // Linear ramp toward the target (1.0 for a detected transient)
                 envelope_ += attackIncrement_;
-                if (envelope_ >= 1.0f) {
-                    envelope_ = 1.0f;
+                if (envelope_ >= attackTarget_) {
+                    envelope_ = attackTarget_;
                     state_ = State::Decay;
                 }
                 break;
@@ -132,6 +133,16 @@ public:
 
     [[nodiscard]] std::pair<float, float> getSourceRange() const noexcept override {
         return {0.0f, 1.0f};
+    }
+
+    /// @brief Fire the envelope from outside the audio (e.g. a note-on): it rises over the attack
+    /// time to `level` (clamped to [0, 1]) and decays as usual. A level at or below the current value
+    /// leaves the envelope running as it is.
+    void trigger(float level) noexcept {
+        const float target = std::clamp(level, 0.0f, 1.0f);
+        if (target > envelope_) {
+            triggerAttack(target);
+        }
     }
 
     // Parameter setters
@@ -194,10 +205,11 @@ private:
         rearmRatio_ = std::pow(10.0f, thresholdDb / 40.0f);
     }
 
-    void triggerAttack() noexcept {
+    void triggerAttack(float target = 1.0f) noexcept {
         state_ = State::Attack;
-        // Recalculate increment from current level to 1.0
-        float remaining = 1.0f - envelope_;
+        attackTarget_ = target;
+        // Recalculate increment from current level to the target
+        float remaining = attackTarget_ - envelope_;
         float attackSamples = attackMs_ * 0.001f * static_cast<float>(sampleRate_);
         attackIncrement_ = (attackSamples > 0.0f && remaining > 0.0f)
                            ? (remaining / attackSamples)
@@ -224,6 +236,7 @@ private:
 
     // Attack ramp
     float attackIncrement_ = 0.0f;
+    float attackTarget_ = 1.0f;
 
     // Decay
     float decayCoeff_ = 0.0f;

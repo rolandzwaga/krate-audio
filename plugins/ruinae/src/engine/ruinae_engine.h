@@ -188,6 +188,7 @@ public:
         for (auto& voice : voices_) {
             voice.reset();
         }
+        pendingTransientLevel_ = 0.0f;
         allocator_.reset();
         [[maybe_unused]] auto resetEvents = allocator_.setVoiceCount(polyphonyCount_);
         monoHandler_.reset();
@@ -236,6 +237,9 @@ public:
         } else {
             // Retrigger global LFOs on non-legato note-on (if retrigger enabled)
             globalModEngine_.noteOn();
+            // Without a sidechain the Transient source fires on this note (processBlock decides,
+            // once it knows whether this block has a sidechain), peaking at the velocity
+            pendingTransientLevel_ = std::max(pendingTransientLevel_, static_cast<float>(velocity) / 127.0f);
 
             if (mode_ == VoiceMode::Poly) {
                 dispatchPolyNoteOn(note, velocity);
@@ -810,9 +814,18 @@ public:
         }
 
         // Step 3: Process global modulation with audio input
-        // Use sidechain if connected, otherwise fall back to previous block's output
-        const float* modAudioL = sidechainL_ ? sidechainL_ : previousOutputL_.data();
-        const float* modAudioR = sidechainR_ ? sidechainR_ : previousOutputR_.data();
+        // Use sidechain if connected, otherwise fall back to previous block's output.
+        // The Transient source detects a connected sidechain's audio; without one it fires on the
+        // block's non-legato note-ons (a chord struck over the previous one's release is too small
+        // a level rise in the synth's own output to detect).
+        const bool sidechainConnected = sidechainL_ != nullptr;
+        const float* modAudioL = sidechainConnected ? sidechainL_ : previousOutputL_.data();
+        const float* modAudioR = sidechainConnected ? sidechainR_ : previousOutputR_.data();
+        globalModEngine_.setTransientAudioDetection(sidechainConnected);
+        if (!sidechainConnected && pendingTransientLevel_ > 0.0f) {
+            globalModEngine_.triggerTransient(pendingTransientLevel_);
+        }
+        pendingTransientLevel_ = 0.0f;
         globalModEngine_.process(ctx, modAudioL, modAudioR, numSamples);
         // Clear sidechain pointers (must be re-set each block by processor)
         sidechainL_ = nullptr;
@@ -2109,6 +2122,8 @@ private:
     // Sidechain input pointers (set per block, cleared after use)
     const float* sidechainL_ = nullptr;
     const float* sidechainR_ = nullptr;
+    // Strongest non-legato note-on since the last block, velocity / 127 (Transient source)
+    float pendingTransientLevel_ = 0.0f;
 
     // =========================================================================
     // State

@@ -240,7 +240,7 @@ public:
 
                 // Process transient detector only if routed
                 if (sourceActive_[static_cast<size_t>(ModSource::Transient)]) {
-                    transient_.process(monoInput);
+                    transient_.process(transientAudioDetection_ ? monoInput : 0.0f);
                 }
             }
         }
@@ -533,6 +533,13 @@ public:
     void setTransientSensitivity(float sensitivity) noexcept { transient_.setSensitivity(sensitivity); }
     void setTransientAttack(float ms) noexcept { transient_.setAttackTime(ms); }
     void setTransientDecay(float ms) noexcept { transient_.setDecayTime(ms); }
+
+    /// @brief Whether the transient detector listens to the audio input (default) or only to
+    /// triggerTransient() (an instrument without a sidechain fires it from its note-ons).
+    void setTransientAudioDetection(bool enabled) noexcept { transientAudioDetection_ = enabled; }
+
+    /// @brief Fire the transient envelope from outside the audio, peaking at `level` [0, 1].
+    void triggerTransient(float level) noexcept { transient_.trigger(level); }
 
     // =========================================================================
     // Rungler Parameters (Spec 057, FR-008)
@@ -828,6 +835,7 @@ private:
     SampleHoldSource sampleHold_;
     PitchFollowerSource pitchFollower_;
     TransientDetector transient_;
+    bool transientAudioDetection_ = true;
     Rungler rungler_;
 
     // Cached LFO output values (last sample in block)
