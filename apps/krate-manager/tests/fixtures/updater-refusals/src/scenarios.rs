@@ -5,8 +5,8 @@
 use crate::keys::{self, ScenarioKey};
 use crate::socks::SocksRelay;
 use crate::{
-    ANY, HarnessError, LOOPBACK, Plant, bind_loopback, bind_loopback_listener, bind_refusing_loopback,
-    confinement,
+    ANY, HarnessError, LOOPBACK, Plant, bind_loopback, bind_loopback_listener,
+    bind_refusing_loopback, confinement,
 };
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD;

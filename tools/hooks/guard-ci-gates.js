@@ -81,6 +81,28 @@ const NODE_SUITES = [
       args: ['--test', '--test-reporter=dot', 'scripts/*.test.js'] },
 ];
 
+// rustfmt checks of the workflows (2026-11-14: a harness edit passed clippy and every test locally, then manager-ci.yml's
+// `cargo fmt --check` went red on main: nothing ran rustfmt before the commit). Same trigger as NODE_SUITES: a staged
+// path under the workflow's on.push.paths. rustfmt needs no build (~1 s). tools/lint-gate-mirrors-ci.js requires one
+// entry here per `cargo fmt ... --check` a workflow runs, with the same arguments.
+const CARGO_FMT = [
+    { workflow: 'manager-ci.yml', cwd: 'apps/krate-manager', args: ['fmt', '--all', '--check'] },
+    { workflow: 'manager-ci.yml', cwd: 'apps/krate-manager',
+      args: ['fmt', '--check', '--manifest-path', 'tests/fixtures/updater-refusals/Cargo.toml'] },
+];
+
+/// Run a cargo fmt check; return its diff tail, or null when it passed or cargo could not be run.
+function runCargoFmt(dir, check) {
+    try {
+        execFileSync('cargo', check.args, { cwd: path.join(dir, check.cwd), stdio: 'pipe', timeout: 120000 });
+        return null;
+    } catch (err) {
+        if (typeof err.status !== 'number' || err.status === 0) return null;
+        const out = `${err.stdout || ''}${err.stderr || ''}`.toString().trim().split(/\r?\n/);
+        return out.slice(-40).join('\n') || `cargo ${check.args.join(' ')} exited ${err.status}`;
+    }
+}
+
 /// Links <root>/<dep>/node_modules into an exported tree; returns the links made (removed before the tree is).
 function linkNodeModules(root, dir, suites) {
     const links = [];
@@ -236,14 +258,17 @@ function runGate(root, script, args, env) {
 
     const root = repoRoot();
     const staged = stagedPaths(root);
-    const suites = NODE_SUITES.filter((s) => {
+    const triggered = (s) => {
         const filters = pushPathFilters(root, s.workflow);
         return staged.some((p) => filters.some((re) => re.test(p)));
-    });
+    };
+    const suites = NODE_SUITES.filter(triggered);
+    const fmtChecks = CARGO_FMT.filter(triggered);
     const tree = stagedTree(root);
     const stale = [];
     const lintFailures = [];
     const suiteFailures = [];
+    const fmtFailures = [];
     const links = linkNodeModules(root, tree.dir, suites);
 
     try {
@@ -267,6 +292,10 @@ function runGate(root, script, args, env) {
             const out = runNodeSuite(tree.dir, suite);
             if (out !== null) suiteFailures.push({ suite, out });
         }
+        for (const check of fmtChecks) {
+            const out = runCargoFmt(tree.dir, check);
+            if (out !== null) fmtFailures.push({ check, out });
+        }
     } finally {
         // Unlink first: the tree's recursive delete must never reach the checkout's node_modules through a link.
         for (const link of links) {
@@ -275,7 +304,9 @@ function runGate(root, script, args, env) {
         if (links.every((l) => !fs.existsSync(l))) tree.cleanup();
     }
 
-    if (stale.length === 0 && lintFailures.length === 0 && suiteFailures.length === 0) process.exit(0);
+    if (stale.length === 0 && lintFailures.length === 0 && suiteFailures.length === 0 && fmtFailures.length === 0) {
+        process.exit(0);
+    }
 
     let msg = 'BLOCKED: cheap CI gates fail on this tree, so the push will go red.\n\n';
 
@@ -294,6 +325,12 @@ function runGate(root, script, args, env) {
 
     for (const f of suiteFailures) {
         msg += `${f.suite.workflow} node tests failed  (cd ${f.suite.cwd} && node ${f.suite.args.join(' ')})\n\n${f.out}\n\n`;
+    }
+
+    for (const f of fmtFailures) {
+        const fix = f.check.args.filter((a) => a !== '--check').join(' ');
+        msg += `${f.check.workflow} rustfmt check failed  (cd ${f.check.cwd} && cargo ${f.check.args.join(' ')}; ` +
+               `fix: cargo ${fix})\n\n${f.out}\n\n`;
     }
 
     process.stderr.write(msg);

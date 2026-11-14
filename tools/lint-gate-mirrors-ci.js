@@ -9,13 +9,15 @@
 //   node [../]*tools/lint-*.js [--self-test]  ->  a guard LINTS entry with that script (and args)
 //   node [../]*tools/gen-*.js --check         ->  a guard GENERATORS entry with that script
 //   node --test ... "<glob>"                  ->  a guard NODE_SUITES entry whose args hold that glob
+//   cargo fmt ... --check ...                 ->  a guard CARGO_FMT entry with the same arguments (any order)
 //
 // WHY. Every CI red on this branch's PR came from a check that ran in CI and not before the commit: six ci.yml lints
 // the gate did not list, then feed-tools.yml's `node --test` suite (an action-pin commit broke its shape tests), each
-// found only after a push (2026-11-13/14). The gate's lists were kept by hand; this lint makes CI the source of truth.
+// found only after a push (2026-11-13/14), then manager-ci.yml's `cargo fmt --check` on a harness edit that had passed
+// clippy and every test (2026-11-14). The gate's lists were kept by hand; this lint makes CI the source of truth.
 //
-// Commands that need build output or the network (check-bundle.js over built bundles, cargo, cmake, ctest) cannot run
-// in a commit hook; they are named in CI_ONLY with the reason.
+// Commands that need build output or the network (check-bundle.js over built bundles, cargo build/clippy/test, cmake,
+// ctest) cannot run in a commit hook; they are named in CI_ONLY with the reason, or are not a mirrored kind.
 // Usage: node tools/lint-gate-mirrors-ci.js [--self-test]
 // Exit codes: 0 = clean, 1 = violations found, 2 = internal error.
 // =============================================================================
@@ -47,9 +49,18 @@ function workflowChecks(text) {
     }
     const t = /\bnode\s+--test\b[^"']*["']([^"']+)["']/.exec(line);
     if (t) out.push({ kind: 'suite', glob: t[1], line: i + 1 });
+    // A `cargo fmt` without --check rewrites files; only the check form is a gate. Only a command counts, not an
+    // `echo "... cargo fmt --check clean"` message, so the match is anchored at the start of the command.
+    const f = /^\s*(?:-\s+)?(?:run:\s*)?(?:if\s+)?cargo\s+fmt\b([^|;&>"']*)/.exec(line);
+    if (f) {
+      const args = f[1].trim().split(/\s+/).filter(Boolean);
+      if (args.includes('--check')) out.push({ kind: 'fmt', args, line: i + 1 });
+    }
   });
   return out;
 }
+
+const fmtKey = (args) => [...args].sort().join(' ');
 
 /** What the gate mirrors, read from guard-ci-gates.js's source. */
 function gateMirrors(src) {
@@ -60,7 +71,9 @@ function gateMirrors(src) {
   }
   const gens = new Set([...src.matchAll(/\{\s*script:\s*'(gen-[\w-]+\.js)'/g)].map((m) => m[1]));
   const globs = new Set([...src.matchAll(/'([\w./-]*\*[\w./*-]*\.test\.js)'/g)].map((m) => m[1]));
-  return { lints, gens, globs };
+  const fmts = new Set([...src.matchAll(/args:\s*\[\s*'fmt',([^\]]*)\]/g)].map((m) =>
+    fmtKey(m[1].split(',').map((s) => s.trim().replace(/^'|'$/g, '')).filter(Boolean))));
+  return { lints, gens, globs, fmts };
 }
 
 function missing(checks, mirrors) {
@@ -69,16 +82,23 @@ function missing(checks, mirrors) {
     if (c.kind === 'lint' && !mirrors.lints.has([c.script, ...c.args].join(' '))) out.push(c);
     if (c.kind === 'gen' && !CI_ONLY.has(c.script) && !mirrors.gens.has(c.script)) out.push(c);
     if (c.kind === 'suite' && !mirrors.globs.has(c.glob)) out.push(c);
+    if (c.kind === 'fmt' && !mirrors.fmts.has(fmtKey(c.args))) out.push(c);
   }
   return out;
 }
 
-const describe = (c) => (c.kind === 'suite' ? `node --test "${c.glob}"` : `node tools/${[c.script, ...c.args].join(' ')}`);
+const describe = (c) => {
+  if (c.kind === 'suite') return `node --test "${c.glob}"`;
+  if (c.kind === 'fmt') return `cargo fmt ${c.args.join(' ')}`;
+  return `node tools/${[c.script, ...c.args].join(' ')}`;
+};
 
 function selfTest() {
   const gate = "const GENERATORS = [{ script: 'gen-repo-map.js', artifact: 'x' }];\n" +
     "const LINTS = [{ script: 'lint-odr.js', what: 'x' }, { script: 'lint-x.js', args: ['--self-test'], what: 'y' }];\n" +
-    "const NODE_SUITES = [{ workflow: 'feed-tools.yml', args: ['--test', 'tools/feed-contract/tests/*.test.js'] }];\n";
+    "const NODE_SUITES = [{ workflow: 'feed-tools.yml', args: ['--test', 'tools/feed-contract/tests/*.test.js'] }];\n" +
+    "const CARGO_FMT = [{ workflow: 'm.yml', cwd: 'a', args: ['fmt', '--all', '--check'] },\n" +
+    "    { workflow: 'm.yml', cwd: 'a', args: ['fmt', '--check', '--manifest-path', 'f/Cargo.toml'] }];\n";
   const cases = [
     ['        run: node tools/lint-odr.js\n', 0],
     ['        run: node tools/lint-new.js\n', 1],
@@ -90,6 +110,13 @@ function selfTest() {
     ['        run: node ../../tools/lint-manager-version.js\n', 1],
     ['      # node tools/lint-commented.js\n', 0],
     ['        run: node tools/gen-release-manifest.js --version-json x.json\n', 0],
+    ['          cargo fmt --all --check\n', 0],
+    ['          cargo fmt --check --manifest-path f/Cargo.toml || frc=$?\n', 0],
+    ['          cargo fmt --check --manifest-path g/Cargo.toml || frc=$?\n', 1],
+    ['          cargo fmt --all\n', 0],
+    ['            echo "::notice title=x::clippy and cargo fmt --check --x clean"\n', 0],
+    ['        run: cargo fmt --check --y\n', 1],
+    ['          cargo clippy --workspace -- -D warnings\n', 0],
   ];
   const mirrors = gateMirrors(gate);
   let failed = 0;
@@ -116,8 +143,9 @@ function main() {
     }
   }
   if (bad > 0) {
-    console.log('lint-gate-mirrors-ci: FAILED. Add each to guard-ci-gates.js (LINTS with its args, GENERATORS, or a\n' +
-                'NODE_SUITES entry with the workflow and glob) so it runs before the commit, not first on CI. A check\n' +
+    console.log('lint-gate-mirrors-ci: FAILED. Add each to guard-ci-gates.js (LINTS with its args, GENERATORS, a\n' +
+                'NODE_SUITES entry with the workflow and glob, or a CARGO_FMT entry with the workflow, cwd and args) so\n' +
+                'it runs before the commit, not first on CI. A check\n' +
                 'that cannot run in a hook goes in CI_ONLY here, with the reason.');
     return 1;
   }
