@@ -41,6 +41,16 @@
 // The rule therefore fires only when BOTH appear in one file: float->integer
 // bit reinterpretation, AND a hash accumulation consuming it.
 //
+// RULE 2 - a byte-stream golden fed by inexact float arithmetic. The exemption
+// above holds only while the stored floats are literals. In a file that pins a
+// golden hash (a `k...Golden...` constant or the 32-bit FNV offset basis), a
+// float literal multiplied or divided with a variable must be exactly
+// representable with a power-of-two denominator (1.5f, 0.0078125f; not 0.01f):
+// `0.25f + 0.01f * i` rounds twice when compiled as written and once when the
+// compiler fuses it into an FMA, so the stored bytes and the hash follow the
+// toolchain. The shared arp-prefix golden (arp_shared_prefix_golden.h) went red
+// on the Linux CI leg only, 2026-11-14: its FNV is exactly the fused result.
+//
 // Usage:
 //   node tools/lint-float-bit-goldens.js          # report and exit 1 on hits
 //
@@ -100,11 +110,42 @@ function matchLines(lines, patterns) {
   return hits;
 }
 
+// Rule 2: a file pinning a golden hash, and float literals in arithmetic with a variable.
+const GOLDEN_HASH_RE = /\bk\w*Golden\w*\s*=\s*0x[0-9a-f]+|\b2166136261u?\b/i;
+const LITERAL_ARITH_RE =
+  /(?:^|[^\w.])((?:\d+\.\d*|\.\d+)(?:e[+-]?\d+)?)f?\s*[*/]\s*[A-Za-z_(]|[A-Za-z_)\]]\s*[*/]\s*((?:\d+\.\d*|\.\d+)(?:e[+-]?\d+)?)f?\b/gi;
+
+/// True when the decimal literal is k / 2^n for some n <= 24 (exact in float, so a product with a small integer and
+/// a sum with another such value round the same with or without FMA contraction).
+function isDyadic(literal) {
+  const v = Number(literal);
+  if (!Number.isFinite(v)) return false;
+  for (let n = 0; n <= 24; ++n) {
+    const scaled = v * 2 ** n;
+    if (Number.isInteger(scaled)) return true;
+  }
+  return false;
+}
+
+function inexactGoldenInputs(lines) {
+  if (!lines.some((l) => !l.trimStart().startsWith('//') && GOLDEN_HASH_RE.test(l))) return [];
+  const hits = [];
+  lines.forEach((line, i) => {
+    const code = line.replace(/\/\/.*$/, '');
+    for (const m of code.matchAll(LITERAL_ARITH_RE)) {
+      const literal = m[1] || m[2];
+      if (literal && !isDyadic(literal)) hits.push({ line: i + 1, text: line.trim(), literal });
+    }
+  });
+  return hits;
+}
+
 function main() {
   const files = [];
   for (const d of SCAN_DIRS) walk(path.join(REPO_ROOT, d), files);
 
   const violations = [];
+  const inexact = [];
   for (const file of files) {
     let text;
     try {
@@ -114,6 +155,8 @@ function main() {
     }
     const lines = text.replace(/\r\n/g, '\n').split('\n');
 
+    for (const h of inexactGoldenInputs(lines)) inexact.push({ file: path.relative(REPO_ROOT, file), ...h });
+
     const bitHits = matchLines(lines, FLOAT_BITS_PATTERNS);
     if (bitHits.length === 0) continue;
     const hashHits = matchLines(lines, HASH_ACCUM_PATTERNS);
@@ -122,7 +165,18 @@ function main() {
     violations.push({ file: path.relative(REPO_ROOT, file), bitHits, hashHits });
   }
 
+  if (inexact.length > 0) {
+    console.error('lint-float-bit-goldens: golden hash fed by inexact float arithmetic\n');
+    for (const h of inexact) console.error(`  ${h.file}:${h.line}: ${h.text}   <-- ${h.literal} is not k / 2^n`);
+    console.error(
+      '\nIn a file pinning a golden hash, a float literal multiplied or divided with a variable must be exact\n' +
+      '(a power-of-two denominator): otherwise FMA contraction changes the stored value and the hash per\n' +
+      'toolchain (the Linux CI leg fuses, MSVC does not). Use e.g. i / 128.0f instead of 0.01f * i.\n'
+    );
+  }
+
   if (violations.length === 0) {
+    if (inexact.length > 0) return 1;
     console.log(`lint-float-bit-goldens: clean (${files.length} files scanned)`);
     return 0;
   }
