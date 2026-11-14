@@ -18,6 +18,7 @@
 #include <array>
 #include <cmath>
 #include <memory>
+#include <numbers>
 #include <vector>
 
 using namespace Disrumpo;
@@ -39,17 +40,17 @@ TEST_CASE("Integration: 4 bands with independent oversampling factors",
         bands.back()->prepare(44100.0, 512);
     }
 
-    // Assign different types to each band (covering all 3 oversample factors)
+    // Assign different types to each band (covering all 4 oversample factors)
     bands[0]->setDistortionType(DistortionType::HardClip);     // 4x
-    bands[1]->setDistortionType(DistortionType::SoftClip);     // 2x
+    bands[1]->setDistortionType(DistortionType::Tube);         // 2x
     bands[2]->setDistortionType(DistortionType::Bitcrush);     // 1x
-    bands[3]->setDistortionType(DistortionType::Fuzz);         // 4x
+    bands[3]->setDistortionType(DistortionType::Fuzz);         // 8x (user ruling 2026-11-10)
 
     // Verify each band has independent factor
     CHECK(bands[0]->getOversampleFactor() == 4);
     CHECK(bands[1]->getOversampleFactor() == 2);
     CHECK(bands[2]->getOversampleFactor() == 1);
-    CHECK(bands[3]->getOversampleFactor() == 4);
+    CHECK(bands[3]->getOversampleFactor() == 8);
 
     // Process all bands simultaneously - should not interfere
     constexpr size_t kBlockSize = 256;
@@ -59,7 +60,7 @@ TEST_CASE("Integration: 4 bands with independent oversampling factors",
     for (auto& bp : bands) {
         // Fill with signal
         for (size_t i = 0; i < kBlockSize; ++i) {
-            left[i] = 0.3f * std::sin(2.0f * 3.14159f * 440.0f *
+            left[i] = 0.3f * std::sin(2.0f * std::numbers::pi_v<float> * 440.0f *
                       static_cast<float>(i) / 44100.0f);
             right[i] = left[i];
         }
@@ -70,6 +71,7 @@ TEST_CASE("Integration: 4 bands with independent oversampling factors",
     CHECK(bands[0]->getOversampleFactor() == 4);
     CHECK(bands[1]->getOversampleFactor() == 2);
     CHECK(bands[2]->getOversampleFactor() == 1);
+    CHECK(bands[3]->getOversampleFactor() == 8);
 }
 
 // =============================================================================
@@ -180,9 +182,9 @@ TEST_CASE("Integration: FR-017 triggers from all 4 conditions",
         // Change nodes to high-OS types
         std::array<MorphNode, kMaxMorphNodes> nodesHigh = {{
             MorphNode(0, 0.0f, 0.0f, DistortionType::HardClip),
-            MorphNode(1, 1.0f, 0.0f, DistortionType::Fuzz),
+            MorphNode(1, 1.0f, 0.0f, DistortionType::HalfRectify),
             MorphNode(2, 0.0f, 1.0f, DistortionType::HardClip),
-            MorphNode(3, 1.0f, 1.0f, DistortionType::Fuzz)
+            MorphNode(3, 1.0f, 1.0f, DistortionType::HalfRectify)
         }};
         bp.setMorphNodes(nodesHigh, 2);
         CHECK(bp.getOversampleFactor() == 4);

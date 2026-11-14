@@ -376,10 +376,20 @@ TEST_CASE("DiffusionNetwork_ZeroModIsBitIdentical", "[diffusion][processors][ser
         // (measured worst |delta| 3.57628e-7 across 3897 of 4096 samples).
         // Demanding bit-identity between two differently-shaped FP loops is the
         // same impossible contract as a bit-exact float golden (dsp/CLAUDE.md).
-        // The bound is ~3x the measured schedule noise; a guard that actually
-        // froze or skipped state diverges by whole-sample amounts (clause 2's
-        // frozen-phase scenario measures >1e-2) and still fails loudly.
-        constexpr float kScheduleNoiseBound = 1.0e-6f;
+        // A guard that actually froze or skipped state diverges by whole-sample
+        // amounts (clause 2's frozen-phase scenario measures >1e-2) and still
+        // fails loudly.
+        //
+        // Since follow-up 83 (DelayLine::readAllpass is a real fractional delay,
+        // not floor(d)) the output also depends on the LAST BITS of each stage's
+        // delay, and fast-math compilers reassociate `base * ratio * 0.001f * sr`
+        // differently in the static block path and the per-sample loop: on MSVC
+        // /fp:fast clause 1 measured worst |delta| 2.9e-5 (first at sample 86),
+        // and a one-ULP delay change in every stage of this cascade moves the
+        // output by up to 2.2e-4. Before, the truncating interpolator hid those
+        // bits. The bound sits 4.5x above the one-ULP figure and 10x below the
+        // frozen-phase divergence.
+        constexpr float kScheduleNoiseBound = 1.0e-3f;
         std::size_t mismatches = 0;
         std::size_t firstMismatch = kRenderLen;
         float worstDelta = 0.0f;

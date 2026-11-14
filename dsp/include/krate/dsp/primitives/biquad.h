@@ -27,6 +27,25 @@
 #include <cstddef>
 #include <cstdint>
 
+// BiquadCascade<4>::processBlock runs its four stages in the four lanes of one SSE2
+// vector on x86; elsewhere it uses the scalar sample-major loop (same arithmetic).
+// Not where the compiler may fuse a*b + c into an FMA (__FMA__: -mfma, -march=x86-64-v3):
+// the scalar stageStep is contracted and the intrinsic lanes are not, so which path a
+// sample took (the pipeline's fill / drain, or a block under 4 samples) would show in
+// its bits and the output would depend on the host's block partition (Profundum FR-049:
+// MassDynamics_PartitionInvariant went red in tools/macos-fastmath-repro.sh, the limiter's
+// output differing on 480 samples by up to 1.8e-7 in 0.5 s of its chain). No shipped build
+// defines __FMA__ (MSVC never does; the default macOS x86_64 target has no FMA); arm64 has
+// no SSE2 and always took the scalar loop.
+#if (defined(__SSE2__) || defined(_M_X64) || defined(__x86_64__) \
+     || (defined(_M_IX86_FP) && _M_IX86_FP >= 2)) \
+    && !defined(__FMA__)
+#define KRATE_BIQUAD_CASCADE_SSE2 1
+#include <emmintrin.h>
+#else
+#define KRATE_BIQUAD_CASCADE_SSE2 0
+#endif
+
 
 namespace Krate::DSP {
 
@@ -394,6 +413,9 @@ public:
     [[nodiscard]] float getZ2() const noexcept { return z2_; }
 
 private:
+    // The cascade's block loop keeps every stage's state in locals (BiquadCascade::processBlock)
+    template<size_t> friend class BiquadCascade;
+
     BiquadCoefficients coeffs_;
     float z1_ = 0.0f;
     float z2_ = 0.0f;
@@ -467,11 +489,73 @@ public:
         return x;
     }
 
-    /// Process buffer through all stages
+    /// Process buffer through all stages.
+    /// Sample-major: each sample runs through every stage before the next one, with the
+    /// coefficients and state in locals, so the stages' recursions overlap instead of
+    /// each stage making its own serial pass over the buffer. Per stage the arithmetic is
+    /// Biquad::process's, in the same order, so the output is the stage-by-stage output.
+    ///
+    /// With four stages on x86 the stages run skewed in the four lanes of one SSE2 vector
+    /// (lane s holds stage s at sample t - s), the same per-stage arithmetic lane-wise.
     void processBlock(float* buffer, size_t numSamples) noexcept {
-        for (auto& stage : stages_) {
-            stage.processBlock(buffer, numSamples);
+#if KRATE_BIQUAD_CASCADE_SSE2
+        if constexpr (NumStages == 4) {
+            if (numSamples >= NumStages) {
+                Skewed4 p(*this);
+                p.fill(buffer);
+                for (size_t t = 3; t < numSamples; ++t) {
+                    buffer[t - 3] = p.step(buffer[t]);
+                }
+                p.drain(buffer, numSamples, *this);
+                return;
+            }
         }
+#endif
+        std::array<BiquadCoefficients, NumStages> c;
+        std::array<float, NumStages> z1{};
+        std::array<float, NumStages> z2{};
+        for (size_t s = 0; s < NumStages; ++s) {
+            c[s] = stages_[s].coeffs_;
+            z1[s] = stages_[s].z1_;
+            z2[s] = stages_[s].z2_;
+        }
+        for (size_t i = 0; i < numSamples; ++i) {
+            float x = buffer[i];
+            for (size_t s = 0; s < NumStages; ++s) {
+                x = stageStep(c[s], z1[s], z2[s], x);
+            }
+            buffer[i] = x;
+        }
+        storeState(z1, z2);
+    }
+
+    /// Process two independent buffers through two cascades (e.g. the left and right
+    /// channel of one filter). The output is a.processBlock(bufferA, n) and
+    /// b.processBlock(bufferB, n); with four stages on x86 both skewed pipelines run in
+    /// one loop, so their recursions overlap.
+    static void processBlockPair(BiquadCascade& a, float* bufferA, BiquadCascade& b, float* bufferB,
+                                 size_t numSamples) noexcept {
+#if KRATE_BIQUAD_CASCADE_SSE2
+        if constexpr (NumStages == 4) {
+            if (numSamples >= NumStages) {
+                Skewed4 pa(a);
+                Skewed4 pb(b);
+                pa.fill(bufferA);
+                pb.fill(bufferB);
+                for (size_t t = 3; t < numSamples; ++t) {
+                    const float outA = pa.step(bufferA[t]);
+                    const float outB = pb.step(bufferB[t]);
+                    bufferA[t - 3] = outA;
+                    bufferB[t - 3] = outB;
+                }
+                pa.drain(bufferA, numSamples, a);
+                pb.drain(bufferB, numSamples, b);
+                return;
+            }
+        }
+#endif
+        a.processBlock(bufferA, numSamples);
+        b.processBlock(bufferB, numSamples);
     }
 
     // =========================================================================
@@ -507,6 +591,117 @@ public:
     }
 
 private:
+    /// One stage, one sample: Biquad::process with the state in the caller's locals
+    /// (a non-finite input resets the stage and yields 0).
+    static float stageStep(const BiquadCoefficients& c, float& z1, float& z2, float x) noexcept {
+        if (!detail::isFiniteBits(x)) {
+            z1 = 0.0f;
+            z2 = 0.0f;
+            return 0.0f;
+        }
+        const float output = c.b0 * x + z1;
+        z1 = detail::flushDenormal(c.b1 * x - c.a1 * output + z2);
+        z2 = detail::flushDenormal(c.b2 * x - c.a2 * output);
+        return output;
+    }
+
+    void storeState(const std::array<float, NumStages>& z1, const std::array<float, NumStages>& z2) noexcept {
+        for (size_t s = 0; s < NumStages; ++s) {
+            stages_[s].z1_ = z1[s];
+            stages_[s].z2_ = z2[s];
+        }
+    }
+
+#if KRATE_BIQUAD_CASCADE_SSE2
+    /// Four stages skewed across the lanes of one vector: at step t lane s runs stage s on
+    /// sample t - s, fed by lane s - 1's output of the previous step. The first and last
+    /// three steps (the pipeline filling and draining) run the lanes that hold a sample
+    /// with stageStep. Each lane's arithmetic is stageStep's: products, then the sums in
+    /// source order, the denormal flush as the same two compares, and a non-finite stage
+    /// input zeroing that stage's output and state. numSamples >= 4.
+    ///
+    /// One instance is one cascade's pipeline (coefficient vectors, state, the last step's
+    /// outputs); processBlock runs one, processBlockPair two in one loop, whose independent
+    /// recursions then overlap.
+    struct Skewed4 {
+        std::array<BiquadCoefficients, 4> c;
+        std::array<float, 4> z1{};
+        std::array<float, 4> z2{};
+        std::array<float, 4> y{};
+        __m128 b0, b1, b2, a1, a2, vz1, vz2, vy;
+
+        explicit Skewed4(const BiquadCascade& cascade) noexcept {
+            for (size_t s = 0; s < 4; ++s) {
+                c[s] = cascade.stages_[s].coeffs_;
+                z1[s] = cascade.stages_[s].z1_;
+                z2[s] = cascade.stages_[s].z2_;
+            }
+            b0 = _mm_setr_ps(c[0].b0, c[1].b0, c[2].b0, c[3].b0);
+            b1 = _mm_setr_ps(c[0].b1, c[1].b1, c[2].b1, c[3].b1);
+            b2 = _mm_setr_ps(c[0].b2, c[1].b2, c[2].b2, c[3].b2);
+            a1 = _mm_setr_ps(c[0].a1, c[1].a1, c[2].a1, c[3].a1);
+            a2 = _mm_setr_ps(c[0].a2, c[1].a2, c[2].a2, c[3].a2);
+            vz1 = _mm_setzero_ps();
+            vz2 = _mm_setzero_ps();
+            vy = _mm_setzero_ps();
+        }
+
+        /// Steps 0-2: after step t, y[s] holds stage s's output of sample t - s.
+        void fill(const float* buffer) noexcept {
+            for (size_t t = 0; t < 3; ++t) {
+                for (size_t s = t + 1; s-- > 0;) {  // highest lane first: it reads y[s - 1] of step t - 1
+                    y[s] = stageStep(c[s], z1[s], z2[s], s == 0 ? buffer[t] : y[s - 1]);
+                }
+            }
+            vz1 = _mm_setr_ps(z1[0], z1[1], z1[2], z1[3]);
+            vz2 = _mm_setr_ps(z2[0], z2[1], z2[2], z2[3]);
+            vy = _mm_setr_ps(y[0], y[1], y[2], 0.0f);
+        }
+
+        /// Step t >= 3: lane s runs stage s on sample t - s; returns stage 3's output of
+        /// sample t - 3 (behind the read position, so in place is safe).
+        float step(float in) noexcept {
+            const __m128 posThr = _mm_set1_ps(kDenormalThreshold);
+            const __m128 negThr = _mm_set1_ps(-kDenormalThreshold);
+            const __m128i expMask = _mm_set1_epi32(0x7F800000);
+            __m128 x = _mm_castsi128_ps(_mm_slli_si128(_mm_castps_si128(vy), 4));
+            x = _mm_move_ss(x, _mm_set_ss(in));
+            const __m128i bits = _mm_and_si128(_mm_castps_si128(x), expMask);
+            const __m128 nonFinite = _mm_castsi128_ps(_mm_cmpeq_epi32(bits, expMask));
+            __m128 y0 = _mm_add_ps(_mm_mul_ps(b0, x), vz1);
+            __m128 nz1 = _mm_add_ps(_mm_sub_ps(_mm_mul_ps(b1, x), _mm_mul_ps(a1, y0)), vz2);
+            __m128 nz2 = _mm_sub_ps(_mm_mul_ps(b2, x), _mm_mul_ps(a2, y0));
+            nz1 = _mm_andnot_ps(_mm_and_ps(_mm_cmpgt_ps(nz1, negThr), _mm_cmplt_ps(nz1, posThr)), nz1);
+            nz2 = _mm_andnot_ps(_mm_and_ps(_mm_cmpgt_ps(nz2, negThr), _mm_cmplt_ps(nz2, posThr)), nz2);
+            vy = _mm_andnot_ps(nonFinite, y0);
+            vz1 = _mm_andnot_ps(nonFinite, nz1);
+            vz2 = _mm_andnot_ps(nonFinite, nz2);
+            return _mm_cvtss_f32(_mm_shuffle_ps(vy, vy, _MM_SHUFFLE(3, 3, 3, 3)));
+        }
+
+        /// Lanes 1-3 finish the last three samples, then the state goes back to @p cascade.
+        void drain(float* buffer, size_t numSamples, BiquadCascade& cascade) noexcept {
+            alignas(16) std::array<float, 4> tmp{};
+            _mm_store_ps(tmp.data(), vy);
+            y = tmp;
+            _mm_store_ps(tmp.data(), vz1);
+            z1 = tmp;
+            _mm_store_ps(tmp.data(), vz2);
+            z2 = tmp;
+            for (size_t t = 0; t < 3; ++t) {
+                for (size_t s = 3; s > t; --s) {  // highest lane first, as in fill()
+                    y[s] = stageStep(c[s], z1[s], z2[s], y[s - 1]);
+                }
+                buffer[numSamples - 3 + t] = y[3];
+            }
+            for (size_t s = 0; s < 4; ++s) {
+                cascade.stages_[s].z1_ = z1[s];
+                cascade.stages_[s].z2_ = z2[s];
+            }
+        }
+    };
+#endif
+
     std::array<Biquad, NumStages> stages_;
 };
 

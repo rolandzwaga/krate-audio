@@ -13,6 +13,33 @@
 
 namespace Krate::Plugins {
 
+namespace {
+
+/// [u32 count] then one [cc u8][paramId u32][flags u8] record per mapping, in ascending CC order. The maps are
+/// std::unordered_map, whose iteration order is the standard library's (MSVC and libc++ differ), so walking the map
+/// made the saved bytes depend on the platform (Disrumpo controller state, macOS, 2026-11-14).
+void appendMappings(std::vector<uint8_t>& data, const std::unordered_map<uint8_t, MidiCCMapping>& mappings) {
+    const auto count = static_cast<uint32_t>(mappings.size());
+    data.resize(4);
+    std::memcpy(data.data(), &count, 4);
+    for (int cc = 0; cc <= 0xFF; ++cc) {
+        const auto it = mappings.find(static_cast<uint8_t>(cc));
+        if (it == mappings.end()) continue;
+        const MidiCCMapping& mapping = it->second;
+        data.push_back(mapping.ccNumber);
+        const uint32_t paramId = mapping.paramId;
+        const size_t offset = data.size();
+        data.resize(data.size() + 4);
+        std::memcpy(data.data() + offset, &paramId, 4);
+        uint8_t flags = 0;
+        if (mapping.is14Bit) flags |= 0x01;
+        if (mapping.isPerPreset) flags |= 0x02;
+        data.push_back(flags);
+    }
+}
+
+}  // namespace
+
 // =============================================================================
 // Mapping Management
 // =============================================================================
@@ -267,23 +294,7 @@ bool MidiCCManager::getMidiControllerAssignment(uint8_t ccNumber, Steinberg::Vst
 std::vector<uint8_t> MidiCCManager::serializeGlobalMappings() const {
     std::vector<uint8_t> data;
 
-    uint32_t count = static_cast<uint32_t>(globalMappings_.size());
-    data.resize(4);
-    std::memcpy(data.data(), &count, 4);
-
-    for (const auto& [cc, mapping] : globalMappings_) {
-        data.push_back(mapping.ccNumber);
-
-        uint32_t paramId = mapping.paramId;
-        size_t offset = data.size();
-        data.resize(data.size() + 4);
-        std::memcpy(data.data() + offset, &paramId, 4);
-
-        uint8_t flags = 0;
-        if (mapping.is14Bit) flags |= 0x01;
-        if (mapping.isPerPreset) flags |= 0x02;
-        data.push_back(flags);
-    }
+    appendMappings(data, globalMappings_);
 
     return data;
 }
@@ -322,23 +333,7 @@ bool MidiCCManager::deserializeGlobalMappings(const uint8_t* data, size_t size) 
 std::vector<uint8_t> MidiCCManager::serializePresetMappings() const {
     std::vector<uint8_t> data;
 
-    uint32_t count = static_cast<uint32_t>(presetMappings_.size());
-    data.resize(4);
-    std::memcpy(data.data(), &count, 4);
-
-    for (const auto& [cc, mapping] : presetMappings_) {
-        data.push_back(mapping.ccNumber);
-
-        uint32_t paramId = mapping.paramId;
-        size_t offset = data.size();
-        data.resize(data.size() + 4);
-        std::memcpy(data.data() + offset, &paramId, 4);
-
-        uint8_t flags = 0;
-        if (mapping.is14Bit) flags |= 0x01;
-        if (mapping.isPerPreset) flags |= 0x02;
-        data.push_back(flags);
-    }
+    appendMappings(data, presetMappings_);
 
     return data;
 }

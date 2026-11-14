@@ -49,6 +49,8 @@ add_executable(plugin_tests
     # tail and the Drones CPU budget (specs/iterum-freeze/design.md rows P4, P10, P11)
     unit/processor/freeze_transport_test.cpp
     unit/processor/freeze_preset_probe_test.cpp
+    # process() runs with FTZ / DAZ whatever the caller's floating-point mode ([iterum][numerics][denormal])
+    unit/processor/denormal_mode_test.cpp
 
     # UI tests
     unit/ui/preset_browser_logic_test.cpp

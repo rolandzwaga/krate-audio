@@ -66,6 +66,14 @@ public:
         reset();
     }
 
+    /// @brief Use the first fftSize/2+1 bins of the storage prepare() allocated
+    /// @param fftSize New FFT size; clamped to the prepared capacity
+    /// @note Real-time safe (no allocation). Clears every bin, like reset().
+    void setActiveSize(size_t fftSize) noexcept {
+        numBins_ = std::min(fftSize / 2 + 1, data_.size());
+        reset();
+    }
+
     /// @brief Reset all bins to zero
     /// @note Real-time safe
     void reset() noexcept {

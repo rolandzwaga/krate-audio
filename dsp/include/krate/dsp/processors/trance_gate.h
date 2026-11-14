@@ -341,8 +341,11 @@ public:
         const auto pos = calculateMusicalStepPosition(
             projectTimeMusic, params_.noteValue, params_.noteModifier, numSteps_);
 
-        const size_t newSampleCounter = static_cast<size_t>(
-            pos.stepFraction * static_cast<double>(samplesPerStep_));
+        // Rounded, not truncated: the samples into the step are usually an exact integer the product lands an ulp
+        // below (tools/lint-musical-time-truncation.js).
+        const size_t newSampleCounter = std::min(
+            static_cast<size_t>(std::llround(pos.stepFraction * static_cast<double>(samplesPerStep_))),
+            samplesPerStep_);
 
         // Only snap smoothers if the step actually changed
         if (pos.step != currentStep_) {

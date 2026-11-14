@@ -1,0 +1,806 @@
+// ==============================================================================
+// Disrumpo audit follow-up probes (hidden: [.][audit-followup])
+// ==============================================================================
+// Measurement-only TU written by the disrumpo-audit completeness follow-up.
+// TEMPORARY: lives in the tree only while the probes run; the preserved copy is
+// specs/disrumpo-audit/probes/audit_followup_probes.cpp.
+// Prints one line per measurement:
+//   PROBE <name> | <setup> | <metric> = <value> | threshold <bar> | <ok|suspicious|bad>
+// Asserts nothing that can fail on a defect: the numbers are the result.
+// ==============================================================================
+
+#include <catch2/catch_test_macros.hpp>
+
+#include <algorithm>
+#include <array>
+#include <chrono>
+#include <cmath>
+#include <cstdint>
+#include <cstdio>
+#include <cstring>
+#include <memory>
+#include <string>
+#include <utility>
+#include <vector>
+
+#if defined(_M_X64) || defined(__x86_64__) || defined(_M_IX86) || defined(__i386__)
+#include <xmmintrin.h>
+#define AUDIT_HAS_MXCSR 1
+#else
+#define AUDIT_HAS_MXCSR 0
+#endif
+
+#include "processor/processor.h"
+#include "plugin_ids.h"
+#include "dsp/band_processor.h"
+
+#include "pluginterfaces/vst/ivstaudioprocessor.h"
+#include "pluginterfaces/vst/ivstparameterchanges.h"
+#include "pluginterfaces/vst/ivstmessage.h"
+#include "pluginterfaces/vst/ivstattributes.h"
+#include "public.sdk/source/vst/hosting/hostclasses.h"
+
+#include "vst_param_changes.h"
+
+#include <krate/dsp/core/db_utils.h>
+
+// Global allocation counters for this binary (exactly one TU may include it).
+#include <allocation_operator_overrides.h>
+
+using namespace Disrumpo;
+
+namespace {
+
+using Steinberg::int32;
+using Steinberg::Vst::ParamID;
+using Steinberg::Vst::ParamValue;
+using PChanges = Krate::Test::ParameterChanges;
+using PList = std::vector<std::pair<ParamID, double>>;
+
+constexpr double kTwoPi = 6.283185307179586476925;
+
+const char* verdictName(int level) {
+    if (level <= 0) return "ok";
+    if (level == 1) return "suspicious";
+    return "bad";
+}
+
+std::string fix(double v, int dec = 2) {
+    char b[64];
+    std::snprintf(b, sizeof(b), "%.*f", dec, v);
+    return b;
+}
+
+std::string gnum(double v) {
+    char b[64];
+    std::snprintf(b, sizeof(b), "%.6g", v);
+    return b;
+}
+
+void emit(const std::string& name, const std::string& setup, const std::string& metric,
+          const std::string& value, const std::string& threshold, int level) {
+    std::printf("PROBE %s | %s | %s = %s | threshold %s | %s\n", name.c_str(), setup.c_str(),
+                metric.c_str(), value.c_str(), threshold.c_str(), verdictName(level));
+    std::fflush(stdout);
+}
+
+bool fin(float v) { return Krate::DSP::detail::isFinite(v); }
+
+float bitsToFloat(uint32_t bits) {
+    volatile uint32_t vb = bits;
+    const uint32_t b = vb;
+    float f = 0.0f;
+    std::memcpy(&f, &b, sizeof(f));
+    return f;
+}
+
+size_t nonFinite(const float* x, size_t n) {
+    size_t c = 0;
+    for (size_t i = 0; i < n; ++i) if (!fin(x[i])) ++c;
+    return c;
+}
+
+double rmsOf(const float* x, size_t n) {
+    if (n == 0) return 0.0;
+    double s = 0.0;
+    for (size_t i = 0; i < n; ++i) {
+        const double v = fin(x[i]) ? x[i] : 0.0;
+        s += v * v;
+    }
+    return std::sqrt(s / static_cast<double>(n));
+}
+
+double toDb(double lin) { return lin > 1e-12 ? 20.0 * std::log10(lin) : -240.0; }
+
+std::vector<float> sine(size_t n, double f, double sr, double dbfs) {
+    const double a = std::pow(10.0, dbfs / 20.0);
+    std::vector<float> x(n);
+    for (size_t i = 0; i < n; ++i) x[i] = static_cast<float>(a * std::sin(kTwoPi * f * static_cast<double>(i) / sr));
+    return x;
+}
+
+// -----------------------------------------------------------------------------
+// Output-parameter capture
+// -----------------------------------------------------------------------------
+
+class CaptureQueue : public Steinberg::Vst::IParamValueQueue {
+public:
+    explicit CaptureQueue(ParamID id) : id_(id) {}
+    Steinberg::tresult PLUGIN_API queryInterface(const Steinberg::TUID, void**) override { return Steinberg::kNoInterface; }
+    Steinberg::uint32 PLUGIN_API addRef() override { return 1; }
+    Steinberg::uint32 PLUGIN_API release() override { return 1; }
+    ParamID PLUGIN_API getParameterId() override { return id_; }
+    int32 PLUGIN_API getPointCount() override { return n_; }
+    Steinberg::tresult PLUGIN_API getPoint(int32 index, int32& off, ParamValue& v) override {
+        if (index < 0 || index >= n_) return Steinberg::kResultFalse;
+        off = off_[static_cast<size_t>(index)];
+        v = val_[static_cast<size_t>(index)];
+        return Steinberg::kResultTrue;
+    }
+    Steinberg::tresult PLUGIN_API addPoint(int32 off, ParamValue v, int32& index) override {
+        if (n_ >= 8) return Steinberg::kResultFalse;
+        off_[static_cast<size_t>(n_)] = off;
+        val_[static_cast<size_t>(n_)] = v;
+        index = n_++;
+        return Steinberg::kResultTrue;
+    }
+    ParamID id_;
+    int32 n_ = 0;
+    std::array<int32, 8> off_{};
+    std::array<double, 8> val_{};
+};
+
+/// Fixed-capacity, allocation-free output changes (so it can sit inside an allocation scope).
+class CaptureChanges : public Steinberg::Vst::IParameterChanges {
+public:
+    CaptureChanges() : qs_{CaptureQueue(0), CaptureQueue(0), CaptureQueue(0), CaptureQueue(0)} {}
+    Steinberg::tresult PLUGIN_API queryInterface(const Steinberg::TUID, void**) override { return Steinberg::kNoInterface; }
+    Steinberg::uint32 PLUGIN_API addRef() override { return 1; }
+    Steinberg::uint32 PLUGIN_API release() override { return 1; }
+    int32 PLUGIN_API getParameterCount() override { return count_; }
+    Steinberg::Vst::IParamValueQueue* PLUGIN_API getParameterData(int32 index) override {
+        if (index < 0 || index >= count_) return nullptr;
+        return &qs_[static_cast<size_t>(index)];
+    }
+    Steinberg::Vst::IParamValueQueue* PLUGIN_API addParameterData(const ParamID& id, int32& index) override {
+        for (int32 i = 0; i < count_; ++i) {
+            if (qs_[static_cast<size_t>(i)].id_ == id) { index = i; return &qs_[static_cast<size_t>(i)]; }
+        }
+        if (count_ >= 4) return nullptr;
+        qs_[static_cast<size_t>(count_)] = CaptureQueue(id);
+        index = count_++;
+        return &qs_[static_cast<size_t>(index)];
+    }
+    bool last(ParamID id, double& v) const {
+        for (int32 i = 0; i < count_; ++i) {
+            const auto& q = qs_[static_cast<size_t>(i)];
+            if (q.id_ == id && q.n_ > 0) { v = q.val_[static_cast<size_t>(q.n_ - 1)]; return true; }
+        }
+        return false;
+    }
+    void clear() { count_ = 0; }
+
+private:
+    std::array<CaptureQueue, 4> qs_;
+    int32 count_ = 0;
+};
+
+// -----------------------------------------------------------------------------
+// Fake controller peer that captures the "ModOffsets" pointer message
+// -----------------------------------------------------------------------------
+
+class OffsetsPeer : public Steinberg::Vst::IConnectionPoint {
+public:
+    Steinberg::tresult PLUGIN_API queryInterface(const Steinberg::TUID iid, void** obj) override {
+        if (Steinberg::FUnknownPrivate::iidEqual(iid, Steinberg::FUnknown::iid) ||
+            Steinberg::FUnknownPrivate::iidEqual(iid, Steinberg::Vst::IConnectionPoint::iid)) {
+            *obj = static_cast<Steinberg::Vst::IConnectionPoint*>(this);
+            return Steinberg::kResultOk;
+        }
+        *obj = nullptr;
+        return Steinberg::kNoInterface;
+    }
+    Steinberg::uint32 PLUGIN_API addRef() override { return 1; }
+    Steinberg::uint32 PLUGIN_API release() override { return 1; }
+    Steinberg::tresult PLUGIN_API connect(Steinberg::Vst::IConnectionPoint*) override { return Steinberg::kResultTrue; }
+    Steinberg::tresult PLUGIN_API disconnect(Steinberg::Vst::IConnectionPoint*) override { return Steinberg::kResultTrue; }
+    Steinberg::tresult PLUGIN_API notify(Steinberg::Vst::IMessage* m) override {
+        if (!m || !m->getMessageID()) return Steinberg::kResultFalse;
+        if (std::strcmp(m->getMessageID(), "ModOffsets") == 0) {
+            Steinberg::int64 v = 0;
+            if (m->getAttributes() && m->getAttributes()->getInt("ptr", v) == Steinberg::kResultTrue)
+                ptr = reinterpret_cast<const float*>(static_cast<intptr_t>(v));
+        }
+        return Steinberg::kResultTrue;
+    }
+    const float* ptr = nullptr;
+};
+
+// -----------------------------------------------------------------------------
+// Processor rig
+// -----------------------------------------------------------------------------
+
+struct Rig {
+    std::unique_ptr<Processor> p;
+    double sr;
+    int32 maxBlock;
+    Steinberg::Vst::HostApplication* host = nullptr;
+    OffsetsPeer* peer = nullptr;
+    bool active = false;
+
+    Rig(double sampleRate, int32 mb, Steinberg::Vst::HostApplication* h = nullptr, OffsetsPeer* pr = nullptr)
+        : sr(sampleRate), maxBlock(mb), host(h), peer(pr) {
+        p = std::make_unique<Processor>();
+        p->initialize(host);
+        if (peer) p->connect(peer);
+        Steinberg::Vst::ProcessSetup ps{};
+        ps.processMode = Steinberg::Vst::kRealtime;
+        ps.symbolicSampleSize = Steinberg::Vst::kSample32;
+        ps.sampleRate = sr;
+        ps.maxSamplesPerBlock = maxBlock;
+        p->setupProcessing(ps);
+        p->setActive(true);
+        active = true;
+    }
+    ~Rig() {
+        if (active) p->setActive(false);
+        if (peer) p->disconnect(peer);
+        p->terminate();
+    }
+    Rig(const Rig&) = delete;
+    Rig& operator=(const Rig&) = delete;
+
+    void reactivate() {
+        p->setActive(false);
+        p->setActive(true);
+    }
+
+    void processBlock(float* iL, float* iR, float* oL, float* oR, int32 n,
+                      Steinberg::Vst::IParameterChanges* in, Steinberg::Vst::IParameterChanges* out = nullptr) {
+        float* ic[2] = {iL, iR};
+        float* oc[2] = {oL, oR};
+        Steinberg::Vst::AudioBusBuffers ib{};
+        ib.numChannels = 2;
+        ib.channelBuffers32 = ic;
+        Steinberg::Vst::AudioBusBuffers ob{};
+        ob.numChannels = 2;
+        ob.channelBuffers32 = oc;
+        Steinberg::Vst::ProcessData d{};
+        d.processMode = Steinberg::Vst::kRealtime;
+        d.symbolicSampleSize = Steinberg::Vst::kSample32;
+        d.numSamples = n;
+        d.numInputs = 1;
+        d.numOutputs = 1;
+        d.inputs = &ib;
+        d.outputs = &ob;
+        d.inputParameterChanges = in;
+        d.outputParameterChanges = out;
+        d.processContext = nullptr;
+        p->process(d);
+    }
+
+    void apply(const PList& l) {
+        PChanges pc;
+        for (const auto& c : l) pc.addChange(c.first, c.second);
+        float z[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+        processBlock(z, z + 1, z + 2, z + 3, 0, &pc);
+    }
+
+    /// Render a mono-duplicated signal; optional per-block param list at block index.
+    void render(const std::vector<float>& in, std::vector<float>& outL, std::vector<float>& outR,
+                int32 block = 512) {
+        const size_t n = in.size();
+        outL.assign(n, 0.0f);
+        outR.assign(n, 0.0f);
+        std::vector<float> bL(static_cast<size_t>(block)), bR(static_cast<size_t>(block));
+        std::vector<float> oL(static_cast<size_t>(block)), oR(static_cast<size_t>(block));
+        for (size_t s = 0; s < n; s += static_cast<size_t>(block)) {
+            const auto len = static_cast<int32>(std::min(static_cast<size_t>(block), n - s));
+            std::copy(in.begin() + static_cast<std::ptrdiff_t>(s), in.begin() + static_cast<std::ptrdiff_t>(s) + len, bL.begin());
+            std::copy(in.begin() + static_cast<std::ptrdiff_t>(s), in.begin() + static_cast<std::ptrdiff_t>(s) + len, bR.begin());
+            processBlock(bL.data(), bR.data(), oL.data(), oR.data(), len, nullptr);
+            std::copy(oL.begin(), oL.begin() + len, outL.begin() + static_cast<std::ptrdiff_t>(s));
+            std::copy(oR.begin(), oR.begin() + len, outR.begin() + static_cast<std::ptrdiff_t>(s));
+        }
+    }
+};
+
+ParamID nodeId(int b, int n, NodeParamType t) {
+    return makeNodeParamId(static_cast<uint8_t>(b), static_cast<uint8_t>(n), t);
+}
+ParamID bandId(int b, BandParamType t) { return makeBandParamId(static_cast<uint8_t>(b), t); }
+ParamID sweepId(SweepParamType t) { return makeSweepParamId(t); }
+double typeNorm(DistortionType t) { return static_cast<double>(static_cast<int>(t)) / 25.0; }
+double bandCountNorm(int n) { return static_cast<double>(n - 1) / 3.0; }
+ParamID shapeId(int b, int n, int slot) {
+    return nodeId(b, n, static_cast<NodeParamType>(static_cast<int>(NodeParamType::kNodeShape0) + slot));
+}
+
+} // namespace
+
+// =============================================================================
+// (1) Stale transition gain when the cursor lands exactly on a node
+// =============================================================================
+
+namespace {
+
+struct LevelRun {
+    double levelDb = 0.0;
+    std::array<float, 4> w{};
+    double smX = 0.0;
+};
+
+/// 1 band, 2 cross-family nodes SoftClip (0,0) / SineFold (1,0), morph smoothing 0,
+/// park at (fromX,0) for 0.3 s, then set (toX,0) and render 0.4 s. Level of the last 0.2 s.
+LevelRun parkThenJump(double fromX, double toX, double modeNorm, double smoothNorm) {
+    constexpr double sr = 48000.0;
+    Rig r(sr, 512);
+    r.apply({{kBandCountId, bandCountNorm(1)},
+             {bandId(0, BandParamType::kBandActiveNodes), 1.0 / 3.0},
+             {bandId(0, BandParamType::kBandMorphMode), modeNorm},
+             {bandId(0, BandParamType::kBandMorphSmoothing), smoothNorm},
+             {nodeId(0, 0, NodeParamType::kNodeType), typeNorm(DistortionType::SoftClip)},
+             {nodeId(0, 1, NodeParamType::kNodeType), typeNorm(DistortionType::SineFold)},
+             {nodeId(0, 0, NodeParamType::kNodeDrive), 0.3},
+             {nodeId(0, 1, NodeParamType::kNodeDrive), 0.3},
+             {bandId(0, BandParamType::kBandMorphX), fromX},
+             {bandId(0, BandParamType::kBandMorphY), 0.0}});
+    const auto a = sine(static_cast<size_t>(sr * 0.3), 220.0, sr, -12.0);
+    std::vector<float> oL, oR;
+    r.render(a, oL, oR);
+    r.apply({{bandId(0, BandParamType::kBandMorphX), toX}});
+    const auto b = sine(static_cast<size_t>(sr * 0.4), 220.0, sr, -12.0);
+    r.render(b, oL, oR);
+    LevelRun out;
+    const size_t tail = static_cast<size_t>(sr * 0.2);
+    out.levelDb = toDb(rmsOf(oL.data() + oL.size() - tail, tail));
+    out.w = r.p->getMorphWeightsForBand(0);
+    const MorphEngine* me = r.p->getBandProcessor(0).getMorphEngine();
+    out.smX = me ? me->getSmoothedX() : -1.0;
+    return out;
+}
+
+/// 4 nodes planar (SoftClip A(0,0), FullRectify B(1,0), SineFold C(0,1), RingSat D(1,1)),
+/// cursor parked at (0, y); then switch MorphMode to Linear1D without moving the cursor.
+LevelRun modeSwitchToLinear(double y, bool switchMode, double startModeNorm) {
+    constexpr double sr = 48000.0;
+    Rig r(sr, 512);
+    r.apply({{kBandCountId, bandCountNorm(1)},
+             {bandId(0, BandParamType::kBandActiveNodes), 1.0},
+             {bandId(0, BandParamType::kBandMorphMode), startModeNorm},
+             {nodeId(0, 0, NodeParamType::kNodeType), typeNorm(DistortionType::SoftClip)},
+             {nodeId(0, 1, NodeParamType::kNodeType), typeNorm(DistortionType::FullRectify)},
+             {nodeId(0, 2, NodeParamType::kNodeType), typeNorm(DistortionType::SineFold)},
+             {nodeId(0, 3, NodeParamType::kNodeType), typeNorm(DistortionType::RingSaturation)},
+             {nodeId(0, 0, NodeParamType::kNodeDrive), 0.3},
+             {nodeId(0, 1, NodeParamType::kNodeDrive), 0.3},
+             {nodeId(0, 2, NodeParamType::kNodeDrive), 0.3},
+             {nodeId(0, 3, NodeParamType::kNodeDrive), 0.3},
+             {bandId(0, BandParamType::kBandMorphX), 0.0},
+             {bandId(0, BandParamType::kBandMorphY), y}});
+    const auto a = sine(static_cast<size_t>(sr * 0.3), 220.0, sr, -12.0);
+    std::vector<float> oL, oR;
+    r.render(a, oL, oR);
+    if (switchMode) r.apply({{bandId(0, BandParamType::kBandMorphMode), 0.0}});
+    r.render(a, oL, oR);
+    LevelRun out;
+    const size_t tail = static_cast<size_t>(sr * 0.2);
+    out.levelDb = toDb(rmsOf(oL.data() + oL.size() - tail, tail));
+    out.w = r.p->getMorphWeightsForBand(0);
+    return out;
+}
+
+/// Reference: SoftClip alone (1 node), same drive, same input.
+double softClipAloneDb() {
+    constexpr double sr = 48000.0;
+    Rig r(sr, 512);
+    r.apply({{kBandCountId, bandCountNorm(1)},
+             {bandId(0, BandParamType::kBandActiveNodes), 0.0},
+             {nodeId(0, 0, NodeParamType::kNodeType), typeNorm(DistortionType::SoftClip)},
+             {nodeId(0, 0, NodeParamType::kNodeDrive), 0.3}});
+    const auto a = sine(static_cast<size_t>(sr * 0.7), 220.0, sr, -12.0);
+    std::vector<float> oL, oR;
+    r.render(a, oL, oR);
+    const size_t tail = static_cast<size_t>(sr * 0.2);
+    return toDb(rmsOf(oL.data() + oL.size() - tail, tail));
+}
+
+std::string wstr(const std::array<float, 4>& w) {
+    return fix(w[0], 4) + "/" + fix(w[1], 4) + "/" + fix(w[2], 4) + "/" + fix(w[3], 4);
+}
+
+} // namespace
+
+TEST_CASE("audit followup: stale transition gain on node", "[.][audit-followup]") {
+    const double ref = softClipAloneDb();
+    emit("onnode:ref-softclip-alone", "1 band, 1 node SoftClip drive 3, 220 Hz -12 dBFS, 48k, block 512",
+         "level_dB", fix(ref, 2), "reference", 0);
+    struct Case { const char* name; double from; double to; double smooth; };
+    const Case cases[] = {
+        {"jump-0.99-to-exactA-smooth0", 0.99, 0.0, 0.0},
+        {"jump-0.99-to-0.01-smooth0", 0.99, 0.01, 0.0},
+        {"jump-0.5-to-exactA-smooth0", 0.5, 0.0, 0.0},
+        {"jump-1.0exactB-to-exactA-smooth0", 1.0, 0.0, 0.0},
+        {"jump-0.99-to-exactA-smooth-default10ms", 0.99, 0.0, 10.0 / 500.0},
+    };
+    for (const auto& c : cases) {
+        for (int mode = 0; mode < 2; ++mode) {
+            const double modeNorm = mode == 0 ? 0.0 : 0.5;  // Linear1D, Planar2D
+            const auto res = parkThenJump(c.from, c.to, modeNorm, c.smooth);
+            const double d = res.levelDb - ref;
+            const int lv = std::fabs(d) > 3.0 ? 2 : (std::fabs(d) > 1.0 ? 1 : 0);
+            emit(std::string("onnode:") + c.name + (mode == 0 ? ":Linear1D" : ":Planar2D"),
+                 "1 band, 2 nodes SoftClip(0,0)/SineFold(1,0) drive 3, smoothing param " + fix(c.smooth * 500.0, 1) +
+                     " ms, park x=" + fix(c.from, 3) + " 0.3 s then x=" + fix(c.to, 3) + " 0.4 s",
+                 "level_dB,delta_vs_softclip_alone_dB,weights,smoothedX",
+                 fix(res.levelDb, 2) + "," + fix(d, 2) + "," + wstr(res.w) + "," + gnum(res.smX),
+                 "|delta| <= 1 dB (on/near node A must equal SoftClip alone)", lv);
+        }
+    }
+    // Reachable path: cursor parked at x=0 in Planar2D near C, then switch mode to Linear1D.
+    for (double y : {0.9, 0.7, 0.5}) {
+        const auto sw = modeSwitchToLinear(y, true, 0.5);
+        const auto fresh = modeSwitchToLinear(y, false, 0.0);  // Linear1D from the start
+        const double d = sw.levelDb - fresh.levelDb;
+        const int lv = std::fabs(d) > 3.0 ? 2 : (std::fabs(d) > 1.0 ? 1 : 0);
+        emit("onnode:planar-to-linear1d-switch:y=" + fix(y, 2),
+             "1 band, 4 nodes SoftClip/FullRectify/SineFold/RingSat drive 3, cursor (0," + fix(y, 2) +
+                 ") Planar2D 0.3 s then MorphMode->Linear1D (cursor unmoved) 0.3 s",
+             "level_after_switch_dB,level_fresh_Linear1D_dB,delta_dB,weights_after_switch",
+             fix(sw.levelDb, 2) + "," + fix(fresh.levelDb, 2) + "," + fix(d, 2) + "," + wstr(sw.w),
+             "|delta| <= 1 dB (same cursor, same mode, same nodes)", lv);
+    }
+    CHECK(true);
+}
+
+// =============================================================================
+// (2) Allocations on the audio thread
+// =============================================================================
+
+namespace {
+
+struct AllocStats {
+    size_t first = 0;     // the process() call carrying the change
+    size_t steadyTotal = 0;
+    size_t steadyMax = 0;
+    size_t steadyCalls = 0;
+};
+
+size_t countedProcess(Rig& r, float* iL, float* iR, float* oL, float* oR, int32 n, PChanges* pc,
+                      CaptureChanges* cap) {
+    auto& det = TestHelpers::AllocationDetector::instance();
+    det.startTracking();
+    r.processBlock(iL, iR, oL, oR, n, pc, cap);
+    return det.stopTracking();
+}
+
+AllocStats allocRun(Rig& r, const PList& change, size_t steadyBlocks, int32 block = 512) {
+    std::vector<float> iL(static_cast<size_t>(block)), iR(static_cast<size_t>(block));
+    std::vector<float> oL(static_cast<size_t>(block)), oR(static_cast<size_t>(block));
+    for (int32 i = 0; i < block; ++i) {
+        iL[static_cast<size_t>(i)] = static_cast<float>(0.25 * std::sin(kTwoPi * 220.0 * i / 48000.0));
+        iR[static_cast<size_t>(i)] = iL[static_cast<size_t>(i)];
+    }
+    PChanges pc;
+    for (const auto& c : change) pc.addChange(c.first, c.second);
+    CaptureChanges cap;
+    AllocStats s;
+    s.first = countedProcess(r, iL.data(), iR.data(), oL.data(), oR.data(), block, change.empty() ? nullptr : &pc, &cap);
+    for (size_t k = 0; k < steadyBlocks; ++k) {
+        cap.clear();
+        const size_t c = countedProcess(r, iL.data(), iR.data(), oL.data(), oR.data(), block, nullptr, &cap);
+        s.steadyTotal += c;
+        s.steadyMax = std::max(s.steadyMax, c);
+        ++s.steadyCalls;
+    }
+    return s;
+}
+
+void warm(Rig& r, size_t blocks) {
+    std::vector<float> z(512, 0.0f), o(512, 0.0f), o2(512, 0.0f);
+    for (size_t k = 0; k < blocks; ++k) r.processBlock(z.data(), z.data(), o.data(), o2.data(), 512, nullptr);
+}
+
+void emitAlloc(const std::string& name, const std::string& setup, const AllocStats& s) {
+    const double mean = s.steadyCalls ? static_cast<double>(s.steadyTotal) / static_cast<double>(s.steadyCalls) : 0.0;
+    const int lv = (s.first > 0 || s.steadyTotal > 0) ? 2 : 0;
+    emit("alloc:" + name, setup + "; 48k, block 512; operator new count only (pffft malloc not counted: lower bound)",
+         "news_in_change_call,steady_total,steady_mean_per_call,steady_max_per_call,steady_calls",
+         std::to_string(s.first) + "," + std::to_string(s.steadyTotal) + "," + fix(mean, 1) + "," +
+             std::to_string(s.steadyMax) + "," + std::to_string(s.steadyCalls),
+         "0 allocations in any process() call", lv);
+}
+
+} // namespace
+
+TEST_CASE("audit followup: audio-thread allocations", "[.][audit-followup]") {
+    // Baseline: default patch, no change.
+    {
+        Rig r(48000.0, 512);
+        r.apply({{kBandCountId, bandCountNorm(1)}});
+        warm(r, 20);
+        emitAlloc("baseline-softclip", "1 band 1 node SoftClip, no param change", allocRun(r, {}, 50));
+    }
+    // Bare Spectral node selection, then FFT slot change.
+    {
+        Rig r(48000.0, 512);
+        r.apply({{kBandCountId, bandCountNorm(1)}, {bandId(0, BandParamType::kBandActiveNodes), 0.0}});
+        warm(r, 20);
+        emitAlloc("select-spectral", "1 band 1 node: kNodeType SoftClip->Spectral in the counted call",
+                  allocRun(r, {{nodeId(0, 0, NodeParamType::kNodeType), typeNorm(DistortionType::Spectral)}}, 50));
+        emitAlloc("spectral-fft-slot-change", "1 band 1 node Spectral: kNodeShape1 (FFT) 0.5->1.0 (2048->4096) in the counted call",
+                  allocRun(r, {{shapeId(0, 0, 1), 1.0}}, 50));
+        emitAlloc("spectral-drive-change", "1 band 1 node Spectral: kNodeDrive change in the counted call",
+                  allocRun(r, {{nodeId(0, 0, NodeParamType::kNodeDrive), 0.4}}, 50));
+    }
+    // Same-family Spectral + Chaos morph (Experimental family).
+    for (double x : {0.5, 0.3}) {
+        Rig r(48000.0, 512);
+        r.apply({{kBandCountId, bandCountNorm(1)},
+                 {bandId(0, BandParamType::kBandActiveNodes), 1.0 / 3.0},
+                 {bandId(0, BandParamType::kBandMorphMode), 0.0},
+                 {nodeId(0, 0, NodeParamType::kNodeType), typeNorm(DistortionType::Spectral)},
+                 {nodeId(0, 1, NodeParamType::kNodeType), typeNorm(DistortionType::Chaos)},
+                 {nodeId(0, 0, NodeParamType::kNodeDrive), 0.3},
+                 {nodeId(0, 1, NodeParamType::kNodeDrive), 0.3},
+                 {bandId(0, BandParamType::kBandMorphX), x},
+                 {bandId(0, BandParamType::kBandMorphY), 0.0}});
+        warm(r, 20);
+        const auto& w = r.p->getMorphWeightsForBand(0);
+        emitAlloc("samefamily-spectral-chaos-x" + fix(x, 2),
+                  "1 band 2 nodes Spectral(0,0)/Chaos(1,0) Linear1D, cursor x=" + fix(x, 2) + " (weights " +
+                      fix(w[0], 3) + "/" + fix(w[1], 3) + "), no param change",
+                  allocRun(r, {}, 50));
+    }
+    // Spectral + Chaos with the cursor exactly on the Spectral node (no interpolation truncation).
+    {
+        Rig r(48000.0, 512);
+        r.apply({{kBandCountId, bandCountNorm(1)},
+                 {bandId(0, BandParamType::kBandActiveNodes), 1.0 / 3.0},
+                 {bandId(0, BandParamType::kBandMorphMode), 0.0},
+                 {nodeId(0, 0, NodeParamType::kNodeType), typeNorm(DistortionType::Spectral)},
+                 {nodeId(0, 1, NodeParamType::kNodeType), typeNorm(DistortionType::Chaos)},
+                 {bandId(0, BandParamType::kBandMorphX), 0.0},
+                 {bandId(0, BandParamType::kBandMorphY), 0.0}});
+        warm(r, 20);
+        emitAlloc("samefamily-spectral-chaos-onSpectral", "1 band 2 nodes Spectral/Chaos, cursor exactly on Spectral (x=0)",
+                  allocRun(r, {}, 50));
+    }
+    CHECK(true);
+}
+
+// =============================================================================
+// (3) NaN / Inf injection through the processor
+// =============================================================================
+
+namespace {
+
+struct NanResult {
+    size_t nfOutBefore = 0, nfOutAfter = 0, nfOutLastHalf = 0;
+    double rmsLastHalfDb = 0.0;
+    double sweepNormLast = 0.0;
+    bool sweepNormFinite = true;
+    size_t offsetsNonFinite = 0;
+    double off0 = 0.0, off8 = 0.0;
+    bool havePtr = false;
+    size_t firstNfOut = static_cast<size_t>(-1);
+};
+
+NanResult nanRun(int inject /*0 none, 1 NaN, 2 +Inf*/, bool fourBands) {
+    constexpr double sr = 48000.0;
+    constexpr int32 block = 512;
+    Steinberg::Vst::HostApplication host;
+    OffsetsPeer peer;
+    NanResult res;
+    {
+        Rig r(sr, block, &host, &peer);
+        res.havePtr = peer.ptr != nullptr;
+        // After activation (setActive(true) wipes routings).
+        r.apply({{kBandCountId, bandCountNorm(fourBands ? 4 : 1)},
+                 {sweepId(SweepParamType::kSweepEnable), 1.0},
+                 {sweepId(SweepParamType::kSweepEnvEnable), 1.0},
+                 {sweepId(SweepParamType::kSweepEnvSensitivity), 1.0},
+                 {makeRoutingParamId(0, 0), 3.0 / 13.0},   // EnvFollower
+                 {makeRoutingParamId(0, 1), 0.0},          // dest 0 = InputGain
+                 {makeRoutingParamId(0, 2), 0.75},         // amount +0.5
+                 {makeRoutingParamId(0, 3), 0.0},
+                 {makeRoutingParamId(1, 0), 3.0 / 13.0},   // EnvFollower
+                 {makeRoutingParamId(1, 1), 8.0 / 37.0},   // dest 8 = band0 drive
+                 {makeRoutingParamId(1, 2), 1.0},          // amount +1
+                 {makeRoutingParamId(1, 3), 0.0}});
+        const size_t total = static_cast<size_t>(sr * 2.0);
+        const auto in = sine(total, 220.0, sr, -12.0);
+        const size_t injBlock = 20;  // ~0.21 s
+        std::vector<float> bL(block), bR(block), oL(block), oR(block), outL(total, 0.0f);
+        CaptureChanges cap;
+        for (size_t s = 0, k = 0; s < total; s += block, ++k) {
+            const auto len = static_cast<int32>(std::min(static_cast<size_t>(block), total - s));
+            std::copy(in.begin() + static_cast<std::ptrdiff_t>(s), in.begin() + static_cast<std::ptrdiff_t>(s) + len, bL.begin());
+            std::copy(in.begin() + static_cast<std::ptrdiff_t>(s), in.begin() + static_cast<std::ptrdiff_t>(s) + len, bR.begin());
+            if (k == injBlock && inject != 0) {
+                const float bad = bitsToFloat(inject == 1 ? 0x7FC00000u : 0x7F800000u);
+                bL[0] = bad;
+                bR[0] = bad;
+            }
+            cap.clear();
+            r.processBlock(bL.data(), bR.data(), oL.data(), oR.data(), len, nullptr, &cap);
+            std::copy(oL.begin(), oL.begin() + len, outL.begin() + static_cast<std::ptrdiff_t>(s));
+            double v = 0.0;
+            if (cap.last(kSweepModulatedFrequencyOutputId, v)) {
+                res.sweepNormLast = v;
+                res.sweepNormFinite = fin(static_cast<float>(v));
+            }
+        }
+        const size_t injAt = injBlock * block;
+        res.nfOutBefore = nonFinite(outL.data(), injAt);
+        res.nfOutAfter = nonFinite(outL.data() + injAt, total - injAt);
+        for (size_t i = injAt; i < total; ++i) if (!fin(outL[i])) { res.firstNfOut = i - injAt; break; }
+        res.nfOutLastHalf = nonFinite(outL.data() + total / 2, total / 2);
+        res.rmsLastHalfDb = toDb(rmsOf(outL.data() + total / 2, total / 2));
+        if (peer.ptr) {
+            for (size_t i = 0; i < ModDest::kTotalDestinations; ++i) if (!fin(peer.ptr[i])) ++res.offsetsNonFinite;
+            res.off0 = peer.ptr[0];
+            res.off8 = peer.ptr[8];
+        }
+    }
+    return res;
+}
+
+} // namespace
+
+TEST_CASE("audit followup: NaN and Inf input injection", "[.][audit-followup]") {
+    for (bool four : {false, true}) {
+        const auto ctrl = nanRun(0, four);
+        for (int inj : {1, 2}) {
+            const auto r = nanRun(inj, four);
+            const double hz = 20.0 * std::pow(1000.0, r.sweepNormLast);
+            const double hzCtrl = 20.0 * std::pow(1000.0, ctrl.sweepNormLast);
+            int lv = 0;
+            if (r.nfOutAfter > 1 || r.offsetsNonFinite > 0 || !r.sweepNormFinite) lv = 2;
+            else if (r.nfOutAfter == 1 || std::fabs(r.rmsLastHalfDb - ctrl.rmsLastHalfDb) > 1.0) lv = 2;
+            emit(std::string("nan-inject:") + (inj == 1 ? "NaN" : "+Inf") + (four ? ":4bands" : ":1band"),
+                 std::string("one ") + (inj == 1 ? "NaN" : "+Inf") +
+                     " sample (L and R) at block 20 sample 0, then 1.8 s 220 Hz -12 dBFS; sweep on, sweep env on (sens 100%), "
+                     "routings EnvFollower->InputGain +0.5 and EnvFollower->Band0Drive +1; 48k block 512; " +
+                     (four ? "4 bands" : "1 band") + "; ModOffsets ptr captured via fake peer=" + (r.havePtr ? "yes" : "no"),
+                 "nonfinite_out_after_inject,first_nonfinite_offset,nonfinite_out_last_1s,rms_last_1s_dB(ctrl),"
+                 "sweep_out_norm_finite,sweep_out_Hz(ctrl),modOffsets_nonfinite_of_38,off[0],off[8](ctrl off0/off8)",
+                 std::to_string(r.nfOutAfter) + "," +
+                     (r.firstNfOut == static_cast<size_t>(-1) ? std::string("none") : std::to_string(r.firstNfOut)) + "," +
+                     std::to_string(r.nfOutLastHalf) + "," + fix(r.rmsLastHalfDb, 2) + "(" + fix(ctrl.rmsLastHalfDb, 2) + ")," +
+                     (r.sweepNormFinite ? "yes" : "no") + "," + gnum(hz) + "(" + gnum(hzCtrl) + ")," +
+                     std::to_string(r.offsetsNonFinite) + "," + gnum(r.off0) + "," + gnum(r.off8) + "(" +
+                     gnum(ctrl.off0) + "/" + gnum(ctrl.off8) + ")",
+                 "0 non-finite output samples; offsets finite; level within 1 dB of control after recovery", lv);
+        }
+    }
+    CHECK(true);
+}
+
+// =============================================================================
+// (4) Denormals in silence tails without FTZ/DAZ
+// =============================================================================
+
+namespace {
+
+#if AUDIT_HAS_MXCSR
+struct MxcsrGuard {
+    unsigned int saved;
+    explicit MxcsrGuard(bool ftzDaz) : saved(_mm_getcsr()) {
+        unsigned int c = saved & ~(0x8000u | 0x0040u);
+        if (ftzDaz) c |= (0x8000u | 0x0040u);
+        _mm_setcsr(c);
+    }
+    ~MxcsrGuard() { _mm_setcsr(saved); }
+};
+#endif
+
+struct DenormResult {
+    size_t denormOut = 0, nonZeroTail = 0;
+    double tailMs = 0.0, maxBlockUs = 0.0, burstMs = 0.0;
+    double tailPeak = 0.0;
+};
+
+DenormResult denormRun(const PList& setup, bool ftz) {
+#if AUDIT_HAS_MXCSR
+    MxcsrGuard g(ftz);
+#endif
+    constexpr double sr = 48000.0;
+    constexpr int32 block = 512;
+    Rig r(sr, block);
+    r.apply(setup);
+    // 0.25 s burst of full-scale noise (deterministic LCG), then 1 s of digital silence.
+    const size_t burst = static_cast<size_t>(sr * 0.25);
+    const size_t tail = static_cast<size_t>(sr * 1.0);
+    std::vector<float> in(burst);
+    uint32_t s = 12345u;
+    for (auto& v : in) {
+        s = s * 1664525u + 1013904223u;
+        v = static_cast<float>((static_cast<double>(s >> 8) / 8388608.0) - 1.0) * 0.9f;
+    }
+    std::vector<float> bL(block), bR(block), oL(block), oR(block);
+    DenormResult res;
+    auto t0 = std::chrono::steady_clock::now();
+    for (size_t p = 0; p < burst; p += block) {
+        const auto len = static_cast<int32>(std::min(static_cast<size_t>(block), burst - p));
+        std::copy(in.begin() + static_cast<std::ptrdiff_t>(p), in.begin() + static_cast<std::ptrdiff_t>(p) + len, bL.begin());
+        std::copy(in.begin() + static_cast<std::ptrdiff_t>(p), in.begin() + static_cast<std::ptrdiff_t>(p) + len, bR.begin());
+        r.processBlock(bL.data(), bR.data(), oL.data(), oR.data(), len, nullptr);
+    }
+    auto t1 = std::chrono::steady_clock::now();
+    res.burstMs = std::chrono::duration<double, std::milli>(t1 - t0).count();
+    std::fill(bL.begin(), bL.end(), 0.0f);
+    std::fill(bR.begin(), bR.end(), 0.0f);
+    constexpr float kFltMin = 1.17549435e-38f;
+    for (size_t p = 0; p < tail; p += block) {
+        const auto len = static_cast<int32>(std::min(static_cast<size_t>(block), tail - p));
+        auto b0 = std::chrono::steady_clock::now();
+        r.processBlock(bL.data(), bR.data(), oL.data(), oR.data(), len, nullptr);
+        auto b1 = std::chrono::steady_clock::now();
+        const double us = std::chrono::duration<double, std::micro>(b1 - b0).count();
+        res.tailMs += us / 1000.0;
+        res.maxBlockUs = std::max(res.maxBlockUs, us);
+        for (int32 i = 0; i < len; ++i) {
+            for (float v : {oL[static_cast<size_t>(i)], oR[static_cast<size_t>(i)]}) {
+                const float a = std::fabs(v);
+                if (a != 0.0f) ++res.nonZeroTail;
+                if (a != 0.0f && a < kFltMin) ++res.denormOut;
+                if (fin(v)) res.tailPeak = std::max(res.tailPeak, static_cast<double>(a));
+            }
+        }
+    }
+    return res;
+}
+
+PList denormSetup(DistortionType t, const PList& extra) {
+    PList l = {{kBandCountId, bandCountNorm(1)},
+               {bandId(0, BandParamType::kBandActiveNodes), 0.0},
+               {nodeId(0, 0, NodeParamType::kNodeType), typeNorm(t)},
+               {nodeId(0, 0, NodeParamType::kNodeDrive), 0.5}};
+    l.insert(l.end(), extra.begin(), extra.end());
+    return l;
+}
+
+} // namespace
+
+TEST_CASE("audit followup: denormals in silence tail", "[.][audit-followup-timing]") {
+#if AUDIT_HAS_MXCSR
+    struct T { const char* name; DistortionType t; PList extra; };
+    const T types[] = {
+        {"FeedbackDist(fb0.9,delay10.9ms,decay0.5)", DistortionType::FeedbackDist,
+         {{shapeId(0, 0, 0), 0.6}, {shapeId(0, 0, 1), 0.1}, {shapeId(0, 0, 8), 0.5}}},
+        {"AllpassResonant(topo1,fb0.89,decay5s)", DistortionType::AllpassResonant,
+         {{shapeId(0, 0, 0), 1.0 / 3.0}, {shapeId(0, 0, 2), 0.9}, {shapeId(0, 0, 3), 0.5}}},
+        {"Tube(default)", DistortionType::Tube, {}},
+        {"SoftClip(default,control)", DistortionType::SoftClip, {}},
+    };
+    for (const auto& ty : types) {
+        const auto setup = denormSetup(ty.t, ty.extra);
+        DenormResult off{}, on{};
+        double offMin = 1e30, onMin = 1e30, offMaxBlk = 0.0, onMaxBlk = 0.0;
+        for (int rep = 0; rep < 3; ++rep) {
+            const auto a = denormRun(setup, false);
+            const auto b = denormRun(setup, true);
+            if (rep == 0) { off = a; on = b; }
+            offMin = std::min(offMin, a.tailMs);
+            onMin = std::min(onMin, b.tailMs);
+            offMaxBlk = std::max(offMaxBlk, a.maxBlockUs);
+            onMaxBlk = std::max(onMaxBlk, b.maxBlockUs);
+        }
+        const double ratio = onMin > 0.0 ? offMin / onMin : 0.0;
+        const int lv = (ratio > 2.0) ? 2 : ((ratio > 1.3 || off.denormOut > 0) ? 1 : 0);
+        emit(std::string("denormal-tail:") + ty.name,
+             "1 band 1 node drive 5, 0.25 s full-scale noise then 1 s digital silence, 48k block 512; "
+             "FTZ/DAZ cleared vs set (test main sets them; plugin sets none); min of 3 reps; run alone",
+             "denormal_out_samples(noFTZ),nonzero_tail_samples(noFTZ),tail_peak(noFTZ),tail_ms_noFTZ,tail_ms_FTZ,"
+             "slowdown_x,max_block_us_noFTZ,max_block_us_FTZ,nonzero_tail_samples(FTZ)",
+             std::to_string(off.denormOut) + "," + std::to_string(off.nonZeroTail) + "," + gnum(off.tailPeak) + "," +
+                 fix(offMin, 2) + "," + fix(onMin, 2) + "," + fix(ratio, 2) + "," + fix(offMaxBlk, 0) + "," +
+                 fix(onMaxBlk, 0) + "," + std::to_string(on.nonZeroTail),
+             "slowdown <= 1.3x; denormal output samples 0", lv);
+    }
+#else
+    emit("denormal-tail:skipped", "non-x86 build", "-", "-", "-", 0);
+#endif
+    CHECK(true);
+}

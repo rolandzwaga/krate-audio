@@ -1859,3 +1859,31 @@ TEST_CASE("TranceGate - processing overhead < 0.1% CPU", "[trance_gate][performa
 
     REQUIRE(cpuPercent < 0.1);
 }
+
+// syncToMusicalPosition sets the step counter from the host's PPQ. A 1/8 step at 120 BPM and 44.1 kHz is exactly
+// 11025 samples, so the counter at block start `pos` is exactly pos % 11025; truncating stepFraction * samplesPerStep
+// left it one short whenever the product landed an ulp below the integer (hundreds of 64-sample block starts in a
+// second), so the gate's steps moved by a sample with the buffer size, and the macOS -ffast-math leg moves which ones.
+TEST_CASE("TranceGate: PPQ resync sets the exact step counter at every block start",
+          "[trance_gate][transport][regression]") {
+    TranceGate gate;
+    gate.prepare(44100.0);
+    TranceGateParams params;
+    params.tempoSync = true;
+    params.noteValue = NoteValue::Eighth;
+    params.noteModifier = NoteModifier::None;
+    gate.setParams(params);
+    gate.setTempo(120.0);
+    REQUIRE(gate.getSamplesPerStep() == 11025);
+
+    size_t misses = 0;
+    for (size_t pos = 0; pos < 22 * 2048; pos += 64) {
+        gate.syncToMusicalPosition(static_cast<double>(pos) / 44100.0 * 2.0);
+        if (gate.getSampleCounter() != pos % 11025) {
+            ++misses;
+            INFO("block start " << pos << ": counter " << gate.getSampleCounter() << ", want " << pos % 11025);
+            CHECK(gate.getSampleCounter() == pos % 11025);
+        }
+    }
+    CHECK(misses == 0);
+}

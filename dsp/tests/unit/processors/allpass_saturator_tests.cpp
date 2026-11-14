@@ -18,7 +18,15 @@
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
 
+#include "allpass_saturator_pre_t416_reference.h"
+
+#include <algorithm>
 #include <array>
+#include <bit>
+#include <chrono>
+#include <cstdint>
+#include <cstdio>
+#include <random>
 #include <cmath>
 #include <limits>
 #include <numeric>
@@ -656,6 +664,166 @@ TEST_CASE("AllpassSaturator KarplusStrong bright-attack-dark-decay (T043)",
     }
 }
 
+namespace {
+
+/// @brief The fundamental of a Karplus render, and how many periods it rests on.
+struct KarplusPitch {
+    double hz = 0.0;
+    size_t periods = 0;
+};
+
+/// @brief Measure the fundamental of a Karplus impulse response (follow-up 92).
+///
+/// 1. Isolate it: an RBJ bandpass (Q 4) at the expected note. The render also
+///    carries DC and a slow sub-loop mode from the excitation burst, which
+///    outlast a lossy high note and would otherwise own the tail.
+/// 2. Pick the steady part: from 4 periods after the bandpassed envelope's peak
+///    until it is 40 dB below that peak.
+/// 3. Estimate: demodulate at the expected note over 4-period Blackman-Harris
+///    windows hopped one period, take the least-squares slope of the unwrapped
+///    phase, and repeat once at that estimate. An exponential decay biases
+///    every window's phase equally, so it leaves the slope alone.
+/// Checked offline against the loop's analytic pole (Newton on
+/// fb * G_lp(z) * z^-(k+1) * Thiran(z) = 1) on the same renders: within 0.06
+/// cents for every tone of 38 periods or more, 0.7 cents at 8 periods.
+KarplusPitch measureKarplusPitch(const std::vector<float>& y, double fs, double note) {
+    constexpr double kTwoPi = 6.283185307179586;
+    const double w0 = kTwoPi * note / fs;
+    const double alpha = std::sin(w0) / (2.0 * 4.0);
+    const double a0 = 1.0 + alpha;
+    const double a1 = -2.0 * std::cos(w0);
+    const double a2 = 1.0 - alpha;
+    std::vector<double> bp(y.size(), 0.0);
+    double x1 = 0.0;
+    double x2 = 0.0;
+    double y1 = 0.0;
+    double y2 = 0.0;
+    for (size_t i = 0; i < y.size(); ++i) {
+        const double x0 = y[i];
+        const double v = ((alpha * x0) - (alpha * x2) - (a1 * y1) - (a2 * y2)) / a0;
+        x2 = x1;
+        x1 = x0;
+        y2 = y1;
+        y1 = v;
+        bp[i] = v;
+    }
+
+    const auto period = static_cast<size_t>(std::ceil(fs / note));
+    const auto envelope = [&](size_t at) {
+        double p = 0.0;
+        for (size_t i = at; i < std::min(bp.size(), at + period); ++i) {
+            p = std::max(p, std::abs(bp[i]));
+        }
+        return p;
+    };
+    double peak = 0.0;
+    size_t peakAt = 0;
+    for (size_t k = 0; (k < 60) && ((k + 1) * period < bp.size()); ++k) {
+        const double e = envelope(k * period);
+        if (e > peak) {
+            peak = e;
+            peakAt = k * period;
+        }
+    }
+    const size_t begin = peakAt + (4 * period);
+    size_t end = begin;
+    while (((end + period) < bp.size()) && (envelope(end) > peak * 0.01)) {
+        end += period;
+    }
+
+    const auto slopeEstimate = [&](double demodHz) {
+        const auto window = static_cast<size_t>(std::llround(4.0 * fs / demodHz));
+        const auto hop = static_cast<size_t>(std::llround(fs / demodHz));
+        std::vector<double> phases;
+        for (size_t start = begin; start + window <= end; start += hop) {
+            double re = 0.0;
+            double im = 0.0;
+            for (size_t i = 0; i < window; ++i) {
+                const double t = kTwoPi * static_cast<double>(i) / static_cast<double>(window);
+                const double w = 0.35875 - (0.48829 * std::cos(t)) + (0.14128 * std::cos(2.0 * t)) -
+                                 (0.01168 * std::cos(3.0 * t));
+                const double arg = kTwoPi * demodHz * static_cast<double>(start + i) / fs;
+                re += w * bp[start + i] * std::cos(arg);
+                im -= w * bp[start + i] * std::sin(arg);
+            }
+            double p = std::atan2(im, re);
+            if (!phases.empty()) {
+                while ((p - phases.back()) > 3.141592653589793) {
+                    p -= kTwoPi;
+                }
+                while ((p - phases.back()) < -3.141592653589793) {
+                    p += kTwoPi;
+                }
+            }
+            phases.push_back(p);
+        }
+        if (phases.size() < 3) {
+            return 0.0;
+        }
+        const auto n = static_cast<double>(phases.size());
+        double sx = 0.0;
+        double sy = 0.0;
+        double sxx = 0.0;
+        double sxy = 0.0;
+        for (size_t k = 0; k < phases.size(); ++k) {
+            const auto kx = static_cast<double>(k);
+            sx += kx;
+            sy += phases[k];
+            sxx += kx * kx;
+            sxy += kx * phases[k];
+        }
+        const double slope = ((n * sxy) - (sx * sy)) / ((n * sxx) - (sx * sx));  // rad per hop
+        return demodHz + (slope * fs / (kTwoPi * static_cast<double>(hop)));
+    };
+    const double first = slopeEstimate(note);
+    return {first > 0.0 ? slopeEstimate(first) : 0.0, (end - begin) / period};
+}
+
+} // namespace
+
+// Follow-up 92: the loop is readAllpass(d) (read BEFORE the write, so d + 1
+// samples) plus the loop lowpass's phase delay at the fundamental, and a lossy
+// loop rings below that (karplusLoopDelaySamples). Before the fix the node was
+// -2 to -258 cents flat here. Disrumpo runs the node at its oversampled rate,
+// so 176.4 kHz and 384 kHz are measured beside the base rates. Decay 1 s (the
+// node default), damping 0 and 0.3 (the node default; the lowpass is the
+// larger term there), drive 1 so the free decay is near-linear.
+TEST_CASE("AllpassSaturator KarplusStrong is in tune (follow-up 92)",
+          "[allpass_saturator][karplusstrong][pitch]") {
+    constexpr double kToleranceCents = 5.0;
+    for (const double sampleRate : {44100.0, 48000.0, 96000.0, 176400.0, 384000.0}) {
+        for (const double note : {110.0, 440.0, 1760.0}) {
+            for (const float damping : {0.0f, 0.3f}) {
+                AllpassSaturator processor;
+                processor.prepare(sampleRate, kTestBlockSize);
+                processor.setTopology(NetworkTopology::KarplusStrong);
+                processor.setFrequency(static_cast<float>(note));
+                processor.setDecay(1.0f);
+                processor.setDamping(damping);
+                processor.setDrive(1.0f);
+                processor.reset();
+
+                const auto length = static_cast<size_t>(0.75 * sampleRate);
+                std::vector<float> y(length, 0.0f);
+                for (size_t i = 0; i < length; ++i) {
+                    y[i] = processor.process(i < 8 ? 0.5f : 0.0f);
+                }
+                const KarplusPitch pitch = measureKarplusPitch(y, sampleRate, note);
+                const double cents = 1200.0 * std::log2(std::max(pitch.hz, 1e-9) / note);
+                std::printf("KS-PITCH sr=%6.0f note=%7.2f damping=%.1f periods=%4zu measured=%9.4f "
+                            "cents=%+8.3f\n",
+                            sampleRate, note, static_cast<double>(damping), pitch.periods, pitch.hz,
+                            cents);
+                INFO("rate " << sampleRate << ", note " << note << " Hz, damping " << damping << ": "
+                             << pitch.periods << " periods, " << pitch.hz << " Hz, " << cents
+                             << " cents");
+                REQUIRE(pitch.periods >= 8);
+                CHECK(std::abs(cents) <= kToleranceCents);
+            }
+        }
+    }
+}
+
 // =============================================================================
 // Phase 5: User Story 3 - AllpassChain Tests (T057-T060)
 // =============================================================================
@@ -1092,4 +1260,224 @@ TEST_CASE("AllpassSaturator edge cases (T095)", "[allpass_saturator][edge]") {
         const float output = unprepared.process(input);
         REQUIRE(output == Approx(input));
     }
+}
+
+// =============================================================================
+// D-084 (Disrumpo audit T4.16): reconfigure only on change, bit-identical
+// =============================================================================
+// process() used to rebuild all nine allpass sections (single stage, 4 chain
+// biquads, 4 matrix stages: nine sin/cos designs) and every drive on every
+// sample, whatever the topology. It now reconfigures only the active
+// topology, and only when the smoothed frequency or drive changed. The
+// reference is the pre-T4.16 class, snapshotted verbatim into
+// allpass_saturator_pre_t416_reference.h (namespace t416_reference). The claim
+// holds only under IEEE, so this TU is in dsp_ieee_tests, where every TU is
+// -fno-fast-math -fno-finite-math-only -ffp-contract=off on clang/GCC: in a
+// mixed executable the linker could keep a fast-math copy of an inline function
+// the two classes share.
+
+namespace {
+
+namespace t416ref = Krate::DSP::t416_reference;
+
+t416ref::NetworkTopology toReference(NetworkTopology t) {
+    return static_cast<t416ref::NetworkTopology>(static_cast<std::uint8_t>(t));
+}
+
+/// One scripted parameter move applied to both processors at `sample`.
+struct T416Move {
+    size_t sample;
+    int what;      // 0 freq, 1 drive, 2 feedback, 3 damping, 4 decay, 5 topology, 6 curve
+    float value;
+};
+
+/// Render `input` through the shipping and the reference class with the same
+/// script; returns the number of samples whose bits differ (and the max |diff|).
+template <typename Script>
+size_t t416Mismatches(double sampleRate, NetworkTopology startTopology, const std::vector<float>& input,
+                      const Script& script, float& maxAbsDiff) {
+    AllpassSaturator fixedSat;
+    t416ref::AllpassSaturator refSat;
+    fixedSat.setTopology(startTopology);
+    refSat.setTopology(toReference(startTopology));
+    fixedSat.prepare(sampleRate, 512);
+    refSat.prepare(sampleRate, 512);
+
+    size_t next = 0;
+    size_t mismatches = 0;
+    maxAbsDiff = 0.0f;
+    for (size_t i = 0; i < input.size(); ++i) {
+        while (next < script.size() && script[next].sample == i) {
+            const T416Move& m = script[next++];
+            switch (m.what) {
+                case 0: fixedSat.setFrequency(m.value); refSat.setFrequency(m.value); break;
+                case 1: fixedSat.setDrive(m.value); refSat.setDrive(m.value); break;
+                case 2: fixedSat.setFeedback(m.value); refSat.setFeedback(m.value); break;
+                case 3: fixedSat.setDamping(m.value); refSat.setDamping(m.value); break;
+                case 4: fixedSat.setDecay(m.value); refSat.setDecay(m.value); break;
+                case 5: {
+                    const auto t = static_cast<NetworkTopology>(static_cast<std::uint8_t>(m.value));
+                    fixedSat.setTopology(t);
+                    refSat.setTopology(toReference(t));
+                    break;
+                }
+                case 6: {
+                    const auto c = static_cast<WaveshapeType>(static_cast<std::uint8_t>(m.value));
+                    fixedSat.setSaturationCurve(c);
+                    refSat.setSaturationCurve(c);
+                    break;
+                }
+                default: break;
+            }
+        }
+        const float a = fixedSat.process(input[i]);
+        const float b = refSat.process(input[i]);
+        if (std::bit_cast<std::uint32_t>(a) != std::bit_cast<std::uint32_t>(b)) {
+            ++mismatches;
+        }
+        maxAbsDiff = std::max(maxAbsDiff, std::abs(a - b));
+    }
+    return mismatches;
+}
+
+std::vector<float> t416Input(size_t length, double sampleRate) {
+    std::mt19937 gen(416u);
+    std::uniform_real_distribution<float> noise(-0.3f, 0.3f);
+    std::vector<float> x(length, 0.0f);
+    for (size_t i = 0; i < length; ++i) {
+        const double t = static_cast<double>(i) / sampleRate;
+        float v = 0.4f * static_cast<float>(std::sin(2.0 * 3.14159265358979323846 * 110.0 * t));
+        if ((i / 2400) % 4 == 0) {
+            v += noise(gen);  // noise bursts excite the resonances
+        }
+        x[i] = v;
+    }
+    return x;
+}
+
+/// Block-rate jumps of every parameter, plus per-sample-ish glides (a move every
+/// 16 samples) so the smoothers are in motion most of the time, and one
+/// topology / curve change per second.
+std::vector<T416Move> t416Script(size_t length, bool withTopologySwitches) {
+    std::mt19937 gen(4160u);
+    std::uniform_real_distribution<float> freq(30.0f, 3000.0f);
+    std::uniform_real_distribution<float> drive(0.1f, 10.0f);
+    std::uniform_real_distribution<float> unit(0.0f, 1.0f);
+    std::vector<T416Move> s;
+    for (size_t i = 0; i < length; i += 512) {
+        s.push_back({i, 0, freq(gen)});
+        s.push_back({i, 1, drive(gen)});
+        s.push_back({i, 2, 0.999f * unit(gen)});
+        if ((i / 512) % 3 == 0) {
+            s.push_back({i, 3, unit(gen)});
+            s.push_back({i, 4, 0.05f + 3.0f * unit(gen)});
+        }
+        // Long stretches with no move at all after some blocks: the smoothers settle.
+        if ((i / 512) % 8 == 7) {
+            continue;
+        }
+        for (size_t k = 16; k < 512 && i + k < length; k += 16) {
+            if ((i / 512) % 2 == 0) {
+                s.push_back({i + k, 0, 200.0f + 1800.0f * static_cast<float>(k) / 512.0f});
+            } else {
+                s.push_back({i + k, 1, 0.5f + 4.0f * static_cast<float>(k) / 512.0f});
+            }
+        }
+    }
+    if (withTopologySwitches) {
+        const std::array<float, 6> order{1.0f, 3.0f, 2.0f, 0.0f, 3.0f, 1.0f};
+        for (size_t n = 0; n < order.size(); ++n) {
+            const size_t at = (n + 1) * length / (order.size() + 1) + 3;
+            s.push_back({at, 5, order[n]});
+            s.push_back({at + 100, 6, static_cast<float>((n * 3) % 9)});
+        }
+    }
+    std::stable_sort(s.begin(), s.end(), [](const T416Move& a, const T416Move& b) { return a.sample < b.sample; });
+    return s;
+}
+
+} // namespace
+
+TEST_CASE("AllpassSaturator reconfigures on change only, bit-identical to per-sample reconfiguration",
+          "[allpass_saturator][D-084]") {
+    const std::array<NetworkTopology, 4> topologies{NetworkTopology::SingleAllpass, NetworkTopology::AllpassChain,
+                                                    NetworkTopology::KarplusStrong, NetworkTopology::FeedbackMatrix};
+    for (const double sampleRate : {44100.0, 96000.0}) {
+        const auto length = static_cast<size_t>(sampleRate * 2.0);
+        const auto input = t416Input(length, sampleRate);
+        for (const NetworkTopology topology : topologies) {
+            float maxDiff = 0.0f;
+            const size_t mismatches = t416Mismatches(sampleRate, topology, input, t416Script(length, false), maxDiff);
+            std::printf("D-084 %.0f Hz topology %d fixed: %zu / %zu samples differ, max |diff| %g\n", sampleRate,
+                        static_cast<int>(topology), mismatches, length, static_cast<double>(maxDiff));
+            INFO("rate " << sampleRate << ", topology " << static_cast<int>(topology));
+            REQUIRE(mismatches == 0);
+        }
+        // Topology and curve switches mid-run: the newly active topology must be
+        // configured for the current smoothed values before its first sample.
+        float maxDiff = 0.0f;
+        const size_t mismatches =
+            t416Mismatches(sampleRate, NetworkTopology::SingleAllpass, input, t416Script(length, true), maxDiff);
+        std::printf("D-084 %.0f Hz topology switches: %zu / %zu samples differ, max |diff| %g\n", sampleRate,
+                    mismatches, length, static_cast<double>(maxDiff));
+        INFO("rate " << sampleRate << ", topology switches");
+        REQUIRE(mismatches == 0);
+
+        // Topology switches with SETTLED parameters: the smoothers are at their
+        // targets, so nothing but the switch itself can bring the newly active
+        // topology (last configured in prepare(), at 440 Hz / drive 1) up to date.
+        std::vector<T416Move> settled{{0, 0, 1234.0f}, {0, 1, 3.5f}, {0, 2, 0.8f}};
+        const std::array<float, 6> order{1.0f, 3.0f, 2.0f, 0.0f, 3.0f, 1.0f};
+        for (size_t n = 0; n < order.size(); ++n) {
+            settled.push_back({(n + 1) * length / (order.size() + 1), 5, order[n]});
+        }
+        float settledDiff = 0.0f;
+        const size_t settledMismatches =
+            t416Mismatches(sampleRate, NetworkTopology::SingleAllpass, input, settled, settledDiff);
+        std::printf("D-084 %.0f Hz topology switches, settled params: %zu / %zu samples differ, max |diff| %g\n",
+                    sampleRate, settledMismatches, length, static_cast<double>(settledDiff));
+        INFO("rate " << sampleRate << ", topology switches with settled parameters");
+        REQUIRE(settledMismatches == 0);
+    }
+}
+
+// Hidden printing probe (the plan names no CPU budget, so nothing is asserted):
+// ns per sample of the shipping class against the per-sample-reconfiguring
+// reference, steady parameters, per topology.
+TEST_CASE("AllpassSaturator T4.16 CPU probe", "[.][t416-cpu-probe]") {
+    constexpr double kRate = 48000.0;
+    constexpr size_t kLength = 48000 * 10;
+    const auto input = t416Input(kLength, kRate);
+    const std::array<NetworkTopology, 4> topologies{NetworkTopology::SingleAllpass, NetworkTopology::AllpassChain,
+                                                    NetworkTopology::KarplusStrong, NetworkTopology::FeedbackMatrix};
+    for (const NetworkTopology topology : topologies) {
+        AllpassSaturator fixedSat;
+        t416ref::AllpassSaturator refSat;
+        fixedSat.setTopology(topology);
+        refSat.setTopology(toReference(topology));
+        fixedSat.prepare(kRate, 512);
+        refSat.prepare(kRate, 512);
+        fixedSat.setFeedback(0.7f);
+        refSat.setFeedback(0.7f);
+
+        double best[2] = {1e30, 1e30};
+        float sink = 0.0f;
+        for (int rep = 0; rep < 5; ++rep) {
+            for (int which = 0; which < 2; ++which) {
+                const auto t0 = std::chrono::steady_clock::now();
+                for (size_t i = 0; i < kLength; ++i) {
+                    sink += (which == 0) ? fixedSat.process(input[i]) : refSat.process(input[i]);
+                }
+                const auto t1 = std::chrono::steady_clock::now();
+                const double ns = std::chrono::duration<double, std::nano>(t1 - t0).count() / kLength;
+                best[which] = std::min(best[which], ns);
+            }
+        }
+        const double cpuFixed = best[0] * kRate * 1e-7;   // % of one core at 48 kHz
+        const double cpuRef = best[1] * kRate * 1e-7;
+        std::printf("T4.16 CPU topology %d: %.2f ns/sample (%.3f %%) vs reference %.2f ns/sample (%.3f %%), %.2fx [sink %g]\n",
+                    static_cast<int>(topology), best[0], cpuFixed, best[1], cpuRef, best[1] / best[0],
+                    static_cast<double>(sink));
+    }
+    SUCCEED();
 }

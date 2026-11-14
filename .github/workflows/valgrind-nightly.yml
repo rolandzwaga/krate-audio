@@ -122,7 +122,7 @@ jobs:
 
   valgrind-membrum:
     name: Linux Valgrind (Membrum, shard ${{ matrix.shard }}/4)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04  # pinned with ci.yml build-linux (compiler determinism)
     needs: check-activity
     if: needs.check-activity.outputs.should_run == 'true'
 
@@ -139,7 +139,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           submodules: recursive
 
@@ -158,13 +158,13 @@ jobs:
           test -f /usr/include/X11/Xlib.h || { echo "libx11-dev did not install"; exit 1; }
 
       - name: Setup ccache
-        uses: hendrikmuhs/ccache-action@v1.2.20
+        uses: hendrikmuhs/ccache-action@f09c25b45002a07be2955cbe52e8cee55643f89d # v1.2.24
         with:
           key: linux-valgrind-${{ env.BUILD_TYPE }}
           max-size: ${{ env.CCACHE_MAXSIZE }}
 
       - name: Cache FetchContent
-        uses: actions/cache@v5
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: build-vg/_deps
           key: fetchcontent-${{ github.repository }}-${{ runner.os }}-vg-${{ hashFiles('CMakeLists.txt', 'dsp/CMakeLists.txt', 'plugins/shared/CMakeLists.txt', 'plugins/membrum/CMakeLists.txt', 'tests/CMakeLists.txt') }}
@@ -233,13 +233,13 @@ jobs:
   # ==========================================================================
   valgrind-editor-lifecycle:
     name: Linux Valgrind (Editor Lifecycle, all plugins)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04  # pinned with ci.yml build-linux (compiler determinism)
     needs: check-activity
     if: needs.check-activity.outputs.should_run == 'true'
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           submodules: recursive
 
@@ -258,13 +258,13 @@ jobs:
           test -f /usr/include/X11/Xlib.h || { echo "libx11-dev did not install"; exit 1; }
 
       - name: Setup ccache
-        uses: hendrikmuhs/ccache-action@v1.2.20
+        uses: hendrikmuhs/ccache-action@f09c25b45002a07be2955cbe52e8cee55643f89d # v1.2.24
         with:
           key: linux-valgrind-editor-${{ env.BUILD_TYPE }}
           max-size: ${{ env.CCACHE_MAXSIZE }}
 
       - name: Cache FetchContent
-        uses: actions/cache@v5
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: build-vg-editor/_deps
           key: fetchcontent-${{ github.repository }}-${{ runner.os }}-vgedit-${{ hashFiles('**/CMakeLists.txt') }}

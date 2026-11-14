@@ -46,6 +46,7 @@
 #include "vstgui/uidescription/uiattributes.h"
 #include "vstgui/uidescription/detail/uiviewcreatorattributes.h"
 
+#include <krate/dsp/core/db_utils.h>
 #include <krate/dsp/primitives/lfo.h>
 
 #include <algorithm>
@@ -64,7 +65,7 @@ inline constexpr int kNumLfoShapes = 6;
 /// Convert normalized parameter value (0.0-1.0) to integer LFO shape index (0-5).
 /// Handles NaN, infinity, and out-of-range values defensively.
 [[nodiscard]] inline int lfoShapeIndexFromNormalized(float value) {
-    if (std::isnan(value) || std::isinf(value))
+    if (Krate::DSP::detail::isNaN(value) || Krate::DSP::detail::isInf(value))
         value = 0.0f;
     value = std::clamp(value, 0.0f, 1.0f);
     return static_cast<int>(std::round(value * static_cast<float>(kNumLfoShapes - 1)));

@@ -35,6 +35,7 @@
 #include "test_helpers/editor_lifecycle_harness.h"
 #include <shared_editor_views_probe.h>
 #include <registered_defaults_probe.h>
+#include <terminate_with_editor_open_probe.h>
 
 #include "controller/controller.h"
 #include "plugin_ids.h"
@@ -66,7 +67,14 @@
 #include <fstream>
 #include <set>
 #include <string>
+#include <system_error>
 #include <vector>
+
+#ifdef _WIN32
+#include <process.h>  // _getpid: the temp preset directory names
+#else
+#include <unistd.h>  // getpid
+#endif
 
 namespace {
 
@@ -303,4 +311,93 @@ TEST_CASE("Vorago parameters start at their registered defaults",
     CHECK(mismatches.empty());
 
     controller.terminate();
+}
+
+// A host may terminate the controller before it removes the editor view. The update banner polls the update
+// checker every 500 ms until the editor closes, so the checker must outlive terminate().
+// Teeth under AddressSanitizer (Windows): a poll of a freed checker is a heap-use-after-free.
+TEST_CASE("Vorago: terminating the controller before the editor closes leaves the update views safe",
+          "[vorago][controller][ui][lifecycle][editor-uaf]")
+{
+    ::Vorago::Controller controller;
+    REQUIRE(controller.initialize(nullptr) == Steinberg::kResultOk);
+    Krate::TestSupport::terminateControllerWithEditorOpen(
+        controller, "editor", std::string(VORAGO_RESOURCES_DIR) + "/editor.uidesc");
+}
+
+namespace {
+
+[[nodiscard]] long voragoTestPid() {
+#ifdef _WIN32
+    return static_cast<long>(_getpid());
+#else
+    return static_cast<long>(getpid());
+#endif
+}
+
+/// A user and a factory preset directory under the system temp directory, unique to this process and this call,
+/// removed in the destructor so a failing REQUIRE cannot leak them.
+class TempPresetDirs {
+public:
+    TempPresetDirs() {
+        static int counter = 0;
+        const std::string tag = std::to_string(voragoTestPid()) + "_" + std::to_string(++counter);
+        const std::filesystem::path root = std::filesystem::temp_directory_path();
+        user_ = root / ("vorago_terminate_probe_user_" + tag);
+        factory_ = root / ("vorago_terminate_probe_factory_" + tag);
+        std::error_code ec;
+        std::filesystem::remove_all(user_, ec);
+        std::filesystem::remove_all(factory_, ec);
+        std::filesystem::create_directories(user_, ec);
+        std::filesystem::create_directories(factory_, ec);
+    }
+    ~TempPresetDirs() {
+        std::error_code ec;
+        std::filesystem::remove_all(user_, ec);
+        std::filesystem::remove_all(factory_, ec);
+    }
+    TempPresetDirs(const TempPresetDirs&) = delete;
+    TempPresetDirs& operator=(const TempPresetDirs&) = delete;
+    TempPresetDirs(TempPresetDirs&&) = delete;
+    TempPresetDirs& operator=(TempPresetDirs&&) = delete;
+
+    [[nodiscard]] const std::filesystem::path& user() const noexcept { return user_; }
+    [[nodiscard]] const std::filesystem::path& factory() const noexcept { return factory_; }
+
+private:
+    std::filesystem::path user_;
+    std::filesystem::path factory_;
+};
+
+}  // namespace
+
+// The preset browser the editor built in didOpen keeps a raw PresetManager*, and its Presets button still opens it
+// after terminate(): open() rescans the presets through that pointer, so the manager must outlive terminate().
+// The controller's manager is rebuilt over empty temp user and factory directories, so the scan never creates or
+// reads the real preset trees (the browser opens whatever the scan finds); the dirs are removed by their guard,
+// declared before the controller so it outlives it.
+// Teeth under AddressSanitizer: a scan through a freed manager is a heap-use-after-free in PresetManager::scanPresets.
+TEST_CASE("Vorago: opening the preset browser after the controller terminates with the editor open is safe",
+          "[vorago][controller][ui][lifecycle][editor-uaf]")
+{
+    const TempPresetDirs dirs;
+    REQUIRE(std::filesystem::is_directory(dirs.user()));
+    REQUIRE(std::filesystem::is_directory(dirs.factory()));
+
+    ::Vorago::Controller controller;
+    REQUIRE(controller.initialize(nullptr) == Steinberg::kResultOk);
+    controller.replacePresetManagerForTest(dirs.user(), dirs.factory());
+    Krate::Plugins::PresetManager* manager = controller.presetManagerForTest();
+    REQUIRE(manager != nullptr);
+    REQUIRE(manager->getUserPresetDirectory() == dirs.user());
+    REQUIRE(manager->getFactoryPresetDirectory() == dirs.factory());
+
+    Krate::TestSupport::terminateControllerWithEditorOpen(
+        controller, "editor", std::string(VORAGO_RESOURCES_DIR) + "/editor.uidesc", {}, [&controller] {
+            const Krate::Plugins::PresetBrowserView* browser = controller.presetBrowserViewForTest();
+            REQUIRE(browser != nullptr);
+            controller.openPresetBrowser();  // the Presets button's action
+            CHECK(browser->isOpen());
+            CHECK(controller.presetManagerForTest() != nullptr);
+        });
 }

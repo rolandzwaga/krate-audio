@@ -194,7 +194,31 @@ protected:
     // ==========================================================================
 
     void processParameterChanges(Steinberg::Vst::IParameterChanges* changes);
-    void processEvents(Steinberg::Vst::IEventList* events);
+    void processEvents(Steinberg::Vst::IEventList* events, Steinberg::int32 numSamples);
+
+    // --- Sample-accurate note timing ---
+    // Note and expression events reach the engine at their own sample: they are
+    // queued with their offset and the engine renders the buffer in segments
+    // split at those offsets (renderEngineSegments). The arpeggiator still sees
+    // host notes at the buffer start, since it builds its pattern there.
+    enum class TimedEventKind : uint8_t { NoteOn, NoteOff, ArpNoteOn, ArpNoteOff, Expression, PitchBend };
+    struct TimedEvent {
+        uint32_t offset{0};
+        TimedEventKind kind{TimedEventKind::NoteOn};
+        uint8_t pitch{0};
+        uint8_t velocity{0};
+        bool legato{false};
+        int32_t noteId{-1};
+        uint32_t typeId{0};
+        double value{0.0};
+    };
+    static constexpr size_t kMaxTimedEvents = 1024;
+    void queueTimedEvent(const TimedEvent& event) noexcept;
+    void applyTimedEvent(const TimedEvent& event) noexcept;
+    void flushTimedEvents() noexcept;
+    void renderEngineSegments(float* left, float* right, size_t numSamples,
+                              const Krate::DSP::BlockContext& blockCtx,
+                              const float* sidechainL, const float* sidechainR) noexcept;
     void applyParamsToEngine();
 
     // applyParamsToEngine() is split into one helper per parameter section,
@@ -292,6 +316,12 @@ private:
     Krate::DSP::ArpeggiatorCore arpCore_;
     std::array<Krate::DSP::ArpEvent, 128> arpEvents_{};
     float lastArpPitch_ = 0.0f;  ///< Last arp NoteOn pitch, normalized 0-1 (for mod source)
+
+    // Timed note queue for the current buffer, sorted by offset (stable)
+    std::array<TimedEvent, kMaxTimedEvents> timedEvents_{};
+    size_t timedEventCount_ = 0;
+    uint32_t currentEventOffset_ = 0;   ///< sampleOffset of the event being dispatched
+    uint32_t currentBlockSamples_ = 0;  ///< numSamples of the buffer being processed
     float lastSidechainActive_ = -1.0f;  ///< Tracks sidechain state for output param changes
     bool wasTransportPlaying_{false};
     bool hostSupportsTransport_{false}; ///< True once host reports kPlaying

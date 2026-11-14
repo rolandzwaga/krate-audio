@@ -16,6 +16,8 @@
 #include <cstdint>
 #include "distortion_types.h"
 #include "morph_node.h"
+#include "../plugin_ids.h"
+#include "../state_codec.h"
 
 namespace Disrumpo {
 
@@ -42,6 +44,10 @@ struct BandState {
     MorphMode morphMode = MorphMode::Linear1D;  ///< Current morph mode (FR-003, FR-004, FR-005)
     int activeNodeCount = 2;     ///< Number of active nodes (2-4) (FR-002)
 
+    // Sweep -> morph link (FR-032, FR-033): None keeps the manual position
+    MorphLinkMode xLink = MorphLinkMode::None;  ///< Morph X link mode
+    MorphLinkMode yLink = MorphLinkMode::None;  ///< Morph Y link mode
+
     /// @brief Array of morph nodes for this band.
     /// Per spec FR-002: Support 2 to 4 active morph nodes per band.
     /// Fixed-size array for real-time safety (no allocations).
@@ -61,11 +67,17 @@ inline constexpr int kMinBands = 1;
 inline constexpr int kMaxBands = 4;
 inline constexpr int kDefaultBands = 4;
 
+// FR-019: at most 16 active distortion processors across all bands. Disrumpo
+// meets the cap by construction (no dynamic weight threshold exists): every
+// band runs at most kMaxMorphNodes node processors.
+static_assert(kMaxBands * kMaxMorphNodes <= 16,
+              "FR-019: bands x morph nodes must stay within the 16-processor cap");
+
 inline constexpr float kMinBandGainDb = -24.0f;
 inline constexpr float kMaxBandGainDb = +24.0f;
 
-inline constexpr float kMinCrossoverHz = 20.0f;
-inline constexpr float kMaxCrossoverHz = 20000.0f;
+// kMinCrossoverHz / kMaxCrossoverHz live in state_codec.h with the crossover
+// normalized <-> Hz mapping.
 inline constexpr float kMinCrossoverSpacingOctaves = 0.5f;
 
 /// @brief Default smoothing time for band parameter transitions (FR-027a)

@@ -46,7 +46,7 @@
 
 - [ ] **T2.1** Integrate `CrossoverLR4` from KrateDSP
   - Create `CrossoverNetwork` wrapper class
-  - Support dynamic band count (1-8)
+  - Support dynamic band count (1-4)
   - Implement cascaded band splitting
 
 - [ ] **T2.2** Implement per-band routing
@@ -304,10 +304,10 @@
   - Per-band coloring
   - Input/output overlay
 
-- [ ] **T13.3** Implement metering
-  - Input/Output peak+RMS
-  - Per-band level indicators
-  - Clipping detection
+- [x] **T13.3** Implement metering
+  - Input/Output peak+RMS (header IN / OUT stereo meters)
+  - Per-band level indicators (a bar under each band title)
+  - Clipping detection (latching clip lights, cleared by a click)
 
 ### Week 14: Progressive Disclosure
 

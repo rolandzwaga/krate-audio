@@ -35,7 +35,6 @@ namespace {
 
 constexpr double kSampleRate = 44100.0;
 constexpr size_t kBlockSize = 512;
-constexpr double kSampleRate96k = 96000.0;
 
 /// Fill buffer with a sine wave
 void fillSine(float* buffer, size_t numSamples, float frequency, double sampleRate,
@@ -645,6 +644,42 @@ TEST_CASE("RuinaeEffectsChain FR-010: crossfade blends outgoing and incoming",
     }
 
     REQUIRE(chain.getActiveDelayType() == RuinaeDelayType::Tape);
+}
+
+TEST_CASE("RuinaeEffectsChain delay type switch completes while the delay time is re-applied every block",
+          "[systems][ruinae_effects_chain][US5]") {
+    // The processor pushes every parameter to the engine once per block (applyParamsToEngine), so
+    // setDelayTime runs every block during a type switch's pre-warm. Each call restarted the
+    // pre-warm countdown: no switch away from Digital ever completed. A changed time may only
+    // resize what is left of the pre-warm, by the time already spent.
+    const auto runSwitch = [](const auto& timeForBlock) {
+        RuinaeEffectsChain chain;
+        prepareChain(chain);
+        chain.setDelayEnabled(true);
+        chain.setDelayMix(1.0f);
+        chain.setDelayTime(timeForBlock(0));
+        ReverbParams reverbParams;
+        reverbParams.mix = 0.0f;
+        chain.setReverbParams(reverbParams);
+        chain.setDelayType(RuinaeDelayType::Spectral);
+        std::vector<float> left(kBlockSize);
+        std::vector<float> right(kBlockSize);
+        // Pre-warm max(time, 20 ms) + compensation latency, then a 30 ms crossfade: 2 s is ample
+        const int blocks = static_cast<int>(2.0 * kSampleRate) / static_cast<int>(kBlockSize);
+        for (int b = 0; b < blocks; ++b) {
+            chain.setDelayTime(timeForBlock(b));
+            fillSine(left.data(), kBlockSize, 440.0f, kSampleRate, 0.5f);
+            fillSine(right.data(), kBlockSize, 440.0f, kSampleRate, 0.5f);
+            chain.processBlock(left.data(), right.data(), kBlockSize);
+        }
+        return chain.getActiveDelayType();
+    };
+    SECTION("unchanged time") {
+        CHECK(runSwitch([](int) { return 250.0f; }) == RuinaeDelayType::Spectral);
+    }
+    SECTION("time moving every block") {
+        CHECK(runSwitch([](int b) { return 250.0f + static_cast<float>(b % 7); }) == RuinaeDelayType::Spectral);
+    }
 }
 
 TEST_CASE("RuinaeEffectsChain FR-011: crossfade duration 25-50ms",

@@ -21,6 +21,8 @@
 #include "pluginterfaces/vst/ivstaudioprocessor.h"
 #include "pluginterfaces/vst/ivstparameterchanges.h"
 
+#include <krate/dsp/core/db_utils.h>
+
 #include "dsp/morph_engine.h"
 #include "dsp/morph_node.h"
 #include "dsp/distortion_adapter.h"
@@ -31,6 +33,7 @@
 #include <cmath>
 #include <cstring>
 #include <memory>
+#include <numbers>
 #include <numeric>
 #include <vector>
 #include "vst_param_changes.h"
@@ -160,17 +163,17 @@ struct ProcessorFixture {
         result = processor->setupProcessing(setup);
         REQUIRE(result == Steinberg::kResultTrue);
 
-        result = processor->setActive(true);
+        result = processor->setActive(1u);
         REQUIRE(result == Steinberg::kResultTrue);
     }
 
     ~ProcessorFixture() {
-        processor->setActive(false);
+        processor->setActive(0u);
         processor->terminate();
     }
 
     void processBlock(float* inputL, float* inputR, float* outputL, float* outputR,
-                      Steinberg::Vst::IParameterChanges* paramChanges = nullptr) {
+                      Steinberg::Vst::IParameterChanges* paramChanges = nullptr) const {
         float* inChannels[2] = {inputL, inputR};
         float* outChannels[2] = {outputL, outputR};
 
@@ -202,8 +205,11 @@ struct ProcessorFixture {
     void processBlocks(Steinberg::int32 numBlocks, float freq,
                        Steinberg::int32& sampleOffset,
                        Steinberg::Vst::IParameterChanges* paramChanges = nullptr,
-                       float* captureL = nullptr, float* captureR = nullptr) {
-        std::array<float, kBlockSize> inL{}, inR{}, outL{}, outR{};
+                       float* captureL = nullptr, float* captureR = nullptr) const {
+        std::array<float, kBlockSize> inL{};
+        std::array<float, kBlockSize> inR{};
+        std::array<float, kBlockSize> outL{};
+        std::array<float, kBlockSize> outR{};
 
         for (Steinberg::int32 block = 0; block < numBlocks; ++block) {
             generateSine(inL.data(), kBlockSize, freq, kSampleRate, sampleOffset);
@@ -256,7 +262,10 @@ TEST_CASE("Adding second distortion node does not produce white noise",
     auto processComplexBlocks = [&](Steinberg::int32 numBlocks,
                                     Steinberg::Vst::IParameterChanges* params = nullptr,
                                     float* captureL = nullptr) {
-        std::array<float, kBlockSize> inL{}, inR{}, outL{}, outR{};
+        std::array<float, kBlockSize> inL{};
+        std::array<float, kBlockSize> inR{};
+        std::array<float, kBlockSize> outL{};
+        std::array<float, kBlockSize> outR{};
         for (Steinberg::int32 block = 0; block < numBlocks; ++block) {
             generateComplexTone(inL.data(), kBlockSize, kFreq, kSampleRate, sampleOffset);
             generateComplexTone(inR.data(), kBlockSize, kFreq, kSampleRate, sampleOffset);
@@ -533,37 +542,37 @@ TEST_CASE("Various second node types do not produce noise",
     // Try ALL other Node 1 types to catch shadow-default noise bugs
     const std::array<TestCase, 25> testCases = {{
         // Saturation family (skip Fuzz=4, it's Node 0)
-        {0, "SoftClip"},
-        {1, "HardClip"},
-        {2, "Tube"},
-        {3, "Tape"},
-        {5, "AsymmetricFuzz"},
+        {.typeIndex = 0, .name = "SoftClip"},
+        {.typeIndex = 1, .name = "HardClip"},
+        {.typeIndex = 2, .name = "Tube"},
+        {.typeIndex = 3, .name = "Tape"},
+        {.typeIndex = 5, .name = "AsymmetricFuzz"},
         // Wavefold family
-        {6, "SineFold"},
-        {7, "TriangleFold"},
-        {8, "SergeFold"},
+        {.typeIndex = 6, .name = "SineFold"},
+        {.typeIndex = 7, .name = "TriangleFold"},
+        {.typeIndex = 8, .name = "SergeFold"},
         // Rectify family
-        {9, "FullRectify"},
-        {10, "HalfRectify"},
+        {.typeIndex = 9, .name = "FullRectify"},
+        {.typeIndex = 10, .name = "HalfRectify"},
         // Digital family
-        {11, "Bitcrush"},
-        {12, "SampleReduce"},
-        {13, "Quantize"},
-        {14, "Aliasing"},
-        {15, "BitwiseMangler"},
+        {.typeIndex = 11, .name = "Bitcrush"},
+        {.typeIndex = 12, .name = "SampleReduce"},
+        {.typeIndex = 13, .name = "Quantize"},
+        {.typeIndex = 14, .name = "Aliasing"},
+        {.typeIndex = 15, .name = "BitwiseMangler"},
         // Dynamic family
-        {16, "Temporal"},
+        {.typeIndex = 16, .name = "Temporal"},
         // Hybrid family
-        {17, "RingSaturation"},
-        {18, "FeedbackDist"},
-        {19, "AllpassResonant"},
+        {.typeIndex = 17, .name = "RingSaturation"},
+        {.typeIndex = 18, .name = "FeedbackDist"},
+        {.typeIndex = 19, .name = "AllpassResonant"},
         // Experimental family
-        {20, "Chaos"},
-        {21, "Formant"},
-        {22, "Granular"},
-        {23, "Spectral"},
-        {24, "Fractal"},
-        {25, "Stochastic"},
+        {.typeIndex = 20, .name = "Chaos"},
+        {.typeIndex = 21, .name = "Formant"},
+        {.typeIndex = 22, .name = "Granular"},
+        {.typeIndex = 23, .name = "Spectral"},
+        {.typeIndex = 24, .name = "Fractal"},
+        {.typeIndex = 25, .name = "Stochastic"},
     }};
 
     for (const auto& tc : testCases) {
@@ -642,16 +651,16 @@ TEST_CASE("MorphEngine: switching to cross-family does not produce noise",
     // Configure nodes like the user scenario
     std::array<MorphNode, kMaxMorphNodes> nodes;
     nodes[0] = MorphNode(0, 0.0f, 0.0f, DistortionType::Fuzz);
-    nodes[0].commonParams = {1.0f, 1.0f, 4000.0f};
+    nodes[0].commonParams = {.drive = 1.0f, .mix = 1.0f, .toneHz = 4000.0f};
 
     nodes[1] = MorphNode(1, 1.0f, 0.0f, DistortionType::SoftClip);
-    nodes[1].commonParams = {1.0f, 1.0f, 4000.0f};
+    nodes[1].commonParams = {.drive = 1.0f, .mix = 1.0f, .toneHz = 4000.0f};
 
     nodes[2] = MorphNode(2, 0.0f, 1.0f, DistortionType::SoftClip);
-    nodes[2].commonParams = {1.0f, 1.0f, 4000.0f};
+    nodes[2].commonParams = {.drive = 1.0f, .mix = 1.0f, .toneHz = 4000.0f};
 
     nodes[3] = MorphNode(3, 1.0f, 1.0f, DistortionType::SoftClip);
-    nodes[3].commonParams = {1.0f, 1.0f, 4000.0f};
+    nodes[3].commonParams = {.drive = 1.0f, .mix = 1.0f, .toneHz = 4000.0f};
 
     // Phase 1: Single node (Fuzz), process some audio
     engine->setNodes(nodes, 1);
@@ -660,7 +669,7 @@ TEST_CASE("MorphEngine: switching to cross-family does not produce noise",
     constexpr int kSamples = 8192;
     std::array<float, kSamples> input{};
     for (int i = 0; i < kSamples; ++i) {
-        input[i] = std::sin(2.0f * 3.14159265f * 1000.0f * static_cast<float>(i) / 44100.0f);
+        input[i] = std::sin(2.0f * std::numbers::pi_v<float> * 1000.0f * static_cast<float>(i) / 44100.0f);
     }
 
     // Warm up with single node
@@ -690,7 +699,7 @@ TEST_CASE("MorphEngine: switching to cross-family does not produce noise",
     for (int i = 0; i < kSamples; ++i) {
         output[i] = engine->process(input[i]);
         // Catch NaN/Inf
-        if (std::isnan(output[i]) || std::isinf(output[i])) {
+        if (!Krate::DSP::detail::isFinite(output[i])) {
             WARN("NaN/Inf at sample " << i);
             output[i] = 0.0f;
         }
@@ -737,14 +746,14 @@ TEST_CASE("DistortionAdapter: BitwiseMangler with shadow defaults is not noise",
     p.bitwisePattern = 0.5f;   // Mid-range XOR pattern
     adapter.setParams(p);
 
-    DistortionCommonParams cp{1.0f, 1.0f, 4000.0f};
+    DistortionCommonParams cp{.drive = 1.0f, .mix = 1.0f, .toneHz = 4000.0f};
     adapter.setCommonParams(cp);
 
     constexpr int kSamples = 4096;
     std::array<float, kSamples> output{};
 
     for (int i = 0; i < kSamples; ++i) {
-        float sample = std::sin(2.0f * 3.14159265f * 1000.0f * static_cast<float>(i) / 44100.0f);
+        float sample = std::sin(2.0f * std::numbers::pi_v<float> * 1000.0f * static_cast<float>(i) / 44100.0f);
         output[i] = adapter.process(sample);
     }
 
@@ -798,10 +807,10 @@ TEST_CASE("Cross-family morph: cursor position changes output character",
     // Configure nodes: A = SoftClip at (0,0), B = BitwiseMangler at (1,0)
     std::array<MorphNode, kMaxMorphNodes> nodes;
     nodes[0] = MorphNode(0, 0.0f, 0.0f, DistortionType::SoftClip);
-    nodes[0].commonParams = {5.0f, 1.0f, 4000.0f};  // drive=5, mix=100%, tone=4kHz
+    nodes[0].commonParams = {.drive = 5.0f, .mix = 1.0f, .toneHz = 4000.0f};  // drive=5, mix=100%, tone=4kHz
 
     nodes[1] = MorphNode(1, 1.0f, 0.0f, DistortionType::BitwiseMangler);
-    nodes[1].commonParams = {5.0f, 1.0f, 4000.0f};  // same drive/mix/tone
+    nodes[1].commonParams = {.drive = 5.0f, .mix = 1.0f, .toneHz = 4000.0f};  // same drive/mix/tone
     // Use non-trivial BitwiseMangler params so the effect is audible
     nodes[1].params.bitwiseOp = 0;           // XorPattern
     nodes[1].params.bitwiseIntensity = 0.8f; // high intensity
@@ -1156,7 +1165,7 @@ TEST_CASE("MorphEngine: processor-style setNodes sequence preserves node state",
     }
 
     // Use SoftClip vs SineFold — different categories, reliably different spectral output
-    constexpr DistortionCommonParams kDefaultCommon{1.0f, 1.0f, 4000.0f};
+    constexpr DistortionCommonParams kDefaultCommon{.drive = 1.0f, .mix = 1.0f, .toneHz = 4000.0f};
     std::array<MorphNode, kMaxMorphNodes> nodes;
     nodes[0] = MorphNode(0, 0.0f, 0.0f, DistortionType::SoftClip);
     nodes[0].commonParams = kDefaultCommon;
@@ -1262,7 +1271,8 @@ TEST_CASE("BandProcessor: cross-family morph cursor changes output",
     constexpr float kFreq = 440.0f;
     constexpr float twoPi = 6.283185307179586f;
 
-    std::vector<float> inputL(kSamples), inputR(kSamples);
+    std::vector<float> inputL(kSamples);
+    std::vector<float> inputR(kSamples);
     for (int i = 0; i < kSamples; ++i) {
         float s = std::sin(twoPi * kFreq * static_cast<float>(i) / static_cast<float>(kSR));
         inputL[i] = s;
@@ -1270,7 +1280,7 @@ TEST_CASE("BandProcessor: cross-family morph cursor changes output",
     }
 
     // SoftClip (Saturation) vs SineFold (Wavefold) — reliably different character
-    constexpr DistortionCommonParams kCommon{5.0f, 1.0f, 4000.0f};
+    constexpr DistortionCommonParams kCommon{.drive = 5.0f, .mix = 1.0f, .toneHz = 4000.0f};
     std::array<MorphNode, kMaxMorphNodes> nodes;
     nodes[0] = MorphNode(0, 0.0f, 0.0f, DistortionType::SoftClip);
     nodes[0].commonParams = kCommon;
@@ -1289,12 +1299,14 @@ TEST_CASE("BandProcessor: cross-family morph cursor changes output",
     bpA.setMorphNodes(nodes, 2);
     bpA.setMorphPosition(0.0f, 0.0f);
 
-    std::vector<float> warmL(kSamples), warmR(kSamples);
+    std::vector<float> warmL(kSamples);
+    std::vector<float> warmR(kSamples);
     std::copy(inputL.begin(), inputL.end(), warmL.begin());
     std::copy(inputR.begin(), inputR.end(), warmR.begin());
     bpA.processBlock(warmL.data(), warmR.data(), kSamples);
 
-    std::vector<float> outAL(inputL), outAR(inputR);
+    std::vector<float> outAL(inputL);
+    std::vector<float> outAR(inputR);
     bpA.processBlock(outAL.data(), outAR.data(), kSamples);
 
     // Cursor on Node B (SineFold)
@@ -1309,7 +1321,8 @@ TEST_CASE("BandProcessor: cross-family morph cursor changes output",
     std::copy(inputR.begin(), inputR.end(), warmR.begin());
     bpB.processBlock(warmL.data(), warmR.data(), kSamples);
 
-    std::vector<float> outBL(inputL), outBR(inputR);
+    std::vector<float> outBL(inputL);
+    std::vector<float> outBR(inputR);
     bpB.processBlock(outBL.data(), outBR.data(), kSamples);
 
     // Analysis
@@ -1357,7 +1370,7 @@ TEST_CASE("BandProcessor per-sample: cross-family morph cursor changes output",
     // SoftClip vs SineFold — different categories, reliable spectral difference
     auto runWithProcessorFlow = [&](float morphX, float morphY,
                                      std::vector<float>& outL) {
-        constexpr DistortionCommonParams kInitCommon{1.0f, 1.0f, 4000.0f};
+        constexpr DistortionCommonParams kInitCommon{.drive = 1.0f, .mix = 1.0f, .toneHz = 4000.0f};
         std::array<MorphNode, kMaxMorphNodes> initNodes;
         initNodes[0] = MorphNode(0, 0.0f, 0.0f, DistortionType::SoftClip);
         initNodes[0].commonParams = kInitCommon;
@@ -1396,7 +1409,8 @@ TEST_CASE("BandProcessor per-sample: cross-family morph cursor changes output",
 
         // Warm up
         for (int i = 0; i < 32768; ++i) {
-            float l = input[i % kSamples], r = input[i % kSamples];
+            float l = input[i % kSamples];
+            float r = input[i % kSamples];
             bp.process(l, r);
             if (i % 512 == 511) bp.setMorphPosition(morphX, morphY);
         }
@@ -1404,14 +1418,16 @@ TEST_CASE("BandProcessor per-sample: cross-family morph cursor changes output",
         // Capture
         outL.resize(kSamples);
         for (int i = 0; i < kSamples; ++i) {
-            float l = input[i], r = input[i];
+            float l = input[i];
+            float r = input[i];
             bp.process(l, r);
             outL[i] = l;
             if (i % 512 == 511) bp.setMorphPosition(morphX, morphY);
         }
     };
 
-    std::vector<float> outAL, outBL;
+    std::vector<float> outAL;
+    std::vector<float> outBL;
     runWithProcessorFlow(0.0f, 0.0f, outAL);
     runWithProcessorFlow(1.0f, 0.0f, outBL);
 

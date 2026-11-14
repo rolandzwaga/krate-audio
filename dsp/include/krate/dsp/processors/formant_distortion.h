@@ -37,6 +37,7 @@
 #include <krate/dsp/core/filter_tables.h>
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstddef>
 
@@ -156,9 +157,38 @@ public:
     /// @param numSamples Number of samples to process
     /// @note Real-time safe (noexcept, no allocation)
     void process(float* buffer, size_t numSamples) noexcept {
-        for (size_t i = 0; i < numSamples; ++i) {
-            buffer[i] = process(buffer[i]);
+        if (envelopeFollowAmount_ > 0.0f) {
+            // The envelope moves the formants every sample
+            for (size_t i = 0; i < numSamples; ++i) {
+                buffer[i] = process(buffer[i]);
+            }
+            return;
         }
+        // Without envelope modulation the stages share no state: the formant filter over a chunk,
+        // then the rest per sample, each sample through process()'s operations in its order
+        // (Disrumpo round 6 CPU). The envelope follower still runs (beside the DC blocker, whose
+        // recursion it then overlaps), so its state stays current; it, the DC blocker and the mix
+        // smoother run on copies in locals, written back after the block.
+        constexpr size_t kChunk = 64;
+        std::array<float, kChunk> dry{};
+        EnvelopeFollower envelope = envelopeFollower_;
+        DCBlocker dcBlocker = dcBlocker_;
+        OnePoleSmoother mixSmoother = mixSmoother_;
+        for (size_t start = 0; start < numSamples; start += kChunk) {
+            const size_t len = std::min(kChunk, numSamples - start);
+            float* x = buffer + start;
+            std::copy_n(x, len, dry.begin());
+            formantFilter_.processBlock(x, len);
+            for (size_t k = 0; k < len; ++k) {
+                (void)envelope.processSample(dry[k]);
+                const float wet = dcBlocker.process(waveshaper_.process(x[k]));
+                const float currentMix = mixSmoother.process();
+                x[k] = dry[k] * (1.0f - currentMix) + wet * currentMix;
+            }
+        }
+        envelopeFollower_ = envelope;
+        dcBlocker_ = dcBlocker;
+        mixSmoother_ = mixSmoother;
     }
 
     /// @brief Process single sample.

@@ -134,42 +134,13 @@ TEST_CASE("IT-002: Audio processing with varying band counts", "[integration][ba
 // IT-003: Dynamic Band Count Change Test
 // =============================================================================
 
-TEST_CASE("IT-003: Band count change maintains output stability", "[integration][band-management]") {
-    constexpr double kSampleRate = 44100.0;
-    constexpr size_t kSettleTime = 4000;
-
-    Disrumpo::CrossoverNetwork crossover;
-    crossover.prepare(kSampleRate, 4);
-
-    std::array<float, Disrumpo::kMaxBands> bands{};
-
-    // Let filters settle with 4 bands
-    for (size_t i = 0; i < kSettleTime; ++i) {
-        crossover.process(1.0f, bands);
-    }
-
-    float sumBefore = 0.0f;
-    for (int b = 0; b < 4; ++b) {
-        sumBefore += bands[b];
-    }
-
-    // Change to 3 bands (test band count decrease)
-    crossover.setBandCount(3);
-
-    // Let new configuration settle
-    for (size_t i = 0; i < kSettleTime; ++i) {
-        crossover.process(1.0f, bands);
-    }
-
-    float sumAfter = 0.0f;
-    for (int b = 0; b < 3; ++b) {
-        sumAfter += bands[b];
-    }
-
-    // Both should be near unity (DC input)
-    REQUIRE(std::abs(sumBefore - 1.0f) < 0.1f);
-    REQUIRE(std::abs(sumAfter - 1.0f) < 0.1f);
-}
+// Removed (D-124, fix plan T5.04): the old IT-003 settled 4000 samples of DC before
+// and after a 4 -> 3 change and compared the band sum with 1, which every LR4 split
+// gives, so it could not fail and never saw the switch. The switch transient is
+// measured at the processor, where the band-count dip lives (T2.08):
+// processor_audio_output_test.cpp "Band count 2->4->1 during playback has jump ratio
+// <= 1.3", "Band count change loaded by setState during playback is click-free" and
+// "Band count change dips the output for 10 ms".
 
 // =============================================================================
 // IT-004: Band Gain Processing Test
@@ -193,9 +164,9 @@ TEST_CASE("IT-004: Per-band gain affects signal level", "[integration][band-mana
         lastLeft = left;
     }
 
-    // +6dB gain with center pan should give:
-    // leftGain = cos(PI/4) * 10^(6/20) = 0.707 * 2.0 = 1.414
-    float expectedGain = std::cos(3.14159265f / 4.0f) * std::pow(10.0f, 6.0f / 20.0f);
+    // +6dB gain with center pan (balance law, unity at center, D-021) should give:
+    // leftGain = 1.0 * 10^(6/20) = 2.0
+    float expectedGain = std::pow(10.0f, 6.0f / 20.0f);
     INFO("Expected gain: " << expectedGain << ", Actual: " << lastLeft);
     REQUIRE_THAT(lastLeft, WithinAbs(expectedGain, 0.1f));
 }
@@ -230,7 +201,7 @@ TEST_CASE("IT-005: Mute suppresses band output", "[integration][band-management]
     }
 
     INFO("Unmuted level: " << unmutedLevel << ", Muted level: " << mutedLevel);
-    REQUIRE(unmutedLevel > 0.5f);       // Should have signal (center pan = 0.707)
+    REQUIRE(unmutedLevel > 0.5f);       // Should have signal (center pan = 1.0, D-021)
     REQUIRE(mutedLevel < 0.001f);       // Muted should be near zero
 }
 

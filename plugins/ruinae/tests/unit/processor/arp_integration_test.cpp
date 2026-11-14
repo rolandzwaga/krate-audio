@@ -72,7 +72,7 @@ using ArpEmptyParamChanges = Krate::Test::ParameterChanges;
 // Mock: Output Parameter Value Queue (captures writes from processor)
 // =============================================================================
 
-class ArpOutputParamQueue : public Steinberg::Vst::IParamValueQueue {
+class ArpOutputParamQueue final : public Steinberg::Vst::IParamValueQueue {
 public:
     explicit ArpOutputParamQueue(Steinberg::Vst::ParamID id) : paramId_(id) {}
 
@@ -3627,6 +3627,7 @@ TEST_CASE("ArpCore_PresetChange_FlushesNotesWithinSameBlock",
     }
 
     // The flush block must not contain any NoteOn events
+    INFO("NoteOff events in the flush block: " << noteOffCountInFlush);
     CHECK_FALSE(hasNoteOnInFlush);
 
     // Now re-enable with Preset B settings

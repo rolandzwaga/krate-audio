@@ -77,7 +77,7 @@ using E2EEmptyParamChanges = Krate::Test::ParameterChanges;
 // Mock: Output Parameter Queue (captures playhead writes from processor)
 // =============================================================================
 
-class E2EOutputParamQueue : public Steinberg::Vst::IParamValueQueue {
+class E2EOutputParamQueue final : public Steinberg::Vst::IParamValueQueue {
 public:
     explicit E2EOutputParamQueue(Steinberg::Vst::ParamID id) : paramId_(id) {}
 

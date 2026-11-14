@@ -13,14 +13,20 @@
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/catch_approx.hpp>
 
+#include "dsp/band_processor.h"
 #include "dsp/distortion_adapter.h"
 #include "dsp/distortion_types.h"
 #include "dsp/morph_engine.h"
 #include "dsp/morph_node.h"
 
+#include <algorithm>
 #include <cmath>
 #include <array>
+#include <cstdio>
+#include <memory>
+#include <numbers>
 #include <set>
+#include <vector>
 
 using namespace Disrumpo;
 using Catch::Approx;
@@ -31,6 +37,11 @@ using Catch::Approx;
 
 constexpr double kTestSampleRate = 44100.0;
 constexpr int kTestBlockSize = 512;
+
+/// Drive re-stage (user ruling 2026-11-10): the level-dependent types run 8x (18.06 dB) hotter
+/// into their shapers and 8x lower after them. An input scaled by this runs every re-staged
+/// shaper exactly as before the re-stage, its output 18.06 dB lower.
+constexpr float kOldStagingScale = 0.125f;
 
 // =============================================================================
 // UT-DI-001: All 26 types produce non-zero output
@@ -47,8 +58,10 @@ TEST_CASE("UT-DI-001: All distortion types produce non-zero output", "[distortio
     commonParams.toneHz = 8000.0f;
     adapter.setCommonParams(commonParams);
 
-    // Test with a sine sample (non-DC, non-zero)
-    const float testSignal = 0.5f;
+    // Test with a sine sample (non-DC, non-zero). Re-baselined (drive re-stage, user ruling
+    // 2026-11-10): 0.5 x kOldStagingScale, so every shaper sees the input it saw before; at 0.5
+    // the re-staged SineFold met a fold null and output exactly 0 for all 20 samples
+    const float testSignal = 0.5f * kOldStagingScale;
 
     for (int i = 0; i < static_cast<int>(DistortionType::COUNT); ++i) {
         auto type = static_cast<DistortionType>(i);
@@ -98,7 +111,9 @@ TEST_CASE("UT-DI-002: Type switching activates correct processor", "[distortion]
     commonParams.toneHz = 8000.0f;
     adapter.setCommonParams(commonParams);
 
-    const float testSignal = 0.3f;
+    // Re-baselined (drive re-stage, user ruling 2026-11-10): 0.3 x kOldStagingScale; at 0.3 the
+    // re-staged SoftClip and HardClip both sat at their ceiling (0.124999 each)
+    const float testSignal = 0.3f * kOldStagingScale;
 
     // SoftClip vs HardClip should produce different outputs
     adapter.setType(DistortionType::SoftClip);
@@ -139,14 +154,18 @@ TEST_CASE("UT-DI-010: Block-based types report latency > 0", "[distortion][unit]
         REQUIRE(adapter.getProcessingLatency() == 0);
     }
 
-    SECTION("Spectral type reports latency > 0") {
+    SECTION("Spectral type reports its FFT size - 1") {
+        // T2.10: SpectralDistortion returns a frame's first output on the call that
+        // completes the frame (measured impulse delay 511 / 2047 / 4095)
         adapter.setType(DistortionType::Spectral);
-        REQUIRE(adapter.getProcessingLatency() > 0);
+        REQUIRE(adapter.getProcessingLatency() == adapter.getParams().fftSize - 1);
     }
 
-    SECTION("Granular type reports latency > 0") {
+    SECTION("Granular type reports 0: grains read the newest input") {
+        // T2.10: measured impulse delay 0 at grain position 0 and position variance 0;
+        // position and its jitter are effect delays, not a latency
         adapter.setType(DistortionType::Granular);
-        REQUIRE(adapter.getProcessingLatency() > 0);
+        REQUIRE(adapter.getProcessingLatency() == 0);
     }
 }
 
@@ -266,6 +285,48 @@ TEST_CASE("AsymmetricFuzz responds to bias parameter", "[distortion][saturation]
     CAPTURE(outputBias0);
     CAPTURE(outputBias05);
     REQUIRE(outputBias0 != Approx(outputBias05).margin(0.001f));
+}
+
+TEST_CASE("Formant Vowel Select picks the vowel and Blend moves toward a neighbour", "[distortion][formant]") {
+    // The adapter set the vowel and then the vowel blend, and blend mode wins: Blend alone (x 4)
+    // chose the vowel and Vowel Select did nothing. Blend is now centred on the selected vowel
+    // (0.5 = that vowel, 0 = the previous, 1 = the next along A E I O U), so I at Blend 0.5 is
+    // E at Blend 1, and unlike A at Blend 0.5.
+    const auto render = [](int vowel, float blend) {
+        DistortionAdapter adapter;
+        adapter.prepare(kTestSampleRate, kTestBlockSize);
+        DistortionCommonParams common;
+        common.drive = 2.0f;
+        common.mix = 1.0f;
+        common.toneHz = 8000.0f;
+        adapter.setCommonParams(common);
+        adapter.setType(DistortionType::Formant);
+        DistortionParams params;
+        params.vowelSelect = vowel;
+        params.formantBlend = blend;
+        adapter.setParams(params);
+        adapter.reset();
+        std::vector<float> out(8820);
+        for (size_t i = 0; i < out.size(); ++i) {
+            out[i] = adapter.process(0.5f * static_cast<float>(std::sin(2.0 * std::numbers::pi * 220.0 *
+                                                                         static_cast<double>(i) / kTestSampleRate)));
+        }
+        return out;
+    };
+    const auto rmsDiff = [](const std::vector<float>& a, const std::vector<float>& b) {
+        double e = 0.0;
+        double d = 0.0;
+        for (size_t i = 4410; i < a.size(); ++i) {
+            e += static_cast<double>(a[i]) * a[i];
+            d += (static_cast<double>(a[i]) - b[i]) * (static_cast<double>(a[i]) - b[i]);
+        }
+        return 10.0 * std::log10(std::max(d, 1e-30) / std::max(e, 1e-30));
+    };
+    const auto iCentred = render(2, 0.5f);
+    CHECK(rmsDiff(iCentred, render(0, 0.5f)) > -20.0);   // I is not A
+    CHECK(rmsDiff(iCentred, render(1, 1.0f)) < -100.0);  // I is E blended fully to the next vowel
+    CHECK(rmsDiff(iCentred, render(3, 0.0f)) < -100.0);  // ...and O blended fully to the previous
+    CHECK(rmsDiff(render(4, 0.5f), render(4, 1.0f)) < -100.0);  // U has no next vowel
 }
 
 // =============================================================================
@@ -516,7 +577,7 @@ TEST_CASE("SineFold smooth parameter changes output", "[distortion][wavefold]") 
     // Process alternating samples to generate high harmonics
     float sumNoSmooth = 0.0f;
     for (int i = 0; i < 200; ++i) {
-        float sig = 0.5f * std::sin(2.0f * 3.14159f * 1000.0f * static_cast<float>(i) / 44100.0f);
+        float sig = 0.5f * std::sin(2.0f * std::numbers::pi_v<float> * 1000.0f * static_cast<float>(i) / 44100.0f);
         float out = adapter.process(sig);
         sumNoSmooth += out * out;  // Energy measure
     }
@@ -528,7 +589,7 @@ TEST_CASE("SineFold smooth parameter changes output", "[distortion][wavefold]") 
 
     float sumSmooth = 0.0f;
     for (int i = 0; i < 200; ++i) {
-        float sig = 0.5f * std::sin(2.0f * 3.14159f * 1000.0f * static_cast<float>(i) / 44100.0f);
+        float sig = 0.5f * std::sin(2.0f * std::numbers::pi_v<float> * 1000.0f * static_cast<float>(i) / 44100.0f);
         float out = adapter.process(sig);
         sumSmooth += out * out;
     }
@@ -605,7 +666,7 @@ TEST_CASE("FullRectify smooth parameter changes output", "[distortion][rectify]"
 
     float sumNoSmooth = 0.0f;
     for (int i = 0; i < 200; ++i) {
-        float sig = 0.5f * std::sin(2.0f * 3.14159f * 1000.0f * static_cast<float>(i) / 44100.0f);
+        float sig = 0.5f * std::sin(2.0f * std::numbers::pi_v<float> * 1000.0f * static_cast<float>(i) / 44100.0f);
         float out = adapter.process(sig);
         sumNoSmooth += out * out;
     }
@@ -617,7 +678,7 @@ TEST_CASE("FullRectify smooth parameter changes output", "[distortion][rectify]"
 
     float sumSmooth = 0.0f;
     for (int i = 0; i < 200; ++i) {
-        float sig = 0.5f * std::sin(2.0f * 3.14159f * 1000.0f * static_cast<float>(i) / 44100.0f);
+        float sig = 0.5f * std::sin(2.0f * std::numbers::pi_v<float> * 1000.0f * static_cast<float>(i) / 44100.0f);
         float out = adapter.process(sig);
         sumSmooth += out * out;
     }
@@ -647,7 +708,7 @@ TEST_CASE("FullRectify dcBlock toggle affects output", "[distortion][rectify]") 
 
     float sumDCBlockOn = 0.0f;
     for (int i = 0; i < 500; ++i) {
-        float sig = 0.5f * std::sin(2.0f * 3.14159f * 200.0f * static_cast<float>(i) / 44100.0f);
+        float sig = 0.5f * std::sin(2.0f * std::numbers::pi_v<float> * 200.0f * static_cast<float>(i) / 44100.0f);
         sumDCBlockOn += adapter.process(sig);
     }
 
@@ -658,7 +719,7 @@ TEST_CASE("FullRectify dcBlock toggle affects output", "[distortion][rectify]") 
 
     float sumDCBlockOff = 0.0f;
     for (int i = 0; i < 500; ++i) {
-        float sig = 0.5f * std::sin(2.0f * 3.14159f * 200.0f * static_cast<float>(i) / 44100.0f);
+        float sig = 0.5f * std::sin(2.0f * std::numbers::pi_v<float> * 200.0f * static_cast<float>(i) / 44100.0f);
         sumDCBlockOff += adapter.process(sig);
     }
 
@@ -904,7 +965,7 @@ TEST_CASE("Bitcrush shape slot mapping produces audible changes", "[distortion][
     // Helper: replicate mapShapeSlotsToParams for Bitcrush, then set on adapter
     auto applyBitcrushSlots = [&](float slot0, float slot1, float slot2, float slot3) {
         DistortionParams p;
-        p.bitDepth = 1.0f + slot0 * 15.0f;       // [0,1] -> [1,16]
+        p.bitDepth = 4.0f + slot0 * 12.0f;       // [0,1] -> [4,16]
         p.dither = slot1;
         p.bitcrushMode = static_cast<int>(slot2 * 1.0f + 0.5f);
         p.jitter = slot3;
@@ -1022,14 +1083,14 @@ TEST_CASE("Bitcrush through MorphEngine responds to shape slot changes", "[disto
 
     std::array<MorphNode, kMaxMorphNodes> nodes;
     nodes[0] = MorphNode(0, 0.0f, 0.0f, DistortionType::Bitcrush);
-    nodes[0].commonParams = {1.0f, 1.0f, 4000.0f}; // drive=1, mix=1
+    nodes[0].commonParams = {.drive = 1.0f, .mix = 1.0f, .toneHz = 4000.0f}; // drive=1, mix=1
 
     const float testSignal = 0.37f;
 
     SECTION("Changing bitDepth via shape slots affects output") {
-        // Shape slot 0 = 0.0 → bitDepth = 1 (extreme lo-fi)
+        // Shape slot 0 = 0.0 → bitDepth = 4 (extreme lo-fi)
         DistortionParams loParams;
-        loParams.bitDepth = 1.0f + 0.0f * 15.0f;  // 1 bit
+        loParams.bitDepth = 4.0f + 0.0f * 12.0f;  // 4 bits
         nodes[0].params = loParams;
         engine.setNodes(nodes, 1);
         engine.setMorphPosition(0.0f, 0.0f);
@@ -1040,7 +1101,7 @@ TEST_CASE("Bitcrush through MorphEngine responds to shape slot changes", "[disto
 
         // Shape slot 0 = 1.0 → bitDepth = 16 (transparent)
         DistortionParams hiParams;
-        hiParams.bitDepth = 1.0f + 1.0f * 15.0f;  // 16 bits
+        hiParams.bitDepth = 4.0f + 1.0f * 12.0f;  // 16 bits
         nodes[0].params = hiParams;
         engine.setNodes(nodes, 1);
         engine.reset();
@@ -1085,7 +1146,7 @@ TEST_CASE("DIAG: Bitcrush sine wave produces staircase quantization", "[distorti
     // Process a few cycles to settle, then measure
     for (int i = 0; i < kSamplesPerCycle * 5; ++i) {
         float t = static_cast<float>(i) / static_cast<float>(kTestSampleRate);
-        float input = kAmplitude * std::sin(2.0f * 3.14159265f * kFreq * t);
+        float input = kAmplitude * std::sin(2.0f * std::numbers::pi_v<float> * kFreq * t);
         float output = adapter.process(input);
 
         if (i >= kSamplesPerCycle * 2) {  // After settling
@@ -1102,7 +1163,9 @@ TEST_CASE("DIAG: Bitcrush sine wave produces staircase quantization", "[distorti
     // At 4-bit with 0.8 amplitude, we expect ~12 unique levels (±6 steps)
     // NOT hundreds or thousands (which would mean no quantization is happening)
     REQUIRE(uniqueOutputs.size() <= 20);  // Must be staircase, not smooth
-    REQUIRE(uniqueOutputs.size() >= 4);   // Must have enough steps to be audible
+    // Re-baselined 4 -> 3 (drive re-stage, user ruling 2026-11-10): Bitcrush's grid is 3 bits
+    // coarser against the input, so 4 bits crush like 1 bit: -1 / 0 / +1 after the clamp
+    REQUIRE(uniqueOutputs.size() >= 3);   // Must have enough steps to be audible
     REQUIRE(maxAbsDiff > 0.05f);          // Must deviate significantly from input
 }
 
@@ -1136,7 +1199,7 @@ TEST_CASE("DIAG: Bitcrush at 8x prepared rate shows tone filter problem", "[dist
 
     for (int i = 0; i < kSamplesPerCycle * 10; ++i) {
         float t = static_cast<float>(i) / static_cast<float>(kTestSampleRate);
-        float input = kAmplitude * std::sin(2.0f * 3.14159265f * kFreq * t);
+        float input = kAmplitude * std::sin(2.0f * std::numbers::pi_v<float> * kFreq * t);
         float output = adapter.process(input);
 
         if (i >= kSamplesPerCycle * 5) {
@@ -1163,7 +1226,7 @@ TEST_CASE("DIAG: MorphEngine Bitcrush path produces staircase quantization", "[d
 
     std::array<MorphNode, kMaxMorphNodes> nodes;
     nodes[0] = MorphNode(0, 0.0f, 0.0f, DistortionType::Bitcrush);
-    nodes[0].commonParams = {1.0f, 1.0f, 20000.0f};
+    nodes[0].commonParams = {.drive = 1.0f, .mix = 1.0f, .toneHz = 20000.0f};
     nodes[0].params.bitDepth = 4.0f;
 
     nodes[1] = MorphNode(1, 1.0f, 0.0f, DistortionType::SoftClip);
@@ -1182,7 +1245,7 @@ TEST_CASE("DIAG: MorphEngine Bitcrush path produces staircase quantization", "[d
 
     for (int i = 0; i < kSamplesPerCycle * 5; ++i) {
         float t = static_cast<float>(i) / static_cast<float>(kTestSampleRate);
-        float input = kAmplitude * std::sin(2.0f * 3.14159265f * kFreq * t);
+        float input = kAmplitude * std::sin(2.0f * std::numbers::pi_v<float> * kFreq * t);
         float output = engine.process(input);
 
         if (i >= kSamplesPerCycle * 2) {
@@ -1196,7 +1259,8 @@ TEST_CASE("DIAG: MorphEngine Bitcrush path produces staircase quantization", "[d
     INFO("MorphEngine: Max absolute difference from input: " << maxAbsDiff);
 
     REQUIRE(uniqueOutputs.size() <= 20);
-    REQUIRE(uniqueOutputs.size() >= 4);
+    // Re-baselined 4 -> 3 as the adapter case above: the grid is 3 bits coarser (ruling 2026-11-10)
+    REQUIRE(uniqueOutputs.size() >= 3);
     REQUIRE(maxAbsDiff > 0.05f);
 }
 
@@ -1267,7 +1331,7 @@ TEST_CASE("BitwiseMangler: low intensity preserves signal structure", "[distorti
     constexpr int kSamples = 512;
     float output[kSamples];
     for (int i = 0; i < kSamples; ++i) {
-        float input = std::sin(2.0f * 3.14159265f * 440.0f * i / 44100.0f);
+        float input = std::sin(2.0f * std::numbers::pi_v<float> * 440.0f * i / 44100.0f);
         output[i] = adapter.process(input);
     }
 
@@ -1340,7 +1404,7 @@ TEST_CASE("getRecommendedOversample returns valid factors", "[distortion][types]
         auto type = static_cast<DistortionType>(i);
         int factor = getRecommendedOversample(type);
         CAPTURE(getTypeName(type));
-        REQUIRE((factor == 1 || factor == 2 || factor == 4));
+        REQUIRE((factor == 1 || factor == 2 || factor == 4 || factor == 8));  // 8: ruling 2026-11-10
     }
 }
 
@@ -1363,7 +1427,9 @@ TEST_CASE("UT-DI-003: Drive parameter affects output magnitude", "[distortion][c
 
     adapter.setType(DistortionType::SoftClip);
 
-    const float testSignal = 0.3f;
+    // Re-baselined (drive re-stage, user ruling 2026-11-10): 0.3 x kOldStagingScale; at 0.3 the
+    // re-staged SoftClip sat at its ceiling at drive 1 and 5 alike (0.125 both)
+    const float testSignal = 0.3f * kOldStagingScale;
 
     // Drive = 1.0 (unity)
     DistortionCommonParams params1;
@@ -1499,6 +1565,109 @@ TEST_CASE("UT-DI-009: Drive=0 returns input unmodified (passthrough)", "[distort
     }
 }
 
+// D-014 (fix plan T2.18): drive 0 was a raw passthrough and drive 1e-4 already
+// the full wet path (SoftClip's linear region: wet = 1e-4 * input, -80 dB at
+// mix 1), so crossing the 1e-4 gate stepped the band level by ~80 dB.
+TEST_CASE("Drive 0 -> 1e-4 -> 1e-3 produces bounded level steps", "[distortion][common][D-014]") {
+    constexpr size_t kSegment = 4410;  // 100 ms per drive value
+    const std::array<float, 5> drives{0.0f, 1e-4f, 1e-3f, 1e-2f, 0.1f};
+
+    DistortionAdapter adapter;
+    adapter.prepare(kTestSampleRate, kTestBlockSize);
+    adapter.setType(DistortionType::SoftClip);
+    DistortionCommonParams params;
+    params.mix = 1.0f;
+    params.toneHz = 8000.0f;
+    params.drive = drives[0];
+    adapter.setCommonParams(params);
+    adapter.reset();
+
+    std::vector<float> in(kSegment * drives.size());
+    std::vector<float> out(in.size());
+    for (size_t i = 0; i < in.size(); ++i) {
+        in[i] = static_cast<float>(0.1 * std::sin(2.0 * std::numbers::pi * 1000.0 * static_cast<double>(i) /
+                                                 kTestSampleRate));  // 1 kHz, -20 dBFS
+    }
+    std::array<double, 5> levelDb{};
+    bool drive0BitExact = true;
+    for (size_t d = 0; d < drives.size(); ++d) {
+        params.drive = drives[d];
+        adapter.setCommonParams(params);
+        for (size_t i = d * kSegment; i < (d + 1) * kSegment; ++i) {
+            out[i] = adapter.process(in[i]);
+            if (d == 0 && out[i] != in[i]) drive0BitExact = false;
+        }
+        double sum = 0.0;
+        for (size_t i = d * kSegment + kSegment / 2; i < (d + 1) * kSegment; ++i) {
+            sum += static_cast<double>(out[i]) * static_cast<double>(out[i]);
+        }
+        levelDb[d] = 10.0 * std::log10(std::max(sum / (static_cast<double>(kSegment) / 2.0), 1e-30));
+    }
+    double maxJump = 0.0;
+    for (size_t i = 1; i < out.size(); ++i) {
+        maxJump = std::max(maxJump, std::abs(static_cast<double>(out[i]) - static_cast<double>(out[i - 1])));
+    }
+    std::printf("D-014 SoftClip mix 1, 1 kHz -20 dBFS: level dBFS at drive 0 / 1e-4 / 1e-3 / 1e-2 / 0.1 = "
+                "%.2f / %.2f / %.2f / %.2f / %.2f; steps %.2f / %.2f / %.2f / %.2f dB; max sample jump %.4f; "
+                "drive 0 bit-exact passthrough: %s\n",
+                levelDb[0], levelDb[1], levelDb[2], levelDb[3], levelDb[4], levelDb[1] - levelDb[0],
+                levelDb[2] - levelDb[1], levelDb[3] - levelDb[2], levelDb[4] - levelDb[3], maxJump,
+                drive0BitExact ? "yes" : "no");
+
+    CHECK(drive0BitExact);
+    CHECK(std::abs(levelDb[1] - levelDb[0]) < 3.0);
+    CHECK(std::abs(levelDb[2] - levelDb[1]) < 3.0);
+    REQUIRE(maxJump <= 0.1);
+}
+
+// D-014 / follow-up 42: the band's factor-1 shortcut fires only at drive == 0;
+// any drive above 0 runs at the band's oversampling factor.
+TEST_CASE("Band oversampling shortcut fires only at drive 0", "[distortion][oversampling][D-014]") {
+    auto band = std::make_unique<Disrumpo::BandProcessor>();
+    band->prepare(kTestSampleRate, kTestBlockSize);
+    band->setMorphEnabled(false);
+    band->setDistortionType(DistortionType::SoftClip);
+    std::array<float, kTestBlockSize> l{};
+    std::array<float, kTestBlockSize> r{};
+    const std::array<float, 5> drives{0.0f, 1e-5f, 1e-4f, 1e-3f, 1.0f};
+    std::array<int, 5> latency{};
+    std::array<double, 5> firstBlockJump{};  // largest sample step in the block after the change
+    size_t n = 0;
+    float prev = 0.0f;
+    for (size_t d = 0; d < drives.size(); ++d) {
+        DistortionCommonParams params;
+        params.drive = drives[d];
+        params.mix = 1.0f;
+        band->setDistortionCommonParams(params);
+        for (int b = 0; b < 8; ++b) {  // past any factor-switch dip
+            for (size_t i = 0; i < l.size(); ++i, ++n) {  // 1 kHz, -20 dBFS
+                l[i] = static_cast<float>(0.1 * std::sin(2.0 * std::numbers::pi * 1000.0 *
+                                                         static_cast<double>(n) / kTestSampleRate));
+            }
+            r = l;
+            band->processBlock(l.data(), r.data(), l.size());
+            if (b == 0) {
+                for (const float v : l) {
+                    firstBlockJump[d] = std::max(firstBlockJump[d], static_cast<double>(std::abs(v - prev)));
+                    prev = v;
+                }
+            }
+            prev = l.back();
+        }
+        latency[d] = band->getLatency();
+    }
+    std::printf("D-014 band latency (0 = 1x shortcut) at drive 0 / 1e-5 / 1e-4 / 1e-3 / 1 = %d / %d / %d / %d / %d "
+                "(selected factor %d); largest sample step in the block after each change %.4f / %.4f / %.4f / "
+                "%.4f / %.4f (steady 1 kHz -20 dBFS: 0.0142)\n",
+                latency[0], latency[1], latency[2], latency[3], latency[4], band->getOversampleFactor(),
+                firstBlockJump[0], firstBlockJump[1], firstBlockJump[2], firstBlockJump[3], firstBlockJump[4]);
+    REQUIRE(latency[4] > 0);  // anti-vacuity: drive 1 runs oversampled
+    CHECK(latency[0] == 0);
+    CHECK(latency[1] == latency[4]);
+    CHECK(latency[2] == latency[4]);
+    CHECK(latency[3] == latency[4]);
+}
+
 TEST_CASE("UT-DI-Tone: Tone filter affects high frequencies", "[distortion][common]") {
     DistortionAdapter adapter;
     adapter.prepare(kTestSampleRate, kTestBlockSize);
@@ -1548,10 +1717,7 @@ TEST_CASE("UT-DI-Tone: Tone filter affects high frequencies", "[distortion][comm
 // Integration Tests: IT-DI-001, IT-DI-002, IT-DI-003
 // =============================================================================
 
-#include "dsp/band_processor.h"
 #include "dsp/crossover_network.h"
-#include <memory>
-#include <vector>
 #include <chrono>
 
 TEST_CASE("IT-DI-001: Audio flows through 4-band chain with distortion", "[distortion][integration]") {
@@ -1798,14 +1964,9 @@ TEST_CASE("PT-DI-002: 4 bands with distortion under 5% CPU", "[distortion][perfo
     INFO("Processing time: " << processingTimeSeconds << "s for " << testDurationSeconds << "s of audio");
     INFO("CPU usage: " << cpuPercent << "%");
 
-    // Should be under 5% CPU
-    // Note: This test may vary based on machine performance, so we use a generous margin
-    REQUIRE(cpuPercent < 20.0);  // Allow up to 20% for CI variability
-
-    // Warn if above 5% target but below hard limit
-    if (cpuPercent > 5.0) {
-        WARN("CPU usage (" << cpuPercent << "%) exceeds 5% target but within acceptable range");
-    }
+    // PT-DI-002 budget (specs/_archive2_/003-distortion-integration/spec.md). [performance]
+    // runs only in the CPU lane, alone, so no margin for load (D-130)
+    REQUIRE(cpuPercent < 5.0);
 }
 
 // =============================================================================
@@ -1901,67 +2062,59 @@ TEST_CASE("UT-DI-007: Oversampling reduces aliasing", "[distortion][oversampling
 }
 
 // =============================================================================
-// UT-DI-008: Real-time safety (design verification)
+// UT-DI-008: Real-time safety (D-127, fix plan T5.06)
 // =============================================================================
+// After prepare(), what the audio thread calls on a node change (setType,
+// setParams) and process() allocate nothing, for every type; Spectral at each
+// FFT size its slot offers (a size other than the prepared one re-prepared
+// SpectralDistortion on the audio thread until T1.01).
 
-TEST_CASE("UT-DI-008: Real-time safety design verification", "[distortion][realtime]") {
-    // This test verifies the design intent for real-time safety.
-    // Full allocation tracking would require custom allocators which is complex.
-    // Instead, we verify:
-    // 1. After prepare(), process() can be called without errors
-    // 2. The adapter uses pre-allocated structures
-    // 3. No exceptions are thrown during processing
+#include <allocation_detector.h>
+#include <krate/dsp/core/db_utils.h>
 
-    DistortionAdapter adapter;
+#include <cstddef>
 
-    SECTION("prepare() initializes all internal state") {
-        // prepare() is the only place allocations should happen
-        adapter.prepare(kTestSampleRate, kTestBlockSize);
+TEST_CASE("UT-DI-008: setType + setParams + process allocate nothing for every type",
+          "[distortion][realtime][D-127]") {
+    constexpr int kSamples = 4096;
+    auto adapter = std::make_unique<DistortionAdapter>();
+    adapter->prepare(kTestSampleRate, kTestBlockSize);
+    DistortionCommonParams common;
+    common.drive = 2.0f;
+    common.mix = 1.0f;
+    common.toneHz = 4000.0f;
+    adapter->setCommonParams(common);
 
-        // After prepare, we should be able to process without issues
-        DistortionCommonParams params;
-        params.drive = 2.0f;
-        params.mix = 1.0f;
-        params.toneHz = 4000.0f;
-        adapter.setCommonParams(params);
+    std::array<float, kSamples> input{};
+    for (int i = 0; i < kSamples; ++i)
+        input[static_cast<size_t>(i)] =
+            0.5f * static_cast<float>(std::sin(2.0 * std::numbers::pi * 440.0 * i / kTestSampleRate));
 
-        // Process many samples - should not throw or crash
-        for (int type = 0; type < static_cast<int>(DistortionType::COUNT); ++type) {
-            adapter.setType(static_cast<DistortionType>(type));
-            for (int i = 0; i < 1000; ++i) {
-                float sample = adapter.process(0.5f);
-                REQUIRE(!std::isnan(sample));
-                REQUIRE(!std::isinf(sample));
+    std::size_t allocations = 0;
+    int runs = 0;
+    int nonFinite = 0;
+    {
+        TestHelpers::AllocationScope scope;
+        for (int t = 0; t < static_cast<int>(DistortionType::COUNT); ++t) {
+            const auto type = static_cast<DistortionType>(t);
+            for (const int fftSize : {1024, 2048, 4096}) {
+                if (type != DistortionType::Spectral && fftSize != 2048) continue;
+                adapter->setType(type);
+                DistortionParams params;
+                params.fftSize = fftSize;
+                adapter->setParams(params);
+                for (const float x : input)
+                    if (!Krate::DSP::detail::isFinite(adapter->process(x))) ++nonFinite;
+                ++runs;
             }
         }
-        CHECK(true);  // If we got here, no crashes occurred
+        allocations = TestHelpers::AllocationDetector::instance().getAllocationCount();
     }
-
-    SECTION("reset() does not allocate") {
-        adapter.prepare(kTestSampleRate, kTestBlockSize);
-        // reset() should just clear state, not allocate
-        adapter.reset();
-
-        // Should still work after reset
-        float sample = adapter.process(0.5f);
-        CHECK(!std::isnan(sample));
-    }
-
-    SECTION("setType() does not allocate") {
-        adapter.prepare(kTestSampleRate, kTestBlockSize);
-
-        // Rapid type switching should not cause issues
-        for (int i = 0; i < 100; ++i) {
-            adapter.setType(static_cast<DistortionType>(i % static_cast<int>(DistortionType::COUNT)));
-            float sample = adapter.process(0.3f);
-            CHECK(!std::isnan(sample));
-        }
-    }
-
-    // Note: True allocation-free verification would require:
-    // - Custom global new/delete operators with counters
-    // - Or running under Valgrind/ASan with allocation tracking
-    // This is documented as a design constraint in the adapter comments.
+    std::printf("UT-DI-008: %d type/FFT-size runs of %d samples, %zu allocations, %d non-finite samples\n", runs,
+                kSamples, allocations, nonFinite);
+    REQUIRE(runs == static_cast<int>(DistortionType::COUNT) + 2);
+    CHECK(nonFinite == 0);
+    REQUIRE(allocations == 0);
 }
 
 // =============================================================================
@@ -2171,12 +2324,8 @@ TEST_CASE("PT-DI-001: 1 band 1x OS single type under 2% CPU", "[distortion][perf
     INFO("Processing time: " << processingTimeSeconds << "s for " << testDurationSeconds << "s of audio");
     INFO("CPU usage: " << cpuPercent << "%");
 
-    // Target: < 2% CPU, allow margin for CI
-    REQUIRE(cpuPercent < 10.0);  // Allow up to 10% for CI variability
-
-    if (cpuPercent > 2.0) {
-        WARN("CPU usage (" << cpuPercent << "%) exceeds 2% target but within acceptable range");
-    }
+    // PT-DI-001 budget; [performance] runs only in the CPU lane, alone (D-130)
+    REQUIRE(cpuPercent < 2.0);
 }
 
 // =============================================================================
@@ -2244,12 +2393,8 @@ TEST_CASE("PT-DI-003: 4 bands 4x OS single type under 10% CPU", "[distortion][pe
     INFO("Processing time: " << processingTimeSeconds << "s for " << testDurationSeconds << "s of audio");
     INFO("CPU usage: " << cpuPercent << "%");
 
-    // Target: < 10% CPU, allow margin for CI
-    REQUIRE(cpuPercent < 40.0);  // Allow up to 40% for CI variability
-
-    if (cpuPercent > 10.0) {
-        WARN("CPU usage (" << cpuPercent << "%) exceeds 10% target but within acceptable range");
-    }
+    // PT-DI-003 budget; [performance] runs only in the CPU lane, alone (D-130)
+    REQUIRE(cpuPercent < 10.0);
 }
 
 // =============================================================================
@@ -2306,9 +2451,7 @@ AdapterSustainedResult runAdapterSustainedTest(
 
         // Peak tracking
         float absSample = std::abs(sample);
-        if (absSample > result.peakOutput) {
-            result.peakOutput = absSample;
-        }
+        result.peakOutput = std::max(result.peakOutput, absSample);
 
         // Discontinuity check
         if (i > 0) {
@@ -2542,7 +2685,7 @@ TEST_CASE("Fractal through adapter: high drive does not produce NaN",
 // Quantize (D14) — N-level uniform quantization tests
 // ==============================================================================
 
-TEST_CASE("Quantize 2-level produces only values near -1 and +1", "[distortion][digital][quantize]") {
+TEST_CASE("Quantize at Levels 0 produces only the three levels -1 0 +1", "[distortion][digital][quantize]") {
     DistortionAdapter adapter;
     adapter.prepare(kTestSampleRate, kTestBlockSize);
 
@@ -2555,21 +2698,20 @@ TEST_CASE("Quantize 2-level produces only values near -1 and +1", "[distortion][
     adapter.setType(DistortionType::Quantize);
 
     DistortionParams params;
-    params.quantLevels = 0.0f;  // [0,1] → [2,64], so 0 = 2 levels
+    params.quantLevels = 0.0f;  // [0,1] → odd N in [3,63], so 0 = 3 levels (mid-tread, D-010)
     params.dither = 0.0f;
     params.smoothness = 0.0f;
     params.quantOffset = 0.0f;
     adapter.setParams(params);
     adapter.reset();
 
-    // Feed a range of non-zero values — all should snap to -1 or +1
-    // (Zero is exactly on the midpoint between the two levels, so it may round either way)
+    // Feed a range of non-zero values — all should snap to -1, 0 or +1
     const float testValues[] = {0.1f, 0.5f, 0.9f, -0.3f, -0.7f};
     for (float val : testValues) {
         float out = adapter.process(val);
         CAPTURE(val);
         CAPTURE(out);
-        CHECK((std::abs(out - 1.0f) < 0.01f || std::abs(out + 1.0f) < 0.01f));
+        CHECK((std::abs(out - 1.0f) < 0.01f || std::abs(out) < 0.01f || std::abs(out + 1.0f) < 0.01f));
     }
 }
 
@@ -2613,7 +2755,7 @@ TEST_CASE("Quantize level count affects resolution", "[distortion][digital][quan
     CHECK(out64 == Approx(testSignal).margin(0.04f));
 }
 
-TEST_CASE("Quantize offset shifts quantization grid", "[distortion][digital][quantize]") {
+TEST_CASE("Quantize offset moves the decision thresholds", "[distortion][digital][quantize]") {
     DistortionAdapter adapter;
     adapter.prepare(kTestSampleRate, kTestBlockSize);
 
@@ -2625,11 +2767,13 @@ TEST_CASE("Quantize offset shifts quantization grid", "[distortion][digital][qua
 
     adapter.setType(DistortionType::Quantize);
 
-    const float testSignal = 0.3f;
+    // 7 levels, step 1/3: 0.42 is 1.26 steps, below the 1.5 threshold at offset 0 (-> 1/3)
+    // and above the 1.25 threshold that offset 0.5 moves it to (-> 2/3).
+    const float testSignal = 0.42f;
 
     // No offset
     DistortionParams params;
-    params.quantLevels = 0.1f;  // ~8 levels for visible quantization
+    params.quantLevels = 0.1f;  // 2 * round(3.1) + 1 = 7 levels for visible quantization
     params.dither = 0.0f;
     params.smoothness = 0.0f;
     params.quantOffset = 0.0f;
@@ -2712,7 +2856,7 @@ TEST_CASE("Quantize smoothness reduces high-frequency energy", "[distortion][dig
         float totalDiff = 0.0f;
         float prevOut = 0.0f;
         for (int i = 0; i < kNumSamples; ++i) {
-            float in = std::sin(2.0f * 3.14159265f * kFreq * static_cast<float>(i)
+            float in = std::sin(2.0f * std::numbers::pi_v<float> * kFreq * static_cast<float>(i)
                                 / static_cast<float>(kTestSampleRate));
             float out = adapter.process(in);
             totalDiff += std::abs(out - prevOut);
@@ -2742,7 +2886,9 @@ TEST_CASE("Quantize all 4 params independently affect output", "[distortion][dig
 
     adapter.setType(DistortionType::Quantize);
 
-    const float testSignal = 0.3f;
+    // Levels 0.2 = 13 levels, step 1/6: 0.2333 is 1.4 steps, so offset 0.5 (thresholds
+    // 0.25 step lower) moves it from level 1 to level 2.
+    const float testSignal = 0.2333f;
 
     // Baseline: mid levels, no dither, no smooth, no offset
     auto getOutput = [&](float levels, float dither, float smooth, float offset) {
@@ -2775,4 +2921,799 @@ TEST_CASE("Quantize all 4 params independently affect output", "[distortion][dig
     // Change only offset
     float changedOffset = getOutput(0.2f, 0.0f, 0.0f, 0.5f);
     CHECK(baseline != Approx(changedOffset).margin(0.001f));
+}
+
+// =============================================================================
+// D-009 (fix plan T1.06): re-rating on the audio thread
+// =============================================================================
+// BandProcessor re-rates its adapters on the audio thread when the factor they
+// are clocked at changes. setProcessingRate re-runs the prepare() of every member
+// except SpectralDistortion (which allocates and stays at the host rate); this
+// pins that none of those prepare() calls allocates once prepare() has sized the
+// buffers for the highest rate.
+
+TEST_CASE("DistortionAdapter::setProcessingRate re-run under AllocationScope allocates nothing",
+          "[disrumpo][distortion][realtime][D-009]") {
+    constexpr double kHostRate = 48000.0;
+    constexpr int kMaxFactor = 4;
+    auto adapter = std::make_unique<DistortionAdapter>();
+    adapter->prepare(kHostRate, kTestBlockSize * kMaxFactor, kMaxFactor);
+    adapter->setCommonParams({.drive = 2.0f, .mix = 1.0f, .toneHz = 4000.0f});
+
+    std::size_t allocations = 0;
+    double rateAtHost = 0.0;
+    double rateAt4x = 0.0;
+    double rateAboveMax = 0.0;
+    {
+        TestHelpers::AllocationScope scope;
+        for (int t = 0; t < static_cast<int>(DistortionType::COUNT); ++t) {
+            adapter->setType(static_cast<DistortionType>(t));
+            for (const int factor : {2, 4, 1, 4, 2, 1}) {
+                adapter->setProcessingRate(kHostRate * factor);
+                for (int i = 0; i < 64; ++i) {
+                    (void)adapter->process(0.25f * static_cast<float>(i % 8) - 0.875f);
+                }
+            }
+        }
+        adapter->setProcessingRate(kHostRate);
+        rateAtHost = adapter->getProcessingRate();
+        adapter->setProcessingRate(kHostRate * kMaxFactor);
+        rateAt4x = adapter->getProcessingRate();
+        adapter->setProcessingRate(kHostRate * 8);  // clamps to the prepared maximum
+        rateAboveMax = adapter->getProcessingRate();
+        allocations = TestHelpers::AllocationDetector::instance().getAllocationCount();
+    }
+    // (Until T2.10 the Granular latency, grain size in samples, showed the rate; Granular
+    // has no latency since T2.10, so the adapter's processing rate is read directly.)
+    INFO("Processing rate: host " << rateAtHost << ", 4x " << rateAt4x << ", 8x request " << rateAboveMax << " Hz");
+    REQUIRE(allocations == 0);
+    REQUIRE(rateAtHost == kHostRate);
+    REQUIRE(rateAt4x == kHostRate * kMaxFactor);
+    REQUIRE(rateAboveMax == rateAt4x);
+}
+
+// =============================================================================
+// D-142 / D-075 (fix plan T1.22): silent input stays silent, no DC on the output
+// =============================================================================
+
+namespace {
+
+constexpr double kSilenceTestRate = 48000.0;
+
+double adapterRmsDb(const std::vector<float>& x, std::size_t from) {
+    double s = 0.0;
+    for (std::size_t i = from; i < x.size(); ++i) s += static_cast<double>(x[i]) * x[i];
+    const double rms = std::sqrt(s / static_cast<double>(x.size() - from));
+    return rms > 1e-12 ? 20.0 * std::log10(rms) : -240.0;
+}
+
+double adapterMean(const std::vector<float>& x, std::size_t from) {
+    double s = 0.0;
+    for (std::size_t i = from; i < x.size(); ++i) s += x[i];
+    return s / static_cast<double>(x.size() - from);
+}
+
+/// Render `in` through a fresh adapter of `type` at 48 kHz, drive 10 (the Drive knob at 1.0).
+std::vector<float> renderAdapter(DistortionType type, const DistortionParams& params,
+                                 const std::vector<float>& in) {
+    auto adapter = std::make_unique<DistortionAdapter>();
+    adapter->prepare(kSilenceTestRate, kTestBlockSize);
+    adapter->setCommonParams({.drive = 10.0f, .mix = 1.0f, .toneHz = 4000.0f});
+    adapter->setType(type);
+    adapter->setParams(params);
+    (*adapter).reset();
+    std::vector<float> out(in.size());
+    for (std::size_t i = 0; i < in.size(); ++i) out[i] = adapter->process(in[i]);
+    return out;
+}
+
+std::size_t countNonFinite(const std::vector<float>& x) {
+    return static_cast<std::size_t>(std::count_if(x.begin(), x.end(), [](float v) {
+        return !Krate::DSP::detail::isFinite(v);
+    }));
+}
+
+}  // namespace
+
+TEST_CASE("Adapter self-noise is below -90 dBFS for every type",
+          "[disrumpo][selfnoise][D-142][D-075]") {
+    const std::vector<float> silence(static_cast<std::size_t>(kSilenceTestRate), 0.0f);  // 1 s
+    const auto half = silence.size() / 2;
+
+    for (int t = 0; t < static_cast<int>(DistortionType::COUNT); ++t) {
+        const auto type = static_cast<DistortionType>(t);
+        const auto out = renderAdapter(type, DistortionParams{}, silence);
+        const double rmsDb = adapterRmsDb(out, half);
+        INFO("type " << t << " (" << getTypeName(type) << "): RMS of the last 0.5 s " << rmsDb
+             << " dBFS, non-finite " << countNonFinite(out));
+        CHECK(countNonFinite(out) == 0);
+        CHECK(rmsDb <= -90.0);
+        // Quantize is mid-tread: 0 is a level, so silence maps to exact zero (D-010 / D-143).
+        if (type == DistortionType::Quantize)
+            CHECK(std::all_of(out.begin(), out.end(), [](float v) { return v == 0.0f; }));
+    }
+}
+
+// D-010 / D-143 (fix plan T2.07): the quantiser decoded index (x + 1) / step on a grid with
+// no level at 0 for an even or fractional level count, so silence became DC (Levels 0: +1.0).
+TEST_CASE("Quantize outputs 0 for 4096 zeros at levels 0 / 0.01 / 0.1 / 0.5 and offset 0 / 0.5",
+          "[disrumpo][quantize][D-010][D-143]") {
+    const std::vector<float> zeros(4096, 0.0f);
+    for (const float levels : {0.0f, 0.01f, 0.1f, 0.5f}) {
+        for (const float offset : {0.0f, 0.5f}) {
+            DistortionParams params;
+            params.quantLevels = levels;
+            params.dither = 0.0f;
+            params.quantOffset = offset;
+            const auto out = renderAdapter(DistortionType::Quantize, params, zeros);
+            const double mean = adapterMean(out, 0);
+            double maxAbs = 0.0;
+            for (const float v : out) maxAbs = std::max(maxAbs, std::fabs(static_cast<double>(v)));
+            std::printf("D-010 Quantize levels %.2f offset %.1f on zeros: mean %.6f, max|out| %.6f\n",
+                        static_cast<double>(levels), static_cast<double>(offset), mean, maxAbs);
+            INFO("levels " << levels << " offset " << offset << ": mean " << mean << ", max|out| " << maxAbs);
+            CHECK(std::fabs(mean) < 1e-4);
+            CHECK(maxAbs < 1e-4);
+        }
+    }
+}
+
+TEST_CASE("Tube and Temporal(Diode/Tube curve) output has no DC", "[disrumpo][dc][D-075]") {
+    // 2 s of a 100 Hz sine at -6 dBFS; the mean is read over the last 1 s (100 whole cycles).
+    std::vector<float> sine(static_cast<std::size_t>(2.0 * kSilenceTestRate));
+    for (std::size_t i = 0; i < sine.size(); ++i) {
+        sine[i] = 0.5f * static_cast<float>(std::sin(2.0 * std::numbers::pi * 100.0 *
+                                                     static_cast<double>(i) / kSilenceTestRate));
+    }
+    const auto lastSecond = sine.size() / 2;
+
+    SECTION("Tube, bias -1 and +1") {
+        for (const float bias : {-1.0f, 1.0f}) {
+            DistortionParams p;
+            p.bias = bias;
+            p.sag = 0.5f;     // the processor's default slot values (0.5)
+            p.satStage = 2;
+            const auto out = renderAdapter(DistortionType::Tube, p, sine);
+            const double dc = adapterMean(out, lastSecond);
+            INFO("Tube bias " << bias << ": mean of the last 1 s " << dc);
+            CHECK(countNonFinite(out) == 0);
+            CHECK(std::fabs(dc) < 1e-3);
+        }
+    }
+
+    SECTION("Temporal, Diode (curve 7) and Tube (curve 8)") {
+        for (const float curve : {0.875f, 1.0f}) {
+            DistortionParams p;
+            p.dynamicCurve = curve;
+            const auto out = renderAdapter(DistortionType::Temporal, p, sine);
+            const double dc = adapterMean(out, lastSecond);
+            INFO("Temporal curve slot " << curve << ": mean of the last 1 s " << dc);
+            CHECK(countNonFinite(out) == 0);
+            CHECK(std::fabs(dc) < 1e-3);
+        }
+    }
+}
+
+// =============================================================================
+// Fix plan Phase 2: adapter routing of the shared processors (T2.01, T2.02, T2.04, T2.05)
+// =============================================================================
+
+namespace {
+
+/// Render `in` through a fresh adapter of `type` at 48 kHz with the given common params.
+std::vector<float> renderAdapterWith(DistortionType type, const DistortionParams& params,
+                                     const DistortionCommonParams& common,
+                                     const std::vector<float>& in) {
+    auto adapter = std::make_unique<DistortionAdapter>();
+    adapter->prepare(kSilenceTestRate, kTestBlockSize);
+    adapter->setCommonParams(common);
+    adapter->setType(type);
+    adapter->setParams(params);
+    (*adapter).reset();
+    std::vector<float> out(in.size());
+    for (std::size_t i = 0; i < in.size(); ++i) out[i] = adapter->process(in[i]);
+    return out;
+}
+
+std::vector<float> sineAt48k(double freqHz, float amplitude, std::size_t length) {
+    std::vector<float> x(length);
+    for (std::size_t i = 0; i < length; ++i) {
+        x[i] = amplitude * static_cast<float>(std::sin(2.0 * std::numbers::pi * freqHz *
+                                                       static_cast<double>(i) / kSilenceTestRate));
+    }
+    return x;
+}
+
+/// Level in dB of the `freqHz` component of x[from, end) (single-bin DFT; the window holds
+/// a whole number of cycles of the frequencies used here).
+double toneLevelDb(const std::vector<float>& x, std::size_t from, double freqHz) {
+    double re = 0.0;
+    double im = 0.0;
+    for (std::size_t i = from; i < x.size(); ++i) {
+        const double ph = 2.0 * std::numbers::pi * freqHz * static_cast<double>(i) / kSilenceTestRate;
+        re += static_cast<double>(x[i]) * std::cos(ph);
+        im -= static_cast<double>(x[i]) * std::sin(ph);
+    }
+    const double amplitude = 2.0 * std::sqrt(re * re + im * im) / static_cast<double>(x.size() - from);
+    return 20.0 * std::log10(std::max(amplitude, 1e-12));
+}
+
+}  // namespace
+
+// D-076 (T2.01): FuzzProcessor's own tone biquad defaulted to tone 0.5 (~1789 Hz) under the
+// adapter's tone filter, so node Tone could not open Fuzz / AsymmetricFuzz. FuzzProcessor
+// blends (1 - sustain) of the dry input past that biquad, so sustain 1 (fully wet) is the
+// setting that exposes it; sustain 0.5 is the default slot value.
+TEST_CASE("Fuzz passes 4 kHz within 6 dB of 500 Hz at node tone 8000 Hz",
+          "[disrumpo][distortion][fuzz][D-076]") {
+    constexpr std::size_t kLength = 24000;  // 0.5 s
+    constexpr std::size_t kFrom = 12000;    // last 0.25 s: 125 / 1000 whole cycles
+    const DistortionCommonParams common{.drive = 1.0f, .mix = 1.0f, .toneHz = 8000.0f};
+
+    for (const auto type : {DistortionType::Fuzz, DistortionType::AsymmetricFuzz}) {
+        for (const float sustain : {0.5f, 1.0f}) {
+            DistortionParams p;
+            p.sustain = sustain;
+            p.body = 0.0f;       // AsymmetricFuzz body filter fully open (20 kHz)
+            p.asymmetry = 0.0f;  // AsymmetricFuzz: its +0.15 offset pins sustain 1 in saturation
+            const double level500 = toneLevelDb(
+                renderAdapterWith(type, p, common, sineAt48k(500.0, 0.1f, kLength)), kFrom, 500.0);
+            const double level4k = toneLevelDb(
+                renderAdapterWith(type, p, common, sineAt48k(4000.0, 0.1f, kLength)), kFrom, 4000.0);
+            INFO(getTypeName(type) << ", sustain " << sustain << ": 500 Hz " << level500
+                 << " dB, 4 kHz " << level4k << " dB, difference " << (level4k - level500) << " dB");
+            CHECK(std::fabs(level4k - level500) <= 6.0);
+        }
+    }
+}
+
+// D-077 (T2.02): a multi-stage Tube ran every stage through ONE TubeStage, so its DC
+// blocker and smoothers saw the stages interleaved as if they were successive samples.
+TEST_CASE("Tube with 3 stages and bias 0.5 has no DC and matches four independent stages",
+          "[disrumpo][distortion][tube][D-077]") {
+    constexpr std::size_t kLength = 96000;      // 2 s
+    constexpr std::size_t kLastSecond = 48000;  // mean over the last 1 s (100 whole cycles)
+    const DistortionCommonParams common{.drive = 2.0f, .mix = 1.0f, .toneHz = 8000.0f};
+    DistortionParams p;
+    p.bias = 0.5f;
+    p.sag = 0.5f;     // the default slot value
+    p.satStage = 3;   // four stages
+    const auto in = sineAt48k(100.0, 0.5f, kLength);
+    const auto out = renderAdapterWith(DistortionType::Tube, p, common, in);
+
+    // Reference: four separately prepared TubeStages in series, then the adapter's own
+    // post chain (10 Hz DC blocker, one-pole tone filter at the node tone).
+    std::array<Krate::DSP::TubeStage, 4> stages;
+    for (auto& stage : stages) {
+        stage.prepare(kSilenceTestRate, static_cast<std::size_t>(kTestBlockSize));
+        stage.setBias(p.bias);
+        stage.setSaturationAmount(p.sag);
+        stage.reset();
+    }
+    Krate::DSP::DCBlocker dcBlocker;
+    dcBlocker.prepare(kSilenceTestRate, 10.0f);
+    Krate::DSP::OnePoleLP tone;
+    tone.prepare(kSilenceTestRate);
+    tone.setCutoff(common.toneHz);
+    std::vector<float> cascade(kLength);
+    std::vector<float> reference(kLength);
+    // Re-baselined (drive re-stage, user ruling 2026-11-10): the stages see the input x drive x 8
+    // and their output is brought back down by 8 before the adapter's DC blocker and tone filter
+    for (std::size_t i = 0; i < kLength; ++i) {
+        float x = in[i] * common.drive * 8.0f;
+        for (auto& stage : stages) stage.process(&x, 1);
+        x *= 1.0f / 8.0f;
+        cascade[i] = x;
+        reference[i] = tone.process(dcBlocker.process(x));
+    }
+
+    float maxDiff = 0.0f;
+    for (std::size_t i = 0; i < kLength; ++i) maxDiff = std::max(maxDiff, std::fabs(out[i] - reference[i]));
+    const double dc = adapterMean(out, kLastSecond);
+    INFO("adapter mean of the last 1 s " << dc << ", four-stage cascade (before the adapter's DC blocker) mean "
+         << adapterMean(cascade, kLastSecond) << ", max |adapter - reference| " << maxDiff);
+    CHECK(countNonFinite(out) == 0);
+    CHECK(std::fabs(dc) < 1e-3);
+    CHECK(maxDiff < 1e-4f);
+}
+
+// D-079 (T2.04): GranularDistortion's internal drive (default 5) multiplied the adapter's
+// drive pre-scale inside every grain.
+TEST_CASE("Granular at drive 1 on -20 dBFS sine peaks below -12 dBFS",
+          "[disrumpo][distortion][granular][D-079]") {
+    DistortionParams p;
+    // Slot 0 = processor density 1 (one grain at a time). Denser settings sum up to 8
+    // overlapping grains without normalisation, which is the processor's overlap gain,
+    // not its drive.
+    p.grainDensity = 0.0f;
+    const auto out = renderAdapterWith(DistortionType::Granular, p,
+                                       {.drive = 1.0f, .mix = 1.0f, .toneHz = 8000.0f},
+                                       sineAt48k(1000.0, 0.1f, 48000));  // 1 s
+    float peak = 0.0f;
+    for (const float v : out) peak = std::max(peak, std::fabs(v));
+    const double peakDb = 20.0 * std::log10(std::max(static_cast<double>(peak), 1e-12));
+    INFO("Granular drive 1, -20 dBFS 1 kHz sine: output peak " << peak << " (" << peakDb << " dBFS)");
+    CHECK(countNonFinite(out) == 0);
+    CHECK(peakDb < -12.0);
+}
+
+// D-083 / D-102 (T2.05): the Bits slot mapped to [1, 16] while BitCrusher clamps to
+// [4, 16], so the bottom 20 % of the knob all sounded like 4 bits.
+#include "processor/processor.h"
+
+TEST_CASE("Bitcrush slot 0.0 and 0.15 give different output",
+          "[disrumpo][distortion][bitcrush][D-083][D-102]") {
+    const auto bitcrushParams = [](float bitsSlot) {
+        std::array<float, MorphNode::kShapeSlotCount> slots{};  // dither 0, Truncate, jitter 0
+        slots[0] = bitsSlot;
+        DistortionParams p;
+        Processor::mapShapeSlotsToParams(DistortionType::Bitcrush, slots.data(), p);
+        return p;
+    };
+    INFO("bitDepth at slot 0 / 0.5 / 1: " << bitcrushParams(0.0f).bitDepth << " / "
+         << bitcrushParams(0.5f).bitDepth << " / " << bitcrushParams(1.0f).bitDepth);
+
+    const DistortionCommonParams common{.drive = 1.0f, .mix = 1.0f, .toneHz = 8000.0f};
+    const auto in = sineAt48k(440.0, 0.5f, 4800);  // 0.1 s
+    const auto at0 = renderAdapterWith(DistortionType::Bitcrush, bitcrushParams(0.0f), common, in);
+    const auto at015 = renderAdapterWith(DistortionType::Bitcrush, bitcrushParams(0.15f), common, in);
+    double sumSq = 0.0;
+    for (std::size_t i = 0; i < in.size(); ++i) {
+        const double d = static_cast<double>(at0[i]) - static_cast<double>(at015[i]);
+        sumSq += d * d;
+    }
+    const double rmsDiff = std::sqrt(sumSq / static_cast<double>(in.size()));
+    INFO("bitDepth at slot 0.15: " << bitcrushParams(0.15f).bitDepth << "; RMS of (slot 0 - slot 0.15) output "
+         << rmsDiff);
+    CHECK(rmsDiff > 1e-3);
+}
+
+// =============================================================================
+// D-078 (T2.03): Feedback type. The Curve slot was never routed to FeedbackDistortion,
+// the Thr slot was inverted (slot 1 = -24 dB) and Lim off still soft-limited at 0 dB.
+// =============================================================================
+
+namespace {
+
+struct FeedbackSlots {
+    float feedback = 0.8f;   // slot 0: 0.8 * 1.5 = feedback 1.2 (runaway)
+    float curve = 0.0f;      // slot 2
+    float filter = 0.0f;     // slot 3: 0 = Off, 1/3 = LP, 2/3 = BP, 1 = HP
+    float freq = 0.5f;       // slot 4
+    float stage = 0.0f;      // slot 5: one stage
+    float limiter = 1.0f;    // slot 6: on
+    float threshold = 1.0f;  // slot 7
+};
+
+DistortionParams feedbackParams(const FeedbackSlots& s) {
+    std::array<float, MorphNode::kShapeSlotCount> slots{};
+    slots[0] = s.feedback;
+    slots[1] = 9.0f / 99.0f;  // 10 ms delay (100 Hz resonance)
+    slots[2] = s.curve;
+    slots[3] = s.filter;
+    slots[4] = s.freq;
+    slots[5] = s.stage;
+    slots[6] = s.limiter;
+    slots[7] = s.threshold;
+    slots[8] = 0.0f;  // decay off
+    DistortionParams p;
+    Processor::mapShapeSlotsToParams(DistortionType::FeedbackDist, slots.data(), p);
+    return p;
+}
+
+std::vector<float> renderFeedback(const FeedbackSlots& s, const std::vector<float>& in) {
+    return renderAdapterWith(DistortionType::FeedbackDist, feedbackParams(s),
+                             {.drive = 1.0f, .mix = 1.0f, .toneHz = 8000.0f}, in);
+}
+
+float peakFrom(const std::vector<float>& x, std::size_t from) {
+    float peak = 0.0f;
+    for (std::size_t i = from; i < x.size(); ++i) peak = std::max(peak, std::fabs(x[i]));
+    return peak;
+}
+
+double linToDb(double v) { return 20.0 * std::log10(std::max(v, 1e-12)); }
+
+}  // namespace
+
+TEST_CASE("FeedbackDist fbCurve changes output", "[disrumpo][distortion][feedback][D-078]") {
+    // Natural decay (feedback 0.75), limiter off, 200 Hz at -6 dBFS: the Curve slot picks the
+    // loop's waveshaper (slot 0 = Tanh, slot 1 = Tube).
+    const auto in = sineAt48k(200.0, 0.5f, 48000);  // 1 s, RMS over the last 0.5 s
+    FeedbackSlots s;
+    s.feedback = 0.5f;
+    s.limiter = 0.0f;
+    s.curve = 0.0f;
+    const auto atTanh = renderFeedback(s, in);
+    s.curve = 1.0f;
+    const auto atTube = renderFeedback(s, in);
+    const double rms0 = adapterRmsDb(atTanh, 24000);
+    const double rms1 = adapterRmsDb(atTube, 24000);
+    INFO("Curve slot 0: RMS " << rms0 << " dBFS; slot 1: RMS " << rms1 << " dBFS; difference "
+         << (rms1 - rms0) << " dB");
+    CHECK(countNonFinite(atTanh) == 0);
+    CHECK(countNonFinite(atTube) == 0);
+    CHECK(std::fabs(rms1 - rms0) > 1.0);
+}
+
+TEST_CASE("FeedbackDist higher Thr gives higher peak", "[disrumpo][distortion][feedback][D-078]") {
+    // Runaway (feedback 1.2), limiter on: the peak over the last 0.5 s tracks the threshold.
+    // Thr slot 0 / 0.5 / 1 = -24 / -12 / 0 dB.
+    const auto in = sineAt48k(200.0, 0.5f, 48000);
+    std::array<float, 3> peaks{};
+    const std::array<float, 3> thrSlots{0.0f, 0.5f, 1.0f};
+    for (std::size_t k = 0; k < thrSlots.size(); ++k) {
+        FeedbackSlots s;
+        s.threshold = thrSlots[k];
+        const auto out = renderFeedback(s, in);
+        CHECK(countNonFinite(out) == 0);
+        peaks[k] = peakFrom(out, 24000);
+    }
+    INFO("peak at Thr slot 0 / 0.5 / 1: " << linToDb(peaks[0]) << " / " << linToDb(peaks[1]) << " / "
+         << linToDb(peaks[2]) << " dBFS");
+    CHECK(peaks[0] < peaks[1]);
+    CHECK(peaks[1] < peaks[2]);
+}
+
+TEST_CASE("FeedbackDist limiter off does not limit", "[disrumpo][distortion][feedback][D-078]") {
+    // Feedback 1.2 (runaway). The primitive's limiter holds its output within threshold + 3 dB
+    // (x1.41); the adapter's own 10 Hz DC blocker after it lifts the peak to x1.50 (+3.5 dB,
+    // primitive probe: 0.3541 raw -> 0.3777 after the DC blocker at -12 dB), so "on" is checked
+    // against threshold + 4 dB. With the limiter off nothing caps the loop.
+    // Re-baselined (drive re-stage, user ruling 2026-11-10): the input is 0.5 x kOldStagingScale,
+    // so the loop runs as it did before the re-stage, and the adapter's output is the old one
+    // 18.06 dB lower: every bound below moves by kOutDb. At 0.5 the loop ran 18 dB hotter, its
+    // Cubic curve held the 4-stage highpass below the threshold and the limiter never engaged.
+    const auto in = sineAt48k(200.0, 0.5f * kOldStagingScale, 48000);
+    const double kOutDb = 20.0 * std::log10(static_cast<double>(kOldStagingScale));  // -18.06
+
+    SECTION("Thr -12 dB: off exceeds threshold + 4 dB, on stays within it") {
+        FeedbackSlots s;
+        s.threshold = 0.5f;  // -12 dB
+        const double boundDb = -12.0 + 4.0 + kOutDb;
+        s.limiter = 1.0f;
+        const float peakOn = peakFrom(renderFeedback(s, in), 24000);
+        s.limiter = 0.0f;
+        const float peakOff = peakFrom(renderFeedback(s, in), 24000);
+        INFO("Thr -12 dB, Tanh, filter off: peak limiter on " << linToDb(peakOn) << " dBFS, limiter off "
+             << linToDb(peakOff) << " dBFS (bound " << boundDb << " dBFS)");
+        CHECK(linToDb(peakOn) <= boundDb);
+        CHECK(linToDb(peakOff) > boundDb);
+    }
+
+    SECTION("Thr 0 dB: off passes +4 dBFS where on is held within it") {
+        // Cubic curve (slot 0.25) into a 4-stage highpass at 1019 Hz rings past +3 dBFS
+        // unlimited (primitive probe: 2.34 off vs 1.41 on).
+        FeedbackSlots s;
+        s.curve = 0.25f;   // Cubic
+        s.filter = 1.0f;   // HP
+        s.freq = 0.05f;    // 20 + 0.05 * 19980 = 1019 Hz
+        s.stage = 1.0f;    // four stages
+        s.threshold = 1.0f;
+        s.limiter = 1.0f;
+        const float peakOn = peakFrom(renderFeedback(s, in), 24000);
+        s.limiter = 0.0f;
+        const float peakOff = peakFrom(renderFeedback(s, in), 24000);
+        INFO("Thr 0 dB, Cubic, 4-stage HP at 1019 Hz: peak limiter on " << linToDb(peakOn)
+             << " dBFS, limiter off " << linToDb(peakOff) << " dBFS");
+        CHECK(linToDb(peakOn) <= 4.0 + kOutDb);
+        CHECK(linToDb(peakOff) > 4.0 + kOutDb);
+    }
+
+    SECTION("limiter off stays finite and bounded at feedback 1.5 for 5 s, every curve and filter") {
+        const auto longIn = sineAt48k(200.0, 0.5f, 5 * std::size_t{48000});
+        float worst = 0.0f;
+        std::size_t nonFinite = 0;
+        for (int curve = 0; curve <= 8; ++curve) {
+            for (int filter = 0; filter <= 3; ++filter) {
+                FeedbackSlots w;
+                w.feedback = 1.0f;  // 1.5
+                w.curve = static_cast<float>(curve) / 8.0f;
+                w.filter = static_cast<float>(filter) / 3.0f;
+                w.freq = 0.05f;
+                w.stage = 1.0f;
+                w.limiter = 0.0f;
+                const auto out = renderFeedback(w, longIn);
+                nonFinite += countNonFinite(out);
+                worst = std::max(worst, peakFrom(out, 0));
+            }
+        }
+        INFO("limiter off, feedback 1.5, 9 curves x 4 filters x 5 s: max |out| " << worst << " ("
+             << linToDb(worst) << " dBFS), non-finite samples " << nonFinite);
+        CHECK(nonFinite == 0);
+        CHECK(worst < 16.0f);
+    }
+}
+
+// =============================================================================
+// Type changes reset the new processor and fade (audit D-032, D-080; fix plan T2.13)
+// =============================================================================
+// setType only switched processRaw to the new type's processor, which resumed with
+// whatever it held from its last use: a FeedbackDist delay line, a Granular buffer,
+// Spectral frames. Switching back to such a type replayed old audio.
+// =============================================================================
+
+TEST_CASE("Switching FeedbackDist -> SoftClip -> FeedbackDist does not replay old audio",
+          "[disrumpo][distortion][type-switch][D-080][D-032]") {
+    auto adapter = std::make_unique<DistortionAdapter>();
+    adapter->prepare(kTestSampleRate, kTestBlockSize);
+    DistortionParams p;
+    p.feedback = 0.9f;
+    adapter->setType(DistortionType::FeedbackDist);
+    adapter->setParams(p);
+    adapter->setCommonParams({.drive = 2.0f, .mix = 1.0f, .toneHz = 8000.0f});
+
+    // 0.5 s of a loud 220 Hz sine fills the feedback delay line
+    const auto half = static_cast<std::size_t>(kTestSampleRate / 2.0);
+    float loudPeak = 0.0f;
+    for (std::size_t n = 0; n < half; ++n) {
+        const float x = 0.8f * std::sin(2.0f * std::numbers::pi_v<float> * 220.0f *
+                                        static_cast<float>(n) / static_cast<float>(kTestSampleRate));
+        loudPeak = std::max(loudPeak, std::abs(adapter->process(x)));
+    }
+
+    // SoftClip for 1 s of silence, then back to FeedbackDist (setNodes order: type, params)
+    adapter->setType(DistortionType::SoftClip);
+    adapter->setParams(p);
+    for (std::size_t n = 0; n < 2 * half; ++n) (void)adapter->process(0.0f);
+    adapter->setType(DistortionType::FeedbackDist);
+    adapter->setParams(p);
+    float replayPeak = 0.0f;
+    for (std::size_t n = 0; n < static_cast<std::size_t>(kTestSampleRate / 10.0); ++n)
+        replayPeak = std::max(replayPeak, std::abs(adapter->process(0.0f)));
+
+    std::printf("D-080 FeedbackDist (feedback 0.9) -> SoftClip -> FeedbackDist: peak while loud %.4f, max |out| "
+                "in 100 ms of silence after switching back %.3g\n",
+                static_cast<double>(loudPeak), static_cast<double>(replayPeak));
+    REQUIRE(loudPeak > 0.1f);
+    REQUIRE(replayPeak < 1e-4f);
+}
+
+TEST_CASE("Re-activating a FeedbackDist morph node does not replay old audio",
+          "[disrumpo][morph][type-switch][D-032]") {
+    // Nodes SoftClip / SineFold / FeedbackDist (feedback 0.9) at x = 0.75: node C runs while
+    // a loud sine plays, the node count drops to 2 for 1 s of silence (C stops being
+    // processed), then returns to 3 with silence still at the input.
+    auto engine = std::make_unique<MorphEngine>();
+    engine->prepare(kTestSampleRate, kTestBlockSize);
+    std::array<MorphNode, kMaxMorphNodes> nodes{
+        MorphNode(0, 0.0f, 0.0f, DistortionType::SoftClip), MorphNode(1, 1.0f, 0.0f, DistortionType::SineFold),
+        MorphNode(2, 0.0f, 1.0f, DistortionType::FeedbackDist), MorphNode(3, 1.0f, 1.0f, DistortionType::Tube)};
+    nodes[2].params.feedback = 0.9f;
+    engine->setNodes(nodes, 3);
+    engine->setMode(MorphMode::Linear1D);
+    engine->setMorphPosition(0.75f, 0.0f);
+    (*engine).reset();
+
+    const auto half = static_cast<std::size_t>(kTestSampleRate / 2.0);
+    for (std::size_t n = 0; n < half; ++n) {
+        (void)engine->process(0.8f * std::sin(2.0f * std::numbers::pi_v<float> * 220.0f * static_cast<float>(n) /
+                                              static_cast<float>(kTestSampleRate)));
+    }
+    engine->setNodes(nodes, 2);
+    for (std::size_t n = 0; n < 2 * half; ++n) (void)engine->process(0.0f);
+    engine->setNodes(nodes, 3);
+    float replayPeak = 0.0f;
+    for (std::size_t n = 0; n < static_cast<std::size_t>(kTestSampleRate / 10.0); ++n)
+        replayPeak = std::max(replayPeak, std::abs(engine->process(0.0f)));
+    std::printf("D-032 FeedbackDist node C re-activated after 1 s at 2 nodes: max |out| in 100 ms of silence %.3g\n",
+                static_cast<double>(replayPeak));
+    REQUIRE(replayPeak < 1e-4f);
+}
+
+TEST_CASE("A type change fades the output over 5 ms instead of stepping",
+          "[disrumpo][distortion][type-switch][D-141]") {
+    // HardClip at threshold 0 and ceiling 0 holds a DC input of 0.5 at 0.1; SoftClip (knee
+    // 0.5: linear up to 0.5) passes it at 0.5. Without the fade that is a 0.4 step, smoothed
+    // only by the 8 kHz tone filter.
+    auto adapter = std::make_unique<DistortionAdapter>();
+    adapter->prepare(kTestSampleRate, kTestBlockSize);
+    DistortionParams p;
+    p.threshold = 0.0f;
+    p.ceiling = 0.0f;
+    adapter->setType(DistortionType::HardClip);
+    adapter->setParams(p);
+    adapter->setCommonParams({.drive = 1.0f, .mix = 1.0f, .toneHz = 8000.0f});
+    // Re-baselined (drive re-stage, user ruling 2026-11-10): DC 0.5 x kOldStagingScale, so both
+    // shapers see the DC they saw before and every output is the old one / 8: the 0.2 bar on
+    // the total change is 0.2 / 8 (at 0.5 both types sat near their ceilings, 0.1125 apart)
+    const float dcIn = 0.5f * kOldStagingScale;
+    for (int n = 0; n < 4410; ++n) (void)adapter->process(dcIn);
+    const float before = adapter->process(dcIn);
+
+    adapter->setType(DistortionType::SoftClip);
+    adapter->setParams(p);
+    const auto fadeLen = static_cast<int>(0.005 * kTestSampleRate);
+    std::vector<float> y(static_cast<std::size_t>(2 * fadeLen));
+    for (auto& v : y) v = adapter->process(dcIn);
+    float maxStep = std::abs(y[0] - before);
+    for (std::size_t n = 1; n < y.size(); ++n) maxStep = std::max(maxStep, std::abs(y[n] - y[n - 1]));
+    const float settled = y.back();
+    std::printf("D-141 HardClip -> SoftClip on DC 0.5: before %.4f, after %.4f, largest step %.5f (total change "
+                "%.4f over %d samples)\n",
+                static_cast<double>(before), static_cast<double>(settled), static_cast<double>(maxStep),
+                static_cast<double>(settled - before), fadeLen);
+    REQUIRE(std::abs(settled - before) > 0.2f * kOldStagingScale);
+    // A linear 5 ms ramp moves by total / fadeLen per sample (plus the tone filter's settling)
+    REQUIRE(maxStep <= 1.5f * std::abs(settled - before) / static_cast<float>(fadeLen));
+}
+
+TEST_CASE("Type changes through all 26 types allocate nothing", "[disrumpo][distortion][type-switch][realtime][D-032]") {
+    auto adapter = std::make_unique<DistortionAdapter>();
+    adapter->prepare(kTestSampleRate, kTestBlockSize);
+    adapter->setCommonParams({.drive = 2.0f, .mix = 1.0f, .toneHz = 4000.0f});
+    const DistortionParams p;
+    for (int i = 0; i < 512; ++i) (void)adapter->process(0.25f * static_cast<float>(i % 8) - 0.875f);
+
+    std::size_t allocations = 0;
+    {
+        TestHelpers::AllocationScope scope;
+        for (int round = 0; round < 2; ++round) {
+            for (int t = 0; t < static_cast<int>(DistortionType::COUNT); ++t) {
+                adapter->setType(static_cast<DistortionType>(t));
+                adapter->setParams(p);
+                for (int i = 0; i < 512; ++i) (void)adapter->process(0.25f * static_cast<float>(i % 8) - 0.875f);
+            }
+        }
+        allocations = TestHelpers::AllocationDetector::instance().getAllocationCount();
+    }
+    std::printf("D-032 52 type changes with 512 samples each: %zu allocations\n", allocations);
+    REQUIRE(allocations == 0);
+}
+
+#include <krate/dsp/core/random.h>
+#include <krate/dsp/primitives/pink_noise_filter.h>
+
+// D-144 (T3.01): the fold, Chaos and Granular types ran without the DC blocker; with
+// the shape slots of the factory presets that measured |DC| >= 0.01 on pink noise they
+// leave DC on the output (Serge_Bass low band alone: 0.056).
+TEST_CASE("Fold, Chaos and Granular outputs carry no DC", "[disrumpo][dc][D-144]") {
+    struct Case {
+        const char* label;
+        DistortionType type;
+        float drive;
+        double sineHz;  ///< a whole number of cycles in 1 s at 48 kHz
+        std::array<float, MorphNode::kShapeSlotCount> slots;
+    };
+    // Slot values as tools/disrumpo_preset_generator.cpp writes them for those presets
+    const Case cases[] = {
+        {.label = "Serge_Bass low band", .type = DistortionType::SergeFold, .drive = 2.5f, .sineHz = 100.0,
+         .slots = {1.0f / 11.0f, 0.5f, 0.0f, 0.55f, 0.3f, 0.15f, 0.5f, 0.5f, 0.5f, 0.5f}},
+        {.label = "Serge_Madness mid band", .type = DistortionType::SineFold, .drive = 3.5f, .sineHz = 100.0,
+         .slots = {4.0f / 11.0f, 0.7f, 0.6f, 0.55f, 0.05f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f}},
+        {.label = "Serge_Madness high band slots with bias 0.1", .type = DistortionType::TriangleFold,
+         .drive = 3.0f, .sineHz = 100.0,
+         .slots = {3.0f / 11.0f, 0.4f, 0.8f, 0.55f, 0.1f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f}},
+        {.label = "Chaos_Engine low band node A", .type = DistortionType::Chaos, .drive = 2.5f, .sineHz = 100.0,
+         .slots = {0.0f, 4.99f / 99.99f, 0.7f, 0.6f, 0.6f, 0.5f, 0.0f, 0.5f, 0.5f, 0.5f}},
+        // Granular's DC shows on noise, not on a sine (0.00075 at 25 Hz): 0 Hz = pink noise
+        {.label = "Formant_Pad low band, pink noise", .type = DistortionType::Granular, .drive = 1.0f, .sineHz = 0.0,
+         .slots = {55.0f / 95.0f, 0.3f, 0.1f, 0.1f, 0.4f, 0.6f, 2.0f / 3.0f, 1.0f / 3.0f, 0.0f, 0.5f}},
+    };
+    const auto length = static_cast<std::size_t>(2.0 * kSilenceTestRate);
+    // Pink noise with its 2 s mean removed, peak -6 dBFS; its mean is read over all 2 s
+    std::vector<float> pink(length);
+    {
+        Krate::DSP::Xorshift32 rng(0x7301u);
+        Krate::DSP::PinkNoiseFilter filter;
+        double sum = 0.0;
+        for (auto& v : pink) {
+            v = filter.process(rng.nextFloat());
+            sum += v;
+        }
+        const auto mean = static_cast<float>(sum / static_cast<double>(length));
+        float peak = 0.0f;
+        for (auto& v : pink) {
+            v -= mean;
+            peak = std::max(peak, std::fabs(v));
+        }
+        for (auto& v : pink) v *= 0.5f / peak;
+    }
+    for (const auto& c : cases) {
+        // 2 s of sine at -6 dBFS, the mean read over the last 1 s (whole cycles)
+        const bool noise = c.sineHz <= 0.0;
+        const auto in = noise ? pink : sineAt48k(c.sineHz, 0.5f, length);
+        const std::size_t from = noise ? 0 : length / 2;
+        DistortionParams p;
+        Processor::mapShapeSlotsToParams(c.type, c.slots.data(), p);
+        const auto out = renderAdapterWith(c.type, p, {.drive = c.drive, .mix = 1.0f, .toneHz = 4000.0f}, in);
+        const double dc = adapterMean(out, from);
+        std::printf("D-144 %s (%s, drive %.1f): output mean %.5f, RMS %.2f dBFS\n", c.label, getTypeName(c.type),
+                    static_cast<double>(c.drive), dc, adapterRmsDb(out, from));
+        INFO(c.label << " (" << getTypeName(c.type) << "): output mean " << dc);
+        CHECK(countNonFinite(out) == 0);
+        CHECK(std::fabs(dc) < 1e-3);
+    }
+}
+
+// =============================================================================
+// D-102 (fix plan T4.06): each shape slot's ends are the specs-overview.md ranges
+// =============================================================================
+// FR-DIST-003 and Appendix A as ruled in T4.06 (the DSP limits win for Temporal
+// attack/release, Aliasing shift, Chaos speed and Formant shift; Bitcrush bits is
+// BitCrusher's 4-16 from T2.05). Slot value 0 must map to the spec minimum and 1
+// to the maximum. Folds is left out: its range awaits a ruling (spec 1-8, code
+// 1-12, the wavefolder clamps at 10).
+
+TEST_CASE("Shape slot ends equal the spec's parameter ranges", "[disrumpo][adapter][D-102]") {
+    struct SpecRange {
+        SpecRange(const char* n, DistortionType t, int s, double (*f)(const DistortionParams&), double lo, double hi)
+            : name(n), type(t), slot(s), field(f), min(lo), max(hi) {}
+        const char* name;
+        DistortionType type;
+        int slot;
+        double (*field)(const DistortionParams&);
+        double min;
+        double max;
+    };
+    const std::array<SpecRange, 25> ranges{{
+        {"Bias", DistortionType::Tube, 0, [](const DistortionParams& p) { return double(p.bias); }, -1.0, 1.0},
+        {"Sag", DistortionType::Tube, 1, [](const DistortionParams& p) { return double(p.sag); }, 0.0, 1.0},
+        {"Bit Depth", DistortionType::Bitcrush, 0, [](const DistortionParams& p) { return double(p.bitDepth); }, 4.0, 16.0},
+        {"Sample Rate Ratio", DistortionType::SampleReduce, 0,
+         [](const DistortionParams& p) { return double(p.sampleRateRatio); }, 1.0, 32.0},
+        {"Sensitivity", DistortionType::Temporal, 1, [](const DistortionParams& p) { return double(p.sensitivity); }, 0.0, 1.0},
+        {"Attack Time", DistortionType::Temporal, 3, [](const DistortionParams& p) { return double(p.attackMs); }, 1.0, 500.0},
+        {"Release Time", DistortionType::Temporal, 4, [](const DistortionParams& p) { return double(p.releaseMs); }, 10.0, 5000.0},
+        {"Modulation Depth", DistortionType::RingSaturation, 0,
+         [](const DistortionParams& p) { return double(p.modDepth); }, 0.0, 1.0},
+        {"Stages (Ring Sat)", DistortionType::RingSaturation, 1, [](const DistortionParams& p) { return double(p.stages); }, 1.0, 4.0},
+        {"Stages (Feedback)", DistortionType::FeedbackDist, 5, [](const DistortionParams& p) { return double(p.stages); }, 1.0, 4.0},
+        {"Feedback", DistortionType::FeedbackDist, 0, [](const DistortionParams& p) { return double(p.feedback); }, 0.0, 1.5},
+        {"Delay Time", DistortionType::FeedbackDist, 1, [](const DistortionParams& p) { return double(p.delayMs); }, 1.0, 100.0},
+        {"Downsample Factor", DistortionType::Aliasing, 0,
+         [](const DistortionParams& p) { return double(p.sampleRateRatio); }, 2.0, 32.0},
+        {"Frequency Shift", DistortionType::Aliasing, 1, [](const DistortionParams& p) { return double(p.freqShift); }, -5000.0, 5000.0},
+        {"Chaos Amount", DistortionType::Chaos, 2, [](const DistortionParams& p) { return double(p.chaosAmount); }, 0.0, 1.0},
+        {"Attractor Speed", DistortionType::Chaos, 1, [](const DistortionParams& p) { return double(p.attractorSpeed); }, 0.01, 100.0},
+        {"Grain Size", DistortionType::Granular, 0, [](const DistortionParams& p) { return double(p.grainSizeMs); }, 5.0, 100.0},
+        {"Formant Shift", DistortionType::Formant, 1, [](const DistortionParams& p) { return double(p.formantShift); }, -24.0, 24.0},
+        {"FFT Size", DistortionType::Spectral, 1, [](const DistortionParams& p) { return double(p.fftSize); }, 512.0, 4096.0},
+        {"Iterations", DistortionType::Fractal, 1, [](const DistortionParams& p) { return double(p.iterations); }, 1.0, 8.0},
+        {"Scale Factor", DistortionType::Fractal, 2, [](const DistortionParams& p) { return double(p.scaleFactor); }, 0.3, 0.9},
+        {"Jitter Rate", DistortionType::Stochastic, 2, [](const DistortionParams& p) { return double(p.jitterRate); }, 0.1, 100.0},
+        {"Resonant Frequency", DistortionType::AllpassResonant, 1,
+         [](const DistortionParams& p) { return double(p.resonantFreq); }, 20.0, 2000.0},
+        {"Allpass Feedback", DistortionType::AllpassResonant, 2,
+         [](const DistortionParams& p) { return double(p.allpassFeedback); }, 0.0, 0.99},
+        {"Decay Time", DistortionType::AllpassResonant, 3, [](const DistortionParams& p) { return double(p.decayTimeS); }, 0.01, 10.0},
+    }};
+    int wrong = 0;
+    for (const auto& r : ranges) {
+        double ends[2] = {0.0, 0.0};
+        for (int e = 0; e < 2; ++e) {
+            std::array<float, MorphNode::kShapeSlotCount> slots{};
+            slots.fill(0.5f);
+            slots[static_cast<size_t>(r.slot)] = static_cast<float>(e);
+            DistortionParams p;
+            Processor::mapShapeSlotsToParams(r.type, slots.data(), p);
+            ends[e] = r.field(p);
+        }
+        const bool ok = std::fabs(ends[0] - r.min) <= 1e-5 * std::max(1.0, std::fabs(r.min)) &&
+                        std::fabs(ends[1] - r.max) <= 1e-5 * std::max(1.0, std::fabs(r.max));
+        if (!ok) {
+            ++wrong;
+            std::printf("  %s (%s slot %d): maps to [%g, %g], spec [%g, %g]\n", r.name, getTypeName(r.type), r.slot,
+                        ends[0], ends[1], r.min, r.max);
+        }
+    }
+    std::printf("T4.06 slot ends vs spec ranges: %d of %zu differ\n", wrong, ranges.size());
+    CHECK(wrong == 0);
+}
+
+// DistortionAdapter::latencyFor (the latency a prepared adapter reports, from the type and
+// the FFT size alone; MorphEngine aligns its nodes with it) against getProcessingLatency.
+TEST_CASE("DistortionAdapter::latencyFor equals the latency a prepared adapter reports", "[disrumpo][adapter][latency]") {
+    DistortionAdapter adapter;
+    adapter.prepare(48000.0, 512, 4);
+    for (const DistortionType type : {DistortionType::Spectral, DistortionType::SoftClip, DistortionType::Granular}) {
+        adapter.setType(type);
+        for (const int fft : {0, 100, 256, 300, 512, 1000, 1024, 2048, 3000, 4096, 8192}) {
+            DistortionParams p;
+            p.fftSize = fft;
+            adapter.setParams(p);
+            INFO("type " << static_cast<int>(type) << " fft " << fft);
+            CHECK(DistortionAdapter::latencyFor(type, fft) == adapter.getProcessingLatency());
+        }
+    }
 }

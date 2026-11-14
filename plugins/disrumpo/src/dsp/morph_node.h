@@ -110,7 +110,29 @@ struct ShapeShadowStorage {
         typeSlots[bmIdx][0] = 0.0f;  // Op: int(0.0*3+0.5) = 0 → XorPattern
         typeSlots[bmIdx][1] = 0.5f;  // Intensity: 50% (moderate)
         typeSlots[bmIdx][2] = 0.5f;  // Pattern: 0x7FFF (mid-range XOR mask)
-        typeSlots[bmIdx][3] = 0.5f;  // (reserved)
+
+        // Folds start on their named algorithm (D-157, D-168), not a 50/50 blend.
+        typeSlots[static_cast<int>(DistortionType::SineFold)][2] = 0.0f;      // Shape: pure sine fold
+        typeSlots[static_cast<int>(DistortionType::TriangleFold)][2] = 0.0f;  // Angle: pure triangle fold
+        const int sergeIdx = static_cast<int>(DistortionType::SergeFold);
+        typeSlots[sergeIdx][2] = 0.0f;  // Model: int(0*3+0.5) = 0 → models[0] = Serge
+        typeSlots[sergeIdx][4] = 0.0f;  // Shape: pure fold, no triangle crossfade
+
+        // Folds start at 2 (slot 0: 1 + x * 11) with Smooth off, so a fresh fold node keeps
+        // its level and its spectrum fits under Nyquist; Smooth 0.5 was a 3.16 kHz low-pass
+        // (D-159).
+        typeSlots[static_cast<int>(DistortionType::SineFold)][0] = 1.0f / 11.0f;      // Folds 2
+        typeSlots[static_cast<int>(DistortionType::TriangleFold)][0] = 1.0f / 11.0f;  // Folds 2
+        typeSlots[sergeIdx][0] = 1.0f / 11.0f;                                         // Folds 2
+        typeSlots[static_cast<int>(DistortionType::SineFold)][4] = 0.0f;      // Smooth
+        typeSlots[static_cast<int>(DistortionType::TriangleFold)][4] = 0.0f;  // Smooth
+        typeSlots[sergeIdx][5] = 0.0f;                                         // Smooth
+        typeSlots[static_cast<int>(DistortionType::FullRectify)][0] = 0.0f;   // Smooth
+        typeSlots[static_cast<int>(DistortionType::HalfRectify)][1] = 0.0f;   // Smooth
+
+        // Temporal starts in its first mode, Envelope Follow (D-171): 0.5 decoded as
+        // int(0.5 * 3 + 0.5) = 2, Derivative ("Transient").
+        typeSlots[static_cast<int>(DistortionType::Temporal)][0] = 0.0f;  // Mode: Follow
     }
 
     /// Save current slot values for the given type index.
@@ -137,14 +159,5 @@ inline constexpr int kDefaultActiveNodes = 1;
 /// @brief Weight threshold below which a node is skipped (FR-015).
 /// Nodes with weight below this threshold are not processed to save CPU.
 inline constexpr float kWeightThreshold = 0.001f;
-
-/// @brief Maximum allowed weight threshold when enforcing global processor cap (FR-019).
-inline constexpr float kMaxWeightThreshold = 0.25f;
-
-/// @brief Weight threshold increment when enforcing global processor cap (FR-019).
-inline constexpr float kWeightThresholdIncrement = 0.005f;
-
-/// @brief Maximum total active distortion processors across all bands (FR-019).
-inline constexpr int kMaxGlobalProcessors = 16;
 
 } // namespace Disrumpo

@@ -29,6 +29,7 @@
 #include <algorithm>
 #include <map>
 #include <memory>
+#include <utility>
 #include <vector>
 
 #include "vst_param_changes.h"
@@ -48,7 +49,7 @@ constexpr int32  kBlockSize  = 512;
 // (Krate::Test::ParameterChanges is input-only -- its addParameterData returns
 // nullptr -- so the playhead outputs need their own sink.)
 // -----------------------------------------------------------------------------
-class RecordingQueue : public IParamValueQueue {
+class RecordingQueue final : public IParamValueQueue {
 public:
     ParamID id{};
     ParamValue lastValue{-1.0};
@@ -71,7 +72,7 @@ public:
     }
 };
 
-class OutputParamChanges : public IParameterChanges {
+class OutputParamChanges final : public IParameterChanges {
 public:
     std::vector<std::unique_ptr<RecordingQueue>> queues;
 
@@ -83,7 +84,7 @@ public:
         return static_cast<int32>(queues.size());
     }
     IParamValueQueue* PLUGIN_API getParameterData(int32 index) override {
-        if (index < 0 || index >= static_cast<int32>(queues.size())) return nullptr;
+        if (index < 0 || std::cmp_greater_equal(index, queues.size())) return nullptr;
         return queues[static_cast<size_t>(index)].get();
     }
     IParamValueQueue* PLUGIN_API addParameterData(const ParamID& id, int32& index) override {
@@ -123,7 +124,7 @@ std::vector<int> runAndCollectDelayPlayhead(
     setup.sampleRate = kSampleRate;
     setup.maxSamplesPerBlock = kBlockSize;
     proc->setupProcessing(setup);
-    proc->setActive(true);
+    proc->setActive(static_cast<TBool>(true));
 
     std::vector<float> outL(static_cast<size_t>(kBlockSize), 0.0f);
     std::vector<float> outR(static_cast<size_t>(kBlockSize), 0.0f);
@@ -185,7 +186,7 @@ std::vector<int> runAndCollectDelayPlayhead(
         ctx.projectTimeSamples += kBlockSize;
     }
 
-    proc->setActive(false);
+    proc->setActive(static_cast<TBool>(false));
     proc->terminate();
     return steps;
 }

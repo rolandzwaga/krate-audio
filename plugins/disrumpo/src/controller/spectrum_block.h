@@ -11,6 +11,8 @@
 // host buffer size. Actual sample count per block is stored in numSamples.
 // ==============================================================================
 
+#include "meter_window.h"
+
 #include <cstdint>
 #include <type_traits>
 
@@ -19,6 +21,10 @@ namespace Disrumpo {
 /// @brief Maximum samples per DataExchange block.
 /// Covers all typical host buffer sizes (32 to 2048).
 static constexpr uint32_t kSpectrumBlockMaxSamples = 2048;
+
+/// @brief Modulation-offset slots carried in each block (ModDest indices; the
+/// processor fills the first ModDest::kTotalDestinations, the rest stay 0).
+static constexpr uint32_t kSpectrumBlockModOffsets = 64;
 
 /// @brief Audio sample block for spectrum display DataExchange transport.
 ///
@@ -38,6 +44,13 @@ struct SpectrumBlock {
 
     /// Audio sample rate (Hz) for FFT bin frequency calculation
     float sampleRate = 44100.0f;
+
+    /// Modulation offsets at the end of the block, by ModDest index, for the
+    /// mod-slider overlay (values, never a processor address: D-045)
+    float modOffsets[kSpectrumBlockModOffsets]{};
+
+    /// Level meters: the window accumulated since the previous send (meter_window.h)
+    MeterWindow meters{};
 };
 
 static_assert(std::is_trivially_copyable_v<SpectrumBlock>,

@@ -887,8 +887,17 @@ Steinberg::tresult PLUGIN_API Controller::initialize(Steinberg::FUnknown* contex
     updateChecker_ = std::make_unique<Krate::Plugins::UpdateChecker>(makeInnexusUpdateConfig());
 
     // Preset manager
+    createPresetManager({}, {});
+
+    return Steinberg::kResultOk;
+}
+
+void Controller::createPresetManager(std::filesystem::path userDirOverride,
+                                     std::filesystem::path factoryDirOverride)
+{
     presetManager_ = std::make_unique<Krate::Plugins::PresetManager>(
-        makeInnexusPresetConfig(), nullptr, this);
+        makeInnexusPresetConfig(), nullptr, this, std::move(userDirOverride),
+        std::move(factoryDirOverride));
     presetManager_->setStateProvider([this]() -> Steinberg::IBStream* {
         return createComponentStateStream();
     });
@@ -897,8 +906,6 @@ Steinberg::tresult PLUGIN_API Controller::initialize(Steinberg::FUnknown* contex
                const Krate::Plugins::PresetInfo& /*info*/) -> bool {
             return loadComponentStateWithNotify(stream);
         });
-
-    return Steinberg::kResultOk;
 }
 
 // ==============================================================================
@@ -906,8 +913,10 @@ Steinberg::tresult PLUGIN_API Controller::initialize(Steinberg::FUnknown* contex
 // ==============================================================================
 Steinberg::tresult PLUGIN_API Controller::terminate()
 {
-    presetManager_.reset();
-    updateChecker_.reset();
+    // updateChecker_ and presetManager_ stay until the destructor: an editor a host has not
+    // closed yet still polls the checker (update banner, Check for Updates button) and its
+    // preset browser and save dialog hold the manager, and that editor holds a reference
+    // to this controller, so the destructor runs only after its views are gone
     return EditControllerEx1::terminate();
 }
 

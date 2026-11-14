@@ -88,7 +88,6 @@ public:
 // Dest: index 0-9 maps to GlobalFilterCutoff..AllVoiceFltEnvAmt
 constexpr double kSourceLFO1Norm = 1.0 / (Ruinae::kModSourceCount - 1);
 constexpr double kDestMorphPosNorm = 5.0 / (Ruinae::kModDestCount - 1);
-constexpr double kDestSpectralTiltNorm = 7.0 / (Ruinae::kModDestCount - 1);
 constexpr double kAmountFullPositive = 1.0;  // maps to +1.0 bipolar
 
 } // anonymous namespace

@@ -596,9 +596,8 @@ private:
         auto font = VSTGUI::makeOwned<VSTGUI::CFontDesc>("Arial", 10.0);
         context->setFont(font);
 
-        // Cell background colors
-        VSTGUI::CColor defaultCellBg{25, 25, 28, 255};      // Same as body for Always
-        VSTGUI::CColor activeCellBg{35, 35, 40, 255};        // Slightly lighter for non-Always
+        // Cell background: Always cells keep the body colour; others are slightly lighter
+        VSTGUI::CColor activeCellBg{35, 35, 40, 255};
 
         for (int i = 0; i < numSteps_; ++i) {
             uint8_t condIdx = stepConditions_[static_cast<size_t>(i)];

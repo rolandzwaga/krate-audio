@@ -30,8 +30,17 @@ public:
     /// @param data Pointer to processor-owned display data struct
     void registerInstance(uint64_t id, void* data);
 
+    /// Register only if no other data holds the id (atomic check-and-insert), e.g.
+    /// when adopting an id read from a state stream another live instance may own.
+    /// @return true if `id` now maps to `data` (newly, or already)
+    [[nodiscard]] bool registerInstanceIfFree(uint64_t id, void* data);
+
     /// Unregister on terminate(). Safe to call with unknown id.
     void unregisterInstance(uint64_t id);
+
+    /// Unregister only if `id` still maps to `data`: never removes an entry
+    /// another instance registered under the same id. Safe with unknown id.
+    void unregisterInstance(uint64_t id, const void* data);
 
     /// Look up a registered instance. Returns nullptr if not found.
     [[nodiscard]] void* lookupInstance(uint64_t id) const;

@@ -579,6 +579,24 @@
 // (11b) are unchanged.
 //
 // ------------------------------------------------------------------------------
+// (11d) THE FADE-IN IS EXPONENTIAL AND SLOWER THAN THE FADE-OUT. MEASURED, FIXED.
+// ------------------------------------------------------------------------------
+// The resumption after the clear rises from digital silence, and any POLYNOMIAL
+// fade-in (linear, smoothstep, raised cosine; 20 ms or 100 ms alike) leaves the
+// first loud edge of the input inside a 512-sample ClickDetector frame that is
+// still mostly silent. MEASURED on SC-015's transition render: the output there
+// was exactly gate x the steady mix (a mix = 0 render scored the same
+// detections, a mix = 1 render none). Replaying the ungated resumption through
+// each envelope offline, every polynomial shape scored 6.6 sigma at
+// t = 105.0441 s, against 5.55 sigma for the steady signal. A fade-in that is
+// LINEAR IN dB rises by the same ratio in every frame, so no frame mixes
+// silence with a loud edge: kResumeFloorDb to 0 dB over kResumeRampMs scored
+// 5.46 / 5.47 sigma (L / R), the steady figure (-60 dB over 50 ms: 6.08). The
+// cost is one pow per sample during the fade-in only. The fade-out keeps
+// FR-007's 20 ms smoothstep. silence() during a fade-in re-maps the ramp so the
+// fade-out starts from the CURRENT gain (resumeGateShape / smoothstep inverse).
+//
+// ------------------------------------------------------------------------------
 // (12) FREEZE IS INERT IN EVERY DIMENSION EXCEPT THE MATRIX MORPH (RA-5, FR-033)
 // ------------------------------------------------------------------------------
 // setFreeze(true) is a 50 ms (kFreezeLatchMs) PER-SAMPLE crossfade on
@@ -1027,6 +1045,13 @@ inline void aetherBuildRandomOrthogonal(double* m, std::size_t n,
     // step 4/5 comment for why there is no epsilon branch on lambda itself.
     constexpr double kSkewMinNorm = 1e-9;
     constexpr double kDeflationMinNorm = 1e-6;
+    // A cluster whose restriction deviates from +/-I by at most this is treated as +/-I (float-rounded inputs sit
+    // ~5e-7 off; a real rotation this close to 0 or pi is inaudible as one). See the canonical-plane block below.
+    constexpr double kSignedIdentityTolerance = 1e-5;
+    // Gram-Schmidt acceptance for the canonical planes: far above rounding (dependent candidates leave ~1e-15),
+    // and 16 * 0.1^2 < 1, so it can never leave the basis short.
+    constexpr double kCanonicalMinNorm = 0.1;
+    constexpr double kPiDouble = 3.14159265358979323846;
 
     if ((r == nullptr) || (v == nullptr) || (thetas == nullptr)) {
         return false;
@@ -1180,6 +1205,102 @@ inline void aetherBuildRandomOrthogonal(double* m, std::size_t n,
         for (std::size_t a = 0; a < size; ++a) {
             for (std::size_t b = 0; b < size; ++b) {
                 skew[(a * size) + b] = 0.5 * (cluster[(a * size) + b] - cluster[(b * size) + a]);
+            }
+        }
+
+        // R restricted to this cluster is +/-I (theta = 0 or pi): every plane of the eigenspace is invariant, so
+        // the reduction is not unique there, and for theta = pi the GEODESIC is not either - V B(u*pi) V^T turns
+        // the cluster about whichever planes were picked. The deflation below picked them from the eigensolver's
+        // basis of the eigenspace, which rounding decides: a 1e-12 nudge of R moved the Householder -> Hadamard
+        // midpoint by 1.02, and MSVC /fp:fast, macOS -ffast-math and strict IEEE built three different feedback
+        // matrices (CavernVerb SC-016 c-2 red on Linux only, 2026-11-14). The planes are taken instead from a
+        // reference the eigenspace alone fixes: the projections of e_{n-1}, e_{n-2}, ... onto it, orthonormalised
+        // in that order and paired in that order, with theta exactly 0 or pi.
+        {
+            double centre = 0.0;
+            for (std::size_t a = 0; a < size; ++a) {
+                centre += cluster[(a * size) + a];
+            }
+            centre /= static_cast<double>(size);
+            double deviation = 0.0;
+            for (std::size_t a = 0; a < size; ++a) {
+                for (std::size_t b = 0; b < size; ++b) {
+                    const double expected = (a == b) ? centre : 0.0;
+                    deviation = std::max(deviation, std::abs(cluster[(a * size) + b] - expected));
+                }
+            }
+            if (deviation <= kSignedIdentityTolerance) {
+                // In cluster coordinates the projection of e_k is row k of Qc. A residual above
+                // kCanonicalMinNorm is accepted; below it the vector is (numerically) dependent. The threshold
+                // can never starve the basis: the squared residuals of all n candidates sum to at least one per
+                // missing dimension, and n * kCanonicalMinNorm^2 < 1.
+                // DESCENDING index order (e_{n-1} first). Any fixed order makes the path unique; this one was
+                // chosen (2026-11-14, user ruling) as the only one of four deterministic variants - ascending /
+                // descending order x the two plane orientations - that keeps both SC-006 clause 3
+                // (AetherReverb_ShimmerRegenerationStability: ascending orders left a -186 dBFS tail whose HF
+                // fraction read 405x the sends-off reference) and SC-016 c-2 (CavernVerb ratio 0.293 here; the
+                // other variants 0.269 - 0.331).
+                std::size_t found = 0;
+                for (std::size_t kk = 0; (kk < n) && (found < size); ++kk) {
+                    const std::size_t k = n - 1u - kk;
+                    double w[kOrder]{};
+                    for (std::size_t a = 0; a < size; ++a) {
+                        w[a] = q[(k * n) + clusterStart + a];
+                    }
+                    double wNorm = 0.0;
+                    for (int pass = 0; pass < 2; ++pass) {
+                        for (std::size_t prev = 0; prev < found; ++prev) {
+                            double d = 0.0;
+                            for (std::size_t a = 0; a < size; ++a) {
+                                d += remaining[(prev * size) + a] * w[a];
+                            }
+                            for (std::size_t a = 0; a < size; ++a) {
+                                w[a] -= d * remaining[(prev * size) + a];
+                            }
+                        }
+                        wNorm = 0.0;
+                        for (std::size_t a = 0; a < size; ++a) {
+                            wNorm += w[a] * w[a];
+                        }
+                        wNorm = std::sqrt(wNorm);
+                        if (wNorm <= kCanonicalMinNorm) {
+                            break;
+                        }
+                        for (std::size_t a = 0; a < size; ++a) {
+                            w[a] /= wNorm;
+                        }
+                    }
+                    if (wNorm > kCanonicalMinNorm) {
+                        for (std::size_t a = 0; a < size; ++a) {
+                            remaining[(found * size) + a] = w[a];
+                        }
+                        ++found;
+                    }
+                }
+                if (found != size) {
+                    return false;
+                }
+                const double angle = (centre < 0.0) ? kPiDouble : 0.0;
+                for (std::size_t pair = 0; pair < pairs; ++pair) {
+                    const double* p1 = &remaining[(2u * pair) * size];
+                    const double* p2 = &remaining[((2u * pair) + 1u) * size];
+                    for (std::size_t i = 0; i < n; ++i) {
+                        double acc1 = 0.0;
+                        double acc2 = 0.0;
+                        for (std::size_t a = 0; a < size; ++a) {
+                            const double qia = q[(i * n) + clusterStart + a];
+                            acc1 += qia * p1[a];
+                            acc2 += qia * p2[a];
+                        }
+                        v[(i * n) + emitted] = acc1;
+                        v[(i * n) + emitted + 1u] = acc2;
+                    }
+                    emitted += 2u;
+                    thetas[blockIndex] = angle;
+                    ++blockIndex;
+                }
+                clusterStart = clusterEnd;
+                continue;
             }
         }
 
@@ -1384,7 +1505,9 @@ public:
     /// Control-rate chunk in samples. Matches continuous_body.h:97,
     /// harmonic_cloud.h:144 and atmosphere_engine.h:269.
     static constexpr std::size_t kControlChunkSamples = 64;
-    static constexpr float kSilenceRampMs = 20.0f;  ///< FR-007 fade-out/in window
+    static constexpr float kSilenceRampMs = 20.0f;  ///< FR-007 fade-out window
+    static constexpr float kResumeRampMs = 150.0f;  ///< FR-007 fade-in window, banner (11d)
+    static constexpr float kResumeFloorDb = -60.0f;  ///< fade-in start gain, banner (11d)
     static constexpr float kFreezeLatchMs = 50.0f;  ///< FR-033 freeze crossfade
 
     // --- geometry ---
@@ -2163,7 +2286,8 @@ public:
     ///     can never land inside a single 64-sample callback. Every one of
     ///     those state changes is multiplied by a gate of 0, so NONE of them
     ///     can be audible - that is the whole point of the ordering.
-    ///  3. When `clearPending_` clears, the gate ramps back to 1 and rendering
+    ///  3. When `clearPending_` clears, the gate ramps back to 1 over
+    ///     kResumeRampMs, linear in dB (banner item (11d)), and rendering
     ///     resumes. NO reset() is required.
     ///
     /// While `clearPending_` the render loop writes LITERAL 0.0f into the delay
@@ -2193,10 +2317,22 @@ public:
             return;
         }
 
+        // Banner item (11d): a fade-in is shaped differently from a fade-out,
+        // so an interrupted fade-in re-maps the ramp to the position whose
+        // smoothstep equals the gain being output NOW - otherwise the shape
+        // switch would be a gain step. Inverse smoothstep:
+        // x = 1/2 - sin(asin(1 - 2g) / 3).
+        if (gate_ == GateState::FadingIn) {
+            const float g = resumeGateShape(outputGate_.getCurrentValue());
+            const float s = std::clamp(1.0f - (2.0f * g), -1.0f, 1.0f);
+            outputGate_.snapTo(0.5f - std::sin(std::asin(s) / 3.0f));
+        }
+
         // Phase 1 ONLY. Everything the old form did here now happens in
         // beginDeferredClear(), which runGateMachine() calls at gate 0.
         clearArmed_ = true;
         gate_ = GateState::FadingOut;
+        outputGate_.configure(kSilenceRampMs, static_cast<float>(sampleRate_));
         outputGate_.setTarget(0.0f);
     }
 
@@ -4028,6 +4164,19 @@ private:
         }
     }
 
+    /// @brief The fade-in gain at ramp position @p x (banner item (11d)):
+    ///        0 at x = 0, then linear in dB from kResumeFloorDb to exactly 1 at
+    ///        x = 1. Both ends are branches, so they are exact.
+    [[nodiscard]] static float resumeGateShape(float x) noexcept {
+        if (x <= 0.0f) {
+            return 0.0f;
+        }
+        if (x >= 1.0f) {
+            return 1.0f;
+        }
+        return std::pow(10.0f, (kResumeFloorDb * (1.0f - x)) / 20.0f);
+    }
+
     /// @brief Plan S6.2 step 3 - the silence()/emergencyClear() gate machine.
     ///
     /// THE RAMPS ARE NOT ADVANCED HERE. LinearRamp has no advanceSamples, and a
@@ -4058,6 +4207,7 @@ private:
             // clearPending_, not by a fixed 40 ms.
             if (outputGate_.isComplete() && !clearPending_ && !clearArmed_) {
                 gate_ = GateState::FadingIn;
+                outputGate_.configure(kResumeRampMs, static_cast<float>(sampleRate_));
                 outputGate_.setTarget(1.0f);
             }
         } else if (gate_ == GateState::FadingIn) {
@@ -4400,6 +4550,8 @@ private:
         // changes only at a control step, so hoisting it out of the sample loop
         // is exact, not an approximation.
         const bool clearing = clearPending_;
+        // gate_ also changes only at a control step.
+        const bool fadingIn = (gate_ == GateState::FadingIn);
 
         // Position of slice sample 0 inside the current control chunk. Plan S6.1
         // guarantees a slice never crosses a chunk boundary, so chunkBase + k is
@@ -4437,8 +4589,10 @@ private:
             // 105.0486 s (0.009 / 0.0238, the fade-in leaving 0). smoothstep has
             // zero derivative at both endpoints, which removes all three, and it
             // is 2 multiplies and an add - no transcendental on the audio path.
+            // The fade-IN is shaped linear in dB instead (banner item (11d)).
             const float gateLinear = outputGate_.process();
-            gateScratch[k] = gateLinear * gateLinear * (3.0f - (2.0f * gateLinear));
+            gateScratch[k] = fadingIn ? resumeGateShape(gateLinear)
+                                      : gateLinear * gateLinear * (3.0f - (2.0f * gateLinear));
             const float unfreeze = 1.0f - freezeRamp;
             // FR-036: the tickle is an energy SOURCE, so it is switched off once
             // the loop reaches unity gain - leaving it on breaks SC-002.

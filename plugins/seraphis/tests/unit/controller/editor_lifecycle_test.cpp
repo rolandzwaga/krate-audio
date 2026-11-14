@@ -55,6 +55,7 @@
 #include <editor_lifecycle_harness.h>
 #include <shared_editor_views_probe.h>
 #include <registered_defaults_probe.h>
+#include <terminate_with_editor_open_probe.h>
 
 #include "controller/controller.h"
 #include "plugin_ids.h"
@@ -62,6 +63,7 @@
 #include "preset/seraphis_preset_config.h"
 #include "ui/cloud_view.h"
 #include "ui/edit_sub_controller.h"
+#include "ui/preset_browser_view.h"
 
 // Shared toggle the 2026-08-04 consistency pass drew SoftLimit as.
 #include <ui/toggle_button.h>
@@ -82,7 +84,14 @@
 #include <filesystem>
 #include <set>
 #include <string>
+#include <system_error>
 #include <vector>
+
+#ifdef _WIN32
+#include <process.h>  // _getpid: the temp preset directory names
+#else
+#include <unistd.h>  // getpid
+#endif
 
 namespace {
 
@@ -501,4 +510,116 @@ TEST_CASE("Seraphis parameters start at their registered defaults",
     CHECK(mismatches.empty());
 
     controller.terminate();
+}
+
+// A host may terminate the controller before it removes the editor view. The update banner polls the update
+// checker every 500 ms until the editor closes, so the checker must outlive terminate().
+// Teeth under AddressSanitizer (Windows): a poll of a freed checker is a heap-use-after-free.
+TEST_CASE("Seraphis: terminating the controller before the editor closes leaves the update views safe",
+          "[seraphis][controller][ui][lifecycle][editor-uaf]")
+{
+    ::Seraphis::Controller controller;
+    REQUIRE(controller.initialize(nullptr) == Steinberg::kResultOk);
+    Krate::TestSupport::terminateControllerWithEditorOpen(
+        controller, "editor", std::string(SERAPHIS_RESOURCES_DIR) + "/editor.uidesc");
+}
+
+namespace {
+
+[[nodiscard]] long seraphisTestPid() {
+#ifdef _WIN32
+    return static_cast<long>(_getpid());
+#else
+    return static_cast<long>(getpid());
+#endif
+}
+
+/// A user and a factory preset directory under the system temp directory, unique to this process and this call,
+/// removed in the destructor so a failing REQUIRE cannot leak them.
+class TempPresetDirs {
+public:
+    TempPresetDirs() {
+        static int counter = 0;
+        const std::string tag = std::to_string(seraphisTestPid()) + "_" + std::to_string(++counter);
+        const std::filesystem::path root = std::filesystem::temp_directory_path();
+        user_ = root / ("seraphis_terminate_probe_user_" + tag);
+        factory_ = root / ("seraphis_terminate_probe_factory_" + tag);
+        std::error_code ec;
+        std::filesystem::remove_all(user_, ec);
+        std::filesystem::remove_all(factory_, ec);
+        std::filesystem::create_directories(user_, ec);
+        std::filesystem::create_directories(factory_, ec);
+    }
+    ~TempPresetDirs() {
+        std::error_code ec;
+        std::filesystem::remove_all(user_, ec);
+        std::filesystem::remove_all(factory_, ec);
+    }
+    TempPresetDirs(const TempPresetDirs&) = delete;
+    TempPresetDirs& operator=(const TempPresetDirs&) = delete;
+    TempPresetDirs(TempPresetDirs&&) = delete;
+    TempPresetDirs& operator=(TempPresetDirs&&) = delete;
+
+    [[nodiscard]] const std::filesystem::path& user() const noexcept { return user_; }
+    [[nodiscard]] const std::filesystem::path& factory() const noexcept { return factory_; }
+
+private:
+    std::filesystem::path user_;
+    std::filesystem::path factory_;
+};
+
+}  // namespace
+
+// A preset browser open when the host terminates the controller keeps its raw PresetManager*, and a double-click on
+// a preset still loads through it: the manager must outlive terminate(). The controller's manager is rebuilt over
+// a temp user directory holding one copied Pads preset and an empty temp factory directory, so row 0 is that preset
+// on any machine and the real preset trees are never touched; the dirs are removed by their guard, declared before
+// the controller so it outlives it. Teeth under AddressSanitizer: a load through a freed manager is a
+// heap-use-after-free in PresetManager::loadPreset.
+TEST_CASE("Seraphis: loading a preset from an open browser after the controller terminates is safe",
+          "[seraphis][controller][ui][lifecycle][editor-uaf]")
+{
+    const TempPresetDirs dirs;
+    REQUIRE(std::filesystem::is_directory(dirs.user()));
+    REQUIRE(std::filesystem::is_directory(dirs.factory()));
+
+    std::filesystem::path source;
+    for (const auto& entry :
+         std::filesystem::directory_iterator(std::filesystem::path(SERAPHIS_RESOURCES_DIR) / "presets" / "Pads")) {
+        if (entry.path().extension() == ".vstpreset") {
+            source = entry.path();
+            break;
+        }
+    }
+    REQUIRE_FALSE(source.empty());
+    const std::filesystem::path path = dirs.user() / "Pads" / "Seraphis terminate probe.vstpreset";
+    std::error_code ec;
+    std::filesystem::create_directories(path.parent_path(), ec);
+    REQUIRE(std::filesystem::copy_file(source, path, std::filesystem::copy_options::overwrite_existing, ec));
+
+    ::Seraphis::Controller controller;
+    REQUIRE(controller.initialize(nullptr) == Steinberg::kResultOk);
+    controller.replacePresetManagerForTest(dirs.user(), dirs.factory());
+    Krate::Plugins::PresetManager* manager = controller.presetManagerForTest();
+    REQUIRE(manager != nullptr);
+    REQUIRE(manager->getUserPresetDirectory() == dirs.user());
+    REQUIRE(manager->getFactoryPresetDirectory() == dirs.factory());
+    const auto presets = manager->scanPresets();
+    REQUIRE(presets.size() == 1u);  // row 0 is the planted preset
+    REQUIRE(presets[0].path == path);
+
+    Krate::Plugins::PresetBrowserView* browser = nullptr;
+    Krate::TestSupport::terminateControllerWithEditorOpen(
+        controller, "editor", std::string(SERAPHIS_RESOURCES_DIR) + "/editor.uidesc",
+        [&controller, &browser] {
+            controller.togglePresetBrowser();  // the Presets button's action
+            browser = controller.presetBrowserForTest();
+            REQUIRE(browser != nullptr);
+            REQUIRE(browser->isOpen());
+        },
+        [&controller, &browser] {
+            browser->onPresetDoubleClicked(0);
+            CHECK_FALSE(browser->isOpen());  // a successful load closes the browser
+            CHECK(controller.presetManagerForTest() != nullptr);
+        });
 }

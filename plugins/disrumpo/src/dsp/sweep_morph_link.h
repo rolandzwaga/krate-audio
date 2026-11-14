@@ -17,6 +17,7 @@
 #pragma once
 
 #include "../plugin_ids.h"
+#include "../state_codec.h"
 
 #include <algorithm>
 #include <cmath>
@@ -27,42 +28,17 @@ namespace Disrumpo {
 // =============================================================================
 // Frequency Normalization
 // =============================================================================
+// The log2 range constants (kNormMinFreqHz, kLog2MinFreq, ...) and the mapping
+// itself live in state_codec.h (sweepFreqHzToNorm / sweepFreqNormToHz).
 
-/// @brief Minimum frequency for normalization (Hz).
-constexpr float kNormMinFreqHz = 20.0f;
-
-/// @brief Maximum frequency for normalization (Hz).
-constexpr float kNormMaxFreqHz = 20000.0f;
-
-/// @brief Pre-computed log2 of minimum frequency.
-constexpr float kLog2MinFreq = 4.321928f;  // log2(20)
-
-/// @brief Pre-computed log2 of maximum frequency.
-constexpr float kLog2MaxFreq = 14.287712f; // log2(20000)
-
-/// @brief Pre-computed range for normalization.
-constexpr float kLog2FreqRange = kLog2MaxFreq - kLog2MinFreq;  // ~9.966
-
-/// @brief Normalize sweep frequency to [0, 1] range.
-///
-/// Uses logarithmic mapping: x = (log2(freq) - log2(20)) / (log2(20000) - log2(20))
-///
-/// @param freqHz Frequency in Hz [20, 20000]
-/// @return Normalized position [0, 1]
+/// @brief Normalize sweep frequency to [0, 1] range (log2 over 20 Hz..20 kHz).
 [[nodiscard]] inline float normalizeSweepFrequency(float freqHz) noexcept {
-    freqHz = std::clamp(freqHz, kNormMinFreqHz, kNormMaxFreqHz);
-    float log2Freq = std::log2(freqHz);
-    return (log2Freq - kLog2MinFreq) / kLog2FreqRange;
+    return sweepFreqHzToNorm(freqHz);
 }
 
-/// @brief Denormalize [0, 1] to sweep frequency in Hz.
-///
-/// @param normalized Normalized position [0, 1]
-/// @return Frequency in Hz [20, 20000]
+/// @brief Denormalize [0, 1] to sweep frequency in Hz [20, 20000].
 [[nodiscard]] inline float denormalizeSweepFrequency(float normalized) noexcept {
-    normalized = std::clamp(normalized, 0.0f, 1.0f);
-    float log2Freq = kLog2MinFreq + normalized * kLog2FreqRange;
-    return std::pow(2.0f, log2Freq);
+    return sweepFreqNormToHz(normalized);
 }
 
 // =============================================================================
@@ -123,6 +99,14 @@ constexpr float kLog2FreqRange = kLog2MaxFreq - kLog2MinFreq;  // ~9.966
         default:
             return x;
     }
+}
+
+/// @brief Decode a normalized 8-entry link-mode list parameter value.
+/// @param normalized Parameter value [0, 1] (entry index / 7)
+/// @return Link mode, clamped to the valid range
+[[nodiscard]] inline MorphLinkMode decodeMorphLinkMode(double normalized) noexcept {
+    const long index = std::lround(normalized * static_cast<double>(kMorphLinkModeCount - 1));
+    return static_cast<MorphLinkMode>(std::clamp(index, 0L, static_cast<long>(kMorphLinkModeCount - 1)));
 }
 
 // =============================================================================

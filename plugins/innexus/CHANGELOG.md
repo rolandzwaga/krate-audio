@@ -5,6 +5,20 @@ All notable changes to Innexus will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.6] - 2026-11-11
+
+### Fixed
+
+- **A possible crash when a host shut Innexus down with its window still open** — If a host shut down the plugin's controller before closing the editor window, the update banner kept checking for updates, twice a second, through memory that had already been freed, which could crash the host. The update check now stays alive until the window is gone. The Sync switch on the two modulator panels also no longer touches freed memory when the panels are taken down without an open window (as in automated tests).
+- **A possible crash when opening the preset browser after a host shut Innexus down with its window still open** — In the same situation, clicking Presets read the preset list through memory that had already been freed, which could crash the host. The preset list now stays alive until the window is gone.
+- **The modulators used far more CPU than they should** — With a modulator on, every voice recomputed the pan position of all its partials on every sample, even when no modulator targeted Pan, and evolution rebuilt about 8 KB of scratch data per sample. Two modulators took about 7 % of one CPU core; they now take under 1 %. The sound is identical.
+- **Modulator 1 set to Pan did nothing while modulator 2 was on** — Whenever modulator 2 was switched on, whatever it targeted, it replaced the pan positions of every partial with its own, so modulator 1's pan movement was lost. The two modulators' pan movements now add up, as their amplitude and frequency modulations already combined. Patches that use modulator 1 on Pan with modulator 2 on (among the factory presets, Ethereal Soprano) now move in the stereo field as set.
+- **Live sidechain analysis could go deaf after one broken sample** — A single NaN or infinite sample on the sidechain input stuck the analysis's DC filter, so live analysis heard nothing from then on until the plugin was reset. Such a sample is now treated as silence, and analysis carries on from the next block.
+
+### Changed
+
+- **Built with VST3 SDK 3.8.1.**
+
 ## [1.0.5] - 2026-11-02
 
 ### Fixed

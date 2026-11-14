@@ -8,24 +8,26 @@
 #include "controller.h"
 #include "controller/sub_controllers.h"
 #include "plugin_ids.h"
+#include "state_codec.h"
 #include <krate/dsp/core/modulation_types.h>
 #include "version.h"
 #include "dsp/band_state.h"
+#include "dsp/shape_slot_descriptors.h"
 #include "preset/disrumpo_preset_config.h"
 #include "controller/views/spectrum_display.h"
 #include "controller/views/morph_pad.h"
 #include "controller/views/dynamic_node_selector.h"
 #include "controller/views/node_editor_border.h"
 #include "controller/views/sweep_indicator.h"
-#include "controller/views/custom_curve_editor.h"
 #include "controller/views/mod_slider.h"
-#include "controller/morph_link.h"
+#include "controller/views/level_meter_view.h"
 #include "controller/animated_expand_controller.h"
 #include "controller/keyboard_shortcut_handler.h"
 #include "controller/visibility_controllers.h"
 #include "controller/format_helpers.h"
 #include "controller/custom_buttons.h"
 #include "dsp/sweep_morph_link.h"
+#include "dsp/custom_curve.h"
 #include "ui/preset_browser_view.h"
 #include "ui/save_preset_dialog_view.h"
 #include "ui/update_banner_view.h"
@@ -48,6 +50,7 @@
 #include "vstgui/uidescription/uiattributes.h"
 #include "vstgui/uidescription/iuidescription.h"
 
+#include <algorithm>
 #include <cmath>
 #include <cstring>
 #include <atomic>
@@ -79,6 +82,11 @@ void SavePresetButton::onClick() {
 
 Controller::~Controller() {
     // Ensure visibility controllers are cleaned up
+    for (auto& vc : biasKnobVisibilityControllers_) {
+        if (auto* cvc = dynamic_cast<ContainerVisibilityController*>(vc.get())) {
+            cvc->deactivate();
+        }
+    }
     for (auto& vc : bandVisibilityControllers_) {
         if (vc) {
             if (auto* cvc = dynamic_cast<ContainerVisibilityController*>(vc.get())) {
@@ -131,8 +139,11 @@ Steinberg::tresult PLUGIN_API Controller::initialize(FUnknown* context) {
 
 Steinberg::tresult PLUGIN_API Controller::terminate() {
     editorClosing_.store(true, std::memory_order_release);
-    cachedModOffsets_ = nullptr;
-    updateChecker_.reset();
+    instanceId_ = 0;  // an editor still open reads no processor display from here on
+    sharedDisplay_ = nullptr;
+    // updateChecker_ stays until the destructor: an editor a host has not closed yet still
+    // polls it (update banner, Check for Updates button), and that editor holds a reference
+    // to this controller, so the destructor runs only after its views are gone
     return EditControllerEx1::terminate();
 }
 
@@ -146,6 +157,16 @@ Steinberg::tresult PLUGIN_API Controller::terminate() {
 // Single implementation of binary state parsing, parameterized by how each
 // parameter value is applied. setComponentState() passes setParamNormalized;
 // loadComponentStateWithNotify() passes editParamWithNotify.
+
+namespace {
+
+/// Param ID of custom-curve breakpoint `index`'s X (or Y) coordinate.
+Steinberg::Vst::ParamID customCurvePointParamId(int index, bool y) {
+    const auto base = static_cast<uint8_t>(y ? SweepParamType::kSweepCustomCurveP0Y : SweepParamType::kSweepCustomCurveP0X);
+    return makeSweepParamId(static_cast<SweepParamType>(base + index * 2));
+}
+
+}  // namespace
 
 template <typename ParamSetter>
 bool Controller::parseComponentState(Steinberg::IBStreamer& streamer, int32_t version,
@@ -167,9 +188,7 @@ bool Controller::parseComponentState(Steinberg::IBStreamer& streamer, int32_t ve
     if (version >= 2) {
         int32_t bandCount = 4;
         if (streamer.readInt32(bandCount)) {
-            int clampedCount = std::clamp(bandCount, 1, 4);
-            float normalizedBandCount = static_cast<float>(clampedCount - 1) / 3.0f;
-            setter(makeGlobalParamId(GlobalParamType::kGlobalBandCount), normalizedBandCount);
+            setter(makeGlobalParamId(GlobalParamType::kGlobalBandCount), listIndexToNorm(bandCount - 1, kMaxBands));
         }
 
         constexpr int kV7MaxBands = 8;
@@ -204,11 +223,8 @@ bool Controller::parseComponentState(Steinberg::IBStreamer& streamer, int32_t ve
         for (int i = 0; i < streamCrossovers; ++i) {
             float freq = 1000.0f;
             if (streamer.readFloat(freq)) {
-                if (i < kMaxBands - 1) {
-                    auto* param = getParameterObject(makeCrossoverParamId(static_cast<uint8_t>(i)));
-                    if (param)
-                        setter(param->getInfo().id, param->toNormalized(freq));
-                }
+                if (i < kMaxBands - 1)
+                    setter(makeCrossoverParamId(static_cast<uint8_t>(i)), crossoverHzToNormExact(freq));
             }
         }
     }
@@ -233,8 +249,7 @@ bool Controller::parseComponentState(Steinberg::IBStreamer& streamer, int32_t ve
         if (streamer.readInt8(sweepFalloff))
             setter(makeSweepParamId(SweepParamType::kSweepFalloff), sweepFalloff != 0 ? 1.0 : 0.0);
         if (streamer.readInt8(sweepMorphLink))
-            setter(makeSweepParamId(SweepParamType::kSweepMorphLink),
-                   static_cast<double>(sweepMorphLink) / (kMorphLinkModeCount - 1));
+            setter(makeSweepParamId(SweepParamType::kSweepMorphLink), listIndexToNorm(sweepMorphLink, kMorphLinkModeCount));
 
         // Sweep LFO
         Steinberg::int8 lfoEnable = 0;
@@ -249,7 +264,7 @@ bool Controller::parseComponentState(Steinberg::IBStreamer& streamer, int32_t ve
         if (streamer.readFloat(lfoRateNorm))
             setter(makeSweepParamId(SweepParamType::kSweepLFORate), lfoRateNorm);
         if (streamer.readInt8(lfoWaveform))
-            setter(makeSweepParamId(SweepParamType::kSweepLFOWaveform), static_cast<double>(lfoWaveform) / 5.0);
+            setter(makeSweepParamId(SweepParamType::kSweepLFOWaveform), listIndexToNorm(lfoWaveform, kLfoShapeCount));
         if (streamer.readFloat(lfoDepth))
             setter(makeSweepParamId(SweepParamType::kSweepLFODepth), lfoDepth);
         if (streamer.readInt8(lfoSync))
@@ -258,8 +273,7 @@ bool Controller::parseComponentState(Steinberg::IBStreamer& streamer, int32_t ve
             int noteIdx = static_cast<int>(static_cast<unsigned char>(lfoNoteIndex));
             if (version <= 9)
                 noteIdx = kOldNoteIdxToNewDropdown[std::clamp(noteIdx, 0, 14)];
-            setter(makeSweepParamId(SweepParamType::kSweepLFONoteValue),
-                   static_cast<double>(std::clamp(noteIdx, 0, kNoteValueCount - 1)) / (kNoteValueCount - 1));
+            setter(makeSweepParamId(SweepParamType::kSweepLFONoteValue), listIndexToNorm(noteIdx, kNoteValueCount));
         }
 
         // Sweep Envelope
@@ -277,15 +291,21 @@ bool Controller::parseComponentState(Steinberg::IBStreamer& streamer, int32_t ve
         if (streamer.readFloat(envSensitivity))
             setter(makeSweepParamId(SweepParamType::kSweepEnvSensitivity), envSensitivity);
 
-        // Custom Curve - skip breakpoint data
-        int32_t pointCount = 2;
+        // Custom Curve: mirrored into the curve params, which the preset writer stores
+        int32_t pointCount = kMinBreakpoints;
         if (streamer.readInt32(pointCount)) {
-            pointCount = std::clamp(pointCount, 2, 8);
+            pointCount = std::clamp(pointCount, kMinBreakpoints, kMaxBreakpoints);
+            setter(makeSweepParamId(SweepParamType::kSweepCustomCurvePointCount),
+                   listIndexToNorm(pointCount - kMinBreakpoints, kMaxBreakpoints - kMinBreakpoints + 1));
             for (int32_t i = 0; i < pointCount; ++i) {
                 float px = 0.0f;
                 float py = 0.0f;
-                streamer.readFloat(px);
-                streamer.readFloat(py);
+                const bool readX = streamer.readFloat(px);
+                const bool readY = streamer.readFloat(py);
+                if (readX)
+                    setter(customCurvePointParamId(i, false), static_cast<double>(px));
+                if (readY)
+                    setter(customCurvePointParamId(i, true), static_cast<double>(py));
             }
         }
     }
@@ -298,7 +318,7 @@ bool Controller::parseComponentState(Steinberg::IBStreamer& streamer, int32_t ve
             setter(makeModParamId(ModParamType::kLFO1Rate), lfo1RateNorm);
         Steinberg::int8 lfo1Shape = 0;
         if (streamer.readInt8(lfo1Shape))
-            setter(makeModParamId(ModParamType::kLFO1Shape), static_cast<double>(lfo1Shape) / 5.0);
+            setter(makeModParamId(ModParamType::kLFO1Shape), listIndexToNorm(lfo1Shape, kLfoShapeCount));
         float lfo1Phase = 0.0f;
         if (streamer.readFloat(lfo1Phase))
             setter(makeModParamId(ModParamType::kLFO1Phase), lfo1Phase);
@@ -310,8 +330,7 @@ bool Controller::parseComponentState(Steinberg::IBStreamer& streamer, int32_t ve
             int noteIdx = static_cast<int>(static_cast<unsigned char>(lfo1NoteIdx));
             if (version <= 9)
                 noteIdx = kOldNoteIdxToNewDropdown[std::clamp(noteIdx, 0, 14)];
-            setter(makeModParamId(ModParamType::kLFO1NoteValue),
-                   static_cast<double>(std::clamp(noteIdx, 0, kNoteValueCount - 1)) / (kNoteValueCount - 1));
+            setter(makeModParamId(ModParamType::kLFO1NoteValue), listIndexToNorm(noteIdx, kNoteValueCount));
         }
         Steinberg::int8 lfo1Unipolar = 0;
         if (streamer.readInt8(lfo1Unipolar))
@@ -326,7 +345,7 @@ bool Controller::parseComponentState(Steinberg::IBStreamer& streamer, int32_t ve
             setter(makeModParamId(ModParamType::kLFO2Rate), lfo2RateNorm);
         Steinberg::int8 lfo2Shape = 0;
         if (streamer.readInt8(lfo2Shape))
-            setter(makeModParamId(ModParamType::kLFO2Shape), static_cast<double>(lfo2Shape) / 5.0);
+            setter(makeModParamId(ModParamType::kLFO2Shape), listIndexToNorm(lfo2Shape, kLfoShapeCount));
         float lfo2Phase = 0.0f;
         if (streamer.readFloat(lfo2Phase))
             setter(makeModParamId(ModParamType::kLFO2Phase), lfo2Phase);
@@ -338,8 +357,7 @@ bool Controller::parseComponentState(Steinberg::IBStreamer& streamer, int32_t ve
             int noteIdx = static_cast<int>(static_cast<unsigned char>(lfo2NoteIdx));
             if (version <= 9)
                 noteIdx = kOldNoteIdxToNewDropdown[std::clamp(noteIdx, 0, 14)];
-            setter(makeModParamId(ModParamType::kLFO2NoteValue),
-                   static_cast<double>(std::clamp(noteIdx, 0, kNoteValueCount - 1)) / (kNoteValueCount - 1));
+            setter(makeModParamId(ModParamType::kLFO2NoteValue), listIndexToNorm(noteIdx, kNoteValueCount));
         }
         Steinberg::int8 lfo2Unipolar = 0;
         if (streamer.readInt8(lfo2Unipolar))
@@ -360,7 +378,7 @@ bool Controller::parseComponentState(Steinberg::IBStreamer& streamer, int32_t ve
             setter(makeModParamId(ModParamType::kEnvFollowerSensitivity), envSensitivity);
         Steinberg::int8 envSource = 0;
         if (streamer.readInt8(envSource))
-            setter(makeModParamId(ModParamType::kEnvFollowerSource), static_cast<double>(envSource) / 4.0);
+            setter(makeModParamId(ModParamType::kEnvFollowerSource), listIndexToNorm(envSource, kEnvFollowerSourceCount));
 
         // Random
         float randomRateNorm = 0.0f;
@@ -376,7 +394,7 @@ bool Controller::parseComponentState(Steinberg::IBStreamer& streamer, int32_t ve
         // Chaos
         Steinberg::int8 chaosModel = 0;
         if (streamer.readInt8(chaosModel))
-            setter(makeModParamId(ModParamType::kChaosModel), static_cast<double>(chaosModel) / 3.0);
+            setter(makeModParamId(ModParamType::kChaosModel), listIndexToNorm(chaosModel, kChaosModelCount));
         float chaosSpeedNorm = 0.0f;
         if (streamer.readFloat(chaosSpeedNorm))
             setter(makeModParamId(ModParamType::kChaosSpeed), chaosSpeedNorm);
@@ -387,7 +405,7 @@ bool Controller::parseComponentState(Steinberg::IBStreamer& streamer, int32_t ve
         // Sample & Hold
         Steinberg::int8 shSource = 0;
         if (streamer.readInt8(shSource))
-            setter(makeModParamId(ModParamType::kSampleHoldSource), static_cast<double>(shSource) / 3.0);
+            setter(makeModParamId(ModParamType::kSampleHoldSource), listIndexToNorm(shSource, kSampleHoldSourceCount));
         float shRateNorm = 0.0f;
         if (streamer.readFloat(shRateNorm))
             setter(makeModParamId(ModParamType::kSampleHoldRate), shRateNorm);
@@ -431,8 +449,7 @@ bool Controller::parseComponentState(Steinberg::IBStreamer& streamer, int32_t ve
             setter(makeModParamId(ModParamType::kRunglerDepth), runglerDepth);
             Steinberg::int8 runglerBits = 8;
             streamer.readInt8(runglerBits);
-            setter(makeModParamId(ModParamType::kRunglerBits),
-                   static_cast<double>(std::clamp(static_cast<int>(runglerBits), 4, 16) - 4) / 12.0);
+            setter(makeModParamId(ModParamType::kRunglerBits), listIndexToNorm(runglerBits - 4, kRunglerBitsCount));
             Steinberg::int8 runglerLoop = 0;
             streamer.readInt8(runglerLoop);
             setter(makeModParamId(ModParamType::kRunglerLoop), runglerLoop != 0 ? 1.0 : 0.0);
@@ -457,16 +474,15 @@ bool Controller::parseComponentState(Steinberg::IBStreamer& streamer, int32_t ve
                 setter(makeModParamId(macro[2]), macroMax);
             Steinberg::int8 macroCurve = 0;
             if (streamer.readInt8(macroCurve))
-                setter(makeModParamId(macro[3]), static_cast<double>(macroCurve) / 3.0);
+                setter(makeModParamId(macro[3]), listIndexToNorm(macroCurve, Krate::DSP::kModCurveCount));
         }
 
         // Routing
         for (uint8_t r = 0; r < 32; ++r) {
             Steinberg::int8 source = 0;
-            if (streamer.readInt8(source))
+            if (streamer.readInt8(source))  // v8 and older: pre-Rungler numbering (D-055)
                 setter(makeRoutingParamId(r, 0),
-                       static_cast<double>(std::clamp(static_cast<int>(source), 0, kUIModSourceCount - 1))
-                       / static_cast<double>(kUIModSourceCount - 1));
+                       listIndexToNorm(migrateModSourceIndex(source, version), kUIModSourceCount));
             int32_t dest = 0;
             if (streamer.readInt32(dest)) {
                 // v12: migrate dest indices from old 6-per-band to new 8-per-band layout
@@ -482,16 +498,14 @@ bool Controller::parseComponentState(Steinberg::IBStreamer& streamer, int32_t ve
                          + oldBand * kParamsPerBandI
                          + oldOffset;
                 }
-                setter(makeRoutingParamId(r, 1),
-                       static_cast<double>(std::clamp(dest, 0, kTotalDestsI - 1))
-                       / static_cast<double>(kTotalDestsI - 1));
+                setter(makeRoutingParamId(r, 1), listIndexToNorm(dest, kTotalDestsI));
             }
             float amount = 0.0f;
             if (streamer.readFloat(amount))
-                setter(makeRoutingParamId(r, 2), static_cast<double>(amount + 1.0f) / 2.0);
+                setter(makeRoutingParamId(r, 2), (static_cast<double>(amount) + 1.0) / 2.0);
             Steinberg::int8 curve = 0;
             if (streamer.readInt8(curve))
-                setter(makeRoutingParamId(r, 3), static_cast<double>(curve) / 3.0);
+                setter(makeRoutingParamId(r, 3), listIndexToNorm(curve, Krate::DSP::kModCurveCount));
         }
     }
 
@@ -514,19 +528,30 @@ bool Controller::parseComponentState(Steinberg::IBStreamer& streamer, int32_t ve
             bool readActiveNodes = streamer.readInt8(activeNodes);
             bool readMorphSmoothing = streamer.readFloat(morphSmoothing);
 
+            // v13: sweep -> morph link modes; older streams have none (None)
+            Steinberg::int8 xLink = 0;
+            Steinberg::int8 yLink = 0;
+            if (version >= 13) {
+                streamer.readInt8(xLink);
+                streamer.readInt8(yLink);
+            }
+
             if (b < kMaxBands) {
+                setter(makeBandParamId(band, BandParamType::kBandMorphXLink), listIndexToNorm(xLink, kMorphLinkModeCount));
+                setter(makeBandParamId(band, BandParamType::kBandMorphYLink), listIndexToNorm(yLink, kMorphLinkModeCount));
                 if (readMorphX)
                     setter(makeBandParamId(band, BandParamType::kBandMorphX), static_cast<double>(morphX));
                 if (readMorphY)
                     setter(makeBandParamId(band, BandParamType::kBandMorphY), static_cast<double>(morphY));
                 if (readMorphMode)
-                    setter(makeBandParamId(band, BandParamType::kBandMorphMode), static_cast<double>(morphMode) / 2.0);
-                if (readActiveNodes) {
-                    int count = std::clamp(static_cast<int>(activeNodes), kMinActiveNodes, kMaxMorphNodes);
-                    setter(makeBandParamId(band, BandParamType::kBandActiveNodes), static_cast<double>(count - 1) / 3.0);
-                }
+                    setter(makeBandParamId(band, BandParamType::kBandMorphMode), listIndexToNorm(morphMode, kMorphModeCount));
+                if (readActiveNodes)
+                    setter(makeBandParamId(band, BandParamType::kBandActiveNodes), listIndexToNorm(activeNodes - 1, kMaxMorphNodes));
+                // kMorphSmoothingMsRange.toNorm in double precision (the range starts at 0 ms)
+                static_assert(kMorphSmoothingMsRange.min == 0.0f);
                 if (readMorphSmoothing)
-                    setter(makeBandParamId(band, BandParamType::kBandMorphSmoothing), static_cast<double>(morphSmoothing) / 500.0);
+                    setter(makeBandParamId(band, BandParamType::kBandMorphSmoothing),
+                           static_cast<double>(morphSmoothing) / static_cast<double>(kMorphSmoothingMsRange.span));
             }
 
             for (int n = 0; n < kMaxMorphNodes; ++n) {
@@ -550,25 +575,39 @@ bool Controller::parseComponentState(Steinberg::IBStreamer& streamer, int32_t ve
 
                 if (b < kMaxBands) {
                     if (rType)
-                        setter(makeNodeParamId(band, node, NodeParamType::kNodeType), static_cast<double>(nodeType) / 25.0);
+                        setter(makeNodeParamId(band, node, NodeParamType::kNodeType), listIndexToNorm(nodeType, kDistortionTypeCount));
                     if (rDrive)
                         setter(makeNodeParamId(band, node, NodeParamType::kNodeDrive), static_cast<double>(drive) / 10.0);
                     if (rMix)
                         setter(makeNodeParamId(band, node, NodeParamType::kNodeMix), static_cast<double>(mix));
                     if (rTone)
-                        setter(makeNodeParamId(band, node, NodeParamType::kNodeTone), static_cast<double>(tone - 200.0f) / 7800.0);
+                        setter(makeNodeParamId(band, node, NodeParamType::kNodeTone), (static_cast<double>(tone) - 200.0) / 7800.0);
+                }
+                // Bias, Folds and Bit Depth: before v9 as stored; from v9 after the shape slots,
+                // as the node's type maps them from its slots, so the node parameters mirror the
+                // slot that wins in the processor (follow-ups 34 and 87, user ruling 2026-11-09)
+                const auto emitDualParams = [&](float biasValue, float foldsValue, float bitDepthValue) {
+                    if (b >= kMaxBands) return;
                     if (rBias)
-                        setter(makeNodeParamId(band, node, NodeParamType::kNodeBias), static_cast<double>(bias + 1.0f) / 2.0);
+                        setter(makeNodeParamId(band, node, NodeParamType::kNodeBias),
+                               (static_cast<double>(biasValue) + 1.0) / 2.0);
                     if (rFolds)
-                        setter(makeNodeParamId(band, node, NodeParamType::kNodeFolds), static_cast<double>(folds - 1.0f) / 11.0);
+                        setter(makeNodeParamId(band, node, NodeParamType::kNodeFolds),
+                               static_cast<double>(foldsValue - 1.0f) / 11.0);
                     if (rBitDepth)
-                        setter(makeNodeParamId(band, node, NodeParamType::kNodeBitDepth), static_cast<double>(bitDepth - 4.0f) / 20.0);
+                        setter(makeNodeParamId(band, node, NodeParamType::kNodeBitDepth),
+                               static_cast<double>(bitDepthValue - 4.0f) / 20.0);
+                };
+                if (version < 9) {
+                    emitDualParams(bias, folds, bitDepth);
                 }
 
                 if (version >= 9) {
+                    std::array<float, MorphNode::kShapeSlotCount> slots{};
                     for (int s = 0; s < 10; ++s) {
                         float slotValue;
                         if (streamer.readFloat(slotValue)) {
+                            slots[static_cast<size_t>(s)] = slotValue;
                             if (b < kMaxBands) {
                                 auto shapeType = static_cast<NodeParamType>(
                                     static_cast<uint8_t>(NodeParamType::kNodeShape0) + s);
@@ -576,6 +615,14 @@ bool Controller::parseComponentState(Steinberg::IBStreamer& streamer, int32_t ve
                             }
                         }
                     }
+                    DistortionParams mirrored;
+                    mirrored.bias = bias;
+                    mirrored.folds = folds;
+                    mirrored.bitDepth = bitDepth;
+                    applyShapeSlots(
+                        static_cast<DistortionType>(std::clamp(static_cast<int>(nodeType), 0, kDistortionTypeCount - 1)),
+                        slots.data(), mirrored);
+                    emitDualParams(mirrored.bias, mirrored.folds, mirrored.bitDepth);
 
                     // NOLINTNEXTLINE(modernize-loop-convert)
                     for (int t = 0; t < kDistortionTypeCount; ++t) {
@@ -655,23 +702,48 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(Steinberg::IBStream*
     return Steinberg::kResultOk;
 }
 
+// Controller state: int32 version, two unused doubles (old window size), then
+// int32 size + global MIDI CC mapping blob; version 3 adds int32 size + the
+// per-preset mapping blob ("Save Mapping with Preset", D-058).
+namespace {
+constexpr Steinberg::int32 kControllerStateVersion = 3;
+
+bool writeMidiBlob(Steinberg::IBStream* state, Steinberg::IBStreamer& streamer, std::vector<uint8_t> blob) {
+    const auto size = static_cast<Steinberg::int32>(blob.size());
+    if (!streamer.writeInt32(size)) return false;
+    return size == 0 || state->write(blob.data(), size, nullptr) == Steinberg::kResultOk;
+}
+
+/// Largest MIDI blob accepted (D-059): a uint32 count plus at most 128 CC mappings.
+/// MidiCCManager writes 6 bytes per mapping; the bound allows 8 (fix plan T4.21).
+constexpr Steinberg::int32 kMaxMidiBlobSize = 4 + 128 * 8;
+
+/// Reads one size-prefixed blob; empty on a missing or short blob. A size above
+/// kMaxMidiBlobSize (corrupt or hostile state) sets `rejected` and allocates nothing.
+std::vector<uint8_t> readMidiBlob(Steinberg::IBStream* state, Steinberg::IBStreamer& streamer, bool& rejected) {
+    Steinberg::int32 size = 0;
+    if (!streamer.readInt32(size) || size <= 0) return {};
+    if (size > kMaxMidiBlobSize) {
+        rejected = true;
+        return {};
+    }
+    std::vector<uint8_t> blob(static_cast<size_t>(size));
+    Steinberg::int32 got = 0;
+    if (state->read(blob.data(), size, &got) != Steinberg::kResultOk || got != size) return {};
+    return blob;
+}
+}  // namespace
+
 Steinberg::tresult PLUGIN_API Controller::getState(Steinberg::IBStream* state) {
     Steinberg::IBStreamer streamer(state, kLittleEndian);
-    if (!streamer.writeInt32(2)) return Steinberg::kResultFalse;
+    if (!streamer.writeInt32(kControllerStateVersion)) return Steinberg::kResultFalse;
     if (!streamer.writeDouble(0.0)) return Steinberg::kResultFalse;
     if (!streamer.writeDouble(0.0)) return Steinberg::kResultFalse;
 
-    if (midiCCManager_) {
-        auto midiData = midiCCManager_->serializeGlobalMappings();
-        auto midiDataSize = static_cast<Steinberg::int32>(midiData.size());
-        if (!streamer.writeInt32(midiDataSize)) return Steinberg::kResultFalse;
-        if (midiDataSize > 0) {
-            if (state->write(midiData.data(), midiDataSize, nullptr) != Steinberg::kResultOk)
-                return Steinberg::kResultFalse;
-        }
-    } else {
-        if (!streamer.writeInt32(0)) return Steinberg::kResultFalse;
-    }
+    if (!writeMidiBlob(state, streamer, midiCCManager_ ? midiCCManager_->serializeGlobalMappings() : std::vector<uint8_t>{}))
+        return Steinberg::kResultFalse;
+    if (!writeMidiBlob(state, streamer, midiCCManager_ ? midiCCManager_->serializePresetMappings() : std::vector<uint8_t>{}))
+        return Steinberg::kResultFalse;
 
     return Steinberg::kResultOk;
 }
@@ -687,13 +759,18 @@ Steinberg::tresult PLUGIN_API Controller::setState(Steinberg::IBStream* state) {
         streamer.readDouble(unusedWidth);
         streamer.readDouble(unusedHeight);
 
-        Steinberg::int32 midiDataSize = 0;
-        if (streamer.readInt32(midiDataSize) && midiDataSize > 0) {
-            std::vector<uint8_t> midiData(static_cast<size_t>(midiDataSize));
-            if (state->read(midiData.data(), midiDataSize, nullptr) == Steinberg::kResultOk) {
-                if (midiCCManager_)
-                    midiCCManager_->deserializeGlobalMappings(midiData.data(), midiData.size());
-            }
+        bool rejected = false;
+        const auto globalBlob = readMidiBlob(state, streamer, rejected);
+        const auto presetBlob =
+            (version >= 3 && !rejected) ? readMidiBlob(state, streamer, rejected) : std::vector<uint8_t>{};
+        if (rejected) return Steinberg::kResultOk;  // corrupt MIDI section: keep the current mappings
+        if (midiCCManager_) {
+            if (!globalBlob.empty())
+                midiCCManager_->deserializeGlobalMappings(globalBlob.data(), globalBlob.size());
+            // Per-preset mappings are replaced by the state's (none before version 3)
+            if (presetBlob.empty() || !midiCCManager_->deserializePresetMappings(presetBlob.data(), presetBlob.size()))
+                midiCCManager_->clearPresetMappings();
+            notifyMidiMappingChanged();
         }
     }
 
@@ -717,12 +794,30 @@ Steinberg::tresult PLUGIN_API Controller::getMidiControllerAssignment(
             return Steinberg::kResultTrue;
     }
 
-    if (assignedMidiCC_ < 128 && midiControllerNumber == assignedMidiCC_) {
-        id = makeSweepParamId(SweepParamType::kSweepFrequency);
-        return Steinberg::kResultTrue;
-    }
-
     return Steinberg::kResultFalse;
+}
+
+// ==============================================================================
+// IMidiLearn: the host reports live CCs here; an armed context-menu learn completes
+// ==============================================================================
+
+Steinberg::tresult PLUGIN_API Controller::onLiveMIDIControllerInput(
+    Steinberg::int32 busIndex, Steinberg::int16 /*channel*/,
+    Steinberg::Vst::CtrlNumber midiCC) {
+    if (busIndex != 0 || midiCC < 0 || midiCC >= 128) return Steinberg::kResultFalse;
+    if (!midiCCManager_ || !midiCCManager_->isLearning()) return Steinberg::kResultOk;
+
+    // processCCMessage completes the learn (an LSB CC 32-63 keeps it armed); no
+    // value is reported here, so no parameter callback.
+    if (midiCCManager_->processCCMessage(static_cast<uint8_t>(midiCC), 0, nullptr)) {
+        setParamNormalized(makeGlobalParamId(GlobalParamType::kGlobalMidiLearnActive), 0.0);
+        notifyMidiMappingChanged();
+    }
+    return Steinberg::kResultOk;
+}
+
+void Controller::notifyMidiMappingChanged() {
+    if (componentHandler) componentHandler->restartComponent(Steinberg::Vst::kMidiCCAssignmentChanged);
 }
 
 Steinberg::IPlugView* PLUGIN_API Controller::createView(Steinberg::FIDString name) {
@@ -766,13 +861,21 @@ Steinberg::tresult PLUGIN_API Controller::getParamStringByValue(
         if (paramByte >= static_cast<uint8_t>(NodeParamType::kNodeShape0) &&
             paramByte <= static_cast<uint8_t>(NodeParamType::kNodeShape9)) {
             uint8_t band = extractBandFromNodeParam(id);
-            auto displayedTypeId = makeBandParamId(band, BandParamType::kBandDisplayedType);
-            auto* dtParam = getParameterObject(displayedTypeId);
-            if (dtParam) {
-                int typeIdx = static_cast<int>(dtParam->getNormalized() * 25.0 + 0.5);
+            const uint8_t node = extractNode(id);
+            // The slot's meaning is the owning node's type, not the selected node's (D-073)
+            auto* typeParam = getParameterObject(makeNodeParamId(band, node, NodeParamType::kNodeType));
+            if (typeParam) {
+                int typeIdx = static_cast<int>(typeParam->getNormalized() * 25.0 + 0.5);
                 auto distType = static_cast<DistortionType>(std::clamp(typeIdx, 0, 25));
                 int slot = paramByte - static_cast<uint8_t>(NodeParamType::kNodeShape0);
-                if (formatShapeSlot(distType, slot, static_cast<float>(valueNormalized), string))
+                std::array<float, kShapeSlotDescriptorCount> slots{};
+                for (int k = 0; k < kShapeSlotDescriptorCount; ++k) {
+                    slots[static_cast<size_t>(k)] = static_cast<float>(getParamNormalized(makeNodeParamId(
+                        band, node,
+                        static_cast<NodeParamType>(static_cast<uint8_t>(NodeParamType::kNodeShape0) + k))));
+                }
+                slots[static_cast<size_t>(slot)] = static_cast<float>(valueNormalized);
+                if (formatShapeSlot(distType, slot, static_cast<float>(valueNormalized), slots.data(), string))
                     return Steinberg::kResultTrue;
             }
         }
@@ -835,7 +938,13 @@ Steinberg::tresult PLUGIN_API Controller::getParamStringByValue(
                     int typeIdx = static_cast<int>(dtParam->getNormalized() * 25.0 + 0.5);
                     auto distType = static_cast<DistortionType>(std::clamp(typeIdx, 0, 25));
                     int slot = paramByte - shape0Byte;
-                    if (formatShapeSlot(distType, slot, static_cast<float>(valueNormalized), string))
+                    std::array<float, kShapeSlotDescriptorCount> slots{};
+                    for (int k = 0; k < kShapeSlotDescriptorCount; ++k) {
+                        slots[static_cast<size_t>(k)] = static_cast<float>(getParamNormalized(makeBandParamId(
+                            band, static_cast<BandParamType>(shape0Byte + k))));
+                    }
+                    slots[static_cast<size_t>(slot)] = static_cast<float>(valueNormalized);
+                    if (formatShapeSlot(distType, slot, static_cast<float>(valueNormalized), slots.data(), string))
                         return Steinberg::kResultTrue;
                 }
             }
@@ -900,6 +1009,21 @@ Steinberg::tresult PLUGIN_API Controller::getParamValueByString(
     return EditControllerEx1::getParamValueByString(id, string, valueNormalized);
 }
 
+Steinberg::tresult PLUGIN_API Controller::setParamNormalized(
+    Steinberg::Vst::ParamID tag,
+    Steinberg::Vst::ParamValue value) {
+    if (tag != kLatencyOutputId) {
+        return EditControllerEx1::setParamNormalized(tag, value);
+    }
+    // The processor wrote a new reported latency (D-026): tell the host on this thread
+    const bool changed = getParamNormalized(tag) != value;
+    const auto result = EditControllerEx1::setParamNormalized(tag, value);
+    if (changed && componentHandler) {
+        componentHandler->restartComponent(Steinberg::Vst::kLatencyChanged);
+    }
+    return result;
+}
+
 // ==============================================================================
 // VST3EditorDelegate - Custom Views, Sub-Controllers, didOpen, willClose
 // ==============================================================================
@@ -911,8 +1035,42 @@ Steinberg::tresult PLUGIN_API Controller::getParamValueByString(
 VSTGUI::CView* Controller::createCustomView(
     VSTGUI::UTF8StringPtr name,
     const VSTGUI::UIAttributes& attributes,
-    const VSTGUI::IUIDescription* /*description*/,
+    const VSTGUI::IUIDescription* description,
     VSTGUI::VST3Editor* editor) {
+
+    // Level meters: InputLevelMeter, OutputLevelMeter, Band1LevelMeter ... Band4LevelMeter
+    {
+        using Source = LevelMeterView::Source;
+        static constexpr std::array<std::pair<std::string_view, Source>, 6> kMeters{{
+            {"InputLevelMeter", Source::Input},
+            {"OutputLevelMeter", Source::Output},
+            {"Band1LevelMeter", Source::Band0},
+            {"Band2LevelMeter", Source::Band1},
+            {"Band3LevelMeter", Source::Band2},
+            {"Band4LevelMeter", Source::Band3},
+        }};
+        for (const auto& [meterName, source] : kMeters) {
+            if (meterName != name) continue;
+            VSTGUI::CPoint origin(0, 0);
+            VSTGUI::CPoint size(14, 36);
+            attributes.getPointAttribute("origin", origin);
+            attributes.getPointAttribute("size", size);
+            const auto color = [description](const char* colorName) {
+                VSTGUI::CColor c{128, 128, 128, 255};
+                if (description != nullptr) description->getColor(colorName, c);
+                return c;
+            };
+            static constexpr std::array<const char*, 4> kBandColors{"band-1", "band-2", "band-3", "band-4"};
+            const auto bandIndex = static_cast<size_t>(
+                source >= Source::Band0 ? static_cast<int>(source) - static_cast<int>(Source::Band0) : 0);
+            const LevelMeterView::Colors colors{.track = color("slider-track"),
+                                                .low = color("meter-low"),
+                                                .mid = color("meter-mid"),
+                                                .clip = color("meter-clip"),
+                                                .band = color(kBandColors[bandIndex])};
+            return new LevelMeterView(VSTGUI::CRect(origin, size), source, colors);
+        }
+    }
 
     if (std::strcmp(name, "SpectrumDisplay") == 0) {
         VSTGUI::CPoint origin;
@@ -946,10 +1104,9 @@ VSTGUI::CView* Controller::createCustomView(
 
         for (int i = 0; i < kMaxBands - 1; ++i) {
             auto* crossoverParam = getParameterObject(makeCrossoverParamId(static_cast<uint8_t>(i)));
-            if (crossoverParam) {
-                float freq = static_cast<float>(crossoverParam->toPlain(crossoverParam->getNormalized()));
-                spectrumDisplay->setCrossoverFrequency(i, freq);
-            }
+            if (crossoverParam)
+                spectrumDisplay->setCrossoverFrequency(
+                    i, crossoverNormToHz(static_cast<float>(crossoverParam->getNormalized())));
         }
 
         spectrumDisplay_ = spectrumDisplay;
@@ -1006,7 +1163,7 @@ VSTGUI::CView* Controller::createCustomView(
 
         Steinberg::Vst::ParamID morphYParamId = makeBandParamId(
             static_cast<uint8_t>(bandIndex), BandParamType::kBandMorphY);
-        morphPad->setMorphYParamId(morphYParamId);
+        morphPad->bindMorphParams(morphXParamId, morphYParamId);
 
         auto* morphXParam = getParameterObject(morphXParamId);
         auto* morphYParam = getParameterObject(makeBandParamId(
@@ -1069,18 +1226,15 @@ VSTGUI::CView* Controller::createCustomView(
             rect, this, activeNodesParamId, selectedNodeParamId);
         nodeSelector->setTag(static_cast<int32_t>(selectedNodeParamId));
 
-        auto* selectedNodeParam = getParameterObject(selectedNodeParamId);
-        if (selectedNodeParam) {
-            float normalized = static_cast<float>(selectedNodeParam->getNormalized());
-            nodeSelector->setValueNormalized(normalized);
-        }
-
         const std::string* autoHideStr = attributes.getAttributeValue("auto-hide-single");
         if (autoHideStr && *autoHideStr == "true") {
+            // Lives on a Shape page that the UIViewSwitchContainer frees on every
+            // switch back to Main: never cached (D-061). Its destructor deactivates it.
             nodeSelector->setAutoHideForSingleNode(true);
-            compactNodeSelectors_[bandIndex] = nodeSelector;
+            if (accessibilityPrefs_.highContrastEnabled) nodeSelector->setHighContrastMode(true);
         } else {
             dynamicNodeSelectors_[bandIndex] = nodeSelector;
+            nodeSelector->registerViewListener(this);  // viewWillDelete clears the slot
         }
 
         return nodeSelector;
@@ -1120,131 +1274,6 @@ VSTGUI::CView* Controller::createCustomView(
         return new NodeEditorBorder(rect, this, selectedNodeParamId);
     }
 
-    if (std::strcmp(name, "CustomCurveEditor") == 0) {
-        VSTGUI::CPoint origin;
-        VSTGUI::CPoint size;
-        const std::string* originStr = attributes.getAttributeValue("origin");
-        const std::string* sizeStr = attributes.getAttributeValue("size");
-        if (originStr) {
-            double x = 0.0;
-            double y = 0.0;
-            if (sscanf(originStr->c_str(), "%lf, %lf", &x, &y) == 2)
-                origin = VSTGUI::CPoint(x, y);
-        }
-        if (sizeStr) {
-            double w = 200.0;
-            double h = 150.0;
-            if (sscanf(sizeStr->c_str(), "%lf, %lf", &w, &h) == 2)
-                size = VSTGUI::CPoint(w, h);
-        } else {
-            size = VSTGUI::CPoint(200.0, 150.0);
-        }
-
-        VSTGUI::CRect rect(origin, size);
-        auto* curveEditor = new CustomCurveEditor(rect, nullptr, 9200);
-
-        std::array<std::pair<float, float>, 8> points{};
-        auto* pointCountParam = getParameterObject(
-            makeSweepParamId(SweepParamType::kSweepCustomCurvePointCount));
-        int pointCount = 2;
-        if (pointCountParam) {
-            pointCount = static_cast<int>(std::round(pointCountParam->toPlain(
-                pointCountParam->getNormalized())));
-            pointCount = std::clamp(pointCount, 2, 8);
-        }
-
-        for (int p = 0; p < pointCount; ++p) {
-            auto xType = static_cast<SweepParamType>(
-                static_cast<uint8_t>(SweepParamType::kSweepCustomCurveP0X) + p * 2);
-            auto yType = static_cast<SweepParamType>(
-                static_cast<uint8_t>(SweepParamType::kSweepCustomCurveP0Y) + p * 2);
-            auto* xParam = getParameterObject(makeSweepParamId(xType));
-            auto* yParam = getParameterObject(makeSweepParamId(yType));
-            float px = 0.0f;
-            float py = 0.0f;
-            if (p == 0) px = 0.0f;
-            else if (p == 7) px = 1.0f;
-            if (xParam) px = static_cast<float>(xParam->getNormalized());
-            if (yParam) py = static_cast<float>(yParam->getNormalized());
-            points[static_cast<size_t>(p)] = {px, py};
-        }
-        curveEditor->setBreakpoints(points, pointCount);
-
-        curveEditor->setOnChange([this](int pointIndex, float x, float y) {
-            auto xType = static_cast<SweepParamType>(
-                static_cast<uint8_t>(SweepParamType::kSweepCustomCurveP0X) + pointIndex * 2);
-            auto yType = static_cast<SweepParamType>(
-                static_cast<uint8_t>(SweepParamType::kSweepCustomCurveP0Y) + pointIndex * 2);
-            auto xId = makeSweepParamId(xType);
-            auto yId = makeSweepParamId(yType);
-            beginEdit(xId); setParamNormalized(xId, x); performEdit(xId, x); endEdit(xId);
-            beginEdit(yId); setParamNormalized(yId, y); performEdit(yId, y); endEdit(yId);
-        });
-
-        curveEditor->setOnAdd([this](float x, float y) {
-            auto pointCountId = makeSweepParamId(SweepParamType::kSweepCustomCurvePointCount);
-            auto* pcParam = getParameterObject(pointCountId);
-            if (pcParam) {
-                int count = static_cast<int>(std::round(pcParam->toPlain(pcParam->getNormalized())));
-                if (count < 8) {
-                    count++;
-                    double norm = pcParam->toNormalized(static_cast<double>(count));
-                    beginEdit(pointCountId); setParamNormalized(pointCountId, norm);
-                    performEdit(pointCountId, norm); endEdit(pointCountId);
-                    int newIdx = count - 1;
-                    auto xType = static_cast<SweepParamType>(
-                        static_cast<uint8_t>(SweepParamType::kSweepCustomCurveP0X) + newIdx * 2);
-                    auto yType = static_cast<SweepParamType>(
-                        static_cast<uint8_t>(SweepParamType::kSweepCustomCurveP0Y) + newIdx * 2);
-                    auto xId = makeSweepParamId(xType);
-                    auto yId = makeSweepParamId(yType);
-                    beginEdit(xId); setParamNormalized(xId, x); performEdit(xId, x); endEdit(xId);
-                    beginEdit(yId); setParamNormalized(yId, y); performEdit(yId, y); endEdit(yId);
-                }
-            }
-        });
-
-        curveEditor->setOnRemove([this](int pointIndex) {
-            auto pointCountId = makeSweepParamId(SweepParamType::kSweepCustomCurvePointCount);
-            auto* pcParam = getParameterObject(pointCountId);
-            if (pcParam) {
-                int count = static_cast<int>(std::round(pcParam->toPlain(pcParam->getNormalized())));
-                if (count > 2 && pointIndex > 0 && pointIndex < count - 1) {
-                    for (int i = pointIndex; i < count - 1; ++i) {
-                        auto srcXType = static_cast<SweepParamType>(
-                            static_cast<uint8_t>(SweepParamType::kSweepCustomCurveP0X) + (i + 1) * 2);
-                        auto srcYType = static_cast<SweepParamType>(
-                            static_cast<uint8_t>(SweepParamType::kSweepCustomCurveP0Y) + (i + 1) * 2);
-                        auto dstXType = static_cast<SweepParamType>(
-                            static_cast<uint8_t>(SweepParamType::kSweepCustomCurveP0X) + i * 2);
-                        auto dstYType = static_cast<SweepParamType>(
-                            static_cast<uint8_t>(SweepParamType::kSweepCustomCurveP0Y) + i * 2);
-                        auto* srcXParam = getParameterObject(makeSweepParamId(srcXType));
-                        auto* srcYParam = getParameterObject(makeSweepParamId(srcYType));
-                        auto dstXId = makeSweepParamId(dstXType);
-                        auto dstYId = makeSweepParamId(dstYType);
-                        if (srcXParam) {
-                            double val = srcXParam->getNormalized();
-                            beginEdit(dstXId); setParamNormalized(dstXId, val);
-                            performEdit(dstXId, val); endEdit(dstXId);
-                        }
-                        if (srcYParam) {
-                            double val = srcYParam->getNormalized();
-                            beginEdit(dstYId); setParamNormalized(dstYId, val);
-                            performEdit(dstYId, val); endEdit(dstYId);
-                        }
-                    }
-                    count--;
-                    double norm = pcParam->toNormalized(static_cast<double>(count));
-                    beginEdit(pointCountId); setParamNormalized(pointCountId, norm);
-                    performEdit(pointCountId, norm); endEdit(pointCountId);
-                }
-            }
-        });
-
-        return curveEditor;
-    }
-
     if (std::strcmp(name, "SweepIndicator") == 0) {
         VSTGUI::CPoint origin;
         VSTGUI::CPoint size;
@@ -1278,18 +1307,10 @@ VSTGUI::CView* Controller::createCustomView(
         auto* sweepFalloffParam = getParameterObject(makeSweepParamId(SweepParamType::kSweepFalloff));
 
         if (sweepFreqParam && sweepWidthParam && sweepIntensityParam) {
-            constexpr float kSweepLog2Min = 4.321928f;
-            constexpr float kSweepLog2Max = 14.287712f;
-            constexpr float kSweepLog2Range = kSweepLog2Max - kSweepLog2Min;
-            float freqNorm = static_cast<float>(sweepFreqParam->getNormalized());
-            float log2Freq = kSweepLog2Min + freqNorm * kSweepLog2Range;
-            float freqHz = std::pow(2.0f, log2Freq);
-            constexpr float kMinWidth = 0.5f;
-            constexpr float kMaxWidth = 4.0f;
-            float widthNorm = static_cast<float>(sweepWidthParam->getNormalized());
-            float widthOct = kMinWidth + widthNorm * (kMaxWidth - kMinWidth);
-            float intensityNorm = static_cast<float>(sweepIntensityParam->getNormalized());
-            float intensity = intensityNorm * 2.0f;
+            const float freqHz = sweepFreqNormToHz(static_cast<float>(sweepFreqParam->getNormalized()));
+            const float widthOct = kSweepWidthOctRange.toPlain(static_cast<float>(sweepWidthParam->getNormalized()));
+            const float intensity =
+                kSweepIntensityRange.toPlain(static_cast<float>(sweepIntensityParam->getNormalized()));
             sweepIndicator->setPosition(freqHz, widthOct, intensity);
         }
 
@@ -1355,6 +1376,14 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
     editorClosing_.store(false, std::memory_order_release);
     spectrumDataAvailable_ = false;
     activeEditor_ = editor;
+    // Level meters start from this session's audio
+    pendingMeters_ = MeterWindow{};
+    lastMeterTick_ = {};
+    // Tier 3: look the processor's display up again in every editor session; the
+    // processor may have been replaced or re-registered since the last one (D-057/D-070)
+    if (instanceId_ != 0)
+        sharedDisplay_ = static_cast<SharedDisplay*>(
+            Krate::Plugins::SharedDisplayBridge::instance().lookupInstance(instanceId_));
 
     auto* bandCountParam = getParameterObject(makeGlobalParamId(GlobalParamType::kGlobalBandCount));
     if (bandCountParam) {
@@ -1364,7 +1393,16 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
             bandVisibilityControllers_[b] = new ContainerVisibilityController(
                 &activeEditor_, bandCountParam, containerTag, threshold, false);
         }
-        bandCountDisplayController_ = new BandCountDisplayController(&spectrumDisplay_, bandCountParam);
+        bandCountDisplayController_ = new BandCountDisplayController(
+            &spectrumDisplay_, bandCountParam, &keyboardHandler_);
+    }
+
+    {
+        std::array<Steinberg::Vst::Parameter*, CrossoverParamObserver::kNumCrossovers> crossoverParams{};
+        for (int i = 0; i < CrossoverParamObserver::kNumCrossovers; ++i)
+            crossoverParams[static_cast<size_t>(i)] =
+                getParameterObject(makeCrossoverParamId(static_cast<uint8_t>(i)));
+        crossoverParamObserver_ = Steinberg::owned(new CrossoverParamObserver(&spectrumDisplay_, crossoverParams));
     }
 
     if (auto* spectrumModeParam = getParameterObject(makeGlobalParamId(GlobalParamType::kGlobalSpectrumMode)))
@@ -1378,7 +1416,7 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
             Steinberg::int32 parentBandTag = 9000 + b;
             expandedVisibilityControllers_[b] = new AnimatedExpandController(
                 &activeEditor_, expandedParam, expandedContainerTag,
-                290.0f, 250, parentBandTag, b, 690.0f);
+                290.0f, 250, parentBandTag, b, 690.0f, bandCountParam);
         }
     }
 
@@ -1414,6 +1452,12 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
                 });
             }
 
+            // The preset overlays own the keyboard while open (D-068)
+            keyboardHandler_->setOverlayOpenQuery([this]() {
+                return (presetBrowserView_ && presetBrowserView_->isOpen())
+                    || (savePresetDialogView_ && savePresetDialogView_->isOpen());
+            });
+
             frame->registerKeyboardHook(keyboardHandler_.get());
             frame->setFocusDrawingEnabled(true);
             frame->setFocusColor(VSTGUI::CColor(0x3A, 0x96, 0xDD));
@@ -1448,51 +1492,33 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
         for (auto* mp : morphPads_) { if (mp) mp->setHighContrastMode(true, borderColor, accentColor); }
         if (sweepIndicator_) sweepIndicator_->setHighContrastMode(true, accentColor);
         for (auto* dns : dynamicNodeSelectors_) { if (dns) dns->setHighContrastMode(true); }
-        for (auto* dns : compactNodeSelectors_) { if (dns) dns->setHighContrastMode(true); }
     }
-
-    auto* sweepFreqParam = getParameterObject(makeSweepParamId(SweepParamType::kSweepFrequency));
-    if (sweepFreqParam)
-        morphSweepLinkController_ = new MorphSweepLinkController(this, sweepFreqParam);
 
     for (int b = 0; b < kMaxBands; ++b) {
         nodeSelectionControllers_[b] = new NodeSelectionController(
-            this, static_cast<uint8_t>(b), shapeShadowStorage_[b].data());
+            this, static_cast<uint8_t>(b), &shapeShadowStorage_[b]);
+    }
+
+    // The header Bias knob and its label (one group, holding the Bias proxy) show only while the
+    // selected node's type has its own Bias slot: the other types do not use bias (user ruling
+    // 2026-11-10). The displayed type follows the selected node and its type changes.
+    for (int b = 0; b < kMaxBands; ++b) {
+        const auto band = static_cast<uint8_t>(b);
+        if (auto* typeParam = getParameterObject(makeBandParamId(band, BandParamType::kBandDisplayedType))) {
+            biasKnobVisibilityControllers_[b] = new ContainerVisibilityController(
+                &activeEditor_, typeParam,
+                static_cast<Steinberg::int32>(makeBandParamId(band, BandParamType::kBandDisplayedBias)),
+                [](double norm) {
+                    return biasShapeSlot(static_cast<DistortionType>(normToListIndex(norm, kDistortionTypeCount))) >= 0;
+                });
+        }
     }
 
     sweepVisualizationController_ = new SweepVisualizationController(
         this, &sweepIndicator_, &spectrumDisplay_);
 
     sweepVisualizationTimer_ = VSTGUI::makeOwned<VSTGUI::CVSTGUITimer>(
-        [this](VSTGUI::CVSTGUITimer* /*timer*/) {
-            if (sweepIndicator_ && sweepIndicator_->isEnabled())
-                sweepIndicator_->setDirty();
-            if (cachedModOffsets_ && activeEditor_) {
-                if (auto* frame = activeEditor_->getFrame())
-                    updateModSliders(frame);
-            }
-            // Tier 3 fallback: if DataExchange hasn't delivered data after ~330ms,
-            // wire the spectrum display directly to the processor's shared FIFOs
-            if (!dataExchangeActive_ && sharedDisplay_ && !spectrumDataAvailable_) {
-                ++fallbackTickCounter_;
-                if (fallbackTickCounter_ > 10) { // ~330ms at 33ms timer
-                    KRATE_BRIDGE_LOG("Disrumpo::Controller — Tier 3 fallback ACTIVATED (no DataExchange after ~330ms)");
-                    spectrumDataAvailable_ = true;
-                    if (spectrumDisplay_) {
-                        spectrumDisplay_->setSpectrumFIFOs(
-                            sharedDisplay_->inputFIFO, sharedDisplay_->outputFIFO);
-                        float sr = sharedDisplay_->sampleRate->load(std::memory_order_acquire);
-                        if (sr > 0.0f)
-                            spectrumDisplay_->startAnalysis(sr);
-                    }
-                }
-            }
-        }, 33);
-
-    auto* morphLinkParam = getParameterObject(makeSweepParamId(SweepParamType::kSweepMorphLink));
-    if (morphLinkParam)
-        customCurveVisController_ = new ContainerVisibilityController(
-            &activeEditor_, morphLinkParam, 9200, 0.93f, false);
+        [this](VSTGUI::CVSTGUITimer* /*timer*/) { onEditorTimer(); }, 33);
 
     if (presetManager_) {
         auto* frame = editor->getFrame();
@@ -1511,11 +1537,107 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
     if (updateBannerView_) updateBannerView_->startPolling();
 }
 
+void Controller::onEditorTimer() {
+    if (sweepIndicator_ && sweepIndicator_->isEnabled())
+        sweepIndicator_->setDirty();
+    // Tier 3 fallback: no DataExchange block for ~330 ms (no queue, or one the host
+    // stopped draining, e.g. reopened on a thread without a message loop): the
+    // displays read the processor's SharedDisplay until DataExchange blocks return.
+    // The processor may have terminated since the last tick, so it is looked up again.
+    if (fallbackTickCounter_ < kDataExchangeStallTicks)
+        ++fallbackTickCounter_;
+    sharedDisplay_ = instanceId_ != 0
+        ? static_cast<SharedDisplay*>(Krate::Plugins::SharedDisplayBridge::instance().lookupInstance(instanceId_))
+        : nullptr;
+    if (fallbackTickCounter_ < kDataExchangeStallTicks || sharedDisplay_ == nullptr) {
+        tier3Active_ = false;
+    } else {
+        if (!tier3Active_) {
+            if (dataExchangeActive_)
+                KRATE_BRIDGE_LOG("Disrumpo::Controller — DataExchange stalled, Tier 3 fallback ACTIVATED");
+            else
+                KRATE_BRIDGE_LOG("Disrumpo::Controller — Tier 3 fallback ACTIVATED (no DataExchange after ~330ms)");
+            if (dataExchangeActive_ && sharedDisplay_->meters) {
+                // The windows SharedMeters holds unread were shown through DataExchange
+                MeterWindow shown;
+                (void)sharedDisplay_->meters->consume(shown);
+            }
+            tier3Active_ = true;
+            dataExchangeActive_ = false;
+            spectrumDataAvailable_ = true;
+            if (spectrumDisplay_) {
+                spectrumDisplay_->setSpectrumFIFOs(&localInputFIFO_, &localOutputFIFO_);
+                const float sr = sharedDisplay_->sampleRate->load(std::memory_order_acquire);
+                if (sr > 0.0f)
+                    spectrumDisplay_->startAnalysis(sr);
+            }
+        }
+        if (tier3Source_ != sharedDisplay_) {
+            // A new source: start from its latest FIFO-full
+            tier3Source_ = sharedDisplay_;
+            const auto start = [](size_t total) { return total > kTier3CopyMax ? total - kTier3CopyMax : 0; };
+            tier3InputRead_ = start(sharedDisplay_->inputFIFO->totalWritten());
+            tier3OutputRead_ = start(sharedDisplay_->outputFIFO->totalWritten());
+        }
+        copyTier3Samples(*sharedDisplay_->inputFIFO, localInputFIFO_, tier3InputRead_);
+        copyTier3Samples(*sharedDisplay_->outputFIFO, localOutputFIFO_, tier3OutputRead_);
+
+        // Level meters: the processor's SharedMeters
+        MeterWindow window;
+        if (sharedDisplay_->meters && sharedDisplay_->meters->consume(window)) {
+            mergeMeterWindow(pendingMeters_, window);
+            pendingMeterSampleRate_ = sharedDisplay_->sampleRate->load(std::memory_order_acquire);
+        }
+
+        // Mod rings: the processor's latest offsets (user ruling: mod rings in fallback)
+        if (sharedDisplay_->modOffsets) {
+            for (size_t d = 0; d < cachedModOffsets_.size(); ++d)
+                cachedModOffsets_[d] = (*sharedDisplay_->modOffsets)[d].load(std::memory_order_relaxed);
+        }
+    }
+    if (activeEditor_) {
+        if (auto* frame = activeEditor_->getFrame())
+            updateModSliders(frame);
+    }
+    const auto now = std::chrono::steady_clock::now();
+    const double dt = lastMeterTick_ == std::chrono::steady_clock::time_point{}
+        ? 0.0
+        : std::clamp(std::chrono::duration<double>(now - lastMeterTick_).count(), 0.0, 0.25);
+    lastMeterTick_ = now;
+    if (activeEditor_) {
+        if (auto* frame = activeEditor_->getFrame())
+            updateLevelMeters(frame, dt);
+    }
+    pendingMeters_ = MeterWindow{};
+}
+
+void Controller::copyTier3Samples(Krate::DSP::SpectrumFIFO<8192>& from, Krate::DSP::SpectrumFIFO<8192>& to,
+                                  size_t& readPos) {
+    const size_t total = from.totalWritten();
+    readPos = std::min(readPos, total);  // another processor's FIFO behind the same address
+    const size_t count = std::min(total - readPos, tier3Scratch_.size());
+    if (count > 0 && from.readLatest(tier3Scratch_.data(), count) == count)
+        to.push(tier3Scratch_.data(), count);
+    readPos = total;
+}
+
+void Controller::updateLevelMeters(VSTGUI::CViewContainer* container, double dtSeconds) {
+    if (!container) return;
+    container->forEachChild([this, dtSeconds](VSTGUI::CView* child) {
+        if (auto* meter = dynamic_cast<LevelMeterView*>(child)) {
+            if (pendingMeters_.numSamples > 0)
+                meter->pushWindow(pendingMeters_, pendingMeterSampleRate_);
+            meter->advance(dtSeconds);
+        }
+        if (auto* vc = dynamic_cast<VSTGUI::CViewContainer*>(child))
+            updateLevelMeters(vc, dtSeconds);
+    });
+}
+
 void Controller::willClose(VSTGUI::VST3Editor* editor) {
     // FIRST: set guard flag and kill all timers/async callbacks to prevent
     // races with DataExchange or timer callbacks during teardown
     editorClosing_.store(true, std::memory_order_release);
-    cachedModOffsets_ = nullptr;
     if (sweepVisualizationTimer_) { sweepVisualizationTimer_->stop(); sweepVisualizationTimer_ = nullptr; }
     if (spectrumDisplay_) spectrumDisplay_->stopAnalysis();
 
@@ -1532,30 +1654,37 @@ void Controller::willClose(VSTGUI::VST3Editor* editor) {
             vc = nullptr;
         }
     }
-    if (morphSweepLinkController_) {
-        if (auto* mslc = dynamic_cast<MorphSweepLinkController*>(morphSweepLinkController_.get())) mslc->deactivate();
-        morphSweepLinkController_ = nullptr;
-    }
     for (auto& nsc : nodeSelectionControllers_) {
         if (nsc) {
             if (auto* c = dynamic_cast<NodeSelectionController*>(nsc.get())) c->deactivate();
             nsc = nullptr;
         }
     }
-    for (auto& dns : dynamicNodeSelectors_) { if (dns) { dns->deactivate(); dns = nullptr; } }
-    for (auto& dns : compactNodeSelectors_) { if (dns) { dns->deactivate(); dns = nullptr; } }
+    for (auto& vc : biasKnobVisibilityControllers_) {
+        if (vc) {
+            if (auto* cvc = dynamic_cast<ContainerVisibilityController*>(vc.get())) cvc->deactivate();
+            vc = nullptr;
+        }
+    }
+    for (auto& dns : dynamicNodeSelectors_) {
+        if (dns) {
+            dns->unregisterViewListener(this);
+            dns->deactivate();
+            dns = nullptr;
+        }
+    }
     for (auto& mp : morphPads_) { if (mp) { mp->deactivate(); mp = nullptr; } }
     if (sweepVisualizationController_) {
         if (auto* svc = dynamic_cast<SweepVisualizationController*>(sweepVisualizationController_.get())) svc->deactivate();
         sweepVisualizationController_ = nullptr;
     }
-    if (customCurveVisController_) {
-        if (auto* cvc = dynamic_cast<ContainerVisibilityController*>(customCurveVisController_.get())) cvc->deactivate();
-        customCurveVisController_ = nullptr;
-    }
     if (bandCountDisplayController_) {
         if (auto* bcdc = dynamic_cast<BandCountDisplayController*>(bandCountDisplayController_.get())) bcdc->deactivate();
         bandCountDisplayController_ = nullptr;
+    }
+    if (crossoverParamObserver_) {
+        if (auto* cpo = dynamic_cast<CrossoverParamObserver*>(crossoverParamObserver_.get())) cpo->deactivate();
+        crossoverParamObserver_ = nullptr;
     }
     if (spectrumModeController_) {
         if (auto* smc = dynamic_cast<SpectrumModeController*>(spectrumModeController_.get())) smc->deactivate();
@@ -1578,9 +1707,10 @@ void Controller::willClose(VSTGUI::VST3Editor* editor) {
     }
     sweepIndicator_ = nullptr;
     spectrumDisplay_ = nullptr;
-    sharedDisplay_ = nullptr;
     dataExchangeActive_ = false;
     fallbackTickCounter_ = 0;
+    tier3Active_ = false;
+    tier3Source_ = nullptr;
     activeEditor_ = nullptr;
     if (updateBannerView_) { updateBannerView_->stopPolling(); updateBannerView_ = nullptr; }
     (void)editor;
@@ -1620,12 +1750,7 @@ VSTGUI::COptionMenu* Controller::createContextMenu(
     {
         VSTGUI::CCommandMenuItem::Desc desc("MIDI Learn");
         auto* learnItem = new VSTGUI::CCommandMenuItem(std::move(desc));
-        learnItem->setActions([this, paramId](VSTGUI::CCommandMenuItem*) {
-            if (midiCCManager_) {
-                midiCCManager_->startLearn(paramId);
-                setParamNormalized(makeGlobalParamId(GlobalParamType::kGlobalMidiLearnActive), 1.0);
-            }
-        });
+        learnItem->setActions([this, paramId](VSTGUI::CCommandMenuItem*) { startMidiLearn(paramId); });
         menu->addEntry(learnItem);
     }
 
@@ -1634,31 +1759,46 @@ VSTGUI::COptionMenu* Controller::createContextMenu(
         {
             VSTGUI::CCommandMenuItem::Desc clearDesc("Clear MIDI Learn");
             auto* clearItem = new VSTGUI::CCommandMenuItem(std::move(clearDesc));
-            clearItem->setActions([this, paramId](VSTGUI::CCommandMenuItem*) {
-                if (midiCCManager_) midiCCManager_->removeMappingsForParam(paramId);
-            });
+            clearItem->setActions([this, paramId](VSTGUI::CCommandMenuItem*) { clearMidiLearn(paramId); });
             menu->addEntry(clearItem);
         }
         Krate::Plugins::MidiCCMapping mapping;
         if (midiCCManager_->getMapping(existingCC, mapping)) {
             VSTGUI::CCommandMenuItem::Desc presetDesc("Save Mapping with Preset");
             auto* presetItem = new VSTGUI::CCommandMenuItem(std::move(presetDesc));
-            presetItem->setActions([this, existingCC, paramId, mapping](VSTGUI::CCommandMenuItem*) {
-                if (midiCCManager_) {
-                    if (!mapping.isPerPreset) {
-                        midiCCManager_->removeGlobalMapping(existingCC);
-                        midiCCManager_->addPresetMapping(existingCC, paramId, mapping.is14Bit);
-                    } else {
-                        midiCCManager_->removePresetMapping(existingCC);
-                        midiCCManager_->addGlobalMapping(existingCC, paramId, mapping.is14Bit);
-                    }
-                }
-            });
+            presetItem->setActions([this, paramId](VSTGUI::CCommandMenuItem*) { toggleMidiMappingScope(paramId); });
             menu->addEntry(presetItem);
         }
     }
 
     return menu;
+}
+
+void Controller::startMidiLearn(Steinberg::Vst::ParamID paramId) {
+    if (!midiCCManager_) return;
+    midiCCManager_->startLearn(paramId);
+    setParamNormalized(makeGlobalParamId(GlobalParamType::kGlobalMidiLearnActive), 1.0);
+}
+
+void Controller::clearMidiLearn(Steinberg::Vst::ParamID paramId) {
+    if (!midiCCManager_) return;
+    midiCCManager_->removeMappingsForParam(paramId);
+    notifyMidiMappingChanged();
+}
+
+void Controller::toggleMidiMappingScope(Steinberg::Vst::ParamID paramId) {
+    if (!midiCCManager_) return;
+    uint8_t cc = 0;
+    Krate::Plugins::MidiCCMapping mapping;
+    if (!midiCCManager_->getCCForParam(paramId, cc) || !midiCCManager_->getMapping(cc, mapping)) return;
+    if (!mapping.isPerPreset) {
+        midiCCManager_->removeGlobalMapping(cc);
+        midiCCManager_->addPresetMapping(cc, paramId, mapping.is14Bit);
+    } else {
+        midiCCManager_->removePresetMapping(cc);
+        midiCCManager_->addGlobalMapping(cc, paramId, mapping.is14Bit);
+    }
+    notifyMidiMappingChanged();
 }
 
 // ==============================================================================
@@ -1675,6 +1815,19 @@ void Controller::openSavePresetDialog() {
 
 void Controller::closePresetBrowser() {
     if (presetBrowserView_ && presetBrowserView_->isOpen()) presetBrowserView_->close();
+}
+
+std::vector<const VSTGUI::CView*> Controller::cachedNodeSelectorsForTest() const {
+    std::vector<const VSTGUI::CView*> views;
+    for (const auto* dns : dynamicNodeSelectors_) { if (dns) views.push_back(dns); }
+    return views;
+}
+
+void Controller::viewWillDelete(VSTGUI::CView* view) {
+    for (auto& dns : dynamicNodeSelectors_) {
+        if (dns == view) dns = nullptr;
+    }
+    view->unregisterViewListener(this);
 }
 
 // ==============================================================================
@@ -1696,8 +1849,9 @@ Steinberg::MemoryStream* Controller::createComponentStateStream() {
         if (auto* param = getParameterObject(id)) return static_cast<float>(param->toPlain(param->getNormalized()));
         return defaultVal;
     };
-    auto getInt8FromList = [this](Steinberg::Vst::ParamID id, int maxVal) -> Steinberg::int8 {
-        if (auto* param = getParameterObject(id)) return static_cast<Steinberg::int8>(std::round(param->getNormalized() * maxVal));
+    auto getInt8FromList = [this](Steinberg::Vst::ParamID id, int count) -> Steinberg::int8 {
+        if (auto* param = getParameterObject(id))
+            return static_cast<Steinberg::int8>(normToListIndex(param->getNormalized(), count));
         return 0;
     };
     auto getBoolInt8 = [this](Steinberg::Vst::ParamID id) -> Steinberg::int8 {
@@ -1712,9 +1866,7 @@ Steinberg::MemoryStream* Controller::createComponentStateStream() {
     streamer.writeFloat(getParamNorm(makeGlobalParamId(GlobalParamType::kGlobalOutputGain)));
     streamer.writeFloat(getParamNorm(makeGlobalParamId(GlobalParamType::kGlobalMix)));
 
-    int32_t bandCount = static_cast<int32_t>(std::round(
-        getParamNorm(makeGlobalParamId(GlobalParamType::kGlobalBandCount)) * 3.0f)) + 1;
-    streamer.writeInt32(bandCount);
+    streamer.writeInt32(getInt8FromList(makeGlobalParamId(GlobalParamType::kGlobalBandCount), kMaxBands) + 1);
 
     for (int b = 0; b < kMaxBands; ++b) {
         auto band = static_cast<uint8_t>(b);
@@ -1726,7 +1878,7 @@ Steinberg::MemoryStream* Controller::createComponentStateStream() {
     }
 
     for (int c = 0; c < kMaxBands - 1; ++c)
-        streamer.writeFloat(getFloat(makeCrossoverParamId(static_cast<uint8_t>(c)), 1000.0f));
+        streamer.writeFloat(crossoverNormToHz(getParamNorm(makeCrossoverParamId(static_cast<uint8_t>(c)))));
 
     // Sweep
     streamer.writeInt8(getBoolInt8(makeSweepParamId(SweepParamType::kSweepEnable)));
@@ -1734,47 +1886,55 @@ Steinberg::MemoryStream* Controller::createComponentStateStream() {
     streamer.writeFloat(getParamNorm(makeSweepParamId(SweepParamType::kSweepWidth)));
     streamer.writeFloat(getParamNorm(makeSweepParamId(SweepParamType::kSweepIntensity)));
     streamer.writeInt8(getBoolInt8(makeSweepParamId(SweepParamType::kSweepFalloff)));
-    streamer.writeInt8(getInt8FromList(makeSweepParamId(SweepParamType::kSweepMorphLink), kMorphLinkModeCount - 1));
+    streamer.writeInt8(getInt8FromList(makeSweepParamId(SweepParamType::kSweepMorphLink), kMorphLinkModeCount));
     streamer.writeInt8(getBoolInt8(makeSweepParamId(SweepParamType::kSweepLFOEnable)));
     streamer.writeFloat(getParamNorm(makeSweepParamId(SweepParamType::kSweepLFORate)));
-    streamer.writeInt8(getInt8FromList(makeSweepParamId(SweepParamType::kSweepLFOWaveform), 5));
+    streamer.writeInt8(getInt8FromList(makeSweepParamId(SweepParamType::kSweepLFOWaveform), kLfoShapeCount));
     streamer.writeFloat(getParamNorm(makeSweepParamId(SweepParamType::kSweepLFODepth)));
     streamer.writeInt8(getBoolInt8(makeSweepParamId(SweepParamType::kSweepLFOSync)));
-    streamer.writeInt8(getInt8FromList(makeSweepParamId(SweepParamType::kSweepLFONoteValue), kNoteValueCount - 1));
+    streamer.writeInt8(getInt8FromList(makeSweepParamId(SweepParamType::kSweepLFONoteValue), kNoteValueCount));
     streamer.writeInt8(getBoolInt8(makeSweepParamId(SweepParamType::kSweepEnvEnable)));
     streamer.writeFloat(getParamNorm(makeSweepParamId(SweepParamType::kSweepEnvAttack)));
     streamer.writeFloat(getParamNorm(makeSweepParamId(SweepParamType::kSweepEnvRelease)));
     streamer.writeFloat(getParamNorm(makeSweepParamId(SweepParamType::kSweepEnvSensitivity)));
-    streamer.writeInt32(2);
-    streamer.writeFloat(0.0f); streamer.writeFloat(0.0f);
-    streamer.writeFloat(1.0f); streamer.writeFloat(1.0f);
+    {
+        // Custom curve: the breakpoints parseComponentState mirrored into the curve params
+        const int pointCount =
+            kMinBreakpoints + getInt8FromList(makeSweepParamId(SweepParamType::kSweepCustomCurvePointCount),
+                                              kMaxBreakpoints - kMinBreakpoints + 1);
+        streamer.writeInt32(pointCount);
+        for (int i = 0; i < pointCount; ++i) {
+            streamer.writeFloat(getParamNorm(customCurvePointParamId(i, false)));
+            streamer.writeFloat(getParamNorm(customCurvePointParamId(i, true)));
+        }
+    }
 
     // Modulation
     streamer.writeFloat(getParamNorm(makeModParamId(ModParamType::kLFO1Rate)));
-    streamer.writeInt8(getInt8FromList(makeModParamId(ModParamType::kLFO1Shape), 5));
+    streamer.writeInt8(getInt8FromList(makeModParamId(ModParamType::kLFO1Shape), kLfoShapeCount));
     streamer.writeFloat(getParamNorm(makeModParamId(ModParamType::kLFO1Phase)));
     streamer.writeInt8(getBoolInt8(makeModParamId(ModParamType::kLFO1Sync)));
-    streamer.writeInt8(getInt8FromList(makeModParamId(ModParamType::kLFO1NoteValue), kNoteValueCount - 1));
+    streamer.writeInt8(getInt8FromList(makeModParamId(ModParamType::kLFO1NoteValue), kNoteValueCount));
     streamer.writeInt8(getBoolInt8(makeModParamId(ModParamType::kLFO1Unipolar)));
     streamer.writeInt8(getBoolInt8(makeModParamId(ModParamType::kLFO1Retrigger)));
     streamer.writeFloat(getParamNorm(makeModParamId(ModParamType::kLFO2Rate)));
-    streamer.writeInt8(getInt8FromList(makeModParamId(ModParamType::kLFO2Shape), 5));
+    streamer.writeInt8(getInt8FromList(makeModParamId(ModParamType::kLFO2Shape), kLfoShapeCount));
     streamer.writeFloat(getParamNorm(makeModParamId(ModParamType::kLFO2Phase)));
     streamer.writeInt8(getBoolInt8(makeModParamId(ModParamType::kLFO2Sync)));
-    streamer.writeInt8(getInt8FromList(makeModParamId(ModParamType::kLFO2NoteValue), kNoteValueCount - 1));
+    streamer.writeInt8(getInt8FromList(makeModParamId(ModParamType::kLFO2NoteValue), kNoteValueCount));
     streamer.writeInt8(getBoolInt8(makeModParamId(ModParamType::kLFO2Unipolar)));
     streamer.writeInt8(getBoolInt8(makeModParamId(ModParamType::kLFO2Retrigger)));
     streamer.writeFloat(getParamNorm(makeModParamId(ModParamType::kEnvFollowerAttack)));
     streamer.writeFloat(getParamNorm(makeModParamId(ModParamType::kEnvFollowerRelease)));
     streamer.writeFloat(getParamNorm(makeModParamId(ModParamType::kEnvFollowerSensitivity)));
-    streamer.writeInt8(getInt8FromList(makeModParamId(ModParamType::kEnvFollowerSource), 4));
+    streamer.writeInt8(getInt8FromList(makeModParamId(ModParamType::kEnvFollowerSource), kEnvFollowerSourceCount));
     streamer.writeFloat(getParamNorm(makeModParamId(ModParamType::kRandomRate)));
     streamer.writeFloat(getParamNorm(makeModParamId(ModParamType::kRandomSmoothness)));
     streamer.writeInt8(getBoolInt8(makeModParamId(ModParamType::kRandomSync)));
-    streamer.writeInt8(getInt8FromList(makeModParamId(ModParamType::kChaosModel), 3));
+    streamer.writeInt8(getInt8FromList(makeModParamId(ModParamType::kChaosModel), kChaosModelCount));
     streamer.writeFloat(getParamNorm(makeModParamId(ModParamType::kChaosSpeed)));
     streamer.writeFloat(getParamNorm(makeModParamId(ModParamType::kChaosCoupling)));
-    streamer.writeInt8(getInt8FromList(makeModParamId(ModParamType::kSampleHoldSource), 3));
+    streamer.writeInt8(getInt8FromList(makeModParamId(ModParamType::kSampleHoldSource), kSampleHoldSourceCount));
     streamer.writeFloat(getParamNorm(makeModParamId(ModParamType::kSampleHoldRate)));
     streamer.writeFloat(getParamNorm(makeModParamId(ModParamType::kSampleHoldSlew)));
     streamer.writeFloat(getParamNorm(makeModParamId(ModParamType::kPitchFollowerMinHz)));
@@ -1793,7 +1953,7 @@ Steinberg::MemoryStream* Controller::createComponentStateStream() {
         // Bits: parameter has stepCount=12 (values 4-16), convert normalized to raw int
         auto* bitsParam = getParameterObject(makeModParamId(ModParamType::kRunglerBits));
         Steinberg::int8 bits = bitsParam ? static_cast<Steinberg::int8>(
-            4 + static_cast<int>(std::round(bitsParam->getNormalized() * 12.0))) : 8;
+            4 + normToListIndex(bitsParam->getNormalized(), kRunglerBitsCount)) : 8;
         streamer.writeInt8(bits);
         streamer.writeInt8(getBoolInt8(makeModParamId(ModParamType::kRunglerLoop)));
     }
@@ -1808,17 +1968,16 @@ Steinberg::MemoryStream* Controller::createComponentStateStream() {
         streamer.writeFloat(getParamNorm(makeModParamId(macro[0])));
         streamer.writeFloat(getParamNorm(makeModParamId(macro[1])));
         streamer.writeFloat(getParamNorm(makeModParamId(macro[2])));
-        streamer.writeInt8(getInt8FromList(makeModParamId(macro[3]), 3));
+        streamer.writeInt8(getInt8FromList(makeModParamId(macro[3]), Krate::DSP::kModCurveCount));
     }
 
     for (uint8_t r = 0; r < 32; ++r) {
-        streamer.writeInt8(getInt8FromList(makeRoutingParamId(r, 0), 12));
-        auto destNorm = getParamNorm(makeRoutingParamId(r, 1));
-        streamer.writeInt32(static_cast<int32_t>(
-            std::round(destNorm * static_cast<float>(ModDest::kTotalDestinations - 1))));
+        streamer.writeInt8(getInt8FromList(makeRoutingParamId(r, 0), kUIModSourceCount));
+        streamer.writeInt32(normToListIndex(getParamNorm(makeRoutingParamId(r, 1)),
+                                            static_cast<int>(ModDest::kTotalDestinations)));
         float amountNorm = getParamNorm(makeRoutingParamId(r, 2));
         streamer.writeFloat(amountNorm * 2.0f - 1.0f);
-        streamer.writeInt8(getInt8FromList(makeRoutingParamId(r, 3), 3));
+        streamer.writeInt8(getInt8FromList(makeRoutingParamId(r, 3), Krate::DSP::kModCurveCount));
     }
 
     // Morph node state
@@ -1826,16 +1985,17 @@ Steinberg::MemoryStream* Controller::createComponentStateStream() {
         auto band = static_cast<uint8_t>(b);
         streamer.writeFloat(getParamNorm(makeBandParamId(band, BandParamType::kBandMorphX)));
         streamer.writeFloat(getParamNorm(makeBandParamId(band, BandParamType::kBandMorphY)));
-        streamer.writeInt8(getInt8FromList(makeBandParamId(band, BandParamType::kBandMorphMode), 2));
-        float activeNodesNorm = getParamNorm(makeBandParamId(band, BandParamType::kBandActiveNodes));
-        int activeNodes = static_cast<int>(std::round(activeNodesNorm * 2.0f)) + 2;
-        streamer.writeInt8(static_cast<Steinberg::int8>(activeNodes));
+        streamer.writeInt8(getInt8FromList(makeBandParamId(band, BandParamType::kBandMorphMode), kMorphModeCount));
+        streamer.writeInt8(static_cast<Steinberg::int8>(
+            getInt8FromList(makeBandParamId(band, BandParamType::kBandActiveNodes), kMaxMorphNodes) + 1));
         float smoothingNorm = getParamNorm(makeBandParamId(band, BandParamType::kBandMorphSmoothing));
-        streamer.writeFloat(smoothingNorm * 500.0f);
+        streamer.writeFloat(kMorphSmoothingMsRange.toPlain(smoothingNorm));
+        streamer.writeInt8(getInt8FromList(makeBandParamId(band, BandParamType::kBandMorphXLink), kMorphLinkModeCount));
+        streamer.writeInt8(getInt8FromList(makeBandParamId(band, BandParamType::kBandMorphYLink), kMorphLinkModeCount));
 
         for (int n = 0; n < kMaxMorphNodes; ++n) {
             auto node = static_cast<uint8_t>(n);
-            streamer.writeInt8(getInt8FromList(makeNodeParamId(band, node, NodeParamType::kNodeType), 25));
+            streamer.writeInt8(getInt8FromList(makeNodeParamId(band, node, NodeParamType::kNodeType), kDistortionTypeCount));
             float driveNorm = getParamNorm(makeNodeParamId(band, node, NodeParamType::kNodeDrive));
             streamer.writeFloat(driveNorm * 10.0f);
             streamer.writeFloat(getParamNorm(makeNodeParamId(band, node, NodeParamType::kNodeMix)));
@@ -1937,6 +2097,9 @@ void PLUGIN_API Controller::onDataExchangeBlocksReceived(
                 localInputFIFO_.push(specBlock->inputSamples, specBlock->numSamples);
                 localOutputFIFO_.push(specBlock->outputSamples, specBlock->numSamples);
                 cachedSpectrumSampleRate_ = specBlock->sampleRate;
+                std::copy_n(specBlock->modOffsets, kSpectrumBlockModOffsets, cachedModOffsets_.begin());
+                mergeMeterWindow(pendingMeters_, specBlock->meters);
+                pendingMeterSampleRate_ = specBlock->sampleRate;
                 if (!dataExchangeActive_)
                     KRATE_BRIDGE_LOG("Disrumpo::Controller — DataExchange data received (Tier 1/2 active)");
                 dataExchangeActive_ = true;
@@ -1963,16 +2126,6 @@ Steinberg::tresult PLUGIN_API Controller::notify(Steinberg::Vst::IMessage* messa
         return Steinberg::Vst::EditControllerEx1::notify(message);
     if (dataExchangeReceiver_.onMessage(message)) return Steinberg::kResultOk;
 
-    if (strcmp(message->getMessageID(), "ModOffsets") == 0) {
-        auto* attrs = message->getAttributes();
-        if (!attrs) return Steinberg::kResultFalse;
-        Steinberg::int64 ptr = 0;
-        attrs->getInt("ptr", ptr);
-        cachedModOffsets_ = reinterpret_cast<const float*>(  // NOLINT(performance-no-int-to-ptr)
-            static_cast<intptr_t>(ptr));
-        return Steinberg::kResultOk;
-    }
-
     return Steinberg::Vst::EditControllerEx1::notify(message);
 }
 
@@ -1980,8 +2133,8 @@ void Controller::updateModSliders(VSTGUI::CViewContainer* container) {
     if (!container) return;
     container->forEachChild([this](VSTGUI::CView* child) {
         if (auto* ms = dynamic_cast<ModSlider*>(child)) {
-            float offset = cachedModOffsets_[ms->getModDestId()];
-            ms->setModulationOffset(offset);
+            if (ms->getModDestId() < cachedModOffsets_.size())
+                ms->setModulationOffset(cachedModOffsets_[ms->getModDestId()]);
         }
         if (auto* vc = dynamic_cast<VSTGUI::CViewContainer*>(child))
             updateModSliders(vc);

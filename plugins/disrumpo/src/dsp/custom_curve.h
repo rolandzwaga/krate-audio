@@ -15,6 +15,8 @@
 
 #pragma once
 
+#include <krate/dsp/core/db_utils.h>
+
 #include <algorithm>
 #include <array>
 #include <cstdint>
@@ -111,13 +113,16 @@ public:
     /// @brief Add a new breakpoint to the curve.
     ///
     /// The breakpoint will be inserted in sorted order by x.
-    /// Fails if already at maximum (8) breakpoints.
+    /// Fails if already at maximum (8) breakpoints or if x or y is not finite.
     ///
     /// @param x Input position [0, 1]
     /// @param y Output value [0, 1]
-    /// @return true if added successfully, false if at limit
+    /// @return true if added successfully, false if at limit or non-finite
     bool addBreakpoint(float x, float y) noexcept {
         if (count_ >= kMaxBreakpoints) {
+            return false;
+        }
+        if (!Krate::DSP::detail::isFinite(x) || !Krate::DSP::detail::isFinite(y)) {
             return false;
         }
 
@@ -138,7 +143,7 @@ public:
     /// @brief Remove a breakpoint by index.
     ///
     /// Fails if at minimum (2) breakpoints or invalid index.
-    /// Cannot remove endpoint breakpoints (x=0 or x=1).
+    /// Cannot remove the endpoints (index 0 and the last index).
     ///
     /// @param index Index of breakpoint to remove
     /// @return true if removed successfully, false if at minimum or invalid
@@ -151,8 +156,9 @@ public:
             return false;
         }
 
-        // Don't allow removing endpoints
-        if (breakpoints_[index].x <= 0.001f || breakpoints_[index].x >= 0.999f) {
+        // Don't allow removing endpoints. By index, not by x: an interior point
+        // may sit at x = 0 or 1, and an x test made it unremovable (D-044)
+        if (index == 0 || index == count_ - 1) {
             return false;
         }
 
@@ -168,7 +174,8 @@ public:
     /// @brief Modify an existing breakpoint.
     ///
     /// The breakpoints will be re-sorted after modification.
-    /// Endpoint x values (0 and 1) are protected and won't be modified.
+    /// Endpoint x values (index 0 at 0, the last index at 1) are protected and
+    /// won't be modified. Ignored if x or y is not finite.
     ///
     /// @param index Index of breakpoint to modify
     /// @param x New x position [0, 1]
@@ -177,14 +184,17 @@ public:
         if (index < 0 || index >= count_) {
             return;
         }
+        if (!Krate::DSP::detail::isFinite(x) || !Krate::DSP::detail::isFinite(y)) {
+            return;
+        }
 
         // Clamp coordinates
         x = std::clamp(x, 0.0f, 1.0f);
         y = std::clamp(y, 0.0f, 1.0f);
 
-        // Check if this is an endpoint
-        bool isFirstEndpoint = (breakpoints_[index].x <= 0.001f);
-        bool isLastEndpoint = (breakpoints_[index].x >= 0.999f);
+        // Check if this is an endpoint (by index, see removeBreakpoint)
+        const bool isFirstEndpoint = (index == 0);
+        const bool isLastEndpoint = (index == count_ - 1);
 
         // Protect endpoint x values
         if (isFirstEndpoint) {

@@ -611,9 +611,13 @@ The lane of every check is the **Lane** column of the Success Criteria table; th
     `.vstpreset` chunk list, finds the `Info` chunk and sets `PresetInfo::description` from its `Comment` attribute, unescaping
     `&quot; &amp; &lt; &gt; &apos;`. It reads nothing else, so `name` and `category` still come from the filename and folder
     and no plugin regroups. A missing, truncated or malformed chunk leaves the description empty and the scan otherwise unchanged.
-  - **Browser:** `PresetBrowserView` shows one line of description text between the preset list and the button bar. It shows
-    the selected row's description, is empty when nothing is selected or the preset has none, and clears whenever the
-    selection resets (tab, search, rescan). It is in the shared view, so every plugin's browser gets it.
+  - **Browser:** `PresetBrowserView` shows the description in an area of up to three lines between the preset list and the
+    button bar (user ruling 2026-11-12, "wrap + hover"; it was one line, which cut long descriptions off). The text wraps at
+    word boundaries, measured with the area's own VSTGUI font; when it still does not fit in three lines, the third ends with
+    an ellipsis (U+2026). The full, unshortened text is the area's hover tooltip; a preset without a description shows
+    nothing and leaves no tooltip. The preset list ends above the area, so nothing overlaps at any editor size that hosts the
+    browser. It shows the selected row's description, is empty when nothing is selected or the preset has none, and clears
+    whenever the selection resets (tab, search, rescan). It is in the shared view, so every plugin's browser gets it.
   - **Gate (user ruling 2026-10-24, scoped):** full `shared_tests`, plus every plugin's preset / browser / editor-lifecycle
     cases (the only paths that reach the scan or the view), pluginval strictness 5 on all 9 plugins, and clang-tidy
     `shared`. Never the other plugins' full suites.
@@ -712,7 +716,12 @@ The lane of every check is the **Lane** column of the Success Criteria table; th
 and one whose chunk list points past the end both scan with an empty description and their name and category unchanged.
 (b) Every one of the 58 Profundum factory files scans back with its def's `description` exactly (`Profundum_PresetDescriptions`).
 (c) `Krate_PresetBrowserShowsDescription` (shared_tests, `[ui]`): selecting a row shows that preset's description, deselecting
-or changing tabs clears it. The scoped FR-065 gate is green | per-push |
+or changing tabs clears it. (d) `Krate_DescriptionLayoutWrapsAtWordsWithEllipsis` (shared_tests): the layout wraps at spaces,
+never inside a word, keeps every word when the text fits and otherwise stops at the third line ending with U+2026.
+(e) `Krate_PresetBrowserDescriptionWrapsWithTooltip` (shared_tests, `[ui]`): a real Disrumpo description takes three lines
+ending with U+2026 in a 520 px browser and wraps whole in a 1000 px one; the full text is the tooltip; a short one shows
+unchanged; none leaves no tooltip; at every hosting editor size three font lines fit, the list ends above the area with at
+least ten rows, and the frame's mouse-enabled hit test reaches the area. The scoped FR-065 gate is green | per-push |
 | **SC-034** | FR-066 | `Profundum_PolyPresetCount` (`[preset]`): at least 5 definitions decode with Voice Mode Poly and Polyphony 4, none with a Mono-requiring primary. Each passes its primary showcase arm with no override (coverage-matrix.csv), the chord render of `Profundum_PresetSweep`, and the SC-022 POLY4 arm reads a real maximum (not "0 % (-)") ≤ 25 % in the CPU lane | per-push; `[long]`; CPU lane |
 
 ---
@@ -807,3 +816,7 @@ Ruled by the user on 2026-10-24 ("Approve all 10", `evidence/plan-rulings.md`). 
 
 - Q: Does the editor show the plugin version, like Vorago and Seraphis? -> Yes: the shared `VersionLabel` under the header title (user: "can you add the version label to profundum?"). [FR-059]
 - Q: CI `windows-2022` read 15.84–16.42 s on every `Profundum_PresetRenderGuard_*of4` shard; relax the bar or split? -> Split into eight shards, each building only its own presets (the whole-library build in every shard was the fixed cost); the 15 s bar is unchanged and the case stays per push (R-11, C-10). [SC-027]
+
+### Session 2026-11-12 (description wrap + hover)
+
+- Q: Long descriptions (Disrumpo's run to 240 characters) are cut off on the one description line; shorten them, or show more? -> "Wrap + hover": up to three wrapped lines with an ellipsis when it still does not fit, the full text as the hover tooltip, the list shrinks by the extra height; never shorten or edit any description text (user, 2026-11-12). [FR-065, SC-033]

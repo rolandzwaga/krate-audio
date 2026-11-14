@@ -161,6 +161,13 @@ private:
     /// step and doesn't produce a long settling transient. Subsequent DC
     /// changes are tracked with time constant 1/(2*pi*freq).
     void removeDC(float* buffer, size_t numSamples) noexcept {
+        // A non-finite sidechain sample becomes 0 before it reaches any state: one NaN / Inf
+        // otherwise latched the DC estimate (and the HPF behind it) and analysis went deaf until
+        // a reset. Same rule as the output stage's sanitize (WI-17).
+        for (size_t i = 0; i < numSamples; ++i) {
+            if (!Krate::DSP::detail::isFinite(buffer[i])) buffer[i] = 0.0f;
+        }
+
         if (!dcInitialized_ && numSamples > 0) {
             dcEstimate_ = buffer[0];
             dcInitialized_ = true;

@@ -5,7 +5,8 @@
 use crate::keys::{self, ScenarioKey};
 use crate::socks::SocksRelay;
 use crate::{
-    ANY, HarnessError, LOOPBACK, Plant, bind_loopback, bind_loopback_listener, confinement,
+    ANY, HarnessError, LOOPBACK, Plant, bind_loopback, bind_loopback_listener, bind_refusing_loopback,
+    confinement,
 };
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD;
@@ -849,14 +850,13 @@ fn no_platform(plant: Option<Plant>) -> Outcome {
     rig.expect_trap_zero()
 }
 
-/// The endpoint's port is closed.
+/// The endpoint's port is closed: bound, never listening, and held until the check is done, so no parallel
+/// scenario's server can be handed it (`bind_refusing_loopback`).
 fn offline(plant: Option<Plant>) -> Outcome {
     let key = checked_key(plant)?;
-    let rig = Rig::new(Spec::new(plant, pubkey_of(&key)), |_| {
-        let closed = bind_loopback(LOOPBACK, vec![])?;
-        let url = closed.url(LATEST);
-        drop(closed);
-        Ok(url)
+    let (_refusing, closed) = bind_refusing_loopback(LOOPBACK)?;
+    let rig = Rig::new(Spec::new(plant, pubkey_of(&key)), move |_| {
+        Ok(format!("http://{closed}{LATEST}"))
     })?;
     expect_view_error(&rig.check(), "E_SELF_UPDATE_NETWORK", None)?;
     rig.expect_trap_zero()

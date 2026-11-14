@@ -14,11 +14,22 @@
 #include "dsp/morph_engine.h"
 #include "dsp/morph_node.h"
 #include "dsp/distortion_types.h"
+#include "../test_support/disrumpo_rig.h"
+
+// The single owner of the global operator new/delete replacements in
+// disrumpo_tests (allocation_detector.h). A second include anywhere else in this
+// binary is a duplicate-symbol link error: other TUs include allocation_detector.h only.
+#include <allocation_detector.h>
+#include <allocation_operator_overrides.h>
 
 #include <cmath>
 #include <chrono>
+#include <array>
+#include <cstddef>
 #include <memory>
+#include <numbers>
 #include <string>
+#include <vector>
 
 using Catch::Approx;
 
@@ -86,6 +97,24 @@ float measureOutputLevel(Disrumpo::MorphEngine& engine, float input, int numSamp
         sumSquares += static_cast<double>(out) * static_cast<double>(out);
     }
     return std::sqrt(static_cast<float>(sumSquares / numSamples));
+}
+
+/// @brief Feed a sine of `amplitude` at `freqHz` for `periods` whole periods and return the
+/// RMS of the last `measurePeriods` of them. (Measuring a level with a DC stimulus reads
+/// 0 through any type that blocks DC.)
+float measureSineLevel(Disrumpo::MorphEngine& engine, float amplitude, double freqHz,
+                       int periods, int measurePeriods, double sampleRate = 44100.0) {
+    const auto periodSamples = static_cast<int>(sampleRate / freqHz + 0.5);
+    const int total = periods * periodSamples;
+    const int from = (periods - measurePeriods) * periodSamples;
+    double sumSquares = 0.0;
+    for (int i = 0; i < total; ++i) {
+        const float in = amplitude * static_cast<float>(std::sin(
+            2.0 * std::numbers::pi * freqHz * static_cast<double>(i) / sampleRate));
+        const float out = engine.process(in);
+        if (i >= from) sumSquares += static_cast<double>(out) * static_cast<double>(out);
+    }
+    return std::sqrt(static_cast<float>(sumSquares / (total - from)));
 }
 
 /// @brief Measure processing time for N samples.
@@ -264,46 +293,45 @@ TEST_CASE("MorphEngine cross-family - output level consistent across blend posit
     engine.setMode(Disrumpo::MorphMode::Linear1D);
     engine.setSmoothingTime(0.0f);
 
-    constexpr float testInput = 0.3f;
-    constexpr int measureSamples = 500;
+    // A 100 Hz sine at amplitude 0.3: 20 periods per position, the RMS of the last 10.
+    // (This read a DC input of 0.3 until fix plan T1.22, which gives Tube a DC blocker.)
+    constexpr float testAmplitude = 0.3f;
+    constexpr double testFreqHz = 100.0;
+    constexpr int periods = 20;
+    constexpr int measurePeriods = 10;
 
     // Measure level at position 0 (100% node A)
     engine.setMorphPosition(0.0f, 0.0f);
     for (int i = 0; i < 100; ++i) {
         [[maybe_unused]] float out = engine.process(0.0f);
     }
-    float levelAt0 = measureOutputLevel(engine, testInput, measureSamples);
+    float levelAt0 = measureSineLevel(engine, testAmplitude, testFreqHz, periods, measurePeriods);
 
     // Measure level at position 0.5 (50/50)
     engine.setMorphPosition(0.5f, 0.0f);
     for (int i = 0; i < 100; ++i) {
         [[maybe_unused]] float out = engine.process(0.0f);
     }
-    float levelAt50 = measureOutputLevel(engine, testInput, measureSamples);
+    float levelAt50 = measureSineLevel(engine, testAmplitude, testFreqHz, periods, measurePeriods);
 
     // Measure level at position 1 (100% node B)
     engine.setMorphPosition(1.0f, 0.0f);
     for (int i = 0; i < 100; ++i) {
         [[maybe_unused]] float out = engine.process(0.0f);
     }
-    float levelAt100 = measureOutputLevel(engine, testInput, measureSamples);
+    float levelAt100 = measureSineLevel(engine, testAmplitude, testFreqHz, periods, measurePeriods);
 
-    // With equal-power crossfade, level at 50% should be comparable to endpoints
-    // SC-002: Output level within 1dB at all blend positions
-    // 1dB = factor of ~1.12
+    // SC-002: Output level within 1dB at all blend positions (the spread of all three
+    // positions is the check)
     float maxLevel = std::max({levelAt0, levelAt50, levelAt100});
     float minLevel = std::min({levelAt0, levelAt50, levelAt100});
-
-    // Avoid division by zero
-    if (minLevel > 0.001f) {
-        float ratio = maxLevel / minLevel;
-        // 3dB = factor of ~1.41 (being generous due to different distortion characteristics)
-        INFO("Level ratio: " << ratio);
-        INFO("Level at 0%: " << levelAt0);
-        INFO("Level at 50%: " << levelAt50);
-        INFO("Level at 100%: " << levelAt100);
-        REQUIRE(ratio < 3.0f);  // Generous margin for different distortion types
-    }
+    REQUIRE(minLevel > 0.0f);
+    const float spreadDb = 20.0f * std::log10(maxLevel / minLevel);
+    INFO("Level spread: " << spreadDb << " dB");
+    INFO("Level at 0%: " << levelAt0);
+    INFO("Level at 50%: " << levelAt50);
+    INFO("Level at 100%: " << levelAt100);
+    REQUIRE(spreadDb < 1.0f);
 }
 
 // =============================================================================
@@ -360,6 +388,8 @@ TEST_CASE("MorphEngine family detection - same family detected correctly", "[mor
         // Both should be same family (Saturation)
         REQUIRE(Disrumpo::getFamily(Disrumpo::DistortionType::SoftClip) ==
                 Disrumpo::getFamily(Disrumpo::DistortionType::Tube));
+        // ...but different types: not the single-processor path (D-028)
+        REQUIRE_FALSE(engine.getAllSameType());
     }
 
     SECTION("Wavefold family") {
@@ -370,6 +400,7 @@ TEST_CASE("MorphEngine family detection - same family detected correctly", "[mor
 
         REQUIRE(Disrumpo::getFamily(Disrumpo::DistortionType::SineFold) ==
                 Disrumpo::getFamily(Disrumpo::DistortionType::TriangleFold));
+        REQUIRE_FALSE(engine.getAllSameType());
     }
 
     SECTION("Digital family") {
@@ -380,6 +411,15 @@ TEST_CASE("MorphEngine family detection - same family detected correctly", "[mor
 
         REQUIRE(Disrumpo::getFamily(Disrumpo::DistortionType::Bitcrush) ==
                 Disrumpo::getFamily(Disrumpo::DistortionType::SampleReduce));
+        REQUIRE_FALSE(engine.getAllSameType());
+    }
+
+    SECTION("Identical types take the single-processor path") {
+        std::array<Disrumpo::MorphNode, Disrumpo::kMaxMorphNodes> nodes;
+        nodes[0] = Disrumpo::MorphNode(0, 0.0f, 0.0f, Disrumpo::DistortionType::SoftClip);
+        nodes[1] = Disrumpo::MorphNode(1, 1.0f, 0.0f, Disrumpo::DistortionType::SoftClip);
+        engine.setNodes(nodes, 2);
+        REQUIRE(engine.getAllSameType());
     }
 }
 
@@ -433,7 +473,7 @@ TEST_CASE("MorphEngine same-family Fractal - identical nodes produce clean outpu
     refAdapter->setType(Disrumpo::DistortionType::Fractal);
     refAdapter->setParams(fracParams);
     refAdapter->setCommonParams(commonParams);
-    refAdapter->reset();
+    (*refAdapter).reset();
 
     // MorphEngine: two identical Fractal nodes, 50/50 blend (heap-allocated)
     auto engine = std::make_unique<Disrumpo::MorphEngine>();
@@ -460,7 +500,8 @@ TEST_CASE("MorphEngine same-family Fractal - identical nodes produce clean outpu
     }
 
     // Compare RMS output over 1 second
-    double morphSumSq = 0.0, refSumSq = 0.0;
+    double morphSumSq = 0.0;
+    double refSumSq = 0.0;
     const int testSamples = static_cast<int>(sampleRate);
     int morphDiscontinuities = 0;
     float morphPrev = 0.0f;
@@ -681,7 +722,7 @@ TEST_CASE("MorphEngine same-family Fractal - all modes long duration",
                     // legitimate large deltas (e.g., Harmonic mode Chebyshev polynomials)
                     if (delta > 0.6f) {
                         ++discontinuityCount;
-                        if (delta > worstDelta) worstDelta = delta;
+                        worstDelta = std::max(worstDelta, delta);
                     }
                 }
                 prevSample = sample;
@@ -750,7 +791,7 @@ TEST_CASE("MorphEngine same-family - non-Fractal types also correct after zero-i
             hasNaN = true;
         }
         float absSample = std::abs(sample);
-        if (absSample > peakOutput) peakOutput = absSample;
+        peakOutput = std::max(peakOutput, absSample);
 
         windowSumSq += static_cast<double>(sample) * static_cast<double>(sample);
         if (++windowIdx >= kWindowSamples) {
@@ -836,13 +877,13 @@ TEST_CASE("MorphEngine same-family Fractal - low drive still stable over time",
         }
 
         float absSample = std::abs(sample);
-        if (absSample > peakOutput) peakOutput = absSample;
+        peakOutput = std::max(peakOutput, absSample);
 
         if (i > 0) {
             float delta = std::abs(sample - prevSample);
             if (delta > 0.3f) {  // Lower threshold for low drive
                 ++discontinuityCount;
-                if (delta > worstDelta) worstDelta = delta;
+                worstDelta = std::max(worstDelta, delta);
             }
         }
         prevSample = sample;
@@ -855,6 +896,336 @@ TEST_CASE("MorphEngine same-family Fractal - low drive still stable over time",
     CHECK(discontinuityCount == 0);
     // Low drive should not produce extreme output
     CHECK(peakOutput < 5.0f);
+}
+
+// =============================================================================
+// Integer / structural fields under same-family morphing (D-001, D-011, D-030)
+// =============================================================================
+
+namespace {
+
+/// Two active nodes of one type at x = 0 and x = 1 sharing @p params.
+std::array<Disrumpo::MorphNode, Disrumpo::kMaxMorphNodes> makeTwinNodes(
+        Disrumpo::DistortionType type, const Disrumpo::DistortionParams& params) {
+    std::array<Disrumpo::MorphNode, Disrumpo::kMaxMorphNodes> nodes;
+    for (int n = 0; n < 2; ++n) {
+        nodes[n] = Disrumpo::MorphNode(n, n == 0 ? 0.0f : 1.0f, 0.0f, type);
+        nodes[n].params = params;
+        nodes[n].commonParams.drive = 2.0f;
+        nodes[n].commonParams.mix = 1.0f;
+    }
+    nodes[2] = Disrumpo::MorphNode(2, 0.0f, 1.0f);
+    nodes[3] = Disrumpo::MorphNode(3, 1.0f, 1.0f);
+    return nodes;
+}
+
+} // namespace
+
+TEST_CASE("MorphEngine same-family Spectral morph allocates nothing and is not silent",
+          "[disrumpo][morph][rt-safety][D-001]") {
+    constexpr double kSampleRate = 48000.0;
+    constexpr float kTwoPi = 6.28318530718f;
+
+    auto engine = std::make_unique<Disrumpo::MorphEngine>();
+    engine->prepare(kSampleRate, 512);
+    engine->setSmoothingTime(0.0f);
+    engine->setMode(Disrumpo::MorphMode::Linear1D);
+
+    Disrumpo::DistortionParams params;
+    params.fftSize = 2048;
+    engine->setNodes(makeTwinNodes(Disrumpo::DistortionType::Spectral, params), 2);
+    engine->setMorphPosition(0.3f, 0.0f);
+
+    std::size_t sampleIndex = 0;
+    auto nextInput = [&]() {
+        const float x = 0.5f * std::sin(kTwoPi * 1000.0f * static_cast<float>(sampleIndex)
+                                        / static_cast<float>(kSampleRate));
+        ++sampleIndex;
+        return x;
+    };
+
+    // Settle pass (outside the allocation scope)
+    for (int i = 0; i < 4096; ++i) {
+        [[maybe_unused]] const float out = engine->process(nextInput());
+    }
+
+    constexpr std::size_t kMeasured = 8192;
+    std::vector<float> output(kMeasured, 0.0f);
+    std::size_t allocations = 0;
+    {
+        TestHelpers::AllocationScope scope;
+        for (std::size_t i = 0; i < kMeasured; ++i) {
+            output[i] = engine->process(nextInput());
+        }
+        allocations = TestHelpers::AllocationDetector::instance().getAllocationCount();
+    }
+
+    double sumSq = 0.0;
+    for (std::size_t i = kMeasured - 4096; i < kMeasured; ++i) {
+        sumSq += static_cast<double>(output[i]) * static_cast<double>(output[i]);
+    }
+    const auto rms = static_cast<float>(std::sqrt(sumSq / 4096.0));
+
+    CAPTURE(allocations);
+    CAPTURE(rms);
+    CHECK(engine->getBlendedParams().fftSize == 2048);
+    REQUIRE(allocations == 0);
+    REQUIRE(rms > 0.001f);
+}
+
+TEST_CASE("MorphEngine interpolateParams keeps integer fields at the shared node value",
+          "[disrumpo][morph][D-011][D-030]") {
+    constexpr double kSampleRate = 48000.0;
+
+    auto engine = std::make_unique<Disrumpo::MorphEngine>();
+    engine->prepare(kSampleRate, 512);
+    engine->setSmoothingTime(0.0f);
+    engine->setMode(Disrumpo::MorphMode::Linear1D);
+
+    auto runAt = [&](float x) {
+        engine->setMorphPosition(x, 0.0f);
+        for (int i = 0; i < 64; ++i) {
+            [[maybe_unused]] const float out = engine->process(0.1f);
+        }
+    };
+
+    SECTION("Fractal iterations = 4 at x = 0.6") {
+        Disrumpo::DistortionParams params;
+        params.iterations = 4;
+        engine->setNodes(makeTwinNodes(Disrumpo::DistortionType::Fractal, params), 2);
+        runAt(0.6f);
+        CAPTURE(engine->getWeights()[0], engine->getWeights()[1]);
+        REQUIRE(engine->getBlendedParams().iterations == 4);
+    }
+
+    SECTION("RingSaturation stages = 2 at x = 0.3") {
+        Disrumpo::DistortionParams params;
+        params.stages = 2;
+        engine->setNodes(makeTwinNodes(Disrumpo::DistortionType::RingSaturation, params), 2);
+        runAt(0.3f);
+        CAPTURE(engine->getWeights()[0], engine->getWeights()[1]);
+        REQUIRE(engine->getBlendedParams().stages == 2);
+    }
+
+    SECTION("Spectral fftSize = 2048 at x = 0.3") {
+        Disrumpo::DistortionParams params;
+        params.fftSize = 2048;
+        engine->setNodes(makeTwinNodes(Disrumpo::DistortionType::Spectral, params), 2);
+        runAt(0.3f);
+        CAPTURE(engine->getWeights()[0], engine->getWeights()[1]);
+        REQUIRE(engine->getBlendedParams().fftSize == 2048);
+    }
+}
+
+// =============================================================================
+// Path selection: one interpolated processor only for identical types (D-028)
+// =============================================================================
+
+namespace {
+
+constexpr double kPathRate = 48000.0;
+constexpr size_t kPathSamples = 4800;
+
+float pathInput(size_t n) {
+    return 0.5f * std::sin(6.28318530718f * 440.0f * static_cast<float>(n) /
+                           static_cast<float>(kPathRate));
+}
+
+/// Node A (x = 0, drive 2) and node B (x = 1, drive 6), mix 1, of the given types.
+std::array<Disrumpo::MorphNode, Disrumpo::kMaxMorphNodes> makePathNodes(Disrumpo::DistortionType a,
+                                                                        Disrumpo::DistortionType b) {
+    std::array<Disrumpo::MorphNode, Disrumpo::kMaxMorphNodes> nodes;
+    nodes[0] = Disrumpo::MorphNode(0, 0.0f, 0.0f, a);
+    nodes[0].commonParams.drive = 2.0f;
+    nodes[0].commonParams.mix = 1.0f;
+    nodes[1] = Disrumpo::MorphNode(1, 1.0f, 0.0f, b);
+    nodes[1].commonParams.drive = 6.0f;
+    nodes[1].commonParams.mix = 1.0f;
+    nodes[2] = Disrumpo::MorphNode(2, 0.0f, 1.0f);
+    nodes[3] = Disrumpo::MorphNode(3, 1.0f, 1.0f);
+    return nodes;
+}
+
+std::unique_ptr<Disrumpo::MorphEngine> makePathEngine(
+        const std::array<Disrumpo::MorphNode, Disrumpo::kMaxMorphNodes>& nodes) {
+    auto engine = std::make_unique<Disrumpo::MorphEngine>();
+    engine->prepare(kPathRate, 512);
+    engine->setSmoothingTime(0.0f);
+    engine->setMode(Disrumpo::MorphMode::Linear1D);
+    engine->setNodes(nodes, 2);
+    engine->setMorphPosition(0.3f, 0.0f);
+    return engine;
+}
+
+std::unique_ptr<Disrumpo::DistortionAdapter> makePathAdapter(Disrumpo::DistortionType type,
+                                                             const Disrumpo::DistortionParams& params,
+                                                             const Disrumpo::DistortionCommonParams& common) {
+    auto adapter = std::make_unique<Disrumpo::DistortionAdapter>();
+    adapter->prepare(kPathRate, 512);
+    adapter->setType(type);
+    adapter->setParams(params);
+    adapter->setCommonParams(common);
+    return adapter;
+}
+
+} // namespace
+
+TEST_CASE("MorphEngine identical-type nodes interpolate through one processor",
+          "[disrumpo][morph][D-028]") {
+    const auto nodes = makePathNodes(Disrumpo::DistortionType::SoftClip, Disrumpo::DistortionType::SoftClip);
+    auto engine = makePathEngine(nodes);
+
+    // Settle the cursor smoother (its 0 ms floor still takes a few samples) on silence,
+    // which leaves the stateless SoftClip and the zero-input tone filter at rest
+    for (int i = 0; i < 480; ++i) {
+        [[maybe_unused]] const float settle = engine->process(0.0f);
+    }
+    std::vector<float> out(kPathSamples, 0.0f);
+    std::size_t allocations = 0;
+    {
+        TestHelpers::AllocationScope scope;
+        for (size_t n = 0; n < kPathSamples; ++n) out[n] = engine->process(pathInput(n));
+        allocations = TestHelpers::AllocationDetector::instance().getAllocationCount();
+    }
+
+    // One SoftClip at the weighted drive / mix / tone, summed as interpolateCommonParams does
+    const auto& w = engine->getWeights();
+    Disrumpo::DistortionCommonParams common;
+    common.drive = 0.0f;
+    common.mix = 0.0f;
+    common.toneHz = 0.0f;
+    for (size_t i = 0; i < 2; ++i) {
+        common.drive += w[i] * nodes[i].commonParams.drive;
+        common.mix += w[i] * nodes[i].commonParams.mix;
+        common.toneHz += w[i] * nodes[i].commonParams.toneHz;
+    }
+    auto ref = makePathAdapter(Disrumpo::DistortionType::SoftClip, engine->getBlendedParams(), common);
+    float maxDiff = 0.0f;
+    size_t maxDiffAt = 0;
+    for (size_t n = 0; n < kPathSamples; ++n) {
+        const float d = std::abs(out[n] - ref->process(pathInput(n)));
+        if (d > maxDiff) {
+            maxDiff = d;
+            maxDiffAt = n;
+        }
+    }
+    WARN("SoftClip drive 2 / SoftClip drive 6 at x = 0.3 (w " << w[0] << " / " << w[1]
+         << "): interpolated drive " << common.drive << ", max |engine - one SoftClip| " << maxDiff
+         << " at sample " << maxDiffAt << ", allocations " << allocations);
+    CHECK(engine->getAllSameType());
+    CHECK(maxDiff <= 1e-6f);
+    REQUIRE(allocations == 0);
+}
+
+TEST_CASE("MorphEngine same-family different types run in parallel",
+          "[disrumpo][morph][D-028]") {
+    const auto nodes = makePathNodes(Disrumpo::DistortionType::SoftClip, Disrumpo::DistortionType::Tube);
+    auto engine = makePathEngine(nodes);
+    auto refA = makePathAdapter(nodes[0].type, nodes[0].params, nodes[0].commonParams);
+    auto refB = makePathAdapter(nodes[1].type, nodes[1].params, nodes[1].commonParams);
+
+    float maxDiff = 0.0f;
+    float peak = 0.0f;
+    std::size_t allocations = 0;
+    {
+        TestHelpers::AllocationScope scope;
+        for (size_t n = 0; n < kPathSamples; ++n) {
+            const float y = engine->process(pathInput(n));
+            const auto& w = engine->getWeights();
+            float expected = 0.0f;
+            expected += refA->process(pathInput(n)) * w[0];
+            expected += refB->process(pathInput(n)) * w[1];
+            maxDiff = std::max(maxDiff, std::abs(y - expected));
+            peak = std::max(peak, std::abs(expected));
+        }
+        allocations = TestHelpers::AllocationDetector::instance().getAllocationCount();
+    }
+    WARN("SoftClip drive 2 / Tube drive 6 at x = 0.3: max |engine - (wA * SoftClip + wB * Tube)| "
+         << maxDiff << " (peak " << peak << "), allocations " << allocations);
+    CHECK_FALSE(engine->getAllSameType());
+    CHECK(maxDiff <= 1e-5f);
+    REQUIRE(allocations == 0);
+}
+
+// =============================================================================
+// Bias semantics per type (D-033, D-082): DistortionParams::bias is bipolar
+// [-1, 1] with 0 neutral for every type; the adapter converts it to Fuzz's
+// unipolar [0, 1] (1 = centred) when it hands it to FuzzProcessor.
+// =============================================================================
+
+TEST_CASE("SoftClip+Fuzz same-family blend keeps a centred Fuzz centred",
+          "[disrumpo][morph][D-033]") {
+    // Node A SoftClip (bias 0), node B Fuzz with its Bias knob (shape slot 0) at 1.0,
+    // FuzzProcessor's centred bias. At wA 0.4 / wB 0.6 the Fuzz must run at its own
+    // bias, not at a blend of the SoftClip's 0 and its own value.
+    auto nodes = makePathNodes(Disrumpo::DistortionType::SoftClip, Disrumpo::DistortionType::Fuzz);
+    const std::array<float, Disrumpo::MorphNode::kShapeSlotCount> fuzzSlots{1.0f, 0.0f, 0.0f, 0.5f};
+    nodes[1].params = Disrumpo::DistortionParams{};
+    Disrumpo::Processor::mapShapeSlotsToParams(Disrumpo::DistortionType::Fuzz, fuzzSlots.data(), nodes[1].params);
+    auto engine = makePathEngine(nodes);
+    engine->setMorphPosition(0.5505f, 0.0f);  // inverse-distance weights 0.4 / 0.6
+    auto refSoft = makePathAdapter(nodes[0].type, nodes[0].params, nodes[0].commonParams);
+    auto refFuzz = makePathAdapter(nodes[1].type, nodes[1].params, nodes[1].commonParams);
+
+    float maxDiff = 0.0f;
+    float peak = 0.0f;
+    for (size_t n = 0; n < kPathSamples; ++n) {
+        const float y = engine->process(pathInput(n));
+        const auto& w = engine->getWeights();
+        const float expected = refSoft->process(pathInput(n)) * w[0] + refFuzz->process(pathInput(n)) * w[1];
+        if (n >= 480) {  // after the cursor smoother has settled
+            maxDiff = std::max(maxDiff, std::abs(y - expected));
+            peak = std::max(peak, std::abs(expected));
+        }
+    }
+    const auto& w = engine->getWeights();
+    WARN("D-033 SoftClip + Fuzz (slot0 1.0, params.bias " << nodes[1].params.bias << ") at w " << w[0] << " / "
+         << w[1] << ": max |engine - (wA * SoftClip + wB * Fuzz alone)| " << maxDiff << " (peak " << peak << ")");
+    CHECK(std::abs(w[1] - 0.6f) < 0.01f);
+    REQUIRE(maxDiff <= 1e-4f);
+}
+
+TEST_CASE("Fuzz Bias 0.0 and 0.25 give different Fuzz output", "[disrumpo][morph][D-082]") {
+    using namespace Disrumpo;
+    using namespace Disrumpo::TestSupport;
+    constexpr double kSampleRate = 48000.0;
+    constexpr size_t kLen = 12000;  // 0.25 s
+    std::vector<float> in(kLen);
+    for (size_t i = 0; i < kLen; ++i)
+        in[i] = 0.25f * std::sin(6.28318530718f * 440.0f * static_cast<float>(i) / static_cast<float>(kSampleRate));
+
+    // One band, node 0 Fuzz (the only active node), then the host automates its Bias. Fuzz's Bias
+    // is its shape slot 0, which wins over the node's kNodeBias (follow-ups 34 and 87, user ruling
+    // 2026-11-09); the slot maps 0.0 / 0.25 to bias -1 / -0.5, as kNodeBias did.
+    const auto render = [&](double biasNorm, std::vector<float>& outL) {
+        Rig rig(kSampleRate);
+        rig.apply({{kBandCountId, 0.0},
+                   {makeNodeParamId(0, 0, NodeParamType::kNodeType),
+                    static_cast<double>(static_cast<int>(DistortionType::Fuzz)) / 25.0},
+                   {makeNodeParamId(0, 0, NodeParamType::kNodeDrive), 0.5}});
+        rig.apply({{makeNodeParamId(0, 0, NodeParamType::kNodeShape0), biasNorm}});
+        std::vector<float> outR;
+        rig.render(in, in, outL, outR);
+    };
+    std::vector<float> a;
+    std::vector<float> b;
+    render(0.0, a);
+    render(0.25, b);
+
+    const size_t from = kLen / 2;
+    double maxDiff = 0.0;
+    std::vector<float> diff(kLen - from);
+    for (size_t i = from; i < kLen; ++i) {
+        diff[i - from] = a[i] - b[i];
+        maxDiff = std::max(maxDiff, std::fabs(static_cast<double>(diff[i - from])));
+    }
+    const double rmsA = rmsOf(a.data() + from, kLen - from);
+    const double rmsB = rmsOf(b.data() + from, kLen - from);
+    const double rmsDiff = rmsOf(diff.data(), diff.size());
+    WARN("D-082 Fuzz Bias (slot 0) norm 0.0: RMS " << toDb(rmsA) << " dBFS; 0.25: RMS " << toDb(rmsB)
+         << " dBFS; max |difference| " << maxDiff << ", RMS of the difference " << toDb(rmsDiff) << " dBFS");
+    REQUIRE(rmsA > 1e-3);
+    REQUIRE(rmsDiff > 1e-3);
 }
 
 // =============================================================================

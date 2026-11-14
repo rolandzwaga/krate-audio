@@ -4581,6 +4581,7 @@ dependencies = [
  "minisign-verify",
  "semver",
  "serde_json",
+ "socket2",
  "tauri",
  "tauri-plugin-updater",
  "tauri-winres",

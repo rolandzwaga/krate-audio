@@ -322,6 +322,11 @@ private:
     std::array<OnePoleSmoother, kMaxFormants> freqSmoothers_{};
     std::array<OnePoleSmoother, kMaxFormants> bwSmoothers_{};
 
+    // Inputs the biquads were last designed for (updateFilterCoefficients)
+    std::array<float, kMaxFormants> designedFreq_{};
+    std::array<float, kMaxFormants> designedBw_{};
+    float designedRate_ = -1.0f;
+
     // Parameters
     Vowel currentVowel_ = Vowel::A;
     float vowelMorphPosition_ = 0.0f;
@@ -487,10 +492,22 @@ inline void FormantFilter::calculateTargetFormants() noexcept {
 
 inline void FormantFilter::updateFilterCoefficients() noexcept {
     const float sr = static_cast<float>(sampleRate_);
+    const bool rateChanged = sr != designedRate_;
+    designedRate_ = sr;
 
     for (int i = 0; i < kMaxFormants; ++i) {
         const float freq = freqSmoothers_[i].process();
         const float bw = bwSmoothers_[i].process();
+        // The design is a pure function of (frequency, bandwidth, rate): skip it when they are
+        // the ones it was last made for. A smoother can stall one float step short of its target
+        // (above ~1 kHz a step exceeds kCompletionThreshold and a coefficient > 0.5 rounds back),
+        // so smoothersSettled() never holds and every sample re-derived all five sin / cos pairs
+        // with the same inputs (Disrumpo round 3 profile: 77 % of a Formant band at 4x).
+        if (!rateChanged && freq == designedFreq_[i] && bw == designedBw_[i]) {
+            continue;
+        }
+        designedFreq_[i] = freq;
+        designedBw_[i] = bw;
         const float q = calculateQ(freq, bw);
 
         // Store Q as gain to convert "constant 0 dB peak" BPF to
@@ -545,9 +562,31 @@ inline float FormantFilter::process(float input) noexcept {
 }
 
 inline void FormantFilter::processBlock(float* buffer, size_t numSamples) noexcept {
-    for (size_t i = 0; i < numSamples; ++i) {
-        buffer[i] = process(buffer[i]);
+    if (!smoothersSettled()) {
+        for (size_t i = 0; i < numSamples; ++i) {
+            buffer[i] = process(buffer[i]);
+        }
+        return;
     }
+    // Settled smoothers stay settled for the block (only a setter re-arms them), so process() would
+    // skip the coefficient update on every sample: the five biquads run on copies in locals, every
+    // one of them per sample (process() keeps the inactive bands current too), and the active
+    // bands' outputs are summed in band order, process()'s arithmetic (Disrumpo round 6 CPU)
+    std::array<Biquad, kMaxFormants> filters = formants_;
+    const int active = activeFormants_;
+    for (size_t k = 0; k < numSamples; ++k) {
+        const float input = buffer[k];
+        std::array<float, kMaxFormants> band{};
+        for (size_t i = 0; i < static_cast<size_t>(kMaxFormants); ++i) {
+            band[i] = filters[i].process(input);
+        }
+        float output = 0.0f;
+        for (int i = 0; i < active; ++i) {
+            output += band[static_cast<size_t>(i)] * bandGain_[static_cast<size_t>(i)];
+        }
+        buffer[k] = output * resonanceGain_;
+    }
+    formants_ = filters;
 }
 
 } // namespace Krate::DSP

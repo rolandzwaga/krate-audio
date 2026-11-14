@@ -154,15 +154,18 @@ public:
         fftSize = pow2;
 
         sampleRate_ = sampleRate;
+        allocatedFftSize_ = fftSize;
         fftSize_ = fftSize;
         hopSize_ = fftSize / 2;  // 50% overlap for COLA with Hann
         numBins_ = fftSize / 2 + 1;
 
-        // Prepare STFT analyzer
+        // Prepare STFT analyzer (plus every smaller size, for setActiveFftSize)
         stft_.prepare(fftSize, hopSize_, WindowType::Hann);
+        stft_.prepareActiveSizes(kMinFFTSize);
 
         // Prepare overlap-add synthesizer
         overlapAdd_.prepare(fftSize, hopSize_, WindowType::Hann);
+        overlapAdd_.prepareActiveSizes(kMinFFTSize);
 
         // Prepare spectral buffers
         inputSpectrum_.prepare(fftSize);
@@ -184,10 +187,49 @@ public:
         // Allocate zero buffer for null input handling
         zeroBuffer_.resize(fftSize * 4, 0.0f);
 
+        // processBlock's output FIFO. It never holds more than 2 * hopSize
+        // (see processBlock); 2 * fftSize keeps the mask a power of two.
+        blockFifo_.assign(fftSize * 2, 0.0f);
+        blockFifoMask_ = blockFifo_.size() - 1;
+        hopScratch_.assign(hopSize_, 0.0f);
+        resetBlockFifo();
+
         // Update band bins
         updateBandBins();
 
         prepared_ = true;
+    }
+
+    /// @brief Change the FFT size within the buffers prepare() allocated
+    /// @param fftSize Requested size: rounded up to a power of two and clamped
+    ///        to [kMinFFTSize, the size passed to prepare()]
+    /// @note Real-time safe (no allocation). A size change resets the frame
+    ///       state, like reset(); an unchanged size is a no-op.
+    void setActiveFftSize(std::size_t fftSize) noexcept {
+        if (!prepared_) return;
+
+        std::size_t pow2 = kMinFFTSize;
+        while (pow2 < fftSize && pow2 < allocatedFftSize_) pow2 <<= 1;
+        if (pow2 == fftSize_) return;
+
+        // Every power of two in [kMinFFTSize, allocatedFftSize_] was reserved
+        // by prepare(), so both selections succeed.
+        if (!stft_.setActiveSize(pow2, pow2 / 2)) return;
+        (void)overlapAdd_.setActiveSize(pow2, pow2 / 2);
+
+        fftSize_ = pow2;
+        hopSize_ = pow2 / 2;
+        numBins_ = pow2 / 2 + 1;
+        inputSpectrum_.setActiveSize(pow2);
+        outputSpectrum_.setActiveSize(pow2);
+
+        const float binWidth = static_cast<float>(sampleRate_) / static_cast<float>(fftSize_);
+        for (std::size_t i = 0; i < numBins_; ++i) {
+            binFrequencies_[i] = static_cast<float>(i) * binWidth;
+        }
+
+        updateBandBins();
+        reset();
     }
 
     /// @brief Reset all internal state buffers (FR-002)
@@ -203,6 +245,8 @@ public:
         std::fill(storedPhases_.begin(), storedPhases_.end(), 0.0f);
         std::fill(prevFramePhases_.begin(), prevFramePhases_.end(), 0.0f);
         prngState_ = 0x12345678u;
+
+        resetBlockFifo();
     }
 
     // =========================================================================
@@ -249,6 +293,13 @@ public:
     /// @param numSamples Number of samples to process
     /// @pre prepare() has been called
     /// @note Real-time safe, noexcept (FR-025)
+    /// @note The output is the processed stream delayed by exactly latency(),
+    ///       whatever the block size: every frame's hop goes into an output FIFO
+    ///       and each call pops exactly numSamples from it. Pulling straight into
+    ///       the caller's block played silence whenever a block ended without
+    ///       completing a frame (3 blocks in 4 at 64-sample blocks with a 512-point
+    ///       FFT) and left part of a hop in the OverlapAdd, which then added the
+    ///       next frame at the wrong overlap offset.
     void processBlock(const float* input, float* output, std::size_t numSamples) noexcept {
         if (!prepared_) {
             if (output != nullptr) {
@@ -257,21 +308,16 @@ public:
             return;
         }
 
-        // Handle nullptr input
-        const float* inputPtr = input;
-        if (inputPtr == nullptr) {
-            inputPtr = zeroBuffer_.data();
-            numSamples = std::min(numSamples, zeroBuffer_.size());
-        }
-
         if (numSamples == 0) return;
 
-        // Check for NaN/Inf in input
+        // Check for NaN/Inf in input (a nullptr input reads as silence)
         bool hasInvalidInput = false;
-        for (std::size_t i = 0; i < numSamples; ++i) {
-            if (detail::isNaN(inputPtr[i]) || detail::isInf(inputPtr[i])) {
-                hasInvalidInput = true;
-                break;
+        if (input != nullptr) {
+            for (std::size_t i = 0; i < numSamples; ++i) {
+                if (detail::isNaN(input[i]) || detail::isInf(input[i])) {
+                    hasInvalidInput = true;
+                    break;
+                }
             }
         }
 
@@ -283,29 +329,34 @@ public:
             return;
         }
 
-        // Track output position
-        std::size_t outputWritten = 0;
+        // Process in chunks of at most one hop: the FIFO then holds at most
+        // 2 * hopSize (one hop owed to the chunk plus one hop of lead), and a
+        // nullptr input never needs more of the zero buffer than one hop. Each
+        // chunk is read before its output is written, so output may alias input.
+        std::size_t processed = 0;
+        while (processed < numSamples) {
+            const std::size_t chunkSize = std::min(numSamples - processed, hopSize_);
+            const float* chunk = (input != nullptr) ? input + processed : zeroBuffer_.data();
+            stft_.pushSamples(chunk, chunkSize);
 
-        // Push all samples to STFT
-        stft_.pushSamples(inputPtr, numSamples);
+            while (stft_.canAnalyze()) {
+                stft_.analyze(inputSpectrum_);
+                processSpectralFrame();
 
-        // Process spectral frames when ready
-        while (stft_.canAnalyze()) {
-            stft_.analyze(inputSpectrum_);
-            processSpectralFrame();
-            overlapAdd_.synthesize(outputSpectrum_);
-
-            // Pull hopSize samples immediately if available
-            while (overlapAdd_.samplesAvailable() >= hopSize_ && outputWritten < numSamples) {
-                std::size_t toPull = std::min(hopSize_, numSamples - outputWritten);
-                overlapAdd_.pullSamples(output + outputWritten, toPull);
-                outputWritten += toPull;
+                // Synthesize, then pull EXACTLY one hop: OverlapAdd adds each
+                // frame at its read position, so the next frame lands one hop
+                // later only if this one's whole hop was taken.
+                overlapAdd_.synthesize(outputSpectrum_);
+                overlapAdd_.pullSamples(hopScratch_.data(), hopSize_);
+                for (std::size_t i = 0; i < hopSize_; ++i) {
+                    blockFifo_[(blockFifoWrite_ + i) & blockFifoMask_] = hopScratch_[i];
+                }
+                blockFifoWrite_ = (blockFifoWrite_ + hopSize_) & blockFifoMask_;
+                blockFifoCount_ += hopSize_;
             }
-        }
 
-        // Fill remaining output with zeros if needed (latency warmup period)
-        if (outputWritten < numSamples && output != nullptr) {
-            std::fill(output + outputWritten, output + numSamples, 0.0f);
+            popBlockFifo(output != nullptr ? output + processed : nullptr, chunkSize);
+            processed += chunkSize;
         }
     }
 
@@ -524,6 +575,36 @@ private:
     // =========================================================================
     // Internal Methods
     // =========================================================================
+
+    /// @brief Empty processBlock's output FIFO and re-arm the latency warm-up.
+    void resetBlockFifo() noexcept {
+        std::fill(blockFifo_.begin(), blockFifo_.end(), 0.0f);
+        blockFifoRead_ = 0;
+        blockFifoWrite_ = 0;
+        blockFifoCount_ = 0;
+        warmupRemaining_ = fftSize_;
+    }
+
+    /// @brief Pop numSamples from processBlock's output FIFO (nullptr discards).
+    ///
+    /// The first fftSize samples after a reset are silence, so input sample n
+    /// leaves at output sample n + fftSize for every partition: the frame holding
+    /// input n completes by input count fftSize + floor(n / hop) * hop <= n + fftSize,
+    /// so its hop is in the FIFO before output n + fftSize is popped. The empty
+    /// branch is therefore unreachable; it degrades to silence, not stale data.
+    void popBlockFifo(float* output, std::size_t numSamples) noexcept {
+        for (std::size_t i = 0; i < numSamples; ++i) {
+            float sample = 0.0f;
+            if (warmupRemaining_ > 0) {
+                --warmupRemaining_;
+            } else if (blockFifoCount_ > 0) {
+                sample = blockFifo_[blockFifoRead_];
+                blockFifoRead_ = (blockFifoRead_ + 1) & blockFifoMask_;
+                --blockFifoCount_;
+            }
+            if (output != nullptr) output[i] = sample;
+        }
+    }
 
     /// @brief Process a single spectral frame
     void processSpectralFrame() noexcept {
@@ -1077,6 +1158,7 @@ private:
 
     // Cached values
     double sampleRate_ = 44100.0;
+    std::size_t allocatedFftSize_ = kDefaultFFTSize;  ///< prepare()'s size: the buffers' capacity
     std::size_t fftSize_ = kDefaultFFTSize;
     std::size_t hopSize_ = kDefaultFFTSize / 2;
     std::size_t numBins_ = kDefaultFFTSize / 2 + 1;
@@ -1093,6 +1175,15 @@ private:
 
     // Auxiliary buffers
     std::vector<float> zeroBuffer_;
+
+    // processBlock output FIFO (fixed latency of fftSize for any block size)
+    std::vector<float> blockFifo_;
+    std::vector<float> hopScratch_;
+    std::size_t blockFifoMask_ = 0;
+    std::size_t blockFifoRead_ = 0;
+    std::size_t blockFifoWrite_ = 0;
+    std::size_t blockFifoCount_ = 0;
+    std::size_t warmupRemaining_ = 0;
 };
 
 } // namespace Krate::DSP

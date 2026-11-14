@@ -58,7 +58,7 @@ public:
     // ==========================================================================
 
     /// @brief Set the number of active frequency bands
-    /// @param numBands Number of bands (1-8)
+    /// @param numBands Number of bands (1-4)
     void setNumBands(int numBands);
 
     /// @brief Get the number of active frequency bands
@@ -78,7 +78,7 @@ public:
     void setListener(SpectrumDisplayListener* listener) { listener_ = listener; }
 
     /// @brief Set per-band sweep intensity values for overlay rendering (FR-050)
-    /// @param intensities Array of intensity values [0, 2] per band (up to 8)
+    /// @param intensities Array of intensity values [0, 2] per band (up to 4)
     /// @param numBands Number of bands with valid intensity data
     void setSweepBandIntensities(const std::array<float, 4>& intensities, int numBands);
 
@@ -120,6 +120,9 @@ public:
 
     /// @brief Check if spectrum analysis is active
     [[nodiscard]] bool isAnalysisActive() const { return analysisActive_; }
+
+    /// @brief Test seam: the output FIFO the analysis reads (nullptr when none)
+    [[nodiscard]] const Krate::DSP::SpectrumFIFO<8192>* outputFIFOForTest() const { return outputFIFO_; }
 
     // ==========================================================================
     // Coordinate Conversion

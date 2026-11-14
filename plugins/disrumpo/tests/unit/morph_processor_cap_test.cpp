@@ -2,6 +2,8 @@
 // MorphEngine Global Processor Cap Tests
 // ==============================================================================
 // Unit tests for FR-019: Global cap of 16 active distortion processors.
+// The global cap itself holds by construction (kMaxBands x kMaxMorphNodes,
+// static_assert in dsp/band_state.h); these cases cover one engine's weights.
 //
 // Constitution Principle XII: Test-First Development
 // Reference: specs/005-morph-system/spec.md FR-019, SC-009
@@ -116,54 +118,6 @@ TEST_CASE("MorphEngine processor cap - center position activates all 4 nodes", "
     // Each should have approximately 25% weight
     for (int i = 0; i < 4; ++i) {
         REQUIRE(weights[i] == Approx(0.25f).margin(0.02f));
-    }
-}
-
-TEST_CASE("MorphEngine processor cap - dynamic threshold raises when exceeding limit", "[morph][cap][FR-019]") {
-    // This test verifies the algorithm described in FR-019:
-    // When processor count would exceed 16, threshold is raised incrementally
-
-    // Simulate scenario with multiple bands each having 4 cross-family nodes
-    // With 5 bands * 4 nodes = 20 potential processors (exceeds 16 cap)
-
-    // For now, test the single-engine threshold behavior
-    auto engineOwner = std::make_unique<Disrumpo::MorphEngine>();
-    auto& engine = *engineOwner;
-    prepareTestEngine(engine);
-    auto nodes = createMaxCrossFamilyNodes();
-    engine.setNodes(nodes, 4);
-    engine.setMode(Disrumpo::MorphMode::Planar2D);
-    engine.setSmoothingTime(0.0f);
-
-    // At center, all 4 nodes are active
-    engine.calculateMorphWeights(0.5f, 0.5f);
-    const auto& weights = engine.getWeights();
-
-    // Verify weights are computed correctly
-    int activeCount = countActiveProcessors(weights, 4);
-    REQUIRE(activeCount <= Disrumpo::kMaxGlobalProcessors);
-}
-
-TEST_CASE("MorphEngine processor cap - threshold never exceeds 0.25", "[morph][cap][FR-019]") {
-    // FR-019 specifies threshold should never go above 0.25
-    // This ensures at least some morphing is always possible
-
-    auto engineOwner = std::make_unique<Disrumpo::MorphEngine>();
-    auto& engine = *engineOwner;
-    prepareTestEngine(engine);
-    auto nodes = createMaxCrossFamilyNodes();
-    engine.setNodes(nodes, 4);
-    engine.setMode(Disrumpo::MorphMode::Planar2D);
-    engine.setSmoothingTime(0.0f);
-
-    // Even with aggressive threshold, weights should still work
-    engine.calculateMorphWeights(0.5f, 0.5f);
-    const auto& weights = engine.getWeights();
-
-    // At center with 4 equal-distant nodes, each gets 25%
-    // Since 25% >= kMaxWeightThreshold (0.25), all should be active
-    for (int i = 0; i < 4; ++i) {
-        REQUIRE(weights[i] >= Disrumpo::kMaxWeightThreshold - 0.01f);
     }
 }
 

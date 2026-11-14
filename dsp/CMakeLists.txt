@@ -33,6 +33,9 @@ target_link_libraries(KrateDSP PUBLIC PFFFT)
 # Link to Google Highway for SIMD-accelerated spectral math
 # PRIVATE because no Highway headers appear in public API
 target_link_libraries(KrateDSP PRIVATE hwy hwy_contrib)
+# Highway's headers are third-party: include them as SYSTEM so /W4 does not report warnings inside them
+# (C4127 in hwy/contrib/math/math-inl.h). Same approach as smtg_mark_includes_as_system in the root CMakeLists.txt.
+target_include_directories(KrateDSP SYSTEM PRIVATE $<TARGET_PROPERTY:hwy,INTERFACE_INCLUDE_DIRECTORIES>)
 
 # C++20 requirement
 target_compile_features(KrateDSP PUBLIC cxx_std_20)

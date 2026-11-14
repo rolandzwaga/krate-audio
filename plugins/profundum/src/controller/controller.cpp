@@ -108,13 +108,7 @@ tresult PLUGIN_API Controller::initialize(FUnknown* context) {
     registerMorphModParams(parameters);
 
     // FR-050.
-    presetManager_ = std::make_unique<Krate::Plugins::PresetManager>(makeProfundumPresetConfig(),
-                                                                     nullptr, this);
-    // Phase 13 FR-031 (plan 4.6, Vorago controller.cpp:113-118): save the processor's own getState bytes; load the
-    // whole stream through the processor first (loadPresetStream).
-    presetManager_->setStateProvider([this]() -> IBStream* { return createComponentStateStream(); });
-    presetManager_->setLoadProvider(
-        [this](IBStream* stream, const Krate::Plugins::PresetInfo& /*info*/) { return loadPresetStream(stream); });
+    createPresetManager({}, {});
     presetTabLabels_ = makeProfundumPresetTabLabels();
     updateChecker_ = std::make_unique<Krate::Plugins::UpdateChecker>(makeProfundumUpdateConfig());
 
@@ -125,10 +119,23 @@ tresult PLUGIN_API Controller::initialize(FUnknown* context) {
     return kResultOk;
 }
 
+void Controller::createPresetManager(std::filesystem::path userDirOverride,
+                                     std::filesystem::path factoryDirOverride) {
+    presetManager_ = std::make_unique<Krate::Plugins::PresetManager>(
+        makeProfundumPresetConfig(), nullptr, this, std::move(userDirOverride), std::move(factoryDirOverride));
+    // Phase 13 FR-031 (plan 4.6, Vorago controller.cpp:113-118): save the processor's own getState bytes; load the
+    // whole stream through the processor first (loadPresetStream).
+    presetManager_->setStateProvider([this]() -> IBStream* { return createComponentStateStream(); });
+    presetManager_->setLoadProvider(
+        [this](IBStream* stream, const Krate::Plugins::PresetInfo& /*info*/) { return loadPresetStream(stream); });
+}
+
 tresult PLUGIN_API Controller::terminate() {
     stopEditorSyncTimer();  // a host that tears down without willClose must not leave the timer firing
-    updateChecker_.reset();
-    presetManager_ = nullptr;
+    // updateChecker_ and presetManager_ stay until the destructor: an editor a host has not
+    // closed yet still polls the checker (update banner, Check for Updates button) and its
+    // preset browser holds the manager, and that editor holds a reference to this
+    // controller, so the destructor runs only after its views are gone
     return EditControllerEx1::terminate();
 }
 

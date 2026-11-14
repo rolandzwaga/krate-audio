@@ -12,7 +12,10 @@
 #include <test_signals.h>
 
 #include <cmath>
+#include <algorithm>
 #include <array>
+#include <bit>
+#include <cstdint>
 #include <numeric>
 #include <vector>
 
@@ -605,18 +608,30 @@ TEST_CASE("DelayLine readAllpass at integer position", "[delay][allpass][US3]") 
         REQUIRE(result == Approx(0.5f).margin(0.01f));
     }
 
-    SECTION("integer position with frac=0 uses coefficient a=1") {
-        // When frac=0: a = (1-0)/(1+0) = 1
-        // y = x0 + a*(state - x1) = x0 + state - x1
-        // This is verifiable behavior even if it doesn't match read()
+    SECTION("integer position reads the integer sample exactly") {
+        // d = 10: D = frac + 1 = 1 on the pair (9, 10), a = (1-D)/(1+D) = 0,
+        // so y = x[n-10] with no transient.
         delay.reset();
-        delay.write(0.0f);
-        delay.write(1.0f);
+        for (int i = 0; i < 40; ++i) {
+            delay.write(static_cast<float>(i));
+            const float result = delay.readAllpass(10.0f);
+            if (i >= 10) {
+                REQUIRE(result == static_cast<float>(i - 10));
+            }
+        }
+    }
 
-        // First call: x0=1, x1=0, state=0
-        // y = 1 + 1*(0 - 0) = 1
-        float result = delay.readAllpass(0.0f);
-        REQUIRE(result == Approx(1.0f));
+    SECTION("delay below 0.5 reads the newest sample") {
+        // No younger pair exists, and D = frac on the pair (0, 1) would put the
+        // pole near z = -1, so d in [0, 0.5) is the integer read at 0.
+        for (float d : {0.0f, 0.3f, 0.49f}) {
+            delay.reset();
+            delay.write(0.0f);
+            delay.write(1.0f);
+            REQUIRE(delay.readAllpass(d) == 1.0f);
+            delay.write(-0.5f);
+            REQUIRE(delay.readAllpass(d) == -0.5f);
+        }
     }
 }
 
@@ -628,22 +643,25 @@ TEST_CASE("DelayLine readAllpass coefficient calculation", "[delay][allpass][US3
     delay.write(0.0f);
     delay.write(1.0f);
 
-    SECTION("coefficient at frac=0 is 1") {
-        // a = (1 - 0) / (1 + 0) = 1
-        // y = x0 + 1 * (state - x1) = x0 + state - x1
-        // With state=0: y = x0 - x1 = 1.0 - 0.0 = 1.0
-        float result = delay.readAllpass(0.0f);
-        REQUIRE(result == Approx(1.0f));
-    }
-
     SECTION("coefficient at frac=0.5 is 1/3") {
         // a = (1 - 0.5) / (1 + 0.5) = 0.5 / 1.5 = 1/3
         delay.reset();
         delay.write(0.0f);
         delay.write(1.0f);
         float result = delay.readAllpass(0.5f);
-        // y = x0 + a * (state - x1) = 1.0 + (1/3) * (0 - 0.0) = 1.0
-        REQUIRE(result == Approx(1.0f).margin(0.01f));
+        // y = x1 + a * (x0 - state) = 0.0 + (1/3) * (1.0 - 0) = 1/3
+        REQUIRE(result == Approx(1.0f / 3.0f));
+    }
+
+    SECTION("coefficient at frac=0.25 is -1/9 on the pair one sample earlier") {
+        // frac < 0.5 reads the pair (k-1, k) with D = frac + 1 = 1.25:
+        // a = (1 - 1.25) / (1 + 1.25) = -1/9. d = 1.25: x0 = x[n] = 1,
+        // x1 = x[n-1] = 0, y = x1 + a * (x0 - state) = -1/9.
+        delay.reset();
+        delay.write(0.0f);
+        delay.write(1.0f);
+        float result = delay.readAllpass(1.25f);
+        REQUIRE(result == Approx(-1.0f / 9.0f));
     }
 }
 
@@ -778,6 +796,150 @@ TEST_CASE("DelayLine readAllpass state is cleared by reset", "[delay][allpass][U
     float freshResult = freshDelay.readAllpass(0.0f);
 
     REQUIRE(resetResult == Approx(freshResult));
+}
+
+// =============================================================================
+// readAllpass delays by the FRACTIONAL amount (follow-up 83)
+// =============================================================================
+// The interpolator was y = x[n-k] + a (y[n-1] - x[n-k-1]), whose zero cancels
+// its pole: Y = z^-k X, an integer delay at floor(d) whatever the fraction. The
+// unity-gain and settling cases above pass for an integer delay too, so these
+// measure the delay itself: the DC group delay (impulse-response centroid) and
+// the phase delay of a 100 Hz sine, both of which a first-order allpass
+// (Thiran) interpolator sets to d.
+
+namespace {
+
+/// Impulse-response centroid sum(n h[n]) / sum(h[n]): the DC group delay.
+double allpassImpulseCentroid(double sampleRate, float d) {
+    DelayLine delay;
+    delay.prepare(sampleRate, 0.01f);
+    double num = 0.0;
+    double den = 0.0;
+    for (int n = 0; n < 256; ++n) {
+        delay.write(n == 0 ? 1.0f : 0.0f);
+        const double h = static_cast<double>(delay.readAllpass(d));
+        num += static_cast<double>(n) * h;
+        den += h;
+    }
+    return num / den;
+}
+
+/// Phase delay in samples of a steady sine at `freqHz`, from the input and
+/// output phases over a whole number of periods after a settling second.
+double allpassPhaseDelay(double sampleRate, float d, double freqHz) {
+    DelayLine delay;
+    delay.prepare(sampleRate, 0.01f);
+    const double w = 2.0 * 3.14159265358979323846 * freqHz / sampleRate;
+    const auto settle = static_cast<int>(sampleRate);
+    const auto measure = static_cast<int>(std::round(20.0 * sampleRate / freqHz));
+    double inS = 0.0, inC = 0.0, outS = 0.0, outC = 0.0;
+    for (int n = 0; n < settle + measure; ++n) {
+        const auto x = static_cast<float>(std::sin(w * n));
+        delay.write(x);
+        const double y = static_cast<double>(delay.readAllpass(d));
+        if (n >= settle) {
+            inS += static_cast<double>(x) * std::sin(w * n);
+            inC += static_cast<double>(x) * std::cos(w * n);
+            outS += y * std::sin(w * n);
+            outC += y * std::cos(w * n);
+        }
+    }
+    const double phaseIn = std::atan2(inC, inS);
+    const double phaseOut = std::atan2(outC, outS);
+    return (phaseIn - phaseOut) / w;
+}
+
+} // namespace
+
+TEST_CASE("DelayLine readAllpass delays by the fractional amount",
+          "[delay][allpass][follow-up-83]") {
+    const std::array<double, 2> rates = {44100.0, 48000.0};
+    const std::array<float, 7> delays = {10.0f, 10.1f, 10.25f, 10.5f, 10.75f, 10.9f, 37.6f};
+
+    for (double sr : rates) {
+        for (float d : delays) {
+            DYNAMIC_SECTION("sr " << sr << " d " << d) {
+                const double centroid = allpassImpulseCentroid(sr, d);
+                const double phaseDelay = allpassPhaseDelay(sr, d, 100.0);
+                INFO("DC group delay " << centroid << ", 100 Hz phase delay " << phaseDelay);
+                CHECK(centroid == Approx(static_cast<double>(d)).margin(1e-3));
+                CHECK(phaseDelay == Approx(static_cast<double>(d)).margin(5e-3));
+            }
+        }
+    }
+}
+
+TEST_CASE("DelayLine readAllpass settles at once when the fraction returns to 0",
+          "[delay][allpass][follow-up-83]") {
+    // A coefficient near 1 (frac -> 0) puts the pole near z = -1: a change of
+    // delay would leave a Nyquist ring that hardly decays. Switch from 10.5 to
+    // 10.0 (and to 10.001) and require the output to match the integer read
+    // within 32 samples.
+    for (float target : {10.0f, 10.001f}) {
+        DYNAMIC_SECTION("target " << target) {
+            DelayLine delay;
+            delay.prepare(48000.0, 0.01f);
+            const double w = 2.0 * 3.14159265358979323846 * 997.0 / 48000.0;
+            for (int n = 0; n < 2000; ++n) {
+                delay.write(static_cast<float>(std::sin(w * n)));
+                (void)delay.readAllpass(10.5f);
+            }
+            float worst = 0.0f;
+            for (int n = 2000; n < 2400; ++n) {
+                delay.write(static_cast<float>(std::sin(w * n)));
+                const float y = delay.readAllpass(target);
+                if (n >= 2032) {
+                    worst = std::max(worst, std::abs(y - delay.readLinear(target)));
+                }
+            }
+            INFO("worst |allpass - linear| after 32 samples: " << worst);
+            CHECK(worst < 1e-3f);
+        }
+    }
+}
+
+TEST_CASE("DelayLine readAllpass, readAllpass(tap) and processFixedTap are bit-identical",
+          "[delay][allpass][follow-up-83]") {
+    const std::array<float, 8> delays = {0.0f, 0.3f, 1.0f, 10.25f, 10.5f, 10.75f, 4409.6f, 1.0e6f};
+    for (float d : delays) {
+        DYNAMIC_SECTION("d " << d) {
+            DelayLine a, b, c;
+            a.prepare(44100.0, 0.1f);
+            b.prepare(44100.0, 0.1f);
+            c.prepare(44100.0, 0.1f);
+            const DelayLine::AllpassTap tap = b.makeAllpassTap(d);
+
+            constexpr std::size_t kN = 6000;
+            std::vector<float> x(kN);
+            std::uint32_t seed = 12345u;
+            for (auto& v : x) {
+                seed = seed * 1664525u + 1013904223u;
+                v = static_cast<float>(seed >> 8) / 16777216.0f * 2.0f - 1.0f;
+            }
+
+            // Read-before-write feedback loop, the shape every consumer uses.
+            std::vector<float> ya(kN), yb(kN), yc(kN);
+            for (std::size_t i = 0; i < kN; ++i) {
+                ya[i] = a.readAllpass(d);
+                a.write(x[i] + 0.5f * ya[i]);
+                yb[i] = b.readAllpass(tap);
+                b.write(x[i] + 0.5f * yb[i]);
+            }
+            c.processFixedTap(tap, kN, [&](std::size_t i, float y) {
+                yc[i] = y;
+                return x[i] + 0.5f * y;
+            });
+
+            std::size_t mismatchAB = 0, mismatchAC = 0;
+            for (std::size_t i = 0; i < kN; ++i) {
+                if (std::bit_cast<std::uint32_t>(ya[i]) != std::bit_cast<std::uint32_t>(yb[i])) ++mismatchAB;
+                if (std::bit_cast<std::uint32_t>(ya[i]) != std::bit_cast<std::uint32_t>(yc[i])) ++mismatchAC;
+            }
+            CHECK(mismatchAB == 0);
+            CHECK(mismatchAC == 0);
+        }
+    }
 }
 
 // =============================================================================

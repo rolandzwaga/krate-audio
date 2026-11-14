@@ -30,7 +30,7 @@
 │  Processor Layer                                         │
 │  ├─ Input Stage                                         │
 │  ├─ Crossover Network                                   │
-│  ├─ Band Processors (1-8)                               │
+│  ├─ Band Processors (1-4)                               │
 │  │   ├─ Oversampler                                     │
 │  │   └─ Morph Engine                                    │
 │  ├─ Sweep Processor                                     │
@@ -256,8 +256,7 @@ Phase 4: Polish         ░░░░░░░░░░░░░░██  Weeks 
 | Config | CPU Target |
 |--------|------------|
 | 1 band, 1x OS | < 2% |
-| 4 bands, 4x OS | < 15% |
-| 8 bands, 8x OS | < 40% |
+| 4 bands, 4x OS (maximum) | < 15% |
 
 ### DAW Compatibility
 Ableton Live, Bitwig, Cubase, FL Studio, Reaper, Studio One, Logic Pro

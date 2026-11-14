@@ -11,22 +11,22 @@
 // ==============================================================================
 
 #include <catch2/catch_test_macros.hpp>
-#include <catch2/catch_approx.hpp>
 
 #include "dsp/pre_processing_pipeline.h"
 
 #include <array>
+#include <bit>
 #include <cmath>
+#include <cstdint>
+#include <numbers>
 #include <numeric>
 #include <vector>
-
-using Catch::Approx;
 
 namespace {
 
 constexpr double kSampleRate = 44100.0;
 constexpr size_t kBlockSize = 512;
-constexpr float kPi = 3.14159265358979f;
+constexpr float kPi = std::numbers::pi_v<float>;
 constexpr float kTwoPi = 2.0f * kPi;
 
 /// Generate a sine wave at the given frequency, starting from a given phase offset
@@ -131,7 +131,7 @@ TEST_CASE("PreProcessingPipeline: DC offset removal does not affect AC signal",
 
     // Compare RMS to expected input RMS
     float outputRMS = computeRMS(processed.data(), kBlockSize);
-    float inputRMS = 1.0f / std::sqrt(2.0f); // sine RMS
+    float inputRMS = 1.0f / std::numbers::sqrt2_v<float>; // sine RMS
 
     // Allow up to 1 dB loss from the combined filters at 440 Hz
     float ratioDb = linearToDb(outputRMS / inputRMS);
@@ -158,7 +158,7 @@ TEST_CASE("PreProcessingPipeline: HPF attenuates 20 Hz significantly",
     size_t startCheck = totalSamples * 3 / 4;
     float outputRMS = computeRMS(buffer.data() + startCheck,
                                  totalSamples - startCheck);
-    float inputRMS = 1.0f / std::sqrt(2.0f);
+    float inputRMS = 1.0f / std::numbers::sqrt2_v<float>;
 
     float attenuationDb = linearToDb(outputRMS / inputRMS);
 
@@ -183,7 +183,7 @@ TEST_CASE("PreProcessingPipeline: HPF passes 100 Hz with less than 1 dB loss",
     size_t startCheck = totalSamples * 3 / 4;
     float outputRMS = computeRMS(buffer.data() + startCheck,
                                  totalSamples - startCheck);
-    float inputRMS = 1.0f / std::sqrt(2.0f);
+    float inputRMS = 1.0f / std::numbers::sqrt2_v<float>;
 
     float lossDb = linearToDb(outputRMS / inputRMS);
 
@@ -309,7 +309,7 @@ TEST_CASE("PreProcessingPipeline: Steady-state signal passes through transient s
     // After settling, the last block should have comparable RMS
     float outputRMS = computeRMS(buffer.data() + totalSamples - kBlockSize,
                                  kBlockSize);
-    float inputRMS = 0.5f / std::sqrt(2.0f); // Input sine RMS
+    float inputRMS = 0.5f / std::numbers::sqrt2_v<float>; // Input sine RMS
 
     // With the transient detection threshold, steady-state signal should not
     // be attenuated by the transient suppressor. Only the DC blocker and HPF
@@ -395,4 +395,49 @@ TEST_CASE("PreProcessingPipeline: reset clears state",
     // Verify it adapted to the new level, not the old one
     // (if state wasn't cleared, the DC estimate would still be near 0.1
     // and would produce large residual from the 0.5 input)
+}
+
+// =============================================================================
+// Non-finite sidechain samples
+// =============================================================================
+
+// One NaN (or +Inf) sample in a sidechain sine latched the DC estimator: every
+// later analysis sample was non-finite and live analysis went deaf until a
+// reset. The bad sample is built from its bit pattern through a volatile (it
+// survives fast-math folding) and classified with Krate::DSP::detail::isFinite.
+TEST_CASE("PreProcessingPipeline: one non-finite sidechain sample does not latch the analysis signal",
+          "[innexus][preprocessing][FR-005][numerics]") {
+    constexpr size_t kWarmBlocks = 40;
+    constexpr size_t kAfterBlocks = 6;
+    constexpr float kAmplitude = 0.5f;
+    for (const std::uint32_t bits : {0x7FC00000u, 0x7F800000u}) {
+        volatile std::uint32_t sink = bits;
+        const float bad = std::bit_cast<float>(static_cast<std::uint32_t>(sink));
+        REQUIRE_FALSE(Krate::DSP::detail::isFinite(bad));
+        INFO("bad sample bits " << bits);
+
+        Innexus::PreProcessingPipeline pipeline;
+        pipeline.prepare(kSampleRate);
+        const size_t total = (kWarmBlocks + 1 + kAfterBlocks) * kBlockSize;
+        std::vector<float> buffer(total);
+        generateSine(buffer.data(), total, 440.0f, kSampleRate, kAmplitude);
+        const size_t injectBlockStart = kWarmBlocks * kBlockSize;
+        buffer[injectBlockStart + kBlockSize / 2] = bad;
+        processInBlocks(pipeline, buffer.data(), total);
+
+        size_t nonFinite = 0;
+        for (size_t i = injectBlockStart; i < total; ++i) {
+            if (!Krate::DSP::detail::isFinite(buffer[i])) ++nonFinite;
+        }
+        CHECK(nonFinite == 0);
+        CHECK_FALSE(pipeline.isGated());
+        // From two blocks after the bad one, the analysis signal is the sine again
+        const float inputRMS = kAmplitude / std::numbers::sqrt2_v<float>;
+        for (size_t b = kWarmBlocks + 2; b < kWarmBlocks + 1 + kAfterBlocks; ++b) {
+            const float rms = computeRMS(buffer.data() + b * kBlockSize, kBlockSize);
+            INFO("block " << b << " rms " << rms);
+            REQUIRE(Krate::DSP::detail::isFinite(rms));
+            REQUIRE(std::abs(linearToDb(rms / inputRMS)) < 1.0f);
+        }
+    }
 }

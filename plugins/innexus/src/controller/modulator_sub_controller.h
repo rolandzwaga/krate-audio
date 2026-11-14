@@ -15,6 +15,7 @@
 #include "vstgui/uidescription/uiattributes.h"
 #include "vstgui/uidescription/iuidescription.h"
 #include "vstgui/lib/controls/ccontrol.h"
+#include "ui/watched_control.h"
 
 #include <cstring>
 
@@ -30,13 +31,6 @@ public:
         : DelegationController(parent)
         , modIndex_(modIndex)
     {
-    }
-
-    ~ModulatorSubController() override
-    {
-        // Unregister as sub-listener to avoid dangling pointer
-        if (syncToggle_)
-            syncToggle_->unregisterControlListener(this);
     }
 
     int32_t getTagForName(VSTGUI::UTF8StringPtr name,
@@ -107,8 +101,8 @@ private:
     /// The sync toggle param ID (kMod1RateSyncId or kMod2RateSyncId)
     int32_t syncTag_ = -1;
 
-    /// Pointer to sync toggle control (for unregistering sub-listener)
-    VSTGUI::CControl* syncToggle_ = nullptr;
+    /// The sync toggle this listens to; drops the listener when the toggle is deleted.
+    Krate::Plugins::WatchedControl syncToggle_{this};
 };
 
 } // namespace Innexus

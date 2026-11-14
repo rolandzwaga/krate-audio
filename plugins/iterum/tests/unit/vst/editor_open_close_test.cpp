@@ -13,6 +13,7 @@
 #include <editor_lifecycle_harness.h>
 #include <shared_editor_views_probe.h>
 #include <registered_defaults_probe.h>
+#include <terminate_with_editor_open_probe.h>
 
 #include "controller/controller.h"
 
@@ -48,6 +49,18 @@ TEST_CASE("Iterum editor carries the shared update and version views",
     CHECK(count.legacyTagged == 0);
 
     controller.terminate();
+}
+
+// A host may terminate the controller before it removes the editor view. The update banner polls the update
+// checker every 500 ms until the editor closes, so the checker must outlive terminate().
+// Teeth under AddressSanitizer (Windows): a poll of a freed checker is a heap-use-after-free.
+TEST_CASE("Iterum: terminating the controller before the editor closes leaves the update views safe",
+          "[iterum][controller][ui][lifecycle][editor-uaf]")
+{
+    ::Iterum::Controller controller;
+    REQUIRE(controller.initialize(nullptr) == Steinberg::kResultOk);
+    Krate::TestSupport::terminateControllerWithEditorOpen(
+        controller, "Editor", std::string(ITERUM_RESOURCES_DIR) + "/editor.uidesc");
 }
 
 // A fresh instance starts every parameter at its registered default, so a

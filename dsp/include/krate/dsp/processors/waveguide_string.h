@@ -840,8 +840,8 @@ private:
     Biquad dispersionFilters_[kMaxDispersionSections];
     DCBlocker dcBlocker_;
 
-    // Fractional delay is handled by DelayLine::readAllpass()
-    // (Thiran-equivalent allpass interpolation built into the delay line)
+    // Fractional delay is handled by DelayLine::readLinear() in process()
+    // (linear interpolation; see the comment at the bridge delay read)
 
     // Smoothers
     OnePoleSmoother frequencySmoother_;
@@ -870,7 +870,7 @@ private:
     // Delay lengths (computed at note onset)
     size_t nutDelaySamples_ = 0;
     size_t bridgeDelaySamples_ = 0;  // integer approx (for excitation fill)
-    float bridgeDelayFloat_ = 0.0f;  // fractional delay for readAllpass()
+    float bridgeDelayFloat_ = 0.0f;  // fractional delay for readLinear()
     float totalLoopDelay_ = 0.0f;
 
     // Excitation

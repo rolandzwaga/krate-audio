@@ -19,6 +19,7 @@
 #include <krate/dsp/core/window_functions.h>
 #include <krate/dsp/core/math_constants.h>
 
+#include <algorithm>
 #include <array>
 #include <chrono>
 #include <cmath>
@@ -235,6 +236,19 @@ void generateSineWave(
     return inharmonicRatio > 0.05f;
 }
 
+/// @brief Depth-0 reference (D-163): the output stage alone,
+/// DCBlock(kSoftLimitScale * tanh(x / 2)), fed sample by sample.
+struct Depth0Reference {
+    Krate::DSP::DCBlocker dc;
+    explicit Depth0Reference(double sampleRate) {
+        dc.prepare(sampleRate, Krate::DSP::RingSaturation::kDCBlockerCutoffHz);
+    }
+    float operator()(float x) {
+        return dc.process(Krate::DSP::RingSaturation::kSoftLimitScale *
+                          Krate::DSP::Sigmoid::tanh(x * 0.5f));
+    }
+};
+
 } // anonymous namespace
 
 // =============================================================================
@@ -299,33 +313,66 @@ TEST_CASE("RingSaturation default constructor initializes with correct defaults"
     }
 }
 
-// T010: Depth=0 returns input unchanged (SC-002)
-TEST_CASE("RingSaturation with depth=0 returns input unchanged (SC-002)",
+// T010: Depth=0 applies only the output stage (SC-002, changed by D-163)
+// Depth 0 skips the ring-mod stages but keeps softLimit + DC blocker, so it
+// returns DCBlock(softLimit(x)) for every x (softLimit(x) = 2*tanh(x/2) is
+// not the identity: -0.18 dB at 0.5, -0.68 dB at 1.0).
+TEST_CASE("RingSaturation with depth=0 applies only the output stage (SC-002)",
           "[ring_saturation][US1][bypass]") {
     RingSaturation ringSat;
     ringSat.prepare(44100.0);
     ringSat.setModulationDepth(0.0f);
     ringSat.setDrive(2.0f);
+    Depth0Reference reference(44100.0);
 
     SECTION("single sample processing") {
-        for (float input : {-1.0f, -0.5f, 0.0f, 0.5f, 1.0f}) {
+        for (float input : {-2.5f, -1.0f, -0.5f, 0.0f, 0.5f, 1.0f, 2.5f}) {
             float output = ringSat.process(input);
-            REQUIRE(output == Approx(input).margin(1e-6f));
+            REQUIRE(output == Approx(reference(input)).margin(1e-6f));
         }
     }
 
     SECTION("block processing") {
         constexpr size_t kNumSamples = 512;
         std::vector<float> buffer(kNumSamples);
-        generateSineWave(buffer.data(), kNumSamples, 440.0f, 44100.0f);
+        generateSineWave(buffer.data(), kNumSamples, 440.0f, 44100.0f, 2.5f);
 
         std::vector<float> original = buffer; // Copy before processing
         ringSat.processBlock(buffer.data(), kNumSamples);
 
         for (size_t i = 0; i < kNumSamples; ++i) {
-            REQUIRE(buffer[i] == Approx(original[i]).margin(1e-6f));
+            REQUIRE(buffer[i] == Approx(reference(original[i])).margin(1e-6f));
+            REQUIRE(std::abs(buffer[i]) <= RingSaturation::kSoftLimitScale);
         }
     }
+}
+
+// D-163: depth 0 must be continuous with small depths. The output stage
+// (softLimit + DC blocker) runs at every depth, so depth 0 cannot jump to the
+// raw, unlimited input.
+TEST_CASE("depth 0 and depth 1e-4 differ by less than 0.1 dB at input amplitude 2.5",
+          "[ring_saturation][US1][bypass]") {
+    constexpr size_t kNumSamples = 8192;
+    constexpr float kSampleRate = 44100.0f;
+
+    auto renderRms = [&](float depth) {
+        RingSaturation ringSat;
+        ringSat.prepare(kSampleRate);
+        ringSat.setDrive(2.0f);
+        ringSat.setModulationDepth(depth);
+        std::vector<float> buffer(kNumSamples);
+        generateSineWave(buffer.data(), kNumSamples, 440.0f, kSampleRate, 2.5f);
+        ringSat.processBlock(buffer.data(), kNumSamples);
+        // Skip the DC blocker's settling time.
+        return calculateRMS(buffer.data() + kNumSamples / 2, kNumSamples / 2);
+    };
+
+    const float rms0 = renderRms(0.0f);
+    const float rmsSmall = renderRms(1e-4f);
+    const float diffDb = 20.0f * std::log10(rms0 / rmsSmall);
+    INFO("rms depth 0 = " << rms0 << ", rms depth 1e-4 = " << rmsSmall
+         << ", diff = " << diffDb << " dB");
+    REQUIRE(std::abs(diffDb) < 0.1f);
 }
 
 // T011: Depth=1.0 and drive=2.0 produces inharmonic sidebands (SC-001)
@@ -366,7 +413,7 @@ TEST_CASE("RingSaturation modulation depth parameter controls effect scaling",
     const float testInput = 0.7f;
 
     SECTION("depth=0.5 produces intermediate effect between depth=0 and depth=1") {
-        // With depth=0, output = input (no effect)
+        // With depth=0, output = output stage only (no ring mod, D-163)
         ringSat.setModulationDepth(0.0f);
         float outputDepth0 = ringSat.process(testInput);
 
@@ -1599,11 +1646,12 @@ TEST_CASE("RingSaturation known input/output pairs (golden values)",
         REQUIRE(output == Approx(0.0f).margin(0.001f));
     }
 
-    SECTION("depth=0 is pure bypass") {
+    SECTION("depth=0 applies only the output stage (D-163)") {
         ringSat.setModulationDepth(0.0f);
+        Depth0Reference reference(kSampleRate);
         for (float input : {-0.5f, 0.0f, 0.5f}) {
             float output = ringSat.process(input);
-            REQUIRE(output == Approx(input));
+            REQUIRE(output == Approx(reference(input)).margin(1e-6f));
         }
     }
 }
@@ -1634,11 +1682,12 @@ TEST_CASE("RingSaturation meets all success criteria (final validation)",
         REQUIRE(hasInharmonic);
     }
 
-    SECTION("SC-002: depth=0 produces dry signal") {
+    SECTION("SC-002: depth=0 applies only the output stage (D-163)") {
         ringSat.setModulationDepth(0.0f);
+        Depth0Reference reference(kSampleRate);
         float input = 0.7f;
         float output = ringSat.process(input);
-        REQUIRE(output == Approx(input));
+        REQUIRE(output == Approx(reference(input)).margin(1e-6f));
     }
 
     SECTION("SC-003: stages=4 > stages=1 entropy") {
@@ -1665,5 +1714,145 @@ TEST_CASE("RingSaturation meets all success criteria (final validation)",
 
         float peak = findPeakAbsolute(buffer.data(), kNumSamples);
         REQUIRE(peak < 2.0f);
+    }
+}
+
+// =============================================================================
+// The carrier and the zero-crossing tracker run once per sample, not once per stage
+// (Disrumpo audit follow-up 84, user ruling 2026-11-10). With 2-4 stages the carrier
+// phase advanced `stages` times per sample (a 1 kHz carrier ran at stages x 1 kHz) and
+// the tracker compared different stages' signals.
+// =============================================================================
+
+TEST_CASE("RingSaturation advances its carrier once per sample at every stage count",
+          "[ring_saturation][carrier][stages]") {
+    constexpr double kSr = 48000.0;
+    for (int stages = 1; stages <= RingSaturation::kMaxStages; ++stages) {
+        RingSaturation rs;
+        rs.prepare(kSr);
+        rs.setFreqMode(RSFreqMode::Fixed);
+        rs.setCarrierWaveform(RSCarrierWaveform::Sine);
+        rs.setCarrierFrequency(1000.0f);
+        rs.setStages(stages);
+        // A DC input: every stage's output has the carrier's sign, so the output crosses
+        // its mean twice per carrier period
+        std::vector<float> out(static_cast<size_t>(kSr));
+        for (auto& v : out) v = rs.process(0.5f);
+        const size_t from = out.size() / 2;
+        const double mean = std::accumulate(out.begin() + static_cast<std::ptrdiff_t>(from), out.end(), 0.0) /
+                            static_cast<double>(out.size() - from);
+        int crossings = 0;
+        for (size_t i = from + 1; i < out.size(); ++i) {
+            if ((out[i - 1] - mean < 0.0) != (out[i] - mean < 0.0)) ++crossings;
+        }
+        INFO("stages " << stages << ": " << crossings << " mean crossings in 0.5 s (1 kHz carrier: 1000)");
+        CHECK(crossings >= 990);
+        CHECK(crossings <= 1010);
+    }
+}
+
+TEST_CASE("RingSaturation tracks the input frequency at every stage count", "[ring_saturation][carrier][stages]") {
+    constexpr double kSr = 48000.0;
+    for (int stages = 1; stages <= RingSaturation::kMaxStages; ++stages) {
+        RingSaturation rs;
+        rs.prepare(kSr);
+        rs.setFreqMode(RSFreqMode::Track);
+        rs.setCarrierWaveform(RSCarrierWaveform::Sine);
+        rs.setStages(stages);
+        for (size_t i = 0; i < static_cast<size_t>(kSr); ++i) {
+            (void)rs.process(0.5f * static_cast<float>(std::sin(2.0 * 3.141592653589793 * 440.0 *
+                                                                static_cast<double>(i) / kSr)));
+        }
+        const float tracked = rs.getCarrierState().trackedFreq;
+        INFO("stages " << stages << ": tracked " << tracked << " Hz (input 440 Hz)");
+        CHECK(std::abs(tracked - 440.0f) <= 440.0f * 0.02f);
+    }
+}
+
+TEST_CASE("RingSaturation carrier state carries over to an instance at another rate", "[ring_saturation][carrier]") {
+    RingSaturation a;
+    a.prepare(96000.0);
+    a.setFreqMode(RSFreqMode::Track);
+    a.setCarrierWaveform(RSCarrierWaveform::Square);
+    for (size_t i = 0; i < 9000; ++i) {
+        (void)a.process(0.5f * static_cast<float>(std::sin(2.0 * 3.141592653589793 * 330.0 * static_cast<double>(i) /
+                                                           96000.0)));
+    }
+    RingSaturation b;
+    b.prepare(192000.0);
+    b.setCarrierState(a.getCarrierState(), 96000.0);
+    const auto sa = a.getCarrierState();
+    const auto sb = b.getCarrierState();
+    CHECK(sb.phase == sa.phase);
+    CHECK(sb.trackedFreq == sa.trackedFreq);
+    CHECK(sb.lastSample == sa.lastSample);
+    CHECK(sb.samplesSinceCrossing == 0);  // the tracker re-syncs on its own input
+    CHECK(sb.randomCounter == 2 * sa.randomCounter);
+    CHECK(b.getSampleRate() == 192000.0);
+}
+
+// processBlock runs its chunks stage by stage (Disrumpo CPU round 5): it must give what process()
+// gives sample by sample, for 1 to 4 stages, each carrier mode, depth 0, a curve change mid-stream
+// (its crossfade runs per sample) and odd block lengths. Measured equal to the bit on MSVC; the
+// tolerance covers a different contraction of the two loop shapes under the macOS leg's
+// -ffp-contract=fast.
+TEST_CASE("RingSaturation processBlock equals per-sample processing", "[ring_saturation][primitives][block]") {
+    using namespace Krate::DSP;
+    for (int stages = 1; stages <= 4; ++stages) {
+        for (const auto mode : {RSFreqMode::Fixed, RSFreqMode::Harmonic, RSFreqMode::Track, RSFreqMode::Random}) {
+            RingSaturation perSample;
+            RingSaturation block;
+            for (RingSaturation* r : {&perSample, &block}) {
+                r->prepare(176400.0);
+                r->setStages(stages);
+                r->setFreqMode(mode);
+                r->setCarrierWaveform(RSCarrierWaveform::Square);
+                r->setCarrierFrequency(330.0f);
+                r->setHarmonicRatio(3.0f);
+                r->setSaturationCurve(WaveshapeType::ReciprocalSqrt);
+                r->setDrive(2.0f);
+                r->setModulationDepth(0.5f);
+                r->setBias(0.25f);
+            }
+            constexpr size_t kN = 16384;
+            std::vector<float> x(kN);
+            for (size_t i = 0; i < kN; ++i) {
+                x[i] = 2.0f * std::sin(2.0f * 3.14159265f * 440.0f * static_cast<float>(i) / 176400.0f) +
+                       0.8f * std::sin(2.0f * 3.14159265f * 2500.0f * static_cast<float>(i) / 176400.0f);
+            }
+            std::vector<float> a(x);
+            std::vector<float> b(x);
+            size_t pos = 0;
+            size_t len = 1;
+            while (pos < kN) {
+                const size_t n = std::min(len, kN - pos);
+                if (pos >= 6000 && pos < 6500) {
+                    perSample.setModulationDepth(0.0f);
+                    block.setModulationDepth(0.0f);
+                } else if (pos >= 6500) {
+                    perSample.setModulationDepth(0.5f);
+                    block.setModulationDepth(0.5f);
+                }
+                if (pos >= 9000) {
+                    perSample.setSaturationCurve(WaveshapeType::Tanh);  // a 10 ms crossfade from here
+                    block.setSaturationCurve(WaveshapeType::Tanh);
+                }
+                for (size_t k = pos; k < pos + n; ++k) a[k] = perSample.process(a[k]);
+                block.processBlock(b.data() + pos, n);
+                pos += n;
+                len = len * 3 % 257 + 1;
+            }
+            size_t mismatched = 0;
+            float maxDiff = 0.0f;
+            for (size_t i = 0; i < kN; ++i) {
+                if (a[i] != b[i]) {
+                    ++mismatched;
+                    maxDiff = std::max(maxDiff, std::abs(a[i] - b[i]));
+                }
+            }
+            INFO("stages " << stages << ", mode " << static_cast<int>(mode) << ": " << mismatched
+                           << " samples differ, max |diff| " << maxDiff);
+            CHECK(maxDiff <= 1.0e-6f);
+        }
     }
 }

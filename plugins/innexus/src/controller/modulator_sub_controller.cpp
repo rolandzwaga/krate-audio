@@ -90,8 +90,7 @@ VSTGUI::CView* ModulatorSubController::verifyView(
             syncTag_ = syncToggleTag;
             freeRateTag_ = static_cast<int32_t>(kMod1RateId) + offset;
             noteValueTag_ = static_cast<int32_t>(kMod1NoteValueId) + offset;
-            control->registerControlListener(this);
-            syncToggle_ = control;
+            syncToggle_.watch(control);
         }
     }
 

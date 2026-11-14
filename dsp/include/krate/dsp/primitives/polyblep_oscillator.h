@@ -150,7 +150,12 @@ public:
     /// When switching away from or to Triangle, the leaky integrator state is cleared.
     /// Phase is maintained for continuity.
     /// @param waveform The waveform to generate
+    /// @note Re-selecting the current waveform is a no-op: hosts re-send
+    ///       parameters every block, and clearing the triangle's integrator each
+    ///       time restarted it from zero per block, so its level (a 65 Hz
+    ///       triangle: 8 dB at 64-sample blocks) followed the block size.
     void setWaveform(OscWaveform waveform) noexcept {
+        if (waveform == waveform_) return;
         // Clear integrator when entering or leaving Triangle (FR-007)
         if (waveform_ == OscWaveform::Triangle || waveform == OscWaveform::Triangle) {
             integrator_ = 0.0f;
@@ -343,10 +348,9 @@ private:
     /// @brief Branchless output sanitization (FR-036).
     /// NaN detection via bit manipulation, clamp to [-2.0, 2.0].
     [[nodiscard]] static float sanitize(float x) noexcept {
-        // NaN check via bit manipulation, read through the fast-math barrier
+        // NaN check through detail::isNaN: a barrier read of the bits
         // (a plain bit_cast is foldable under newer fast-math compilers)
-        const auto bits = detail::opaqueFloatBits(x);
-        const bool isNan = ((bits & 0x7F800000u) == 0x7F800000u) && ((bits & 0x007FFFFFu) != 0);
+        const bool isNan = detail::isNaN(x);
         x = isNan ? 0.0f : x;
 
         // Clamp to [-2.0, 2.0] (FR-033)

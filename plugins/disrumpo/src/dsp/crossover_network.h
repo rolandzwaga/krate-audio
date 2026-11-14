@@ -1,11 +1,12 @@
 // ==============================================================================
 // Crossover Network for Multi-Band Processing
 // ==============================================================================
-// Multi-band crossover network for 1-4 bands using cascaded CrossoverLR4.
+// Multi-band crossover network for 1-4 bands: Disrumpo's band policy over one
+// Krate::DSP::MultibandCrossover<4> (cascaded CrossoverLR4, D'Appolito allpass
+// compensation, dry-path compensation).
 // Real-time safe: fixed-size arrays, no allocations in process().
 //
-// Phase Compensation:
-// Uses D'Appolito allpass compensation method for flat frequency response.
+// Phase Compensation (in MultibandCrossover):
 // Each band is phase-aligned by adding allpass filters at all crossover
 // frequencies HIGHER than its own split point:
 // - Band 0: LP(f0) * AP(f1) * AP(f2) * ... * AP(fN-2)
@@ -15,27 +16,46 @@
 // Reference: D'Appolito, "Active Realization of Multiway All-Pass Crossover
 // Systems", Journal of the Audio Engineering Society, Vol. 35, No. 4, 1987.
 //
+// Policy kept here: band count 1-4, crossover range 20 Hz - 20 kHz
+// (state_codec.h) and 0.45 * sampleRate, logarithmic defaults on the first
+// prepare, redistribution on a band-count change (FR-011a/FR-011b, D-023),
+// and half-octave spacing of the running crossovers (FR-BAND-002, D-124).
+//
+// Spacing (kMinCrossoverSpacingOctaves, the rule the spectrum display's
+// divider drag applies): each running crossover i > 0 runs at least 2^0.5
+// times crossover i-1. The network keeps the frequency each crossover was
+// given and derives the running ones from those, so the result does not
+// depend on the order the values arrive in (a state load, automation), and a
+// crossover pushed up returns to its own value when the one below moves away.
+// Where the spacing meets the cap (crossovers set within half an octave of
+// each other near the top), the top running crossover takes the cap and each
+// one below it is lowered to half an octave under the next. Crossovers the
+// band count leaves idle run at their own (range-clamped) value and move
+// nothing. The shared MultibandCrossover keeps no ordering rule.
+//
 // References:
 // - specs/002-band-management/contracts/crossover_network_api.md
 // - specs/002-band-management/spec.md FR-001 to FR-014, SC-001
-// - Constitution Principle XIV: Reuse Krate::DSP::CrossoverLR4
+// - Constitution Principle XIV: Reuse Krate::DSP::MultibandCrossover
 // ==============================================================================
 
 #pragma once
 
 #include <krate/dsp/processors/crossover_filter.h>
-#include <krate/dsp/primitives/biquad.h>
 #include "band_state.h"
 
 #include <algorithm>
 #include <array>
+#include <atomic>
 #include <cmath>
+#include <cstddef>
+#include <cstdint>
 
 namespace Disrumpo {
 
 /// @brief Multi-band crossover network for 1-4 bands.
-/// Uses cascaded CrossoverLR4 instances with D'Appolito allpass compensation
-/// per Constitution Principle XIV. Achieves SC-001 (+/-0.1dB flat response).
+/// Wraps Krate::DSP::MultibandCrossover<4> with compensation on, per
+/// Constitution Principle XIV. Achieves SC-001 (+/-0.1dB flat response).
 /// Real-time safe: fixed-size arrays, no allocations in process().
 class CrossoverNetwork {
 public:
@@ -46,19 +66,19 @@ public:
     static constexpr int kMaxBands = 4;
     static constexpr int kMinBands = 1;
     static constexpr int kDefaultBands = 4;
-    static constexpr float kDefaultSmoothingMs = 10.0f;
 
-    /// Q for 2nd-order allpass to match LR4 phase response
-    /// LR4 = two cascaded Butterworth (Q=0.7071) filters
-    /// The allpass must have the same Q to match the phase curve
-    /// Reference: KVR "N-band Linkwitz-Riley crossovers" discussion
-    static constexpr float kAllpassQ = 0.7071f;
+    /// @brief Test probe (D-003): setBandCount() calls over all instances, so a test
+    /// can tell which thread or call reconfigured the live networks.
+    static inline std::atomic<std::uint64_t> debugSetBandCountCalls{0};
 
     // =========================================================================
     // Lifecycle
     // =========================================================================
 
-    CrossoverNetwork() noexcept = default;
+    CrossoverNetwork() noexcept {
+        network_.setAllpassCompensation(true);
+        applyFrequencies();
+    }
     ~CrossoverNetwork() noexcept = default;
 
     // Non-copyable (contains filter state)
@@ -75,30 +95,29 @@ public:
 
     /// @brief Initialize for given sample rate and band count.
     /// @param sampleRate Sample rate in Hz
-    /// @param numBands Number of bands (1-8)
+    /// @param numBands Number of bands (1-4)
     void prepare(double sampleRate, int numBands) noexcept {
         sampleRate_ = sampleRate;
         numBands_ = clampBandCount(numBands);
         prepared_ = true;
 
-        // Prepare all crossovers
-        for (auto& crossover : crossovers_) {
-            crossover.prepare(sampleRate);
+        // Logarithmic defaults only on the first prepare, and only for
+        // crossovers nobody has set. A re-prepare (sample-rate or block-size
+        // change) keeps the stored frequencies (D-046)
+        if (!frequenciesInitialized_) {
+            initializeLogarithmicDistribution();
         }
+        applyFrequencies();  // the cap follows the sample rate
 
-        // Initialize with logarithmic distribution
-        initializeLogarithmicDistribution();
-
-        // Initialize D'Appolito allpass compensation
-        updateAllpassCoefficients();
+        // MultibandCrossover::prepare() snaps every crossover to its stored
+        // frequency at the new rate: no glide from the previous value
+        network_.setActiveBands(numBands_);
+        network_.prepare(sampleRate);
     }
 
     /// @brief Reset all filter states without reinitialization.
     void reset() noexcept {
-        for (auto& crossover : crossovers_) {
-            crossover.reset();
-        }
-        resetAllpasses();
+        network_.reset();
     }
 
     // =========================================================================
@@ -107,8 +126,11 @@ public:
 
     /// @brief Change band count dynamically.
     /// Preserves existing crossover positions per FR-011a/FR-011b.
-    /// @param numBands New number of bands (1-8)
+    /// Crossovers and allpasses joining the chain start clean at their
+    /// frequency (D-023; MultibandCrossover::setActiveBands).
+    /// @param numBands New number of bands (1-4)
     void setBandCount(int numBands) noexcept {
+        debugSetBandCountCalls.fetch_add(1, std::memory_order_relaxed);
         const int newBandCount = clampBandCount(numBands);
         if (newBandCount == numBands_) {
             return;
@@ -117,37 +139,27 @@ public:
         const int oldBandCount = numBands_;
         numBands_ = newBandCount;
 
-        // Redistribute crossovers per FR-011a/FR-011b
+        // Redistribute crossovers per FR-011a/FR-011b, space the running ones,
+        // then let the joining ones start clean at those frequencies
         redistributeCrossovers(oldBandCount, newBandCount);
+        applyFrequencies();
+        network_.setActiveBands(newBandCount);
     }
 
     /// @brief Set crossover frequency for a specific split point.
-    /// @param index Crossover index (0 to numBands-2)
+    /// The value is stored for every index, including crossovers the current
+    /// band count does not use, so a later band-count increase finds it (D-022).
+    /// A running crossover runs at least half an octave above the one below it
+    /// (FR-BAND-002; see the header comment for the cap).
+    /// @param index Crossover index (0 to kMaxBands-2)
     /// @param hz Frequency in Hz
     void setCrossoverFrequency(int index, float hz) noexcept {
-        if (index < 0 || index >= numBands_ - 1) {
+        if (index < 0 || index >= kMaxBands - 1) {
             return;
         }
-
-        const float clamped = clampFrequency(hz);
-        crossoverFrequencies_[index] = clamped;
-        crossovers_[index].setCrossoverFrequency(clamped);
-
-        // Update allpass filters that use this crossover frequency
-        // Crossover index i is used as allpass for bands 0..(i-1)
-        if (prepared_ && index > 0) {
-            const float srFloat = static_cast<float>(sampleRate_);
-            for (int band = 0; band < index; ++band) {
-                const int apIdx = index - band - 1;
-                allpasses_[band][apIdx].configure(
-                    Krate::DSP::FilterType::Allpass,
-                    clamped,
-                    kAllpassQ,
-                    0.0f,
-                    srFloat
-                );
-            }
-        }
+        frequencyWasSet_[idx(index)] = true;
+        requested_[idx(index)] = hz;
+        applyFrequencies();
     }
 
     // =========================================================================
@@ -159,12 +171,10 @@ public:
         return numBands_;
     }
 
-    /// @brief Get crossover frequency at index.
+    /// @brief Running frequency of the crossover at index, spacing applied
+    /// (1000 Hz for an invalid index).
     [[nodiscard]] float getCrossoverFrequency(int index) const noexcept {
-        if (index < 0 || index >= kMaxBands - 1) {
-            return 1000.0f; // Default
-        }
-        return crossoverFrequencies_[index];
+        return network_.getCrossoverFrequency(index);
     }
 
     /// @brief Check if prepare() has been called.
@@ -183,48 +193,18 @@ public:
     /// @param input Input sample
     /// @param bands Output array (uses first numBands_ elements)
     void process(float input, std::array<float, kMaxBands>& bands) noexcept {
-        if (!prepared_) {
-            // Output zeros if not prepared
-            for (int i = 0; i < kMaxBands; ++i) {
-                bands[i] = 0.0f;
-            }
-            return;
-        }
+        network_.process(input, bands);
+    }
 
-        // FR-014: For 1 band, pass input directly
-        if (numBands_ == 1) {
-            bands[0] = input;
-            return;
-        }
-
-        // FR-012: Cascaded band splitting with D'Appolito allpass compensation
-        // Input -> Split1 -> (Band0, Remainder) -> Split2 -> (Band1, Remainder) -> ...
-        //
-        // Phase compensation pattern:
-        // Band 0: LP(f0) * AP(f1) * AP(f2) * ... * AP(fN-2)
-        // Band 1: HP(f0) * LP(f1) * AP(f2) * ... * AP(fN-2)
-        // Band k: HP(f0..fk-1) * LP(fk) * AP(fk+1) * ... * AP(fN-2)
-        // Band N-1: HP(f0) * HP(f1) * ... * HP(fN-2)
-
-        float remainder = input;
-
-        for (int i = 0; i < numBands_ - 1; ++i) {
-            auto outputs = crossovers_[i].process(remainder);
-            bands[i] = outputs.low;       // Low band goes to output
-            remainder = outputs.high;     // High band continues down the chain
-        }
-
-        // Last band gets the final remainder (no allpass needed)
-        bands[numBands_ - 1] = remainder;
-
-        // Apply D'Appolito allpass compensation to each band
-        // Band k needs allpasses at frequencies f[k+1], f[k+2], ..., f[N-2]
-        for (int band = 0; band < numBands_ - 1; ++band) {
-            // Apply allpasses for crossovers higher than this band's split
-            for (int apIdx = band + 1; apIdx < numBands_ - 1; ++apIdx) {
-                bands[band] = allpasses_[band][apIdx - band - 1].process(bands[band]);
-            }
-        }
+    /// @brief Give a dry (unsplit) sample the phase of the summed bands (D-018).
+    /// The clean band sum is AP(f0) * AP(f1) * ... * AP(fN-2) * x (each LR4
+    /// LP + HP pair is a 2nd-order allpass at its crossover), so a dry signal
+    /// mixed with the wet sum must run through the same allpass chain or every
+    /// crossover notches. Call once per sample, alongside process().
+    /// @param x Dry input sample
+    /// @return x through the allpasses at every active crossover frequency
+    [[nodiscard]] float processDryCompensation(float x) noexcept {
+        return network_.processDryCompensation(x);
     }
 
 private:
@@ -232,11 +212,20 @@ private:
     // Helper Functions
     // =========================================================================
 
+    [[nodiscard]] static constexpr std::size_t idx(int i) noexcept {
+        return static_cast<std::size_t>(i);
+    }
+
     /// @brief Clamp band count to valid range.
     [[nodiscard]] static int clampBandCount(int numBands) noexcept {
         if (numBands < kMinBands) return kMinBands;
         if (numBands > kMaxBands) return kMaxBands;
         return numBands;
+    }
+
+    /// @brief Highest crossover frequency: 20 kHz or 0.45 * sampleRate, whichever is lower.
+    [[nodiscard]] float maxFrequency() const noexcept {
+        return std::min(static_cast<float>(sampleRate_) * 0.45f, kMaxCrossoverHz);
     }
 
     /// @brief Clamp frequency to valid range.
@@ -250,6 +239,7 @@ private:
 
     /// @brief Initialize crossover frequencies with logarithmic distribution.
     /// FR-009: Crossover frequencies redistribute logarithmically across 20Hz-20kHz
+    /// Crossovers already set through setCrossoverFrequency() keep their value.
     void initializeLogarithmicDistribution() noexcept {
         if (numBands_ <= 1) {
             return;
@@ -261,16 +251,50 @@ private:
         const float step = (logMax - logMin) / static_cast<float>(numBands_);
 
         for (int i = 0; i < numBands_ - 1; ++i) {
+            if (frequencyWasSet_[idx(i)]) {
+                continue;
+            }
             const float logFreq = logMin + step * static_cast<float>(i + 1);
-            const float freq = std::pow(10.0f, logFreq);
-            crossoverFrequencies_[i] = clampFrequency(freq);
-            crossovers_[i].setCrossoverFrequency(crossoverFrequencies_[i]);
+            requested_[idx(i)] = std::pow(10.0f, logFreq);
+        }
+        frequenciesInitialized_ = true;
+    }
+
+    /// @brief Hand the running frequencies to the network: each stored value
+    /// clamped to the range; over the running crossovers, each one at least
+    /// 2^kMinCrossoverSpacingOctaves times the one below (pushed up), then the
+    /// top one capped and each one below lowered to stay that far under the
+    /// next (FR-BAND-002, D-124).
+    void applyFrequencies() noexcept {
+        const float spacingRatio = std::pow(2.0f, kMinCrossoverSpacingOctaves);
+        std::array<float, kMaxBands - 1> f{};
+        for (std::size_t i = 0; i < f.size(); ++i) {
+            f[i] = clampFrequency(requested_[i]);
+        }
+        const auto running = static_cast<std::size_t>(numBands_ - 1);
+        for (std::size_t i = 1; i < running; ++i) {
+            f[i] = std::max(f[i], f[i - 1] * spacingRatio);
+        }
+        if (running > 0) {
+            f[running - 1] = std::min(f[running - 1], maxFrequency());
+            for (std::size_t i = running - 1; i-- > 0;) {
+                if (f[i] * spacingRatio > f[i + 1]) {  // a pair the forward pass spaced stays exact
+                    f[i] = f[i + 1] / spacingRatio;
+                }
+            }
+        }
+        for (std::size_t i = 0; i < f.size(); ++i) {
+            const auto index = static_cast<int>(i);
+            if (network_.getCrossoverFrequency(index) != f[i]) {
+                network_.setCrossoverFrequency(index, f[i]);
+            }
         }
     }
 
     /// @brief Redistribute crossovers when band count changes.
     /// FR-011a: Preserve existing crossovers when increasing
-    /// FR-011b: Preserve lowest N-1 crossovers when decreasing
+    /// FR-011b: Preserve lowest N-1 crossovers when decreasing (the stored
+    /// frequencies stay in place; fewer are used)
     void redistributeCrossovers(int oldBandCount, int newBandCount) noexcept {
         if (newBandCount <= 1) {
             // No crossovers needed for 1 band
@@ -278,130 +302,46 @@ private:
         }
 
         if (oldBandCount <= 1) {
-            // Was 1 band, now more - initialize fresh
-            initializeLogarithmicDistribution();
-            updateAllpassCoefficients();
+            // Was 1 band, now more: logarithmic defaults only if no
+            // distribution exists yet; otherwise keep the stored values (FR-011a)
+            if (!frequenciesInitialized_) {
+                initializeLogarithmicDistribution();
+            }
             return;
         }
 
         if (newBandCount > oldBandCount) {
-            // FR-011a: Increasing - preserve existing, insert new at logarithmic midpoints
+            // FR-011a: Increasing - preserve existing, fill the free indices
             redistributeIncreasing(oldBandCount, newBandCount);
-            updateAllpassCoefficients();
-        } else {
-            // FR-011b: Decreasing - keep lowest N-1 crossovers
-            // The existing frequencies stay in place, we just use fewer
-            // Update allpasses for new band configuration
-            updateAllpassCoefficients();
         }
     }
 
-    /// @brief Insert new crossovers at logarithmic midpoints when increasing band count.
-    /// FR-011a: Preserve existing crossovers and add new ones
+    /// @brief Fill the crossovers a band-count increase adds (FR-011a, D-023).
+    /// Running crossovers keep their index and frequency, so crossover i stays the
+    /// split the crossover parameter i sets and a later decrease returns to the same
+    /// split. A joining crossover set explicitly while it was idle (state restore or
+    /// automation) keeps that value. Each run of new ones splits the gap between the
+    /// crossover below and the next set one above (else 20 kHz) at even log spacing.
     void redistributeIncreasing(int oldBandCount, int newBandCount) noexcept {
-        // Build list of band edges (20Hz, crossover1, crossover2, ..., 20kHz)
-        std::array<float, kMaxBands + 1> edges{};
-        edges[0] = kMinCrossoverHz;
-        for (int i = 0; i < oldBandCount - 1; ++i) {
-            edges[i + 1] = crossoverFrequencies_[i];
-        }
-        edges[oldBandCount] = kMaxCrossoverHz;
-        // const int numOldEdges = oldBandCount + 1; // Unused after refactoring
-
-        // Number of new crossovers to add
-        const int toAdd = (newBandCount - 1) - (oldBandCount - 1);
-        if (toAdd <= 0) return;
-
-        // Collect all crossover frequencies (old + new)
-        std::array<float, kMaxBands - 1> allFreqs{};
-        int writeIdx = 0;
-
-        // Copy existing crossovers
-        for (int i = 0; i < oldBandCount - 1; ++i) {
-            allFreqs[writeIdx++] = crossoverFrequencies_[i];
-        }
-
-        // Insert new crossovers at logarithmic midpoints of largest gaps
-        for (int added = 0; added < toAdd; ++added) {
-            // Find the largest logarithmic gap
-            float maxLogGap = 0.0f;
-            int bestGapIdx = 0;
-
-            // Edges include: 20Hz, existing crossovers, new crossovers, 20kHz
-            // We need to track all current edges
-            std::array<float, kMaxBands + 1> currentEdges{};
-            currentEdges[0] = kMinCrossoverHz;
-            for (int i = 0; i < writeIdx; ++i) {
-                currentEdges[i + 1] = allFreqs[i];
+        const int used = newBandCount - 1;
+        int i = std::max(oldBandCount - 1, 0);
+        while (i < used) {
+            if (frequencyWasSet_[idx(i)]) {
+                ++i;
+                continue;
             }
-            currentEdges[writeIdx + 1] = kMaxCrossoverHz;
-            const int numCurrentEdges = writeIdx + 2;
-
-            // Sort current edges
-            std::sort(currentEdges.begin(), currentEdges.begin() + numCurrentEdges);
-
-            // Find largest gap
-            for (int i = 0; i < numCurrentEdges - 1; ++i) {
-                float logGap = std::log10(currentEdges[i + 1]) - std::log10(currentEdges[i]);
-                if (logGap > maxLogGap) {
-                    maxLogGap = logGap;
-                    bestGapIdx = i;
-                }
+            int end = i;
+            while (end < used && !frequencyWasSet_[idx(end)]) {
+                ++end;
             }
-
-            // Insert at logarithmic midpoint
-            const float newFreq = logMidpoint(currentEdges[bestGapIdx], currentEdges[bestGapIdx + 1]);
-            allFreqs[writeIdx++] = clampFrequency(newFreq);
-        }
-
-        // Sort all frequencies in ascending order
-        std::sort(allFreqs.begin(), allFreqs.begin() + writeIdx);
-
-        // Store and apply to crossovers
-        for (int i = 0; i < newBandCount - 1; ++i) {
-            crossoverFrequencies_[i] = allFreqs[i];
-            crossovers_[i].setCrossoverFrequency(crossoverFrequencies_[i]);
-        }
-    }
-
-    /// @brief Calculate logarithmic midpoint between two frequencies.
-    [[nodiscard]] static float logMidpoint(float f1, float f2) noexcept {
-        const float logF1 = std::log10(f1);
-        const float logF2 = std::log10(f2);
-        return std::pow(10.0f, (logF1 + logF2) * 0.5f);
-    }
-
-    // =========================================================================
-    // Allpass Helpers
-    // =========================================================================
-
-    /// @brief Update all allpass filter coefficients.
-    /// Called after crossover frequencies change.
-    void updateAllpassCoefficients() noexcept {
-        const float srFloat = static_cast<float>(sampleRate_);
-
-        // For each band, configure allpasses at higher crossover frequencies
-        // Band k needs allpasses at f[k+1], f[k+2], ..., f[N-2]
-        for (int band = 0; band < kMaxBands - 2; ++band) {
-            for (int apIdx = band + 1; apIdx < kMaxBands - 1; ++apIdx) {
-                const float freq = crossoverFrequencies_[apIdx];
-                allpasses_[band][apIdx - band - 1].configure(
-                    Krate::DSP::FilterType::Allpass,
-                    clampFrequency(freq),
-                    kAllpassQ,
-                    0.0f,
-                    srFloat
-                );
+            const float lower = (i == 0) ? kMinCrossoverHz : network_.getCrossoverFrequency(i - 1);
+            const float upper = (end < used) ? network_.getCrossoverFrequency(end) : kMaxCrossoverHz;
+            const auto parts = static_cast<float>(end - i + 1);
+            for (int k = i; k < end; ++k) {
+                const float frac = static_cast<float>(k - i + 1) / parts;
+                requested_[idx(k)] = lower * std::pow(upper / lower, frac);
             }
-        }
-    }
-
-    /// @brief Reset all allpass filter states.
-    void resetAllpasses() noexcept {
-        for (auto& bandAllpasses : allpasses_) {
-            for (auto& ap : bandAllpasses) {
-                ap.reset();
-            }
+            i = end;
         }
     }
 
@@ -409,25 +349,27 @@ private:
     // Members
     // =========================================================================
 
+    /// Frequencies before the first prepare (replaced by the logarithmic
+    /// defaults there, unless set)
+    static constexpr std::array<float, kMaxBands - 1> kInitialFrequencies{200.0f, 1500.0f, 6000.0f};
+
     double sampleRate_ = 44100.0;
     int numBands_ = kDefaultBands;
     bool prepared_ = false;
 
-    // N-1 crossovers for N bands
-    std::array<Krate::DSP::CrossoverLR4, kMaxBands - 1> crossovers_;
+    // The split: N-1 LR4 crossovers, band and dry-path allpass compensation
+    Krate::DSP::MultibandCrossover<kMaxBands> network_;
 
-    // D'Appolito allpass compensation filters
-    // allpasses_[band][apIdx] is the allpass for band 'band' at crossover 'band + apIdx + 1'
-    // Band 0 needs up to 2 allpasses (at f1..f2 for 4 bands)
-    // Band 1 needs up to 1 allpass (at f2)
-    // Band 2 and 3 need no allpasses
-    // Maximum allpasses per band = kMaxBands - 2 = 2
-    std::array<std::array<Krate::DSP::Biquad, kMaxBands - 2>, kMaxBands - 2> allpasses_;
+    // The frequency each crossover was given (or its default); the running
+    // ones are derived from these by applyFrequencies()
+    std::array<float, kMaxBands - 1> requested_ = kInitialFrequencies;
 
-    // Target frequencies (for redistribution logic)
-    std::array<float, kMaxBands - 1> crossoverFrequencies_ = {
-        200.0f, 1500.0f, 6000.0f
-    };
+    // Crossovers given a value through setCrossoverFrequency()
+    std::array<bool, kMaxBands - 1> frequencyWasSet_{};
+
+    // True once a logarithmic distribution has been computed (first prepare
+    // with more than one band); later prepares keep the stored frequencies
+    bool frequenciesInitialized_ = false;
 };
 
 } // namespace Disrumpo

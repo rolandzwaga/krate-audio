@@ -4,7 +4,9 @@
 
 #include "processor.h"
 #include "plugin_ids.h"
+#include "state_codec.h"
 
+#include "dsp/shape_slot_descriptors.h"
 #include "dsp/sweep_morph_link.h"
 
 #include "base/source/fstreamer.h"
@@ -18,7 +20,9 @@
 #include "display/display_bridge_log.h"
 
 #include <algorithm>  // for std::max, std::min
+#include <array>
 #include <cmath>      // for std::log10, std::pow
+#include <cstddef>
 #include <cstring>    // for memcpy
 #include <random>     // for instance ID generation
 
@@ -31,266 +35,16 @@ namespace Disrumpo {
 // ==============================================================================
 // Shape Slot → DistortionParams Mapping
 // ==============================================================================
-// Maps normalized [0,1] shape slot values to denormalized DistortionParams
-// fields based on the active distortion type. Each type's UI controls are
-// assigned sequential slots (see plan mapping table).
+// Maps normalized [0,1] shape slot values to DistortionParams fields through the
+// per-type descriptor table in dsp/shape_slot_descriptors.h, which the
+// controller's slot formatter reads as well (D-090).
 // ==============================================================================
 
-static void mapShapeSlotsToParams(DistortionType type, const float* slots,
-                                   DistortionParams& p) {
-    switch (type) {
-        case DistortionType::SoftClip:
-            // Slot0=Curve, Slot1=Knee
-            p.curve = slots[0];
-            p.knee = slots[1];
-            break;
+static_assert(MorphNode::kShapeSlotCount == kShapeSlotDescriptorCount);
 
-        case DistortionType::HardClip:
-            // Slot0=Threshold, Slot1=Ceiling
-            p.threshold = slots[0];
-            p.ceiling = slots[1];
-            break;
-
-        case DistortionType::Tube:
-            // Slot0=Bias, Slot1=Sag, Slot2=Stage
-            p.bias = slots[0] * 2.0f - 1.0f;        // [0,1] → [-1,1]
-            p.sag = slots[1];
-            p.satStage = static_cast<int>(slots[2] * 3.0f + 0.5f);
-            break;
-
-        case DistortionType::Tape:
-            // Slot0=Bias, Slot1=Sag, Slot2=Speed, Slot3=Model, Slot4=HFRoll, Slot5=Flutter
-            p.bias = slots[0] * 2.0f - 1.0f;
-            p.sag = slots[1];
-            p.speed = slots[2];
-            p.tapeModel = static_cast<int>(slots[3] * 1.0f + 0.5f); // 0-1 (Simple/Hysteresis)
-            p.hfRoll = slots[4];
-            p.flutter = slots[5];
-            break;
-
-        case DistortionType::Fuzz:
-            // Slot0=Bias, Slot1=Transistor, Slot2=Octave, Slot3=Sustain
-            p.bias = slots[0];  // Fuzz bias is unipolar [0,1]
-            p.transistor = static_cast<int>(slots[1] * 1.0f + 0.5f); // 0-1
-            p.octave = slots[2];
-            p.sustain = slots[3];
-            break;
-
-        case DistortionType::AsymmetricFuzz:
-            // Slot0=Bias, Slot1=Asym, Slot2=Trans, Slot3=Sustain, Slot4=Body
-            p.bias = slots[0];  // Fuzz bias is unipolar [0,1]
-            p.asymmetry = slots[1];
-            p.transistor = static_cast<int>(slots[2] * 1.0f + 0.5f);
-            p.sustain = slots[3];
-            p.body = slots[4];
-            break;
-
-        case DistortionType::SineFold:
-            // Slot0=Folds, Slot1=Symmetry, Slot2=Shape, Slot3=Bias, Slot4=Smooth
-            p.folds = 1.0f + slots[0] * 11.0f;       // [0,1] → [1,12]
-            p.symmetry = slots[1] * 2.0f - 1.0f;     // [0,1] → [-1,1]
-            p.shape = slots[2];
-            p.bias = slots[3] * 2.0f - 1.0f;
-            p.smoothness = slots[4];
-            break;
-
-        case DistortionType::TriangleFold:
-            // Slot0=Folds, Slot1=Symmetry, Slot2=Angle, Slot3=Bias, Slot4=Smooth
-            p.folds = 1.0f + slots[0] * 11.0f;
-            p.symmetry = slots[1] * 2.0f - 1.0f;
-            p.angle = slots[2];
-            p.bias = slots[3] * 2.0f - 1.0f;
-            p.smoothness = slots[4];
-            break;
-
-        case DistortionType::SergeFold:
-            // Slot0=Folds, Slot1=Symm, Slot2=Model, Slot3=Bias, Slot4=Shape, Slot5=Smooth
-            p.folds = 1.0f + slots[0] * 11.0f;
-            p.symmetry = slots[1] * 2.0f - 1.0f;
-            p.foldModel = static_cast<int>(slots[2] * 3.0f + 0.5f); // 0-3 models
-            p.bias = slots[3] * 2.0f - 1.0f;
-            p.shape = slots[4];
-            p.smoothness = slots[5];
-            break;
-
-        case DistortionType::FullRectify:
-            // Slot0=Smooth, Slot1=DCBlock
-            p.smoothness = slots[0];
-            p.dcBlock = slots[1] >= 0.5f;
-            break;
-
-        case DistortionType::HalfRectify:
-            // Slot0=Threshold, Slot1=Smooth, Slot2=DCBlock
-            p.threshold = slots[0];
-            p.smoothness = slots[1];
-            p.dcBlock = slots[2] >= 0.5f;
-            break;
-
-        case DistortionType::Bitcrush:
-            // Slot0=Bits, Slot1=Dither, Slot2=Mode, Slot3=Jitter
-            p.bitDepth = 1.0f + slots[0] * 15.0f;     // [0,1] → [1,16]
-            p.dither = slots[1];
-            p.bitcrushMode = static_cast<int>(slots[2] * 1.0f + 0.5f);
-            p.jitter = slots[3];
-            break;
-
-        case DistortionType::SampleReduce:
-            // Slot0=Rate, Slot1=Jitter, Slot2=Mode, Slot3=Smooth
-            p.sampleRateRatio = 1.0f + slots[0] * 31.0f; // [0,1] → [1,32]
-            p.jitter = slots[1];
-            p.sampleMode = static_cast<int>(slots[2] * 1.0f + 0.5f);
-            p.smoothness = slots[3];
-            break;
-
-        case DistortionType::Quantize:
-            // Slot0=Levels, Slot1=Dither, Slot2=Smooth, Slot3=Offset
-            p.quantLevels = slots[0];
-            p.dither = slots[1];
-            p.smoothness = slots[2];
-            p.quantOffset = slots[3];
-            break;
-
-        case DistortionType::Temporal:
-            // Slot0=Mode, Slot1=Sens, Slot2=Curve, Slot3=Atk, Slot4=Rel, Slot5=Depth,
-            // Slot6=(unused), Slot7=Hold
-            p.dynamicMode = static_cast<int>(slots[0] * 3.0f + 0.5f); // 0-3 modes
-            p.sensitivity = slots[1];
-            p.dynamicCurve = slots[2];
-            p.attackMs = 1.0f + slots[3] * 499.0f;    // [0,1] → [1,500]
-            p.releaseMs = 10.0f + slots[4] * 4990.0f; // [0,1] → [10,5000]
-            p.dynamicDepth = slots[5];
-            p.hold = slots[7];
-            break;
-
-        case DistortionType::RingSaturation:
-            // Slot0=Mod, Slot1=Stages, Slot2=Curve, Slot3=Carrier, Slot4=Bias,
-            // Slot5=Freq mode, Slot6=Hz/Ratio
-            p.modDepth = slots[0];
-            p.stages = 1 + static_cast<int>(slots[1] * 3.0f + 0.5f); // [0,1] → 1-4
-            p.rsCurve = slots[2];
-            p.carrierType = static_cast<int>(slots[3] * 3.0f + 0.5f);
-            p.bias = slots[4] * 2.0f - 1.0f;
-            p.rsFreqSelect = static_cast<int>(slots[5] * 3.0f + 0.5f);
-            p.rsCarrierFreq = slots[6];
-            break;
-
-        case DistortionType::FeedbackDist:
-            // Slot0=FB, Slot1=Delay, Slot2=Curve, Slot3=Filter, Slot4=Freq,
-            // Slot5=Stage, Slot6=Lim, Slot7=Thr, Slot8=Decay
-            p.feedback = slots[0] * 1.5f;              // [0,1] → [0,1.5]
-            p.delayMs = 1.0f + slots[1] * 99.0f;      // [0,1] → [1,100]
-            p.fbCurve = slots[2];
-            p.filterType = static_cast<int>(slots[3] * 3.0f + 0.5f);
-            p.filterFreq = slots[4];
-            p.stages = 1 + static_cast<int>(slots[5] * 3.0f + 0.5f);
-            p.limiter = slots[6] >= 0.5f;
-            p.limThreshold = slots[7];
-            p.fbDecay = slots[8];                      // [0,1] direct
-            break;
-
-        case DistortionType::Aliasing:
-            // Slot0=Down, Slot1=Shift
-            p.sampleRateRatio = 2.0f + slots[0] * 30.0f; // [0,1] → [2,32]
-            p.freqShift = (slots[1] * 2.0f - 1.0f) * 5000.0f; // [0,1] → [-5000,5000]
-            break;
-
-        case DistortionType::BitwiseMangler:
-            // Slot0=Op, Slot1=Intensity, Slot2=Pattern
-            p.bitwiseOp = static_cast<int>(slots[0] * 3.0f + 0.5f); // 0-3 operations
-            p.bitwiseIntensity = slots[1];
-            p.bitwisePattern = slots[2];
-            break;
-
-        case DistortionType::Chaos:
-            // Slot0=Attr, Slot1=Spd, Slot2=Amt, Slot3=Coup, Slot4=XDr, Slot5=YDr, Slot6=Smth
-            p.chaosAttractor = static_cast<int>(slots[0] * 3.0f + 0.5f); // 0-3
-            p.attractorSpeed = 0.01f + slots[1] * 99.99f; // [0,1] → [0.01,100]
-            p.chaosAmount = slots[2];
-            p.chaosCoupling = slots[3];
-            p.chaosXDrive = slots[4];
-            p.chaosYDrive = slots[5];
-            p.smoothness = slots[6];
-            break;
-
-        case DistortionType::Formant:
-            // Slot0=Vowel, Slot1=Shift, Slot2=Curve, Slot3=Reso, Slot4=BW,
-            // Slot5=Fmts, Slot6=Gendr, Slot7=Blend
-            p.vowelSelect = static_cast<int>(slots[0] * 4.0f + 0.5f); // 0-4 vowels
-            p.formantShift = (slots[1] * 2.0f - 1.0f) * 24.0f; // [0,1] → [-24,24]
-            p.formantCurve = slots[2];
-            p.formantReso = slots[3];
-            p.formantBW = slots[4];
-            p.formantCount = static_cast<int>(slots[5] * 3.0f + 0.5f);
-            p.formantGender = slots[6];
-            p.formantBlend = slots[7];
-            break;
-
-        case DistortionType::Granular:
-            // Slot0=Size, Slot1=Dens, Slot2=PVar, Slot3=DVar, Slot4=Pos,
-            // Slot5=Curve, Slot6=Env
-            p.grainSizeMs = 5.0f + slots[0] * 95.0f;  // [0,1] → [5,100]
-            p.grainDensity = slots[1];
-            p.grainPVar = slots[2];
-            p.grainDVar = slots[3];
-            p.grainPos = slots[4];
-            p.grainCurve = slots[5];
-            p.grainEnvType = static_cast<int>(slots[6] * 3.0f + 0.5f);
-            break;
-
-        case DistortionType::Spectral:
-            // Slot0=Mode, Slot1=FFT, Slot2=Curve, Slot3=Tilt, Slot4=Thr,
-            // Slot5=Mag, Slot6=Freq, Slot7=Phase
-            p.spectralMode = static_cast<int>(slots[0] * 3.0f + 0.5f); // 0-3 modes
-            p.fftSize = 512 * (1 << static_cast<int>(slots[1] * 3.0f + 0.5f)); // 512-4096
-            p.spectralCurve = slots[2];
-            p.spectralTilt = slots[3];
-            p.spectralThreshold = slots[4];
-            p.spectralMagMode = static_cast<int>(slots[5] * 3.0f + 0.5f);
-            p.spectralFreq = slots[6];
-            p.spectralPhase = static_cast<int>(slots[7] * 3.0f + 0.5f);
-            break;
-
-        case DistortionType::Fractal:
-            // Slot0=Mode, Slot1=Iter, Slot2=Scale, Slot3=Curve, Slot4=FDecay,
-            // Slot5=FB, Slot6=Blend, Slot7=Depth
-            p.fractalMode = static_cast<int>(slots[0] * 4.0f + 0.5f); // 0-4 modes
-            p.iterations = 1 + static_cast<int>(slots[1] * 7.0f + 0.5f); // [0,1] → 1-8
-            p.scaleFactor = 0.3f + slots[2] * 0.6f;    // [0,1] → [0.3,0.9]
-            p.fractalCurve = slots[3];
-            p.frequencyDecay = slots[4];
-            p.fractalFB = slots[5] * 0.5f;              // [0,1] → [0,0.5]
-            p.fractalBlend = static_cast<int>(slots[6] * 3.0f + 0.5f);
-            p.fractalDepth = slots[7];
-            break;
-
-        case DistortionType::Stochastic:
-            // Slot0=Curve, Slot1=Jit, Slot2=Rate, Slot3=Coef, Slot4=Drift,
-            // Slot5=Corr, Slot6=Smth, Slot7=Dist (noise color)
-            p.stochasticCurve = static_cast<int>(slots[0] * 5.0f + 0.5f);
-            p.jitterAmount = slots[1];
-            p.jitterRate = 0.1f + slots[2] * 99.9f;   // [0,1] → [0.1,100]
-            p.coefficientNoise = slots[3];
-            p.stochasticDrift = slots[4];
-            p.stochasticCorr = static_cast<int>(slots[5] * 3.0f + 0.5f);
-            p.stochasticSmooth = slots[6];
-            p.stochasticNoiseColor = static_cast<int>(slots[7] * 4.0f + 0.5f);
-            break;
-
-        case DistortionType::AllpassResonant:
-            // Slot0=Topo, Slot1=Freq, Slot2=FB, Slot3=Decay, Slot4=Drive,
-            // Slot5=Curve, Slot7=Damp (Slot6 unused)
-            p.allpassTopo = static_cast<int>(slots[0] * 3.0f + 0.5f); // 0-3 topologies
-            p.resonantFreq = 20.0f + slots[1] * 1980.0f; // [0,1] → [20,2000]
-            p.allpassFeedback = slots[2] * 0.99f;       // [0,1] → [0,0.99]
-            p.decayTimeS = 0.01f + slots[3] * 9.99f;    // [0,1] → [0.01,10]
-            p.allpassDrive = slots[4];                   // [0,1] → drive amount
-            p.allpassSatType = static_cast<int>(slots[5] * 3.0f + 0.5f); // 0-3 curve types
-            p.allpassDamp = slots[7];                    // [0,1] → damping amount
-            break;
-
-        default:
-            break;
-    }
+void Processor::mapShapeSlotsToParams(DistortionType type, const float* slots,
+                                      DistortionParams& p) noexcept {
+    applyShapeSlots(type, slots, p);
 }
 
 void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* changes) {
@@ -299,6 +53,10 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
     }
 
     const Steinberg::int32 numParamsChanged = changes->getParameterCount();
+
+    // Bands whose morph nodes changed in this batch: pushed once each after the
+    // loop, not once per parameter (D-006)
+    std::array<bool, kMaxBands> morphNodesDirty{};
 
     for (Steinberg::int32 i = 0; i < numParamsChanged; ++i) {
         Steinberg::Vst::IParamValueQueue* paramQueue = changes->getParameterData(i);
@@ -340,21 +98,20 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
                 // Convert normalized [0,1] to band count [1,4]
                 const int newBandCount = 1 + static_cast<int>(value * 3.0 + 0.5);
                 const int clamped = std::clamp(newBandCount, kMinBands, 4);
+                // process() switches the crossovers through the output dip (D-023)
                 bandCount_.store(clamped, std::memory_order_relaxed);
-                crossoverL_.setBandCount(clamped);
-                crossoverR_.setBandCount(clamped);
                 break;
             }
 
             case kOversampleMaxId: {
                 // FR-005, FR-006: Map normalized [0,1] to {1, 2, 4, 8}
                 // StringListParameter with 4 items: index = round(value * 3)
-                // Index 0 = 1x, Index 1 = 2x, Index 2 = 4x, Index 3 = 8x
+                // Index 0 = 1x, Index 1 = 2x, Index 2 = 4x, Index 3 = 8x (user ruling
+                // 2026-11-10: 8x runs for the types that need it, the others stay at theirs)
                 static constexpr int kOversampleFactors[] = {1, 2, 4, 8};
                 const int index = std::clamp(
                     static_cast<int>(value * 3.0 + 0.5), 0, 3);
                 const int factor = kOversampleFactors[index];
-                maxOversampleFactor_.store(factor, std::memory_order_relaxed);
                 // FR-016: Apply to all band processors
                 for (auto& bp : bandProcessors_) {
                     bp.setMaxOversampleFactor(factor);
@@ -377,12 +134,8 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
 
                         case SweepParamType::kSweepFrequency: {
                             // FR-002: Convert normalized [0,1] to Hz [20, 20000] logarithmically
-                            // Using log2 scale as per data-model.md
-                            constexpr float kSweepLog2Min = 4.321928f;   // log2(20)
-                            constexpr float kSweepLog2Max = 14.287712f;  // log2(20000)
-                            constexpr float kSweepLog2Range = kSweepLog2Max - kSweepLog2Min;
-                            const float log2Freq = kSweepLog2Min + static_cast<float>(value) * kSweepLog2Range;
-                            const float freqHz = std::pow(2.0f, log2Freq);
+                            // (log2 scale as per data-model.md; state_codec.h)
+                            const float freqHz = sweepFreqNormToHz(static_cast<float>(value));
                             // Store base frequency for modulation (FR-029a)
                             baseSweepFrequency_.store(freqHz, std::memory_order_relaxed);
                             sweepProcessor_.setCenterFrequency(freqHz);
@@ -391,10 +144,8 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
 
                         case SweepParamType::kSweepWidth: {
                             // FR-003: Convert normalized [0,1] to octaves [0.5, 4.0]
-                            constexpr float kMinWidth = 0.5f;
-                            constexpr float kMaxWidth = 4.0f;
                             baseSweepWidthNorm_.store(static_cast<float>(value), std::memory_order_relaxed);
-                            const float widthOctaves = kMinWidth + static_cast<float>(value) * (kMaxWidth - kMinWidth);
+                            const float widthOctaves = kSweepWidthOctRange.toPlain(static_cast<float>(value));
                             sweepProcessor_.setWidth(widthOctaves);
                             break;
                         }
@@ -402,15 +153,14 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
                         case SweepParamType::kSweepIntensity: {
                             // FR-004: Convert normalized [0,1] to intensity [0, 2] (0-200%)
                             baseSweepIntensityNorm_.store(static_cast<float>(value), std::memory_order_relaxed);
-                            const float intensity = static_cast<float>(value) * 2.0f;
+                            const float intensity = kSweepIntensityRange.toPlain(static_cast<float>(value));
                             sweepProcessor_.setIntensity(intensity);
                             break;
                         }
 
                         case SweepParamType::kSweepMorphLink: {
-                            // FR-014: Sweep-morph link mode
-                            const int modeIndex = static_cast<int>(value * static_cast<float>(kMorphLinkModeCount - 1) + 0.5f);
-                            sweepProcessor_.setMorphLinkMode(static_cast<MorphLinkMode>(modeIndex));
+                            // FR-014: Sweep-morph link mode (alias for bands whose X link is None)
+                            sweepProcessor_.setMorphLinkMode(decodeMorphLinkMode(value));
                             break;
                         }
 
@@ -428,17 +178,13 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
 
                         case SweepParamType::kSweepLFORate: {
                             // Convert normalized [0,1] to Hz [0.01, 20] logarithmically
-                            constexpr float kMinRateLog = -4.6052f;  // ln(0.01)
-                            constexpr float kMaxRateLog = 2.9957f;   // ln(20)
-                            const float logRate = kMinRateLog + static_cast<float>(value) * (kMaxRateLog - kMinRateLog);
-                            const float rateHz = std::exp(logRate);
-                            sweepLFO_.setRate(rateHz);
+                            sweepLFO_.setRate(lfoRateNormToHz(static_cast<float>(value)));
                             break;
                         }
 
                         case SweepParamType::kSweepLFOWaveform: {
                             // Convert normalized [0,1] to waveform index [0,5]
-                            const int waveformIndex = static_cast<int>(value * 5.0f + 0.5f);
+                            const int waveformIndex = normToListIndex(value, kLfoShapeCount);
                             sweepLFO_.setWaveform(static_cast<Krate::DSP::Waveform>(waveformIndex));
                             break;
                         }
@@ -453,9 +199,9 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
                             break;
 
                         case SweepParamType::kSweepLFONoteValue: {
-                            // Convert normalized [0,1] to note value index [0,15]
-                            // Standard note values: Whole, Half, Quarter, Eighth, Sixteenth (x3 for normal, dotted, triplet)
-                            const int noteIndex = static_cast<int>(value * (kNoteValueCount - 1) + 0.5f);
+                            // Convert normalized [0,1] to note value index [0, kNoteValueCount - 1] = [0, 29]
+                            // (the shared note-value dropdown, Krate::DSP::getNoteValueFromDropdown)
+                            const int noteIndex = normToListIndex(value, kNoteValueCount);
                             const auto mapping = Krate::DSP::getNoteValueFromDropdown(noteIndex);
                             sweepLFO_.setNoteValue(mapping.note, mapping.modifier);
                             break;
@@ -519,21 +265,6 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
                         case SweepParamType::kSweepCustomCurveP7Y:
                             // Curve point changed - defer rebuild to process loop
                             // (handled below after all params processed)
-                            break;
-
-                        // ========================================================
-                        // MIDI Parameters (FR-028, FR-029)
-                        // ========================================================
-                        case SweepParamType::kSweepMidiLearnActive:
-                            midiLearnActive_ = (value >= 0.5);
-                            break;
-
-                        case SweepParamType::kSweepMidiCCNumber: {
-                            assignedMidiCC_ = static_cast<int>(value * 128.0 + 0.5);
-                            assignedMidiCC_ = std::clamp(assignedMidiCC_, 0, 128);
-                            break;
-                        }
-
                         default:
                             break;
                     }
@@ -552,7 +283,7 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
                             switch (routOff) {
                                 case 0:  // Source
                                     routing.source = static_cast<Krate::DSP::ModSource>(
-                                        static_cast<int>(value * (kUIModSourceCount - 1) + 0.5));
+                                        normToListIndex(value, kUIModSourceCount));
                                     routing.active = (routing.source != Krate::DSP::ModSource::None);
                                     break;
                                 case 1:  // Destination
@@ -575,26 +306,22 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
                         const auto modType = static_cast<ModParamType>(paramId & 0xFF);
                         switch (modType) {
                             // LFO 1
-                            case ModParamType::kLFO1Rate: {
-                                constexpr float kMinLog = -4.6052f;
-                                constexpr float kMaxLog = 2.9957f;
-                                float rateHz = std::exp(kMinLog + static_cast<float>(value) * (kMaxLog - kMinLog));
-                                modulationEngine_.setLFO1Rate(rateHz);
+                            case ModParamType::kLFO1Rate:
+                                modulationEngine_.setLFO1Rate(lfoRateNormToHz(static_cast<float>(value)));
                                 break;
-                            }
                             case ModParamType::kLFO1Shape: {
-                                int idx = static_cast<int>(value * 5.0f + 0.5f);
+                                int idx = normToListIndex(value, kLfoShapeCount);
                                 modulationEngine_.setLFO1Waveform(static_cast<Krate::DSP::Waveform>(idx));
                                 break;
                             }
                             case ModParamType::kLFO1Phase:
-                                modulationEngine_.setLFO1PhaseOffset(static_cast<float>(value) * 360.0f);
+                                modulationEngine_.setLFO1PhaseOffset(kLfoPhaseDegRange.toPlain(static_cast<float>(value)));
                                 break;
                             case ModParamType::kLFO1Sync:
                                 modulationEngine_.setLFO1TempoSync(value >= 0.5);
                                 break;
                             case ModParamType::kLFO1NoteValue: {
-                                const int idx = static_cast<int>(value * (kNoteValueCount - 1) + 0.5f);
+                                const int idx = normToListIndex(value, kNoteValueCount);
                                 const auto mapping = Krate::DSP::getNoteValueFromDropdown(idx);
                                 modulationEngine_.setLFO1NoteValue(mapping.note, mapping.modifier);
                                 break;
@@ -607,26 +334,22 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
                                 break;
 
                             // LFO 2
-                            case ModParamType::kLFO2Rate: {
-                                constexpr float kMinLog = -4.6052f;
-                                constexpr float kMaxLog = 2.9957f;
-                                float rateHz = std::exp(kMinLog + static_cast<float>(value) * (kMaxLog - kMinLog));
-                                modulationEngine_.setLFO2Rate(rateHz);
+                            case ModParamType::kLFO2Rate:
+                                modulationEngine_.setLFO2Rate(lfoRateNormToHz(static_cast<float>(value)));
                                 break;
-                            }
                             case ModParamType::kLFO2Shape: {
-                                int idx = static_cast<int>(value * 5.0f + 0.5f);
+                                int idx = normToListIndex(value, kLfoShapeCount);
                                 modulationEngine_.setLFO2Waveform(static_cast<Krate::DSP::Waveform>(idx));
                                 break;
                             }
                             case ModParamType::kLFO2Phase:
-                                modulationEngine_.setLFO2PhaseOffset(static_cast<float>(value) * 360.0f);
+                                modulationEngine_.setLFO2PhaseOffset(kLfoPhaseDegRange.toPlain(static_cast<float>(value)));
                                 break;
                             case ModParamType::kLFO2Sync:
                                 modulationEngine_.setLFO2TempoSync(value >= 0.5);
                                 break;
                             case ModParamType::kLFO2NoteValue: {
-                                const int idx = static_cast<int>(value * (kNoteValueCount - 1) + 0.5f);
+                                const int idx = normToListIndex(value, kNoteValueCount);
                                 const auto mapping = Krate::DSP::getNoteValueFromDropdown(idx);
                                 modulationEngine_.setLFO2NoteValue(mapping.note, mapping.modifier);
                                 break;
@@ -640,12 +363,12 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
 
                             // Envelope Follower
                             case ModParamType::kEnvFollowerAttack: {
-                                float ms = 1.0f + static_cast<float>(value) * 99.0f;
+                                float ms = kEnvFollowerAttackMsRange.toPlain(static_cast<float>(value));
                                 modulationEngine_.setEnvFollowerAttack(ms);
                                 break;
                             }
                             case ModParamType::kEnvFollowerRelease: {
-                                float ms = 10.0f + static_cast<float>(value) * 490.0f;
+                                float ms = kEnvFollowerReleaseMsRange.toPlain(static_cast<float>(value));
                                 modulationEngine_.setEnvFollowerRelease(ms);
                                 break;
                             }
@@ -653,7 +376,7 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
                                 modulationEngine_.setEnvFollowerSensitivity(static_cast<float>(value));
                                 break;
                             case ModParamType::kEnvFollowerSource: {
-                                int idx = static_cast<int>(value * 4.0f + 0.5f);
+                                int idx = normToListIndex(value, kEnvFollowerSourceCount);
                                 modulationEngine_.setEnvFollowerSource(
                                     static_cast<Krate::DSP::EnvFollowerSourceType>(idx));
                                 break;
@@ -661,7 +384,7 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
 
                             // Random
                             case ModParamType::kRandomRate: {
-                                float hz = 0.1f + static_cast<float>(value) * 49.9f;
+                                float hz = kRandomRateHzRange.toPlain(static_cast<float>(value));
                                 modulationEngine_.setRandomRate(hz);
                                 break;
                             }
@@ -674,13 +397,13 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
 
                             // Chaos
                             case ModParamType::kChaosModel: {
-                                int idx = static_cast<int>(value * 3.0f + 0.5f);
+                                int idx = normToListIndex(value, kChaosModelCount);
                                 modulationEngine_.setChaosModel(
                                     static_cast<Krate::DSP::ChaosModel>(idx));
                                 break;
                             }
                             case ModParamType::kChaosSpeed: {
-                                float speed = 0.05f + static_cast<float>(value) * 19.95f;
+                                float speed = kChaosSpeedRange.toPlain(static_cast<float>(value));
                                 modulationEngine_.setChaosSpeed(speed);
                                 break;
                             }
@@ -690,30 +413,30 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
 
                             // Sample & Hold
                             case ModParamType::kSampleHoldSource: {
-                                int idx = static_cast<int>(value * 3.0f + 0.5f);
+                                int idx = normToListIndex(value, kSampleHoldSourceCount);
                                 modulationEngine_.setSampleHoldSource(
                                     static_cast<Krate::DSP::SampleHoldInputType>(idx));
                                 break;
                             }
                             case ModParamType::kSampleHoldRate: {
-                                float hz = 0.1f + static_cast<float>(value) * 49.9f;
+                                float hz = kSampleHoldRateHzRange.toPlain(static_cast<float>(value));
                                 modulationEngine_.setSampleHoldRate(hz);
                                 break;
                             }
                             case ModParamType::kSampleHoldSlew: {
-                                float ms = static_cast<float>(value) * 500.0f;
+                                float ms = kSampleHoldSlewMsRange.toPlain(static_cast<float>(value));
                                 modulationEngine_.setSampleHoldSlew(ms);
                                 break;
                             }
 
                             // Pitch Follower
                             case ModParamType::kPitchFollowerMinHz: {
-                                float hz = 20.0f + static_cast<float>(value) * 480.0f;
+                                float hz = kPitchFollowerMinHzRange.toPlain(static_cast<float>(value));
                                 modulationEngine_.setPitchFollowerMinHz(hz);
                                 break;
                             }
                             case ModParamType::kPitchFollowerMaxHz: {
-                                float hz = 200.0f + static_cast<float>(value) * 4800.0f;
+                                float hz = kPitchFollowerMaxHzRange.toPlain(static_cast<float>(value));
                                 modulationEngine_.setPitchFollowerMaxHz(hz);
                                 break;
                             }
@@ -721,7 +444,7 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
                                 modulationEngine_.setPitchFollowerConfidence(static_cast<float>(value));
                                 break;
                             case ModParamType::kPitchFollowerTrackingSpeed: {
-                                float ms = 10.0f + static_cast<float>(value) * 290.0f;
+                                float ms = kPitchFollowerTrackingMsRange.toPlain(static_cast<float>(value));
                                 modulationEngine_.setPitchFollowerTrackingSpeed(ms);
                                 break;
                             }
@@ -731,19 +454,19 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
                                 modulationEngine_.setTransientSensitivity(static_cast<float>(value));
                                 break;
                             case ModParamType::kTransientAttack: {
-                                float ms = 0.5f + static_cast<float>(value) * 9.5f;
+                                float ms = kTransientAttackMsRange.toPlain(static_cast<float>(value));
                                 modulationEngine_.setTransientAttack(ms);
                                 break;
                             }
                             case ModParamType::kTransientDecay: {
-                                float ms = 20.0f + static_cast<float>(value) * 180.0f;
+                                float ms = kTransientDecayMsRange.toPlain(static_cast<float>(value));
                                 modulationEngine_.setTransientDecay(ms);
                                 break;
                             }
 
                             // Rungler
                             case ModParamType::kRunglerRate: {
-                                float hz = 0.1f + static_cast<float>(value) * 49.9f;
+                                float hz = kRunglerRateHzRange.toPlain(static_cast<float>(value));
                                 modulationEngine_.setRunglerOsc1Freq(hz);
                                 modulationEngine_.setRunglerOsc2Freq(hz * 1.5f);
                                 break;
@@ -752,7 +475,7 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
                                 modulationEngine_.setRunglerDepth(static_cast<float>(value));
                                 break;
                             case ModParamType::kRunglerBits: {
-                                size_t bits = 4 + static_cast<size_t>(value * 12.0 + 0.5);
+                                const size_t bits = 4 + static_cast<size_t>(normToListIndex(value, kRunglerBitsCount));
                                 modulationEngine_.setRunglerBits(bits);
                                 break;
                             }
@@ -855,7 +578,7 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
                             }
                             case NodeParamType::kNodeDrive:
                                 // RangeParameter [0, 10]
-                                mn.commonParams.drive = static_cast<float>(value) * 10.0f;
+                                mn.commonParams.drive = static_cast<float>(value * 10.0);  // exact (D-160)
                                 break;
                             case NodeParamType::kNodeMix:
                                 // RangeParameter [0, 100]% -> [0, 1]
@@ -863,19 +586,28 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
                                 break;
                             case NodeParamType::kNodeTone:
                                 // RangeParameter [200, 8000] Hz
-                                mn.commonParams.toneHz = 200.0f + static_cast<float>(value) * 7800.0f;
+                                mn.commonParams.toneHz = static_cast<float>(200.0 + value * 7800.0);  // exact (D-160)
                                 break;
+                            // Bias, Folds and Bit Depth are also shape slots of the types that
+                            // use them (RingSaturation / saturators Bias, the wavefolders' Folds,
+                            // Bitcrush Bits). One precedence, the slot wins (follow-ups 34 and 87,
+                            // user ruling 2026-11-09): the node parameter is applied, then the
+                            // type's slots again, whatever order the parameters arrive in. setState
+                            // maps the slots last as well.
                             case NodeParamType::kNodeBias:
                                 // RangeParameter [-1, +1]
-                                mn.params.bias = static_cast<float>(value) * 2.0f - 1.0f;
+                                mn.params.bias = static_cast<float>(value * 2.0 - 1.0);  // exact (D-160)
+                                mapShapeSlotsToParams(mn.type, mn.shapeSlots, mn.params);
                                 break;
                             case NodeParamType::kNodeFolds:
                                 // RangeParameter [1, 12] (integer steps)
                                 mn.params.folds = 1.0f + std::round(static_cast<float>(value) * 11.0f);
+                                mapShapeSlotsToParams(mn.type, mn.shapeSlots, mn.params);
                                 break;
                             case NodeParamType::kNodeBitDepth:
                                 // RangeParameter [4, 24] (integer steps)
                                 mn.params.bitDepth = 4.0f + std::round(static_cast<float>(value) * 20.0f);
+                                mapShapeSlotsToParams(mn.type, mn.shapeSlots, mn.params);
                                 break;
                             default: {
                                 // Generic shape slots (kNodeShape0 through kNodeShape9)
@@ -895,8 +627,8 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
                             }
                         }
 
-                        // Push updated nodes to BandProcessor
-                        bandProcessors_[band].setMorphNodes(cache.nodes, cache.activeNodeCount);
+                        // Pushed to the BandProcessor after the loop
+                        morphNodesDirty[band] = true;
                     }
                     break;
                 }
@@ -909,14 +641,18 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
                         switch (paramType) {
                             case BandParamType::kBandGain: {
                                 // Convert normalized [0,1] to dB [-24, +24]
-                                const float gainDb = kMinBandGainDb + static_cast<float>(value) * (kMaxBandGainDb - kMinBandGainDb);
+                                // in double: the state stores dB, so a load through the parameters
+                                // comes back bit-exact (D-160)
+                                const auto gainDb = static_cast<float>(
+                                    static_cast<double>(kMinBandGainDb) +
+                                    value * static_cast<double>(kMaxBandGainDb - kMinBandGainDb));
                                 bandStates_[band].gainDb = gainDb;
                                 bandProcessors_[band].setGainDb(gainDb);
                                 break;
                             }
                             case BandParamType::kBandPan: {
                                 // Convert normalized [0,1] to pan [-1, +1]
-                                const float pan = static_cast<float>(value) * 2.0f - 1.0f;
+                                const auto pan = static_cast<float>(value * 2.0 - 1.0);  // exact (D-160)
                                 bandStates_[band].pan = pan;
                                 bandProcessors_[band].setPan(pan);
                                 break;
@@ -948,34 +684,40 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
                             }
                             case BandParamType::kBandActiveNodes: {
                                 // StringListParameter: 4 entries ["1","2","3","4"]
-                                int idx = static_cast<int>(value * 3.0 + 0.5);
+                                int idx = normToListIndex(value, kMaxMorphNodes);
                                 int count = std::clamp(idx + 1, kMinActiveNodes, kMaxMorphNodes);
                                 bandMorphCache_[band].activeNodeCount = count;
-                                bandProcessors_[band].setMorphNodes(
-                                    bandMorphCache_[band].nodes, count);
+                                morphNodesDirty[band] = true;
                                 break;
                             }
                             case BandParamType::kBandMorphSmoothing: {
                                 // RangeParameter [0, 500] ms
-                                float timeMs = static_cast<float>(value) * 500.0f;
+                                float timeMs = kMorphSmoothingMsRange.toPlainExact(value);  // stored in ms (D-160)
+                                bandMorphCache_[band].morphSmoothingMs = timeMs;
                                 bandProcessors_[band].setMorphSmoothingTime(timeMs);
                                 break;
                             }
                             case BandParamType::kBandMorphMode: {
                                 // StringListParameter: 3 entries
-                                int idx = static_cast<int>(value * 2.0 + 0.5);
-                                bandProcessors_[band].setMorphMode(
-                                    static_cast<MorphMode>(std::clamp(idx, 0, 2)));
+                                int idx = normToListIndex(value, kMorphModeCount);
+                                const auto mode = static_cast<MorphMode>(std::clamp(idx, 0, 2));
+                                bandMorphCache_[band].morphMode = mode;
+                                bandProcessors_[band].setMorphMode(mode);
                                 break;
                             }
                             case BandParamType::kBandMorphXLink:
+                                // Applied in process() from the smoothed sweep centre (D-137)
+                                bandStates_[band].xLink = decodeMorphLinkMode(value);
+                                break;
                             case BandParamType::kBandMorphYLink:
+                                bandStates_[band].yLink = decodeMorphLinkMode(value);
+                                break;
                             case BandParamType::kBandExpanded:
                             case BandParamType::kBandSelectedNode:
                             case BandParamType::kBandDisplayedType:
                             default:
-                                // UI-only params (sweep-morph link, expanded,
-                                // selectedNode, displayedType): no processor action
+                                // UI-only params (expanded, selectedNode,
+                                // displayedType): no processor action
                                 break;
                         }
                     }
@@ -985,15 +727,19 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
                     const uint8_t index = extractCrossoverIndex(paramId);
                     if (index < kMaxBands - 1) {
                         // Convert normalized [0,1] to Hz [20, 20000] logarithmically
-                        const float logMin = std::log10(kMinCrossoverHz);
-                        const float logMax = std::log10(kMaxCrossoverHz);
-                        const float logFreq = logMin + static_cast<float>(value) * (logMax - logMin);
-                        const float freqHz = std::pow(10.0f, logFreq);
+                        const float freqHz = crossoverNormToHzExact(value);  // the state stores Hz (D-160)
                         crossoverL_.setCrossoverFrequency(static_cast<int>(index), freqHz);
                         crossoverR_.setCrossoverFrequency(static_cast<int>(index), freqHz);
                     }
                 }
                 break;
+        }
+    }
+
+    for (std::size_t band = 0; band < morphNodesDirty.size(); ++band) {
+        if (morphNodesDirty[band]) {
+            const auto& cache = bandMorphCache_[band];
+            bandProcessors_[band].setMorphNodes(cache.nodes, cache.activeNodeCount);
         }
     }
 }

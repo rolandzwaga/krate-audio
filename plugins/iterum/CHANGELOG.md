@@ -5,6 +5,23 @@ All notable changes to Iterum will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.2] - 2026-11-10
+
+### Fixed
+
+- **Shimmer's diffusion ignored the fraction of its delay times** — The allpass interpolation in Shimmer's diffusion stage worked out to a whole-sample delay, so every diffuser landed on the nearest sample below the time it was set to. It is now a true fractional allpass. The diffusion texture changes subtly; levels stay within 0.02 dB.
+- **Digital's Sample & Hold and Smooth Random modulation repeated too soon** — The random generator behind these two Mod Waveform settings overflowed and cycled after about 79,000 values instead of running its full sequence. It now runs the full sequence, so these waveforms play a different random pattern than before.
+- **Freeze's Harmonic Drones pattern used far more CPU than it should** — Each drone voice's pitch shifter searched for its next splice point with a slow division on every sample, so four voices an octave apart took about a third of one CPU core. The search is now about ten times faster (under 4 % of a core) and the sound is identical.
+- **Silence after loud material could cost extra CPU in some hosts** — A delay's feedback tail fades through the tiny "denormal" number range, which the processor computes slowly unless the host has switched that off. Iterum now switches it off itself while it processes, and restores the host's setting afterwards.
+- **A possible crash when a host shut Iterum down with its window still open** — If a host shut down the plugin's controller before closing the editor window, the update banner kept checking for updates, twice a second, through memory that had already been freed, which could crash the host. The update check now stays alive until the window is gone. The Sync switch on the eight delay modes that have one also no longer touches freed memory when its panel is taken down without an open window (as in automated tests).
+- **Spectral's controls took about 25 seconds to settle** — Spectral smooths every change over 50 ms, but its smoothing moved only once per analysis frame (or once per audio buffer for Mix), so a change of Delay, Spread, Feedback, Feedback Tilt, Diffusion, Stereo Width or Mix glided for about 25 seconds at the default FFT size (13 to 100 seconds across FFT sizes 512 to 4096). Every change now settles in 50 ms, at any FFT size and sample rate. Starting playback or loading a preset no longer sweeps in from the previous settings either: the factory Spectral presets play their own sound from the first second instead of drifting into it over the first 10 to 30 seconds (up to 1.9 dB of level difference in the first second, about 1 dB at most after that; overall level within 0.4 dB).
+- **Spectral with Sync on started at the wrong delay time** — A project, preset or fresh instance with Sync on started at a different delay time (250 ms, or the free Delay time) and slid onto the synced note length over the following half minute. It now starts on the synced note length; changing the note value or the tempo while playing still glides smoothly, now over 50 ms.
+- **Spectral's Stereo Width could make the two channels cancel** — The random per-frequency phase offsets behind Stereo Width drifted the same way on both channels, so at middle settings left and right came out nearly opposite: summed to mono, Width 0.5 almost cancelled. Width now spreads the channels apart without cancelling. All ten factory Spectral presets sound narrower and hold up in mono (Spectral Freeze is about 4 dB louder summed to mono). Frequency Cascade and Crystal Diffusion would have come out 2.7 and 1.0 dB quieter, so their output gain is raised by that much to keep their loudness.
+
+### Changed
+
+- **Built with VST3 SDK 3.8.1.**
+
 ## [1.0.1] - 2026-11-02
 
 ### Fixed

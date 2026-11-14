@@ -104,19 +104,26 @@ tresult PLUGIN_API Controller::initialize(FUnknown* context) {
     registerGhostParams(parameters);      // 1400-1403
     registerLifeParams(parameters);       // 1500-1502
 
-    // FR-050. Phase 13 (FR-072, FR-073): the browser
+    // FR-050.
+    createPresetManager({}, {});
+
+    updateChecker_ = std::make_unique<Krate::Plugins::UpdateChecker>(makeVoragoUpdateConfig());
+    return kResultOk;
+}
+
+void Controller::createPresetManager(std::filesystem::path userDirOverride,
+                                     std::filesystem::path factoryDirOverride) {
+    // Phase 13 (FR-072, FR-073): the browser
     // saves the processor's own getState bytes and loads with host edits.
-    presetManager_ = std::make_unique<Krate::Plugins::PresetManager>(makeVoragoPresetConfig(),
-                                                                     nullptr, this);
+    presetManager_ = std::make_unique<Krate::Plugins::PresetManager>(
+        makeVoragoPresetConfig(), nullptr, this, std::move(userDirOverride),
+        std::move(factoryDirOverride));
     presetManager_->setStateProvider(
         [this]() -> IBStream* { return createComponentStateStream(); });
     presetManager_->setLoadProvider(
         [this](IBStream* stream, const Krate::Plugins::PresetInfo& /*info*/) {
             return loadComponentStateWithEdits(stream);
         });
-
-    updateChecker_ = std::make_unique<Krate::Plugins::UpdateChecker>(makeVoragoUpdateConfig());
-    return kResultOk;
 }
 
 tresult PLUGIN_API Controller::terminate() {
@@ -126,8 +133,10 @@ tresult PLUGIN_API Controller::terminate() {
         anchorParamObserved_->removeDependent(this);
         anchorParamObserved_ = nullptr;
     }
-    updateChecker_.reset();
-    presetManager_ = nullptr;
+    // updateChecker_ and presetManager_ stay until the destructor: an editor a host has not
+    // closed yet still polls the checker (update banner, Check for Updates button) and its
+    // preset browser holds the manager, and that editor holds a reference to this
+    // controller, so the destructor runs only after its views are gone
     return EditControllerEx1::terminate();
 }
 

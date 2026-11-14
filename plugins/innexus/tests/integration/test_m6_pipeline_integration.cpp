@@ -11,6 +11,7 @@
 
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/catch_approx.hpp>
+#include <catch2/generators/catch_generators.hpp>
 
 #include "processor/processor.h"
 #include "plugin_ids.h"
@@ -310,6 +311,80 @@ TEST_CASE("M6 pipeline order: filtered partials stay silent even with modulators
         }
     }
     REQUIRE(hasOutput);
+}
+
+// =============================================================================
+// Mod 1 -> Pan stays audible with mod 2 on (FR-027, FR-028)
+// =============================================================================
+// Both modulators' pan offsets apply. Mod 2 used to rewrite both pan tables from
+// its own offsets alone, so a mod 1 -> Pan routing went silent whenever mod 2 was
+// on, whatever mod 2 targeted. With stereo spread at 0 every partial sits in the
+// centre, so the side signal (L - R) is the pan modulation itself.
+
+/// Side / mid RMS ratio of a held note with mod 1 -> Pan at full depth.
+/// @param mod2Target  normalized mod 2 target (0 Amp, 0.5 Freq, 1 Pan), or < 0 for mod 2 off.
+static double mod1PanSideToMidRatio(double mod2Target)
+{
+    PipelineTestFixture fix;
+    fix.injectAnalysis(makePipelineTestAnalysis(20, 440.0f, 16, 0.5f));
+
+    fix.paramChanges.addChange(Innexus::kStereoSpreadId, 0.0);
+    fix.paramChanges.addChange(Innexus::kMod1EnableId, 1.0);
+    fix.paramChanges.addChange(Innexus::kMod1TargetId, 1.0);       // Pan
+    fix.paramChanges.addChange(Innexus::kMod1DepthId, 1.0);
+    fix.paramChanges.addChange(Innexus::kMod1RateSyncId, 0.0);
+    fix.paramChanges.addChange(Innexus::kMod1RateId, 0.25);
+    fix.paramChanges.addChange(Innexus::kMod1RangeStartId, 0.0);   // partial 1
+    fix.paramChanges.addChange(Innexus::kMod1RangeEndId, 1.0);     // partial 96
+    if (mod2Target >= 0.0)
+    {
+        fix.paramChanges.addChange(Innexus::kMod2EnableId, 1.0);
+        fix.paramChanges.addChange(Innexus::kMod2TargetId, mod2Target);
+        fix.paramChanges.addChange(Innexus::kMod2DepthId, 0.5);
+        fix.paramChanges.addChange(Innexus::kMod2RateSyncId, 0.0);
+        fix.paramChanges.addChange(Innexus::kMod2RateId, 0.4);
+        // Pan: mod 2 acts on partials 60-96 only, which the 16-partial analysis leaves
+        // silent, so any side signal is mod 1's. Amp / Freq: the full range.
+        fix.paramChanges.addChange(Innexus::kMod2RangeStartId, mod2Target > 0.75 ? 59.0 / 95.0 : 0.0);
+        fix.paramChanges.addChange(Innexus::kMod2RangeEndId, 1.0);
+    }
+
+    fix.events.addNoteOn(60, 0.8f);
+    fix.processBlockWithParams();
+    fix.events.clear();
+
+    for (int b = 0; b < 8; ++b)  // let the depth smoothers settle
+        fix.processBlock();
+
+    double side = 0.0;
+    double mid = 0.0;
+    for (int b = 0; b < 40; ++b)  // ~0.46 s: over two LFO cycles at 5 Hz
+    {
+        fix.processBlock();
+        for (size_t i = 0; i < fix.outL.size(); ++i)
+        {
+            const double l = fix.outL[i];
+            const double r = fix.outR[i];
+            side += (l - r) * (l - r);
+            mid += (l + r) * (l + r);
+        }
+    }
+    REQUIRE(mid > 1e-6);
+    return std::sqrt(side / mid);
+}
+
+TEST_CASE("M6 modulators: mod 1 -> Pan stays audible with mod 2 on (any mod 2 target)",
+          "[innexus][m6][integration][pipeline]")
+{
+    const double reference = mod1PanSideToMidRatio(-1.0);  // mod 2 off
+    INFO("mod 1 -> Pan alone: side/mid " << reference);
+    REQUIRE(reference > 0.05);
+
+    const auto [name, target] = GENERATE(table<const char*, double>({
+        {"Amplitude", 0.0}, {"Frequency", 0.5}, {"Pan", 1.0}}));
+    const double withMod2 = mod1PanSideToMidRatio(target);
+    INFO("mod 2 on, target " << name << ": side/mid " << withMod2);
+    CHECK(withMod2 > 0.5 * reference);
 }
 
 // =============================================================================

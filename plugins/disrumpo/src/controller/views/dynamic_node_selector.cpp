@@ -9,6 +9,8 @@
 #include "vstgui/lib/cgradient.h"
 #include "vstgui/lib/events.h"
 
+#include <algorithm>
+#include <cmath>
 #include <utility>
 
 namespace Disrumpo {
@@ -26,18 +28,24 @@ DynamicNodeSelector::DynamicNodeSelector(
     , controller_(controller)
     , selectedNodeParamId_(selectedNodeParamId)
 {
-    // Get the ActiveNodes parameter and watch it
+    // Get the ActiveNodes and SelectedNode parameters and watch them
     if (controller_) {
         activeNodesParam_ = controller_->getParameterObject(activeNodesParamId);
         if (activeNodesParam_) {
             activeNodesParam_->addRef();
             activeNodesParam_->addDependent(this);
         }
+        selectedNodeParam_ = controller_->getParameterObject(selectedNodeParamId);
+        if (selectedNodeParam_) {
+            selectedNodeParam_->addRef();
+            selectedNodeParam_->addDependent(this);
+        }
     }
 
     // Build initial segments based on current ActiveNodes value
     int activeCount = getActiveNodeCount();
     rebuildSegments(activeCount);
+    syncSelectionFromParam();
 
     // Trigger initial update to sync state
     if (activeNodesParam_) {
@@ -53,6 +61,10 @@ DynamicNodeSelector::~DynamicNodeSelector()
         activeNodesParam_->release();
         activeNodesParam_ = nullptr;
     }
+    if (selectedNodeParam_) {
+        selectedNodeParam_->release();
+        selectedNodeParam_ = nullptr;
+    }
 }
 
 // ==============================================================================
@@ -65,6 +77,9 @@ void DynamicNodeSelector::deactivate()
     if (isActive_.exchange(false, std::memory_order_acq_rel)) {
         if (activeNodesParam_) {
             activeNodesParam_->removeDependent(this);
+        }
+        if (selectedNodeParam_) {
+            selectedNodeParam_->removeDependent(this);
         }
     }
 }
@@ -85,8 +100,13 @@ void PLUGIN_API DynamicNodeSelector::update(
         return;
     }
 
-    // Verify it's the ActiveNodes parameter that changed
     auto* changedParam = Steinberg::FCast<Steinberg::Vst::Parameter>(changedUnknown);
+    if (changedParam != nullptr && changedParam == selectedNodeParam_) {
+        syncSelectionFromParam();
+        return;
+    }
+
+    // Verify it's the ActiveNodes parameter that changed
     if (changedParam != activeNodesParam_) {
         return;
     }
@@ -96,6 +116,7 @@ void PLUGIN_API DynamicNodeSelector::update(
     if (activeCount != currentSegmentCount_) {
         rebuildSegments(activeCount);
         clampSelectedNode();
+        syncSelectionFromParam();
     }
 }
 
@@ -281,6 +302,23 @@ void DynamicNodeSelector::clampSelectedNode()
         controller_->performEdit(selectedNodeParamId_, newNormalized);
         controller_->endEdit(selectedNodeParamId_);
     }
+}
+
+void DynamicNodeSelector::syncSelectionFromParam()
+{
+    // A single segment has nothing to highlight (and setSelectedSegment would divide by zero).
+    if (!selectedNodeParam_ || currentSegmentCount_ < 2) {
+        return;
+    }
+
+    // SelectedNode is a 4-entry list (0, 1/3, 2/3, 1) whatever the segment count.
+    const int index = std::clamp(static_cast<int>(std::lround(selectedNodeParam_->getNormalized() * 3.0)),
+                                 0, currentSegmentCount_ - 1);
+    if (std::cmp_equal(getSelectedSegment(), index)) {
+        return;
+    }
+    setSelectedSegment(static_cast<uint32_t>(index));
+    invalid();
 }
 
 } // namespace Disrumpo

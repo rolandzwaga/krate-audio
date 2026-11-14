@@ -30,7 +30,7 @@ TEST_CASE("BandProcessor: global limit 1x forces all types to 1x",
     bp.prepare(44100.0, 512);
     bp.setMaxOversampleFactor(1);
 
-    SECTION("4x types clamped to 1x") {
+    SECTION("4x and 8x types clamped to 1x") {
         bp.setDistortionType(DistortionType::HardClip);
         CHECK(bp.getOversampleFactor() == 1);
 
@@ -42,13 +42,13 @@ TEST_CASE("BandProcessor: global limit 1x forces all types to 1x",
     }
 
     SECTION("2x types clamped to 1x") {
-        bp.setDistortionType(DistortionType::SoftClip);
+        bp.setDistortionType(DistortionType::Fractal);
         CHECK(bp.getOversampleFactor() == 1);
 
         bp.setDistortionType(DistortionType::Tube);
         CHECK(bp.getOversampleFactor() == 1);
 
-        bp.setDistortionType(DistortionType::Tape);
+        bp.setDistortionType(DistortionType::Chaos);
         CHECK(bp.getOversampleFactor() == 1);
     }
 
@@ -72,7 +72,7 @@ TEST_CASE("BandProcessor: global limit 2x clamps 4x types to 2x",
     bp.prepare(44100.0, 512);
     bp.setMaxOversampleFactor(2);
 
-    SECTION("4x types clamped to 2x") {
+    SECTION("4x and 8x types clamped to 2x") {
         bp.setDistortionType(DistortionType::HardClip);
         CHECK(bp.getOversampleFactor() == 2);
 
@@ -84,7 +84,7 @@ TEST_CASE("BandProcessor: global limit 2x clamps 4x types to 2x",
     }
 
     SECTION("2x types unaffected") {
-        bp.setDistortionType(DistortionType::SoftClip);
+        bp.setDistortionType(DistortionType::Fractal);
         CHECK(bp.getOversampleFactor() == 2);
 
         bp.setDistortionType(DistortionType::Tube);
@@ -98,21 +98,25 @@ TEST_CASE("BandProcessor: global limit 2x clamps 4x types to 2x",
 }
 
 // =============================================================================
-// T11.048: Global limit 4x (default) does not affect types <= 4x
+// T11.048: Global limit 8x (default, user ruling 2026-11-10) does not affect any type
 // =============================================================================
 
-TEST_CASE("BandProcessor: global limit 4x (default) allows full range",
+TEST_CASE("BandProcessor: global limit 8x (default) allows full range",
           "[oversampling][limit][FR-008]") {
 
     BandProcessor bp;
     bp.prepare(44100.0, 512);
-    // Default limit is 8 (kMaxOversampleFactor), but setting to 4 explicitly
-    bp.setMaxOversampleFactor(4);
+    // Default limit is 8x, equal to the processor's Oversample Max default (D-134; 4x until
+    // the drive re-stage ruling 2026-11-10)
+    CHECK(bp.getMaxOversampleFactor() == 8);
+
+    bp.setDistortionType(DistortionType::Tape);
+    CHECK(bp.getOversampleFactor() == 8);
 
     bp.setDistortionType(DistortionType::HardClip);
     CHECK(bp.getOversampleFactor() == 4);
 
-    bp.setDistortionType(DistortionType::SoftClip);
+    bp.setDistortionType(DistortionType::Tube);
     CHECK(bp.getOversampleFactor() == 2);
 
     bp.setDistortionType(DistortionType::Bitcrush);
@@ -153,10 +157,10 @@ TEST_CASE("BandProcessor: changing limit during processing re-clamps factor",
     }
 
     SECTION("limit change respects current type") {
-        bp.setDistortionType(DistortionType::SoftClip);
+        bp.setDistortionType(DistortionType::Tube);
         CHECK(bp.getOversampleFactor() == 2);
 
-        // Setting limit to 4x should not increase SoftClip beyond 2x
+        // Setting limit to 4x should not increase Tube beyond 2x
         bp.setMaxOversampleFactor(4);
         CHECK(bp.getOversampleFactor() == 2);
 
@@ -168,9 +172,9 @@ TEST_CASE("BandProcessor: changing limit during processing re-clamps factor",
     SECTION("limit change with morph active") {
         // Setup morph between 2x and 4x types
         std::array<MorphNode, kMaxMorphNodes> nodes = {{
-            MorphNode(0, 0.0f, 0.0f, DistortionType::SoftClip),    // 2x
+            MorphNode(0, 0.0f, 0.0f, DistortionType::Tube),    // 2x
             MorphNode(1, 1.0f, 0.0f, DistortionType::HardClip),    // 4x
-            MorphNode(2, 0.0f, 1.0f, DistortionType::SoftClip),
+            MorphNode(2, 0.0f, 1.0f, DistortionType::Tube),
             MorphNode(3, 1.0f, 1.0f, DistortionType::HardClip)
         }};
         bp.setMorphNodes(nodes, 2);

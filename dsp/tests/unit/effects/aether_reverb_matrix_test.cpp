@@ -745,3 +745,71 @@ TEST_CASE("AetherReverb_SchurReduction", "[effects][aether]") {
         }
     }
 }
+
+namespace {
+
+/// The geodesic point V * B(u * theta) * V^T of a double-precision reduction of R (detail::aetherSchurReduceSO).
+[[nodiscard]] Mat geodesicAt(const Mat& r, std::size_t n, double u, bool& ok) {
+    Mat v(n * n, 0.0);
+    std::vector<double> thetas(n / 2u, 0.0);
+    ok = Krate::DSP::detail::aetherSchurReduceSO(r.data(), n, v.data(), thetas.data());
+    Mat b = makeIdentity(n);
+    for (std::size_t blk = 0; blk < (n / 2u); ++blk) {
+        const double a = u * thetas[blk];
+        const std::size_t c0 = 2u * blk;
+        b[(c0 * n) + c0] = std::cos(a);
+        b[(c0 * n) + c0 + 1u] = -std::sin(a);
+        b[((c0 + 1u) * n) + c0] = std::sin(a);
+        b[((c0 + 1u) * n) + c0 + 1u] = std::cos(a);
+    }
+    return matMul(matMul(v, b, n), matTranspose(v, n), n);
+}
+
+/// R + eps * E, E a fixed symmetric pattern: far below anything audible, but enough to make the eigensolver
+/// return a different basis inside a degenerate eigenspace.
+[[nodiscard]] Mat nudged(const Mat& r, std::size_t n, double eps) {
+    Mat out = r;
+    for (std::size_t i = 0; i < n; ++i) {
+        for (std::size_t j = 0; j < n; ++j) {
+            out[(i * n) + j] += eps * std::sin(static_cast<double>((3u * i) + (5u * j) + (7u * i * j)));
+        }
+    }
+    return out;
+}
+
+}  // namespace
+
+// The morph path through an eigenvalue -1 cluster (theta = pi) is not unique: every plane in that eigenspace is
+// invariant, and the reduction took its planes from the eigensolver's basis there, which rounding picks. MSVC
+// /fp:fast, macOS -ffast-math and strict IEEE (Linux GCC) therefore built different feedback matrices from the same
+// endpoints, and CavernVerb's 125 Hz band T60 read 1.47 s, 1.49 s and 1.10 s (SC-016 c-2 red on Linux only,
+// 2026-11-14). The path must be a function of R alone.
+TEST_CASE("AetherReverb_SchurPathIsUniqueAtPiClusters", "[effects][aether]") {
+    for (const std::size_t n : {std::size_t{8}, std::size_t{16}}) {
+        // A constructed R: a four-dimensional -I cluster, the rest ordinary rotations, in a random basis.
+        // Exactly -1 on the first four diagonal entries (no float pi), ordinary rotations after.
+        std::vector<float> thetas(n / 2u, 0.0f);
+        for (std::size_t b = 2; b < thetas.size(); ++b) thetas[b] = 0.3f + (0.37f * static_cast<float>(b));
+        Mat blocks = blockRotation(thetas, n, 1.0);
+        for (std::size_t i = 0; i < 4u; ++i) blocks[(i * n) + i] = -1.0;
+        const Mat basis = randomSpecialOrthogonal(n, 0x5C4E0000u + static_cast<std::uint32_t>(n));
+        const Mat constructed = matMul(matMul(basis, blocks, n), matTranspose(basis, n), n);
+        const Mat shipped = matMul(matTranspose(householderEndpoint(n), n), hadamardEndpoint(n), n);
+
+        for (const auto& [name, r] : {std::pair{"constructed -I cluster", constructed},
+                                      std::pair{"Householder -> Hadamard", shipped}}) {
+            bool okA = false;
+            bool okB = false;
+            const Mat a = geodesicAt(r, n, 0.5, okA);
+            const Mat b = geodesicAt(nudged(r, n, 1e-12), n, 0.5, okB);
+            REQUIRE(okA);
+            REQUIRE(okB);
+            const double diff = maxAbsDiff(a, b);
+            INFO("n = " << n << ", " << name << ": max |M(0.5) - M'(0.5)| = " << diff
+                        << " for a 1e-12 nudge of R");
+            // Measured after the fix: <= 1.35e-9 (an eigenspace moves by ~ nudge / gap). Before it: 0.50 - 1.12, the
+            // path jumping to other planes. 1e-6 is six orders of magnitude under the jump it exists to catch.
+            CHECK(diff <= 1e-6);
+        }
+    }
+}

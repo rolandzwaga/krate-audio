@@ -1035,9 +1035,12 @@ public:
         const auto pos = calculateMusicalStepPosition(
             projectTimeMusic, noteValue_, noteModifier_, 1);
 
-        // pos.stepFraction is the fractional position within one step [0, 1)
-        const size_t newSampleCounter = static_cast<size_t>(
-            pos.stepFraction * static_cast<double>(currentStepDuration_));
+        // pos.stepFraction is the fractional position within one step [0, 1). Rounded, not truncated: the samples
+        // into the step are usually an exact integer the product lands an ulp below, and truncating it fired the step
+        // a sample late depending on where the block started (tools/lint-musical-time-truncation.js).
+        const size_t newSampleCounter = std::min(
+            static_cast<size_t>(std::llround(pos.stepFraction * static_cast<double>(currentStepDuration_))),
+            currentStepDuration_);
 
         // At a step boundary (fraction == 0), pre-load the counter to
         // trigger an immediate step fire, matching firstStepPending_ behavior.

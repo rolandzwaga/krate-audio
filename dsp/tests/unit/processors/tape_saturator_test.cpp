@@ -29,8 +29,11 @@
 
 #include <krate/dsp/processors/tape_saturator.h>
 
+#include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstddef>
+#include <utility>
 #include <vector>
 #include <limits>
 
@@ -719,8 +722,8 @@ TEST_CASE("TapeSaturator J-A default parameters", "[tape_saturator][US2][ja-para
         REQUIRE(sat.getJA_alpha() == Approx(1.6e-11f));
     }
 
-    SECTION("Default c=1.7") {
-        REQUIRE(sat.getJA_c() == Approx(1.7f));
+    SECTION("Default c=0.17 (DAFx 2019: c = 1.7e-1)") {
+        REQUIRE(sat.getJA_c() == Approx(0.17f));
     }
 
     SECTION("Default k=27") {
@@ -1321,14 +1324,21 @@ TEST_CASE("TapeSaturator setJAParams changes parameters", "[tape_saturator][expe
     TapeSaturator sat;
 
     // Set custom J-A parameters
-    sat.setJAParams(30.0f, 2.0e-11f, 2.0f, 35.0f, 400000.0f);
+    sat.setJAParams(30.0f, 2.0e-11f, 0.5f, 35.0f, 400000.0f);
 
     SECTION("Parameters are updated") {
         REQUIRE(sat.getJA_a() == Approx(30.0f));
         REQUIRE(sat.getJA_alpha() == Approx(2.0e-11f));
-        REQUIRE(sat.getJA_c() == Approx(2.0f));
+        REQUIRE(sat.getJA_c() == Approx(0.5f));
         REQUIRE(sat.getJA_k() == Approx(35.0f));
         REQUIRE(sat.getJA_Ms() == Approx(400000.0f));
+    }
+
+    SECTION("c (the reversible fraction) is clamped to [0, 1]") {
+        sat.setJAParams(30.0f, 2.0e-11f, 2.0f, 35.0f, 400000.0f);
+        REQUIRE(sat.getJA_c() == Approx(1.0f));
+        sat.setJAParams(30.0f, 2.0e-11f, -0.5f, 35.0f, 400000.0f);
+        REQUIRE(sat.getJA_c() == Approx(0.0f));
     }
 }
 
@@ -1595,5 +1605,241 @@ TEST_CASE("TapeSaturator denormal inputs produce valid outputs", "[tape_saturato
         // Output should be very small (near zero due to DC blocker settling)
         float rms = calculateRMS(buffer.data(), kBlockSize);
         REQUIRE(rms < 0.001f);
+    }
+}
+
+// ==============================================================================
+// Hysteresis model repair (2026-11-10, specs/disrumpo-audit/follow-ups.md 79 / 82 / 88)
+// ==============================================================================
+// The Hysteresis model scaled the field by 1000 against the Langevin a = 22 (a near
+// step), stepped dH x 44100 / rate (rate-dependent), and only the +/-Saturation x Ms
+// clamp bounded its overshooting RK step (a square wave; at Saturation 1 silence or
+// noise); the NR solvers returned near-noise. These cases hold the repaired model to:
+// rate independence, a bounded and clean Saturation 1, solvers that agree, and
+// non-harmonic content at least 50 dB below the harmonics at a 2x rate.
+
+namespace {
+
+/// Amplitude of harmonic `k` of `f0` over y[start, start + n) (n spans whole cycles).
+double harmonicAmplitude(const std::vector<float>& y, size_t start, size_t n, double fs, double f0, int k) {
+    double re = 0.0;
+    double im = 0.0;
+    const double w = 2.0 * 3.14159265358979323846 * f0 * static_cast<double>(k) / fs;
+    for (size_t i = 0; i < n; ++i) {
+        const double v = static_cast<double>(y[start + i]);
+        re += v * std::cos(w * static_cast<double>(i));
+        im -= v * std::sin(w * static_cast<double>(i));
+    }
+    return 2.0 * std::sqrt(re * re + im * im) / static_cast<double>(n);
+}
+
+double ampToDb(double a) { return 20.0 * std::log10(std::max(a, 1e-15)); }
+
+/// In-place radix-2 FFT (double), n a power of two.
+void fftInPlace(std::vector<double>& re, std::vector<double>& im) {
+    const size_t n = re.size();
+    for (size_t i = 1, j = 0; i < n; ++i) {
+        size_t bit = n >> 1;
+        for (; (j & bit) != 0; bit >>= 1) j ^= bit;
+        j ^= bit;
+        if (i < j) {
+            std::swap(re[i], re[j]);
+            std::swap(im[i], im[j]);
+        }
+    }
+    for (size_t len = 2; len <= n; len <<= 1) {
+        const double ang = -2.0 * 3.14159265358979323846 / static_cast<double>(len);
+        const double wr = std::cos(ang);
+        const double wi = std::sin(ang);
+        for (size_t i = 0; i < n; i += len) {
+            double cr = 1.0;
+            double ci = 0.0;
+            for (size_t j = 0; j < len / 2; ++j) {
+                const size_t a = i + j;
+                const size_t b = a + len / 2;
+                const double tr = re[b] * cr - im[b] * ci;
+                const double ti = re[b] * ci + im[b] * cr;
+                re[b] = re[a] - tr;
+                im[b] = im[a] - ti;
+                re[a] += tr;
+                im[a] += ti;
+                const double t = cr * wr - ci * wi;
+                ci = cr * wi + ci * wr;
+                cr = t;
+            }
+        }
+    }
+}
+
+/// Non-harmonic power re the harmonic power below `bandHz` (what an ideal decimator to
+/// 48 kHz keeps), over n samples from `start`; the tone sits on bin `toneBin`.
+double nonHarmonicRelDb(const std::vector<float>& y, size_t start, size_t n, double fs, size_t toneBin,
+                        double bandHz = 24000.0) {
+    std::vector<double> re(n);
+    std::vector<double> im(n, 0.0);
+    for (size_t i = 0; i < n; ++i) re[i] = static_cast<double>(y[start + i]);
+    fftInPlace(re, im);
+    const auto top = static_cast<size_t>(bandHz * static_cast<double>(n) / fs);
+    double harmonic = 0.0;
+    double other = 0.0;
+    for (size_t b = 1; b < top; ++b) {
+        const double p = re[b] * re[b] + im[b] * im[b];
+        if (b % toneBin == 0) {
+            harmonic += p;
+        } else {
+            other += p;
+        }
+    }
+    return 10.0 * std::log10(std::max(other, 1e-300) / std::max(harmonic, 1e-300));
+}
+
+std::vector<float> sineBuffer(double fs, double f, double amplitude, size_t n) {
+    std::vector<float> x(n);
+    for (size_t i = 0; i < n; ++i) {
+        x[i] = static_cast<float>(amplitude * std::sin(2.0 * 3.14159265358979323846 * f * static_cast<double>(i) / fs));
+    }
+    return x;
+}
+
+/// A Hysteresis saturator prepared at `fs`, smoothers settled at the given settings.
+TapeSaturator makeHysteresis(double fs, HysteresisSolver solver, float driveDb, float saturation) {
+    TapeSaturator sat;
+    sat.setModel(TapeModel::Hysteresis);
+    sat.setSolver(solver);
+    sat.setDrive(driveDb);
+    sat.setSaturation(saturation);
+    sat.prepare(fs, kBlockSize);
+    return sat;
+}
+
+void processInBlocks(TapeSaturator& sat, std::vector<float>& x) {
+    for (size_t i = 0; i < x.size(); i += kBlockSize) {
+        sat.process(x.data() + i, std::min(kBlockSize, x.size() - i));
+    }
+}
+
+/// The Disrumpo Tape node's saturator input at node drive 2.5 / 7.5 / 10 from a -6 dBFS
+/// tone: the node multiplies by its drive and runs the saturator at 12 - 10 x Speed
+/// (Speed 0.5) = +7 dB.
+constexpr float kNodeDriveDb = 7.0f;
+constexpr double kNodeToneAmplitude = 0.5011872336;  // -6 dBFS
+
+}  // namespace
+
+TEST_CASE("TapeSaturator Hysteresis is sample-rate independent", "[tape_saturator][hysteresis-repair][rate]") {
+    // 1 kHz at -12 dBFS, Saturation 0.5, RK4: H1 and H3 (re H1) of the second second
+    // within 0.5 dB of the 48 kHz reading at every rate (384 kHz is Disrumpo's 4x at 96 kHz).
+    for (const float driveDb : {0.0f, 12.0f}) {
+        double refH1 = 0.0;
+        double refH3 = 0.0;
+        for (const double fs : {48000.0, 44100.0, 88200.0, 96000.0, 176400.0, 192000.0, 384000.0}) {
+            auto sat = makeHysteresis(fs, HysteresisSolver::RK4, driveDb, 0.5f);
+            const auto n = static_cast<size_t>(fs);
+            auto y = sineBuffer(fs, 1000.0, 0.2511886432, 2 * n);
+            processInBlocks(sat, y);
+            const double h1 = ampToDb(harmonicAmplitude(y, n, n, fs, 1000.0, 1));
+            const double h3 = ampToDb(harmonicAmplitude(y, n, n, fs, 1000.0, 3)) - h1;
+            if (fs == 48000.0) {
+                refH1 = h1;
+                refH3 = h3;
+            }
+            INFO("drive " << driveDb << " dB, " << fs << " Hz: H1 " << h1 << " dBFS (48 kHz " << refH1 << "), H3 re H1 "
+                          << h3 << " dB (48 kHz " << refH3 << ")");
+            CHECK(std::fabs(h1 - refH1) <= 0.5);
+            CHECK(std::fabs(h3 - refH3) <= 0.5);
+        }
+    }
+}
+
+TEST_CASE("TapeSaturator Hysteresis at Saturation 1 is bounded finite and clean",
+          "[tape_saturator][hysteresis-repair][sat1]") {
+    // At 4x of 44.1 / 48 kHz: the Disrumpo node's input at drive 2.5 / 7.5 / 10, and the
+    // defaults (drive 0 dB) at -12 dBFS. Non-silent, finite, bounded, and non-harmonic
+    // power below 24 kHz at least 50 dB below the harmonics.
+    for (const double fs : {176400.0, 192000.0}) {
+        constexpr size_t kN = 32768;
+        const auto toneBin = static_cast<size_t>(std::lround(1031.25 * static_cast<double>(kN) / fs));
+        const double tone = static_cast<double>(toneBin) * fs / static_cast<double>(kN);
+        for (const auto& [driveDb, amplitude] : {std::pair{kNodeDriveDb, kNodeToneAmplitude * 2.5},
+                                                 std::pair{kNodeDriveDb, kNodeToneAmplitude * 7.5},
+                                                 std::pair{kNodeDriveDb, kNodeToneAmplitude * 10.0},
+                                                 std::pair{0.0f, 0.2511886432}}) {
+            auto sat = makeHysteresis(fs, HysteresisSolver::RK4, driveDb, 1.0f);
+            const auto warm = static_cast<size_t>(fs / 2.0);
+            auto y = sineBuffer(fs, tone, amplitude, warm + kN);
+            processInBlocks(sat, y);
+            size_t nonFinite = 0;
+            float peak = 0.0f;
+            for (size_t i = warm; i < y.size(); ++i) {
+                if (!Krate::DSP::detail::isFinite(y[i])) {
+                    ++nonFinite;
+                } else {
+                    peak = std::max(peak, std::fabs(y[i]));
+                }
+            }
+            const double h1 = ampToDb(harmonicAmplitude(y, warm, kN, fs, tone, 1));
+            const double nonHarmonic = nonHarmonicRelDb(y, warm, kN, fs, toneBin);
+            INFO(fs << " Hz, drive " << driveDb << " dB, amplitude " << amplitude << ": peak " << peak << ", H1 " << h1
+                    << " dBFS, non-harmonic " << nonHarmonic << " dB, non-finite " << nonFinite);
+            CHECK(nonFinite == 0);
+            CHECK(peak <= 1.5f);
+            CHECK(h1 >= -20.0);
+            CHECK(nonHarmonic <= -50.0);
+        }
+    }
+}
+
+TEST_CASE("TapeSaturator Hysteresis solvers agree", "[tape_saturator][hysteresis-repair][solvers]") {
+    // RK2 / NR4 / NR8 against RK4 at 48 kHz, 1 kHz, Saturation 0.5: H1 within 0.2 dB and
+    // THD (H2..H9 re H1) within 0.5 dB, at the defaults (-12 dBFS) and driven (+12 dB, 0 dBFS).
+    constexpr double kFs = 48000.0;
+    const auto n = static_cast<size_t>(kFs);
+    for (const auto& [driveDb, amplitude] : {std::pair{0.0f, 0.2511886432}, std::pair{12.0f, 1.0}}) {
+        double rkH1 = 0.0;
+        double rkThd = 0.0;
+        for (const auto solver : {HysteresisSolver::RK4, HysteresisSolver::RK2, HysteresisSolver::NR4,
+                                  HysteresisSolver::NR8}) {
+            auto sat = makeHysteresis(kFs, solver, driveDb, 0.5f);
+            auto y = sineBuffer(kFs, 1000.0, amplitude, 2 * n);
+            processInBlocks(sat, y);
+            const double a1 = harmonicAmplitude(y, n, n, kFs, 1000.0, 1);
+            double hp = 0.0;
+            for (int k = 2; k <= 9; ++k) {
+                const double ak = harmonicAmplitude(y, n, n, kFs, 1000.0, k);
+                hp += ak * ak;
+            }
+            const double h1 = ampToDb(a1);
+            const double thd = 10.0 * std::log10(std::max(hp, 1e-300) / std::max(a1 * a1, 1e-300));
+            if (solver == HysteresisSolver::RK4) {
+                rkH1 = h1;
+                rkThd = thd;
+            }
+            INFO("drive " << driveDb << " dB, solver " << static_cast<int>(solver) << ": H1 " << h1 << " dBFS (RK4 "
+                          << rkH1 << "), THD " << thd << " dB (RK4 " << rkThd << ")");
+            CHECK(std::fabs(h1 - rkH1) <= 0.2);
+            CHECK(std::fabs(thd - rkThd) <= 0.5);
+        }
+    }
+}
+
+TEST_CASE("TapeSaturator Hysteresis non-harmonic content at a 2x rate", "[tape_saturator][hysteresis-repair][aliasing]") {
+    // 96 kHz (Disrumpo's Tape band at 2x), Saturation 0.5, RK4, a bin-exact 1031.25 Hz tone:
+    // non-harmonic power below 24 kHz at least 50 dB below the harmonics (the held Disrumpo
+    // T6.01 Tape bar), at the node's drive 2.5 / 7.5 / 10 and at the defaults.
+    constexpr double kFs = 96000.0;
+    constexpr size_t kN = 16384;
+    constexpr size_t kToneBin = 176;
+    const double tone = static_cast<double>(kToneBin) * kFs / static_cast<double>(kN);
+    for (const auto& [driveDb, amplitude] : {std::pair{kNodeDriveDb, kNodeToneAmplitude * 2.5},
+                                             std::pair{kNodeDriveDb, kNodeToneAmplitude * 7.5},
+                                             std::pair{kNodeDriveDb, kNodeToneAmplitude * 10.0},
+                                             std::pair{0.0f, 0.2511886432}}) {
+        auto sat = makeHysteresis(kFs, HysteresisSolver::RK4, driveDb, 0.5f);
+        const auto warm = static_cast<size_t>(kFs / 2.0);
+        auto y = sineBuffer(kFs, tone, amplitude, warm + kN);
+        processInBlocks(sat, y);
+        const double nonHarmonic = nonHarmonicRelDb(y, warm, kN, kFs, kToneBin);
+        INFO("drive " << driveDb << " dB, amplitude " << amplitude << ": non-harmonic " << nonHarmonic << " dB");
+        CHECK(nonHarmonic <= -50.0);
     }
 }

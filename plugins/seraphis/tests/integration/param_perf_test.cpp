@@ -2031,9 +2031,9 @@ struct FxProbe {
     probe->ctx.isPlaying = true;
 
     // C-2 clause 1: setDryWetMix(1.0f) is pushed BEFORE prepare(), because
-    // prepare()'s own setTarget (spectral_delay.h:202) and snapParameters()
-    // (:206) are what SNAP it. Pushed after, it would only move a smoother target
-    // that is advanced once per process() call (:373, :389) from kDefaultDryWet.
+    // prepare()'s own setTarget (spectral_delay.h:208) and snapParameters()
+    // (:212) are what SNAP it. Pushed after, it would only move a smoother target
+    // that ramps over 50 ms from kDefaultDryWet.
     probe->delay->setDryWetMix(1.0f);
     probe->delay->prepare(kSr48, kFxProbeChunkSamples);
     // Overview fact 4: the component seeds its RNG from its own ADDRESS
@@ -2069,10 +2069,9 @@ void applyFxTableTo(SpectralDelay& delay, Steinberg::Vst::ParamID overrideId,
     delay.setTimeMode((value(kFxDelaySyncId) >= 0.5) ? 1 : 0);
     delay.setNoteValue(static_cast<int>(value(kFxDelaySyncNoteId)));
     delay.setFreezeEnabled(value(kFxSpectralFreezeId) >= 0.5);
-    // Snapped, not ramped: the component's smoothers advance ONCE per process()
-    // call against a per-sample 50 ms coefficient (spectral_delay.h:184-194,
-    // :691-696), so an unsnapped switch would measure the PREVIOUS candidate for
-    // the whole trial.
+    // Snapped, not ramped: the component's smoothers ramp over 50 ms
+    // (spectral_delay.h:194-200), so an unsnapped switch would measure part of
+    // the PREVIOUS candidate at the start of the trial.
     delay.snapParameters();
 }
 

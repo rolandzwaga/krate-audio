@@ -22,13 +22,17 @@
 
 #include <test_helpers/test_signals.h>
 #include <test_helpers/artifact_detection.h>
+#include "../test_support/calibrated_clicks.h"
 
 #include <cmath>
+#include <cstdio>
 #include <array>
+#include <memory>
+#include <numbers>
+#include <string>
 #include <vector>
 #include <algorithm>
 
-using Catch::Approx;
 using namespace Krate::DSP::TestUtils;
 
 // =============================================================================
@@ -141,7 +145,8 @@ TEST_CASE("AP-003: Sine sweep during morph automation - same family", "[approval
 
     // Let smoothers settle
     for (int i = 0; i < 1000; ++i) {
-        float l = 0.0f, r = 0.0f;
+        float l = 0.0f;
+        float r = 0.0f;
         proc.process(l, r);
     }
 
@@ -160,33 +165,90 @@ TEST_CASE("AP-003: Sine sweep during morph automation - same family", "[approval
         output[i] = left;
     }
 
-    // Analyze output for artifacts using click detector
-    ClickDetectorConfig config;
-    config.sampleRate = static_cast<float>(kSampleRate);
-    config.frameSize = 512;
-    config.hopSize = 256;
-    config.detectionThreshold = 6.0f;  // 6 sigma for strict detection
-    config.energyThresholdDb = -50.0f;
+    // Derivative check: the automation adds no step beyond what the stationary nodes
+    // produce. The same sweep is rendered with the cursor held on node 0 and on node 1
+    // (no automation); the automated render's largest sample-to-sample step may not
+    // exceed the larger held step by more than 5 %.
+    // A fixed bound of 0.5 held only while the adapters were rated for 8x the host
+    // rate and clocked at 1x (D-009, fixed in T1.06): the 4 kHz tone filter then acted
+    // as ~500 Hz and the step read 0.10. Correctly tuned, the Tube node (drive 4) at the
+    // 8 kHz end of the sweep steps 0.7202 with the cursor parked on it, and the
+    // automated render's 0.7202 is that same sample (44096), at every smoothing time
+    // from 0 to 50 ms (probe "Probe: AP-003 same-family max derivative sources").
+    const auto heldRender = [&](float pos) {
+        auto held = std::make_unique<Disrumpo::BandProcessor>();
+        held->prepare(kSampleRate, 512);
+        held->setMorphNodes(nodes, 2);
+        held->setMorphMode(Disrumpo::MorphMode::Linear1D);
+        held->setMorphSmoothingTime(10.0f);
+        held->setMorphPosition(pos, 0.0f);
+        for (int i = 0; i < 1000; ++i) {
+            float l = 0.0f;
+            float r = 0.0f;
+            held->process(l, r);
+        }
+        std::vector<float> out(kTestDuration);
+        for (size_t i = 0; i < kTestDuration; ++i) {
+            float l = input[i];
+            float r = input[i];
+            held->process(l, r);
+            out[i] = l;
+        }
+        return out;
+    };
+    const float heldDeriv0 = computeMaxDerivative(heldRender(0.0f));
+    const float heldDeriv1 = computeMaxDerivative(heldRender(1.0f));
+    const float maxDeriv = computeMaxDerivative(output);
+    INFO("Max derivative: automated " << maxDeriv << ", held on node 0 " << heldDeriv0
+         << ", held on node 1 " << heldDeriv1);
+    REQUIRE(maxDeriv <= 1.05f * std::max(heldDeriv0, heldDeriv1));
 
-    ClickDetector detector(config);
-    detector.prepare();
-
-    auto detections = detector.detect(output.data(), output.size());
-
-    // SC-003: Zero audible artifacts
-    // A small number of detections may be false positives from the sweep itself
-    // but significant clicks (>5) would indicate a problem
-    INFO("Click detections: " << detections.size());
-    REQUIRE(detections.size() <= 5);
-
-    // Also verify using simple derivative threshold
-    // For a smooth morph, max derivative should be bounded
-    float maxDeriv = computeMaxDerivative(output);
-    INFO("Max derivative: " << maxDeriv);
-
-    // With input amplitude 0.5 and distortion, expect some harmonic content
-    // but clicks would cause derivatives > 0.5
-    REQUIRE(maxDeriv < 0.5f);
+    // SC-003: Zero audible artifacts. Re-baselined for the drive re-stage (user ruling
+    // 2026-11-10): at this input level the re-staged nodes square the sweep off and the 6-sigma
+    // detector read one of the square's own edges. Asserted: the same automation with the
+    // input 18.06 dB lower (the shapers at the drive this case was written for) reads no click
+    // at 6 sigma; at full level no click at the threshold calibrated on the cursor held at 0 /
+    // 0.5 / 1, where a step 1.5 x the held renders' largest edge is still caught
+    // (calibrated_clicks.h).
+    std::vector<float> quiet(kTestDuration);
+    {
+        auto q = std::make_unique<Disrumpo::BandProcessor>();
+        q->prepare(kSampleRate, 512);
+        q->setMorphNodes(nodes, 2);
+        q->setMorphMode(Disrumpo::MorphMode::Linear1D);
+        q->setMorphSmoothingTime(10.0f);
+        q->setMorphPosition(0.0f, 0.0f);
+        for (int i = 0; i < 1000; ++i) {
+            float l = 0.0f;
+            float r = 0.0f;
+            q->process(l, r);
+        }
+        for (size_t i = 0; i < kTestDuration; ++i) {
+            q->setMorphPosition(static_cast<float>(i) / static_cast<float>(kTestDuration), 0.0f);
+            float l = 0.125f * input[i];
+            float r = l;
+            q->process(l, r);
+            quiet[i] = l;
+        }
+    }
+    const size_t quietClicks = Disrumpo::TestSupport::clicksAtSigma(quiet.data(), quiet.size(), kSampleRate, 6.0f, -50.0f);
+    const std::vector<std::vector<float>> controls{heldRender(0.0f), heldRender(0.5f), heldRender(1.0f)};
+    const auto cal = Disrumpo::TestSupport::calibratedClicks(output, controls, 0, output.size(), output.size() / 2,
+                                                             kSampleRate, -50.0f);
+    INFO("Clicks: input -18.06 dB at 6 sigma " << quietClicks << "; full level: 5 sigma automated " << cal.eventAt5
+         << ", held controls " << cal.controlsAt5 << "; calibrated " << cal.sigma << " sigma automated "
+         << cal.eventAtSigma << ", positive control (step " << cal.step << ") " << cal.positiveAtSigma
+         << ", on the held controls " << cal.positiveOnControls);
+    std::printf("AP-003 same family: clicks at -18.06 dB (6 sigma) %zu; full level 5 sigma automated %zu, held %zu; "
+                "calibrated %.1f sigma automated %zu, positive control (step %.4f) %zu\n",
+                quietClicks, cal.eventAt5, cal.controlsAt5, static_cast<double>(cal.sigma), cal.eventAtSigma, cal.step,
+                cal.positiveAtSigma);
+    std::printf("AP-003 positive control on the held controls: %zu\n", cal.positiveOnControls);
+    REQUIRE(quietClicks == 0u);
+    REQUIRE(cal.sigma > 0.0f);
+    REQUIRE(cal.eventAtSigma == 0u);
+    REQUIRE(cal.positiveAtSigma > 0u);
+    REQUIRE(cal.positiveOnControls > 0u);
 }
 
 TEST_CASE("AP-003: Sine sweep during morph automation - cross family", "[approval][morph][SC-003][AP-003]") {
@@ -211,7 +273,8 @@ TEST_CASE("AP-003: Sine sweep during morph automation - cross family", "[approva
 
     // Let smoothers settle
     for (int i = 0; i < 1000; ++i) {
-        float l = 0.0f, r = 0.0f;
+        float l = 0.0f;
+        float r = 0.0f;
         proc.process(l, r);
     }
 
@@ -245,7 +308,11 @@ TEST_CASE("AP-003: Sine sweep during morph automation - cross family", "[approva
 
     float maxDeriv = computeMaxDerivative(output);
     INFO("Cross-family max derivative: " << maxDeriv);
-    REQUIRE(maxDeriv < 1.0f);  // Digital types (Bitcrush) have intentionally sharp staircase edges
+    // Digital types (Bitcrush) have intentionally sharp staircase edges. The bound was 1.0
+    // while centre pan cost every band -3.01 dB (D-021); the balance law (T1.08) raises
+    // every output sample by exactly sqrt(2), so the bound moves by that factor and the
+    // verdict for a given shaper output is unchanged.
+    REQUIRE(maxDeriv < 1.0f * std::numbers::sqrt2_v<float>);
 }
 
 TEST_CASE("AP-003: Rapid morph automation (20Hz LFO)", "[approval][morph][SC-003][SC-007]") {
@@ -269,7 +336,8 @@ TEST_CASE("AP-003: Rapid morph automation (20Hz LFO)", "[approval][morph][SC-003
 
     // Let settle
     for (int i = 0; i < 500; ++i) {
-        float l = 0.0f, r = 0.0f;
+        float l = 0.0f;
+        float r = 0.0f;
         proc.process(l, r);
     }
 
@@ -334,7 +402,8 @@ TEST_CASE("AP-003: Morph position step change", "[approval][morph][SC-003]") {
 
     // Let settle
     for (int i = 0; i < 1000; ++i) {
-        float l = 0.0f, r = 0.0f;
+        float l = 0.0f;
+        float r = 0.0f;
         proc.process(l, r);
     }
 
@@ -380,7 +449,17 @@ TEST_CASE("AP-003: Output level consistency during morph", "[approval][morph][SC
     Disrumpo::BandProcessor proc;
     proc.prepare(kSampleRate, 512);
 
-    auto nodes = createSameFamilySetup();
+    // Two cross-family nodes at drive 0.5 (both near-linear): SoftClip (Saturation) and
+    // SineFold (Wavefold), so the parallel cross-family blend is what is measured.
+    std::array<Disrumpo::MorphNode, Disrumpo::kMaxMorphNodes> nodes;
+    nodes[0] = Disrumpo::MorphNode(0, 0.0f, 0.0f, Disrumpo::DistortionType::SoftClip);
+    nodes[0].commonParams.drive = 0.5f;
+    nodes[0].commonParams.mix = 1.0f;
+    nodes[1] = Disrumpo::MorphNode(1, 1.0f, 0.0f, Disrumpo::DistortionType::SineFold);
+    nodes[1].commonParams.drive = 0.5f;
+    nodes[1].commonParams.mix = 1.0f;
+    nodes[2] = Disrumpo::MorphNode(2, 0.0f, 1.0f, Disrumpo::DistortionType::Fuzz);
+    nodes[3] = Disrumpo::MorphNode(3, 1.0f, 1.0f, Disrumpo::DistortionType::SineFold);
     proc.setMorphNodes(nodes, 2);
     proc.setMorphMode(Disrumpo::MorphMode::Linear1D);
     proc.setMorphSmoothingTime(0.1f);  // Very fast for level measurement
@@ -388,14 +467,15 @@ TEST_CASE("AP-003: Output level consistency during morph", "[approval][morph][SC
     // Measure level at position 0
     proc.setMorphPosition(0.0f, 0.0f);
     for (int i = 0; i < 2000; ++i) {
-        float l = 0.0f, r = 0.0f;
+        float l = 0.0f;
+        float r = 0.0f;
         proc.process(l, r);
     }
 
     float sumSqA = 0.0f;
     constexpr int kMeasureSamples = 4410;  // 100ms
     for (int i = 0; i < kMeasureSamples; ++i) {
-        float left = kInputAmplitude * std::sin(2.0f * 3.14159f * 440.0f * static_cast<float>(i) / static_cast<float>(kSampleRate));
+        float left = kInputAmplitude * std::sin(2.0f * std::numbers::pi_v<float> * 440.0f * static_cast<float>(i) / static_cast<float>(kSampleRate));
         float right = left;
         proc.process(left, right);
         sumSqA += left * left;
@@ -405,13 +485,14 @@ TEST_CASE("AP-003: Output level consistency during morph", "[approval][morph][SC
     // Measure level at position 0.5 (middle of morph)
     proc.setMorphPosition(0.5f, 0.0f);
     for (int i = 0; i < 2000; ++i) {
-        float l = 0.0f, r = 0.0f;
+        float l = 0.0f;
+        float r = 0.0f;
         proc.process(l, r);
     }
 
     float sumSqMid = 0.0f;
     for (int i = 0; i < kMeasureSamples; ++i) {
-        float left = kInputAmplitude * std::sin(2.0f * 3.14159f * 440.0f * static_cast<float>(i) / static_cast<float>(kSampleRate));
+        float left = kInputAmplitude * std::sin(2.0f * std::numbers::pi_v<float> * 440.0f * static_cast<float>(i) / static_cast<float>(kSampleRate));
         float right = left;
         proc.process(left, right);
         sumSqMid += left * left;
@@ -421,13 +502,14 @@ TEST_CASE("AP-003: Output level consistency during morph", "[approval][morph][SC
     // Measure level at position 1
     proc.setMorphPosition(1.0f, 0.0f);
     for (int i = 0; i < 2000; ++i) {
-        float l = 0.0f, r = 0.0f;
+        float l = 0.0f;
+        float r = 0.0f;
         proc.process(l, r);
     }
 
     float sumSqB = 0.0f;
     for (int i = 0; i < kMeasureSamples; ++i) {
-        float left = kInputAmplitude * std::sin(2.0f * 3.14159f * 440.0f * static_cast<float>(i) / static_cast<float>(kSampleRate));
+        float left = kInputAmplitude * std::sin(2.0f * std::numbers::pi_v<float> * 440.0f * static_cast<float>(i) / static_cast<float>(kSampleRate));
         float right = left;
         proc.process(left, right);
         sumSqB += left * left;
@@ -452,10 +534,89 @@ TEST_CASE("AP-003: Output level consistency during morph", "[approval][morph][SC
     INFO("Level at position 1: " << levelB_dB << " dB");
     INFO("Average reference: " << avgRef_dB << " dB");
 
-    // SC-002: Within 1dB of single-type output
-    // Given the spec says "within 1dB", we check the middle point
-    // Relaxed to 3dB for the same-family case which has different
-    // distortion characteristics between types
+    // SC-002: Within 1dB of single-type output at the middle point
     float diffMid = std::abs(levelMid_dB - avgRef_dB);
-    REQUIRE(diffMid < 3.0f);
+    REQUIRE(diffMid < 1.0f);
+}
+
+// Measurement probe (hidden, fix plan T1.06): where the same-family sweep's max
+// derivative comes from. "old" replays the pre-T1.06 band path (engine prepared at
+// 8x the host rate, clocked at 1x, centre pan); "auto" is the AP-003 render; "static"
+// holds the cursor at 0 or 1 for the whole sweep (no morph automation at all).
+TEST_CASE("Probe: AP-003 same-family max derivative sources", "[.][t106-ap003-probe]") {
+    std::vector<float> input(kTestDuration);
+    TestHelpers::generateSweep(input.data(), input.size(), kSweepStartFreq, kSweepEndFreq,
+                               static_cast<float>(kSampleRate), kInputAmplitude);
+    auto nodes = createSameFamilySetup();
+    const auto report =[&](const char* label, const std::vector<float>& out) {
+        float maxD = 0.0f;
+        size_t at = 0;
+        for (size_t i = 1; i < out.size(); ++i) {
+            const float d = std::abs(out[i] - out[i - 1]);
+            if (d > maxD) { maxD = d; at = i; }
+        }
+        const float freq = kSweepStartFreq + (kSweepEndFreq - kSweepStartFreq) *
+                                                 static_cast<float>(at) / static_cast<float>(kTestDuration);
+        float peak = 0.0f;
+        for (const float v : out) peak = std::max(peak, std::abs(v));
+        WARN("PROBE ap003 " << label << ": max derivative " << maxD << " at sample " << at
+             << " (sweep " << freq << " Hz), peak " << peak);
+    };
+    const auto bandRender = [&](bool automate, float pos, float smoothingMs) {
+        auto proc = std::make_unique<Disrumpo::BandProcessor>();
+        proc->prepare(kSampleRate, 512);
+        proc->setMorphNodes(nodes, 2);
+        proc->setMorphMode(Disrumpo::MorphMode::Linear1D);
+        proc->setMorphSmoothingTime(smoothingMs);
+        proc->setMorphPosition(pos, 0.0f);
+        for (int i = 0; i < 1000; ++i) {
+            float l = 0.0f;
+            float r = 0.0f;
+            proc->process(l, r);
+        }
+        std::vector<float> out(kTestDuration);
+        for (size_t i = 0; i < kTestDuration; ++i) {
+            if (automate) {
+                proc->setMorphPosition(static_cast<float>(i) / static_cast<float>(kTestDuration), 0.0f);
+            }
+            float l = input[i];
+            float r = input[i];
+            proc->process(l, r);
+            out[i] = l;
+        }
+        return out;
+    };
+    {
+        auto engine = std::make_unique<Disrumpo::MorphEngine>();
+        engine->prepare(kSampleRate * 8.0, 512 * 8);
+        engine->setMode(Disrumpo::MorphMode::Linear1D);
+        engine->setSmoothingTime(10.0f);
+        engine->setNodes(nodes, 2);
+        engine->setMorphPosition(0.0f, 0.0f);
+        for (int i = 0; i < 1000; ++i) (void)engine->process(0.0f);
+        const float pan = std::cos(std::numbers::pi_v<float> / 4.0f);
+        std::vector<float> out(kTestDuration);
+        for (size_t i = 0; i < kTestDuration; ++i) {
+            engine->setMorphPosition(static_cast<float>(i) / static_cast<float>(kTestDuration), 0.0f);
+            out[i] = engine->process(input[i]) * pan;
+        }
+        report("old (8x-rated engine) auto", out);
+    }
+    for (const float ms : {0.0f, 5.0f, 10.0f, 20.0f, 50.0f}) {
+        const std::string label = "new auto, smoothing " + std::to_string(ms) + " ms";
+        report(label.c_str(), bandRender(true, 0.0f, ms));
+    }
+    report("new static pos 0", bandRender(false, 0.0f, 10.0f));
+    report("new static pos 1", bandRender(false, 1.0f, 10.0f));
+    // The same static Tube render with the input stopped at 90 % of the sweep (7210 Hz)
+    {
+        auto out = bandRender(false, 1.0f, 10.0f);
+        out.resize(kTestDuration * 9 / 10);
+        report("new static pos 1, first 90 % (to 7210 Hz)", out);
+    }
+    // T1.13: the cross-family sibling's setup (SoftClip drive 3 -> Bitcrush drive 2)
+    nodes = createCrossFamilySetup();
+    report("cross-family auto, smoothing 10 ms", bandRender(true, 0.0f, 10.0f));
+    report("cross-family static pos 0", bandRender(false, 0.0f, 10.0f));
+    report("cross-family static pos 1", bandRender(false, 1.0f, 10.0f));
 }

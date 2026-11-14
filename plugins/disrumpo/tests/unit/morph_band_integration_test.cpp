@@ -6,7 +6,7 @@
 //
 // Signal flow per plan.md:
 // 1. BandProcessor owns MorphEngine instance
-// 2. BandProcessor applies sweep intensity multiply BEFORE calling MorphEngine
+// 2. BandProcessor passes the sweep drive multiplier to MorphEngine (D-019)
 // 3. BandProcessor calls morphEngine.process() at oversampled rate
 // 4. MorphEngine processes audio through weighted distortion blend
 // 5. Output fed to BandProcessor's gain/pan/mute stage AFTER downsampling
@@ -24,9 +24,15 @@
 #include "dsp/distortion_types.h"
 #include "dsp/distortion_adapter.h"
 
+#include "test_helpers/signal_metrics.h"
+
+#include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <array>
+#include <cstdio>
 #include <memory>
+#include <numbers>
 #include <vector>
 
 using Catch::Approx;
@@ -143,36 +149,62 @@ TEST_CASE("BandProcessor morph position affects distortion character", "[band][m
     REQUIRE(std::isfinite(leftB));
 }
 
-TEST_CASE("BandProcessor sweep intensity applies BEFORE morph", "[band][morph][FR-010]") {
-    // Per plan.md: Sweep intensity multiply happens BEFORE MorphEngine
-    Disrumpo::BandProcessor proc;
-    proc.prepare(kSampleRate, kBlockSize);
+TEST_CASE("BandProcessor sweep intensity scales the morph drive and not the level", "[band][morph][FR-010]") {
+    // D-019: the sweep multiplies the morphed drive (1 + intensity / 2), it does not
+    // scale the band's input. Proof: the 200 % render equals, sample for sample, a
+    // sweep-off render whose node drives are doubled; and 200 % adds harmonics.
+    // (A level bound is no proof: SoftClip / Tube at x = 0.5 blend in parallel (T1.14,
+    // D-028) and Tube's level follows its drive, +6.02 dB at 2x vs SoftClip's +1.05 dB,
+    // so the blend rises 4.20 dB - "Probe: T1.14 sweep level per morph position".)
+    const auto nodes = createTwoNodeSetup();
 
-    auto nodes = createTwoNodeSetup();
-    proc.setMorphNodes(nodes, 2);
-    proc.setMorphMode(Disrumpo::MorphMode::Linear1D);
-    proc.setMorphPosition(0.5f, 0.0f);
+    // 1378.125 Hz = bin 256 of an 8192-point FFT at 44.1 kHz
+    constexpr float kHz = 1378.125f;
+    constexpr size_t kN = 8192;
+    const auto render = [](const std::array<Disrumpo::MorphNode, Disrumpo::kMaxMorphNodes>& n,
+                           float intensity) {
+        auto proc = std::make_unique<Disrumpo::BandProcessor>();
+        proc->prepare(kSampleRate, kBlockSize);
+        proc->setMorphNodes(n, 2);
+        proc->setMorphMode(Disrumpo::MorphMode::Linear1D);
+        proc->setMorphPosition(0.5f, 0.0f);
+        proc->setSweepIntensity(intensity);
+        (*proc).reset();  // snaps the cursor and the sweep smoother to their targets
+        settleBandProcessor(*proc);
+        std::vector<float> out(kN);
+        for (size_t i = 0; i < kN; ++i) {
+            // -24.06 dBFS: the nodes (drive 2 and 3) saturate. The drive re-stage (user ruling
+            // 2026-11-10) runs them 18.06 dB hotter; at the -6 dBFS this case was written for they
+            // sat at their ceiling and doubling the drive took THD from 2.57 % to 1.35 %. 18.06 dB
+            // lower the shapers see the drive they saw before
+            float left = 0.5f * 0.125f * std::sin(2.0f * std::numbers::pi_v<float> * kHz * static_cast<float>(i) /
+                                                  static_cast<float>(kSampleRate));
+            float right = left;
+            proc->process(left, right);
+            out[i] = left;
+        }
+        return out;
+    };
+    const auto thdOf = [](const std::vector<float>& y) {
+        return Krate::DSP::TestUtils::SignalMetrics::calculateTHD(y.data(), kN, kHz,
+                                                                  static_cast<float>(kSampleRate));
+    };
 
-    // Test with sweep intensity = 1.0 (full)
-    proc.setSweepIntensity(1.0f);
-    settleBandProcessor(proc);
+    const auto off = render(nodes, 0.0f);
+    const auto on = render(nodes, 2.0f);
+    auto doubled = nodes;
+    const float scale = Disrumpo::BandProcessor::sweepDriveScale(2.0f);
+    for (auto& node : doubled) node.commonParams.drive *= scale;
+    const auto ref = render(doubled, 0.0f);
 
-    float leftFull = 0.5f;
-    float rightFull = 0.5f;
-    proc.process(leftFull, rightFull);
-
-    // Test with sweep intensity = 0.0 (silence before distortion)
-    proc.setSweepIntensity(0.0f);
-    settleBandProcessor(proc);
-
-    float leftZero = 0.5f;
-    float rightZero = 0.5f;
-    proc.process(leftZero, rightZero);
-
-    // With sweep = 0, input to morph engine is zero, so distortion has no effect
-    // Output should be near zero (accounting for gain/pan stage)
-    // Actually with sweep=0, input*0=0, distortion(0)~=0, output~=0
-    REQUIRE(std::abs(leftZero) < std::abs(leftFull) + 0.1f);
+    float maxDiff = 0.0f;
+    for (size_t i = 0; i < kN; ++i) maxDiff = std::max(maxDiff, std::abs(on[i] - ref[i]));
+    const float thd0 = thdOf(off);
+    const float thd2 = thdOf(on);
+    INFO("THD at 0 %: " << thd0 << " %, at 200 %: " << thd2 << " %; max |200 % - drive x" << scale
+         << " sweep off| " << maxDiff);
+    REQUIRE(thd2 > thd0 * 1.1f);
+    REQUIRE(maxDiff <= 1e-6f);
 }
 
 TEST_CASE("BandProcessor morph transition is artifact-free", "[band][morph][FR-010][SC-003]") {
@@ -253,39 +285,144 @@ TEST_CASE("BandProcessor morph smoothing time configurable", "[band][morph][FR-0
     proc.setMorphNodes(nodes, 2);
     proc.setMorphMode(Disrumpo::MorphMode::Linear1D);
 
-    // Test different smoothing times
-    SECTION("Fast smoothing (5ms)") {
-        proc.setMorphSmoothingTime(5.0f);
+    // D-127 (T5.06): a one-pole cursor that reaches 99 % (5 time constants) in the
+    // configured time T crosses its midpoint after T ln2 / 5, counted at the host rate.
+    const auto midpointCrossing = [&proc](float smoothingMs) {
+        proc.setMorphSmoothingTime(smoothingMs);
         proc.setMorphPosition(0.0f, 0.0f);
-        settleBandProcessor(proc, 500);
+        settleBandProcessor(proc, static_cast<int>(kSampleRate));
+        REQUIRE(proc.getMorphEngine()->getSmoothedX() < 1e-4f);
+        proc.setMorphPosition(1.0f, 0.0f);
+        int samples = 0;
+        while (proc.getMorphEngine()->getSmoothedX() < 0.5f && samples < static_cast<int>(kSampleRate)) {
+            float left = 0.1f;
+            float right = 0.1f;
+            proc.process(left, right);
+            ++samples;
+        }
+        const double want = smoothingMs * 1e-3 * kSampleRate * std::numbers::ln2 / 5.0;
+        std::printf("D-127 %.0f ms morph smoothing: cursor midpoint after %d samples, one-pole %.1f\n",
+                    static_cast<double>(smoothingMs), samples, want);
+        CHECK(samples >= 0.9 * want);
+        CHECK(samples <= 1.1 * want);
+    };
+
+    SECTION("Fast smoothing (5ms)") { midpointCrossing(5.0f); }
+    SECTION("Slow smoothing (200ms)") { midpointCrossing(200.0f); }
+}
+
+// D-138 / D-099 (fix plan T1.05): the BandProcessor ran L and then R through one
+// MorphEngine, so the cursor smoothers advanced twice per stereo frame. With one
+// engine per channel each advances once per frame, exactly like a standalone
+// engine at the host rate (the rate BandProcessor::process clocks its engines at
+// since T1.06) that is called once per sample.
+TEST_CASE("BandProcessor advances the morph cursor smoother once per stereo frame",
+          "[disrumpo][morph][D-138]") {
+    constexpr double kSr = 48000.0;
+    constexpr size_t kBlock = 512;
+    constexpr int kOversample = Disrumpo::BandProcessor::kMaxOversampleFactor;
+    const auto nodes = createTwoNodeSetup();
+
+    Disrumpo::BandProcessor proc;
+    proc.prepare(kSr, kBlock);
+    proc.setMorphNodes(nodes, 2);
+    proc.setMorphMode(Disrumpo::MorphMode::Linear1D);
+    proc.setMorphSmoothingTime(10.0f);
+    proc.setMorphPosition(0.0f, 0.0f);
+
+    auto reference = std::make_unique<Disrumpo::MorphEngine>();
+    reference->prepare(kSr, static_cast<int>(kBlock) * kOversample, kOversample);
+    reference->setMode(Disrumpo::MorphMode::Linear1D);
+    reference->setSmoothingTime(10.0f);
+    reference->setNodes(nodes, 2);
+    reference->setMorphPosition(0.0f, 0.0f);
+
+    auto run = [&](int frames) {
+        for (int i = 0; i < frames; ++i) {
+            float left = 0.1f;
+            float right = -0.1f;
+            proc.process(left, right);
+            (void)reference->process(0.1f);
+        }
+    };
+
+    run(1000);
+    proc.setMorphPosition(1.0f, 0.0f);
+    reference->setMorphPosition(1.0f, 0.0f);
+    for (int checkpoint = 0; checkpoint < 4; ++checkpoint) {
+        run(240);
+        const float band = proc.getMorphEngine()->getSmoothedX();
+        const float ref = reference->getSmoothedX();
+        INFO("after " << (checkpoint + 1) * 240 << " frames: band X = " << band << ", reference X = " << ref);
+        REQUIRE(std::abs(band - ref) < 1e-6f);
+    }
+}
+
+// D-138 / D-099 (fix plan T1.05 / T1.06): a 10 ms smoothing time is 10 ms of host
+// time at every running factor. OnePoleSmoother::configure defines the time as
+// 5 tau (coefficient exp(-5000 / (ms * fs))), so at 48 kHz tau = 96 samples and
+// 1 - exp(-n / 96) crosses 0.99 at n = 96 ln(100) = 442.1 samples (9.2 ms); 480
+// samples (10 ms) read 0.9933. The bounds are the plan's 10 ms +/- 30 %: below
+// 0.99 after 336 samples (7 ms, reads 0.9698) and at least 0.99 after 480. The
+// oversampled path runs the engines at 2x with coefficients for 2x, so the same
+// host-sample counts hold. Before T1.06 the engines were configured for 8x the
+// host rate (X = 0.46 after 480 samples, i.e. 10 ms read about 80 ms).
+TEST_CASE("BandProcessor morph smoothing reaches 99 % in the configured time",
+          "[disrumpo][morph][D-138]") {
+    constexpr double kSr = 48000.0;
+    constexpr int kEarly = 336;  // 7 ms
+    constexpr int kFull = 480;   // 10 ms
+    Disrumpo::BandProcessor proc;
+    proc.prepare(kSr, kBlockSize);
+    // Two 2x nodes, so the band runs one factor across the glide (SoftClip, the old node A, is
+    // 4x since the drive re-stage ruling 2026-11-10)
+    auto nodes = createTwoNodeSetup();
+    nodes[0].type = Disrumpo::DistortionType::Fractal;
+    proc.setMorphNodes(nodes, 2);
+    proc.setMorphMode(Disrumpo::MorphMode::Linear1D);
+    proc.setMorphSmoothingTime(10.0f);
+    proc.setMorphPosition(0.0f, 0.0f);
+
+    SECTION("per-sample process (1x)") {
+        settleBandProcessor(proc, 48000);
+        REQUIRE(proc.getMorphEngine()->getSmoothedX() < 1e-4f);
 
         proc.setMorphPosition(1.0f, 0.0f);
-
-        // After 5ms worth of samples (~221 at 44.1kHz), should be mostly done
-        for (int i = 0; i < 300; ++i) {
-            float left = 0.1f, right = 0.1f;
-            proc.process(left, right);
-        }
-
-        // No crash or artifacts expected
-        REQUIRE(true);
+        settleBandProcessor(proc, kEarly);
+        const float atEarly = proc.getMorphEngine()->getSmoothedX();
+        settleBandProcessor(proc, kFull - kEarly);
+        const float atFull = proc.getMorphEngine()->getSmoothedX();
+        INFO("smoothed X after " << kEarly << " samples = " << atEarly << ", after " << kFull
+             << " samples = " << atFull);
+        REQUIRE(atEarly < 0.99f);
+        REQUIRE(atFull >= 0.99f);
     }
 
-    SECTION("Slow smoothing (200ms)") {
-        proc.setMorphSmoothingTime(200.0f);
-        proc.setMorphPosition(0.0f, 0.0f);
-        settleBandProcessor(proc, 1000);
+    SECTION("processBlock at the running factor (2x)") {
+        constexpr size_t kChunk = 48;  // kEarly and kFull are multiples of it
+        std::array<float, kChunk> left{};
+        std::array<float, kChunk> right{};
+        const auto runBlocks = [&](int samples) {
+            for (int done = 0; done < samples; done += static_cast<int>(kChunk)) {
+                left.fill(0.0f);
+                right.fill(0.0f);
+                proc.processBlock(left.data(), right.data(), kChunk);
+            }
+        };
+        runBlocks(48000);
+        REQUIRE(proc.getActiveOversampleFactor() == 2);
+        REQUIRE(proc.getMorphEngine()->getSmoothedX() < 1e-4f);
 
         proc.setMorphPosition(1.0f, 0.0f);
-
-        // After 50ms, still transitioning
-        for (int i = 0; i < 2205; ++i) {  // ~50ms
-            float left = 0.1f, right = 0.1f;
-            proc.process(left, right);
-        }
-
-        // No crash or artifacts expected
-        REQUIRE(true);
+        REQUIRE(proc.getActiveOversampleFactor() == 2);
+        runBlocks(kEarly);
+        const float atEarly = proc.getMorphEngine()->getSmoothedX();
+        runBlocks(kFull - kEarly);
+        const float atFull = proc.getMorphEngine()->getSmoothedX();
+        INFO("smoothed X after " << kEarly << " host samples = " << atEarly << ", after " << kFull
+             << " host samples = " << atFull);
+        REQUIRE(atEarly < 0.99f);
+        REQUIRE(atFull >= 0.99f);
     }
 }
 
@@ -307,7 +444,7 @@ TEST_CASE("BandProcessor processBlock uses morph engine", "[band][morph][FR-010]
 
     // Fill with test signal
     for (size_t i = 0; i < 256; ++i) {
-        left[i] = 0.5f * std::sin(2.0f * 3.14159f * 440.0f * static_cast<float>(i) / 44100.0f);
+        left[i] = 0.5f * std::sin(2.0f * std::numbers::pi_v<float> * 440.0f * static_cast<float>(i) / 44100.0f);
         right[i] = left[i];
     }
 
@@ -361,11 +498,11 @@ TEST_CASE("DIAG: DistortionAdapters produce different output for different types
 
     // Set up SoftClip
     adapterA.setType(Disrumpo::DistortionType::SoftClip);
-    adapterA.setCommonParams({1.5f, 1.0f, 8000.0f});
+    adapterA.setCommonParams({.drive = 1.5f, .mix = 1.0f, .toneHz = 8000.0f});
 
     // Set up Bitcrush — low bit depth to ensure visible quantization
     adapterB.setType(Disrumpo::DistortionType::Bitcrush);
-    adapterB.setCommonParams({1.5f, 1.0f, 8000.0f});
+    adapterB.setCommonParams({.drive = 1.5f, .mix = 1.0f, .toneHz = 8000.0f});
     Disrumpo::DistortionParams bParams;
     bParams.bitDepth = 2.0f;
     adapterB.setParams(bParams);
@@ -476,4 +613,135 @@ TEST_CASE("DIAG: Same-family types (SoftClip vs Tube) produce different output",
     INFO("Difference: " << std::abs(softClipOut - tubeOut));
 
     REQUIRE(softClipOut != Approx(tubeOut).margin(0.001f));
+}
+
+// Measurement probe (hidden, fix plan T1.06): audio-thread cost of one band's
+// re-rate at a factor switch (two MorphEngines + two legacy adapters, i.e. what
+// BandProcessor::setClockFactor runs), at 48 kHz.
+TEST_CASE("Probe: BandProcessor shaper re-rate cost", "[.][t106-cpu-probe]") {
+    constexpr double kSr = 48000.0;
+    constexpr int kMax = Disrumpo::BandProcessor::kMaxOversampleFactor;
+    constexpr int kBlock = 512 * kMax;
+    auto engineL = std::make_unique<Disrumpo::MorphEngine>();
+    auto engineR = std::make_unique<Disrumpo::MorphEngine>();
+    auto adapterL = std::make_unique<Disrumpo::DistortionAdapter>();
+    auto adapterR = std::make_unique<Disrumpo::DistortionAdapter>();
+    engineL->prepare(kSr, kBlock, kMax);
+    engineR->prepare(kSr, kBlock, kMax);
+    adapterL->prepare(kSr, kBlock, kMax);
+    adapterR->prepare(kSr, kBlock, kMax);
+    constexpr int kRuns = 200;
+    const auto t0 = std::chrono::steady_clock::now();
+    for (int r = 0; r < kRuns; ++r) {
+        const double rate = kSr * ((r % 2 == 0) ? 4.0 : 2.0);
+        engineL->setProcessingRate(rate);
+        engineR->setProcessingRate(rate);
+        adapterL->setProcessingRate(rate);
+        adapterR->setProcessingRate(rate);
+    }
+    const auto t1 = std::chrono::steady_clock::now();
+    const double us = std::chrono::duration<double, std::micro>(t1 - t0).count() / kRuns;
+    WARN("PROBE re-rate: " << us << " us per band switch (a 512-sample block at 48 kHz is "
+         << 512.0 / kSr * 1e6 << " us)");
+}
+
+// Measurement probe (hidden, fix plan T1.14): band level at sweep intensity 0 and 200 %
+// (drive x1 and x2) for SoftClip (drive 2) / Tube (drive 3) at x = 0, 0.5 and 1.
+TEST_CASE("Probe: T1.14 sweep level per morph position", "[.][t114-sweep-level-probe]") {
+    constexpr float kHz = 1378.125f;
+    constexpr size_t kN = 8192;
+    for (const float x : {0.0f, 0.5f, 1.0f}) {
+        float db[2] = {0.0f, 0.0f};
+        for (int k = 0; k < 2; ++k) {
+            auto proc = std::make_unique<Disrumpo::BandProcessor>();
+            proc->prepare(kSampleRate, kBlockSize);
+            proc->setMorphNodes(createTwoNodeSetup(), 2);
+            proc->setMorphMode(Disrumpo::MorphMode::Linear1D);
+            proc->setMorphPosition(x, 0.0f);
+            proc->setSweepIntensity(k == 0 ? 0.0f : 2.0f);
+            settleBandProcessor(*proc);
+            double s = 0.0;
+            for (size_t i = 0; i < kN; ++i) {
+                float left = 0.5f * std::sin(2.0f * std::numbers::pi_v<float> * kHz * static_cast<float>(i) /
+                                              static_cast<float>(kSampleRate));
+                float right = left;
+                proc->process(left, right);
+                s += static_cast<double>(left) * left;
+            }
+            db[k] = static_cast<float>(10.0 * std::log10(s / static_cast<double>(kN)));
+        }
+        WARN("PROBE t114 sweep level x = " << x << ": intensity 0 " << db[0] << " dB, 200 % " << db[1]
+             << " dB, delta " << db[1] - db[0] << " dB");
+    }
+}
+
+// Probe (hidden, round 3): a 1-node morph band (drive 2) on a quiet sine (-58 dBFS, 220 Hz) through
+// lane crossfades: Oversample Max toggled between two factors every 0.3 s, against the render held
+// at each. Peak and RMS after the first 0.5 s. Measured 2026-11-11: Allpass Resonant (every
+// topology) and Sine Fold burst at each switch (-24 / -35 dBFS peak against -75 / -53 held), at
+// 2x <-> 4x as at 4x <-> 8x; Feedback, Ring Saturation and Hard Clip do not. The cleared incoming
+// lane's internal 10 Hz DC blockers start at zero state and pass the shaper's DC as a step (decay
+// ~545 dB/s, the 10 Hz pole); open question in the round-3 report.
+TEST_CASE("Probe: AllpassResonant through factor crossfades", "[.][allpass-lane-probe]") {
+    using namespace Disrumpo;
+    struct Variant {
+        DistortionType type;
+        int topo;
+    };
+    for (const Variant v : {Variant{.type = DistortionType::AllpassResonant, .topo = 1},
+                            Variant{.type = DistortionType::AllpassResonant, .topo = 3},
+                            Variant{.type = DistortionType::FeedbackDist, .topo = 0},
+                            Variant{.type = DistortionType::RingSaturation, .topo = 0},
+                            Variant{.type = DistortionType::SineFold, .topo = 0},
+                            Variant{.type = DistortionType::HardClip, .topo = 0}}) {
+        for (const auto& [lo, hi] : {std::pair{4, 8}, std::pair{2, 4}}) {
+            for (const int mode : {0, 1, 2}) {  // 0: held lo, 1: held hi, 2: toggled
+                auto bpOwner = std::make_unique<BandProcessor>();
+                BandProcessor& bp = *bpOwner;
+                bp.prepare(48000.0, 512);
+                DistortionParams params;
+                params.allpassTopo = v.topo;
+                params.resonantFreq = 500.0f;
+                params.allpassFeedback = 0.6f;
+                params.decayTimeS = 1.5f;
+                std::array<MorphNode, kMaxMorphNodes> nodes{};
+                nodes[0] = MorphNode(0, 0.0f, 0.0f, v.type);
+                nodes[0].commonParams.drive = 2.0f;
+                nodes[0].commonParams.mix = 1.0f;
+                nodes[0].params = params;
+                bp.setMorphEnabled(true);
+                bp.setMorphNodes(nodes, 1);
+                bp.setMaxOversampleFactor(mode == 0 ? lo : hi);
+                constexpr size_t kBlock = 512;
+                const size_t total = kBlock * 282;  // whole blocks, ~3 s
+                std::vector<float> out(total);
+                std::vector<float> l(kBlock);
+                std::vector<float> r(kBlock);
+                const auto step = static_cast<size_t>(0.3 * 48000.0);
+                for (size_t s = 0; s < total; s += kBlock) {
+                    if (mode == 2 && s > 0 && (s / step) != ((s - kBlock) / step)) {
+                        bp.setMaxOversampleFactor((s / step) % 2 == 1 ? lo : hi);
+                    }
+                    for (size_t i = 0; i < kBlock; ++i) {
+                        const double t = static_cast<double>(s + i) / 48000.0;
+                        l[i] = static_cast<float>(0.00126 * std::sin(2.0 * std::numbers::pi * 220.0 * t));
+                        r[i] = l[i];
+                    }
+                    bp.processBlock(l.data(), r.data(), kBlock);
+                    std::copy(l.begin(), l.end(), out.begin() + static_cast<std::ptrdiff_t>(s));
+                }
+                double pk = 0.0;
+                double sq = 0.0;
+                for (size_t i = 24000; i < total; ++i) {
+                    pk = std::max(pk, std::fabs(static_cast<double>(out[i])));
+                    sq += static_cast<double>(out[i]) * out[i];
+                }
+                static constexpr std::array<const char*, 3> kModeName{"held lo", "held hi", "toggled"};
+                std::printf("APL %s topo %d %dx/%dx %s: peak %.1f dBFS, RMS %.1f dBFS\n", getTypeName(v.type), v.topo,
+                            lo, hi, kModeName[static_cast<size_t>(mode)],
+                            20.0 * std::log10(pk + 1e-15),
+                            10.0 * std::log10(sq / static_cast<double>(total - 24000) + 1e-30));
+            }
+        }
+    }
 }

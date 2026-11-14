@@ -136,7 +136,8 @@ VSTGUI::CView* Controller::verifyView(
         // to UI lane index (0=Vel, 1=Gate, 2=Pitch, 3=Mod, 4=Cond, 5=Ratchet, 6=Chord, 7=Inv)
         static constexpr int kParamToLane[8] = {0, 1, 2, 3, 5, 4, 6, 7};
 
-        if (tag >= kArpVelocityLaneSwingId && tag <= kArpInversionLaneSwingId) {
+        if (tag >= static_cast<int32_t>(kArpVelocityLaneSwingId) &&
+            tag <= static_cast<int32_t>(kArpInversionLaneSwingId)) {
             int laneIdx = static_cast<int>(tag - kArpVelocityLaneSwingId);
             int uiLane = kParamToLane[laneIdx];
             if (uiLane >= 0 && uiLane < 8) {
@@ -145,7 +146,8 @@ VSTGUI::CView* Controller::verifyView(
             }
         }
         // v1.5 Part 2: Per-lane length jitter knobs
-        if (tag >= kArpVelocityLaneJitterId && tag <= kArpInversionLaneJitterId) {
+        if (tag >= static_cast<int32_t>(kArpVelocityLaneJitterId) &&
+            tag <= static_cast<int32_t>(kArpInversionLaneJitterId)) {
             int laneIdx = static_cast<int>(tag - kArpVelocityLaneJitterId);
             int uiLane = kParamToLane[laneIdx];
             if (uiLane >= 0 && uiLane < 8) {
@@ -1027,7 +1029,7 @@ void Controller::constructArpLanes()
             // Wire toggle listener
             constexpr float kExpandedW = 208.0f;  // toggle + "Speed Curve" + depth label + knob + preset + padding
             speedCurveToggleListener_ = std::make_shared<LambdaListener>(
-                [this, kCollapsedW, kExpandedW]
+                [this]
                 ([[maybe_unused]] VSTGUI::CControl* ctrl, float value) {
                     bool enabled = value > 0.5f;
                     int lane = selectedLaneIndex_;

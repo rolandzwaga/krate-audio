@@ -67,8 +67,20 @@ tresult PLUGIN_API Controller::initialize(FUnknown* context)
             0, ParameterInfo::kCanAutomate));
 
     // Preset manager
+    createPresetManager({}, {});
+
+    // Update checker
+    updateChecker_ = std::make_unique<Krate::Plugins::UpdateChecker>(makeGradusUpdateConfig());
+
+    return kResultOk;
+}
+
+void Controller::createPresetManager(std::filesystem::path userDirOverride,
+                                     std::filesystem::path factoryDirOverride)
+{
     presetManager_ = std::make_unique<Krate::Plugins::PresetManager>(
-        makeGradusPresetConfig(), nullptr, this);
+        makeGradusPresetConfig(), nullptr, this, std::move(userDirOverride),
+        std::move(factoryDirOverride));
     presetManager_->setStateProvider([this]() -> Steinberg::IBStream* {
         return createComponentStateStream();
     });
@@ -77,17 +89,14 @@ tresult PLUGIN_API Controller::initialize(FUnknown* context)
                const Krate::Plugins::PresetInfo& /*info*/) -> bool {
             return loadComponentStateWithNotify(stream);
         });
-
-    // Update checker
-    updateChecker_ = std::make_unique<Krate::Plugins::UpdateChecker>(makeGradusUpdateConfig());
-
-    return kResultOk;
 }
 
 tresult PLUGIN_API Controller::terminate()
 {
-    updateChecker_.reset();
-    presetManager_.reset();
+    // updateChecker_ and presetManager_ stay until the destructor: an editor a host has not
+    // closed yet still polls the checker (update banner, Check for Updates button) and its
+    // preset browser and save dialog hold the manager, and that editor holds a reference
+    // to this controller, so the destructor runs only after its views are gone
     return EditControllerEx1::terminate();
 }
 

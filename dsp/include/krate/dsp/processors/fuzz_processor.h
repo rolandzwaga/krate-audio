@@ -155,6 +155,17 @@ public:
     /// @brief Reset all internal state without reallocation (FR-003)
     void reset() noexcept;
 
+    /// @brief Start the DC blocker settled on the mean @p other's blocker removes (warm start).
+    ///
+    /// For an owner that starts a cleared copy of a running processor, possibly at another
+    /// sample rate (an oversampling switch): from a cleared state the 10 Hz blocker passes the
+    /// signal's DC as a step that decays over ~150 ms. Changes nothing else.
+    void seedDcBlockerFrom(const FuzzProcessor& other) noexcept {
+        DCBlocker probe = other.dcBlocker_;
+        // The next output of a blocker is x - (x[n-1] - R y[n-1]): at x = 0, minus the mean it removes
+        dcBlocker_.setState(-probe.process(0.0f), 0.0f);
+    }
+
     // =========================================================================
     // Type Selection (FR-006, FR-006a, FR-011)
     // =========================================================================

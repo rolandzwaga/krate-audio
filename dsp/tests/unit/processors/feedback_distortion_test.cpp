@@ -715,6 +715,72 @@ TEST_CASE("FeedbackDistortion limiter effectiveness", "[FeedbackDistortion][limi
     }
 }
 
+TEST_CASE("FeedbackDistortion setLimiterEnabled bypasses the soft limiter", "[FeedbackDistortion][limiter][enable]") {
+    constexpr float sampleRate = 44100.0f;
+    constexpr float thresholdDb = -12.0f;
+    constexpr size_t length = static_cast<size_t>(sampleRate);  // 1 s: 0.1 s of input, then silence
+
+    const auto render = [&](FeedbackDistortion& d) {
+        // Parameters before prepare(): prepare() snaps the smoothers, so the threshold does
+        // not ramp down from its -6 dB default during the first 10 ms.
+        d.setDelayTime(10.0f);
+        d.setFeedback(1.2f);
+        d.setDrive(2.0f);
+        d.setLimiterThreshold(thresholdDb);
+        d.prepare(sampleRate, 512);
+        std::vector<float> out(length);
+        for (size_t i = 0; i < length; ++i) {
+            const float x = i < length / 10
+                ? 0.5f * std::sin(6.283185307f * 220.0f * static_cast<float>(i) / sampleRate)
+                : 0.0f;
+            out[i] = d.process(x);
+        }
+        return out;
+    };
+
+    SECTION("enabled by default; enabling explicitly leaves the output bit-identical") {
+        FeedbackDistortion untouched;
+        REQUIRE(untouched.isLimiterEnabled());
+        const auto reference = render(untouched);
+
+        FeedbackDistortion enabled;
+        enabled.setLimiterEnabled(true);
+        REQUIRE(enabled.isLimiterEnabled());
+        const auto out = render(enabled);
+
+        float maxDiff = 0.0f;
+        for (size_t i = 0; i < length; ++i) maxDiff = std::max(maxDiff, std::abs(out[i] - reference[i]));
+        INFO("max |enabled - untouched| " << maxDiff);
+        REQUIRE(maxDiff == 0.0f);
+    }
+
+    SECTION("disabled: the loop passes the threshold + 3 dB bound; re-enabled: it holds it") {
+        const float bound = dbToLinear(thresholdDb + 3.0f);
+
+        FeedbackDistortion on;
+        const auto limited = render(on);
+        const float peakOn = findPeak(limited.data(), limited.size());
+
+        FeedbackDistortion off;
+        off.setLimiterEnabled(false);
+        REQUIRE_FALSE(off.isLimiterEnabled());
+        const auto unlimited = render(off);
+        const float peakOff = findPeak(unlimited.data(), unlimited.size());
+
+        FeedbackDistortion reEnabled;
+        reEnabled.setLimiterEnabled(false);
+        reEnabled.setLimiterEnabled(true);
+        const auto relimited = render(reEnabled);
+        const float peakReEnabled = findPeak(relimited.data(), relimited.size());
+
+        INFO("threshold " << thresholdDb << " dB, bound " << bound << "; peak limiter on " << peakOn
+             << ", off " << peakOff << ", re-enabled " << peakReEnabled);
+        REQUIRE(peakOn <= bound);
+        REQUIRE(peakOff > bound);
+        REQUIRE(peakReEnabled <= bound);
+    }
+}
+
 TEST_CASE("FeedbackDistortion limiter timing characteristics", "[FeedbackDistortion][limiter][timing]") {
     constexpr float sampleRate = 44100.0f;
     FeedbackDistortion distortion;

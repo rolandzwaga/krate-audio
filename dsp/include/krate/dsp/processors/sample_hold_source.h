@@ -44,16 +44,21 @@ public:
 
     SampleHoldSource() noexcept = default;
 
+    /// @brief Restarts the random sequence (kSeed), so the output does not depend on how
+    /// often prepare() or reset() ran before.
     void prepare(double sampleRate) noexcept {
         sampleRate_ = sampleRate;
         outputSmoother_.configure(5.0f, static_cast<float>(sampleRate));
         phase_ = 0.0f;
+        rng_.seed(kSeed);
         heldValue_ = 0.0f;
         outputSmoother_.snapTo(0.0f);
     }
 
+    /// @brief Restarts the random sequence (kSeed).
     void reset() noexcept {
         phase_ = 0.0f;
+        rng_.seed(kSeed);
         heldValue_ = 0.0f;
         outputSmoother_.reset();
     }
@@ -79,7 +84,9 @@ public:
             outputSmoother_.configure(slewMs_, static_cast<float>(sampleRate_));
             outputSmoother_.setTarget(heldValue_);
         }
-        static_cast<void>(outputSmoother_.process());
+        // Advance the slew by the whole block: one process() step per call made
+        // Slew numSamples times slower, so it followed the host's block size.
+        outputSmoother_.advanceSamples(numSamples);
     }
 
     /// @brief Process one sample.
@@ -166,7 +173,8 @@ private:
     float heldValue_ = 0.0f;
     float externalLevel_ = 0.0f;
 
-    Xorshift32 rng_{54321};
+    static constexpr uint32_t kSeed = 54321;  ///< restored by prepare() and reset()
+    Xorshift32 rng_{kSeed};
     OnePoleSmoother outputSmoother_;
     double sampleRate_ = 44100.0;
 

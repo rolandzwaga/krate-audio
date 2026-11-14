@@ -13,6 +13,7 @@
 
 #include <cmath>
 #include <numbers>
+#include <vector>
 
 using namespace Krate::DSP;
 using Catch::Approx;
@@ -245,34 +246,84 @@ TEST_CASE("TransientDetector decay time controls fall time", "[processors][trans
 // Sensitivity Tests (FR-050)
 // =============================================================================
 
-TEST_CASE("TransientDetector sensitivity adjusts thresholds", "[processors][transient][fr050]") {
-    constexpr double kSampleRate = 44100.0;
+namespace {
 
-    // Low sensitivity should require stronger transient to trigger
-    auto detectsAt = [](float sensitivity, float inputLevel) {
-        TransientDetector detector;
-        detector.prepare(kSampleRate);
-        detector.setSensitivity(sensitivity);
-        detector.setAttackTime(2.0f);
-        detector.setDecayTime(50.0f);
+/// Number of times the detector fires (its envelope starts rising) over `x`.
+int countTriggers(TransientDetector& detector, const std::vector<float>& x) {
+    int triggers = 0;
+    bool rising = false;
+    float prev = detector.getCurrentValue();
+    for (const float s : x) {
+        detector.process(s);
+        const float v = detector.getCurrentValue();
+        const bool nowRising = v > prev;
+        if (nowRising && !rising) ++triggers;
+        rising = nowRising;
+        prev = v;
+    }
+    return triggers;
+}
 
-        // Silence then step
-        for (int i = 0; i < 100; ++i) {
-            detector.process(0.0f);
-        }
+/// Eight kick-like hits (60 Hz, 80 ms decay) every 500 ms at peak `amplitude`, 44.1 kHz.
+std::vector<float> kickPattern(float amplitude) {
+    constexpr int kSpacing = 22050;
+    std::vector<float> x(static_cast<size_t>(8 * kSpacing), 0.0f);
+    for (size_t i = 0; i < x.size(); ++i) {
+        const double t = static_cast<double>(i % kSpacing) / 44100.0;
+        x[i] = amplitude * static_cast<float>(std::exp(-t / 0.08) * std::sin(2.0 * std::numbers::pi * 60.0 * t));
+    }
+    return x;
+}
 
-        for (int i = 0; i < 200; ++i) {
-            detector.process(inputLevel);
-        }
+TransientDetector makeDetector(float sensitivity) {
+    TransientDetector detector;
+    detector.prepare(44100.0);
+    detector.setSensitivity(sensitivity);
+    detector.setAttackTime(2.0f);
+    detector.setDecayTime(50.0f);
+    return detector;
+}
 
-        return detector.getCurrentValue() > 0.01f;
+}  // namespace
+
+TEST_CASE("TransientDetector sensitivity sets the rise it needs, not a level", "[processors][transient][fr050]") {
+    // Sensitivity is the level RISE a transient needs (21 dB at 0, 12 dB at 0.5, 3 dB at 1), measured
+    // against the signal's own recent level: an absolute threshold missed every hit of a quiet
+    // source (sensitivity 0.65 fired once in 4 s of drums at -18 dBFS).
+    auto detectsStep = [](float sensitivity, float from, float to) {
+        TransientDetector detector = makeDetector(sensitivity);
+        (void)countTriggers(detector, std::vector<float>(4410, from));  // 100 ms at the first level
+        return countTriggers(detector, std::vector<float>(4410, to)) > 0;  // then the step
     };
+    CHECK(detectsStep(0.9f, 0.1f, 0.2f));        // +6 dB: enough at high sensitivity
+    CHECK_FALSE(detectsStep(0.1f, 0.1f, 0.2f));  // +6 dB: not enough at low sensitivity
+    CHECK(detectsStep(0.1f, 0.005f, 0.1f));      // +26 dB: enough even at low sensitivity
+    CHECK(detectsStep(0.9f, 0.001f, 0.002f));    // quiet: the same +6 dB rise at -60 dBFS
+}
 
-    // At medium input, high sensitivity should detect
-    REQUIRE(detectsAt(0.9f, 0.3f));
+TEST_CASE("TransientDetector fires on every hit at any level", "[processors][transient][fr050]") {
+    for (const float amplitude : {1.0f, 0.125f, 0.03f}) {  // 0, -18, -30 dBFS peaks
+        TransientDetector detector = makeDetector(0.5f);
+        INFO("peak amplitude " << amplitude);
+        CHECK(countTriggers(detector, kickPattern(amplitude)) == 8);
+    }
+}
 
-    // At weak input, low sensitivity should NOT detect
-    REQUIRE_FALSE(detectsAt(0.1f, 0.05f));
+TEST_CASE("TransientDetector fires once on a held tone", "[processors][transient][fr092]") {
+    for (const float amplitude : {0.5f, 0.03f}) {
+        TransientDetector detector = makeDetector(1.0f);  // most sensitive: 3 dB
+        std::vector<float> x(44100);
+        for (int i = 0; i < 44100; ++i) x[static_cast<size_t>(i)] = sineTone(i, 44100.0f, 110.0f, amplitude);
+        INFO("amplitude " << amplitude);
+        CHECK(countTriggers(detector, x) == 1);
+    }
+}
+
+TEST_CASE("TransientDetector ignores rises below -60 dBFS", "[processors][transient]") {
+    TransientDetector detector = makeDetector(1.0f);
+    std::vector<float> x(44100, 0.0f);
+    for (size_t i = 22050; i < x.size(); ++i) x[i] = 0.0005f;  // silence -> -66 dBFS step
+    CHECK(countTriggers(detector, x) == 0);
 }
 
 // =============================================================================
@@ -308,4 +359,23 @@ TEST_CASE("TransientDetector implements ModulationSource interface", "[processor
     auto range = detector.getSourceRange();
     REQUIRE(range.first == Approx(0.0f));
     REQUIRE(range.second == Approx(1.0f));
+}
+
+TEST_CASE("TransientDetector trigger fires the envelope to a level without audio", "[processors][transient]") {
+    TransientDetector detector = makeDetector(0.5f);  // attack 2 ms, decay 50 ms
+    detector.trigger(0.6f);
+    float peak = 0.0f;
+    for (int i = 0; i < 441; ++i) {  // 10 ms of silence: the attack runs to 0.6, then decays
+        detector.process(0.0f);
+        peak = std::max(peak, detector.getCurrentValue());
+    }
+    CHECK(peak == Approx(0.6f).margin(1e-6f));
+    CHECK(detector.getCurrentValue() < 0.6f);
+    const float before = detector.getCurrentValue();
+    detector.trigger(0.1f);  // below the running envelope: no change
+    detector.process(0.0f);
+    CHECK(detector.getCurrentValue() < before);
+    detector.trigger(1.0f);  // above it: rises again
+    for (int i = 0; i < 100; ++i) detector.process(0.0f);
+    CHECK(detector.getCurrentValue() > 0.9f);
 }

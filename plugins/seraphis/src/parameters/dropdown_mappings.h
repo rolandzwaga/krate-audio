@@ -90,11 +90,23 @@ namespace Seraphis {
 // (`tests/test_helpers/render_fingerprint.h:22-29` measured 1.9e-7 relative
 // under g++ -O3, g++ -O3 -ffast-math and clang++ -O2; 1.9e-7 x 310 = 6e-5 TV
 // units), so the gate is portable.
+//
+// RE-PICKED 2026-11-14, index 14 only (0x724C81ED -> 0x33EBD36E). After the
+// shared-DSP fixes of the Disrumpo audit branch, seeds 13 and 14 read 2.028 TV
+// units apart on MSVC and 1.929 on Linux GCC 13, under the gate of 2. The
+// replacement was the best of 48 splitmix64 candidates scored in slot 14 on
+// MSVC, Linux GCC 13 and the clang-cl /fp:fast proxy of the macOS leg; minimum
+// pairwise spread of the new table: 3.273 (MSVC, seeds 0-5), 2.581 (GCC, seeds
+// 8-9), 2.111 (clang-cl fast-math, seeds 8-9; both of the latter are pairs the
+// re-pick does not touch). floor(2.111 / 1.05) = 2, so the gate stands.
+// RE-MEASURED the same day once AetherReverb's morph path became the same on
+// every toolchain (aether_reverb.h, canonical planes at theta = pi): minimum
+// 2.662 MSVC, 2.662 GCC 13, 2.660 clang-cl fast-math, all seeds 0-5; gate 2.
 inline constexpr std::array<std::uint32_t, 16> kSeedValues = {
     0x00000001u, 0x51A8749Bu, 0x2ACBD1F1u, 0x2E89A193u,
     0x72403C09u, 0x3B343439u, 0x3B0E7D2Fu, 0x46980CADu,
     0x6BA7EEE9u, 0xB43343A1u, 0xD4367D77u, 0x3B1E1B79u,
-    0x6C6AD50Fu, 0xA6F2B569u, 0x724C81EDu, 0x743AAE49u};
+    0x6C6AD50Fu, 0xA6F2B569u, 0x33EBD36Eu, 0x743AAE49u};
 
 static_assert(kSeedValues[0] == 1u,
               "C-10 / SC-020 cl.3: the Phase 8 default must not drift");

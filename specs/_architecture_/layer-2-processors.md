@@ -888,18 +888,17 @@ Linkwitz-Riley crossover filters for phase-coherent multiband signal splitting. 
 - Implementing mastering-grade multiband processors
 
 **Features:**
-- Phase-coherent: all band outputs sum to flat response (within 0.1dB for 2/3-way, 1dB for 4-way)
+- Phase-coherent: LR4 low + high sum to an allpass (flat magnitude); `MultibandCrossover` bands sum flat within 0.1 dB with allpass compensation on
 - LR4 characteristic: -6dB at crossover frequency, 24dB/octave slopes
 - Click-free automation: configurable smoothing (default 5ms)
 - Tracking modes: Efficient (0.1Hz hysteresis) or HighAccuracy (per-sample coefficient updates)
-- Thread-safe: lock-free atomic parameter updates for UI/audio thread safety
+- Double precision: LR4 stages and compensation allpasses run as double TDF2 sections (`detail::BiquadSectionD`)
+- `CrossoverLR4` setters are atomic; `MultibandCrossover` setters are plain (call them on the audio thread)
 
 ```cpp
 enum class TrackingMode : uint8_t { Efficient, HighAccuracy };
 
 struct CrossoverLR4Outputs { float low, high; };
-struct Crossover3WayOutputs { float low, mid, high; };
-struct Crossover4WayOutputs { float sub, low, mid, high; };
 
 class CrossoverLR4 {
     static constexpr float kMinFrequency = 20.0f;
@@ -916,50 +915,38 @@ class CrossoverLR4 {
     void setSmoothingTime(float ms) noexcept;       // Default 5ms
     void setTrackingMode(TrackingMode mode) noexcept;
 
-    [[nodiscard]] float getCrossoverFrequency() const noexcept;
+    [[nodiscard]] float getCrossoverFrequency() const noexcept;  // target
+    [[nodiscard]] float getCurrentFrequency() const noexcept;    // what the coefficients use (lags while gliding)
     [[nodiscard]] float getSmoothingTime() const noexcept;
     [[nodiscard]] TrackingMode getTrackingMode() const noexcept;
     [[nodiscard]] bool isPrepared() const noexcept;
 };
 
-class Crossover3Way {
-    static constexpr float kDefaultLowMidFrequency = 300.0f;
-    static constexpr float kDefaultMidHighFrequency = 3000.0f;
-
-    void prepare(double sampleRate) noexcept;
+// N-band split: MaxBands - 1 cascaded CrossoverLR4, runtime band count 1..MaxBands,
+// optional D'Appolito allpass compensation (band k: AP(f_{k+1}) .. AP(f_{n-2}), Q exactly
+// 1/sqrt(2), double precision, following each LR4's current frequency while it glides).
+template <int MaxBands> class MultibandCrossover {
+    void prepare(double sampleRate) noexcept;   // set-then-snap: no glide; keeps frequencies; clears state
     void reset() noexcept;
-    [[nodiscard]] Crossover3WayOutputs process(float input) noexcept;
-    void processBlock(const float* input, float* low, float* mid, float* high, size_t numSamples) noexcept;
-
-    void setLowMidFrequency(float hz) noexcept;
-    void setMidHighFrequency(float hz) noexcept;    // Auto-clamped to >= lowMid
+    void setActiveBands(int n) noexcept;        // 1..MaxBands; joining LR4s / allpasses start clean
+    void setCrossoverFrequency(int i, float hz) noexcept;  // stored for every index; no order clamp
+    [[nodiscard]] float getCrossoverFrequency(int i) const noexcept;
+    void setAllpassCompensation(bool on) noexcept;          // default off
     void setSmoothingTime(float ms) noexcept;
-    void setTrackingMode(TrackingMode mode) noexcept;
-};
-
-class Crossover4Way {
-    static constexpr float kDefaultSubLowFrequency = 80.0f;
-    static constexpr float kDefaultLowMidFrequency = 300.0f;
-    static constexpr float kDefaultMidHighFrequency = 3000.0f;
-
-    void prepare(double sampleRate) noexcept;
-    void reset() noexcept;
-    [[nodiscard]] Crossover4WayOutputs process(float input) noexcept;
-    void processBlock(const float* input, float* sub, float* low, float* mid, float* high, size_t numSamples) noexcept;
-
-    void setSubLowFrequency(float hz) noexcept;
-    void setLowMidFrequency(float hz) noexcept;     // Auto-clamped to [subLow, midHigh]
-    void setMidHighFrequency(float hz) noexcept;    // Auto-clamped to >= lowMid
-    void setSmoothingTime(float ms) noexcept;
-    void setTrackingMode(TrackingMode mode) noexcept;
+    void process(float x, std::array<float, MaxBands>& bands) noexcept;
+    [[nodiscard]] float processDryCompensation(float x) noexcept;  // AP(f0) .. AP(f_{n-2}); call after process()
 };
 ```
 
-| Class | Bands | Typical Use Case | Performance |
-|-------|-------|------------------|-------------|
-| CrossoverLR4 | 2 (Low/High) | Simple multiband split | <100ns/sample |
-| Crossover3Way | 3 (Low/Mid/High) | Standard multiband processing | ~200ns/sample |
-| Crossover4Way | 4 (Sub/Low/Mid/High) | Bass management, advanced effects | ~300ns/sample |
+Callers keep the crossover frequencies ascending (there is no order-dependent clamp); each is clamped to
+[20 Hz, 0.45 * sampleRate] where it is applied. Users: `FractalDistortion` (Multiband, `MultibandCrossover<4>`,
+compensation on) and Disrumpo's `CrossoverNetwork` (band policy over one `MultibandCrossover<4>`).
+`Crossover3Way` / `Crossover4Way` were replaced by `MultibandCrossover` (crossover dedup, 2026-11-09).
+
+| Class | Bands | Typical Use Case |
+|-------|-------|------------------|
+| CrossoverLR4 | 2 (Low/High) | Simple 2-way split (e.g. Profundum's BassStereoField side channel) |
+| MultibandCrossover<N> | 1..N at runtime | Multiband processing with flat band sum and dry-path alignment |
 
 | TrackingMode | Coefficient Updates | CPU Usage | Use Case |
 |--------------|---------------------|-----------|----------|
@@ -978,16 +965,18 @@ auto [low, high] = crossover.process(inputSample);
 float output = processedLow + processedHigh;
 ```
 
-**Usage Example (3-way mastering):**
+**Usage Example (3 bands, compensated):**
 ```cpp
-Crossover3Way crossover;
+MultibandCrossover<3> crossover;
+crossover.setCrossoverFrequency(0, 300.0f);   // before prepare: prepare snaps there
+crossover.setCrossoverFrequency(1, 3000.0f);
+crossover.setAllpassCompensation(true);
 crossover.prepare(44100.0);
-crossover.setLowMidFrequency(300.0f);
-crossover.setMidHighFrequency(3000.0f);
 
-// Process block
-crossover.processBlock(input, lowBand, midBand, highBand, blockSize);
-// Apply different compression to each band, then sum
+// In audio callback, per sample
+std::array<float, 3> bands{};
+crossover.process(input, bands);
+// Apply different processing to each band, then sum (flat within 0.1 dB when untouched)
 ```
 
 **Topology (LR4 2-way):**
@@ -5106,7 +5095,7 @@ output = DC_block(sum(all_levels)) * mix + dry * (1-mix)
 | Mode | Algorithm | Character |
 |------|-----------|-----------|
 | Residual | Iterative residual extraction | Complex, evolving harmonics |
-| Multiband | 4-way crossover + per-band iterations | Frequency-aware distortion |
+| Multiband | 4-band compensated crossover (MultibandCrossover<4>) + per-band iterations | Frequency-aware distortion |
 | Harmonic | Chebyshev odd/even separation | Independent odd/even control |
 | Cascade | Per-level waveshaper selection | Progressive character change |
 | Feedback | Previous output → current input | Chaotic, self-oscillating |
@@ -5115,13 +5104,13 @@ output = DC_block(sum(all_levels)) * mix + dry * (1-mix)
 - Mono-only design. For stereo, use two instances
 - Aliasing is intentional ("Digital Destruction" aesthetic) - no internal oversampling
 - Feedback mode capped at 0.5 to prevent runaway oscillation
-- Multiband uses pseudo-octave spacing (1:4:16 ratios), not true octaves
+- Multiband uses pseudo-octave spacing (1:4:16 ratios), not true octaves; its bands sum flat (allpass compensation), the crossovers snap on prepare and setCrossoverFrequency() moves them live
 - Frequency decay at level 8 with decay=1.0 creates highpass at 1600Hz (200Hz × 8)
 - Processing before prepare() returns unchanged input
 
 **Performance:** < 0.5% CPU at 44.1kHz mono (8 iterations)
 
-**Memory:** ~4KB (8 waveshapers + 8 Biquads + DC blocker + Crossover4Way + smoothers)
+**Memory:** ~4KB (8 waveshapers + 8 Biquads + DC blocker + MultibandCrossover<4> + smoothers)
 
 **Dependencies:** Layer 0 (sigmoid.h, db_utils.h), Layer 1 (waveshaper.h, biquad.h, dc_blocker.h, smoother.h, chebyshev_shaper.h), Layer 2 (crossover_filter.h)
 

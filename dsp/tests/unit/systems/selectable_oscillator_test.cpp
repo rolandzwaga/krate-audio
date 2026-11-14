@@ -23,6 +23,7 @@
 #include <cmath>
 #include <cstddef>
 #include <numeric>
+#include <utility>
 #include <vector>
 
 using Catch::Approx;
@@ -589,6 +590,69 @@ TEST_CASE("SelectableOscillator: Additive setParam dispatches correctly",
     osc.setParam(OscParam::ChaosAttractor, 2.0f);
 }
 
+// AdditiveOscillator sums its partials at amplitude 1 each (times the tilt) and
+// hard-clamps the sum at +-2, so in Ruinae every Additive patch above one partial
+// clipped: 128 partials at +4 dB/oct spent 96 % of their samples on the clamp, a
+// full-scale square wave (Arctic Frost). The adapter must scale the partial sum so
+// that, for every partial count and tilt, the output never reaches the clamp and
+// keeps about the loudness of a single partial.
+//
+// The adapter scales its output back up by 1 / kAdditiveLevel after the oscillator,
+// so the oscillator clamp of +-2 shows at its output as +-2 / kAdditiveLevel.
+TEST_CASE("SelectableOscillator: Additive output never reaches the clamp and keeps its level across partial counts",
+          "[selectable_oscillator][additive]") {
+    constexpr size_t kLen = 22050;   // 0.5 s
+    constexpr size_t kSkip = 2048;   // IFFT warm-up (latency 1024) plus one frame
+    constexpr float kClampAtOutput = 2.0f / OscillatorAdapter<AdditiveOscillator>::kAdditiveLevel;
+    const auto render = [](float hz, size_t partials, float tilt, float inharm) {
+        SelectableOscillator osc;
+        osc.prepare(kSampleRate, kBlockSize);
+        osc.setType(OscType::Additive);
+        osc.setFrequency(hz);
+        osc.setParam(OscParam::AdditiveNumPartials, static_cast<float>(partials));
+        osc.setParam(OscParam::AdditiveSpectralTilt, tilt);
+        osc.setParam(OscParam::AdditiveInharmonicity, inharm);
+        osc.reset();
+        std::vector<float> out(kLen, 0.0f);
+        for (size_t pos = 0; pos < kLen; pos += kBlockSize) {
+            osc.processBlock(out.data() + pos, std::min(kBlockSize, kLen - pos));
+        }
+        float peak = 0.0f;
+        for (size_t i = kSkip; i < kLen; ++i) peak = std::max(peak, std::abs(out[i]));
+        return std::pair<float, float>{peak, computeRMS(out.data() + kSkip, kLen - kSkip)};
+    };
+
+    for (float hz : {65.41f, 261.63f, 1046.5f}) {
+        const float singleRms = render(hz, 1, 0.0f, 0.0f).second;
+        REQUIRE(singleRms > 0.1f);  // not vacuous
+        float worstPeak = 0.0f;
+        float lowDb = 0.0f;
+        float highDb = 0.0f;
+        for (float inharm : {0.0f, 0.1f}) {
+            for (float tilt : {-24.0f, -12.0f, -6.0f, 0.0f, 4.0f, 8.0f, 12.0f}) {
+                for (size_t partials = 1; partials <= 128; ++partials) {
+                    const auto [peak, rms] = render(hz, partials, tilt, inharm);
+                    const float db = 20.0f * std::log10(rms / singleRms);
+                    worstPeak = std::max(worstPeak, peak);
+                    lowDb = std::min(lowDb, db);
+                    highDb = std::max(highDb, db);
+                    INFO(hz << " Hz, " << partials << " partials, tilt " << tilt << " dB/oct, inharmonicity "
+                         << inharm << ": peak " << peak << ", RMS " << db << " dB re one partial");
+                    // The clamp writes exactly 2.0, so any sample at 1.999 or above is clamped.
+                    CHECK(peak < 0.9995f * kClampAtOutput);
+                    // Partials at distinct frequencies add in power, so a sum normalised by
+                    // the root of its summed squared amplitudes has the RMS of one partial;
+                    // what is left is the IFFT frames' window ripple and partials that share
+                    // a bin (summed coherently), held to +-1.5 dB.
+                    CHECK(std::abs(db) <= 1.5f);
+                }
+            }
+        }
+        INFO(hz << " Hz: worst peak " << worstPeak << ", RMS band " << lowDb << " to " << highDb << " dB");
+        CHECK(worstPeak < 0.9995f * kClampAtOutput);
+    }
+}
+
 TEST_CASE("SelectableOscillator: Chaos setParam dispatches correctly",
           "[selectable_oscillator][setParam]") {
     SelectableOscillator osc;
@@ -699,6 +763,54 @@ TEST_CASE("SelectableOscillator: Noise setParam dispatches correctly",
 
     // Unrecognized
     osc.setParam(OscParam::FormantVowel, 1.0f);
+}
+
+// Ruinae re-sends every oscillator parameter at the top of each process() call,
+// so NoiseColor reaches the Noise adapter once per host block with the colour
+// the oscillator already has. NoiseOscillator::setColor() resets the colouring
+// filters on every call (Membrum relies on that per hit), so forwarding the
+// unchanged colour restarted brown noise's integrator from zero each block,
+// draining its low end: Ruinae's Gut String, Degauss Drift, Tidal Lock and Ping
+// Garden played 1.5-3.2 dB apart at 64- and 512-sample buffers. Re-sending the
+// current colour must leave the noise alone, so the output cannot depend on the
+// block size.
+TEST_CASE("SelectableOscillator: Noise output does not depend on the block size when the colour is re-sent per block",
+          "[selectable_oscillator][setParam][block_size]") {
+    constexpr size_t kNumSamples = 44100;
+    const auto render = [](float color, size_t blockSize) {
+        SelectableOscillator osc;
+        osc.prepare(kSampleRate, 4096);
+        osc.setType(OscType::Noise);
+        osc.setParam(OscParam::NoiseColor, color);
+        std::vector<float> out(kNumSamples, 0.0f);
+        for (size_t pos = 0; pos < kNumSamples; pos += blockSize) {
+            osc.setParam(OscParam::NoiseColor, color);  // the per-block refresh
+            const size_t n = std::min(blockSize, kNumSamples - pos);
+            osc.processBlock(out.data() + pos, n);
+        }
+        return out;
+    };
+
+    // Pink, Brown, Blue, Violet, Grey, RadioStatic: every colour with filter state.
+    for (float color : {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 7.0f}) {
+        const auto reference = render(color, 4096);
+        for (size_t blockSize : {32u, 64u, 512u, 1000u}) {
+            const auto out = render(color, blockSize);
+            float maxDiff = 0.0f;
+            for (size_t i = 0; i < kNumSamples; ++i) {
+                maxDiff = std::max(maxDiff, std::abs(out[i] - reference[i]));
+            }
+            // One seeded generator feeds the same per-sample filter arithmetic,
+            // so a colour that survives the re-send renders the same samples;
+            // 1e-6 (-120 dB) only absorbs float noise. A filter reset per block
+            // changes the waveform by the order of the signal.
+            INFO("color " << color << ", block size " << blockSize << ": max |diff| "
+                 << maxDiff << ", RMS "
+                 << 20.0f * std::log10(computeRMS(out.data(), kNumSamples)) << " dB vs "
+                 << 20.0f * std::log10(computeRMS(reference.data(), kNumSamples)) << " dB at 4096");
+            CHECK(maxDiff <= 1e-6f);
+        }
+    }
 }
 
 TEST_CASE("SelectableOscillator: setParam with null active is silent no-op",

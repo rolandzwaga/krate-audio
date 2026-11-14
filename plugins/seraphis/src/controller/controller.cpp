@@ -40,6 +40,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <filesystem>
 #include <string>
 #include <utility>
 #include <vector>
@@ -151,8 +152,18 @@ tresult PLUGIN_API Controller::initialize(FUnknown* context) {
     }
 
     // FR-050.
+    createPresetManager({}, {});
+
+    updateChecker_ = std::make_unique<Krate::Plugins::UpdateChecker>(makeSeraphisUpdateConfig());
+
+    return kResultOk;
+}
+
+void Controller::createPresetManager(std::filesystem::path userDirOverride,
+                                     std::filesystem::path factoryDirOverride) {
     presetManager_ = std::make_unique<Krate::Plugins::PresetManager>(
-        makeSeraphisPresetConfig(), nullptr, this);
+        makeSeraphisPresetConfig(), nullptr, this, std::move(userDirOverride),
+        std::move(factoryDirOverride));
     // Phase 12 hotfix (2026-08-05): the two provider callbacks WITHOUT WHICH the
     // browser is inert - loadPreset()/savePreset() fail their first guard when
     // the manager has neither a component nor a provider, the browser stays
@@ -164,10 +175,6 @@ tresult PLUGIN_API Controller::initialize(FUnknown* context) {
         [this](Steinberg::IBStream* stream, const Krate::Plugins::PresetInfo& /*info*/) {
             return loadComponentStateWithNotify(stream);
         });
-
-    updateChecker_ = std::make_unique<Krate::Plugins::UpdateChecker>(makeSeraphisUpdateConfig());
-
-    return kResultOk;
 }
 
 tresult PLUGIN_API Controller::terminate() {
@@ -178,8 +185,10 @@ tresult PLUGIN_API Controller::terminate() {
     // producer's gate would never be re-opened.
     editorOpenCount_ = 0;
 
-    updateChecker_.reset();
-    presetManager_.reset();
+    // updateChecker_ and presetManager_ stay until the destructor: an editor a host has not
+    // closed yet still polls the checker (update banner, Check for Updates button) and an
+    // open preset browser holds the manager, and that editor holds a reference to this
+    // controller, so the destructor runs only after its views are gone
     return EditControllerEx1::terminate();
 }
 

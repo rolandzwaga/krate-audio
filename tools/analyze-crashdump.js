@@ -168,8 +168,9 @@ if (streams[6]) {
     console.log(`Address: ${formatAddr(exceptionAddr)}`);
 
     if (exceptionCode === 0xC0000005 && numParams >= 2) {
-        const accessType = buf.readBigUInt64LE(exRva + 28);
-        const targetAddr = buf.readBigUInt64LE(exRva + 36);
+        // ExceptionInformation[] starts at +32: NumberParameters (4) at +24 is followed by a 4-byte alignment pad
+        const accessType = buf.readBigUInt64LE(exRva + 32);
+        const targetAddr = buf.readBigUInt64LE(exRva + 40);
         const accessName = accessType === 0n ? 'READ' : accessType === 1n ? 'WRITE' : 'EXECUTE';
         console.log(`Access Violation: ${accessName} at 0x${targetAddr.toString(16)}`);
     }

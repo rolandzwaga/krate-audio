@@ -2,11 +2,13 @@
 #include "preset_browser_logic.h"
 #include "preset_data_source.h"
 #include "category_tab_bar.h"
+#include "preset_description_layout.h"
 #include "../preset/preset_manager.h"
 
 #include "vstgui/lib/cfileselector.h"
 #include "vstgui/lib/cfont.h"
 #include "vstgui/lib/controls/ctextedit.h"
+#include "vstgui/lib/platform/iplatformfont.h"
 
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
@@ -29,8 +31,26 @@ namespace Layout {
     constexpr float kButtonWidth = 80.0f;
     constexpr float kButtonSpacing = 8.0f;
     constexpr float kInnerPadding = 8.0f;
-    constexpr float kDescriptionHeight = 20.0f;  // FR-065: one line under the preset list
+    // FR-065: up to three lines under the preset list, 16 px each (the label's 12 pt Arial needs ~14).
+    constexpr std::size_t kDescriptionLines = 3;
+    constexpr float kDescriptionHeight = 48.0f;
 }
+
+namespace {
+
+/// FR-065: @p text wrapped to the description label's width in its own font, at most Layout::kDescriptionLines lines.
+std::string layoutDescription(const VSTGUI::CTextLabel& label, const std::string& text) {
+    const VSTGUI::IFontPainter* painter = label.getFont() ? label.getFont()->getFontPainter() : nullptr;
+    if (text.empty() || painter == nullptr) {
+        return text;
+    }
+    const double maxWidth = label.getWidth() - (2.0 * label.getTextInset().x);
+    return wrapDescriptionLines(text, maxWidth, Layout::kDescriptionLines, [painter](const std::string& s) {
+        return painter->getStringWidth(nullptr, VSTGUI::UTF8String(s).getPlatformString(), true);
+    });
+}
+
+}  // namespace
 
 // =============================================================================
 // Construction / Destruction
@@ -457,7 +477,7 @@ void PresetBrowserView::createChildViews() {
     searchField_->registerTextEditListener(this);
     addView(searchField_);
 
-    // Preset List (FR-065: it ends one description line above innerBottom)
+    // Preset List (FR-065: it ends the description area above innerBottom)
     auto listRect = VSTGUI::CRect(
         browserLeft,
         searchRect.bottom + Layout::kInnerPadding,
@@ -496,14 +516,17 @@ void PresetBrowserView::createChildViews() {
     presetList_->setBackgroundColor(VSTGUI::CColor(40, 40, 45));
     addView(presetList_);
 
-    // Description line (FR-065): the selected preset's description, empty otherwise.
-    descriptionLabel_ = new VSTGUI::CTextLabel(
-        VSTGUI::CRect(browserLeft, innerBottom - Layout::kDescriptionHeight, browserRight, innerBottom), "");
+    // Description area (FR-065): the selected preset's description, empty otherwise. updateButtonStates() hands it
+    // the text already wrapped into lines ('\n'), so the label only splits and draws them.
+    descriptionLabel_ = new VSTGUI::CMultiLineTextLabel(
+        VSTGUI::CRect(browserLeft, innerBottom - Layout::kDescriptionHeight, browserRight, innerBottom));
     descriptionLabel_->setBackColor(VSTGUI::CColor(0, 0, 0, 0));
     descriptionLabel_->setFrameColor(VSTGUI::CColor(0, 0, 0, 0));
     descriptionLabel_->setFontColor(VSTGUI::CColor(170, 170, 175));
     descriptionLabel_->setHoriAlign(VSTGUI::kLeftText);
-    descriptionLabel_->setMouseEnabled(false);
+    // Mouse-enabled so the full-text tooltip shows: CFrame::checkMouseViews hands CTooltipSupport only the view that
+    // getViewAt(deep, mouseEnabled) finds. The label handles no mouse event itself.
+    descriptionLabel_->setMouseEnabled(true);
     addView(descriptionLabel_);
 
     // Button Bar
@@ -566,8 +589,8 @@ void PresetBrowserView::updateButtonStates() {
         }
     }
 
-    if (descriptionLabel_) {  // FR-065
-        descriptionLabel_->setText(VSTGUI::UTF8String(description));
+    if (descriptionLabel_) {  // FR-065: up to three wrapped lines shown, the full text as the tooltip
+        descriptionLabel_->setText(VSTGUI::UTF8String(layoutDescription(*descriptionLabel_, description)));
         descriptionLabel_->setTooltipText(description.empty() ? nullptr : description.c_str());
     }
 

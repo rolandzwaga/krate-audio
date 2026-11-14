@@ -23,7 +23,9 @@
 #include "dsp/sweep_processor.h"
 #include "dsp/sweep_envelope.h"
 #include "dsp/distortion_types.h"
+#include "dsp/custom_curve.h"
 
+#include <krate/dsp/core/db_utils.h>
 #include <krate/dsp/core/modulation_types.h>
 #include <krate/dsp/core/note_value.h>
 #include <krate/dsp/primitives/lfo.h>
@@ -32,9 +34,22 @@
 #include "pluginterfaces/base/ibstream.h"
 #include "public.sdk/source/common/memorystream.h"
 
+#include "controller/controller.h"
+#include "state_codec.h"
+
 #include <algorithm>
+#include <array>
+#include <atomic>
+#include <chrono>
 #include <cmath>
+#include <cstdint>
+#include <cstdio>
 #include <cstring>
+#include <fstream>
+#include <iterator>
+#include <memory>
+#include <string>
+#include <thread>
 #include <vector>
 
 using namespace Disrumpo;
@@ -65,7 +80,8 @@ static std::unique_ptr<Processor> createTestProcessor() {
 // Helper: Write a complete v8 preset with non-default values to a stream
 // =============================================================================
 
-static void writeNonDefaultV6Preset(Steinberg::IBStreamer& s) {
+// curve: custom-curve breakpoints to write; nullptr writes the 2-point default
+static void writeNonDefaultV6Preset(Steinberg::IBStreamer& s, const std::vector<Breakpoint>* curve = nullptr) {
     // Version
     s.writeInt32(kPresetVersion);  // v8
 
@@ -97,8 +113,8 @@ static void writeNonDefaultV6Preset(Steinberg::IBStreamer& s) {
     // Crossover frequencies: 3 floats
     // Use non-default frequencies spanning the spectrum
     float crossovers[] = {250.0f, 1000.0f, 5000.0f};
-    for (int c = 0; c < kMaxBands - 1; ++c) {
-        s.writeFloat(crossovers[c]);
+    for (const float crossover : crossovers) {
+        s.writeFloat(crossover);
     }
 
     // =========================================================================
@@ -128,11 +144,19 @@ static void writeNonDefaultV6Preset(Steinberg::IBStreamer& s) {
     s.writeFloat(0.8f); // sensitivity
 
     // Custom Curve breakpoints
-    s.writeInt32(2);      // 2 breakpoints (default)
-    s.writeFloat(0.0f);   // point 0 X
-    s.writeFloat(0.2f);   // point 0 Y (non-default)
-    s.writeFloat(1.0f);   // point 1 X
-    s.writeFloat(0.9f);   // point 1 Y (non-default)
+    if (curve != nullptr) {
+        s.writeInt32(static_cast<Steinberg::int32>(curve->size()));
+        for (const Breakpoint& bp : *curve) {
+            s.writeFloat(bp.x);
+            s.writeFloat(bp.y);
+        }
+    } else {
+        s.writeInt32(2);      // 2 breakpoints (default)
+        s.writeFloat(0.0f);   // point 0 X
+        s.writeFloat(0.2f);   // point 0 Y (non-default)
+        s.writeFloat(1.0f);   // point 1 X
+        s.writeFloat(0.9f);   // point 1 Y (non-default)
+    }
 
     // =========================================================================
     // Modulation System State (v5+)
@@ -188,6 +212,12 @@ static void writeNonDefaultV6Preset(Steinberg::IBStreamer& s) {
     s.writeFloat(0.3f);  // attack normalized
     s.writeFloat(0.5f);  // decay normalized
 
+    // Rungler (v11+: rate, depth, bits, loop)
+    s.writeFloat(0.2f);  // rate normalized
+    s.writeFloat(0.6f);  // depth
+    s.writeInt8(12);     // bits
+    s.writeInt8(1);      // loop on
+
     // Macros (4 x 4 = 16 values)
     for (int m = 0; m < 4; ++m) {
         float base = static_cast<float>(m) / 3.0f;
@@ -225,7 +255,9 @@ static void writeNonDefaultV6Preset(Steinberg::IBStreamer& s) {
         s.writeFloat(morphY);     // morphY
         s.writeInt8(static_cast<Steinberg::int8>(b % 3)); // morphMode (0,1,2 cycling)
         s.writeInt8(static_cast<Steinberg::int8>(2 + (b % 3))); // activeNodeCount (2,3,4 cycling)
-        s.writeFloat(0.0f);       // morphSmoothing
+        s.writeFloat(50.0f);      // morphSmoothing (ms)
+        s.writeInt8(static_cast<Steinberg::int8>(b + 1));  // v13: morph X link (SweepFreq..HoldRise)
+        s.writeInt8(static_cast<Steinberg::int8>(7 - b));  // v13: morph Y link (Custom..EaseOut)
 
         // Per-node state (4 nodes x 7 values)
         for (int n = 0; n < kMaxMorphNodes; ++n) {
@@ -244,6 +276,13 @@ static void writeNonDefaultV6Preset(Steinberg::IBStreamer& s) {
             s.writeFloat(folds);  // folds
             float bits = 8.0f + static_cast<float>(n) * 2.0f;    // 8, 10, 12, 14
             s.writeFloat(bits);   // bitDepth
+
+            // v9+: shape slots, then per-type shadow slots (26 types x 10)
+            for (int slot = 0; slot < MorphNode::kShapeSlotCount; ++slot)
+                s.writeFloat(0.05f * static_cast<float>(slot + n));
+            for (int t = 0; t < kDistortionTypeCount; ++t)
+                for (int slot = 0; slot < MorphNode::kShapeSlotCount; ++slot)
+                    s.writeFloat(0.5f);
         }
     }
 }
@@ -292,19 +331,22 @@ static int compareStreams(MemoryStream& a, MemoryStream& b) {
 
 static bool readAndCompareFloat(Steinberg::IBStreamer& rA, Steinberg::IBStreamer& rB,
                                  float tolerance = 1e-6f) {
-    float fA = 0.0f, fB = 0.0f;
+    float fA = 0.0f;
+    float fB = 0.0f;
     if (!rA.readFloat(fA) || !rB.readFloat(fB)) return false;
     return std::abs(fA - fB) <= tolerance;
 }
 
 static bool readAndCompareInt32(Steinberg::IBStreamer& rA, Steinberg::IBStreamer& rB) {
-    int32_t iA = 0, iB = 0;
+    int32_t iA = 0;
+    int32_t iB = 0;
     if (!rA.readInt32(iA) || !rB.readInt32(iB)) return false;
     return iA == iB;
 }
 
 static bool readAndCompareInt8(Steinberg::IBStreamer& rA, Steinberg::IBStreamer& rB) {
-    Steinberg::int8 iA = 0, iB = 0;
+    Steinberg::int8 iA = 0;
+    Steinberg::int8 iB = 0;
     if (!rA.readInt8(iA) || !rB.readInt8(iB)) return false;
     return iA == iB;
 }
@@ -362,7 +404,8 @@ static bool compareV6PresetStreams(MemoryStream& a, MemoryStream& b) {
     if (!readAndCompareFloat(rA, rB)) return false;  // sensitivity
 
     // Custom Curve: int32 + variable points
-    int32_t pcA = 0, pcB = 0;
+    int32_t pcA = 0;
+    int32_t pcB = 0;
     rA.readInt32(pcA);
     rB.readInt32(pcB);
     if (pcA != pcB) return false;
@@ -441,6 +484,8 @@ static bool compareV6PresetStreams(MemoryStream& a, MemoryStream& b) {
         if (!readAndCompareInt8(rA, rB)) return false;   // morphMode
         if (!readAndCompareInt8(rA, rB)) return false;   // activeNodeCount
         if (!readAndCompareFloat(rA, rB)) return false;  // morphSmoothing
+        if (!readAndCompareInt8(rA, rB)) return false;   // morph X link (v13)
+        if (!readAndCompareInt8(rA, rB)) return false;   // morph Y link (v13)
 
         for (int n = 0; n < kMaxMorphNodes; ++n) {
             if (!readAndCompareInt8(rA, rB)) return false;   // type
@@ -660,28 +705,62 @@ TEST_CASE("Serialization edge case: empty stream uses defaults", "[preset][seria
 TEST_CASE("Serialization edge case: truncated stream loads partial data", "[preset][serialization][edge]") {
     auto proc = createTestProcessor();
 
-    // Create a stream with only version + partial globals (truncated after inputGain)
+    // D-127 (T5.06): globals and the band count, then the stream ends where the
+    // per-band states start. What it holds is applied; the bands keep their defaults.
+    constexpr float kInputGain = 0.8f;
+    constexpr float kOutputGain = 0.3f;
+    constexpr float kGlobalMix = 0.6f;
+    constexpr int32_t kBandCount = 3;
     auto truncatedStream = Steinberg::owned(new MemoryStream());
     {
         Steinberg::IBStreamer writer(truncatedStream, kLittleEndian);
-        writer.writeInt32(kPresetVersion); // version
-        writer.writeFloat(0.8f);            // inputGain only
-        // Missing: outputGain, globalMix, bands, etc.
+        writer.writeInt32(kPresetVersion);
+        writer.writeFloat(kInputGain);
+        writer.writeFloat(kOutputGain);
+        writer.writeFloat(kGlobalMix);
+        writer.writeInt32(kBandCount);
     }
-
     truncatedStream->seek(0, IBStream::kIBSeekSet, nullptr);
-    auto result = proc->setState(truncatedStream);
+    REQUIRE(proc->setState(truncatedStream) == Steinberg::kResultOk);
 
-    // setState reads version successfully but fails partway through globals
-    // The implementation returns kResultFalse when read fails mid-stream
-    // But it shouldn't crash
-    // Note: exact return value depends on where truncation occurs
-    // The important thing is NO CRASH
-    (void)result;
-
-    // Processor should still be usable
     auto outputStream = Steinberg::owned(new MemoryStream());
     REQUIRE(proc->getState(outputStream) == Steinberg::kResultOk);
+    outputStream->seek(0, IBStream::kIBSeekSet, nullptr);
+    Steinberg::IBStreamer reader(outputStream, kLittleEndian);
+    int32_t version = 0;
+    float inputGain = 0.0f;
+    float outputGain = 0.0f;
+    float globalMix = 0.0f;
+    int32_t bandCount = 0;
+    REQUIRE(reader.readInt32(version));
+    REQUIRE(reader.readFloat(inputGain));
+    REQUIRE(reader.readFloat(outputGain));
+    REQUIRE(reader.readFloat(globalMix));
+    REQUIRE(reader.readInt32(bandCount));
+    std::printf("D-127 truncated after the band count: input %.3f, output %.3f, mix %.3f, bands %d\n", inputGain,
+                outputGain, globalMix, bandCount);
+    CHECK_THAT(inputGain, Catch::Matchers::WithinAbs(kInputGain, 1e-6));
+    CHECK_THAT(outputGain, Catch::Matchers::WithinAbs(kOutputGain, 1e-6));
+    CHECK_THAT(globalMix, Catch::Matchers::WithinAbs(kGlobalMix, 1e-6));
+    CHECK(bandCount == kBandCount);
+
+    int nonDefaultBands = 0;
+    for (int b = 0; b < kMaxBands; ++b) {
+        float gainDb = -1.0f;
+        float pan = -1.0f;
+        Steinberg::int8 solo = -1;
+        Steinberg::int8 bypass = -1;
+        Steinberg::int8 mute = -1;
+        REQUIRE(reader.readFloat(gainDb));
+        REQUIRE(reader.readFloat(pan));
+        REQUIRE(reader.readInt8(solo));
+        REQUIRE(reader.readInt8(bypass));
+        REQUIRE(reader.readInt8(mute));
+        std::printf("  band %d: gain %.3f dB, pan %.3f, solo %d, bypass %d, mute %d\n", b, gainDb, pan, solo, bypass,
+                    mute);
+        if (gainDb != 0.0f || pan != 0.0f || solo != 0 || bypass != 0 || mute != 0) ++nonDefaultBands;
+    }
+    CHECK(nonDefaultBands == 0);
 }
 
 // =============================================================================
@@ -896,6 +975,44 @@ TEST_CASE("Serialization round-trip: enum types preserved", "[preset][serializat
         REQUIRE(procB->getState(stream2) == Steinberg::kResultOk);
 
         REQUIRE(compareV6PresetStreams(*stream1, *stream2));
+
+        // D-099: compare against the INPUT, not stream1 vs stream2. Parse the
+        // per-band morph block of stream1 (current layout, processor_state.cpp).
+        const auto* bytes = reinterpret_cast<const uint8_t*>(stream1->getData());
+        const auto size = static_cast<size_t>(stream1->getSize());
+        auto readBytes = [&](size_t off, void* out, size_t n) {
+            REQUIRE(off + n <= size);
+            std::memcpy(out, bytes + off, n);
+        };
+        constexpr size_t kCurveCountOffset = 4 + 3 * 4 + 4 + 4 * 11 + 3 * 4 + 15 + 12 + 13;
+        int32_t points = 0;
+        readBytes(kCurveCountOffset, &points, 4);
+        REQUIRE(points == 2);
+        constexpr size_t kModSources = 104;  // LFO1/2, env, random, chaos, S&H, pitch, transient, rungler
+        constexpr size_t kMacros = size_t{4} * 13;
+        constexpr size_t kRoutings = size_t{32} * 10;
+        constexpr size_t kNodeSize = 1 + 6 * 4 + MorphNode::kShapeSlotCount * 4
+                                   + kDistortionTypeCount * MorphNode::kShapeSlotCount * 4;
+        constexpr size_t kBandSize = 4 + 4 + 1 + 1 + 4 + 2 + kMaxMorphNodes * kNodeSize;  // v13: + X/Y link
+        const size_t morph0 = kCurveCountOffset + 4 + static_cast<size_t>(points) * 8 + kModSources
+                            + kMacros + kRoutings;
+        REQUIRE(morph0 + kMaxBands * kBandSize <= size);
+        for (int b = 0; b < kMaxBands; ++b) {
+            const size_t o = morph0 + static_cast<size_t>(b) * kBandSize;
+            Steinberg::int8 morphMode = -1;
+            float smoothing = -1.0f;
+            readBytes(o + 8, &morphMode, 1);
+            readBytes(o + 10, &smoothing, 4);
+            Steinberg::int8 xLink = -1;
+            Steinberg::int8 yLink = -1;
+            readBytes(o + 14, &xLink, 1);
+            readBytes(o + 15, &yLink, 1);
+            INFO("band " << b);
+            CHECK(morphMode == static_cast<Steinberg::int8>(b % 3));
+            CHECK(smoothing == 50.0f);
+            CHECK(xLink == static_cast<Steinberg::int8>(b + 1));
+            CHECK(yLink == static_cast<Steinberg::int8>(7 - b));
+        }
     }
 
     SECTION("ModSource values round-trip") {
@@ -1038,7 +1155,9 @@ TEST_CASE("Version migration: v2 preset loads bands with defaults for sweep/mod/
     reader.readInt32(version);
     REQUIRE(version == kPresetVersion);
 
-    float ig = 0.0f, og = 0.0f, gm = 0.0f;
+    float ig = 0.0f;
+    float og = 0.0f;
+    float gm = 0.0f;
     reader.readFloat(ig); reader.readFloat(og); reader.readFloat(gm);
     REQUIRE_THAT(ig, Catch::Matchers::WithinAbs(0.6f, 1e-6f));
 
@@ -1301,4 +1420,296 @@ TEST_CASE("Version migration: future version v99 loads known params", "[preset][
     // Output writes current version, not future version
     REQUIRE(version == kPresetVersion);
     REQUIRE_THAT(ig, Catch::Matchers::WithinAbs(0.6f, 1e-6f));
+}
+
+// =============================================================================
+// D-055 (fix plan T2.15, STATE-COMPAT): 05a3ddb7 (2026-02-16) inserted
+// ModSource::Rungler = 10 and moved SampleHold / PitchFollower / Transient from
+// 10 / 11 / 12 to 11 / 12 / 13 with no Disrumpo version bump.
+//
+// - v8 and older streams all predate the insertion: their sources 10-12 move
+//   up by one.
+// - v9 is ambiguous. The released v0.9.0 / v0.9.1 wrote v9 with the old
+//   numbering; v0.9.4 to v0.9.6 wrote v9 with the new one. The layouts are
+//   byte-identical, so no field tells them apart. Ruling: v9 keeps the new
+//   numbering, the one of the later and longer-lived releases (plugin_ids.h
+//   version history, report.md D-055).
+// - v10 and newer always had the new numbering.
+//
+// Fixtures: tests/fixtures/disrumpo_state_v{8,9}_pre_rungler.bin, hand-written
+// by tests/fixtures/make_pre_rungler_fixtures.js. That script follows the
+// writers in `git show disrumpo/v0.9.1:plugins/disrumpo/src/processor/processor.cpp`
+// (v9) and `git show 044e5fff:...` (v8, the last v8 writer). No historical
+// build was run. Routings 0-3 hold old-numbering sources 10 (S&H), 11 (Pitch),
+// 12 (Transient) and 9 (Chaos). Routing 1 targets old band 1 Drive (dest 14).
+// =============================================================================
+
+namespace {
+
+std::vector<uint8_t> readFixture(const char* name) {
+    std::ifstream f(std::string(DISRUMPO_FIXTURES_DIR "/") + name, std::ios::binary);
+    REQUIRE(f.good());
+    return {std::istreambuf_iterator<char>(f), std::istreambuf_iterator<char>()};
+}
+
+struct SavedRouting {
+    int source = 0;
+    int32_t dest = 0;
+    float amount = 0.0f;
+};
+
+// Routing r of a current-layout (v13) stream written by Processor::getState.
+SavedRouting savedRouting(const std::vector<uint8_t>& b, size_t r) {
+    constexpr size_t kCurveCountOffset = 4 + 3 * 4 + 4      // version, globals, band count
+                                       + 4 * (4 + 4 + 3)    // 4 bands: gain, pan, solo/bypass/mute
+                                       + 3 * 4              // crossovers
+                                       + 15 + 12 + 13;      // sweep core, LFO, envelope
+    constexpr size_t kSourcesSize = 13 + 13 + 13 + 9 + 9 + 9 + 16 + 12 + 10;  // ... + Rungler (v11+)
+    constexpr size_t kMacrosSize = size_t{4} * 13;
+    int32_t points = 0;
+    REQUIRE(b.size() > kCurveCountOffset + 4);
+    std::memcpy(&points, b.data() + kCurveCountOffset, 4);
+    const size_t at = kCurveCountOffset + 4 + static_cast<size_t>(points) * 8 + kSourcesSize + kMacrosSize + r * 10;
+    REQUIRE(at + 10 <= b.size());
+    SavedRouting s;
+    s.source = static_cast<int>(b[at]);  // 0..13: the byte is a list index
+    std::memcpy(&s.dest, b.data() + at + 1, 4);
+    std::memcpy(&s.amount, b.data() + at + 5, 4);
+    return s;
+}
+
+// Load `fixture` into a processor and save it again (current layout).
+std::vector<uint8_t> processorResave(std::vector<uint8_t> fixture) {  // a copy: MemoryStream takes void*
+    auto proc = createTestProcessor();
+    auto in = Steinberg::owned(new MemoryStream(fixture.data(),
+                                                static_cast<Steinberg::TSize>(fixture.size())));
+    REQUIRE(proc->setState(in) == Steinberg::kResultOk);
+    auto out = Steinberg::owned(new MemoryStream());
+    REQUIRE(proc->getState(out) == Steinberg::kResultOk);
+    Steinberg::int64 size = 0;
+    out->seek(0, IBStream::kIBSeekEnd, &size);
+    out->seek(0, IBStream::kIBSeekSet, nullptr);
+    std::vector<uint8_t> bytes(static_cast<size_t>(size));
+    Steinberg::int32 got = 0;
+    out->read(bytes.data(), static_cast<Steinberg::int32>(size), &got);
+    proc->terminate();
+    return bytes;
+}
+
+// The controller's routing-source list index after setComponentState(fixture).
+std::array<int, 4> controllerSources(std::vector<uint8_t> fixture) {  // a copy: MemoryStream takes void*
+    Controller ctrl;
+    REQUIRE(ctrl.initialize(nullptr) == Steinberg::kResultOk);
+    auto in = Steinberg::owned(new MemoryStream(fixture.data(),
+                                                static_cast<Steinberg::TSize>(fixture.size())));
+    REQUIRE(ctrl.setComponentState(in) == Steinberg::kResultOk);
+    std::array<int, 4> out{};
+    for (size_t r = 0; r < out.size(); ++r)
+        out[r] = normToListIndex(ctrl.getParamNormalized(makeRoutingParamId(static_cast<uint8_t>(r), 0)),
+                                 kUIModSourceCount);
+    ctrl.terminate();
+    return out;
+}
+
+constexpr auto idx(Krate::DSP::ModSource s) { return static_cast<int>(s); }
+
+}  // namespace
+
+TEST_CASE("Pre-Rungler v8 stream loads S&H Pitch and Transient routings at their current sources",
+          "[disrumpo][preset][serialization][migration][STATE-COMPAT][D-055]") {
+    using Krate::DSP::ModSource;
+    const auto fixture = readFixture("disrumpo_state_v8_pre_rungler.bin");
+    int32_t version = 0;
+    std::memcpy(&version, fixture.data(), 4);
+    REQUIRE(version == 8);
+
+    const auto saved = processorResave(fixture);
+    const std::array<SavedRouting, 4> r{savedRouting(saved, 0), savedRouting(saved, 1), savedRouting(saved, 2),
+                                        savedRouting(saved, 3)};
+    const auto ctrl = controllerSources(fixture);
+    std::printf("D-055 v8 fixture: stored sources 10, 11, 12, 9 -> processor %d, %d, %d, %d "
+                "(dest r1 %d), controller %d, %d, %d, %d\n",
+                r[0].source, r[1].source, r[2].source, r[3].source, r[1].dest, ctrl[0], ctrl[1], ctrl[2], ctrl[3]);
+
+    CHECK(r[0].source == idx(ModSource::SampleHold));
+    CHECK(r[1].source == idx(ModSource::PitchFollower));
+    CHECK(r[2].source == idx(ModSource::Transient));
+    CHECK(r[3].source == idx(ModSource::Chaos));
+    constexpr int32_t kOldBand1DriveNow = 16;  // ModDest::bandParam(1, kBandDrive), v12 remap of 14
+    static_assert(ModDest::bandParam(1, ModDest::kBandDrive) == 16u);
+    CHECK(r[1].dest == kOldBand1DriveNow);
+    CHECK(r[1].amount == -0.25f);
+    CHECK(ctrl[0] == idx(ModSource::SampleHold));
+    CHECK(ctrl[1] == idx(ModSource::PitchFollower));
+    CHECK(ctrl[2] == idx(ModSource::Transient));
+    CHECK(ctrl[3] == idx(ModSource::Chaos));
+}
+
+TEST_CASE("v9 stream keeps the post-Rungler source numbering (v0.9.0/0.9.1 ambiguity ruling)",
+          "[disrumpo][preset][serialization][migration][STATE-COMPAT][D-055]") {
+    using Krate::DSP::ModSource;
+    const auto fixture = readFixture("disrumpo_state_v9_pre_rungler.bin");
+    int32_t version = 0;
+    std::memcpy(&version, fixture.data(), 4);
+    REQUIRE(version == 9);
+
+    const auto saved = processorResave(fixture);
+    const std::array<SavedRouting, 4> r{savedRouting(saved, 0), savedRouting(saved, 1), savedRouting(saved, 2),
+                                        savedRouting(saved, 3)};
+    const auto ctrl = controllerSources(fixture);
+    std::printf("D-055 v9 fixture (v0.9.1 layout): stored sources 10, 11, 12, 9 -> processor %d, %d, %d, %d, "
+                "controller %d, %d, %d, %d\n",
+                r[0].source, r[1].source, r[2].source, r[3].source, ctrl[0], ctrl[1], ctrl[2], ctrl[3]);
+
+    // Read as written: indistinguishable from a v0.9.4-v0.9.6 stream, which
+    // means Rungler, S&H and Pitch Follower by these bytes.
+    CHECK(r[0].source == idx(ModSource::Rungler));
+    CHECK(r[1].source == idx(ModSource::SampleHold));
+    CHECK(r[2].source == idx(ModSource::PitchFollower));
+    CHECK(r[3].source == idx(ModSource::Chaos));
+    CHECK(ctrl[0] == idx(ModSource::Rungler));
+    CHECK(ctrl[1] == idx(ModSource::SampleHold));
+    CHECK(ctrl[2] == idx(ModSource::PitchFollower));
+    CHECK(ctrl[3] == idx(ModSource::Chaos));
+}
+
+// =============================================================================
+// D-044 (fix plan T4.20): a custom curve with an interior breakpoint at x = 1
+// must not hang the next setState
+// =============================================================================
+// setState emptied the curve with `while (count > 2) removeBreakpoint(1);`, and
+// removeBreakpoint refused any point with x <= 0.001 or >= 0.999 as an
+// "endpoint". A stream whose curve holds an interior point at x = 1.0 loads (the
+// curve becomes {0, 1, 1}); the next setState on that instance then spins in the
+// loop on the host thread. The sequence runs on a worker thread and the test
+// fails after 5 s instead of hanging the run.
+
+/// The custom curve a processor saves: getState, then the breakpoints at their
+/// fixed v13 offset (version, 3 globals, band count, 4 x (gain, pan, 3 flags),
+/// 3 crossovers, sweep core 1+4+4+4+1+1, sweep LFO 1+4+1+4+1+1, sweep envelope
+/// 1+4+4+4). Empty if the stream cannot be read.
+static std::vector<Breakpoint> savedCurve(Processor& proc) {
+    std::vector<Breakpoint> curve;
+    auto out = Steinberg::owned(new MemoryStream());
+    if (proc.getState(out) != Steinberg::kResultOk) return curve;
+    constexpr Steinberg::int64 kCurveOffset = 4 + 12 + 4 + 4 * 11 + 12 + 15 + 12 + 13;
+    if (out->seek(kCurveOffset, IBStream::kIBSeekSet, nullptr) != Steinberg::kResultOk) return curve;
+    Steinberg::IBStreamer r(out, kLittleEndian);
+    Steinberg::int32 count = 0;
+    if (!r.readInt32(count) || count < 0 || count > 64) return curve;
+    for (Steinberg::int32 i = 0; i < count; ++i) {
+        Breakpoint bp;
+        if (!r.readFloat(bp.x) || !r.readFloat(bp.y)) return {};
+        curve.push_back(bp);
+    }
+    return curve;
+}
+
+/// Every point finite and in [0, 1], x sorted, endpoints at x = 0 and 1.
+static void requireWellFormedCurve(const std::vector<Breakpoint>& curve, const char* label) {
+    std::printf("%s: %zu points:", label, curve.size());
+    for (const Breakpoint& bp : curve) {
+        std::printf(" (%.3f, %.3f)", static_cast<double>(bp.x), static_cast<double>(bp.y));
+    }
+    std::printf("\n");
+    REQUIRE(curve.size() >= 2);
+    REQUIRE(curve.size() <= static_cast<size_t>(kMaxBreakpoints));
+    REQUIRE(curve.front().x == 0.0f);
+    REQUIRE(curve.back().x == 1.0f);
+    float prevX = 0.0f;
+    for (const Breakpoint& bp : curve) {
+        REQUIRE(Krate::DSP::detail::isFinite(bp.x));
+        REQUIRE(Krate::DSP::detail::isFinite(bp.y));
+        REQUIRE(bp.x >= prevX);
+        REQUIRE(bp.x <= 1.0f);
+        REQUIRE(bp.y >= 0.0f);
+        REQUIRE(bp.y <= 1.0f);
+        prevX = bp.x;
+    }
+}
+
+TEST_CASE("setState with an interior curve point at x = 1 terminates", "[preset][serialization][edge][D-044]") {
+    auto inputStream = Steinberg::owned(new MemoryStream());
+    {
+        Steinberg::IBStreamer writer(inputStream, kLittleEndian);
+        const std::vector<Breakpoint> curve{{.x = 0.0f, .y = 0.1f}, {.x = 1.0f, .y = 0.5f}, {.x = 1.0f, .y = 0.9f}};
+        writeNonDefaultV6Preset(writer, &curve);
+    }
+
+    auto proc = createTestProcessor();
+    auto saved = Steinberg::owned(new MemoryStream());
+
+    // The worker owns nothing on this stack frame, so a stuck worker can be left behind.
+    struct Outcome {
+        std::atomic<bool> done{false};
+        bool firstOk = false;
+        bool getOk = false;
+        bool secondOk = false;
+    };
+    const auto outcome = std::make_shared<Outcome>();
+    std::thread worker([outcome, p = proc.get(), in = inputStream.get(), sv = saved.get()] {
+        in->seek(0, IBStream::kIBSeekSet, nullptr);
+        outcome->firstOk = p->setState(in) == Steinberg::kResultOk;
+        outcome->getOk = p->getState(sv) == Steinberg::kResultOk;
+        sv->seek(0, IBStream::kIBSeekSet, nullptr);
+        outcome->secondOk = p->setState(sv) == Steinberg::kResultOk;
+        outcome->done.store(true, std::memory_order_release);
+    });
+
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+    while (!outcome->done.load(std::memory_order_acquire) && std::chrono::steady_clock::now() < deadline) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    }
+    if (!outcome->done.load(std::memory_order_acquire)) {
+        // The worker is stuck inside setState: leave it and the objects it uses
+        // alive (leaked), and fail.
+        worker.detach();
+        [[maybe_unused]] Processor* const leakedProc = proc.release();
+        [[maybe_unused]] MemoryStream* const leakedIn = inputStream.take();
+        [[maybe_unused]] MemoryStream* const leakedOut = saved.take();
+        std::printf("D-044 setState -> getState -> setState: still running after 5 s\n");
+        FAIL("setState did not return within 5 s");
+    }
+    worker.join();
+    REQUIRE(outcome->firstOk);
+    REQUIRE(outcome->getOk);
+    REQUIRE(outcome->secondOk);
+
+    const std::vector<Breakpoint> curve = savedCurve(*proc);
+    requireWellFormedCurve(curve, "D-044 curve after setState -> getState -> setState");
+    REQUIRE(curve.size() <= 3);
+}
+
+// D-044 (T4.20): a non-finite breakpoint in a stream is dropped, not loaded.
+// std::clamp passes NaN through, and a NaN x broke the curve's sort order.
+TEST_CASE("setState drops non-finite custom-curve values", "[preset][serialization][edge][D-044]") {
+    const auto fromBits = [](std::uint32_t bits) {
+        volatile std::uint32_t sink = bits;
+        float f = 0.0f;
+        const std::uint32_t b = sink;
+        std::memcpy(&f, &b, sizeof(f));
+        return f;
+    };
+    const float nan = fromBits(0x7FC00000u);
+    const float inf = fromBits(0x7F800000u);
+    auto inputStream = Steinberg::owned(new MemoryStream());
+    {
+        Steinberg::IBStreamer writer(inputStream, kLittleEndian);
+        const std::vector<Breakpoint> curve{{.x = 0.0f, .y = nan},
+                                            {.x = 0.3f, .y = 0.2f},
+                                            {.x = nan, .y = 0.5f},
+                                            {.x = 0.6f, .y = inf},
+                                            {.x = 1.0f, .y = 0.9f}};
+        writeNonDefaultV6Preset(writer, &curve);
+    }
+    auto proc = createTestProcessor();
+    inputStream->seek(0, IBStream::kIBSeekSet, nullptr);
+    REQUIRE(proc->setState(inputStream) == Steinberg::kResultOk);
+    const std::vector<Breakpoint> curve = savedCurve(*proc);
+    requireWellFormedCurve(curve, "D-044 curve after a stream with NaN/Inf points");
+    // The finite interior point survives; the non-finite ones are dropped.
+    REQUIRE(curve.size() == 3);
+    REQUIRE(curve[1].x == 0.3f);
+    REQUIRE(curve[1].y == 0.2f);
+    REQUIRE(curve.back().y == 0.9f);
 }

@@ -1153,6 +1153,7 @@ TEST_CASE("ArpOctaveRange_ChangeDetection", "[arp_mod]") {
     // If the arp advances, we should see at least one gap (step boundary)
     // over 80 blocks at 8 Hz (~7 steps). This is a soft check because
     // gate length and envelope may fill gaps.
+    INFO("silent gaps between steps: " << silentGaps);
     CHECK(audioBlocks > 5);
 }
 
@@ -1862,6 +1863,7 @@ TEST_CASE("AllFiveDestinations_Simultaneous", "[arp_mod]") {
     // At 4.6 Hz: step period ~217ms ~= 9570 samples ~= 18.7 blocks.
     // Over 100 blocks: ~5 steps expected.
     // With 105% gate, notes overlap substantially so audio should be nearly continuous.
+    INFO("silent gaps between steps: " << silentGaps);
     CHECK(audioBlocks > 20);  // Should have audio for most blocks given 105% gate
 
     // Now change Macro 1 to 1.0 to verify all destinations respond

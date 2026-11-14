@@ -129,9 +129,6 @@ public:
 
 namespace Ruinae {
 
-// State version must match processor
-constexpr Steinberg::int32 kControllerStateVersion = 1;
-
 // ==============================================================================
 // Destructor
 // ==============================================================================
@@ -222,8 +219,19 @@ Steinberg::tresult PLUGIN_API Controller::initialize(FUnknown* context) {
     // ==========================================================================
     // Initialize Preset Manager
     // ==========================================================================
+    createPresetManager({}, {});
+
+    // Update checker
+    updateChecker_ = std::make_unique<Krate::Plugins::UpdateChecker>(makeRuinaeUpdateConfig());
+
+    return Steinberg::kResultTrue;
+}
+
+void Controller::createPresetManager(std::filesystem::path userDirOverride,
+                                     std::filesystem::path factoryDirOverride) {
     presetManager_ = std::make_unique<Krate::Plugins::PresetManager>(
-        makeRuinaePresetConfig(), nullptr, this);
+        makeRuinaePresetConfig(), nullptr, this, std::move(userDirOverride),
+        std::move(factoryDirOverride));
 
     // Wire state provider callback for preset saving (Spec 083, FR-003)
     presetManager_->setStateProvider([this]() -> Steinberg::IBStream* {
@@ -238,11 +246,6 @@ Steinberg::tresult PLUGIN_API Controller::initialize(FUnknown* context) {
             bool arpOnly = info.subcategory.starts_with("Arp");
             return this->loadComponentStateWithNotify(state, arpOnly);
         });
-
-    // Update checker
-    updateChecker_ = std::make_unique<Krate::Plugins::UpdateChecker>(makeRuinaeUpdateConfig());
-
-    return Steinberg::kResultTrue;
 }
 
 Steinberg::tresult PLUGIN_API Controller::terminate() {
@@ -259,8 +262,10 @@ Steinberg::tresult PLUGIN_API Controller::terminate() {
     modEnvOutputPtr_ = nullptr;
     modEnvStagePtr_ = nullptr;
     envVoiceActivePtr_ = nullptr;
-    updateChecker_.reset();
-    presetManager_.reset();
+    // updateChecker_ and presetManager_ stay until the destructor: an editor a host has not
+    // closed yet still polls the checker (update banner, Check for Updates button) and its
+    // preset browsers and save dialog hold the manager, and that editor holds a reference
+    // to this controller, so the destructor runs only after its views are gone
     return EditControllerEx1::terminate();
 }
 

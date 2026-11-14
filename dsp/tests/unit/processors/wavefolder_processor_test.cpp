@@ -25,10 +25,13 @@
 #include <catch2/catch_approx.hpp>
 #include <catch2/matchers/catch_matchers_floating_point.hpp>
 
+#include <krate/dsp/primitives/fft.h>
 #include <krate/dsp/processors/wavefolder_processor.h>
 
+#include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstddef>
 #include <vector>
 #include <chrono>
 #include <limits>
@@ -1247,6 +1250,151 @@ TEST_CASE("Edge: Model change during processing", "[wavefolder_processor][edge]"
 // ==============================================================================
 // Performance Tests [perf]
 // ==============================================================================
+
+// ==============================================================================
+// ADAA1 on the Simple fold (setAntiderivativeAntialiasing; Disrumpo TriangleFold ruling,
+// 2026-11-09)
+// ==============================================================================
+
+namespace {
+
+constexpr size_t kAdaaFft = 32768;
+constexpr double kAdaaRate = 176400.0;  // 4x 44.1 kHz, the rate Disrumpo clocks TriangleFold at
+
+/// Simple model, fold amount 2 (threshold 0.5), a sine of `amplitude` on FFT bin `bin` at
+/// kAdaaRate: the last kAdaaFft samples of 2 * kAdaaFft.
+std::vector<float> adaaFoldRender(bool adaa, size_t bin, float amplitude) {
+    WavefolderProcessor folder;
+    folder.prepare(kAdaaRate, 512);
+    folder.setModel(WavefolderModel::Simple);
+    folder.setFoldAmount(2.0f);
+    folder.setMix(1.0f);
+    folder.setAntiderivativeAntialiasing(adaa);
+    std::vector<float> x(2 * kAdaaFft);
+    for (size_t i = 0; i < x.size(); ++i) {
+        x[i] = amplitude * static_cast<float>(std::sin(6.283185307179586 * static_cast<double>(bin * i) /
+                                                       static_cast<double>(kAdaaFft)));
+    }
+    for (size_t i = 0; i < x.size(); i += 512) folder.process(x.data() + i, 512);
+    return {x.end() - static_cast<std::ptrdiff_t>(kAdaaFft), x.end()};
+}
+
+/// Hann-windowed power spectrum (kAdaaFft / 2 + 1 bins) of y.
+std::vector<double> adaaPowerSpectrum(const std::vector<float>& y) {
+    std::vector<float> w(kAdaaFft);
+    for (size_t i = 0; i < kAdaaFft; ++i) {
+        w[i] = y[i] * static_cast<float>(0.5 - 0.5 * std::cos(6.283185307179586 * static_cast<double>(i) /
+                                                              static_cast<double>(kAdaaFft)));
+    }
+    FFT fft;
+    fft.prepare(kAdaaFft);
+    std::vector<Complex> bins(kAdaaFft / 2 + 1);
+    fft.forward(w.data(), bins.data());
+    std::vector<double> p(bins.size());
+    for (size_t k = 0; k < bins.size(); ++k) {
+        p[k] = static_cast<double>(bins[k].real) * bins[k].real + static_cast<double>(bins[k].imag) * bins[k].imag;
+    }
+    return p;
+}
+
+/// Power off the harmonics of `bin` (more than 2 bins away) re the power on them, below
+/// 20 kHz (what an ideal decimator to 44.1 kHz keeps), in dB.
+double adaaNonHarmonicDb(const std::vector<float>& y, size_t bin) {
+    const auto p = adaaPowerSpectrum(y);
+    const auto maxBin = static_cast<size_t>(20000.0 / (kAdaaRate / static_cast<double>(kAdaaFft)));
+    double harm = 0.0;
+    double non = 0.0;
+    for (size_t k = 3; k < maxBin; ++k) {
+        const size_t r = k % bin;
+        ((r <= 2 || r >= bin - 2) ? harm : non) += p[k];
+    }
+    return 10.0 * std::log10((non + 1e-30) / (harm + 1e-30));
+}
+
+}  // namespace
+
+TEST_CASE("ADAA: Simple fold aliases less with antiderivative anti-aliasing", "[wavefolder_processor][adaa]") {
+    // 1028.2 Hz (bin 191, coprime with the FFT size: aliases fall between the harmonics),
+    // amplitudes of Disrumpo's -6 dBFS tone at drive 2.5 / 7.5 / 10
+    for (const float amplitude : {1.25f, 3.75f, 5.0f}) {
+        const double plain = adaaNonHarmonicDb(adaaFoldRender(false, 191, amplitude), 191);
+        const double adaa = adaaNonHarmonicDb(adaaFoldRender(true, 191, amplitude), 191);
+        INFO("amplitude " << amplitude << ": non-harmonic plain " << plain << " dB, ADAA1 " << adaa << " dB");
+        CHECK(adaa <= plain - 15.0);
+    }
+}
+
+TEST_CASE("ADAA: Simple fold keeps its low harmonics", "[wavefolder_processor][adaa]") {
+    // 102.3 Hz (bin 19): H1..H9 within 0.1 dB of the plain fold (ADAA1's half-sample delay
+    // does not change a magnitude; its cos(pi f / fs) is -0.0001 dB at H9)
+    for (const float amplitude : {1.25f, 3.75f, 5.0f}) {
+        const auto plain = adaaPowerSpectrum(adaaFoldRender(false, 19, amplitude));
+        const auto adaa = adaaPowerSpectrum(adaaFoldRender(true, 19, amplitude));
+        const double h1 = 10.0 * std::log10(plain[19]);
+        for (size_t h = 1; h <= 9; ++h) {
+            const double p = 10.0 * std::log10(plain[19 * h] + 1e-30);
+            const double a = 10.0 * std::log10(adaa[19 * h] + 1e-30);
+            INFO("amplitude " << amplitude << ", H" << h << ": plain " << p - h1 << " dB re H1, ADAA1 " << a - h1);
+            if (p > h1 - 80.0) CHECK(std::fabs(a - p) <= 0.1);
+        }
+    }
+}
+
+TEST_CASE("ADAA: steps below kAdaaEpsilon fold the midpoint", "[wavefolder_processor][adaa]") {
+    // A constant input (every step exactly 0: the difference quotient would be 0 / 0), then a
+    // ramp of 1e-6 per sample across the fold corner at 0.5 (threshold 0.5): every step is
+    // ill-conditioned, so the output is the fold of the midpoint, close to the plain fold.
+    WavefolderProcessor plain;
+    WavefolderProcessor adaa;
+    for (auto* f : {&plain, &adaa}) {
+        f->prepare(44100.0, 512);
+        f->setModel(WavefolderModel::Simple);
+        f->setFoldAmount(2.0f);
+        f->setMix(1.0f);
+    }
+    adaa.setAntiderivativeAntialiasing(true);
+    std::vector<float> a(512);
+    for (size_t i = 0; i < a.size(); ++i) a[i] = 0.49975f + 1.0e-6f * static_cast<float>(i);
+    std::vector<float> p = a;
+    // The constant lead: long enough for both DC blockers to forget ADAA1's first step from 0
+    std::vector<float> lead(8192, 0.49975f);
+    std::vector<float> leadP = lead;
+    for (size_t i = 0; i < lead.size(); i += 512) {
+        adaa.process(lead.data() + i, 512);
+        plain.process(leadP.data() + i, 512);
+    }
+    for (const float v : lead) REQUIRE(detail::isFinite(v));
+    adaa.process(a.data(), a.size());
+    plain.process(p.data(), p.size());
+    float worst = 0.0f;
+    for (size_t i = 0; i < a.size(); ++i) {
+        REQUIRE(detail::isFinite(a[i]));
+        worst = std::max(worst, std::fabs(a[i] - p[i]));
+    }
+    INFO("largest |ADAA1 - plain| on the ramp: " << worst);
+    CHECK(worst < 1.0e-4f);
+}
+
+TEST_CASE("ADAA: the Serge, Lockhart and Buchla259 models ignore it", "[wavefolder_processor][adaa]") {
+    for (const auto model : {WavefolderModel::Serge, WavefolderModel::Lockhart, WavefolderModel::Buchla259}) {
+        std::vector<float> outs[2];
+        for (int on = 0; on < 2; ++on) {
+            WavefolderProcessor folder;
+            folder.prepare(44100.0, 512);
+            folder.setModel(model);
+            folder.setFoldAmount(2.0f);
+            folder.setMix(1.0f);
+            folder.setAntiderivativeAntialiasing(on == 1);
+            outs[on].resize(512);
+            generateSine(outs[on].data(), 512, 1000.0f, kSampleRate, 2.5f);
+            folder.process(outs[on].data(), 512);
+        }
+        float worst = 0.0f;
+        for (size_t i = 0; i < 512; ++i) worst = std::max(worst, std::fabs(outs[0][i] - outs[1][i]));
+        INFO("model " << static_cast<int>(model) << ": largest |on - off| " << worst);
+        CHECK(worst < 1.0e-6f);
+    }
+}
 
 TEST_CASE("Performance: All models within 2x of TubeStage/DiodeClipper", "[wavefolder_processor][perf][SC-005]") {
     // SC-005: < 2x CPU of TubeStage/DiodeClipper

@@ -18,6 +18,8 @@
 #include "pluginterfaces/base/funknown.h"
 #include "pluginterfaces/vst/vsttypes.h"
 
+#include <krate/dsp/core/note_value.h>
+
 namespace Disrumpo {
 
 // Processor Component ID (FR-001)
@@ -131,9 +133,10 @@ enum class SweepParamType : uint8_t {
     kSweepCustomCurveP7X = 0x3F,  ///< Point 7 X (always 1.0)
     kSweepCustomCurveP7Y = 0x40,  ///< Point 7 Y [0, 1]
 
-    // MIDI parameters (FR-028, FR-029)
-    kSweepMidiLearnActive = 0x50,  ///< MIDI Learn toggle [on/off]
-    kSweepMidiCCNumber    = 0x51,  ///< Assigned MIDI CC number [0-128], 128 = none
+    // Legacy sweep-only MIDI learn (FR-028, FR-029): registered hidden, no action (D-094).
+    // MIDI learn is the controller's MidiCCManager + IMidiLearn. IDs kept, never reused.
+    kSweepMidiLearnActive = 0x50,  ///< (legacy, hidden) MIDI Learn toggle [on/off]
+    kSweepMidiCCNumber    = 0x51,  ///< (legacy, hidden) Assigned MIDI CC number [0-128], 128 = none
 };
 
 /// @brief Create parameter ID for sweep parameters.
@@ -153,7 +156,8 @@ constexpr bool isSweepParamId(Steinberg::Vst::ParamID paramId) {
 // =============================================================================
 // Output Parameter IDs (Processor -> Controller)
 // =============================================================================
-// Output parameters use standalone IDs outside the encoding scheme.
+// Output parameters use IDs from 0x0F80 up, inside the global 0x0Fxx range:
+// isGlobalParamId() returns true for them (no GlobalParamType names them).
 // These are read-only parameters written by the Processor and observed
 // by the Controller for real-time UI updates.
 // =============================================================================
@@ -163,9 +167,19 @@ constexpr bool isSweepParamId(Steinberg::Vst::ParamID paramId) {
 /// Observed by Controller to update SweepIndicator and SpectrumDisplay.
 constexpr Steinberg::Vst::ParamID kSweepModulatedFrequencyOutputId = 0x0F80;
 
-/// @brief Output parameter: detected MIDI CC number during MIDI Learn (normalized)
-/// Written by Processor when a CC event is detected while MIDI Learn is active.
+/// @brief (legacy, hidden) Output parameter of the removed processor-side MIDI learn.
+/// Never written; registered hidden so the ID is never reused (D-094).
 constexpr Steinberg::Vst::ParamID kSweepDetectedCCOutputId = 0x0F81;
+
+/// @brief Output parameter: the latency the processor reports, normalized over
+/// kMaxReportedLatencySamples (D-026, T2.10). Written by process() when the reported
+/// latency changes; the controller answers with restartComponent(kLatencyChanged),
+/// so the host re-queries getLatencySamples() off the audio thread. Hidden, read-only.
+constexpr Steinberg::Vst::ParamID kLatencyOutputId = 0x0F82;
+
+/// @brief Largest latency the processor can report, in samples: a Spectral node at the
+/// largest FFT size clocked at 1x (FFT size - 1 = 4095). Every compensation delay is sized for it.
+constexpr int kMaxReportedLatencySamples = 4095;
 
 // =============================================================================
 // Band Parameter Type Enum (FR-002)
@@ -182,7 +196,7 @@ enum class BandParamType : uint8_t {
     kBandBypass      = 0x03,  ///< Band bypass flag
     kBandMute        = 0x04,  ///< Band mute flag
     kBandExpanded    = 0x05,  ///< Band expanded state (UI only) [0=collapsed, 1=expanded]
-    kBandActiveNodes = 0x06,  ///< Active nodes count [2, 3, 4] (US6)
+    kBandActiveNodes = 0x06,  ///< Active nodes count [1-4] (US6)
     kBandMorphSmoothing = 0x07,  ///< Morph smoothing time [0, 500] ms (FR-031)
     kBandMorphX      = 0x08,  ///< Morph X position [0, 1]
     kBandMorphY      = 0x09,  ///< Morph Y position [0, 1]
@@ -315,7 +329,7 @@ constexpr NodeParamType extractNodeParamType(Steinberg::Vst::ParamID paramId) {
 
 /// @brief Check if a parameter ID is a node-level parameter.
 /// @param paramId Parameter ID to check
-/// @return true if this is a node-level parameter (node nibble = 0-3, band nibble = 0-7)
+/// @return true if this is a node-level parameter (node nibble = 0-3, band nibble = 0-3)
 constexpr bool isNodeParamId(Steinberg::Vst::ParamID paramId) {
     // Exclude global (0x0Fxx), sweep (0x0Exx), and modulation (0x0Dxx) ranges
     // These are in the format 0x0Xpp where X is D, E, or F
@@ -380,7 +394,7 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     kInputGainId     = 0x0F00,  // 3840 - Input gain control
     kOutputGainId    = 0x0F01,  // 3841 - Output gain control
     kGlobalMixId     = 0x0F02,  // 3842 - Global dry/wet mix
-    kBandCountId     = 0x0F03,  // 3843 - Band count (1-8)
+    kBandCountId     = 0x0F03,  // 3843 - Band count (1-4)
     kOversampleMaxId = 0x0F04,  // 3844 - Max oversample factor
 };
 
@@ -637,14 +651,19 @@ constexpr uint32_t bandParam(uint8_t band, uint32_t paramOffset) {
 // Used by Band*MorphXLink and Band*MorphYLink parameters.
 // ==============================================================================
 
+// The curves have one definition, applyMorphLinkCurve (dsp/sweep_morph_link.h,
+// dsp-details.md 8.1). The processor evaluates them once per block from the
+// smoothed sweep centre and uses the result as the band's morph X/Y base, before
+// the mod-matrix offsets. The global kSweepMorphLink is a plain alias: it drives
+// the morph X of every band whose own X link is None.
 enum class MorphLinkMode : uint8_t {
     None = 0,       ///< Manual control only, no link to sweep
     SweepFreq,      ///< Linear mapping: low freq = 0, high freq = 1
     InverseSweep,   ///< Inverted: high freq = 0, low freq = 1
-    EaseIn,         ///< Exponential curve emphasizing low frequencies
-    EaseOut,        ///< Exponential curve emphasizing high frequencies
-    HoldRise,       ///< Hold at 0 until mid-point, then rise to 1
-    Stepped,        ///< Quantize to discrete steps (0, 0.25, 0.5, 0.75, 1.0)
+    EaseIn,         ///< y = x^2 (slow start, fast end)
+    EaseOut,        ///< y = 1 - (1 - x)^2 (fast start, slow end)
+    HoldRise,       ///< Hold at 0 until 60 %, then rise linearly to 1
+    Stepped,        ///< Quantize to 4 levels (0, 1/3, 2/3, 1)
     Custom,         ///< User-defined breakpoint curve (007-sweep-system)
     COUNT           ///< Sentinel for iteration (8 modes)
 };
@@ -685,9 +704,17 @@ constexpr const char* getMorphLinkModeName(MorphLinkMode mode) noexcept {
 // - v7: Progressive disclosure (window size, MIDI CC mappings, mod panel visibility)
 // - v8: Reduced max bands from 8 to 4 (stream format: 4 bands, 3 crossovers, 4 morph)
 // - v9: Shape parameter slots (10 generic slots per node for type-specific UI controls)
+//       Routing sources are ambiguous in v9 (D-055): 05a3ddb7 (2026-02-16) inserted
+//       ModSource::Rungler = 10 and moved SampleHold/PitchFollower/Transient 10/11/12 ->
+//       11/12/13 without a bump. v0.9.0/v0.9.1 wrote v9 with the old numbering,
+//       v0.9.4-v0.9.6 wrote v9 with the new one, in the same layout. setState reads v9
+//       with the new numbering; v8 and older (all pre-Rungler) are moved up by one
+//       (migrateModSourceIndex, state_codec.h). v10 and later always had the new numbering.
 // - v12: Band Tone/Bias modulation targets (kParamsPerBand 6→8, dest index migration)
+// - v13: Per-band Morph X/Y Link modes (2 int8 per band after morph smoothing;
+//        older streams load with both links None)
 // ==============================================================================
-constexpr int32_t kPresetVersion = 12;
+constexpr int32_t kPresetVersion = 13;
 
 /// Migration table: old note index (v9, 15 entries) -> new dropdown index (v10, 21 entries).
 /// Old encoding: NoteValue * 3 + NoteModifier (Whole→Sixteenth, None/Dotted/Triplet).
@@ -700,8 +727,9 @@ constexpr int kOldNoteIdxToNewDropdown[15] = {
      7,  8,  6,  // 1/16, 1/16D, 1/16T
 };
 
-/// Number of entries in the standard note value dropdown (from DSP layer).
-constexpr int kNoteValueCount = 30;
+/// Number of entries in the standard note value dropdown: the DSP layer's count, which
+/// getNoteValueFromDropdown and the shared kNoteValueDropdownStrings use (D-092).
+constexpr int kNoteValueCount = Krate::DSP::kNoteValueDropdownCount;
 
 // ==============================================================================
 // Plugin Metadata

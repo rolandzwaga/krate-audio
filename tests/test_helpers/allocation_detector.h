@@ -183,6 +183,17 @@ private:
     size_t count_ = 0;
 };
 
+/// One heap allocation the optimiser cannot remove, for a detector's non-vacuity check ("the detector counts in this
+/// binary"). A local container that never escapes may be elided with its allocation: clang -O2 on macOS removed a
+/// std::vector<int>(16) probe and the check read 0 (Disrumpo D-003, 2026-11-14). The volatile store makes the
+/// pointer observable. Gated by tools/lint-allocation-probes.js.
+inline void allocateObservably() {
+    static void* volatile sink = nullptr;
+    sink = ::operator new(64);
+    ::operator delete(sink);
+    sink = nullptr;
+}
+
 } // namespace TestHelpers
 
 // ==============================================================================

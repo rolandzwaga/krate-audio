@@ -1677,6 +1677,10 @@ TEST_CASE("SpectralDelay stereo width creates channel differences",
     // Second: Test WITH stereo width
     // Phase 3.2: Now implemented - verify that stereo width creates L/R differences
     delay.setStereoWidth(1.0f);  // Full width
+    // A 440 Hz sine lives in one bin pair, so its L/R correlation is one random phase draw: unseeded
+    // (the RNG is seeded from `this`), about one run in six reads above 0.95 with correct code. Seed it;
+    // the averaged case below covers the distribution.
+    delay.seedRng(42u);
     delay.reset();
 
     // Process enough blocks for frame-continuous phase to converge
@@ -1707,6 +1711,68 @@ TEST_CASE("SpectralDelay stereo width creates channel differences",
     // With stereo width enabled, L and R should be less correlated
     // Correlation should drop below 0.9 with full decorrelation
     REQUIRE(normalizedWithWidth < 0.95f);  // Less correlated than without width
+}
+
+TEST_CASE("SpectralDelay stereo width widens monotonically and never cancels",
+          "[spectral-delay][stereo][width]") {
+    // The random stereo phases once drew (nextFloat() - 0.5) with nextFloat() in [-1, 1]: the walk had a
+    // negative mean, both channels drifted to the same clamp, and Width 0.5 read an L/R correlation of
+    // -0.89 (near cancellation in mono) while Width 1.0 read +0.64. Width must widen monotonically and
+    // keep L/R positively correlated, averaged over seeds so no single draw decides the verdict.
+    constexpr std::size_t kBlockSize = 512;
+    constexpr int kSettleBlocks = 150;
+    constexpr int kMeasureBlocks = 20;
+    constexpr std::array<uint32_t, 6> kSeeds{1u, 7u, 42u, 1234u, 99991u, 0xC0FFEEu};
+    constexpr std::array<float, 3> kWidths{0.0f, 0.5f, 1.0f};
+
+    auto ctx = makeTestContext();
+    std::vector<float> left(kBlockSize);
+    std::vector<float> right(kBlockSize);
+
+    std::array<double, kWidths.size()> meanCorrelation{};
+    for (std::size_t w = 0; w < kWidths.size(); ++w) {
+        for (const uint32_t seed : kSeeds) {
+            SpectralDelay delay;
+            delay.setFFTSize(1024);
+            delay.prepare(44100.0, kBlockSize);
+            delay.setBaseDelayMs(100.0f);
+            delay.setSpreadMs(100.0f);
+            delay.setFeedback(0.5f);
+            delay.setDryWetMix(1.0f);
+            delay.setStereoWidth(kWidths[w]);
+            delay.snapParameters();
+            delay.seedRng(seed);
+            delay.reset();
+
+            double cross = 0.0, eL = 0.0, eR = 0.0;
+            std::size_t n = 0;
+            for (int b = 0; b < kSettleBlocks + kMeasureBlocks; ++b) {
+                for (std::size_t i = 0; i < kBlockSize; ++i, ++n) {
+                    const float t = static_cast<float>(n) / 44100.0f;
+                    left[i] = 0.5f * std::sin(6.28318530718f * 440.0f * t);
+                }
+                std::copy(left.begin(), left.end(), right.begin());
+                delay.process(left.data(), right.data(), kBlockSize, ctx);
+                if (b < kSettleBlocks) continue;
+                for (std::size_t i = 0; i < kBlockSize; ++i) {
+                    cross += static_cast<double>(left[i]) * right[i];
+                    eL += static_cast<double>(left[i]) * left[i];
+                    eR += static_cast<double>(right[i]) * right[i];
+                }
+            }
+            REQUIRE(eL > 1e-3);
+            REQUIRE(eR > 1e-3);
+            meanCorrelation[w] += cross / std::sqrt(eL * eR) / static_cast<double>(kSeeds.size());
+        }
+    }
+
+    INFO("mean L/R correlation at width 0 / 0.5 / 1: " << meanCorrelation[0] << " / " << meanCorrelation[1]
+                                                       << " / " << meanCorrelation[2]);
+    CHECK(meanCorrelation[0] > 0.95);
+    CHECK(meanCorrelation[1] < meanCorrelation[0]);
+    CHECK(meanCorrelation[2] < meanCorrelation[1]);
+    CHECK(meanCorrelation[1] > 0.5);
+    CHECK(meanCorrelation[2] > 0.0);
 }
 
 // =============================================================================
@@ -2651,5 +2717,218 @@ TEST_CASE("SpectralDelay passes the delayed signal at unity between frames", "[s
         CHECK(toneWetDb(delayMs, 440.0f) == Approx(0.0).margin(1.0));
         CHECK(toneWetDb(delayMs, 1000.0f) == Approx(0.0).margin(1.0));
         CHECK(shortNoteEchoDb(delayMs) == Approx(0.0).margin(1.0));
+    }
+}
+
+// =============================================================================
+// Smoothing and sync snapping
+// =============================================================================
+// Every SpectralDelay smoother is configured as "50 ms to 99 %" (spectral_delay.h
+// prepare()), i.e. a one-pole time constant of 10 ms (smoother.h
+// calculateOnePolCoefficient: coefficient = exp(-5000 / (timeMs * rate))). These
+// cases measure the time constant each one actually realises in REAL time and
+// accept a factor of two either way: the failure mode they exist for was a 512x
+// gap (a per-sample coefficient advanced once per spectral frame or block).
+
+namespace {
+
+constexpr double kDesignedTauSeconds = 0.010;  // 50 ms to 99 % = 5 tau
+
+/// Effective time constant implied by a remaining fraction after `elapsed` seconds,
+/// relative to the designed one (1.0 = exactly as designed). A remaining fraction
+/// of zero or less reads as an instant jump (ratio 0).
+double tauRatio(double remaining, double elapsedSeconds) {
+    if (remaining <= 0.0) return 0.0;
+    if (remaining >= 1.0) return 1.0e9;
+    return (elapsedSeconds / -std::log(remaining)) / kDesignedTauSeconds;
+}
+
+} // namespace
+
+TEST_CASE("SpectralDelay sync on: a snap lands on the synced delay, no glide",
+          "[spectral-delay][tempo-sync][smoothing]") {
+    constexpr int kNoteIndex = 2;          // 1/64D (note_value.h kNoteValueDropdownMapping)
+    constexpr float kFreeDelayMs = 2000.0f;
+    constexpr std::size_t kBlock = 512;
+
+    for (const double sampleRate : {44100.0, 48000.0}) {
+        for (const double tempo : {120.0, 90.0}) {
+            CAPTURE(sampleRate, tempo);
+            const float synced = dropdownToDelayMs(kNoteIndex, tempo);
+            auto ctx = makeTestContext(sampleRate);
+            ctx.tempoBPM = tempo;
+
+            std::vector<float> left(kBlock);
+            std::vector<float> right(kBlock);
+            const auto runBlocks = [&](SpectralDelay& d, int blocks, bool checkSynced) {
+                for (int b = 0; b < blocks; ++b) {
+                    generateSine(left.data(), kBlock, 440.0f, static_cast<float>(sampleRate), 0.5f);
+                    std::copy(left.begin(), left.end(), right.begin());
+                    d.process(left.data(), right.data(), kBlock, ctx);
+                    if (checkSynced) {
+                        CAPTURE(b);
+                        CHECK(d.getSmoothedBaseDelayMs() == Approx(synced).margin(1e-3));
+                    }
+                }
+            };
+
+            // Plain scopes, not SECTIONs: Catch2 enters a same-named SECTION once
+            // per run, so inside these loops only the first iteration would run.
+            {
+                INFO("snapParameters after the setters");
+                SpectralDelay d;
+                d.prepare(sampleRate, kBlock);
+                d.setBaseDelayMs(kFreeDelayMs);
+                d.setTimeMode(1);
+                d.setNoteValue(kNoteIndex);
+                d.snapParameters();
+                runBlocks(d, 8, true);
+            }
+
+            {
+                INFO("prepare() after the setters");
+                SpectralDelay d;
+                d.setBaseDelayMs(kFreeDelayMs);
+                d.setTimeMode(1);
+                d.setNoteValue(kNoteIndex);
+                d.prepare(sampleRate, kBlock);
+                runBlocks(d, 8, true);
+            }
+
+            {
+                INFO("reset() + snapParameters() mid-stream, after running free");
+                SpectralDelay d;
+                d.setBaseDelayMs(kFreeDelayMs);
+                d.prepare(sampleRate, kBlock);
+                runBlocks(d, 20, false);
+                d.setTimeMode(1);
+                d.setNoteValue(kNoteIndex);
+                d.reset();
+                d.snapParameters();
+                runBlocks(d, 8, true);
+            }
+
+            {
+                INFO("a later note change still glides (FR-005), it is not snapped");
+                SpectralDelay d;
+                d.setTimeMode(1);
+                d.setNoteValue(kNoteIndex);
+                d.prepare(sampleRate, kBlock);
+                runBlocks(d, 8, true);
+                const float next = dropdownToDelayMs(6, tempo);  // 1/16, longer
+                d.setNoteValue(6);
+                runBlocks(d, 1, false);
+                const float now = d.getSmoothedBaseDelayMs();
+                CHECK(now > synced + 1.0f);
+                CHECK(now < next - 1.0f);
+            }
+        }
+    }
+}
+
+TEST_CASE("SpectralDelay frame-rate smoothers reach their designed time constant in real time",
+          "[spectral-delay][smoothing]") {
+    constexpr float kFrom = 250.0f;
+    constexpr float kTo = 750.0f;
+
+    for (const std::size_t fftSize : {std::size_t{512}, std::size_t{4096}}) {
+        for (const double sampleRate : {44100.0, 96000.0}) {
+            CAPTURE(fftSize, sampleRate);
+            const std::size_t hop = fftSize / 2;
+
+            SpectralDelay d;
+            d.setFFTSize(fftSize);
+            d.setBaseDelayMs(kFrom);
+            d.prepare(sampleRate, hop);
+            const auto ctx = makeTestContext(sampleRate);
+
+            // One block of one hop = one spectral frame once the window is full.
+            std::vector<float> left(hop);
+            std::vector<float> right(hop);
+            const auto oneHop = [&]() {
+                generateSine(left.data(), hop, 440.0f, static_cast<float>(sampleRate), 0.5f);
+                std::copy(left.begin(), left.end(), right.begin());
+                d.process(left.data(), right.data(), hop, ctx);
+            };
+            for (int i = 0; i < 8; ++i) oneHop();
+            REQUIRE(d.getSmoothedBaseDelayMs() == Approx(kFrom).margin(1e-3));
+
+            d.setBaseDelayMs(kTo);
+            double minRatio = 1.0e9;
+            double maxRatio = 0.0;
+            int checked = 0;
+            for (int frame = 1; frame <= 64; ++frame) {
+                oneHop();
+                const double elapsed = static_cast<double>(frame * hop) / sampleRate;
+                const double expected = std::exp(-elapsed / kDesignedTauSeconds);
+                if (expected < 1.0e-3) break;
+                const double remaining =
+                    (static_cast<double>(kTo) - d.getSmoothedBaseDelayMs()) / (kTo - kFrom);
+                const double ratio = tauRatio(remaining, elapsed);
+                minRatio = std::min(minRatio, ratio);
+                maxRatio = std::max(maxRatio, ratio);
+                ++checked;
+            }
+            INFO("effective tau / designed tau: min " << minRatio << ", max " << maxRatio
+                 << " over " << checked << " frames");
+            REQUIRE(checked > 0);
+            CHECK(minRatio >= 0.5);
+            CHECK(maxRatio <= 2.0);
+        }
+    }
+}
+
+TEST_CASE("SpectralDelay dry/wet smoother reaches its designed time constant in real time",
+          "[spectral-delay][smoothing]") {
+    // With a 2 s delay and no feedback the wet path is exactly zero for the first
+    // two seconds, so a DC input of 1 reads the dry gain (1 - wet) sample by sample.
+    for (const double sampleRate : {44100.0, 96000.0}) {
+        for (const std::size_t block : {std::size_t{64}, std::size_t{512}}) {
+            CAPTURE(sampleRate, block);
+            SpectralDelay d;
+            d.setBaseDelayMs(2000.0f);
+            d.setFeedback(0.0f);
+            d.setDryWetMix(0.0f);
+            d.prepare(sampleRate, block);
+            const auto ctx = makeTestContext(sampleRate);
+
+            std::vector<float> left(block);
+            std::vector<float> right(block);
+            const auto oneBlock = [&]() {
+                std::fill(left.begin(), left.end(), 1.0f);
+                std::fill(right.begin(), right.end(), 1.0f);
+                d.process(left.data(), right.data(), block, ctx);
+            };
+            const auto warmup = static_cast<std::size_t>(0.1 * sampleRate) / block;
+            for (std::size_t i = 0; i < warmup; ++i) oneBlock();
+            REQUIRE(left[block - 1] == Approx(1.0f).margin(1e-6));
+
+            d.setDryWetMix(1.0f);
+            double minRatio = 1.0e9;
+            double maxRatio = 0.0;
+            std::size_t checked = 0;
+            std::size_t sample = 0;
+            bool done = false;
+            while (!done) {
+                oneBlock();
+                for (std::size_t i = 0; i < block; ++i) {
+                    ++sample;
+                    const double elapsed = static_cast<double>(sample) / sampleRate;
+                    if (std::exp(-elapsed / kDesignedTauSeconds) < 1.0e-3) {
+                        done = true;
+                        break;
+                    }
+                    const double ratio = tauRatio(static_cast<double>(left[i]), elapsed);
+                    minRatio = std::min(minRatio, ratio);
+                    maxRatio = std::max(maxRatio, ratio);
+                    ++checked;
+                }
+            }
+            INFO("effective tau / designed tau: min " << minRatio << ", max " << maxRatio
+                 << " over " << checked << " samples");
+            REQUIRE(checked > 0);
+            CHECK(minRatio >= 0.5);
+            CHECK(maxRatio <= 2.0);
+        }
     }
 }

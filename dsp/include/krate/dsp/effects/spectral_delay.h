@@ -183,16 +183,21 @@ public:
         }
 
         // Configure parameter smoothers (50ms smoothing time for spectral processing)
-        // Increased from 10ms to reduce artifacts during parameter changes
+        // Increased from 10ms to reduce artifacts during parameter changes.
+        // Each smoother is configured at the rate it is ADVANCED at, so 50 ms is
+        // 50 ms of real time: the spectral-parameter smoothers step once per frame
+        // in processSpectralFrame() (frame rate = sampleRate / hop), dry/wet once
+        // per sample in process(). Configured per sample but stepped per frame,
+        // they took 'hop' times longer (~26 s at the 1024-point default).
         const float smoothTimeMs = 50.0f;
-        const float sampleRateF = static_cast<float>(sampleRate);
-        baseDelaySmoother_.configure(smoothTimeMs, sampleRateF);
-        spreadSmoother_.configure(smoothTimeMs, sampleRateF);
-        feedbackSmoother_.configure(smoothTimeMs, sampleRateF);
-        tiltSmoother_.configure(smoothTimeMs, sampleRateF);
-        diffusionSmoother_.configure(smoothTimeMs, sampleRateF);
-        dryWetSmoother_.configure(smoothTimeMs, sampleRateF);
-        stereoWidthSmoother_.configure(smoothTimeMs, sampleRateF);
+        const auto frameRateF = static_cast<float>(frameRate);
+        baseDelaySmoother_.configure(smoothTimeMs, frameRateF);
+        spreadSmoother_.configure(smoothTimeMs, frameRateF);
+        feedbackSmoother_.configure(smoothTimeMs, frameRateF);
+        tiltSmoother_.configure(smoothTimeMs, frameRateF);
+        diffusionSmoother_.configure(smoothTimeMs, frameRateF);
+        stereoWidthSmoother_.configure(smoothTimeMs, frameRateF);
+        dryWetSmoother_.configure(smoothTimeMs, static_cast<float>(sampleRate));
 
         // Initialize smoothers to current values
         baseDelaySmoother_.setTarget(baseDelayMs_);
@@ -239,9 +244,10 @@ public:
         stereoPhaseR_.resize(numBins);
 
         for (std::size_t i = 0; i < numBins; ++i) {
-            // Start with random phase offsets in ±π range
-            stereoPhaseL_[i] = (rng_.nextFloat() - 0.5f) * kPi;
-            stereoPhaseR_[i] = (rng_.nextFloat() - 0.5f) * kPi;
+            // Start with random phase offsets in ±π/2. nextUnipolar() is [0, 1]; nextFloat() is
+            // [-1, 1], which made this [-3π/2, π/2] and the walk below drift both channels together.
+            stereoPhaseL_[i] = (rng_.nextUnipolar() - 0.5f) * kPi;
+            stereoPhaseR_[i] = (rng_.nextUnipolar() - 0.5f) * kPi;
         }
 
         prepared_ = true;
@@ -288,8 +294,8 @@ public:
         // Re-randomize stereo phase state (random walk values)
         // This ensures each reset produces new random starting phases
         for (std::size_t i = 0; i < stereoPhaseL_.size(); ++i) {
-            stereoPhaseL_[i] = (rng_.nextFloat() - 0.5f) * kPi;
-            stereoPhaseR_[i] = (rng_.nextFloat() - 0.5f) * kPi;
+            stereoPhaseL_[i] = (rng_.nextUnipolar() - 0.5f) * kPi;
+            stereoPhaseR_[i] = (rng_.nextUnipolar() - 0.5f) * kPi;
         }
 
         // Clear temp buffers
@@ -307,8 +313,8 @@ public:
         rng_.seed(seed);
         // Reinitialize stereo phase buffers with deterministic values
         for (std::size_t i = 0; i < stereoPhaseL_.size(); ++i) {
-            stereoPhaseL_[i] = (rng_.nextFloat() - 0.5f) * kPi;
-            stereoPhaseR_[i] = (rng_.nextFloat() - 0.5f) * kPi;
+            stereoPhaseL_[i] = (rng_.nextUnipolar() - 0.5f) * kPi;
+            stereoPhaseR_[i] = (rng_.nextUnipolar() - 0.5f) * kPi;
         }
     }
 
@@ -341,10 +347,18 @@ public:
             // Clamp to max delay buffer (FR-006)
             syncedMs = std::clamp(syncedMs, kMinDelayMs, kMaxDelayMs);
 
-            // Update smoother target for smooth transitions
-            baseDelaySmoother_.setTarget(syncedMs);
+            // Update smoother target for smooth transitions - unless a snap is
+            // pending: snapParameters() cannot know the host tempo, so a snap
+            // in Synced mode lands here, on the first block that carries it.
+            if (syncSnapPending_) {
+                baseDelaySmoother_.snapTo(syncedMs);
+            } else {
+                baseDelaySmoother_.setTarget(syncedMs);
+            }
         }
         // In Free mode (FR-004), base delay is set via setBaseDelayMs() - no change needed
+        // (and the snap, if any, already happened in snapParameters())
+        syncSnapPending_ = false;
 
         // Store dry signal for mixing
         std::copy(left, left + numSamples, dryBufferL_.begin());
@@ -423,34 +437,28 @@ public:
         if (toPull > 0) {
             // Already pulled, one hop at a time, by the frame loop above.
 
-            // Get smoothed parameters for this block
-            const float wetMix = dryWetSmoother_.process();
-            const float dryMix = 1.0f - wetMix;
-
-            // Apply dry/wet mix
+            // Apply dry/wet mix (smoothed per sample)
             for (std::size_t i = 0; i < toPull; ++i) {
+                const float wetMix = dryWetSmoother_.process();
+                const float dryMix = 1.0f - wetMix;
                 left[i] = dryBufferL_[i] * dryMix + tempBufferL_[i] * wetMix;
                 right[i] = dryBufferR_[i] * dryMix + tempBufferR_[i] * wetMix;
             }
 
             // Zero remaining samples if we didn't get enough
             for (std::size_t i = toPull; i < numSamples; ++i) {
+                const float dryMix = 1.0f - dryWetSmoother_.process();
                 left[i] = dryBufferL_[i] * dryMix;
                 right[i] = dryBufferR_[i] * dryMix;
             }
         } else {
             // No processed samples available yet (latency filling)
-            const float wetMix = dryWetSmoother_.process();
-            const float dryMix = 1.0f - wetMix;
-
             for (std::size_t i = 0; i < numSamples; ++i) {
+                const float dryMix = 1.0f - dryWetSmoother_.process();
                 left[i] = dryBufferL_[i] * dryMix;
                 right[i] = dryBufferR_[i] * dryMix;
             }
         }
-
-        // Advance smoothers (they process per-sample but we only need one value per block)
-        // The values above were already advanced by the process() calls
     }
 
     // =========================================================================
@@ -600,8 +608,18 @@ public:
     /// @brief Check if prepared for processing
     [[nodiscard]] bool isPrepared() const noexcept { return prepared_; }
 
+    /// @brief Base delay the spectral frames are currently using (the smoothed
+    ///        value, in ms), as opposed to getBaseDelayMs(), the free-mode setting
+    [[nodiscard]] float getSmoothedBaseDelayMs() const noexcept {
+        return baseDelaySmoother_.getCurrentValue();
+    }
+
     /// @brief Snap all smoothers to target for instant parameter changes
+    /// @note In Synced mode the base delay's target is derived from the host
+    ///       tempo, which only process() receives, so the base delay snaps to the
+    ///       synced time at the start of the next process() call instead.
     void snapParameters() noexcept {
+        syncSnapPending_ = true;
         baseDelaySmoother_.snapToTarget();
         spreadSmoother_.snapToTarget();
         feedbackSmoother_.snapToTarget();
@@ -813,8 +831,8 @@ private:
         // discontinuities at frame boundaries.
         for (std::size_t i = 0; i < numBins && i < stereoPhaseL_.size(); ++i) {
             // Random walk for stereo decorrelation
-            stereoPhaseL_[i] += (rng_.nextFloat() - 0.5f) * kPhaseWalkRate;
-            stereoPhaseR_[i] += (rng_.nextFloat() - 0.5f) * kPhaseWalkRate;
+            stereoPhaseL_[i] += (rng_.nextUnipolar() - 0.5f) * kPhaseWalkRate;
+            stereoPhaseR_[i] += (rng_.nextUnipolar() - 0.5f) * kPhaseWalkRate;
 
             // Soft clamp to prevent unbounded growth while maintaining smoothness
             constexpr float kMaxPhase = kPi;
@@ -1054,6 +1072,7 @@ private:
     // Tempo Sync State (spec 041)
     TimeMode timeMode_ = TimeMode::Free;  // Default to free (ms) mode
     int noteValueIndex_ = 4;              // Default to 1/8 note (index 4)
+    bool syncSnapPending_ = false;        // snapParameters() ran; next process() snaps the synced delay
 
     // Parameter Smoothers
     OnePoleSmoother baseDelaySmoother_;

@@ -1034,6 +1034,10 @@ std::vector<PresetDef> createAllPresets() {
         int32_t ratch7[] = {1, 1, 2, 1, 1, 3, 1};      // length 7, occasional rolls
         setRatchetLane(p.state, 7, ratch7);
 
+        // Additive partial sum no longer clips (2026-11-13):
+        // re-levelled toward the Arp Polymetric median (-7.9 dBFS), held to a -1 dBFS peak
+        // lowered until a held chord peaks at -1 dBFS
+        p.state.global.masterGain = 0.981f;
         presets.push_back(std::move(p));
     }
 
@@ -1422,6 +1426,9 @@ std::vector<PresetDef> createAllPresets() {
         float gate5[] = {0.9f, 0.7f, 0.95f, 0.6f, 0.8f};
         setGateLane(s, 5, gate5);
 
+        // Additive partial sum no longer clips (2026-11-13):
+        // re-levelled to the Arp Performance median (-17.2 dBFS)
+        p.state.global.masterGain = 0.239f;
         presets.push_back(std::move(p));
     }
 
@@ -1796,6 +1803,9 @@ std::vector<PresetDef> createAllPresets() {
         setPitchLane(s, 3, pitch3);
         float vel4[] = {0.9f, 0.6f, 0.8f, 0.55f};
         setVelocityLane(s, 4, vel4);
+        // Additive partial sum no longer clips (2026-11-13):
+        // re-levelled toward the Arp Chords median (-9.5 dBFS), held to a -1 dBFS peak
+        p.state.global.masterGain = 1.103f;
         presets.push_back(std::move(p));
     }
 
@@ -2019,7 +2029,8 @@ std::vector<PresetDef> createAllPresets() {
         s.delay.type = 1; // Tape
         s.delay.sync = 0;
         s.delay.timeMs = 380.0f;
-        s.delay.feedback = 0.3f;
+        // Feedback 0.30 -> 0.23 (2026-11-13): all three tape heads feed back, so higher never dies away
+        s.delay.feedback = 0.23f;
         s.delay.mix = 0.18f;
         s.delay.tapeSaturation = 0.4f;
         s.delay.tapeWear = 0.2f;
@@ -2128,6 +2139,9 @@ std::vector<PresetDef> createAllPresets() {
         setVoiceRoute(s, 0, kVSrcEnv3, kVDstSpecTilt, 0.45f);
         s.global.width = 1.6f;
         s.global.spread = 0.2f;
+        // Additive partial sum no longer clips (2026-11-13):
+        // re-levelled toward the Pads median (-10.2 dBFS), held to a -1 dBFS peak
+        p.state.global.masterGain = 0.304f;
         presets.push_back(std::move(p));
     }
 
@@ -2589,6 +2603,9 @@ std::vector<PresetDef> createAllPresets() {
         s.reverb.damping = 0.4f;
         s.reverb.preDelayMs = 20.0f;
         s.reverb.modDepth = 0.1f; // gentle shimmer on the tail
+        // Additive partial sum no longer clips (2026-11-13):
+        // re-levelled to the Leads median (-14.6 dBFS)
+        p.state.global.masterGain = 0.741f;
         presets.push_back(std::move(p));
     }
 
@@ -2646,7 +2663,8 @@ std::vector<PresetDef> createAllPresets() {
         s.delay.type = 1; // Tape
         s.delay.sync = 1;
         s.delay.noteValue = 10; // 1/8
-        s.delay.feedback = 0.3f;
+        // Feedback 0.30 -> 0.25 (2026-11-13): all three tape heads feed back, so higher never dies away
+        s.delay.feedback = 0.25f;
         s.delay.mix = 0.25f;
         s.delay.tapeSaturation = 0.5f;
         s.delay.tapeWear = 0.2f; // wow/flutter grime on the tail
@@ -2750,7 +2768,8 @@ std::vector<PresetDef> createAllPresets() {
         s.delayEnabled = 1;
         s.delay.type = 1;           // Tape
         s.delay.sync = 1; s.delay.noteValue = kNote1_8;
-        s.delay.feedback = 0.3f; s.delay.mix = 0.18f;
+        // Feedback 0.30 -> 0.26 (2026-11-13): all three tape heads feed back, so higher never dies away
+        s.delay.feedback = 0.26f; s.delay.mix = 0.18f;
         s.delay.tapeSaturation = 0.5f;
         presets.push_back(std::move(p));
     }
@@ -2934,6 +2953,7 @@ std::vector<PresetDef> createAllPresets() {
         s.reverb.preDelayMs = 45.0f;      // gap before the wash (owns preDelay)
         s.global.width = 1.7f;
         s.global.spread = 0.5f;
+        s.global.masterGain = 1.590f;  // keeps its level now the particle swarm no longer over-spawns
         presets.push_back(std::move(p));
     }
 
@@ -2987,7 +3007,8 @@ std::vector<PresetDef> createAllPresets() {
         s.delayEnabled = 1;
         s.delay.type = 1;                 // Tape (owns this delay type)
         s.delay.mix = 0.25f;
-        s.delay.feedback = 0.42f;
+        // Feedback 0.42 -> 0.29 (2026-11-13): all three tape heads feed back, so higher never dies away
+        s.delay.feedback = 0.29f;
         s.delay.timeMs = 750.0f;
         s.delay.tapeSaturation = 0.5f;
         s.delay.tapeAge = 0.3f;
@@ -3072,6 +3093,10 @@ std::vector<PresetDef> createAllPresets() {
         s.reverb.damping = 0.25f;
         s.reverb.modRateHz = 0.2f;
         s.reverb.modDepth = 0.15f;        // owns reverb modulation
+        // Additive partial sum no longer clips (2026-11-13):
+        // re-levelled to the Textures median (-15.5 dBFS)
+        // lowered until a held chord peaks at -1 dBFS
+        p.state.global.masterGain = 0.36f;
         presets.push_back(std::move(p));
     }
 
@@ -3204,6 +3229,9 @@ std::vector<PresetDef> createAllPresets() {
         s.reverb.size = 0.55f;
         s.reverb.mix = 0.3f;
         s.reverb.damping = 0.45f;
+        // Additive partial sum no longer clips (2026-11-13):
+        // re-levelled to the Textures median (-15.5 dBFS)
+        p.state.global.masterGain = 0.845f;
         presets.push_back(std::move(p));
     }
 
@@ -3367,6 +3395,8 @@ std::vector<PresetDef> createAllPresets() {
         p.name = "Stutter Bass";
         p.category = "Rhythmic";
         auto& s = p.state;
+        // Re-levelled for the TapeSaturator Hysteresis repair (2026-11-10): -3.7 dB keeps its loudness
+        s.global.masterGain = 0.653f;
         // --- Octave-down saw + detuned square, mono, through a driven ladder
         s.oscA.type = 0;
         s.oscA.waveform = 1;       // Saw
@@ -3492,7 +3522,8 @@ std::vector<PresetDef> createAllPresets() {
         s.delayEnabled = 1;
         s.delay.type = 1;          // Tape
         s.delay.sync = 1; s.delay.noteValue = kNote1_8;
-        s.delay.feedback = 0.28f; s.delay.mix = 0.2f;
+        // Feedback 0.28 -> 0.27 (2026-11-13): all three tape heads feed back, so higher never dies away
+        s.delay.feedback = 0.27f; s.delay.mix = 0.2f;
         s.delay.tapeSaturation = 0.4f;
         s.reverbEnabled = 1;
         s.reverbType = 0;          // Plate
@@ -3500,6 +3531,10 @@ std::vector<PresetDef> createAllPresets() {
         s.global.width = 1.4f;
         s.global.spread = 0.25f;
         s.global.polyphony = 12;
+        // Additive partial sum no longer clips (2026-11-13):
+        // re-levelled to the Rhythmic median (-15.8 dBFS)
+        // lowered until a held chord peaks at -1 dBFS
+        p.state.global.masterGain = 1.276f;
         presets.push_back(std::move(p));
     }
 
@@ -3570,6 +3605,7 @@ std::vector<PresetDef> createAllPresets() {
         s.reverbType = 1;          // Hall
         s.reverb.size = 0.8f; s.reverb.mix = 0.4f; s.reverb.diffusion = 0.9f;
         s.global.width = 1.4f;
+        s.global.masterGain = 1.306f;  // keeps its level now the particle swarm no longer over-spawns
         presets.push_back(std::move(p));
     }
 
@@ -3638,11 +3674,14 @@ std::vector<PresetDef> createAllPresets() {
         s.settings.voiceStealMode = 1; // Soft steal avoids clicks on this sustaining drone
         s.settings.pitchBendRangeSemitones = 12.0f; // whole-octave bends for dive-bomb chaos
         s.global.polyphony = 6; // dense enough, CPU-sane for chaos engines
-        s.global.masterGain = 0.9f; // headroom for the waveshaper
+        // Re-levelled for the delay-type switch fix (2026-11-13): -2.0 dB from 0.9 (headroom for the waveshaper),
+        // its loudness while notes play from before its Tape delay played
+        s.global.masterGain = 0.713f;
         // --- Tape echo (+splice) then hall: analog smear, not the default digital slap ---
         s.delayEnabled = 1;
         s.delay.type = 1; // Tape
-        s.delay.timeMs = 375.0f; s.delay.feedback = 0.45f; s.delay.mix = 0.3f;
+        // Feedback 0.45 -> 0.25 (2026-11-13): all three tape heads feed back, so higher never dies away
+        s.delay.timeMs = 375.0f; s.delay.feedback = 0.25f; s.delay.mix = 0.3f;
         s.delay.tapeSaturation = 0.6f; s.delay.tapeWear = 0.3f; s.delay.tapeAge = 0.4f;
         s.delay.tapeSpliceEnabled = 1; s.delay.tapeSpliceIntensity = 0.4f; // dropouts add instability
         s.reverbEnabled = 1;
@@ -4032,6 +4071,10 @@ std::vector<PresetDef> createAllPresets() {
         s.lfo2Ext.symmetry = 0.7f;   // asymmetric wander
         setModSlot(s, 1, kSrcLFO2, kDstAllResonance, 0.2f, kCurveLinear, 100.0f);
         s.modMatrix.slots[1].scale = 3; // x2 depth (the untouched scale axis)
+        // Additive partial sum no longer clips (2026-11-13):
+        // re-levelled toward the Pads median (-10.2 dBFS), held under a -1 dBFS peak
+        // (its Spectral delay moves the peak by 0.2 dB from one run to the next)
+        p.state.global.masterGain = 0.17f;
         presets.push_back(std::move(p));
     }
 
@@ -4074,7 +4117,8 @@ std::vector<PresetDef> createAllPresets() {
         // Warm TAPE delay whisper.
         s.delayEnabled = 1;
         s.delay.type = 1;            // Tape
-        s.delay.mix = 0.15f; s.delay.feedback = 0.25f;
+        // Feedback 0.25 -> 0.23 (2026-11-13): all three tape heads feed back, so higher never dies away
+        s.delay.mix = 0.15f; s.delay.feedback = 0.23f;
         s.delay.tapeSaturation = 0.3f; s.delay.tapeWear = 0.2f;
         // PLATE, small and tight - a rehearsal-room, not a cathedral.
         s.reverbType = 0;            // Plate
@@ -4137,6 +4181,10 @@ std::vector<PresetDef> createAllPresets() {
         s.reverbEnabled = 1;
         s.reverb.size = 0.85f; s.reverb.mix = 0.4f; s.reverb.diffusion = 0.85f;
         s.global.width = 1.6f; s.global.spread = 0.4f;
+        // Additive partial sum no longer clips (2026-11-13):
+        // re-levelled toward the Pads median (-10.2 dBFS), held to a -1 dBFS peak
+        // lowered until a held chord peaks at -1 dBFS
+        p.state.global.masterGain = 0.108f;
         presets.push_back(std::move(p));
     }
 
@@ -4350,7 +4398,8 @@ std::vector<PresetDef> createAllPresets() {
         s.delay.type = 1; // Tape
         s.delay.sync = 0;
         s.delay.timeMs = 400.0f;
-        s.delay.feedback = 0.32f;
+        // Feedback 0.32 -> 0.28 (2026-11-13): all three tape heads feed back, so higher never dies away
+        s.delay.feedback = 0.28f;
         s.delay.mix = 0.25f;
         s.delay.tapeInertiaMs = 300.0f;
         s.delay.tapeWear = 0.15f;
@@ -4365,6 +4414,9 @@ std::vector<PresetDef> createAllPresets() {
         s.reverbEnabled = 1; s.reverbType = 0; // Plate
         s.reverb.size = 0.8f; s.reverb.mix = 0.35f; s.reverb.damping = 0.5f;
         s.global.width = 1.7f; s.global.spread = 0.5f;
+        // Additive partial sum no longer clips (2026-11-13):
+        // re-levelled toward the Pads median (-10.2 dBFS), held to a -1 dBFS peak
+        p.state.global.masterGain = 0.307f;
         presets.push_back(std::move(p));
     }
 
@@ -4581,6 +4633,9 @@ std::vector<PresetDef> createAllPresets() {
         s.reverb.preDelayMs = 20.0f;
         s.reverb.modRateHz = 0.3f; s.reverb.modDepth = 0.15f; // chorused tail
         s.global.width = 1.5f; s.global.spread = 0.3f;
+        // Additive partial sum no longer clips (2026-11-13):
+        // re-levelled toward the Pads median (-10.2 dBFS), held to a -1 dBFS peak
+        p.state.global.masterGain = 0.0415f;
         presets.push_back(std::move(p));
     }
 
@@ -5036,7 +5091,8 @@ std::vector<PresetDef> createAllPresets() {
         s.delayEnabled = 1;
         s.delay.type = 1; // Tape
         s.delay.sync = 0; s.delay.timeMs = 180.0f; // 180ms slap
-        s.delay.feedback = 0.28f; s.delay.mix = 0.22f;
+        // Feedback 0.28 -> 0.27 (2026-11-13): all three tape heads feed back, so higher never dies away
+        s.delay.feedback = 0.27f; s.delay.mix = 0.22f;
         s.delay.tapeSaturation = 0.4f; s.delay.tapeWear = 0.35f;
         // MOD IDENTITY: a slow, SYMMETRY-SKEWED triangle LFO2 free-runs the cutoff
         // for authentic tape 'wow'. SCurve keeps the motion gentle, not stepped.
@@ -5320,6 +5376,9 @@ std::vector<PresetDef> createAllPresets() {
         s.monoMode.priority = 2; // High-note priority (top-line brass)
         s.monoMode.legato = 1; s.monoMode.portamentoTimeMs = 12.0f;
         s.settings.pitchBendRangeSemitones = 12.0f; // wide bends/falls
+        // Additive partial sum no longer clips (2026-11-13):
+        // re-levelled to the Leads median (-14.6 dBFS)
+        p.state.global.masterGain = 0.957f;
         presets.push_back(std::move(p));
     }
 
@@ -5353,7 +5412,8 @@ std::vector<PresetDef> createAllPresets() {
         setModSlot(s, 0, kSrcLFO1, kDstAllSpecTilt, 0.4f, kCurveLinear);
         // Tape delay + Hall reverb = the spacious slide tail (identity FX).
         s.delayEnabled = 1; s.delay.type = 1; // Tape
-        s.delay.timeMs = 380.0f; s.delay.feedback = 0.3f; s.delay.mix = 0.2f;
+        // Feedback 0.30 -> 0.27 (2026-11-13): all three tape heads feed back, so higher never dies away
+        s.delay.timeMs = 380.0f; s.delay.feedback = 0.27f; s.delay.mix = 0.2f;
         s.delay.tapeSaturation = 0.4f;
         s.reverbEnabled = 1; s.reverbType = 1; // Hall
         s.reverb.size = 0.75f; s.reverb.mix = 0.3f; s.reverb.damping = 0.35f;
@@ -5892,7 +5952,9 @@ std::vector<PresetDef> createAllPresets() {
         s.distortion.type = 2;       // Spectral
         s.distortion.drive = 0.5f;
         s.distortion.spectralMode = 3;  // SpectralBitcrush — spectralBits now actually quantizes magnitudes
-        s.distortion.spectralBits = 0.35f; // ~6.25 bits (0-1 -> [1,16], bits=1+x*15) = audible bitcrush
+        // ~4.75 bits (0-1 -> [1,16], bits=1+x*15). Was 0.35 (~6.25 bits) while the bitcrush played broken
+        // frames in Mono; 0.25 restores that grit (-21 dB THD+N vs 16-bit, as the old output stage) now it is fixed
+        s.distortion.spectralBits = 0.25f;
         s.distortion.mix = 0.8f;
         s.ampEnv.attackMs = 1.0f; s.ampEnv.decayMs = 190.0f;
         s.ampEnv.sustain = 0.55f; s.ampEnv.releaseMs = 110.0f;
@@ -5911,6 +5973,8 @@ std::vector<PresetDef> createAllPresets() {
         setModSlot(s, 0, kSrcLFO1, kDstAllSpecTilt, 0.4f, kCurveStepped);
         // Mod identity #2: velocity opens the notch region = dynamics move the hollow
         setVoiceRoute(s, 0, kVSrcVelocity, kVDstFltCut, 0.4f);
+        // the 2.0 maximum: +6 dB of the +8.7 dB that would restore its level from before the bitcrush fix
+        s.global.masterGain = 2.0f;
         presets.push_back(std::move(p));
     }
 
@@ -5992,7 +6056,11 @@ std::vector<PresetDef> createAllPresets() {
         s.delayEnabled = 1;
         s.delay.type = 1;                                // Tape
         s.delay.sync = 1; s.delay.noteValue = kNote1_8D;
-        s.delay.mix = 0.28f; s.delay.feedback = 0.42f;
+        // Feedback 0.42 -> 0.28 (2026-11-13): all three tape heads feed back, so higher never dies away
+        s.delay.mix = 0.28f; s.delay.feedback = 0.28f;
+        // Re-levelled for the delay-type switch fix (2026-11-13): -2.8 dB, its loudness while notes play from
+        // before its Tape delay played
+        s.global.masterGain = 0.721f;
         s.delay.tapeSaturation = 0.6f; s.delay.tapeWear = 0.3f; s.delay.tapeAge = 0.2f;
         // IDENTITY gesture: a half-note synced LFO pumps the effect (echo) mix - no sibling touches EffectMix
         s.lfo1.rateHz = 1.0f; s.lfo1.shape = 1;          // Triangle
@@ -6076,6 +6144,9 @@ std::vector<PresetDef> createAllPresets() {
         s.harmonizer.dryLevelDb = 0.0f; s.harmonizer.wetLevelDb = -3.0f;
         s.global.voiceMode = 1;
         s.monoMode.legato = 1; s.monoMode.portamentoTimeMs = 20.0f;
+        // Additive partial sum no longer clips (2026-11-13):
+        // re-levelled to the Bass median (-12.6 dBFS)
+        p.state.global.masterGain = 1.024f;
         presets.push_back(std::move(p));
     }
 
@@ -6376,6 +6447,9 @@ std::vector<PresetDef> createAllPresets() {
         s.reverb.size = 0.5f; s.reverb.mix = 0.24f; s.reverb.damping = 0.4f;
         s.reverb.diffusion = 0.7f;
         s.global.width = 1.3f; s.global.spread = 0.3f;
+        // Additive partial sum no longer clips (2026-11-13): re-levelled on a held C minor chord (its 1.2 s
+        // attack hides it on a struck one) toward the Textures median (-15.5 dBFS), held to a -1 dBFS peak
+        p.state.global.masterGain = 0.664f;
         presets.push_back(std::move(p));
     }
 
@@ -6385,6 +6459,9 @@ std::vector<PresetDef> createAllPresets() {
         p.name = "Degauss Drift";
         p.category = "Textures";
         auto& s = p.state;
+        // Re-levelled for the TapeSaturator Hysteresis repair (2026-11-10): +6.0 dB, the top of the range
+        // (+8.3 dB would match its loudness before the repair)
+        s.global.masterGain = 2.0f;
         // OSC A: brown noise = dark tape rumble
         s.oscA.type = 9; s.oscA.noiseColor = 2; s.oscA.level = 0.5f;   // brown
         // OSC B: sub-octave saw for pitched weight under the hiss
@@ -6428,7 +6505,8 @@ std::vector<PresetDef> createAllPresets() {
         s.modMatrix.slots[2].smoothMs = 30.0f;
         // DELAY: Tape with heavy wear -> the wobble/dropout artifacts
         s.delayEnabled = 1; s.delay.type = 1;      // Tape
-        s.delay.timeMs = 450.0f; s.delay.feedback = 0.35f; s.delay.mix = 0.22f;
+        // Feedback 0.35 -> 0.25 (2026-11-13): all three tape heads feed back, so higher never dies away
+        s.delay.timeMs = 450.0f; s.delay.feedback = 0.25f; s.delay.mix = 0.22f;
         s.delay.tapeSaturation = 0.5f; s.delay.tapeWear = 0.5f; s.delay.tapeAge = 0.3f;
         // REVERB: small dark Plate
         s.reverbEnabled = 1; s.reverbType = 0;     // Plate
@@ -6492,6 +6570,9 @@ std::vector<PresetDef> createAllPresets() {
         // DELAY: Granular, FROZEN -> a held vocal grain-cloud (this patch's spatial identity)
         s.delayEnabled = 1; s.delay.type = 3;      // Granular
         s.delay.timeMs = 500.0f; s.delay.feedback = 0.3f; s.delay.mix = 0.3f;
+        // Re-levelled for the delay-type switch fix (2026-11-13): +1.6 dB, its loudness while notes play from
+        // before its Granular delay played
+        s.global.masterGain = 1.205f;
         s.delay.granularSizeMs = 140.0f; s.delay.granularDensity = 14.0f;
         s.delay.granularPitchSpray = 0.2f; s.delay.granularTexture = 0.3f;
         s.delay.granularFreeze = 1;                // frozen grain cloud
@@ -6557,6 +6638,9 @@ std::vector<PresetDef> createAllPresets() {
         s.reverb.preDelayMs = 40.0f;  // air before the wash
         s.reverb.diffusion = 0.85f;
         s.global.width = 1.5f;
+        // Additive partial sum no longer clips (2026-11-13):
+        // re-levelled to the Textures median (-15.5 dBFS)
+        p.state.global.masterGain = 0.872f;
         presets.push_back(std::move(p));
     }
 
@@ -6616,6 +6700,7 @@ std::vector<PresetDef> createAllPresets() {
         s.reverb.size = 0.45f;
         s.reverb.mix = 0.3f;
         s.global.width = 1.6f;
+        s.global.masterGain = 1.212f;  // keeps its level now the S&H slew runs in real time at every buffer size
         presets.push_back(std::move(p));
     }
 
@@ -6738,7 +6823,8 @@ std::vector<PresetDef> createAllPresets() {
         s.delayEnabled = 1;
         s.delay.type = 1;              // Tape
         s.delay.timeMs = 450.0f;
-        s.delay.feedback = 0.4f;
+        // Feedback 0.40 -> 0.25 (2026-11-13): all three tape heads feed back, so higher never dies away
+        s.delay.feedback = 0.25f;
         s.delay.mix = 0.25f;
         s.delay.tapeWear = 0.4f;       // wow/flutter grit fits the chaos
         s.delay.tapeSaturation = 0.6f;
@@ -7041,7 +7127,8 @@ std::vector<PresetDef> createAllPresets() {
         // Warm tape delay doubles the choir just behind the beat (this patch's spatial identity).
         s.delayEnabled = 1;
         s.delay.type = 1;                               // Tape
-        s.delay.timeMs = 480.0f; s.delay.mix = 0.24f; s.delay.feedback = 0.3f;
+        // Feedback 0.30 -> 0.22 (2026-11-13): all three tape heads feed back, so higher never dies away
+        s.delay.timeMs = 480.0f; s.delay.mix = 0.24f; s.delay.feedback = 0.22f;
         s.delay.tapeSaturation = 0.5f; s.delay.tapeWear = 0.25f;
         s.delay.tapeHead1Level = 0.0f;                  // 0 dB main head
         // Modulated Hall with pre-delay = a wide breathing cathedral.
@@ -7241,7 +7328,8 @@ std::vector<PresetDef> createAllPresets() {
         s.delayEnabled = 1;
         s.delay.type = 1;            // Tape
         s.delay.sync = 1; s.delay.noteValue = kNote1_8D;
-        s.delay.mix = 0.26f; s.delay.feedback = 0.36f;
+        // Feedback 0.36 -> 0.22 (2026-11-13): all three tape heads feed back, so higher never dies away
+        s.delay.mix = 0.26f; s.delay.feedback = 0.22f;
         s.delay.tapeInertiaMs = 300.0f;
         s.delay.tapeSaturation = 0.4f; s.delay.tapeWear = 0.3f;
         s.reverbEnabled = 1; s.reverbType = 0;   // Plate
@@ -7366,6 +7454,9 @@ std::vector<PresetDef> createAllPresets() {
         s.delay.pingPongWidth = 160.0f;
         s.reverbEnabled = 1; s.reverbType = 0;  // Plate
         s.reverb.size = 0.7f; s.reverb.mix = 0.32f; s.reverb.damping = 0.35f;
+        // Additive partial sum no longer clips (2026-11-13):
+        // re-levelled to the Rhythmic median (-15.8 dBFS)
+        p.state.global.masterGain = 0.516f;
         presets.push_back(std::move(p));
     }
 
@@ -7467,6 +7558,9 @@ std::vector<PresetDef> createAllPresets() {
         s.reverbType = 1; // Hall
         s.reverb.size = 0.65f; s.reverb.mix = 0.28f; s.reverb.damping = 0.35f;
         s.reverb.preDelayMs = 20.0f;
+        // Additive partial sum no longer clips (2026-11-13):
+        // re-levelled to the Rhythmic median (-15.8 dBFS)
+        p.state.global.masterGain = 0.345f;
         presets.push_back(std::move(p));
     }
 
@@ -7655,7 +7749,8 @@ std::vector<PresetDef> createAllPresets() {
         s.harmonizer.voiceInterval[1] = 12; s.harmonizer.voiceLevelDb[1] = -9.0f; s.harmonizer.voicePan[1] = 0.4f;
         // Light TAPE delay, then a big Hall reverb
         s.delayEnabled = 1; s.delay.type = 1; // Tape
-        s.delay.sync = 1; s.delay.noteValue = kNote1_8; s.delay.feedback = 0.3f; s.delay.mix = 0.18f;
+        // Feedback 0.30 -> 0.25 (2026-11-13): all three tape heads feed back, so higher never dies away
+        s.delay.sync = 1; s.delay.noteValue = kNote1_8; s.delay.feedback = 0.25f; s.delay.mix = 0.18f;
         s.delay.tapeSaturation = 0.4f; s.delay.tapeWear = 0.2f;
         s.reverbEnabled = 1; s.reverbType = 1; // Hall
         s.reverb.size = 0.8f; s.reverb.mix = 0.32f; s.reverb.damping = 0.35f; s.reverb.preDelayMs = 20.0f;
@@ -7933,7 +8028,8 @@ std::vector<PresetDef> createAllPresets() {
         s.delayEnabled = 1;
         s.delay.type = 1;             // Tape
         s.delay.sync = 1; s.delay.noteValue = kNote1_8D;
-        s.delay.mix = 0.22f; s.delay.feedback = 0.4f;
+        // Feedback 0.40 -> 0.23 (2026-11-13): all three tape heads feed back, so higher never dies away
+        s.delay.mix = 0.22f; s.delay.feedback = 0.23f;
         s.delay.tapeSaturation = 0.5f; s.delay.tapeWear = 0.3f; s.delay.tapeAge = 0.4f;
         s.delay.tapeSpliceEnabled = 1; s.delay.tapeSpliceIntensity = 0.35f;
 
@@ -8003,6 +8099,10 @@ std::vector<PresetDef> createAllPresets() {
         s.reverb.size = 0.95f; s.reverb.mix = 0.42f; s.reverb.damping = 0.55f;
         s.reverb.freeze = 1;         // frozen tail = endless sustain bed
         s.reverb.modRateHz = 0.15f; s.reverb.modDepth = 0.3f; // slow chorus on the wash
+        // keeps its level now the brown noise, the spectral distortion and the Pitch Follower no
+        // longer follow the buffer size (the drone's resonator now tracks the played pitch); 0.316 -> 0.396 keeps
+        // that level now its modulation reaches the voice every 64 samples (it came out 2.0 dB quieter at 512)
+        s.global.masterGain = 0.396f;
 
         presets.push_back(std::move(p));
     }
@@ -8291,7 +8391,9 @@ std::vector<PresetDef> createAllPresets() {
         s.delay.type = 1;                  // Tape
         constexpr int32_t kNote1_4D = 14;  // dotted quarter (note-value dropdown index 14 = "1/4D")
         s.delay.sync = 1; s.delay.noteValue = kNote1_4D; // dotted quarter dub feel
-        s.delay.mix = 0.45f; s.delay.feedback = 0.8f;    // high but self-limited by tape
+        // Feedback 0.80 -> 0.21 (2026-11-13): all three tape heads feed back, so 0.80 never died away;
+        // 0.21 is the highest whose tail falls 6 dB over 4 s after the first post-note echo
+        s.delay.mix = 0.45f; s.delay.feedback = 0.21f;
         s.delay.tapeSaturation = 0.7f; s.delay.tapeWear = 0.5f;
         s.delay.tapeAge = 0.6f; s.delay.tapeInertiaMs = 260.0f;
         s.delay.tapeSpliceEnabled = 1; s.delay.tapeSpliceIntensity = 0.4f; // owns splice
@@ -8345,6 +8447,9 @@ std::vector<PresetDef> createAllPresets() {
         // Airy HALL
         s.reverbEnabled = 1; s.reverbType = 1;  // Hall
         s.reverb.size = 0.7f; s.reverb.mix = 0.32f; s.reverb.damping = 0.5f;
+        // +2 dB: its noise peaks sat 19.5 dB under the bank's median, at the quietness floor, and the
+        // noise-colour fix (2026-11-13) moved its single-note peak by 1.4 dB (its RMS by 0.15 dB)
+        s.global.masterGain = 1.259f;
         presets.push_back(std::move(p));
     }
 
@@ -8450,6 +8555,9 @@ std::vector<PresetDef> createAllPresets() {
         s.reverbEnabled = 1; s.reverbType = 1; // Hall
         s.reverb.size = 0.85f; s.reverb.mix = 0.35f;
         s.reverb.modRateHz = 0.3f; s.reverb.modDepth = 0.2f; // shimmering reverb mod (unused)
+        // Additive partial sum no longer clips (2026-11-13):
+        // re-levelled to the Experimental median (-13.8 dBFS)
+        p.state.global.masterGain = 0.581f;
         presets.push_back(std::move(p));
     }
 
@@ -8597,6 +8705,7 @@ std::vector<PresetDef> createAllPresets() {
         s.global.voiceMode = 0;        // Poly
         s.global.polyphony = 16;       // maximum voices for a thick cloud
         s.global.width = 2.0f; s.global.spread = 0.7f;
+        s.global.masterGain = 1.18f;   // raised to a -1 dBFS peak now the particle swarm no longer over-spawns
         s.settings.voiceAllocMode = 0; // Round-Robin (spreads grains across voices)
         s.settings.voiceStealMode = 1; // Soft steal (no clicks when the cloud saturates)
         // Granular delay thickens the cloud further.
@@ -8721,6 +8830,9 @@ std::vector<PresetDef> createAllPresets() {
         s.reverbEnabled = 1;
         s.reverbType = 0;              // Plate
         s.reverb.size = 0.7f; s.reverb.mix = 0.4f; s.reverb.damping = 0.2f;
+        // Additive partial sum no longer clips (2026-11-13):
+        // re-levelled to the Experimental median (-13.8 dBFS)
+        p.state.global.masterGain = 0.44f;
         presets.push_back(std::move(p));
     }
 
@@ -8770,7 +8882,8 @@ std::vector<PresetDef> createAllPresets() {
         // Tape delay with splice artefacts = degraded, warbling echoes.
         s.delayEnabled = 1;
         s.delay.type = 1;              // Tape
-        s.delay.mix = 0.25f; s.delay.feedback = 0.35f; s.delay.timeMs = 260.0f;
+        // Feedback 0.35 -> 0.23 (2026-11-13): all three tape heads feed back, so higher never dies away
+        s.delay.mix = 0.25f; s.delay.feedback = 0.23f; s.delay.timeMs = 260.0f;
         s.delay.tapeSaturation = 0.6f; s.delay.tapeWear = 0.4f;
         s.delay.tapeSpliceEnabled = 1; s.delay.tapeSpliceIntensity = 0.5f;
         presets.push_back(std::move(p));
@@ -8892,6 +9005,10 @@ std::vector<PresetDef> createAllPresets() {
         s.reverbType = 1;                              // Hall
         s.reverb.size = 0.72f; s.reverb.mix = 0.3f; s.reverb.damping = 0.3f;
         s.reverb.preDelayMs = 25.0f;
+        // Additive partial sum no longer clips (2026-11-13):
+        // re-levelled to the Arp Modulation median (-15.1 dBFS)
+        // lowered until a held chord peaks at -1 dBFS
+        p.state.global.masterGain = 0.293f;
         presets.push_back(std::move(p));
     }
 
@@ -8940,12 +9057,16 @@ std::vector<PresetDef> createAllPresets() {
         // FX: Tape delay + PLATE reverb = spacious, slightly wobbly bloom
         s.delayEnabled = 1;
         s.delay.type = 1;                              // Tape
-        s.delay.mix = 0.18f; s.delay.feedback = 0.28f;
+        // Feedback 0.28 -> 0.20 (2026-11-13): all three tape heads feed back, so higher never dies away
+        s.delay.mix = 0.18f; s.delay.feedback = 0.20f;
         s.delay.sync = 1; s.delay.noteValue = kNote1_8;
         s.delay.tapeSaturation = 0.4f; s.delay.tapeAge = 0.2f;
         s.reverbEnabled = 1;
         s.reverbType = 0;                              // Plate
         s.reverb.size = 0.7f; s.reverb.mix = 0.3f; s.reverb.damping = 0.35f;
+        // Additive partial sum no longer clips (2026-11-13):
+        // re-levelled to the Arp Modulation median (-15.1 dBFS)
+        p.state.global.masterGain = 0.457f;
         presets.push_back(std::move(p));
     }
 
@@ -9014,6 +9135,7 @@ std::vector<PresetDef> createAllPresets() {
         s.distortion.drive = 0.35f; s.distortion.foldType = 1; s.distortion.mix = 0.8f;
         // Mono glide + GRANULAR delay (a delay TYPE none of the ping-pong siblings use)
         s.global.voiceMode = 1;
+        s.global.masterGain = 0.312f;  // keeps its level now the spectral morph plays every mono 32-sample step
         s.monoMode.legato = 1; s.monoMode.portamentoTimeMs = 15.0f;
         s.delayEnabled = 1;
         s.delay.type = 3;                              // Granular
@@ -9372,6 +9494,10 @@ std::vector<PresetDef> createAllPresets() {
         s.delay.timeMs = 220.0f; s.delay.feedback = 0.25f; s.delay.mix = 0.15f;
         s.delay.sync = 0;
         s.global.spread = 0.2f;
+        // Additive partial sum no longer clips (2026-11-13):
+        // re-levelled toward the Modulation median (-9.7 dBFS), held to a -1 dBFS peak; 0.646 -> 0.491 keeps that
+        // level now its modulation reaches the voices every 64 samples (it came out 2.4 dB louder at 512)
+        p.state.global.masterGain = 0.491f;
         presets.push_back(std::move(p));
     }
 
@@ -9588,7 +9714,8 @@ std::vector<PresetDef> createAllPresets() {
         // Tape echo softens the pluck tails without washing the transients
         s.delayEnabled = 1; s.delay.type = 1;   // Tape
         s.delay.sync = 1; s.delay.noteValue = kNote1_8;
-        s.delay.mix = 0.26f; s.delay.feedback = 0.34f;
+        // Feedback 0.34 -> 0.26 (2026-11-13): all three tape heads feed back, so higher never dies away
+        s.delay.mix = 0.26f; s.delay.feedback = 0.26f;
         s.delay.tapeSaturation = 0.45f; s.delay.tapeWear = 0.3f;
         s.reverbEnabled = 1; s.reverbType = 1;  // Hall
         s.reverb.size = 0.5f; s.reverb.mix = 0.22f; s.reverb.damping = 0.45f;
@@ -9767,6 +9894,9 @@ std::vector<PresetDef> createAllPresets() {
         s.delay.pingPongWidth = 160.0f; s.delay.pingPongCrossFeed = 0.7f;
         s.reverbEnabled = 1; s.reverbType = 1;  // Hall
         s.reverb.size = 0.7f; s.reverb.mix = 0.3f; s.reverb.damping = 0.35f;
+        // Additive partial sum no longer clips (2026-11-13):
+        // re-levelled toward the Rhythmic median (-15.8 dBFS), held to a -1 dBFS peak
+        p.state.global.masterGain = 0.549f;
         presets.push_back(std::move(p));
     }
 
@@ -9845,7 +9975,8 @@ std::vector<PresetDef> createAllPresets() {
         // 3-against-2-against-3, and the tape wear smears the collisions.
         s.delayEnabled = 1; s.delay.type = 1;   // Tape
         s.delay.sync = 1; s.delay.noteValue = kNote1_8D;
-        s.delay.mix = 0.32f; s.delay.feedback = 0.45f;
+        // Feedback 0.45 -> 0.22 (2026-11-13): all three tape heads feed back, so higher never dies away
+        s.delay.mix = 0.32f; s.delay.feedback = 0.22f;
         s.delay.tapeSaturation = 0.6f; s.delay.tapeWear = 0.5f;
         s.delay.tapeAge = 0.4f; s.delay.tapeInertiaMs = 420.0f;
         // Tape saturator in the voice too, so the source is warm before the echo
@@ -10217,7 +10348,8 @@ std::vector<PresetDef> createAllPresets() {
         setModSlot(s, 0, kSrcLFO1, kDstAllResonance, 0.3f, kCurveSCurve);
         s.delayEnabled = 1; s.delay.type = 1;   // Tape
         s.delay.sync = 1; s.delay.noteValue = kNote1_8T;
-        s.delay.mix = 0.24f; s.delay.feedback = 0.38f;
+        // Feedback 0.38 -> 0.28 (2026-11-13): all three tape heads feed back, so higher never dies away
+        s.delay.mix = 0.24f; s.delay.feedback = 0.28f;
         s.delay.tapeSaturation = 0.4f;
         s.reverbEnabled = 1; s.reverbType = 1;
         s.reverb.size = 0.55f; s.reverb.mix = 0.24f; s.reverb.damping = 0.45f;
@@ -10370,6 +10502,10 @@ std::vector<PresetDef> createAllPresets() {
         s.delay.mix = 0.3f; s.delay.feedback = 0.45f;
         s.reverbEnabled = 1; s.reverbType = 1;  // Hall
         s.reverb.size = 0.8f; s.reverb.mix = 0.38f; s.reverb.damping = 0.3f;
+        // Additive partial sum no longer clips (2026-11-13):
+        // re-levelled toward the Rhythmic median (-15.8 dBFS), held to a -1 dBFS peak
+        // lowered until a held chord peaks at -1 dBFS
+        p.state.global.masterGain = 1.562f;
         presets.push_back(std::move(p));
     }
 

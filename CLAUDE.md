@@ -187,7 +187,8 @@ every run for anything that can be optimised for time, memory or any other resou
   untouched test cannot change its verdict. Timing-budget cases of untouched code that go red under a concurrent lane
   are recorded as load, not re-run.
 - **Every non-timing test run is sharded** (user, 2026-10-26): `node tools/run-gate.js --filter '<filter>' <exe> [<exe> ...]`
-  splits each executable into Catch2 shards (`--shard-count` / `--shard-index`) fed to a cpu-count worker pool and
+  deals each executable's cases round-robin into Catch2 shards (one `-f` case file per shard; contiguous
+  `--shard-index` only as a logged fallback) fed to a cpu-count worker pool, writes `shard-times.tsv`, and
   prints `GATE GREEN|RED`. Never run a test executable as one serial process for a gate, lane, fixer loop or check;
   that applies to workflow scripts and to every new workflow too. Measured: a Profundum gate (419 + 107 cases) went from
   ~14 min serial to 2 min 15 s. Only the CPU/perf lane (`tools/run-cpu-tests.js`) runs alone. A single case by name is
@@ -243,6 +244,10 @@ with the red behind each rule: `dsp/CLAUDE.md` "The macOS leg builds with -ffast
 - Clamp the argument of `pow` / `sqrt` / `log` / `acos` at its domain edge when IEEE only *happens* to land on it.
 - Produce a value that must be exact at a neutral point or an endpoint (Mass 50, normalized 0 / 1) by a branch or a
   clamp, not by arithmetic that cancels in IEEE: contraction leaves 1e-8 or 1e-17 there.
+- Convert host musical time (`ppq`, `projectTimeMusic`, `stepFraction`) to samples with `std::llround`, never a
+  truncating cast: the sample count is usually an exact integer the double lands an ulp below, so truncation loses
+  a sample per buffer size and FP mode (ArpeggiatorCore's resync, macOS-only red, 2026-11-14). Gated by
+  `tools/lint-musical-time-truncation.js`.
 - Never assert bit-equality between separately compiled computations (an engine tap vs the test's recomputation, or
   an IEEE test TU's expected `k / 24` vs fast-math plugin code). DSP: `dsp_ieee_tests`. Elsewhere: a tolerance below
   the meaningful step.
@@ -250,6 +255,11 @@ with the red behind each rule: `dsp/CLAUDE.md` "The macOS leg builds with -ffast
   clang still fuses `a*b + c*d` into an fma on arm64 (`tools/lint-ieee-flag-sets.js`).
 - Reproduce before pushing: `tools/macos-fastmath-repro.sh` (DSP TUs, WSL clang, minutes) and
   `tools/clangcl-fastmath-build.ps1` (plugin tests; read its blind spot).
+
+**Standard-library differences (MSVC vs libc++):** never write state while iterating a `std::unordered_map`/`set`
+(the order differs per library; write in key order, `tools/lint-unordered-serialization.js`), and allocate a test's
+allocation-detector probe with `TestHelpers::allocateObservably()`, since clang elides a local container that never
+escapes (`tools/lint-allocation-probes.js`). Both went red on macOS only, 2026-11-14.
 
 **Linux test harnesses have no run loop:** `Timer::create` returns nullptr without an injected run-loop factory, so an
 SDK path that needs a Timer (the DataExchange `IMessage` fallback) never runs in a bare test. Real hosts inject one.
@@ -468,6 +478,7 @@ node tools/run-gate.js --filter '~[performance]~[perf]~[benchmark]~[!benchmark]'
 # EVERY multi-case run goes through tools/run-gate.js (Catch2 shards over a cpu-count worker pool, last line
 # GATE GREEN|RED, per-shard logs under f:/tmp/gate/). Never `for t in ...; do $t.exe; done` or one serial exe:
 # that is one core of 32. Narrow with the filter (e.g. '[profundum]~[performance]~...'), not by going serial.
+# On Windows a crashing shard leaves a minidump in f:/tmp/crashdumps, named on the red line (tools/test-crash-dumps.js).
 
 # Run plugin-specific tests
 "$CMAKE" --build build/windows-x64-release --config Release --target plugin_tests    # Iterum

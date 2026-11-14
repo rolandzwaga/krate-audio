@@ -533,7 +533,11 @@ inline constexpr std::array<std::string_view, 7> kCategories{
                 {kBodyMixId, 0.35},            // 805 lin [0, 1] -> 0.35
                 {kMorphState0Id, 3.0 / 9.0},   // 409 index 3 -> Glass
                 {kMorphState1Id, 5.0 / 9.0},   // 410 index 5 -> Hollow
-                {kCloudTiltId, 0.41666667},  // 202 lin [-12, +12] -> -2 dB/oct
+                // 202 lin [-12, +12] -> -3 dB/oct (was -2, 2026-11-14): after the Aether morph path was made
+                // the same on every toolchain, Blue Hour held SC-028's closest pair on two of them (0.0203
+                // vs Aeolian Voices on the clang-cl fast-math proxy, 0.0254 vs Undertow on MSVC; floor 0.02).
+                // A darker cloud fits its "dim" brief and moves it off both.
+                {kCloudTiltId, 0.375},
                 {kCloudRichnessId, 0.50},
                 {kLifeSpatialDepthId, 0.60},
                 {kLifeSpatialRateId, 0.53155146},  // 601 log [0.01, 0.5] -> 0.08 Hz
@@ -589,6 +593,7 @@ inline constexpr std::array<std::string_view, 7> kCategories{
                 {kAetherSizeId, 0.90},
                 {kAetherMixId, 0.60},
                 {kCloudRichnessId, 0.75},
+                {kCloudTiltId, 0.52083333},    // 202 lin [-12, +12] -> +0.5 dB/oct
                 {kCloudAttackId, 0.68502029},  // 208 log [0.05, 30] s -> 4 s
                 {kMacroGravityId, 0.70},
                 {kSeedId, 13.0 / 15.0},
@@ -985,6 +990,10 @@ inline constexpr std::array<std::string_view, 7> kCategories{
                 {kMorphTravelRateId, 0.53169217},  // 404 log [1/600, 1] -> 0.05 /s
                 {kAetherTideDepthId, 0.60},
                 {kAetherMixId, 0.50},
+                // 202 lin [-12, +12] dB/oct -> +0.5 dB/oct (2026-11-14): at the 0 dB/oct default its
+                // sustain fingerprint sat 0.0182 from Choirs/Angelic Drift on Linux GCC 13, under
+                // SC-028's 0.02 floor (Stone Circle took the same lever against Deep Well).
+                {kCloudTiltId, 0.52083333},
                 {kSeedId, 5.0 / 15.0},
             },
             /*.stimulus =*/std::nullopt},
@@ -1030,6 +1039,8 @@ inline constexpr std::array<std::string_view, 7> kCategories{
                 {kMorphState1Id, 1.0},         // 410 index 9 -> Shimmer
                 {kCloudMutationId, 0.70},
                 {kSeedId, 7.0 / 15.0},
+                {kMasterGainId, 0.56680},  // 0 -> gain 1.1336 (+1.09 dB): the delay's Stereo Width fix
+                                           // (2026-11-13) left Restless 1.09 dB quieter
             },
             /*.stimulus =*/std::nullopt},
         // ---------------------------------------------------------------- //

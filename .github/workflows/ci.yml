@@ -70,13 +70,13 @@ jobs:
       infra: ${{ steps.set-outputs.outputs.infra }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Detect file changes
         # Skipped for release.yml (specific plugin) and for the nightly long-tests
         # call (runs everything; paths-filter has no diff base on a schedule event).
         if: inputs.plugin == '' && !inputs.long-tests
-        uses: dorny/paths-filter@v3
+        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
         id: filter
         with:
           filters: |
@@ -157,11 +157,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           submodules: false
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '20'
       - name: Check repo-map.json
@@ -281,6 +281,55 @@ jobs:
       - name: macOS-only name collision lint
         run: node tools/lint-apple-globals.js
 
+      # Catches a truncating integer cast of host musical time (ppq, projectTimeMusic, stepFraction). The samples a
+      # PPQ position converts to are usually an exact integer the double lands an ulp below, so truncation loses a
+      # sample, differently per buffer size and per FP mode: ArpeggiatorCore's PPQ resync failed Ruinae's 2048-vs-64
+      # arp render on the macOS -ffast-math leg only (2026-11-14). Self-test first, then the tree.
+      - name: Musical-time truncation lint
+        run: |
+          node tools/lint-musical-time-truncation.js --self-test
+          node tools/lint-musical-time-truncation.js
+
+      # Catches a serializer (serialize*, getState, save*, write*, ...) that iterates a std::unordered_map/set: the
+      # order is the standard library's, so the bytes differ between MSVC and libc++ (Disrumpo's MIDI CC blob
+      # round-tripped on Windows and not on macOS, 2026-11-14). Self-test first, then the tree.
+      - name: Unordered-container serialization lint
+        run: |
+          node tools/lint-unordered-serialization.js --self-test
+          node tools/lint-unordered-serialization.js
+
+      # Catches an allocation-detector non-vacuity probe that allocates through a local object clang may elide
+      # (a std::vector<int>(16) probe read 0 allocations on macOS, 2026-11-14); probes use
+      # TestHelpers::allocateObservably(). Self-test first, then the tree.
+      - name: Allocation probe lint
+        run: |
+          node tools/lint-allocation-probes.js --self-test
+          node tools/lint-allocation-probes.js
+
+      # Catches a job that builds or runs the C++ tests on a floating ubuntu-latest / windows-latest image: a new
+      # image brings a compiler with different floating-point codegen (Ubuntu 26's FMA contraction failed seven Linux
+      # shards on its first run, 2026-11-14; VS 2026 the Windows suites before that). Self-test first, then the tree.
+      - name: CI runner pin lint
+        run: |
+          node tools/lint-ci-runner-pins.js --self-test
+          node tools/lint-ci-runner-pins.js
+
+      # Catches test/tool code that takes a socket's URL or port and then releases the socket while the URL is still
+      # to be used: the OS hands the port to the next bind, and parallel tests bind constantly. The Krate Manager
+      # updater-refusals harness's `offline` endpoint did that and read another scenario's server on CI (2026-11-14).
+      - name: Released-port lint
+        run: |
+          node tools/lint-released-ports.js --self-test
+          node tools/lint-released-ports.js
+
+      # Every node check a workflow runs (lint-*.js, gen-*.js --check, node --test) must also run in the commit gate
+      # (tools/hooks/guard-ci-gates.js), so a CI check cannot be first exercised after a push. Every CI red on the
+      # audit/disrumpo PR was a check the gate did not list (2026-11-13/14).
+      - name: Commit gate mirrors CI lint
+        run: |
+          node tools/lint-gate-mirrors-ci.js --self-test
+          node tools/lint-gate-mirrors-ci.js
+
   build-windows:
     name: Windows (MSVC)
     # Pinned to windows-2022 (Visual Studio 2022 / MSVC v143). GitHub migrated
@@ -297,14 +346,14 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           submodules: recursive
 
       # Cache CMake FetchContent downloads
       # Key includes repo name to prevent cache pollution after repo rename
       - name: Cache FetchContent
-        uses: actions/cache@v5
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: build/_deps
           key: fetchcontent-${{ github.repository }}-${{ runner.os }}-vs-${{ hashFiles('CMakeLists.txt', 'dsp/CMakeLists.txt', 'plugins/shared/CMakeLists.txt', 'plugins/iterum/CMakeLists.txt', 'plugins/disrumpo/CMakeLists.txt', 'plugins/ruinae/CMakeLists.txt', 'plugins/innexus/CMakeLists.txt', 'plugins/gradus/CMakeLists.txt', 'plugins/membrum/CMakeLists.txt', 'plugins/seraphis/CMakeLists.txt', 'plugins/vorago/CMakeLists.txt', 'plugins/profundum/CMakeLists.txt', 'tests/CMakeLists.txt') }}
@@ -427,7 +476,7 @@ jobs:
 
       - name: Upload test binaries for the shard jobs
         if: steps.manifest.outputs.has_tests == 'true'
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: test-bin-windows
           path: |
@@ -488,7 +537,7 @@ jobs:
 
       - name: Upload Iterum Artifact
         if: needs.detect-changes.outputs.iterum == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: Iterum-Windows-x64
           path: build/VST3/${{ env.BUILD_TYPE }}/Iterum.vst3
@@ -496,7 +545,7 @@ jobs:
 
       - name: Upload Disrumpo Artifact
         if: needs.detect-changes.outputs.disrumpo == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: Disrumpo-Windows-x64
           path: build/VST3/${{ env.BUILD_TYPE }}/Disrumpo.vst3
@@ -504,7 +553,7 @@ jobs:
 
       - name: Upload Ruinae Artifact
         if: needs.detect-changes.outputs.ruinae == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: Ruinae-Windows-x64
           path: build/VST3/${{ env.BUILD_TYPE }}/Ruinae.vst3
@@ -512,7 +561,7 @@ jobs:
 
       - name: Upload Innexus Artifact
         if: needs.detect-changes.outputs.innexus == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: Innexus-Windows-x64
           path: build/VST3/${{ env.BUILD_TYPE }}/Innexus.vst3
@@ -520,7 +569,7 @@ jobs:
 
       - name: Upload Gradus Artifact
         if: needs.detect-changes.outputs.gradus == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: Gradus-Windows-x64
           path: build/VST3/${{ env.BUILD_TYPE }}/Gradus.vst3
@@ -528,7 +577,7 @@ jobs:
 
       - name: Upload Membrum Artifact
         if: needs.detect-changes.outputs.membrum == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: Membrum-Windows-x64
           path: build/VST3/${{ env.BUILD_TYPE }}/Membrum.vst3
@@ -536,7 +585,7 @@ jobs:
 
       - name: Upload Seraphis Artifact
         if: needs.detect-changes.outputs.seraphis == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: Seraphis-Windows-x64
           path: build/VST3/${{ env.BUILD_TYPE }}/Seraphis.vst3
@@ -544,7 +593,7 @@ jobs:
 
       - name: Upload Vorago Artifact
         if: needs.detect-changes.outputs.vorago == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: Vorago-Windows-x64
           path: build/VST3/${{ env.BUILD_TYPE }}/Vorago.vst3
@@ -552,7 +601,7 @@ jobs:
 
       - name: Upload Profundum Artifact
         if: needs.detect-changes.outputs.profundum == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: Profundum-Windows-x64
           path: build/VST3/${{ env.BUILD_TYPE }}/Profundum.vst3
@@ -567,7 +616,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           submodules: recursive
 
@@ -577,7 +626,7 @@ jobs:
 
       # Setup ccache with GitHub Actions cache backend
       - name: Setup ccache
-        uses: hendrikmuhs/ccache-action@v1.2.20
+        uses: hendrikmuhs/ccache-action@f09c25b45002a07be2955cbe52e8cee55643f89d # v1.2.24
         with:
           key: macos-xcode-${{ env.BUILD_TYPE }}
           max-size: ${{ env.CCACHE_MAXSIZE }}
@@ -585,7 +634,7 @@ jobs:
       # Cache CMake FetchContent downloads
       # Key includes repo name to prevent cache pollution after repo rename
       - name: Cache FetchContent
-        uses: actions/cache@v5
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: build/_deps
           key: fetchcontent-${{ github.repository }}-${{ runner.os }}-${{ hashFiles('CMakeLists.txt', 'dsp/CMakeLists.txt', 'plugins/shared/CMakeLists.txt', 'plugins/iterum/CMakeLists.txt', 'plugins/disrumpo/CMakeLists.txt', 'plugins/ruinae/CMakeLists.txt', 'plugins/innexus/CMakeLists.txt', 'plugins/gradus/CMakeLists.txt', 'plugins/membrum/CMakeLists.txt', 'plugins/seraphis/CMakeLists.txt', 'plugins/vorago/CMakeLists.txt', 'plugins/profundum/CMakeLists.txt', 'tests/CMakeLists.txt') }}
@@ -721,7 +770,7 @@ jobs:
 
       - name: Upload test binaries for the shard jobs
         if: steps.manifest.outputs.has_tests == 'true'
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: test-bin-macos
           path: |
@@ -976,7 +1025,7 @@ jobs:
 
       - name: Upload Iterum Artifacts
         if: needs.detect-changes.outputs.iterum == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: Iterum-macOS
           path: |
@@ -987,7 +1036,7 @@ jobs:
 
       - name: Upload Disrumpo Artifacts
         if: needs.detect-changes.outputs.disrumpo == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: Disrumpo-macOS
           path: |
@@ -998,7 +1047,7 @@ jobs:
 
       - name: Upload Ruinae Artifacts
         if: needs.detect-changes.outputs.ruinae == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: Ruinae-macOS
           path: |
@@ -1009,7 +1058,7 @@ jobs:
 
       - name: Upload Innexus Artifacts
         if: needs.detect-changes.outputs.innexus == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: Innexus-macOS
           path: |
@@ -1020,7 +1069,7 @@ jobs:
 
       - name: Upload Gradus Artifacts
         if: needs.detect-changes.outputs.gradus == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: Gradus-macOS
           path: |
@@ -1031,7 +1080,7 @@ jobs:
 
       - name: Upload Membrum Artifacts
         if: needs.detect-changes.outputs.membrum == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: Membrum-macOS
           path: |
@@ -1042,7 +1091,7 @@ jobs:
 
       - name: Upload Seraphis Artifacts
         if: needs.detect-changes.outputs.seraphis == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: Seraphis-macOS
           path: |
@@ -1053,7 +1102,7 @@ jobs:
 
       - name: Upload Vorago Artifacts
         if: needs.detect-changes.outputs.vorago == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: Vorago-macOS
           path: |
@@ -1064,7 +1113,7 @@ jobs:
 
       - name: Upload Profundum Artifacts
         if: needs.detect-changes.outputs.profundum == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: Profundum-macOS
           path: |
@@ -1076,14 +1125,19 @@ jobs:
   # Linux build (optional per constitution - Platform Support Matrix)
   build-linux:
     name: Linux (GCC)
-    runs-on: ubuntu-latest
+    # Pinned to ubuntu-24.04 (GCC 13), as Windows is pinned to windows-2022 above: DSP numerical determinism needs
+    # a pinned compiler. ubuntu-latest began moving to Ubuntu 26 on 2026-10-19, whose toolchain contracted float
+    # multiply-adds into FMA where GCC 13 does not (the arp shared-prefix golden read exactly the fused value,
+    # 0xb8314cb3, on the first Ubuntu 26 run), and tolerance-tight renders moved with it. 24.04 also matches the
+    # WSL Ubuntu used to reproduce Linux reds locally.
+    runs-on: ubuntu-24.04
     needs: detect-changes
     outputs:
       has-tests: ${{ steps.manifest.outputs.has_tests }}
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           submodules: recursive
 
@@ -1104,7 +1158,7 @@ jobs:
 
       # Cache ccache data
       - name: Setup ccache
-        uses: hendrikmuhs/ccache-action@v1.2.20
+        uses: hendrikmuhs/ccache-action@f09c25b45002a07be2955cbe52e8cee55643f89d # v1.2.24
         with:
           key: linux-gcc-${{ env.BUILD_TYPE }}
           max-size: ${{ env.CCACHE_MAXSIZE }}
@@ -1112,7 +1166,7 @@ jobs:
       # Cache CMake FetchContent downloads
       # Key includes repo name to prevent cache pollution after repo rename
       - name: Cache FetchContent
-        uses: actions/cache@v5
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: build/_deps
           key: fetchcontent-${{ github.repository }}-${{ runner.os }}-${{ hashFiles('CMakeLists.txt', 'dsp/CMakeLists.txt', 'plugins/shared/CMakeLists.txt', 'plugins/iterum/CMakeLists.txt', 'plugins/disrumpo/CMakeLists.txt', 'plugins/ruinae/CMakeLists.txt', 'plugins/innexus/CMakeLists.txt', 'plugins/gradus/CMakeLists.txt', 'plugins/membrum/CMakeLists.txt', 'plugins/seraphis/CMakeLists.txt', 'plugins/vorago/CMakeLists.txt', 'plugins/profundum/CMakeLists.txt', 'tests/CMakeLists.txt') }}
@@ -1233,7 +1287,7 @@ jobs:
 
       - name: Upload test binaries for the shard jobs
         if: steps.manifest.outputs.has_tests == 'true'
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: test-bin-linux
           path: |
@@ -1299,7 +1353,7 @@ jobs:
 
       - name: Upload Iterum Artifact
         if: needs.detect-changes.outputs.iterum == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: Iterum-Linux-x64
           path: build/VST3/${{ env.BUILD_TYPE }}/Iterum.vst3
@@ -1307,7 +1361,7 @@ jobs:
 
       - name: Upload Disrumpo Artifact
         if: needs.detect-changes.outputs.disrumpo == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: Disrumpo-Linux-x64
           path: build/VST3/${{ env.BUILD_TYPE }}/Disrumpo.vst3
@@ -1315,7 +1369,7 @@ jobs:
 
       - name: Upload Ruinae Artifact
         if: needs.detect-changes.outputs.ruinae == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: Ruinae-Linux-x64
           path: build/VST3/${{ env.BUILD_TYPE }}/Ruinae.vst3
@@ -1323,7 +1377,7 @@ jobs:
 
       - name: Upload Innexus Artifact
         if: needs.detect-changes.outputs.innexus == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: Innexus-Linux-x64
           path: build/VST3/${{ env.BUILD_TYPE }}/Innexus.vst3
@@ -1331,7 +1385,7 @@ jobs:
 
       - name: Upload Gradus Artifact
         if: needs.detect-changes.outputs.gradus == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: Gradus-Linux-x64
           path: build/VST3/${{ env.BUILD_TYPE }}/Gradus.vst3
@@ -1339,7 +1393,7 @@ jobs:
 
       - name: Upload Membrum Artifact
         if: needs.detect-changes.outputs.membrum == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: Membrum-Linux-x64
           path: build/VST3/${{ env.BUILD_TYPE }}/Membrum.vst3
@@ -1347,7 +1401,7 @@ jobs:
 
       - name: Upload Seraphis Artifact
         if: needs.detect-changes.outputs.seraphis == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: Seraphis-Linux-x64
           path: build/VST3/${{ env.BUILD_TYPE }}/Seraphis.vst3
@@ -1355,7 +1409,7 @@ jobs:
 
       - name: Upload Vorago Artifact
         if: needs.detect-changes.outputs.vorago == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: Vorago-Linux-x64
           path: build/VST3/${{ env.BUILD_TYPE }}/Vorago.vst3
@@ -1363,7 +1417,7 @@ jobs:
 
       - name: Upload Profundum Artifact
         if: needs.detect-changes.outputs.profundum == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: Profundum-Linux-x64
           path: build/VST3/${{ env.BUILD_TYPE }}/Profundum.vst3
@@ -1396,9 +1450,9 @@ jobs:
       # through <PLUGIN>_RESOURCES_DIR, the preset tests read resources/presets, and the DSP suites read
       # their golden files from the tree. No submodules: nothing is compiled here.
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Download test binaries
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: test-bin-windows
           path: build
@@ -1411,7 +1465,7 @@ jobs:
       # this artifact, for when the annotations' ten-per-step cap is hit.
       - name: Upload shard log
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: test-log-windows-${{ matrix.shard }}
           path: build/test-logs/
@@ -1433,9 +1487,9 @@ jobs:
       # through <PLUGIN>_RESOURCES_DIR, the preset tests read resources/presets, and the DSP suites read
       # their golden files from the tree. No submodules: nothing is compiled here.
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Download test binaries
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: test-bin-macos
           path: build
@@ -1448,7 +1502,7 @@ jobs:
         run: node tools/ci-test-shard.js --os macos --bin "build/bin/${{ env.BUILD_TYPE }}" --manifest build/test-manifest.txt --shard ${{ matrix.shard }} --count 8 --long "${{ inputs.long-tests }}" --log-dir build/test-logs
       - name: Upload shard log
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: test-log-macos-${{ matrix.shard }}
           path: build/test-logs/
@@ -1457,7 +1511,7 @@ jobs:
 
   test-linux:
     name: Linux tests (shard ${{ matrix.shard }})
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04  # the build's image (build-linux): same libstdc++ and CPU baseline
     needs: [detect-changes, build-linux]
     if: needs.build-linux.outputs.has-tests == 'true'
     timeout-minutes: ${{ inputs.long-tests && 200 || 75 }}
@@ -1470,7 +1524,7 @@ jobs:
       # through <PLUGIN>_RESOURCES_DIR, the preset tests read resources/presets, and the DSP suites read
       # their golden files from the tree. No submodules: nothing is compiled here.
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # The test binaries link VSTGUI, so the X11 / cairo / gtkmm runtime libraries must be present to load
       # them; the -dev packages carry those runtime libraries (same list as the build job).
       # Capped and retried: one shard of run 37924744923 sat in this step for hours while the other seven
@@ -1491,7 +1545,7 @@ jobs:
             sleep 20
           done
       - name: Download test binaries
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: test-bin-linux
           path: build
@@ -1504,7 +1558,7 @@ jobs:
         run: node tools/ci-test-shard.js --os linux --bin "build/bin/${{ env.BUILD_TYPE }}" --manifest build/test-manifest.txt --shard ${{ matrix.shard }} --count 8 --long "${{ inputs.long-tests }}" --log-dir build/test-logs
       - name: Upload shard log
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: test-log-linux-${{ matrix.shard }}
           path: build/test-logs/

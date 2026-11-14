@@ -127,6 +127,19 @@ public:
     /// @note FR-002: Resets all delay buffers, filter states, and feedback values
     void reset() noexcept;
 
+    /// @brief Take over @p other's loop and DC-blocker state (warm start), keeping this
+    /// instance's sample rate and parameters.
+    ///
+    /// For an owner that starts a cleared copy of a running saturator at another sample rate (an
+    /// oversampling switch): from a cleared state a loop can settle on a different state than the
+    /// running one, and the 10 Hz DC blocker passes the loop's DC as a step that decays over
+    /// ~150 ms. The DC blocker starts on the mean @p other's removes (the loop output's DC); the
+    /// SingleAllpass, AllpassChain and FeedbackMatrix loops take the damping lowpasses' state and
+    /// the last outputs, and their allpass filters, configured for this rate, start settled on the
+    /// DC their input then carries. KarplusStrong (its delay line is not carried) starts cleared.
+    /// Does nothing unless both are prepared and run the same topology; never called, nothing changes.
+    void warmStartFrom(const AllpassSaturator& other) noexcept;
+
     // =========================================================================
     // Topology Selection (FR-004 to FR-009)
     // =========================================================================
@@ -238,6 +251,56 @@ public:
     /// @return Target decay time in seconds
     [[nodiscard]] float getDecay() const noexcept;
 
+    /// @brief The KarplusStrong delay that tunes the loop to @p frequency.
+    ///
+    /// The loop is readAllpass(d) - read BEFORE the write, so the sample written
+    /// d + 1 steps earlier - then the memoryless waveshaper, the loop lowpass and
+    /// the memoryless soft clip. Its phase comes round at the frequency where
+    /// d + 1 + the lowpass's phase delay equals one period, so d is fs / f minus
+    /// both (follow-up 92: without them the node was -2 to -273 cents flat).
+    /// OnePoleLP is y = (1 - a) x + a y[n-1], a = exp(-2 pi fc / fs)
+    /// (one_pole.h), so its phase delay at w is atan2(a sin w, 1 - a cos w) / w.
+    ///
+    /// A LOSSY loop rings below that phase crossing: its pole sits at
+    /// dw = -A A' / (T^2 + A'^2) from it, with A = ln of the loop's small-signal
+    /// gain per period (feedback x drive x |lowpass|), A' = dA/dw and T = 2 pi / w
+    /// (first-order expansion of the loop equation about the crossing). MEASURED:
+    /// A6 at damping 0.3 rang -12.7 cents at 44.1 kHz with the crossing exactly
+    /// on A6. The crossing is therefore aimed dw above the note. A >= 0 (the
+    /// waveshaper sustains the loop into saturation) has no shift, so A is
+    /// clamped to <= 0.
+    ///
+    /// Clamped to kMinKarplusDelaySamples, the allpass interpolator's minimum.
+    /// Out of line so every caller - the cached shipping path and the
+    /// per-sample t416 reference - computes the identical value.
+    [[nodiscard]] ITERUM_NOINLINE static float karplusLoopDelaySamples(
+        double sampleRate, float frequency, float lowpassCutoffHz, float loopGain) noexcept {
+        const auto fs = static_cast<float>(sampleRate);
+        const float w = kTwoPi * frequency / fs;
+        const float a = std::exp(-kTwoPi * lowpassCutoffHz / fs);
+        const float den = 1.0f - (2.0f * a * std::cos(w)) + (a * a);
+        const float lowpassGain = (1.0f - a) / std::sqrt(den);
+        const float lossPerPeriod =
+            std::min(std::log(std::max(loopGain * lowpassGain, kMinKarplusLoopGain)), 0.0f);
+        const float lossSlope = -a * std::sin(w) / den;
+        const float period = kTwoPi / w;
+        const float poleShift =
+            -lossPerPeriod * lossSlope / ((period * period) + (lossSlope * lossSlope));
+        const float wc = w - poleShift;
+        const float lowpassPhaseDelay =
+            std::atan2(a * std::sin(wc), 1.0f - (a * std::cos(wc))) / wc;
+        constexpr float kReadBeforeWriteDelay = 1.0f;
+        return std::max((kTwoPi / wc) - kReadBeforeWriteDelay - lowpassPhaseDelay,
+                        kMinKarplusDelaySamples);
+    }
+
+    /// Floor for karplusLoopDelaySamples' log: below it the tone dies within a
+    /// period and its pitch is moot.
+    static constexpr float kMinKarplusLoopGain = 1.0e-4f;
+
+    /// DelayLine::readAllpass's minimum fractional delay (delay_line.h).
+    static constexpr float kMinKarplusDelaySamples = 0.5f;
+
     // =========================================================================
     // Damping Control
     // =========================================================================
@@ -329,6 +392,9 @@ private:
     public:
         void prepare(double sampleRate) noexcept;
         void reset() noexcept;
+        /// Take over @p other's damping and last-output state at @p sampleRate; the allpass (configured
+        /// for this rate) starts settled on the constant input @p allpassInput.
+        void warmStartFrom(const SaturatedAllpassStage& other, double sampleRate, float allpassInput) noexcept;
         void setFrequency(float hz, float sampleRate) noexcept;
         void setDrive(float drive) noexcept;
         void setSaturationCurve(WaveshapeType type) noexcept;
@@ -362,6 +428,10 @@ private:
     void decayToFeedbackAndCutoff(float decaySeconds, float frequency,
                                    float& outFeedback, float& outCutoff) const noexcept;
 
+    /// @brief Set @p filter's state to the one a constant input @p input settles it to, at its own
+    /// coefficients (warmStartFrom).
+    static void primeAtDc(Biquad& filter, float input) noexcept;
+
     /// @brief Process SingleAllpass topology.
     [[nodiscard]] float processSingleAllpass(float input) noexcept;
 
@@ -373,6 +443,10 @@ private:
 
     /// @brief Process FeedbackMatrix topology.
     [[nodiscard]] float processFeedbackMatrix(float input) noexcept;
+
+    /// @brief Push the smoothed frequency and/or drive into the active topology only.
+    void configureActiveTopology(float frequency, float drive,
+                                 bool frequencyChanged, bool driveChanged) noexcept;
 
     /// @brief Update allpass chain frequencies based on base frequency.
     void updateChainFrequencies() noexcept;
@@ -401,6 +475,13 @@ private:
     OnePoleSmoother frequencySmoother_;
     OnePoleSmoother feedbackSmoother_;
     OnePoleSmoother driveSmoother_;
+
+    // Smoothed frequency / drive last pushed into the active topology (D-084).
+    // kNotApplied (below every legal value) forces the next process() to
+    // configure; prepare() and a topology change set it.
+    static constexpr float kNotApplied = -1.0f;
+    float appliedFrequency_ = kNotApplied;
+    float appliedDrive_ = kNotApplied;
 
     // =========================================================================
     // Shared Components
@@ -432,6 +513,12 @@ private:
     OnePoleLP ksLowpass_;
     Waveshaper ksWaveshaper_;
     float ksLastOutput_ = 0.0f;
+    /// karplusLoopDelaySamples() for the (frequency, cutoff, loop gain) it was
+    /// computed at; recomputed only when one moves. 0 Hz invalidates (prepare()).
+    float ksDelayFrequency_ = 0.0f;
+    float ksDelayCutoff_ = 0.0f;
+    float ksDelayLoopGain_ = 0.0f;
+    float ksDelaySamples_ = 0.0f;
 
     // =========================================================================
     // FeedbackMatrix Components (4x4 Householder)
@@ -464,6 +551,18 @@ inline void AllpassSaturator::SaturatedAllpassStage::reset() noexcept {
     allpass_.reset();
     dampingLP_.reset();
     lastOutput_ = 0.0f;
+}
+
+inline void AllpassSaturator::SaturatedAllpassStage::warmStartFrom(const SaturatedAllpassStage& other,
+                                                                   double sampleRate, float allpassInput) noexcept {
+    // The damping lowpass takes other's state at this rate and cutoff (prepare keeps the state)
+    const float cutoff = dampingLP_.getCutoff();
+    dampingLP_ = other.dampingLP_;
+    dampingLP_.prepare(sampleRate);
+    dampingLP_.setCutoff(cutoff);
+    lastOutput_ = other.lastOutput_;
+    // The allpass (configured for this rate) starts settled on its input's DC
+    primeAtDc(allpass_, allpassInput);
 }
 
 inline void AllpassSaturator::SaturatedAllpassStage::setFrequency(float hz, float sampleRate) noexcept {
@@ -542,6 +641,7 @@ inline void AllpassSaturator::prepare(double sampleRate, [[maybe_unused]] size_t
     ksDelay_.prepare(sampleRate, maxDelaySeconds);
     ksLowpass_.prepare(sampleRate);
     ksLowpass_.setCutoff(5000.0f);  // Default cutoff
+    ksDelayFrequency_ = 0.0f;       // the cached loop delay belongs to the old rate
     ksWaveshaper_.setType(saturationCurve_);
     ksWaveshaper_.setDrive(drive_);
 
@@ -553,6 +653,9 @@ inline void AllpassSaturator::prepare(double sampleRate, [[maybe_unused]] size_t
         matrixStages_[i].setDrive(drive_);
         matrixStages_[i].setSaturationCurve(saturationCurve_);
     }
+
+    appliedFrequency_ = kNotApplied;
+    appliedDrive_ = kNotApplied;
 
     prepared_ = true;
 }
@@ -588,6 +691,71 @@ inline void AllpassSaturator::reset() noexcept {
     matrixLastOutputs_.fill(0.0f);
 }
 
+inline void AllpassSaturator::primeAtDc(Biquad& filter, float input) noexcept {
+    // Transposed direct form II at a constant input u: y = H(1) u, z1 = y - b0 u, z2 = b2 u - a2 y.
+    // Biquad takes no state directly: a filter with b = (0, z1, z2) and a = 0 holds (z1, z2) after
+    // one unit sample, then takes the real coefficients
+    const BiquadCoefficients c = filter.coefficients();
+    const float den = 1.0f + c.a1 + c.a2;
+    const float y = den != 0.0f ? (c.b0 + c.b1 + c.b2) / den * input : 0.0f;
+    Biquad seeded;
+    seeded.setCoefficients(BiquadCoefficients{.b0 = 0.0f, .b1 = y - c.b0 * input, .b2 = c.b2 * input - c.a2 * y,
+                                              .a1 = 0.0f, .a2 = 0.0f});
+    (void)seeded.process(1.0f);
+    seeded.setCoefficients(c);
+    filter = seeded;
+}
+
+inline void AllpassSaturator::warmStartFrom(const AllpassSaturator& other) noexcept {
+    // KarplusStrong's delay line is not carried: its loop starts cleared, with its blocker
+    if (!prepared_ || !other.prepared_ || topology_ != other.topology_ ||
+        topology_ == NetworkTopology::KarplusStrong) {
+        return;
+    }
+    // The next output of a blocker is x - (x[n-1] - R y[n-1]): at x = 0, minus the mean it removes,
+    // here the loop output's DC
+    DCBlocker probe = other.dcBlocker_;
+    const float loopDc = -probe.process(0.0f);
+    dcBlocker_.setState(loopDc, 0.0f);
+    // This rate's coefficients now, at the smoothed values the next sample reads
+    appliedFrequency_ = frequencySmoother_.getCurrentValue();
+    appliedDrive_ = driveSmoother_.getCurrentValue();
+    configureActiveTopology(appliedFrequency_, appliedDrive_, true, true);
+    // The loop takes other's damping state and last outputs; its allpass filters, whose state
+    // belongs to other's coefficients, start settled on the DC their input carries (allpass DC gain
+    // 1): a raw copy knocked a latched loop off its state (0.92 -> 0.44 in one sample, round 4)
+    const float feedback = feedbackSmoother_.getCurrentValue();
+    switch (topology_) {
+        case NetworkTopology::SingleAllpass:
+            singleStage_.warmStartFrom(other.singleStage_, sampleRate_, loopDc * feedback);
+            break;
+        case NetworkTopology::AllpassChain: {
+            const float cutoff = chainDampingLP_.getCutoff();
+            chainDampingLP_ = other.chainDampingLP_;
+            chainDampingLP_.prepare(sampleRate_);  // keeps the state
+            chainDampingLP_.setCutoff(cutoff);
+            chainLastOutput_ = other.chainLastOutput_;
+            for (auto& ap : chainAllpasses_) {
+                primeAtDc(ap, loopDc * feedback);
+            }
+            break;
+        }
+        case NetworkTopology::FeedbackMatrix: {
+            matrixLastOutputs_ = other.matrixLastOutputs_;
+            std::array<float, 4> crossFeedback{};
+            HouseholderMatrix::multiply(matrixLastOutputs_.data(), crossFeedback.data());
+            for (size_t i = 0; i < matrixStages_.size(); ++i) {
+                const float allpassInput =
+                    crossFeedback[i] * feedback + matrixLastOutputs_[i] * feedback * 0.7f;
+                matrixStages_[i].warmStartFrom(other.matrixStages_[i], sampleRate_, allpassInput);
+            }
+            break;
+        }
+        case NetworkTopology::KarplusStrong:
+            break;
+    }
+}
+
 // -----------------------------------------------------------------------------
 // Topology Selection
 // -----------------------------------------------------------------------------
@@ -597,6 +765,10 @@ inline void AllpassSaturator::setTopology(NetworkTopology topology) noexcept {
         topology_ = topology;
         // FR-009: Reset state on topology change
         reset();
+        // process() configures only the active topology: bring the new one
+        // up to the current smoothed values before its first sample.
+        appliedFrequency_ = kNotApplied;
+        appliedDrive_ = kNotApplied;
     }
 }
 
@@ -729,26 +901,16 @@ inline float AllpassSaturator::process(float input) noexcept {
     (void)feedbackSmoother_.process();  // Advance smoother (read via getCurrentValue() in topology processing)
     const float smoothedDrive = driveSmoother_.process();
 
-    // Update components with smoothed parameters
-    const float sampleRateF = static_cast<float>(sampleRate_);
-    singleStage_.setFrequency(smoothedFreq, sampleRateF);
-    singleStage_.setDrive(smoothedDrive);
-
-    // Update AllpassChain frequencies
-    for (size_t i = 0; i < 4; ++i) {
-        chainAllpasses_[i].configure(FilterType::Allpass,
-                                      smoothedFreq * kChainFrequencyRatios[i],
-                                      10.0f, 0.0f, sampleRateF);
-    }
-    chainWaveshaper_.setDrive(smoothedDrive);
-
-    // Update KarplusStrong
-    ksWaveshaper_.setDrive(smoothedDrive);
-
-    // Update FeedbackMatrix
-    for (size_t i = 0; i < 4; ++i) {
-        matrixStages_[i].setFrequency(smoothedFreq * kMatrixDetuneRatios[i], sampleRateF);
-        matrixStages_[i].setDrive(smoothedDrive);
+    // Update the active topology's components, and only when the smoothed
+    // values moved (D-084): each allpass design costs a sin/cos pair, and the
+    // inactive topologies are brought up to date by the invalidation in
+    // setTopology() / prepare() before their first sample.
+    const bool frequencyChanged = smoothedFreq != appliedFrequency_;
+    const bool driveChanged = smoothedDrive != appliedDrive_;
+    if (frequencyChanged || driveChanged) {
+        configureActiveTopology(smoothedFreq, smoothedDrive, frequencyChanged, driveChanged);
+        appliedFrequency_ = smoothedFreq;
+        appliedDrive_ = smoothedDrive;
     }
 
     // Process based on topology
@@ -775,6 +937,51 @@ inline float AllpassSaturator::process(float input) noexcept {
     output = detail::flushDenormal(output);
 
     return output;
+}
+
+inline void AllpassSaturator::configureActiveTopology(float frequency, float drive,
+                                                      bool frequencyChanged,
+                                                      bool driveChanged) noexcept {
+    const float sampleRateF = static_cast<float>(sampleRate_);
+    switch (topology_) {
+        case NetworkTopology::SingleAllpass:
+            if (frequencyChanged) {
+                singleStage_.setFrequency(frequency, sampleRateF);
+            }
+            if (driveChanged) {
+                singleStage_.setDrive(drive);
+            }
+            break;
+        case NetworkTopology::AllpassChain:
+            if (frequencyChanged) {
+                for (size_t i = 0; i < 4; ++i) {
+                    chainAllpasses_[i].configure(FilterType::Allpass,
+                                                  frequency * kChainFrequencyRatios[i],
+                                                  10.0f, 0.0f, sampleRateF);
+                }
+            }
+            if (driveChanged) {
+                chainWaveshaper_.setDrive(drive);
+            }
+            break;
+        case NetworkTopology::KarplusStrong:
+            // The delay length and loop filter follow the smoothed frequency in
+            // processKarplusStrong(); only the drive is stored here.
+            if (driveChanged) {
+                ksWaveshaper_.setDrive(drive);
+            }
+            break;
+        case NetworkTopology::FeedbackMatrix:
+            for (size_t i = 0; i < 4; ++i) {
+                if (frequencyChanged) {
+                    matrixStages_[i].setFrequency(frequency * kMatrixDetuneRatios[i], sampleRateF);
+                }
+                if (driveChanged) {
+                    matrixStages_[i].setDrive(drive);
+                }
+            }
+            break;
+    }
 }
 
 inline void AllpassSaturator::processBlock(float* buffer, size_t numSamples) noexcept {
@@ -816,9 +1023,6 @@ inline float AllpassSaturator::processAllpassChain(float input) noexcept {
 inline float AllpassSaturator::processKarplusStrong(float input) noexcept {
     const float smoothedFreq = frequencySmoother_.getCurrentValue();
 
-    // Calculate delay time in samples from frequency
-    const float delaySamples = static_cast<float>(sampleRate_) / smoothedFreq;
-
     // Calculate feedback and lowpass cutoff from decay time
     float ksFeedback;
     float ksCutoff;
@@ -832,8 +1036,20 @@ inline float AllpassSaturator::processKarplusStrong(float input) noexcept {
     }
     ksLowpass_.setCutoff(ksCutoff);
 
+    // Delay that tunes the whole loop, not just the line (follow-up 92).
+    const float lowpassCutoff = ksLowpass_.getCutoff();
+    const float loopGain = ksFeedback * ksWaveshaper_.getDrive();
+    if (smoothedFreq != ksDelayFrequency_ || lowpassCutoff != ksDelayCutoff_ ||
+        loopGain != ksDelayLoopGain_) {
+        ksDelaySamples_ =
+            karplusLoopDelaySamples(sampleRate_, smoothedFreq, lowpassCutoff, loopGain);
+        ksDelayFrequency_ = smoothedFreq;
+        ksDelayCutoff_ = lowpassCutoff;
+        ksDelayLoopGain_ = loopGain;
+    }
+
     // Read from delay with allpass interpolation
-    const float delayed = ksDelay_.readAllpass(delaySamples);
+    const float delayed = ksDelay_.readAllpass(ksDelaySamples_);
 
     // Apply saturation
     const float saturated = ksWaveshaper_.process(delayed);

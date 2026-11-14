@@ -3543,14 +3543,17 @@ struct XfadeRender {
 
 /// THE PINNED DETECTOR CONFIGURATION (SC-012). Designated initialisers
 /// throughout - Clang rejects narrowing in brace initialisation - and the field
-/// order is the declaration order at `artifact_detection.h:38-45`.
-[[nodiscard]] std::size_t countXfadeClicks(const std::vector<float>& buffer)
+/// order is the declaration order at `artifact_detection.h:38-45`. Only
+/// requireCalibratedDetectionBudget passes a threshold other than the pinned
+/// 5.0 sigma.
+[[nodiscard]] std::size_t countXfadeClicks(const std::vector<float>& buffer,
+                                           float threshold = 5.0f)
 {
     Krate::DSP::TestUtils::ClickDetectorConfig cfg{
         .sampleRate = static_cast<float>(kXfadeSampleRate),
         .frameSize = 512,
         .hopSize = 256,
-        .detectionThreshold = 5.0f,
+        .detectionThreshold = threshold,
         .energyThresholdDb = -60.0f,
         .mergeGap = 5};
     Krate::DSP::TestUtils::ClickDetector detector(cfg);
@@ -3708,6 +3711,10 @@ void requireControlRelativeClickless(const XfadeRender& test,
     REQUIRE(measured.maxDeltaRight <= kXfadeDeltaFactor * baseline.maxDeltaRight);
 }
 
+/// The count clause's absolute allowance - see requireEnsembleDetectionBudget
+/// for its derivation. Shared with requireCalibratedDetectionBudget.
+constexpr double kSmallCountAllowance = 4.0;
+
 /// @brief SC-012's detection-count clause, over the whole seed ensemble.
 ///
 /// @param tally  summed test and baseline counts
@@ -3769,11 +3776,104 @@ void requireEnsembleDetectionBudget(const ClickTally& tally, double factor = 1.0
     // measurement run reads 33 vs 28, 34 vs 32 and 17 vs 28. A genuine click
     // regression moves these counts by tens - the FR-038a clearing form of
     // FR-033a's recovery, caught and fixed during this session, read 51 vs 28.
-    constexpr double kSmallCountAllowance = 4.0;
     REQUIRE(static_cast<double>(tally.testLeft)
             <= (factor * static_cast<double>(tally.baseLeft)) + kSmallCountAllowance);
     REQUIRE(static_cast<double>(tally.testRight)
             <= (factor * static_cast<double>(tally.baseRight)) + kSmallCountAllowance);
+}
+
+/// Calibration step and cap, SC-015's (aether_reverb_test.cpp).
+constexpr float kXfadeThresholdStep = 0.25f;
+constexpr float kXfadeThresholdCap = 8.0f;
+
+/// @brief The detection-count clause CALIBRATED against the no-event controls,
+///        for the retarget (SC-012 ii) and glide (SC-004) cases.
+///
+/// ============== WHY A CALIBRATED THRESHOLD, AND NOT 5 SIGMA ================
+/// At the pinned 5 sigma these two cases compare two Poisson-like counts whose
+/// rate is set by the TEXTURE, and the texture moved under them: c71fa245 made
+/// the decay cloud's fixed fractional delays real (DelayLine::readAllpass), and
+/// the summed counts went from retarget(a) L 8 vs 12 to 11 vs 6 (limit 10) and
+/// glide Glass R 0 vs 1 to 8 vs 3 (limit 7) with no transition code touched.
+/// MEASURED on those renders, none of the detections is a click: every
+/// detection amplitude (0.0074 - 0.037) is below the endpoint controls' own
+/// max|dx| (0.020 - 0.066); the test renders' worst outlier (retarget(a)
+/// 5.31 - 5.95 sigma, glide Glass 4.87 - 5.64) is inside the controls' range
+/// (up to 6.09 / 5.67); none falls on a setMaterial instant or the collapse,
+/// and the settled-tail ones coincide with the Metal Plate control's own
+/// (1189 / 1208 / 1833 ms on the same seeds).
+///
+/// So the detector is calibrated the way SC-015 calibrates Aether's: from the
+/// pinned 5.0 sigma, in 0.25 steps, up to the 8.0 cap, to the smallest
+/// threshold at which EVERY no-event control of the ensemble (every endpoint,
+/// every seed, both channels) scores 0. At that threshold the test renders
+/// must stay within kSmallCountAllowance. Calibrated: retarget(a) 6.25,
+/// retarget(b) 6.5, glide Glass / MetalPlate 5.75, Ice 6.25, Chamber 6.5,
+/// Strings 7.25; the test renders then score 0 or 1 per channel.
+///
+/// THE POSITIVE CONTROL is part of the clause, as in SC-015: one single-sample
+/// displacement of 1.0 x the seed's worst endpoint max|dx| - under the 1.5x
+/// amplitude clause, so only this clause can see it - added at each `clickAt`
+/// sample of every test render, on both channels. The clicked renders must
+/// FAIL the budget (more detections than kSmallCountAllowance), i.e. a click
+/// at each event turns the clause red. MEASURED, detections of the injected
+/// clicks per channel: retarget 6 of 6, glide 9 of 9 except Chamber L 8 of 9.
+/// The 5-sigma clause this replaces passed the same injection on retarget(b)
+/// (34 vs 36 + 4) and glide Chamber (38 vs 36 + 4): the calibrated form is
+/// the stronger of the two.
+/// ===========================================================================
+void requireCalibratedDetectionBudget(const std::vector<XfadeRender>& controls,
+                                      const std::vector<XfadeRender>& tests,
+                                      const std::vector<XfadeMetrics>& baselines,
+                                      const std::vector<std::size_t>& clickAt)
+{
+    REQUIRE(!controls.empty());
+    REQUIRE(tests.size() == baselines.size());
+
+    const auto controlDetections = [&controls](float threshold) {
+        std::size_t total = 0;
+        for (const XfadeRender& c : controls) {
+            total += countXfadeClicks(c.left, threshold) + countXfadeClicks(c.right, threshold);
+        }
+        return total;
+    };
+    float threshold = 5.0f;
+    std::size_t floorAtThreshold = controlDetections(threshold);
+    while ((floorAtThreshold > 0u) && (threshold < kXfadeThresholdCap)) {
+        threshold = std::min(threshold + kXfadeThresholdStep, kXfadeThresholdCap);
+        floorAtThreshold = controlDetections(threshold);
+    }
+    INFO("calibrated detectionThreshold = " << threshold << " (cap " << kXfadeThresholdCap
+                                            << "), control detections there = "
+                                            << floorAtThreshold);
+    REQUIRE(floorAtThreshold == 0u);
+
+    ClickTally tally;  // baseline stays 0: the controls score 0 by calibration
+    std::size_t foundLeft = 0;
+    std::size_t foundRight = 0;
+    for (std::size_t s = 0; s < tests.size(); ++s) {
+        tally.testLeft += countXfadeClicks(tests[s].left, threshold);
+        tally.testRight += countXfadeClicks(tests[s].right, threshold);
+
+        std::vector<float> clickedLeft = tests[s].left;
+        std::vector<float> clickedRight = tests[s].right;
+        for (const std::size_t n : clickAt) {
+            REQUIRE(n < clickedLeft.size());
+            clickedLeft[n] += static_cast<float>(baselines[s].maxDeltaLeft);
+            clickedRight[n] += static_cast<float>(baselines[s].maxDeltaRight);
+        }
+        foundLeft += countXfadeClicks(clickedLeft, threshold);
+        foundRight += countXfadeClicks(clickedRight, threshold);
+    }
+    requireEnsembleDetectionBudget(tally);
+
+    const std::size_t injected = clickAt.size() * tests.size();
+    INFO("positive control: " << injected << " single-sample clicks of 1.0 x max|dx| per channel; "
+                              << "detections at the calibrated threshold L = " << foundLeft
+                              << ", R = " << foundRight);
+    REQUIRE(static_cast<double>(injected) > kSmallCountAllowance);
+    REQUIRE(static_cast<double>(foundLeft) > kSmallCountAllowance);
+    REQUIRE(static_cast<double>(foundRight) > kSmallCountAllowance);
 }
 
 constexpr std::array<Krate::DSP::ContinuousBody::BodyMaterial, 5> kXfadeMaterials = {
@@ -4232,7 +4332,9 @@ TEST_CASE("ContinuousBody_RetargetClickless")
     /// the controls for EVERY material the schedule touches.
     const auto runRetarget = [&](const std::vector<MaterialEvent>& schedule,
                                  const std::vector<BodyMaterial>& touched) {
-        ClickTally tally;
+        std::vector<XfadeRender> controls;
+        std::vector<XfadeRender> tests;
+        std::vector<XfadeMetrics> baselines;
         for (const std::uint32_t seed : kXfadeSeeds) {
             // touched.front() is the material the schedule STARTS from, so its
             // control doubles as the non-vacuity reference.
@@ -4241,18 +4343,25 @@ TEST_CASE("ContinuousBody_RetargetClickless")
             std::vector<XfadeMetrics> controlMetrics;
             controlMetrics.reserve(touched.size());
             controlMetrics.push_back(measureXfade(reference));
+            controls.push_back(reference);
             for (std::size_t i = 1; i < touched.size(); ++i) {
-                controlMetrics.push_back(
-                    measureXfade(renderMaterialSchedule(touched[i], {}, seed)));
+                controls.push_back(renderMaterialSchedule(touched[i], {}, seed));
+                controlMetrics.push_back(measureXfade(controls.back()));
             }
             const XfadeRender test =
                 renderMaterialSchedule(touched.front(), schedule, seed);
             const XfadeMetrics baseline = worstOf(controlMetrics);
             INFO("seed = " << seed);
             requireControlRelativeClickless(test, baseline, reference);
-            tally.add(measureXfade(test), baseline);
+            tests.push_back(test);
+            baselines.push_back(baseline);
         }
-        requireEnsembleDetectionBudget(tally);
+        // The positive control's clicks land on the setMaterial instants.
+        std::vector<std::size_t> clickAt;
+        for (const MaterialEvent& event : schedule) {
+            clickAt.push_back(event.block * kXfadeBlockSize);
+        }
+        requireCalibratedDetectionBudget(controls, tests, baselines, clickAt);
     };
 
     SECTION("(a) Glass -> Ice -> MetalPlate inside one 500 ms window")
@@ -4605,58 +4714,24 @@ constexpr std::size_t kGlideLocalWindow = 9600;  // 200 ms at 48 kHz
 // =============================================================================
 TEST_CASE("ContinuousBody_GlideIsClickless")
 {
-    // ============ RECORDED DEVIATION FROM SC-004, WAVEGUIDE ONLY =============
-    // SC-004 states `detections(glide) <= detections(control)`. On the WAVEGUIDE
-    // that inequality is not reachable, and the reason is a measured property of
-    // the FR-041/FR-042 block-rate retune, not of the glide's smoothness:
-    //
-    //  * The excess is CONTROL-GRID ALIGNED. Mean |dx| by sample index modulo the
-    //    64-sample control chunk, Strings, seed 0c12f00d: held at 110 Hz every
-    //    residue sits within +/-7 % of the mean (residue 0 = 1.00x); under the
-    //    glide residue 0 rises to 1.16x while every other residue stays within
-    //    +/-8 %. Each control step therefore adds ~16 % of one sample's normal
-    //    slope, once per 64 samples.
-    //  * It scales with the NUMBER of retune events, not their size. Over a fixed
-    //    144-block window, Strings, 3 seeds, detections L/R:
-    //        no glide 28/29 | glide in 0.5 s 33/39 | 1.0 s 33/44
-    //        | 2.0 s 36/47  | 4.0 s 45/49 | 8.0 s 47/42
-    //    A four-times slower glide makes each retune's step four times smaller
-    //    and does not reduce the count, so this is not a step-size artifact.
-    //  * It is NOT a discontinuity by SC-004's own primary bound: the glide's
-    //    max|dx| is 0.80x (L) / 0.91x (R) of the held-pitch controls' - the
-    //    clause with actual power against a click passes with room to spare, and
-    //    every one of the extra detections is smaller than the material's own
-    //    largest normal excursion.
-    //  * Two candidate fixes inside WaveguideString were prototyped and MEASURED,
-    //    and neither removes it: (1) driving the delay length through a 20 ms
-    //    one-pole instead of stepping it (R 44 -> 52), (2) ramping the delay
-    //    linearly to its new value over 1 ms (R 44 -> 45). The remaining
-    //    candidate is a full per-sample resampling retune of the waveguide loop,
-    //    which is a Layer-2 redesign bounded by FR-084/SC-014's bit-identity
-    //    requirement for every existing consumer - an escalation, not a bound.
-    //
-    // The allowance below is therefore scoped, measured and applies to the COUNT
-    // clause only. max|dx| stays at SC-004's 1.5x with no allowance at all, on
-    // every material, per seed.
-    //
-    // MEASURED 2026-07-28, every material, summed over the 3 seeds (a ratio of
-    // -1 means the control render never cleared the detector's -60 dBFS energy
-    // gate, so no frame of EITHER render was analysed):
-    //     Glass -1     Strings  L 1.179  R 1.517 (44/29)     MetalPlate -1
-    //     Chamber  L 0.607  R 0.300                          Ice -1
-    // i.e. ONE channel of ONE material needs the allowance, and it needs 1.52.
-    // The constant was 2.0 and is TIGHTENED here to 1.6 - the smallest round
-    // value above the measured worst, leaving 5.5 % of margin. The three modal
-    // materials and both Chamber channels are held at the criterion as written.
-    // IF THIS RATIO EVER APPROACHES 1.6, THE RESPONSE IS THE WAVEGUIDE REDESIGN,
-    // NOT A LARGER NUMBER.
+    // ============ THE COUNT CLAUSE IS CALIBRATED (2026-11-10) ================
+    // SC-004 states `detections(glide) <= detections(control)` at 5 sigma. The
+    // waveguide used to need a 1.6x floor factor here (its block-rate retune
+    // adds ~16 % of one sample's slope at each 64-sample control step, Strings
+    // 44 vs 29 detections, never a discontinuity by the max|dx| clause), and
+    // after c71fa245 Glass failed the 5-sigma form on texture alone (R 8 vs 3,
+    // limit 7). The clause is now requireCalibratedDetectionBudget: calibrated
+    // on BOTH endpoint controls of every seed, Strings lands at 7.25 sigma with
+    // the glide at 0 detections, so no material needs a factor. max|dx| stays
+    // at SC-004's 1.5x, per seed, on every material. The positive control's
+    // clicks sit at a quarter, half and three quarters of the glide.
     // =========================================================================
-    constexpr double kGlideRetuneFloorFactor = 1.6;
-
     for (std::size_t m = 0; m < kXfadeMaterials.size(); ++m) {
         INFO("material = " << kXfadeMaterialNames[m]);
 
-        ClickTally tally;
+        std::vector<XfadeRender> controls;
+        std::vector<XfadeRender> tests;
+        std::vector<XfadeMetrics> baselines;
         for (const std::uint32_t seed : kXfadeSeeds) {
             // The 110 Hz control is also the non-vacuity reference and the source
             // of the pre-glide RMS, because that is the pitch the glide starts
@@ -4681,7 +4756,10 @@ TEST_CASE("ContinuousBody_GlideIsClickless")
             const XfadeMetrics baseline =
                 worstOf({measureXfade(control.render), measureXfade(controlEnd.render)});
             requireControlRelativeClickless(test.render, baseline, control.render);
-            tally.add(measureXfade(test.render), baseline);
+            controls.push_back(control.render);
+            controls.push_back(controlEnd.render);
+            tests.push_back(test.render);
+            baselines.push_back(baseline);
 
             // No dropout, no surge: no 20 ms window departs from its own 200 ms
             // neighbourhood by more than the material's own measured short-window
@@ -4707,12 +4785,10 @@ TEST_CASE("ContinuousBody_GlideIsClickless")
             REQUIRE(glideWorst <= bound);
         }
 
-        // Only the waveguide carries the block-rate retune floor documented
-        // above; every other engine is held to SC-004 as written.
-        const bool isWaveguide =
-            kXfadeMaterials[m] == Krate::DSP::ContinuousBody::BodyMaterial::Strings;
-        requireEnsembleDetectionBudget(tally,
-                                       isWaveguide ? kGlideRetuneFloorFactor : 1.0);
+        requireCalibratedDetectionBudget(
+            controls, tests, baselines,
+            {(kGlideBlocks / 4) * kXfadeBlockSize, (kGlideBlocks / 2) * kXfadeBlockSize,
+             ((3 * kGlideBlocks) / 4) * kXfadeBlockSize});
     }
 }
 

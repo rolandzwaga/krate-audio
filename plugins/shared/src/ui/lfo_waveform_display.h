@@ -138,9 +138,9 @@ public:
         , quantizeSteps_(other.quantizeSteps_)
         , unipolar_(other.unipolar_)
         , phaseOffset_(other.phaseOffset_)
-        , frequencyHz_(other.frequencyHz_)
         , depth_(other.depth_)
-        , fadeInMs_(other.fadeInMs_) {
+        , fadeInMs_(other.fadeInMs_)
+        , frequencyHz_(other.frequencyHz_) {
         points_.resize(kNumPoints);
     }
 

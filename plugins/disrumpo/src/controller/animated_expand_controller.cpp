@@ -14,6 +14,8 @@
 #include "vstgui/lib/animation/timingfunctions.h"
 #include "vstgui/lib/controls/ccontrol.h"
 
+#include <cmath>
+
 namespace Disrumpo {
 
 AnimatedExpandController::AnimatedExpandController(
@@ -24,9 +26,11 @@ AnimatedExpandController::AnimatedExpandController(
     uint32_t animationDurationMs,
     Steinberg::int32 parentBandTag,
     int bandIndex,
-    float expandedWidth)
+    float expandedWidth,
+    Steinberg::Vst::Parameter* bandCountParam)
     : editorPtr_(editorPtr)
     , watchedParam_(watchedParam)
+    , bandCountParam_(bandCountParam)
     , containerTag_(containerTag)
     , parentBandTag_(parentBandTag)
     , bandIndex_(bandIndex)
@@ -40,6 +44,10 @@ AnimatedExpandController::AnimatedExpandController(
         // Apply initial state immediately
         watchedParam_->deferUpdate();
     }
+    if (bandCountParam_) {
+        bandCountParam_->addRef();
+        bandCountParam_->addDependent(this);
+    }
 }
 
 AnimatedExpandController::~AnimatedExpandController() {
@@ -48,12 +56,19 @@ AnimatedExpandController::~AnimatedExpandController() {
         watchedParam_->release();
         watchedParam_ = nullptr;
     }
+    if (bandCountParam_) {
+        bandCountParam_->release();
+        bandCountParam_ = nullptr;
+    }
 }
 
 void AnimatedExpandController::deactivate() {
     if (isActive_.exchange(false, std::memory_order_acq_rel)) {
         if (watchedParam_) {
             watchedParam_->removeDependent(this);
+        }
+        if (bandCountParam_) {
+            bandCountParam_->removeDependent(this);
         }
     }
 }
@@ -63,7 +78,7 @@ void AnimatedExpandController::setAnimationsEnabled(bool enabled) {
 }
 
 void AnimatedExpandController::update(
-    Steinberg::FUnknown* /*changedUnknown*/, Steinberg::int32 message) {
+    Steinberg::FUnknown* changedUnknown, Steinberg::int32 message) {
     if (!isActive_.load(std::memory_order_acquire)) {
         return;
     }
@@ -73,10 +88,26 @@ void AnimatedExpandController::update(
         float normalizedValue = static_cast<float>(watchedParam_->getNormalized());
         bool shouldExpand = (normalizedValue >= 0.5f);
 
+        // D-170: a Band Count change shows or hides the panel at once, like the band
+        // container itself: shown = expanded AND band visible
+        if (bandCountParam_ != nullptr
+            && Steinberg::FCast<Steinberg::Vst::Parameter>(changedUnknown) == bandCountParam_) {
+            auto* container = findContainerByTag(containerTag_);
+            if (!container) return;
+            const bool shouldShow = shouldExpand && isBandVisible();
+            if (shouldShow == container->isVisible()) return;
+            if (shouldShow) {
+                instantExpand(container);
+            } else {
+                instantCollapse(container);
+            }
+            return;
+        }
+
         // FR-004: Guard against expanding a hidden band's detail panel.
         // If the parent band container is hidden (band count < band index),
         // skip animation entirely to avoid invisible layout changes.
-        if (shouldExpand && !isParentBandVisible()) {
+        if (shouldExpand && !isBandVisible()) {
             return;
         }
 
@@ -125,6 +156,16 @@ VSTGUI::CViewContainer* AnimatedExpandController::findContainerByTag(Steinberg::
         return nullptr;
     };
     return search(frame);
+}
+
+bool AnimatedExpandController::isBandVisible() {
+    // From the parameter, not the band container: the container's own Band Count
+    // observer may not have run yet for this change (D-170)
+    if (bandCountParam_ != nullptr) {
+        const int bandCount = static_cast<int>(std::round(bandCountParam_->getNormalized() * 3.0)) + 1;
+        return bandIndex_ < bandCount;
+    }
+    return isParentBandVisible();
 }
 
 bool AnimatedExpandController::isParentBandVisible() {

@@ -31,6 +31,9 @@ public:
     /// @param parentBandTag Tag of the parent band container (-1 = no parent guard)
     /// @param bandIndex Band index (0-3) for positioning the expanded panel relative to the band
     /// @param expandedWidth The full width of the container (must match uidesc, used for positioning)
+    /// @param bandCountParam Band Count parameter: the panel shows only while the band is
+    ///        expanded AND visible, re-evaluated when either changes (D-170); nullptr = the
+    ///        parent band container's visibility guards expanding only
     AnimatedExpandController(
         VSTGUI::VST3Editor** editorPtr,
         Steinberg::Vst::Parameter* watchedParam,
@@ -39,7 +42,8 @@ public:
         uint32_t animationDurationMs = 250,
         Steinberg::int32 parentBandTag = -1,
         int bandIndex = 0,
-        float expandedWidth = 680.0f);
+        float expandedWidth = 680.0f,
+        Steinberg::Vst::Parameter* bandCountParam = nullptr);
 
     ~AnimatedExpandController() override;
 
@@ -65,8 +69,12 @@ private:
     /// Move the container to the band-relative X position (clamped to parent bounds).
     void positionContainerForBand(VSTGUI::CViewContainer* container) const;
 
+    /// True when Band Count makes this band visible (D-170)
+    [[nodiscard]] bool isBandVisible();
+
     VSTGUI::VST3Editor** editorPtr_;
     Steinberg::Vst::Parameter* watchedParam_;
+    Steinberg::Vst::Parameter* bandCountParam_;
     Steinberg::int32 containerTag_;
     Steinberg::int32 parentBandTag_;
     int bandIndex_;

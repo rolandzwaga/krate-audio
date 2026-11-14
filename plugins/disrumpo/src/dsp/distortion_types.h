@@ -163,20 +163,35 @@ constexpr DistortionCategory getCategory(DistortionType type) noexcept {
 /// return 1 because aliasing is intentional.
 ///
 /// @param type The distortion type
-/// @return Recommended oversampling factor (1, 2, or 4)
+/// @return Recommended oversampling factor (1, 2, 4 or 8)
 constexpr int getRecommendedOversample(DistortionType type) noexcept {
     switch (type) {
-        // 4x types - strong harmonics or frequency doubling
-        case DistortionType::HardClip:
-        case DistortionType::Fuzz:
-        case DistortionType::AsymmetricFuzz:
+        // 8x types (user ruling 2026-11-10, drive re-stage): at 4x the re-staged drive still
+        // aliased past T6.01's -50 dB; Tape and Temporal moved from 2x, the folders and fuzzes
+        // from 4x
+        case DistortionType::Tape:
+        case DistortionType::Temporal:
         case DistortionType::SineFold:
         case DistortionType::TriangleFold:
         case DistortionType::SergeFold:
+        case DistortionType::Fuzz:
+        case DistortionType::AsymmetricFuzz:
+        // AllpassResonant from 4x (user ruling 2026-11-11, round 3): its T6.01 reading at 4x was
+        // aliasing (-48.1 dB at drive 10; -59.8 at 8x, -72.5 at 16x)
+        case DistortionType::AllpassResonant:
+            return 8;
+
+        // 4x types - strong harmonics or frequency doubling
+        case DistortionType::HardClip:
         case DistortionType::FullRectify:
         case DistortionType::HalfRectify:
         case DistortionType::RingSaturation:
-        case DistortionType::AllpassResonant:
+        // Moved from 2x (user ruling 2026-11-10): the re-staged drive aliased past -50 dB at
+        // 2x, and their shapers sit inside shared processors, out of the adapter's ADAA's reach
+        case DistortionType::FeedbackDist:
+        case DistortionType::Formant:
+        // SoftClip from 2x with ADAA1 (user ruling 2026-11-10): ADAA1 at 2x dulled 20 kHz by 2.5 dB
+        case DistortionType::SoftClip:
             return 4;
 
         // 1x types - aliasing is intentional or FFT-domain
@@ -189,13 +204,8 @@ constexpr int getRecommendedOversample(DistortionType type) noexcept {
             return 1;
 
         // 2x types - moderate harmonics (default)
-        case DistortionType::SoftClip:
         case DistortionType::Tube:
-        case DistortionType::Tape:
-        case DistortionType::Temporal:
-        case DistortionType::FeedbackDist:
         case DistortionType::Chaos:
-        case DistortionType::Formant:
         case DistortionType::Granular:
         case DistortionType::Fractal:
         case DistortionType::Stochastic:
@@ -263,21 +273,20 @@ constexpr const char* getCategoryName(DistortionCategory category) noexcept {
 // DistortionFamily Enumeration (FR-016)
 // =============================================================================
 
-/// @brief Family groupings for morph interpolation strategy.
+/// @brief Family groupings of the distortion types (FR-016).
 ///
-/// Different families use different interpolation methods during morphing:
-/// - Same-family morphs: Use family-specific interpolation (single processor)
-/// - Cross-family morphs: Use parallel processing with equal-power crossfade
-///
-/// Per spec FR-016: Seven families with specific interpolation methods.
+/// The morph path does not depend on the family (D-028): nodes that all have the
+/// same type share one processor with interpolated parameters; any two different
+/// types, of one family or not, run in parallel and are summed with a linear
+/// constant-voltage crossfade (gain = weight, MorphEngine::transitionGainForWeight).
 enum class DistortionFamily : uint8_t {
-    Saturation = 0,     ///< D01-D06: Transfer function interpolation
-    Wavefold,           ///< D07-D09: Parameter interpolation
-    Digital,            ///< D12-D14, D18-D19: Parameter interpolation
-    Rectify,            ///< D10-D11: Parameter interpolation
-    Dynamic,            ///< D15, D17: Parameter interpolation + envelope coupling
-    Hybrid,             ///< D16, D26: Parallel blend with output crossfade
-    Experimental        ///< D20-D25: Parallel blend with output crossfade
+    Saturation = 0,     ///< D01-D06
+    Wavefold,           ///< D07-D09
+    Digital,            ///< D12-D14, D18-D19
+    Rectify,            ///< D10-D11
+    Dynamic,            ///< D15, D17
+    Hybrid,             ///< D16, D26
+    Experimental        ///< D20-D25
 };
 
 /// @brief Total number of distortion families.
@@ -289,14 +298,14 @@ constexpr int kDistortionFamilyCount = 7;
 
 /// @brief Get the family for a distortion type.
 ///
-/// Maps DistortionType to DistortionFamily for morph interpolation strategy.
+/// Maps DistortionType to DistortionFamily.
 /// Per spec FR-016 family-type mapping table.
 ///
 /// @param type The distortion type
 /// @return Family enum value
 constexpr DistortionFamily getFamily(DistortionType type) noexcept {
     switch (type) {
-        // Saturation (D01-D06) - Transfer function interpolation
+        // Saturation (D01-D06)
         case DistortionType::SoftClip:
         case DistortionType::HardClip:
         case DistortionType::Tube:
@@ -305,18 +314,18 @@ constexpr DistortionFamily getFamily(DistortionType type) noexcept {
         case DistortionType::AsymmetricFuzz:
             return DistortionFamily::Saturation;
 
-        // Wavefold (D07-D09) - Parameter interpolation
+        // Wavefold (D07-D09)
         case DistortionType::SineFold:
         case DistortionType::TriangleFold:
         case DistortionType::SergeFold:
             return DistortionFamily::Wavefold;
 
-        // Rectify (D10-D11) - Parameter interpolation
+        // Rectify (D10-D11)
         case DistortionType::FullRectify:
         case DistortionType::HalfRectify:
             return DistortionFamily::Rectify;
 
-        // Digital (D12-D14, D18-D19) - Parameter interpolation
+        // Digital (D12-D14, D18-D19)
         case DistortionType::Bitcrush:
         case DistortionType::SampleReduce:
         case DistortionType::Quantize:
@@ -324,17 +333,17 @@ constexpr DistortionFamily getFamily(DistortionType type) noexcept {
         case DistortionType::BitwiseMangler:
             return DistortionFamily::Digital;
 
-        // Dynamic (D15, D17) - Parameter interpolation + envelope coupling
+        // Dynamic (D15, D17)
         case DistortionType::Temporal:
         case DistortionType::FeedbackDist:
             return DistortionFamily::Dynamic;
 
-        // Hybrid (D16, D26) - Parallel blend with output crossfade
+        // Hybrid (D16, D26)
         case DistortionType::RingSaturation:
         case DistortionType::AllpassResonant:
             return DistortionFamily::Hybrid;
 
-        // Experimental (D20-D25) - Parallel blend with output crossfade
+        // Experimental (D20-D25)
         case DistortionType::Chaos:
         case DistortionType::Formant:
         case DistortionType::Granular:
@@ -375,7 +384,8 @@ constexpr const char* getFamilyName(DistortionFamily family) noexcept {
 /// - FR-004: 2D Planar mode - nodes occupy XY positions
 /// - FR-005: 2D Radial mode - position defined by angle and distance
 enum class MorphMode : uint8_t {
-    Linear1D = 0,   ///< Single axis A-B-C-D interpolation using morphX only
+    Linear1D = 0,   ///< Single axis A-B-C-D interpolation using morphX only; the active
+                    ///< nodes sit evenly on the axis at i / (N - 1), whatever their 2-D posX
     Planar2D,       ///< XY position in node space (2D inverse distance)
     Radial2D        ///< Angle + distance from center (polar coordinates)
 };

@@ -4377,3 +4377,67 @@ TEST_CASE("AetherReverb_NoTransitionClicks", "[effects][aether]") {
         REQUIRE(worstVsControlDb <= 1.0);
     }
 }
+
+// -----------------------------------------------------------------------------
+// FR-007 / banner item (11d): the fade-in is shaped linear in dB and the
+// fade-out with smoothstep, so a silence() that lands DURING a fade-in must
+// start its fade-out from the gain being output at that moment. At mix 0 with
+// a DC input the output is exactly gate x level, so any shape switch without
+// the re-map is a gain step (~0.3 here); a continuous gate never moves the
+// output by more than level x 1.5 / 960 = 7.8e-4 per sample.
+// -----------------------------------------------------------------------------
+TEST_CASE("AetherReverb_SilenceDuringFadeInIsContinuous", "[effects][aether]") {
+    AetherReverb engine;
+    prepareClickEngine(engine);
+    engine.setMix(0.0f);
+
+    constexpr float kLevel = 0.5f;
+    constexpr std::size_t kBlock = AetherReverb::kControlChunkSamples;
+    const std::vector<float> in(kBlock, kLevel);
+    std::vector<float> outL(kBlock, 0.0f);
+    std::vector<float> outR(kBlock, 0.0f);
+    std::vector<float> rendered;
+
+    const auto render = [&](std::size_t blocks) {
+        for (std::size_t b = 0; b < blocks; ++b) {
+            engine.processStereoBlock(in.data(), in.data(), outL.data(), outR.data(), kBlock);
+            rendered.insert(rendered.end(), outL.begin(), outL.end());
+        }
+    };
+
+    render(kOneSecond / (2u * kBlock));  // 0.5 s: past the dry-alignment latency
+    REQUIRE(rendered.back() == Catch::Approx(kLevel).margin(1e-6));
+    const std::size_t firstCall = rendered.size();
+    engine.silence();
+
+    // Wait for the fade-out to reach 0 and the fade-in to reach -20 dB, then
+    // interrupt the fade-in.
+    bool reachedZero = false;
+    bool interrupted = false;
+    for (std::size_t b = 0; (b < kOneSecond / kBlock) && !interrupted; ++b) {
+        render(1u);
+        reachedZero = reachedZero || (rendered.back() == 0.0f);
+        if (reachedZero && engine.isRecovering() && (rendered.back() > (0.1f * kLevel))) {
+            engine.silence();
+            interrupted = true;
+        }
+    }
+    REQUIRE(interrupted);
+    const float gainAtInterrupt = rendered.back() / kLevel;
+    REQUIRE(gainAtInterrupt < 0.5f);  // genuinely mid-fade-in
+    render(kOneSecond / kBlock);      // the second fade-out, clear and fade-in
+    REQUIRE(rendered.back() == Catch::Approx(kLevel).margin(1e-6));
+
+    float maxStep = 0.0f;
+    std::size_t maxStepAt = 0;
+    for (std::size_t i = firstCall + 1u; i < rendered.size(); ++i) {
+        const float step = std::abs(rendered[i] - rendered[i - 1u]);
+        if (step > maxStep) {
+            maxStep = step;
+            maxStepAt = i;
+        }
+    }
+    INFO("gain at the interrupt = " << gainAtInterrupt << ", largest per-sample step = " << maxStep
+                                    << " at sample " << maxStepAt);
+    REQUIRE(maxStep < 1.0e-3f);
+}

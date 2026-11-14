@@ -736,15 +736,13 @@ tresult PLUGIN_API Processor::setupProcessing(Vst::ProcessSetup& setup) {
 
     // 5c. Phase 10 C-1 STEP 4 - THE SEND. The three setters run BEFORE
     //     prepare(), and THAT ORDER IS LOAD-BEARING, not stylistic: prepare()
-    //     ends in snapParameters() (spectral_delay.h:206, :550), whereas a
-    //     post-prepare setDryWetMix() only sets a smoother TARGET (:500-503)
-    //     which is advanced exactly ONCE PER process() CALL (:373, :389) despite
-    //     being configured with a per-sample 50 ms coefficient (:184-194). Pushed
-    //     after prepare it would therefore creep from kDefaultDryWet = 0.5f
-    //     (:109) toward 1.0 by ~0.04 % of the remaining distance per call - tens
-    //     of seconds of un-aligned CURRENT-BLOCK dry leaking into the bus, which
-    //     is the exact comb C-2 exists to prevent (FR-004). Pushed before,
-    //     prepare()'s own setTarget (:202) plus snapParameters() snap it to 1.0.
+    //     ends in snapParameters() (spectral_delay.h:212, :621), whereas a
+    //     post-prepare setDryWetMix() only sets a smoother TARGET (:562-564)
+    //     that ramps per sample over 50 ms (:200, :442). Pushed after prepare it
+    //     would ramp from kDefaultDryWet = 0.5f (:110) toward 1.0 - ~50 ms of
+    //     un-aligned CURRENT-BLOCK dry leaking into the bus, the comb C-2 exists
+    //     to prevent (FR-004). Pushed before, prepare()'s own setTarget (:208)
+    //     plus snapParameters() snap it to 1.0.
     //     This is the same hazard seraphis_engine.h:331-333 already records for
     //     the saturator.
     spectralDelay_.setFFTSize(Krate::DSP::SpectralDelay::kDefaultFFTSize);  // :408
@@ -1087,10 +1085,9 @@ tresult PLUGIN_API Processor::setActive(TBool state) {
         // touch (it clears the STFT, the accumulator and the per-bin delay lines,
         // :242-291, and nothing else). They are the second half of the same FR-035
         // defect: every registered row reaches the component as a smoother TARGET
-        // only (:425-512), advanced ONCE PER SPECTRAL FRAME (:691-696) off a
-        // per-sample 50 ms coefficient (:184-194) - a ~5.1 s time constant at the
-        // 1024-point default - so the pre-deactivation render leaves them part-way
-        // along a ramp that a fresh setupProcessing() has never started.
+        // only, advanced once per spectral frame over 50 ms (spectral_delay.h:194-199),
+        // so a pre-deactivation render that ended within 50 ms of a change leaves
+        // them part-way along a ramp that a fresh setupProcessing() has never started.
         //
         // The state a fresh setupProcessing() DOES leave is the one prepare()'s own
         // setTarget-then-snapParameters() pair produces (:197-206), and at that
@@ -2187,7 +2184,7 @@ void Processor::pushGlobalParams() noexcept {
 // them is ON CHANGE ONLY against its own tracker, each push counted in
 // effectsPushes_ (FR-041 clause 3). Re-pushing an unchanged value is not free:
 // every SpectralDelay setter re-targets a parameter smoother the component
-// advances once per chunk, and the seed burst below redraws ~2052 RNG values.
+// advances once per spectral frame, and the seed burst below redraws ~2052 RNG values.
 //
 // IDs 1410, 1440, 1441 and 1443 are DELIBERATELY ABSENT. 1410, 1441 and 1443 are
 // the three class-(b) smoothers (FR-038b clause 2) whose targets are set in

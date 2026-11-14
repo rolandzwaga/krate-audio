@@ -113,6 +113,7 @@ public:
         activeIsTapA_ = true;
         crossfading_ = false;
         crossfadePosition_ = 0.0f;
+        refreshActiveTap();  // after delayLine_.prepare: the clamp reads its maximum
 
         // Calculate crossfade increment per sample
         setCrossfadeTime(kDefaultCrossfadeTimeMs);
@@ -129,6 +130,7 @@ public:
         activeIsTapA_ = true;
         crossfading_ = false;
         crossfadePosition_ = 0.0f;
+        refreshActiveTap();
     }
 
     // =========================================================================
@@ -213,6 +215,7 @@ public:
         activeIsTapA_ = true;
         crossfading_ = false;
         crossfadePosition_ = 0.0f;
+        refreshActiveTap();
     }
 
     /// @brief Snap to a delay position immediately without crossfading.
@@ -251,9 +254,14 @@ public:
         // this repo observes that. Measured 2026-09-13 (Vorago Phase 5 stage
         // probe): six lines cost 62 091 ns per 512-block at 48 kHz, about half
         // of it in the idle read.
+        //
+        // The live tap does not move outside a crossfade (setDelaySamples only
+        // retargets the idle one), so its clamp / floor / index split is cached
+        // in activeTap_ wherever the live position or its identity changes.
+        // makeLinearTap + readLinear(tap) is readLinear(float)'s arithmetic
+        // split in two, so the result is bit-identical.
         if (!crossfading_) {
-            return delayLine_.readLinear(activeIsTapA_ ? tapADelaySamples_
-                                                       : tapBDelaySamples_);
+            return delayLine_.readLinear(activeTap_);
         }
 
         // Read from both taps
@@ -288,6 +296,7 @@ public:
 
                     // Sync the inactive tap (A) to current target for next crossfade
                     tapADelaySamples_ = targetDelaySamples_;
+                    refreshActiveTap();
                 }
             } else {
                 // Fading from B (out) to A (in)
@@ -304,6 +313,7 @@ public:
 
                     // Sync the inactive tap (B) to current target for next crossfade
                     tapBDelaySamples_ = targetDelaySamples_;
+                    refreshActiveTap();
                 }
             }
         }
@@ -345,7 +355,16 @@ public:
     }
 
 private:
+    /// Re-derive activeTap_ from the live tap's position. Every write to
+    /// activeIsTapA_, to the live tap's position, or to the buffer's maximum
+    /// delay (prepare) is followed by a call.
+    void refreshActiveTap() noexcept {
+        activeTap_ = delayLine_.makeLinearTap(activeIsTapA_ ? tapADelaySamples_
+                                                            : tapBDelaySamples_);
+    }
+
     DelayLine delayLine_;               ///< Underlying delay buffer
+    DelayLine::LinearTap activeTap_{};  ///< The live tap's split, valid outside a crossfade
 
     // Tap positions (in samples)
     float tapADelaySamples_ = 0.0f;     ///< Tap A read position

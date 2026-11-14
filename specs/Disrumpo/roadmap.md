@@ -140,7 +140,7 @@ Disrumpo is a multiband morphing distortion VST3 plugin featuring:
 │  ┌──────────────────────────────────────────────────────────────────┐   │
 │  │ Processor (AudioEffect)                                           │   │
 │  │ ┌────────────────┬────────────────┬────────────────────────────┐ │   │
-│  │ │ Input Stage    │ Crossover      │ Band Processors (1-8)      │ │   │
+│  │ │ Input Stage    │ Crossover      │ Band Processors (1-4)      │ │   │
 │  │ │ - Gain         │ Network        │ - Oversampler              │ │   │
 │  │ │ - Metering     │ (LR4)          │ - MorphEngine              │ │   │
 │  │ │                │                │ - DistortionAdapter        │ │   │
@@ -248,7 +248,7 @@ krate-audio/
 |---------|------|----------|--------|--------------|
 | T2.1 | Create CrossoverNetwork wrapper class | P0 | 8h | M1 |
 | T2.2 | Integrate CrossoverLR4 from KrateDSP | P0 | 4h | T2.1 |
-| T2.3 | Implement dynamic band count (1-8) | P0 | 8h | T2.2 |
+| T2.3 | Implement dynamic band count (1-4) | P0 | 8h | T2.2 |
 | T2.4 | Implement cascaded band splitting | P0 | 6h | T2.3 |
 | T2.5 | Implement per-band state structure | P0 | 4h | T2.3 |
 | T2.6 | Implement band gain/pan processing | P1 | 4h | T2.5 |
@@ -297,8 +297,8 @@ krate-audio/
 | T4.9 | Implement registerGlobalParams() | P0 | 4h | T4.3, T4.8 |
 | T4.10 | Implement registerSweepParams() | P0 | 2h | T4.4, T4.8 |
 | T4.11 | Implement registerModulationParams() | P0 | 6h | T4.5, T4.8 |
-| T4.12 | Implement registerBandParams() for 8 bands | P0 | 8h | T4.6, T4.8 |
-| T4.13 | Implement registerNodeParams() for 4 nodes × 8 bands | P0 | 8h | T4.7, T4.12 |
+| T4.12 | Implement registerBandParams() for 4 bands | P0 | 8h | T4.6, T4.8 |
+| T4.13 | Implement registerNodeParams() for 4 nodes × 4 bands | P0 | 8h | T4.7, T4.12 |
 
 **Subtotal Week 4a:** ~56 hours
 
@@ -776,8 +776,7 @@ M6 (Full Modulation)
 | Configuration | CPU Target | Test Method |
 |---------------|------------|-------------|
 | 1 band, 1x OS | < 2% | 60s sustained load |
-| 4 bands, 4x OS | < 15% | 60s sustained load |
-| 8 bands, 8x OS | < 40% | 60s sustained load |
+| 4 bands, 4x OS (maximum) | < 15% | 60s sustained load |
 | Morph transition | No spikes | Continuous morph automation |
 | Preset load | < 50ms | 120 preset load cycle |
 
@@ -812,7 +811,7 @@ M6 (Full Modulation)
 | ID | Risk | Probability | Impact | Mitigation | Contingency |
 |----|------|-------------|--------|------------|-------------|
 | R1 | Morph artifacts at high speeds | Medium | High | Extensive smoothing, automated tests | Increase transition zone, add dedicated crossfade |
-| R2 | CPU overload with 8 bands | Medium | High | Profile early, optimize hot paths | Reduce max bands to 6, add quality presets |
+| R2 | CPU overload at high band counts | Medium | High | Profile early, optimize hot paths | Applied: max bands reduced to 4 and max oversampling to 4x |
 | R3 | UI complexity overwhelms users | High | Medium | Strict progressive disclosure | Add "Simple Mode" with reduced features |
 | R4 | Cross-platform issues | Medium | Medium | CI/CD multi-platform builds | Prioritize Windows, defer Linux |
 | R5 | KrateDSP component incompatibility | Low | High | Test integration early | Fork component to plugin-specific DSP |
@@ -924,7 +923,7 @@ A task is **Done** when:
 ### M2: Working Multiband Distortion
 
 **Success Criteria:**
-- [ ] Crossover network splits audio into 1-8 bands
+- [ ] Crossover network splits audio into 1-4 bands
 - [ ] Flat frequency response when bands sum (±0.1 dB)
 - [ ] All 26 distortion types process audio correctly
 - [ ] Common parameters (Drive, Mix, Tone) work

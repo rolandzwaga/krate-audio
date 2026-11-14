@@ -5,6 +5,7 @@
 #include "processor.h"
 #include "plugin_ids.h"
 #include <krate/dsp/core/block_context.h>
+#include <krate/dsp/core/scoped_denormal_mode.h>
 
 #include "base/source/fstreamer.h"
 #include "pluginterfaces/vst/ivstparameterchanges.h"
@@ -151,6 +152,11 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
     // - NO exceptions (throw/catch)
     // - This function MUST complete within the buffer duration
     // ==========================================================================
+
+    // FTZ / DAZ for this block on this thread, the caller's mode restored on return:
+    // the feedback tails of every delay mode decay through the denormal range, which
+    // the CPU computes slowly when the host leaves FTZ / DAZ off
+    const Krate::DSP::ScopedDenormalMode denormalGuard;
 
     // Process parameter changes first
     if (data.inputParameterChanges) {

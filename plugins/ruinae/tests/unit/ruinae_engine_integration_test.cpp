@@ -62,13 +62,6 @@ static float computeRMS(const float* buffer, size_t numSamples) {
     return static_cast<float>(std::sqrt(sumSq / static_cast<double>(numSamples)));
 }
 
-static bool isAllZeros(const float* buffer, size_t numSamples) {
-    for (size_t i = 0; i < numSamples; ++i) {
-        if (buffer[i] != 0.0f) return false;
-    }
-    return true;
-}
-
 static bool hasNonZeroSamples(const float* buffer, size_t numSamples) {
     for (size_t i = 0; i < numSamples; ++i) {
         if (buffer[i] != 0.0f) return true;
@@ -1002,6 +995,7 @@ TEST_CASE("RuinaeEngine integration: reverb tail duration",
             ++blocksUntilVoiceDone;
             if (engine.getActiveVoiceCount() == 0) break;
         }
+        INFO("blocks processed after note-off: " << blocksUntilVoiceDone);
         REQUIRE(engine.getActiveVoiceCount() == 0);
 
         // Now count how many more blocks have audio above silence threshold
@@ -1565,8 +1559,16 @@ TEST_CASE("RuinaeEngine regression: Chaos source produces audible filter modulat
     engine.setReverbParams({.roomSize = 0.5f, .damping = 0.5f,
                             .width = 1.0f, .mix = 0.0f});
 
-    // Chaos source at speed 5 → AllVoiceFilterCutoff, full amount
-    engine.setChaosSpeed(5.0f);
+    // Chaos source at speed 1 → AllVoiceFilterCutoff, full amount.
+    // Speed 1, not 5: at speed 5 the Lorenz attractor swings the cutoff about
+    // 50 times a second, faster than the 512-sample RMS window below. The
+    // engine used to hold each modulation value for the whole block, which
+    // sampled that motion into one cutoff per block and made the per-block RMS
+    // vary; since modulation reaches the voices every 64 samples, the window
+    // averages it out (variation 1.02 at speed 5). At speed 1 the motion is
+    // slower than the window (variation 2.5), so this still tells a moving
+    // attractor from a frozen one.
+    engine.setChaosSpeed(1.0f);
     engine.setChaosModel(ChaosModel::Lorenz);
     engine.setGlobalModRoute(0, ModSource::Chaos,
                              RuinaeModDest::AllVoiceFilterCutoff, 1.0f,
@@ -1902,4 +1904,67 @@ TEST_CASE("RuinaeEngine integration: mono mode produces audio",
         INFO("Mono/Poly ratio: " << ratio << " (expected ~1.0)");
         REQUIRE(ratio == Approx(1.0f).margin(0.25f));
     }
+}
+
+// =============================================================================
+// Transient source: note-ons without a sidechain, audio with one
+// =============================================================================
+// Ruinae's Transient source listened to the synth's own previous output, where a chord struck over
+// the previous chord's release is a rise of a few dB at most: measured on 13 factory presets, it
+// fired on the first chord of a phrase and almost never after. Without a sidechain it now fires on
+// every non-legato note-on, peaking at the velocity; with a sidechain it detects that audio.
+
+namespace {
+
+struct StrikeReadings {
+    int strikesFired = 0;     // strikes whose first block read an offset above 0.3
+    int gapsQuiet = 0;        // gaps whose last block before the next strike read below 0.05
+    float maxOffset = 0.0f;
+};
+
+StrikeReadings strikeChords(bool withSilentSidechain) {
+    constexpr size_t kBlock = 512;
+    constexpr int kStrikes = 12;
+    constexpr int kBlocksPerStrike = 43;  // ~0.5 s at 44.1 kHz
+    RuinaeEngine engine;
+    engine.prepare(44100.0, kBlock);
+    engine.setTransientDecay(200.0f);
+    engine.setGlobalModRoute(0, ModSource::Transient, RuinaeModDest::GlobalFilterCutoff, 1.0f);
+    std::vector<float> left(kBlock), right(kBlock);
+    const std::vector<float> silence(kBlock, 0.0f);
+    StrikeReadings r;
+    for (int s = 0; s < kStrikes; ++s) {
+        for (const uint8_t n : {60, 63, 67}) engine.noteOn(n, 100);
+        for (int b = 0; b < kBlocksPerStrike; ++b) {
+            if (b == kBlocksPerStrike - 4) {
+                for (const uint8_t n : {60, 63, 67}) engine.noteOff(n);
+            }
+            if (withSilentSidechain) engine.setSidechainInput(silence.data(), silence.data());
+            engine.processBlock(left.data(), right.data(), kBlock);
+            const float offset = engine.getGlobalModOffset(RuinaeModDest::GlobalFilterCutoff);
+            r.maxOffset = std::max(r.maxOffset, offset);
+            if (b == 0 && offset > 0.3f) ++r.strikesFired;
+            if (b == kBlocksPerStrike - 1 && offset < 0.05f) ++r.gapsQuiet;
+        }
+    }
+    return r;
+}
+
+}  // namespace
+
+TEST_CASE("RuinaeEngine Transient source fires on every struck chord without a sidechain",
+          "[ruinae-engine-integration][modulation][transient]") {
+    const auto r = strikeChords(false);
+    INFO("strikes fired " << r.strikesFired << " / 12, quiet gaps " << r.gapsQuiet << ", max offset "
+                          << r.maxOffset);
+    CHECK(r.strikesFired == 12);
+    CHECK(r.gapsQuiet == 12);
+    CHECK(r.maxOffset <= 100.0f / 127.0f + 1e-4f);  // peaks at the velocity
+}
+
+TEST_CASE("RuinaeEngine Transient source listens to a connected sidechain, not to note-ons",
+          "[ruinae-engine-integration][modulation][transient]") {
+    const auto r = strikeChords(true);
+    INFO("max offset with a silent sidechain " << r.maxOffset);
+    CHECK(r.maxOffset < 0.01f);
 }

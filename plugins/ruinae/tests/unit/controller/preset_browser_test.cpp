@@ -52,7 +52,7 @@ struct EditRecord {
     Steinberg::Vst::ParamValue value; // only meaningful for Perform
 };
 
-class MockComponentHandler : public Steinberg::Vst::IComponentHandler {
+class MockComponentHandler final : public Steinberg::Vst::IComponentHandler {
 public:
     // IComponentHandler
     Steinberg::tresult PLUGIN_API beginEdit(Steinberg::Vst::ParamID id) override {

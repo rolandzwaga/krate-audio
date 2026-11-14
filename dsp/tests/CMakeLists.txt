@@ -214,7 +214,7 @@ add_executable(dsp_processors_tests
     unit/processors/spectral_distortion_test.cpp
     unit/processors/formant_distortion_test.cpp
     unit/processors/temporal_distortion_test.cpp
-    unit/processors/allpass_saturator_tests.cpp
+    # allpass_saturator_tests.cpp is in dsp_ieee_tests (D-084 bit-identity against its pre-T4.16 copy)
     unit/processors/feedback_distortion_test.cpp
     unit/processors/aliasing_effect_test.cpp
     unit/processors/granular_distortion_test.cpp
@@ -371,6 +371,9 @@ add_executable(dsp_systems_tests
     unit/systems/character_processor_test.cpp
     unit/systems/character_processor_digital_ramping_test.cpp
     unit/systems/character_processor_bbd_stereo_test.cpp
+    # Vorago lever bounds sentinels, shard-balance slot 1 of 5: the part TUs sit at spread
+    # positions on purpose (see unit/systems/vorago_lever_bounded_arms.h); keep them apart.
+    unit/systems/vorago_lever_bounded_part1_test.cpp
     unit/systems/stereo_field_test.cpp
     unit/systems/tap_manager_test.cpp
     unit/systems/flexible_feedback_network_test.cpp
@@ -378,6 +381,7 @@ add_executable(dsp_systems_tests
     unit/systems/amp_channel_test.cpp
     unit/systems/tape_machine_test.cpp
     unit/systems/fuzz_pedal_test.cpp
+    unit/systems/vorago_lever_bounded_part2_test.cpp   # shard-balance slot (vorago_lever_bounded_arms.h)
     unit/systems/distortion_rack_tests.cpp
     unit/systems/filter_feedback_matrix_tests.cpp
     unit/systems/filter_step_sequencer_tests.cpp
@@ -388,6 +392,7 @@ add_executable(dsp_systems_tests
     unit/systems/modulation_engine_perf_test.cpp
     unit/systems/unison_engine_test.cpp
     unit/systems/fm_voice_test.cpp
+    unit/systems/vorago_lever_bounded_part3_test.cpp   # shard-balance slot (vorago_lever_bounded_arms.h)
     unit/systems/vector_mixer_tests.cpp
     unit/systems/voice_allocator_test.cpp
     unit/systems/synth_voice_test.cpp
@@ -395,6 +400,7 @@ add_executable(dsp_systems_tests
     unit/systems/selectable_oscillator_test.cpp
     unit/systems/voice_mod_router_test.cpp
     unit/systems/ext_modulation_test.cpp
+    unit/systems/vorago_lever_bounded_part4_test.cpp   # shard-balance slot (vorago_lever_bounded_arms.h)
     unit/systems/harmonizer_engine_test.cpp
     unit/systems/harmonic_model_builder_tests.cpp
     unit/systems/sympathetic_resonance_test.cpp
@@ -407,6 +413,7 @@ add_executable(dsp_systems_tests
     # Seraphis Phase 4 (specs/seraphis-phase4-continuous-body): ContinuousBody
     unit/systems/continuous_body_test.cpp
     unit/systems/continuous_body_spectral_test.cpp
+    unit/systems/vorago_lever_bounded_part5_test.cpp   # shard-balance slot (vorago_lever_bounded_arms.h)
     unit/systems/continuous_body_perf_test.cpp
     # Seraphis Phase 5 (specs/seraphis-phase5-atmosphere): AtmosphereEngine
     unit/systems/atmosphere_engine_test.cpp
@@ -587,6 +594,8 @@ add_executable(dsp_systems_tests
     #                                            LaneSurvey [.probe]; + the ONE definition of
     #                                            detail::VoragoEcosystemLeverProbe
     #   vorago_ecosystem_lever_longrun_test.cpp  SC-010 (b)            (the [long] set)
+    #   vorago_lever_bounded_part1..5_test.cpp   the per-(arm, rate) LeverBounded cases, listed
+    #                                            at spread positions above (shard balance)
     unit/systems/vorago_ecosystem_lever_test.cpp
     unit/systems/vorago_ecosystem_lever_longrun_test.cpp
     # Profundum Phase 1 (specs/profundum-phase1-harmonic-core): ProfundumCore.
@@ -917,10 +926,34 @@ add_executable(dsp_ieee_tests
     unit/systems/profundum_engine_nonfinite_test.cpp
     # Profundum Phase 14: the morph-modulation NaN-injection arms (FR-006, FR-001 sanitising)
     unit/systems/profundum_morph_mod_nonfinite_test.cpp
+    # Disrumpo audit T2.17 (D-013, D-162): one NaN/Inf sample must not latch the state
+    unit/primitives/dc_blocker_nonfinite_test.cpp
+    unit/processors/envelope_follower_nonfinite_test.cpp
+    # Disrumpo audit T4.14 (D-166): fastTanh returns the incoming NaN, not a NaN constant
+    unit/core/fast_math_nonfinite_test.cpp
+    # Disrumpo audit T4.15 (D-167): Asymmetric::diode maps -Inf to its -2 limit, not NaN
+    unit/core/sigmoid_nonfinite_test.cpp
+    # Disrumpo audit T5.09: BiquadCascade block / pair paths and the stereo IIR oversampler, bit for bit
+    unit/primitives/biquad_cascade_block_test.cpp
+    # Iterum Freeze P11: the PitchSync splice search without per-sample division, against its frozen copy, bit for bit
+    unit/core/ring_splice_search_test.cpp
+    # Innexus M6 SC-008: HarmonicOscillatorBank::applyPanOffsets' cache against the frozen loop, bit for bit
+    unit/processors/harmonic_oscillator_bank_pan_cache_test.cpp
+    # FeedbackEcology SC-004 (a): CrossfadingDelayLine's cached live tap against its frozen copy, bit for bit
+    unit/primitives/crossfading_delay_line_tap_cache_test.cpp
     # bit-exactness TUs (moved from dsp_processors_tests)
     unit/processors/spectral_shape_recipe_test.cpp
     unit/processors/drop_phase_lock_test.cpp
     unit/processors/mono_handler_glide_test.cpp
+    # Disrumpo audit T4.16 (D-084): AllpassSaturator against its frozen pre-T4.16 copy, bit for bit. Under the
+    # macOS repro's -ffast-math the two copies are reassociated apart (AllpassChain, 44.1 kHz: 84869 of 88200 samples,
+    # max |diff| 1.03e-3); the TU's NaN / Inf injection arms (FR-026) are IEEE-only claims too.
+    unit/processors/allpass_saturator_tests.cpp
+    # Vorago FR-011 / B-2 (VoragoVoice_SpectralTargetIsNeutral): the test's exp2 law supplied as a target against the
+    # cloud's untargeted render, bit for bit. Under the macOS repro's -ffast-math the two are reassociated apart
+    # (red at richness 0.6346, tilt -12 dB/oct; green with -fno-associative-math added). The voice's other cases stay
+    # in dsp_systems_tests (vorago_voice_test.cpp, fast-math); vorago_voice_test_helpers.h is shared by both.
+    unit/systems/vorago_voice_spectral_target_neutral_test.cpp
     # Profundum bit-exactness TUs (moved from dsp_systems_tests)
     unit/systems/profundum_note_behaviour_test.cpp
     unit/systems/profundum_voice_test.cpp
@@ -937,6 +970,15 @@ target_link_libraries(dsp_ieee_tests
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
     target_compile_options(dsp_ieee_tests PRIVATE -fno-fast-math -fno-finite-math-only -ffp-contract=off)
+endif()
+# MSVC builds this target /fp:fast. These TUs compare an optimised path against a frozen copy of the original; that is
+# an IEEE claim: under /fp:fast MSVC reassociated ring_splice_search_test.cpp's frozen energy sum (one ulp off at a
+# periodic input, score 0.99999999999999933 vs 1).
+if(MSVC)
+    set_source_files_properties(unit/core/ring_splice_search_test.cpp
+                                unit/processors/harmonic_oscillator_bank_pan_cache_test.cpp
+                                unit/primitives/crossfading_delay_line_tap_cache_test.cpp
+                                PROPERTIES COMPILE_OPTIONS "/fp:precise")
 endif()
 
 target_compile_definitions(dsp_ieee_tests
@@ -1375,6 +1417,15 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/systems/profundum_engine_nonfinite_test.cpp
         # Profundum Phase 14: injects NaN bit patterns (FR-006, FR-001 sanitising). The morphmod / modulator TUs stay out.
         unit/systems/profundum_morph_mod_nonfinite_test.cpp
+        # Disrumpo audit T2.17: injects NaN/Inf bit patterns (D-013, D-162).
+        unit/primitives/dc_blocker_nonfinite_test.cpp
+        unit/processors/envelope_follower_nonfinite_test.cpp
+        # Disrumpo audit T4.14: injects NaN/Inf bit patterns (D-166).
+        unit/core/fast_math_nonfinite_test.cpp
+        # Disrumpo audit T4.15: injects -Inf/NaN bit patterns (D-167).
+        unit/core/sigmoid_nonfinite_test.cpp
+        # Disrumpo audit T5.09: bit-exactness against Biquad::process, NaN/Inf bit patterns.
+        unit/primitives/biquad_cascade_block_test.cpp
         PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only -ffp-contract=off"
     )
 

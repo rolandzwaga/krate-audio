@@ -1,0 +1,357 @@
+// ==============================================================================
+// Disrumpo audit probe (hidden: [.][audit-probe]) - per-band arrival time on the
+// LIVE path (Processor::process -> per-sample BandProcessor::process).
+// Measurement only: prints PROBE lines, asserts nothing but finiteness.
+// ==============================================================================
+
+#include <catch2/catch_test_macros.hpp>
+
+#include "processor/processor.h"
+#include "plugin_ids.h"
+#include "dsp/band_processor.h"
+
+#include "pluginterfaces/vst/ivstaudioprocessor.h"
+#include "pluginterfaces/vst/ivstparameterchanges.h"
+
+#include "vst_param_changes.h"
+
+#include <krate/dsp/core/db_utils.h>
+
+#include <algorithm>
+#include <array>
+#include <cmath>
+#include <complex>
+#include <cstdio>
+#include <memory>
+#include <string>
+#include <utility>
+#include <vector>
+
+using namespace Disrumpo;
+
+namespace {
+
+using Steinberg::int32;
+using Steinberg::Vst::ParamID;
+using PChanges = Krate::Test::ParameterChanges;
+using PList = std::vector<std::pair<ParamID, double>>;
+using cd = std::complex<double>;
+
+constexpr double kTwoPiA = 6.283185307179586476925;
+constexpr double kSr = 48000.0;
+constexpr size_t kPre = 14400;   // 0.3 s pre-roll
+constexpr size_t kPost = 65536;  // 1.37 s after the impulse
+constexpr size_t kLen = kPre + kPost;
+
+bool finA(float v) { return Krate::DSP::detail::isFinite(v); }
+
+struct ARig {
+    std::unique_ptr<Processor> p;
+    explicit ARig() {
+        p = std::make_unique<Processor>();
+        p->initialize(nullptr);
+        Steinberg::Vst::ProcessSetup ps{};
+        ps.processMode = Steinberg::Vst::kRealtime;
+        ps.symbolicSampleSize = Steinberg::Vst::kSample32;
+        ps.sampleRate = kSr;
+        ps.maxSamplesPerBlock = 512;
+        p->setupProcessing(ps);
+        p->setActive(true);
+    }
+    ~ARig() {
+        p->setActive(false);
+        p->terminate();
+    }
+    ARig(const ARig&) = delete;
+    ARig& operator=(const ARig&) = delete;
+
+    void block(float* iL, float* iR, float* oL, float* oR, int32 n, Steinberg::Vst::IParameterChanges* in) {
+        float* ic[2] = {iL, iR};
+        float* oc[2] = {oL, oR};
+        Steinberg::Vst::AudioBusBuffers ib{};
+        ib.numChannels = 2;
+        ib.channelBuffers32 = ic;
+        Steinberg::Vst::AudioBusBuffers ob{};
+        ob.numChannels = 2;
+        ob.channelBuffers32 = oc;
+        Steinberg::Vst::ProcessData d{};
+        d.processMode = Steinberg::Vst::kRealtime;
+        d.symbolicSampleSize = Steinberg::Vst::kSample32;
+        d.numSamples = n;
+        d.numInputs = 1;
+        d.numOutputs = 1;
+        d.inputs = &ib;
+        d.outputs = &ob;
+        d.inputParameterChanges = in;
+        d.processContext = nullptr;
+        p->process(d);
+    }
+    void apply(const PList& l) {
+        PChanges pc;
+        for (const auto& c : l) pc.addChange(c.first, c.second);
+        float z[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+        block(z, z + 1, z + 2, z + 3, 0, &pc);
+    }
+    void reactivate() {
+        p->setActive(false);
+        p->setActive(true);
+    }
+    void render(const std::vector<float>& in, std::vector<float>& oL, std::vector<float>& oR) {
+        oL.assign(in.size(), 0.0f);
+        oR.assign(in.size(), 0.0f);
+        std::vector<float> bL(512), bR(512), xL(512), xR(512);
+        PChanges pc;
+        for (size_t s = 0; s < in.size(); s += 512) {
+            const auto n = static_cast<int32>(std::min<size_t>(512, in.size() - s));
+            std::copy(in.begin() + static_cast<std::ptrdiff_t>(s), in.begin() + static_cast<std::ptrdiff_t>(s) + n, bL.begin());
+            std::copy(in.begin() + static_cast<std::ptrdiff_t>(s), in.begin() + static_cast<std::ptrdiff_t>(s) + n, bR.begin());
+            pc.clear();
+            block(bL.data(), bR.data(), xL.data(), xR.data(), n, &pc);
+            std::copy(xL.begin(), xL.begin() + n, oL.begin() + static_cast<std::ptrdiff_t>(s));
+            std::copy(xR.begin(), xR.begin() + n, oR.begin() + static_cast<std::ptrdiff_t>(s));
+        }
+    }
+};
+
+ParamID nId(int b, NodeParamType t) { return makeNodeParamId(static_cast<uint8_t>(b), 0, t); }
+ParamID bId(int b, BandParamType t) { return makeBandParamId(static_cast<uint8_t>(b), t); }
+double tNorm(DistortionType t) { return static_cast<double>(static_cast<int>(t)) / 25.0; }
+double xoNorm(double hz) { return (std::log10(hz) - std::log10(20.0)) / (std::log10(20000.0) - std::log10(20.0)); }
+
+const char* tName(DistortionType t) {
+    switch (t) {
+        case DistortionType::SoftClip: return "SoftClip";
+        case DistortionType::Bitcrush: return "Bitcrush";
+        case DistortionType::FeedbackDist: return "FeedbackDist";
+        case DistortionType::Spectral: return "Spectral";
+        case DistortionType::SergeFold: return "SergeFold";
+        default: return "?";
+    }
+}
+
+struct Cfg {
+    int bands;
+    std::array<DistortionType, 4> types;
+    double drive;    // plain drive (0 = adapter passthrough reference)
+    double toneNorm; // < 0 = leave default (4000 Hz)
+};
+
+/// Renders the impulse; isolate = band index to keep (others muted), -1 = full sum.
+void renderCfg(const Cfg& c, int isolate, std::vector<float>& oL, std::vector<float>& oR) {
+    ARig r;
+    r.apply({{kBandCountId, static_cast<double>(c.bands - 1) / 3.0}});
+    PList l;
+    if (c.bands == 2) {
+        l.push_back({makeCrossoverParamId(0), xoNorm(1000.0)});
+    } else {
+        l.push_back({makeCrossoverParamId(0), xoNorm(200.0)});
+        l.push_back({makeCrossoverParamId(1), xoNorm(1500.0)});
+        l.push_back({makeCrossoverParamId(2), xoNorm(6000.0)});
+    }
+    for (int b = 0; b < c.bands; ++b) {
+        l.push_back({nId(b, NodeParamType::kNodeType), tNorm(c.types[static_cast<size_t>(b)])});
+        l.push_back({nId(b, NodeParamType::kNodeDrive), c.drive / 10.0});
+        if (c.toneNorm >= 0.0) l.push_back({nId(b, NodeParamType::kNodeTone), c.toneNorm});
+        if (isolate >= 0 && b != isolate) l.push_back({bId(b, BandParamType::kBandMute), 1.0});
+    }
+    r.apply(l);
+    r.reactivate();
+    std::vector<float> imp(kLen, 0.0f);
+    imp[kPre] = 0.5f;
+    r.render(imp, oL, oR);
+}
+
+struct Met {
+    long peak = -1;
+    long first = -1;
+    double peakAbs = 0.0;
+    size_t nonFinite = 0;
+};
+
+Met metrics(const std::vector<float>& x) {
+    Met m;
+    for (size_t i = 0; i < x.size(); ++i)
+        if (!finA(x[i])) ++m.nonFinite;
+    for (size_t i = kPre; i < x.size(); ++i) {
+        const double a = finA(x[i]) ? std::fabs(static_cast<double>(x[i])) : 0.0;
+        if (a > m.peakAbs) { m.peakAbs = a; m.peak = static_cast<long>(i - kPre); }
+    }
+    for (size_t i = kPre; i < x.size(); ++i) {
+        const double a = finA(x[i]) ? std::fabs(static_cast<double>(x[i])) : 0.0;
+        if (m.peakAbs > 0.0 && a >= 0.1 * m.peakAbs) { m.first = static_cast<long>(i - kPre); break; }
+    }
+    return m;
+}
+
+/// Pre-roll energy (samples before the impulse) - self-noise check so a lag is not read off noise.
+double preRms(const std::vector<float>& x) {
+    double s = 0.0;
+    for (size_t i = kPre - 4800; i < kPre; ++i) s += finA(x[i]) ? static_cast<double>(x[i]) * x[i] : 0.0;
+    return std::sqrt(s / 4800.0);
+}
+
+/// Lag of max |xcorr| of x against the reference segment ref[kPre, kPre+2048).
+long xcorrLag(const std::vector<float>& x, const std::vector<float>& ref) {
+    constexpr long kMin = -64;
+    constexpr long kMax = 24576;
+    constexpr size_t kSeg = 2048;
+    double best = -1.0;
+    long bestLag = 0;
+    for (long lag = kMin; lag <= kMax; ++lag) {
+        double c = 0.0;
+        for (size_t i = 0; i < kSeg; ++i) {
+            const long j = static_cast<long>(kPre + i) + lag;
+            if (j < 0 || j >= static_cast<long>(x.size())) continue;
+            const float v = x[static_cast<size_t>(j)];
+            c += static_cast<double>(ref[kPre + i]) * (finA(v) ? v : 0.0f);
+        }
+        if (std::fabs(c) > best) { best = std::fabs(c); bestLag = lag; }
+    }
+    return bestLag;
+}
+
+cd dtft(const std::vector<float>& x, double f) {
+    cd acc(0.0, 0.0);
+    const double w = -kTwoPiA * f / kSr;
+    for (size_t n = 0; n < kPost; ++n) {
+        const float v = x[kPre + n];
+        if (!finA(v) || v == 0.0f) continue;
+        const double a = w * static_cast<double>(n);
+        acc += static_cast<double>(v) * cd(std::cos(a), std::sin(a));
+    }
+    return acc;
+}
+
+/// Group delay (samples) at f from the phase slope of the DTFT.
+double groupDelay(const std::vector<float>& x, double f) {
+    constexpr double df = 0.25;
+    const cd a = dtft(x, f - df);
+    const cd b = dtft(x, f + df);
+    if (std::abs(a) < 1e-12 || std::abs(b) < 1e-12) return 0.0;
+    const double dphi = std::arg(b / a);
+    return -dphi / (kTwoPiA * 2.0 * df) * kSr;
+}
+
+std::string f1(double v) { char b[48]; std::snprintf(b, sizeof(b), "%.1f", v); return b; }
+std::string f2(double v) { char b[48]; std::snprintf(b, sizeof(b), "%.2f", v); return b; }
+double dB(double v) { return v > 1e-15 ? 20.0 * std::log10(v) : -300.0; }
+
+void line(const std::string& name, const std::string& setup, const std::string& metric, const std::string& val,
+          const std::string& thr, int lv) {
+    const char* v = lv <= 0 ? "ok" : (lv == 1 ? "suspicious" : "bad");
+    std::printf("PROBE %s | %s | %s = %s | threshold %s | %s\n", name.c_str(), setup.c_str(), metric.c_str(),
+                val.c_str(), thr.c_str(), v);
+    std::fflush(stdout);
+}
+
+struct BandOut {
+    std::vector<float> L, R;
+};
+
+void runConfig(const std::string& label, const Cfg& c, const Cfg& ref, size_t& badFinite) {
+    const std::array<double, 4> centres2 = {250.0, 4000.0, 0.0, 0.0};
+    const std::array<double, 4> centres4 = {100.0, 550.0, 3000.0, 10000.0};
+    const std::array<double, 3> xo2 = {1000.0, 0.0, 0.0};
+    const std::array<double, 3> xo4 = {200.0, 1500.0, 6000.0};
+    const auto& centres = c.bands == 2 ? centres2 : centres4;
+    const auto& xo = c.bands == 2 ? xo2 : xo4;
+
+    std::string typesStr;
+    for (int b = 0; b < c.bands; ++b) {
+        if (b) typesStr += "/";
+        typesStr += tName(c.types[static_cast<size_t>(b)]);
+    }
+    const std::string setup = std::to_string(c.bands) + " bands [" + typesStr + "] drive " + f1(c.drive) +
+                              (c.toneNorm >= 0.0 ? " toneNorm " + f2(c.toneNorm) : " tone default") +
+                              ", impulse 0.5 L=R after 0.3 s pre-roll, block 512, 48 kHz";
+
+    std::vector<BandOut> iso(static_cast<size_t>(c.bands)), refIso(static_cast<size_t>(c.bands));
+    for (int b = 0; b < c.bands; ++b) {
+        renderCfg(c, b, iso[static_cast<size_t>(b)].L, iso[static_cast<size_t>(b)].R);
+        renderCfg(ref, b, refIso[static_cast<size_t>(b)].L, refIso[static_cast<size_t>(b)].R);
+    }
+    for (int b = 0; b < c.bands; ++b) {
+        const auto& o = iso[static_cast<size_t>(b)];
+        const auto& rr = refIso[static_cast<size_t>(b)];
+        const Met mL = metrics(o.L), mR = metrics(o.R), mRef = metrics(rr.L);
+        badFinite += mL.nonFinite + mR.nonFinite;
+        const long xl = xcorrLag(o.L, rr.L);
+        const long xr = xcorrLag(o.R, rr.L);
+        const double gd = groupDelay(o.L, centres[static_cast<size_t>(b)]);
+        const double gdRef = groupDelay(rr.L, centres[static_cast<size_t>(b)]);
+        const long dPeak = mL.peak - mRef.peak;
+        const long ax = std::labs(xl);
+        const int lv = ax > 2 ? 2 : (ax > 0 ? 1 : 0);
+        line("band-arrival:" + label + ":b" + std::to_string(b) + ":" + tName(c.types[static_cast<size_t>(b)]),
+             setup + "; band " + std::to_string(b) + " isolated (others muted); ref = same band, drive 0 (pure crossover)",
+             "peakIdx_L,refPeakIdx,dPeak_smp,firstArrival_L,refFirst,xcorrLag_L_smp,xcorrLag_R_smp,peakIdx_R,"
+             "GD@" + f1(centres[static_cast<size_t>(b)]) + "Hz_smp,refGD_smp,extraGD_smp,peak_dBFS,preRoll_rms_dB",
+             std::to_string(mL.peak) + "," + std::to_string(mRef.peak) + "," + std::to_string(dPeak) + "," +
+                 std::to_string(mL.first) + "," + std::to_string(mRef.first) + "," + std::to_string(xl) + "," +
+                 std::to_string(xr) + "," + std::to_string(mR.peak) + "," + f2(gd) + "," + f2(gdRef) + "," +
+                 f2(gd - gdRef) + "," + f1(dB(mL.peakAbs)) + "," + f1(dB(preRms(o.L))),
+             "xcorr lag 0 vs pure crossover (band aligned with its neighbours)", lv);
+    }
+    // Coherence of the band sum at each crossover: |sum H_b| / sum |H_b| (0 dB = in phase).
+    for (int k = 0; k < c.bands - 1; ++k) {
+        const double f = xo[static_cast<size_t>(k)];
+        cd sum(0.0, 0.0), sumRef(0.0, 0.0);
+        double mag = 0.0, magRef = 0.0;
+        for (int b = 0; b < c.bands; ++b) {
+            const cd h = dtft(iso[static_cast<size_t>(b)].L, f);
+            const cd hr = dtft(refIso[static_cast<size_t>(b)].L, f);
+            sum += h; mag += std::abs(h);
+            sumRef += hr; magRef += std::abs(hr);
+        }
+        const double coh = mag > 0.0 ? dB(std::abs(sum) / mag) : -300.0;
+        const double cohRef = magRef > 0.0 ? dB(std::abs(sumRef) / magRef) : -300.0;
+        const int lv = coh < -3.0 ? 2 : (coh < -1.0 ? 1 : 0);
+        line("band-coherence:" + label + ":xo" + std::to_string(k),
+             setup + "; isolated band DTFTs (L) summed at crossover " + f1(f) + " Hz",
+             "coherence_dB,ref_coherence_dB(drive0)", f2(coh) + "," + f2(cohRef),
+             ">= -1 dB (bands in phase at the crossover)", lv);
+    }
+    // Full sum, all bands active.
+    std::vector<float> sL, sR, rL, rR;
+    renderCfg(c, -1, sL, sR);
+    renderCfg(ref, -1, rL, rR);
+    const Met ms = metrics(sL), mr = metrics(rL);
+    badFinite += ms.nonFinite;
+    const long xs = xcorrLag(sL, rL);
+    line("sum-arrival:" + label, setup + "; full sum vs drive-0 sum",
+         "peakIdx_sum,refPeakIdx_sum,firstArrival_sum,ref_first,xcorrLag_sum_smp,peak_dBFS,ref_peak_dBFS",
+         std::to_string(ms.peak) + "," + std::to_string(mr.peak) + "," + std::to_string(ms.first) + "," +
+             std::to_string(mr.first) + "," + std::to_string(xs) + "," + f1(dB(ms.peakAbs)) + "," + f1(dB(mr.peakAbs)),
+         "info", 0);
+}
+
+} // namespace
+
+TEST_CASE("audit probe: per-band arrival on the live path", "[.][audit-probe]") {
+    using DT = DistortionType;
+    size_t badFinite = 0;
+    const DT sc = DT::SoftClip;
+    const Cfg ref2{2, {sc, sc, sc, sc}, 0.0, -1.0};
+    const Cfg ref4{4, {sc, sc, sc, sc}, 0.0, -1.0};
+
+    // 2 bands, xover 1 kHz: each probe type in the high band and in the low band.
+    runConfig("2b:SoftClip/SoftClip", Cfg{2, {sc, sc, sc, sc}, 1.0, -1.0}, ref2, badFinite);
+    for (DT t : {DT::Bitcrush, DT::FeedbackDist, DT::Spectral, DT::SergeFold}) {
+        runConfig(std::string("2b:SoftClip/") + tName(t), Cfg{2, {sc, t, sc, sc}, 1.0, -1.0}, ref2, badFinite);
+        runConfig(std::string("2b:") + tName(t) + "/SoftClip", Cfg{2, {t, sc, sc, sc}, 1.0, -1.0}, ref2, badFinite);
+    }
+    // Tone-filter isolation: SoftClip at max tone (8 kHz) and Bitcrush (tone skipped) on both bands.
+    runConfig("2b:SoftClip/SoftClip:tone8k", Cfg{2, {sc, sc, sc, sc}, 1.0, 1.0}, ref2, badFinite);
+    runConfig("2b:Bitcrush/Bitcrush", Cfg{2, {DT::Bitcrush, DT::Bitcrush, sc, sc}, 1.0, -1.0}, ref2, badFinite);
+
+    // 4 bands, xovers 200 / 1500 / 6000 Hz.
+    runConfig("4b:all-SoftClip", Cfg{4, {sc, sc, sc, sc}, 1.0, -1.0}, ref4, badFinite);
+    runConfig("4b:SoftClip/Bitcrush/SergeFold/Spectral",
+              Cfg{4, {sc, DT::Bitcrush, DT::SergeFold, DT::Spectral}, 1.0, -1.0}, ref4, badFinite);
+    runConfig("4b:Bitcrush/FeedbackDist/SoftClip/SergeFold",
+              Cfg{4, {DT::Bitcrush, DT::FeedbackDist, sc, DT::SergeFold}, 1.0, -1.0}, ref4, badFinite);
+
+    std::printf("PROBE band-arrival:nonfinite | all renders | nonfinite_samples = %zu | threshold 0 | %s\n",
+                badFinite, badFinite == 0 ? "ok" : "bad");
+    CHECK(true);
+}

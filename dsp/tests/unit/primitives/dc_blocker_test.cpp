@@ -25,7 +25,6 @@
 
 #include <array>
 #include <cmath>
-#include <limits>
 #include <vector>
 
 using Catch::Approx;
@@ -540,46 +539,9 @@ TEST_CASE("setCutoff called before prepare is safe", "[dc_blocker][US4]") {
 // Phase 7: Edge Cases & Robustness (T043-T045)
 // =============================================================================
 
-TEST_CASE("FR-016: process propagates NaN inputs", "[dc_blocker][FR-016][edge]") {
-    DCBlocker blocker;
-    blocker.prepare(44100.0, 10.0f);
-
-    // Process some normal samples first
-    for (int i = 0; i < 10; ++i) {
-        (void)blocker.process(0.5f);
-    }
-
-    // Process NaN
-    float nan = std::numeric_limits<float>::quiet_NaN();
-    float output = blocker.process(nan);
-
-    // NaN should propagate (not be hidden)
-    REQUIRE(std::isnan(output));
-}
-
-TEST_CASE("FR-017: process handles infinity inputs without crashing", "[dc_blocker][FR-017][edge]") {
-    DCBlocker blocker;
-    blocker.prepare(44100.0, 10.0f);
-
-    // Process some normal samples first
-    for (int i = 0; i < 10; ++i) {
-        (void)blocker.process(0.5f);
-    }
-
-    SECTION("positive infinity") {
-        float inf = std::numeric_limits<float>::infinity();
-        float output = blocker.process(inf);
-        // Infinity should propagate per IEEE 754
-        REQUIRE(std::isinf(output));
-    }
-
-    SECTION("negative infinity") {
-        float negInf = -std::numeric_limits<float>::infinity();
-        float output = blocker.process(negInf);
-        // Infinity should propagate per IEEE 754
-        REQUIRE(std::isinf(output));
-    }
-}
+// FR-016 / FR-017 (non-finite input) live in dc_blocker_nonfinite_test.cpp
+// (dsp_ieee_tests): a NaN/Inf input propagates for that sample and resets the
+// state, so it never latches (D-162).
 
 TEST_CASE("FR-015: denormal values are flushed", "[dc_blocker][FR-015][edge]") {
     DCBlocker blocker;

@@ -735,7 +735,7 @@ Each arp factory preset contains both a synth patch and an arp pattern. The "Arp
 
 | Component | Path | Purpose |
 |-----------|------|---------|
-| CrossoverNetwork | `plugins/disrumpo/src/dsp/crossover_network.h` | N-band phase-coherent crossover (1-8 bands) |
+| CrossoverNetwork | `plugins/disrumpo/src/dsp/crossover_network.h` | 1-4 band phase-coherent crossover (policy over `Krate::DSP::MultibandCrossover<4>`) |
 | BandProcessor | `plugins/disrumpo/src/dsp/band_processor.h` | Per-band distortion, oversampling, gain/pan/mute |
 | BandState | `plugins/disrumpo/src/dsp/band_state.h` | Per-band configuration structure |
 | OversamplingUtils | `plugins/disrumpo/src/dsp/oversampling_utils.h` | Morph-weighted oversampling factor computation |
@@ -743,16 +743,20 @@ Each arp factory preset contains both a synth patch and an arp pattern. The "Arp
 ### CrossoverNetwork
 **Path:** [crossover_network.h](../../plugins/disrumpo/src/dsp/crossover_network.h) | **Since:** 0.1.0
 
-Phase-coherent multiband crossover using cascaded LR4 filters with D'Appolito allpass compensation.
+Phase-coherent multiband crossover: Disrumpo's band policy over one `Krate::DSP::MultibandCrossover<4>`
+(cascaded LR4, D'Appolito allpass compensation on, dry-path compensation; see layer-2-processors.md
+"CrossoverFilter"). The wrapper keeps the 1-4 band clamp, the 20 Hz - 20 kHz range (`state_codec.h`) and
+0.45 * sampleRate cap, the logarithmic defaults on the first prepare and the redistribution on a band-count change.
 
 ```cpp
 class CrossoverNetwork {
-    void prepare(double sampleRate, int numBands);   // Initialize (1-8 bands)
+    void prepare(double sampleRate, int numBands);   // Initialize (1-4 bands); keeps stored frequencies
     void reset();                                     // Clear filter states
-    void setBandCount(int numBands);                  // Dynamic band change
-    void setCrossoverFrequency(int index, float hz); // Set crossover point
+    void setBandCount(int numBands);                  // Dynamic band change; joining crossovers start clean
+    void setCrossoverFrequency(int index, float hz); // Stored for every index, active or not
     float getCrossoverFrequency(int index) const;    // Get crossover point
-    void process(float input, std::array<float, 8>& bands); // Split to bands
+    void process(float input, std::array<float, 4>& bands); // Split to bands
+    float processDryCompensation(float x);           // Dry path with the band sum's phase (D-018)
     int getBandCount() const;
     bool isPrepared() const;
 };
@@ -760,7 +764,7 @@ class CrossoverNetwork {
 
 **Features:**
 - SC-001 compliant: +/-0.1dB flat frequency response when bands summed
-- D'Appolito allpass compensation for phase coherence
+- D'Appolito allpass compensation (Q exactly 1/sqrt(2), double precision, tracking gliding crossovers)
 - Logarithmic default frequency distribution (FR-009)
 - Band count change preserves existing crossovers (FR-011a/b)
 - Real-time safe: fixed-size arrays, no allocations
@@ -859,7 +863,6 @@ namespace Disrumpo {
 | SpectrumDisplay | `plugins/disrumpo/src/controller/views/spectrum_display.h` | Crossover frequency visualization |
 | VisibilityController | `plugins/disrumpo/src/controller/controller.cpp` | IDependent-based visibility toggle |
 | ContainerVisibilityController | `plugins/disrumpo/src/controller/controller.cpp` | Show/hide containers by parameter |
-| MorphSweepLinkController | `plugins/disrumpo/src/controller/controller.cpp` | Update morph from sweep frequency |
 
 ### MorphPad (Spec 006)
 **Path:** [morph_pad.h](../../plugins/disrumpo/src/controller/views/morph_pad.h) | **Since:** 0.2.0
@@ -897,27 +900,20 @@ class MorphPad : public VSTGUI::CControl {
 - Hybrid: Red (#FF5370)
 - Experimental: Light Blue (#89DDFF)
 
-### MorphSweepLinkController
-**Path:** Controller implementation in `controller.cpp` | **Since:** 0.2.0
+### Sweep -> Morph Link (processor)
+**Path:** [processor.cpp](../../plugins/disrumpo/src/processor/processor.cpp) `Processor::process`, curves in [sweep_morph_link.h](../../plugins/disrumpo/src/dsp/sweep_morph_link.h) | **Since:** 0.2.0, in the processor since the audit fix T1.12
 
-IDependent-based controller that updates morph position when sweep frequency changes.
+Once per block the processor maps the smoothed sweep centre (base, mod matrix, sweep LFO and envelope) through each band's Morph X / Y Link mode (`BandState::xLink` / `yLink`, saved in state v13) with `applyMorphLinkCurve` (Custom: `CustomCurve::evaluate`) and uses it as the morph X / Y base before the mod-matrix offsets. None keeps the manual position; the global Sweep Morph Link drives X of every band whose own X link is None. No controller is involved, so the link works with the editor closed.
 
-```cpp
-class MorphSweepLinkController : public Steinberg::FObject {
-    // Listens to sweep frequency parameter changes
-    // For each band, applies link mode to compute morph position
-    // Updates Band*MorphX/Y parameters
-};
-```
-
-**Link Modes (MorphLinkMode enum):**
+**Link Modes (MorphLinkMode enum, dsp-details.md 8.1):**
 - None: Manual control only
-- SweepFreq: Linear (low freq = 0, high freq = 1)
-- InverseSweep: Inverted (high freq = 0, low freq = 1)
-- EaseIn: sqrt(x) - more range in bass
-- EaseOut: x^2 - more range in highs
-- HoldRise: Hold at 0 until midpoint, then rise to 1
-- Stepped: Quantized to 5 steps (0, 0.25, 0.5, 0.75, 1.0)
+- SweepFreq: y = x
+- InverseSweep: y = 1 - x
+- EaseIn: y = x^2
+- EaseOut: y = 1 - (1 - x)^2
+- HoldRise: 0 until 60 %, then linear to 1
+- Stepped: 4 levels (0, 1/3, 2/3, 1)
+- Custom: user breakpoint curve
 
 ### IDependent Pattern for Visibility Controllers
 Thread-safe UI visibility updates using VST3 parameter observation.

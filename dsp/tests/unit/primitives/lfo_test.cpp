@@ -13,8 +13,10 @@
 
 #include <krate/dsp/primitives/lfo.h>
 
+#include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstdint>
 #include <numbers>
 #include <vector>
 
@@ -1647,4 +1649,146 @@ TEST_CASE("LFO fade-in duration is recomputed on prepare",
     // Halfway through the fade the gain must still be climbing. With a stale
     // 44.1 kHz increment it would have reached full scale already.
     CHECK(lfo.getFadeInGain() < 0.99f);
+}
+
+// ==============================================================================
+// Random generator is MINSTD (Disrumpo audit D-165, fix plan T4.17)
+// ==============================================================================
+// nextRandomValue() multiplied in uint32, so the product wrapped mod 2^32 before
+// the % (2^31 - 1): from seed 12345 that is a 79,493-step cycle, not MINSTD.
+// The S&H waveform shows the state sequence directly: reset() draws s1 (current)
+// and s2 (SmoothRandom target), and every cycle wrap draws the next state into
+// the held value, so S&H holds f(s1), f(s3), f(s4), ... with
+// f(x) = x / 1073741823.5 - 1.
+
+namespace {
+
+float minstdToBipolar(std::uint32_t state) {
+    return static_cast<float>(state) / 1073741823.5f - 1.0f;
+}
+
+/// Held S&H values of the first `count` cycles (sampled mid-cycle).
+std::vector<float> sampleHoldSequence(LFO& lfo, int count) {
+    constexpr size_t kCycle = 2205;  // 20 Hz at 44.1 kHz
+    std::vector<float> held;
+    for (size_t i = 0; held.size() < static_cast<size_t>(count); ++i) {
+        const float v = lfo.process();
+        if (i % kCycle == kCycle / 2) {
+            held.push_back(v);
+        }
+    }
+    return held;
+}
+
+} // namespace
+
+TEST_CASE("LFO random generator follows MINSTD from the default seed",
+          "[lfo][random][D-165]") {
+    LFO lfo;
+    lfo.prepare(44100.0);
+    lfo.setWaveform(Waveform::SampleHold);
+    lfo.setFrequency(20.0f);
+
+    // MINSTD (x <- 48271 x mod 2^31-1) from 12345:
+    // 595905495, 1558181227, 1498755989, 2021244883, 887213142
+    const std::array<std::uint32_t, 4> expected{595905495u, 1498755989u, 2021244883u, 887213142u};
+    const auto held = sampleHoldSequence(lfo, 4);
+    for (size_t k = 0; k < expected.size(); ++k) {
+        INFO("cycle " << k << ": held " << held[k] << ", MINSTD " << minstdToBipolar(expected[k]));
+        CHECK(held[k] == Approx(minstdToBipolar(expected[k])).margin(1e-6));
+    }
+}
+
+TEST_CASE("LFO setSeed(1) reproduces the MINSTD sequence 48271, 182605794, ...",
+          "[lfo][random][D-165]") {
+    LFO lfo;
+    lfo.prepare(44100.0);
+    lfo.setSeed(1u);
+    lfo.setFrequency(20.0f);
+
+    // SmoothRandom starts at f(s1) and glides to f(s2) over the first cycle.
+    lfo.setWaveform(Waveform::SmoothRandom);
+    CHECK(lfo.process() == Approx(minstdToBipolar(48271u)).margin(1e-6));
+    float lastOfCycle = 0.0f;
+    for (int i = 1; i < 2205; ++i) {
+        lastOfCycle = lfo.process();
+    }
+    CHECK(lastOfCycle == Approx(minstdToBipolar(182605794u)).margin(2e-3));
+
+    // S&H holds f(s1), then f(s3), f(s4), f(s5) (reset() spent s2 on the
+    // SmoothRandom target).
+    LFO sh;
+    sh.prepare(44100.0);
+    sh.setSeed(1u);
+    sh.setWaveform(Waveform::SampleHold);
+    sh.setFrequency(20.0f);
+    const std::array<std::uint32_t, 4> expected{48271u, 1291394886u, 1914720637u, 2078669041u};
+    const auto held = sampleHoldSequence(sh, 4);
+    for (size_t k = 0; k < expected.size(); ++k) {
+        INFO("cycle " << k);
+        CHECK(held[k] == Approx(minstdToBipolar(expected[k])).margin(1e-6));
+    }
+
+    // The seed survives reset(): the sequence restarts from it.
+    sh.reset();
+    CHECK(sh.process() == Approx(minstdToBipolar(48271u)).margin(1e-6));
+}
+
+TEST_CASE("LFOs with different seeds draw different sequences; seed 0 is guarded",
+          "[lfo][random][D-165]") {
+    auto firstHeld = [](std::uint32_t seed) {
+        LFO lfo;
+        lfo.prepare(44100.0);
+        lfo.setSeed(seed);
+        lfo.setWaveform(Waveform::SampleHold);
+        lfo.setFrequency(20.0f);
+        return sampleHoldSequence(lfo, 4);
+    };
+    const auto a = firstHeld(12345u);
+    const auto b = firstHeld(54321u);
+    const auto a2 = firstHeld(12345u);
+    for (size_t k = 0; k < a.size(); ++k) {
+        CHECK(a[k] != b[k]);
+        CHECK(a[k] == a2[k]);
+    }
+
+    // 0 and 2^31 - 1 are the generator's fixed point (0 forever, held -1.0);
+    // both map to seed 1.
+    const auto zero = firstHeld(0u);
+    const auto modulus = firstHeld(2147483647u);
+    const auto one = firstHeld(1u);
+    for (size_t k = 0; k < one.size(); ++k) {
+        CHECK(zero[k] == one[k]);
+        CHECK(modulus[k] == one[k]);
+        CHECK(zero[k] != -1.0f);
+    }
+}
+
+// ==============================================================================
+// Symmetry edge: the lookup phase must stay inside the table (D-015, T4.17)
+// ==============================================================================
+// process() used to cast the double phase to float before applySymmetry(); any
+// phase in [1 - 2^-25, 1) rounded to 1.0f, applySymmetry returned 1.0, and
+// readWavetable read table[2048] -- past the end of the 2048-entry Triangle
+// table, i.e. the first Sawtooth sample (-1.0). Near phase 1 a Triangle is ~0.
+
+TEST_CASE("LFO symmetry lookup stays inside the table at the phase-1 edge",
+          "[lfo][symmetry][D-015]") {
+    LFO lfo;
+    // A huge rate makes the per-sample phase step ~1e-12, so the run spends
+    // ~30,000 samples inside [1 - 2^-25, 1) before it wraps.
+    lfo.prepare(1.0e10);
+    lfo.setWaveform(Waveform::Triangle);
+    lfo.setFrequency(kMinFrequency);
+    lfo.setSymmetry(0.3f);
+    // Largest float below 360 degrees: effective phase starts at 1 - 8.5e-8.
+    lfo.setPhaseOffset(std::nextafter(360.0f, 0.0f));
+
+    float worst = 0.0f;
+    for (int i = 0; i < 100000; ++i) {
+        const float v = lfo.process();
+        worst = std::max(worst, std::abs(v));
+    }
+    INFO("max |Triangle| around phase 1 = " << worst);
+    REQUIRE(worst < 1e-3f);
 }

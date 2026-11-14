@@ -50,6 +50,8 @@ add_executable(ruinae_tests
     integration/mod_matrix_grid_test.cpp
     integration/mod_ring_indicator_test.cpp
     integration/processor_audio_test.cpp
+    # process() runs with FTZ / DAZ whatever the caller's floating-point mode ([ruinae][numerics][denormal])
+    integration/denormal_mode_test.cpp
     integration/midi_events_test.cpp
     integration/tempo_sync_test.cpp
     integration/param_flow_test.cpp

@@ -270,7 +270,7 @@ private:
     void processChunk(float* buffer, size_t numSamples) noexcept {
         // Handle NaN inputs
         for (size_t i = 0; i < numSamples; ++i) {
-            if (!std::isfinite(buffer[i])) {
+            if (!detail::isFinite(buffer[i])) {
                 buffer[i] = 0.0f;
             }
         }

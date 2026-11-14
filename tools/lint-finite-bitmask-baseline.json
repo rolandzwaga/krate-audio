@@ -1,12 +1,4 @@
 {
-  "dsp/include/krate/dsp/primitives/polyblep_oscillator.h": 1,
-  "dsp/include/krate/dsp/primitives/wavetable_oscillator.h": 1,
-  "dsp/include/krate/dsp/processors/fm_operator.h": 1,
-  "dsp/include/krate/dsp/processors/phase_distortion_oscillator.h": 1,
-  "dsp/include/krate/dsp/processors/sub_oscillator.h": 1,
-  "dsp/include/krate/dsp/processors/sync_oscillator.h": 1,
-  "dsp/include/krate/dsp/systems/fm_voice.h": 1,
-  "dsp/include/krate/dsp/systems/unison_engine.h": 1,
   "dsp/tests/unit/core/fast_math_test.cpp": 1,
   "dsp/tests/unit/effects/aether_reverb_perf_test.cpp": 1,
   "dsp/tests/unit/effects/cavern_verb_perf_test.cpp": 1,

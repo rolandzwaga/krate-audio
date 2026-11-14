@@ -491,6 +491,27 @@ public:
     }
 
     // =========================================================================
+    // Offset Compensation (opt-in)
+    // =========================================================================
+
+    /// @brief Subtract the curve's value at the jitter offset from the output.
+    ///
+    /// When enabled, output = waveshaper(input + jitterOffset) - waveshaper(jitterOffset):
+    /// the jitter still moves the curve's operating point around the signal, but input 0
+    /// gives output 0, so the offset never becomes a signal of its own (silent input stays
+    /// silent; without it, silence yields waveshaper(drive * offset), up to full scale).
+    /// The output range is the curve's range shifted by -waveshaper(jitterOffset).
+    /// Default off: FR-022 output, unchanged.
+    void setOffsetCompensation(bool enabled) noexcept {
+        offsetCompensation_ = enabled;
+    }
+
+    /// @brief Whether offset compensation is enabled.
+    [[nodiscard]] bool getOffsetCompensation() const noexcept {
+        return offsetCompensation_;
+    }
+
+    // =========================================================================
     // Reproducibility (FR-019 to FR-021)
     // =========================================================================
 
@@ -519,6 +540,8 @@ public:
     /// - jitterOffset = jitterAmount * smoothedRandom * 0.5 (FR-022)
     /// - effectiveDrive = baseDrive * (1 + coeffNoise * smoothedRandom2 * 0.5) (FR-023)
     /// - output = waveshaper.process(input + jitterOffset, effectiveDrive)
+    /// - with setOffsetCompensation(true), waveshaper(jitterOffset) is subtracted, so
+    ///   input 0 gives output 0 (silent input stays silent)
     ///
     /// @param x Input sample
     /// @return Stochastically waveshaped output sample
@@ -582,6 +605,10 @@ public:
         // Apply waveshaping with modulated parameters
         waveshaper_.setDrive(effectiveDrive);
         float out = waveshaper_.process(x + jitterOffset);
+        if (offsetCompensation_) {
+            // 0 -> 0: the offset moves the operating point, it is not a signal of its own
+            out -= waveshaper_.process(jitterOffset);
+        }
 
         // Output smoothing (when amount > 0)
         if (outputSmoothAmount_ > 0.0f) {
@@ -716,6 +743,7 @@ private:
     float coefficientNoise_ = 0.0f;             ///< [0.0, 1.0]
     float drift_ = 0.0f;                        ///< [0.0, 1.0] drift amount
     float outputSmoothAmount_ = 0.0f;           ///< [0.0, 1.0] output smoothing
+    bool offsetCompensation_ = false;           ///< Subtract waveshaper(jitterOffset)
     CorrelationMode correlationMode_ = CorrelationMode::None;
     StochasticNoiseColor noiseColor_ = StochasticNoiseColor::White;
     float baseDrive_ = kDefaultDrive;           ///< Base drive before modulation

@@ -12,6 +12,8 @@
 
 #include <krate/dsp/core/transport_sync.h>
 
+#include <utility>
+
 using namespace Krate::DSP;
 using Catch::Approx;
 
@@ -223,4 +225,30 @@ TEST_CASE("calculateMusicalStepPosition edge cases", "[transport_sync]") {
         CHECK(pos.step == 0);
         CHECK(pos.stepFraction == Approx(0.0));
     }
+}
+
+// =============================================================================
+// ppqToSamples
+// =============================================================================
+
+// A host PPQ that sits on an integer sample must convert back to that sample. Truncating ppq * 60 / bpm * sr (what
+// Ruinae's transport position did) returned pos - 1 at 40 of the 704 64-sample block starts of this second, so a
+// bar boundary detected from it moved by a sample with the buffer size.
+TEST_CASE("ppqToSamples returns the integer sample a PPQ position sits on", "[transport_sync][regression]") {
+    size_t misses = 0;
+    for (const auto [bpm, sr] : {std::pair{120.0, 44100.0}, std::pair{140.0, 48000.0}, std::pair{97.0, 44100.0},
+                                 std::pair{128.0, 48000.0}, std::pair{150.0, 96000.0}}) {
+        for (int64_t pos = 0; pos < static_cast<int64_t>(2.0 * sr); pos += 64) {
+            const double ppq = static_cast<double>(pos) / sr * (bpm / 60.0);  // what a host reports at pos
+            const int64_t got = ppqToSamples(ppq, bpm, sr);
+            if (got != pos) {
+                ++misses;
+                INFO(bpm << " BPM, " << sr << " Hz: pos " << pos << " -> " << got);
+                CHECK(got == pos);
+            }
+        }
+    }
+    CHECK(misses == 0);
+    CHECK(ppqToSamples(-1.0, 120.0, 44100.0) == -22050);  // pre-roll stays negative
+    CHECK(ppqToSamples(1.0, 0.0, 44100.0) == 0);          // no tempo: no position
 }

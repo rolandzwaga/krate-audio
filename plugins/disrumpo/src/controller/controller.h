@@ -20,14 +20,17 @@
 #include "public.sdk/source/common/memorystream.h"
 #include "pluginterfaces/vst/ivstdataexchange.h"
 #include "pluginterfaces/vst/ivstmidicontrollers.h"
+#include "pluginterfaces/vst/ivstmidilearn.h"
 #include "vstgui/plugin-bindings/vst3editor.h"
 #include "vstgui/lib/cvstguitimer.h"
+#include "vstgui/lib/iviewlistener.h"
 #include "preset/preset_manager.h"
 #include "update/update_checker.h"
 #include "platform/accessibility_helper.h"
 #include "midi/midi_cc_manager.h"
 #include "controller/keyboard_shortcut_handler.h"
 #include "controller/spectrum_block.h"
+#include "shared_display.h"
 
 #include "dsp/morph_node.h"
 
@@ -35,9 +38,12 @@
 
 #include <array>
 #include <atomic>
+#include <chrono>
+#include <cstddef>
 #include <cstdint>
 #include <functional>
 #include <memory>
+#include <vector>
 
 namespace Krate::Plugins {
 class PresetBrowserView;
@@ -60,7 +66,9 @@ class SweepIndicator;
 class Controller : public Steinberg::Vst::EditControllerEx1,
                    public VSTGUI::VST3EditorDelegate,
                    public Steinberg::Vst::IMidiMapping,
-                   public Steinberg::Vst::IDataExchangeReceiver {
+                   public Steinberg::Vst::IMidiLearn,
+                   public Steinberg::Vst::IDataExchangeReceiver,
+                   private VSTGUI::ViewListenerAdapter {
 public:
     Controller() = default;
     ~Controller() override;  // Defined in cpp to allow unique_ptr with forward declaration
@@ -109,6 +117,13 @@ public:
         Steinberg::Vst::TChar* string,
         Steinberg::Vst::ParamValue& valueNormalized) override;
 
+    /// A new value of the processor's latency output parameter (kLatencyOutputId) calls
+    /// restartComponent(kLatencyChanged): the host re-queries getLatencySamples() from
+    /// this thread, never from the audio thread (D-026, T2.10).
+    Steinberg::tresult PLUGIN_API setParamNormalized(
+        Steinberg::Vst::ParamID tag,
+        Steinberg::Vst::ParamValue value) override;
+
     // ===========================================================================
     // VST3EditorDelegate (VSTGUI)
     // ===========================================================================
@@ -147,6 +162,15 @@ public:
         Steinberg::Vst::ParamID& paramID,
         VSTGUI::VST3Editor* editor) override;
 
+    /// Context-menu "MIDI Learn": arm a learn for paramId
+    void startMidiLearn(Steinberg::Vst::ParamID paramId);
+
+    /// Context-menu "Clear MIDI Learn": remove every mapping of paramId
+    void clearMidiLearn(Steinberg::Vst::ParamID paramId);
+
+    /// Context-menu "Save Mapping with Preset": move paramId's mapping between global and per-preset
+    void toggleMidiMappingScope(Steinberg::Vst::ParamID paramId);
+
     // ===========================================================================
     // Preset Browser (Spec 010)
     // ===========================================================================
@@ -162,6 +186,15 @@ public:
 
     /// Get the preset manager instance
     Krate::Plugins::PresetManager* getPresetManager() const { return presetManager_.get(); }
+
+    /// Test seam: every DynamicNodeSelector view the controller holds a raw pointer to (D-061).
+    [[nodiscard]] std::vector<const VSTGUI::CView*> cachedNodeSelectorsForTest() const;
+
+    /// Test seam: one tick of the open editor's 33 ms timer (the headless frame runs no timers).
+    void tickEditorTimerForTest() { onEditorTimer(); }
+
+    /// Test seam: the spectrum display of the open editor (nullptr when closed).
+    [[nodiscard]] const SpectrumDisplay* spectrumDisplayForTest() const { return spectrumDisplay_; }
 
     /// Create a memory stream containing the current component state
     /// Used for preset saving - serializes controller's parameter values
@@ -180,10 +213,19 @@ public:
         Steinberg::Vst::ParamID& id) override;
 
     // ===========================================================================
+    // IMidiLearn
+    // ===========================================================================
+
+    /// Live CC from the host (UI thread): completes an armed context-menu MIDI Learn
+    Steinberg::tresult PLUGIN_API onLiveMIDIControllerInput(
+        Steinberg::int32 busIndex, Steinberg::int16 channel,
+        Steinberg::Vst::CtrlNumber midiCC) override;
+
+    // ===========================================================================
     // IConnectionPoint (IMessage handling)
     // ===========================================================================
 
-    /// Handle messages from Processor (e.g., mod offsets)
+    /// Handle messages from Processor (the DataExchange IMessage fallback)
     Steinberg::tresult PLUGIN_API notify(Steinberg::Vst::IMessage* message) override;
 
     // ===========================================================================
@@ -220,6 +262,7 @@ public:
         DEF_INTERFACE(Steinberg::Vst::IEditController)
         DEF_INTERFACE(Steinberg::Vst::IEditController2)
         DEF_INTERFACE(Steinberg::Vst::IMidiMapping)
+        DEF_INTERFACE(Steinberg::Vst::IMidiLearn)
         DEF_INTERFACE(Steinberg::Vst::IDataExchangeReceiver)
     // The SDK macros forward queryInterface / addRef / release to the base on purpose.
     END_DEFINE_INTERFACES(EditController)  // NOLINT(bugprone-parent-virtual-call)
@@ -239,7 +282,13 @@ public:
     /// @brief Get controller-local output FIFO (for test verification).
     [[nodiscard]] Krate::DSP::SpectrumFIFO<8192>& getLocalOutputFIFO() { return localOutputFIFO_; }
 
+    /// @brief Test seam: the displays are fed by DataExchange blocks (not the Tier-3 fallback).
+    [[nodiscard]] bool isDataExchangeDeliveringForTest() const { return dataExchangeActive_; }
+
 private:
+    /// IViewListener: clears the dynamicNodeSelectors_ slot of a selector being deleted (D-061)
+    void viewWillDelete(VSTGUI::CView* view) override;
+
     // ==========================================================================
     // Parameter Registration Helpers
     // ==========================================================================
@@ -296,17 +345,29 @@ private:
     // SharedDisplayBridge (Tier 3 fallback)
     // ==========================================================================
 
-    /// Forward declaration of processor's shared display struct
-    struct SharedDisplay {
-        Krate::DSP::SpectrumFIFO<8192>* inputFIFO;
-        Krate::DSP::SpectrumFIFO<8192>* outputFIFO;
-        std::atomic<float>* sampleRate;
-    };
-
     uint64_t instanceId_{0};
+    /// The processor's SharedDisplay (shared_display.h), looked up by instanceId_
+    /// again on every editor tick (the processor may have terminated since)
     SharedDisplay* sharedDisplay_{nullptr};
+    /// A DataExchange block arrived within the last kDataExchangeStallTicks editor ticks
     bool dataExchangeActive_{false};
+    /// Editor ticks since the last DataExchange block (stops counting at the stall)
     int fallbackTickCounter_{0};
+    /// DataExchange stalled: every editor tick copies the processor's new shared-FIFO
+    /// samples into the local FIFOs (which the spectrum display always reads) and reads
+    /// its SharedMeters, until DataExchange blocks arrive again
+    bool tier3Active_{false};
+    /// The SharedDisplay tier3InputRead_ / tier3OutputRead_ count in
+    const SharedDisplay* tier3Source_{nullptr};
+    size_t tier3InputRead_{0};
+    size_t tier3OutputRead_{0};
+    /// Scratch for one tick's Tier-3 copy, at most a FIFO-full
+    static constexpr size_t kTier3CopyMax = 8192;
+    std::array<float, kTier3CopyMax> tier3Scratch_{};
+    /// ~330 ms of the 33 ms editor timer without a DataExchange block: the 10th tick reads Tier 3
+    static constexpr int kDataExchangeStallTicks = 10;
+    /// Tier 3: copies the samples `from` received since `readPos` into `to`
+    void copyTier3Samples(Krate::DSP::SpectrumFIFO<8192>& from, Krate::DSP::SpectrumFIFO<8192>& to, size_t& readPos);
 
     /// Magic marker for instanceId in state stream (must match processor)
     static constexpr Steinberg::int32 kInstanceIdMarker = 0x4B524154;
@@ -314,10 +375,25 @@ private:
     // ==========================================================================
     // Modulation Offset Visualization
     // ==========================================================================
-    // Pointer to processor's modulation offset array (received via IMessage)
-    const float* cachedModOffsets_ = nullptr;
+    // Latest modulation offsets by ModDest index, copied from each SpectrumBlock (D-045),
+    // or in Tier 3 from the processor's SharedDisplay every editor tick
+    std::array<float, kSpectrumBlockModOffsets> cachedModOffsets_{};
     // Recursively walk view tree and update ModSlider offsets from cached array
     void updateModSliders(VSTGUI::CViewContainer* container);
+    // Body of the open editor's 33 ms timer (sweep indicator, mod sliders, level meters, Tier 3 fallback)
+    void onEditorTimer();
+
+    // ==========================================================================
+    // Level Meters
+    // ==========================================================================
+    // The meter windows received since the last editor tick (DataExchange blocks,
+    // or SharedMeters in Tier 3), merged; handed to every LevelMeterView each tick.
+    // The views own their ballistics, so the controller keeps no view pointer.
+    MeterWindow pendingMeters_{};
+    double pendingMeterSampleRate_ = 0.0;
+    std::chrono::steady_clock::time_point lastMeterTick_{};
+    // Recursively walk view tree: feed and advance every LevelMeterView
+    void updateLevelMeters(VSTGUI::CViewContainer* container, double dtSeconds);
 
     // ==========================================================================
     // Visibility Controllers (FR-021, FR-022, FR-025)
@@ -335,16 +411,12 @@ private:
     std::array<Steinberg::IPtr<Steinberg::FObject>, kMaxBands> expandedVisibilityControllers_;
 
     // ==========================================================================
-    // Morph-Sweep Link Controller (T159-T161, US8)
-    // ==========================================================================
-    // Updates morph position based on sweep frequency and link mode settings
-    Steinberg::IPtr<Steinberg::FObject> morphSweepLinkController_;
-
-    // ==========================================================================
     // Node Selection Controllers (US7 FR-024/FR-025)
     // ==========================================================================
     // Updates DisplayedType proxy when SelectedNode changes
     std::array<Steinberg::IPtr<Steinberg::FObject>, kMaxBands> nodeSelectionControllers_;
+    /// Per band: the header Bias knob's group shows only for types with a Bias slot (user ruling 2026-11-10)
+    std::array<Steinberg::IPtr<Steinberg::FObject>, kMaxBands> biasKnobVisibilityControllers_;
 
     // ==========================================================================
     // Shape Shadow Storage (Phase 2: per-type slot isolation)
@@ -357,11 +429,11 @@ private:
     // ==========================================================================
     // Dynamic Node Selectors (US6)
     // ==========================================================================
-    // Custom CSegmentButton controls that show/hide A/B/C/D based on ActiveNodes
+    // Custom CSegmentButton controls that show/hide A/B/C/D based on ActiveNodes.
+    // Cleared by viewWillDelete when a selector dies. The compact (auto-hide)
+    // selectors on the Shape pages are never cached: a UIViewSwitchContainer
+    // frees them on every Main/Shape switch (D-061).
     std::array<DynamicNodeSelector*, kMaxBands> dynamicNodeSelectors_{};
-
-    // Compact view node selectors (auto-hide when single node)
-    std::array<DynamicNodeSelector*, kMaxBands> compactNodeSelectors_{};
 
     // ==========================================================================
     // MorphPads (US6)
@@ -379,15 +451,13 @@ private:
     Steinberg::IPtr<Steinberg::FObject> sweepVisualizationController_;
 
     // ==========================================================================
-    // Custom Curve Visibility (FR-039a)
-    // ==========================================================================
-    Steinberg::IPtr<Steinberg::FObject> customCurveVisController_;
-
-    // ==========================================================================
     // Band Count Display Controller
     // ==========================================================================
     // Updates SpectrumDisplay band count when Bands dropdown changes
     Steinberg::IPtr<Steinberg::FObject> bandCountDisplayController_;
+
+    // Moves the SpectrumDisplay dividers when a crossover parameter changes (D-071)
+    Steinberg::IPtr<Steinberg::FObject> crossoverParamObserver_;
 
     // ==========================================================================
     // Spectrum Mode Controller
@@ -418,6 +488,9 @@ private:
     // ==========================================================================
     std::unique_ptr<Krate::Plugins::MidiCCManager> midiCCManager_;
 
+    /// Tell the host to re-query IMidiMapping (restartComponent(kMidiCCAssignmentChanged))
+    void notifyMidiMappingChanged();
+
     // ==========================================================================
     // Modulation Panel Visibility Controller (Spec 012 US3)
     // ==========================================================================
@@ -427,12 +500,6 @@ private:
     // Accessibility Preferences Cache (Spec 012 US7)
     // ==========================================================================
     Krate::Plugins::AccessibilityPreferences accessibilityPrefs_;
-
-    // ==========================================================================
-    // MIDI CC Mapping (FR-028, FR-029) - Legacy
-    // ==========================================================================
-    // Stored MIDI CC number (0-127, or 128 for none)
-    int assignedMidiCC_ = 128;
 
     // ==========================================================================
     // Preset Browser (Spec 010)

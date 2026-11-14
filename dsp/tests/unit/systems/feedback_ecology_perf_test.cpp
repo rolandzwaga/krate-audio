@@ -1132,7 +1132,7 @@ TEST_CASE("FeedbackEcology_StageCostProbe", "[feedback_ecology][.perf]")
 // deterministic route to a trap fire.
 //
 // *** THE DEFINITION BELOW MUST STAY TOKEN-IDENTICAL TO THE ONE IN
-// *** feedback_ecology_nonfinite_test.cpp:133-148. *** Two definitions of the
+// *** feedback_ecology_nonfinite_test.cpp (namespace Krate::DSP::detail). *** Two definitions of the
 // same class in one program are legal ONLY if they consist of the same sequence
 // of tokens ([basic.def.odr]); comments are not tokens, so the commentary may
 // differ, but every identifier, every argument order and both bodies may not.
@@ -1154,11 +1154,35 @@ namespace Krate::DSP::detail {
 
 struct FeedbackEcologyNonFiniteProbe {
     static void poisonDcBlocker(FeedbackEcology& fe, std::size_t loop, float nonFinite) noexcept {
+        fe.loops_[loop].dcBlocker.setState(nonFinite, nonFinite);
+    }
+
+    static void poisonFollower(FeedbackEcology& fe) noexcept {
+        static_cast<void>(fe.follower_.processSample(1.0e20f));
+    }
+
+    static void feedDcBlocker(FeedbackEcology& fe, std::size_t loop, float nonFinite) noexcept {
         static_cast<void>(fe.loops_[loop].dcBlocker.process(nonFinite));
     }
 
-    static void poisonFollower(FeedbackEcology& fe, float nonFinite) noexcept {
-        static_cast<void>(fe.follower_.processSample(nonFinite));
+    static bool poisonResonator(FeedbackEcology& fe, std::size_t loop) noexcept {
+        Biquad& res = fe.loops_[loop].resonator;
+        const BiquadCoefficients saved = res.coefficients();
+        BiquadCoefficients overflow = saved;
+        overflow.b1 = 3.0e38f;
+        res.setCoefficients(overflow);
+        static_cast<void>(res.process(3.0e38f));
+        res.setCoefficients(saved);
+        return !resonatorStateFinite(fe, loop);
+    }
+
+    [[nodiscard]] static bool resonatorStateFinite(const FeedbackEcology& fe, std::size_t loop) noexcept {
+        auto copy = fe.loops_[loop].resonator;
+        return isFinite(copy.process(0.0f)) && isFinite(copy.process(0.0f));
+    }
+    [[nodiscard]] static bool dcBlockerStateFinite(const FeedbackEcology& fe, std::size_t loop) noexcept {
+        auto copy = fe.loops_[loop].dcBlocker;
+        return isFinite(copy.process(0.0f));
     }
 };
 

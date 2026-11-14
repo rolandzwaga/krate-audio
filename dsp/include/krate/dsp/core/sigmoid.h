@@ -352,7 +352,8 @@ namespace Asymmetric {
 /// through asymmetry. Extracted from SaturationProcessor.
 ///
 /// @param x Input value
-/// @return Asymmetrically clipped output
+/// @return Asymmetrically clipped output, bounded to (-2, 1); -Inf gives the
+///         -2 limit, NaN propagates
 ///
 /// @harmonics Even + Odd (subtle warmth)
 [[nodiscard]] inline float diode(float x) noexcept {
@@ -361,6 +362,8 @@ namespace Asymmetric {
         return 1.0f - std::exp(-x * 1.5f);
     } else {
         // Reverse bias: harder, more linear with soft limit
+        // -Inf / +Inf would be NaN; the limit of x / (1 - 0.5x) is -2.
+        if (detail::isInf(x)) return -2.0f;
         return x / (1.0f - 0.5f * x);
     }
 }

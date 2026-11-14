@@ -4,6 +4,7 @@
 
 #include "processor.h"
 #include "plugin_ids.h"
+#include "state_codec.h"
 
 #include "dsp/sweep_morph_link.h"
 
@@ -13,6 +14,7 @@
 
 #include <krate/dsp/core/db_utils.h>
 #include <krate/dsp/core/note_value.h>
+#include <krate/dsp/core/scoped_denormal_mode.h>
 
 #include "display/shared_display_bridge.h"
 #include "display/display_bridge_log.h"
@@ -47,6 +49,23 @@ Processor::Processor() {
     sharedDisplay_.inputFIFO = &sharedInputFIFO_;
     sharedDisplay_.outputFIFO = &sharedOutputFIFO_;
     sharedDisplay_.sampleRate = &sharedSampleRate_;
+    sharedDisplay_.meters = &sharedMeters_;
+    sharedDisplay_.modOffsets = &sharedModOffsets_;
+
+    // Morph cache defaults matching Controller defaults. Set once here, never
+    // in setupProcessing, so a restored patch survives re-preparation (D-046).
+    constexpr DistortionCommonParams kDefaultCommon{.drive = 1.0f, .mix = 1.0f, .toneHz = 4000.0f};
+    for (auto& cache : bandMorphCache_) {
+        cache.nodes[0] = MorphNode(0, 0.0f, 0.0f, DistortionType::SoftClip);
+        cache.nodes[0].commonParams = kDefaultCommon;
+        cache.nodes[1] = MorphNode(1, 1.0f, 0.0f, DistortionType::SoftClip);
+        cache.nodes[1].commonParams = kDefaultCommon;
+        cache.nodes[2] = MorphNode(2, 0.0f, 1.0f, DistortionType::SoftClip);
+        cache.nodes[2].commonParams = kDefaultCommon;
+        cache.nodes[3] = MorphNode(3, 1.0f, 1.0f, DistortionType::SoftClip);
+        cache.nodes[3].commonParams = kDefaultCommon;
+        cache.activeNodeCount = kDefaultActiveNodes;
+    }
 }
 
 // ==============================================================================
@@ -65,6 +84,10 @@ Steinberg::tresult PLUGIN_API Processor::initialize(FUnknown* context) {
     addAudioInput(STR16("Audio Input"), Steinberg::Vst::SpeakerArr::kStereo);
     addAudioOutput(STR16("Audio Output"), Steinberg::Vst::SpeakerArr::kStereo);
 
+    // MIDI CC reaches the plugin only through an event input: the host maps it to
+    // a parameter with the controller's IMidiMapping and reports it to IMidiLearn (D-096)
+    addEventInput(STR16("MIDI In"), 16);
+
     // Register in SharedDisplayBridge (Tier 3 fallback)
     Krate::Plugins::SharedDisplayBridge::instance().registerInstance(
         instanceId_, &sharedDisplay_);
@@ -78,7 +101,7 @@ Steinberg::tresult PLUGIN_API Processor::initialize(FUnknown* context) {
 Steinberg::tresult PLUGIN_API Processor::terminate() {
     KRATE_BRIDGE_LOG("Disrumpo::Processor::terminate() — id=0x%llx",
         static_cast<unsigned long long>(instanceId_));
-    Krate::Plugins::SharedDisplayBridge::instance().unregisterInstance(instanceId_);
+    Krate::Plugins::SharedDisplayBridge::instance().unregisterInstance(instanceId_, &sharedDisplay_);
     return AudioEffect::terminate();
 }
 
@@ -88,6 +111,11 @@ Steinberg::tresult PLUGIN_API Processor::terminate() {
 
 Steinberg::tresult PLUGIN_API Processor::setupProcessing(
     Steinberg::Vst::ProcessSetup& setup) {
+    // A setState or setActive on another thread finishes first (lifecycleMutex_); process() never waits
+    const std::scoped_lock lifecycle(lifecycleMutex_);
+
+    // Processing is stopped here: apply a load setState left pending (D-003)
+    consumePendingState();
 
     // Store processing parameters
     // FR-011: Store sample rate for DSP calculations
@@ -98,8 +126,31 @@ Steinberg::tresult PLUGIN_API Processor::setupProcessing(
 
     // Initialize crossover networks for both channels (FR-001b)
     const int numBands = bandCount_.load(std::memory_order_relaxed);
+    if (crossoverL_.isPrepared()) {
+        // A band-count change still owed (its dip did not finish) redistributes
+        // first; prepare() alone sets the count without redistributing (D-023)
+        crossoverL_.setBandCount(numBands);
+        crossoverR_.setBandCount(numBands);
+    }
     crossoverL_.prepare(sampleRate_, numBands);
     crossoverR_.prepare(sampleRate_, numBands);
+
+    // Band-count dip length; the crossovers now run the requested count (D-023)
+    bandCountFadeSamples_ = std::max<size_t>(
+        1, static_cast<size_t>(std::lround(kBandCountFadeMs * 0.001 * sampleRate_)));
+    bandCountFade_ = BandCountFade::Idle;
+    bandCountFadePos_ = 0;
+    processedSinceActivate_ = false;
+    // Dry path's alignment crossfade: the bands' crossfade length (follow-up 6)
+    dryXfadeSamples_ = std::max<size_t>(
+        1, static_cast<size_t>(std::lround(BandProcessor::kFactorCrossfadeMs * 0.001 * sampleRate_)));
+
+    // Global gain/mix smoothing (D-025)
+    const auto srFloat = static_cast<float>(sampleRate_);
+    inputGainSmoother_.configure(kGlobalSmoothingMs, srFloat);
+    outputGainSmoother_.configure(kGlobalSmoothingMs, srFloat);
+    wetMixSmoother_.configure(kGlobalSmoothingMs, srFloat);
+    for (auto& s : contributionSmoothers_) s.configure(kGlobalSmoothingMs, srFloat);
 
     // Initialize band processors
     for (int i = 0; i < kMaxBands; ++i) {
@@ -108,24 +159,32 @@ Steinberg::tresult PLUGIN_API Processor::setupProcessing(
         bandProcessors_[i].setPan(bandStates_[i].pan);
         bandProcessors_[i].setMute(bandStates_[i].mute);
 
-        // Initialize morph cache with defaults matching Controller defaults
-        auto& cache = bandMorphCache_[i];
-        constexpr DistortionCommonParams kDefaultCommon{.drive = 1.0f, .mix = 1.0f, .toneHz = 4000.0f};
-        cache.nodes[0] = MorphNode(0, 0.0f, 0.0f, DistortionType::SoftClip);
-        cache.nodes[0].commonParams = kDefaultCommon;
-        cache.nodes[1] = MorphNode(1, 1.0f, 0.0f, DistortionType::SoftClip);
-        cache.nodes[1].commonParams = kDefaultCommon;
-        cache.nodes[2] = MorphNode(2, 0.0f, 1.0f, DistortionType::SoftClip);
-        cache.nodes[2].commonParams = kDefaultCommon;
-        cache.nodes[3] = MorphNode(3, 1.0f, 1.0f, DistortionType::SoftClip);
-        cache.nodes[3].commonParams = kDefaultCommon;
-        cache.activeNodeCount = kDefaultActiveNodes;
-
-        // Enable morph mode and push initial nodes
+        // Re-push the patch held in the morph cache: prepare() recreated the
+        // MorphEngine, and setState may have run before the first prepare
+        // (D-046). The cache is initialised once, in the constructor.
+        const auto& cache = bandMorphCache_[i];
         bandProcessors_[i].setMorphEnabled(true);
         bandProcessors_[i].setMorphNodes(cache.nodes, cache.activeNodeCount);
         bandProcessors_[i].setMorphPosition(cache.morphX, cache.morphY);
+        bandProcessors_[i].setMorphMode(cache.morphMode);
+        bandProcessors_[i].setMorphSmoothingTime(cache.morphSmoothingMs);
     }
+
+    // Dry-path latency compensation (D-026): sized for the largest latency. DelayLine sizes
+    // in seconds x rate; a rate of 1 makes the seconds samples. No audio yet: apply at once.
+    static_assert(kMaxReportedLatencySamples == BandProcessor::kMaxLatencySamples);
+    dryDelayL_.prepare(1.0, static_cast<float>(kMaxReportedLatencySamples));
+    dryDelayR_.prepare(1.0, static_cast<float>(kMaxReportedLatencySamples));
+    modDelayL_.prepare(1.0, static_cast<float>(kMaxReportedLatencySamples));
+    modDelayR_.prepare(1.0, static_cast<float>(kMaxReportedLatencySamples));
+    modInL_.assign(static_cast<size_t>(std::max(setup.maxSamplesPerBlock, 1)), 0.0f);
+    modInR_.assign(static_cast<size_t>(std::max(setup.maxSamplesPerBlock, 1)), 0.0f);
+    updateLatencyAndTail();
+    applyLatency(targetLatency_);
+
+    // Output safety clipper (user ruling 2026-11-10): its DC servo's corner at this rate
+    outClipL_.prepare(sampleRate_);
+    outClipR_.prepare(sampleRate_);
 
     // Initialize sweep processor (spec 007-sweep-system)
     sweepProcessor_.prepare(sampleRate_, setup.maxSamplesPerBlock);
@@ -144,13 +203,43 @@ Steinberg::tresult PLUGIN_API Processor::setupProcessing(
 Steinberg::tresult PLUGIN_API Processor::setActive(Steinberg::TBool state) {
     KRATE_BRIDGE_LOG("Disrumpo::Processor::setActive(%s)",
         state ? "true" : "false");
+    // A setState on another thread finishes first (lifecycleMutex_); process() never waits
+    const std::scoped_lock lifecycle(lifecycleMutex_);
+    // Processing is stopped on both edges: setState applies at once from now on
+    // (until the end of an activation), and a load left pending is applied here (D-003)
+    if (!state) {
+        active_.store(false, std::memory_order_release);
+    }
+    consumePendingState();
     if (state) {
-        // Activating: reset processing state
+        // Activating: the crossovers take the requested band count at once (no
+        // audio to dip, D-023), then reset processing state
+        crossoverL_.setBandCount(bandCount_.load(std::memory_order_relaxed));
+        crossoverR_.setBandCount(bandCount_.load(std::memory_order_relaxed));
+        bandCountFade_ = BandCountFade::Idle;
+        bandCountFadePos_ = 0;
+        processedSinceActivate_ = false;
+        spectrumRingWritePos_ = 0;  // no stale audio joins the new activation's (D-133)
+        spectrumRingFilled_ = 0;
+        meterAccum_.reset();
         crossoverL_.reset();
         crossoverR_.reset();
         for (auto& proc : bandProcessors_) {
             proc.reset();
         }
+        // The latency the current settings need applies at once (no audio to dip, D-026);
+        // the first block tells the controller again
+        updateLatencyAndTail();
+        applyLatency(targetLatency_);
+        dryDelayL_.reset();
+        dryDelayR_.reset();
+        modDelayL_.reset();
+        modDelayR_.reset();
+        outClipL_.reset();
+        outClipR_.reset();
+        for (auto& allpass : dryAllpassL_) allpass.reset();
+        for (auto& allpass : dryAllpassR_) allpass.reset();
+        lastSignalledLatency_ = -1;
         // Reset sweep processor
         sweepProcessor_.reset();
         sweepPositionBuffer_.clear();
@@ -160,17 +249,20 @@ Steinberg::tresult PLUGIN_API Processor::setActive(Steinberg::TBool state) {
         sweepLFO_.reset();
         sweepEnvelope_.reset();
 
-        // Reset modulation engine
-        modulationEngine_.reset();
+        // Reset modulation sources only: routings and macros are user state (D-047)
+        modulationEngine_.resetSources();
 
-        // DataExchange: open queue for spectrum data transfer
-        if (dataExchange_)
+        // DataExchange: open queue for spectrum data transfer, on the main thread only:
+        // activated on another thread, the queue stays as it is (dataExchangeThread_)
+        if (dataExchange_ && std::this_thread::get_id() == dataExchangeThread_)
             dataExchange_->onActivate(processSetup);
 
-        sendModOffsetsMessage();
+        // process() may run from now on: setState hands its state over (D-003)
+        active_.store(true, std::memory_order_release);
     } else {
-        // DataExchange: close queue before deactivation
-        if (dataExchange_)
+        // DataExchange: close queue before deactivation, on the main thread only: a host that
+        // toggles activation on another thread keeps the queue the main thread drains
+        if (dataExchange_ && std::this_thread::get_id() == dataExchangeThread_)
             dataExchange_->onDeactivate();
     }
 
@@ -187,9 +279,42 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
     // - This function MUST complete within the buffer duration
     // ==========================================================================
 
+    // FTZ / DAZ for this block on this thread, the caller's mode restored on return:
+    // silence tails (Tube's DC blocker, feedback and allpass loops) decay through the
+    // denormal range, which ran 1.4x slower when the host leaves FTZ / DAZ off (T6.09)
+    const Krate::DSP::ScopedDenormalMode denormalGuard;
+
+    // A state setState handed over (D-003), then this block's parameter changes
+    consumePendingState();
+
     // Process parameter changes first
     if (data.inputParameterChanges) {
         processParameterChanges(data.inputParameterChanges);
+    }
+
+    // Latency and tail of the settings this block runs with (D-026, D-108). A new
+    // latency goes to the controller through the output parameter; the controller
+    // calls restartComponent(kLatencyChanged) on its own thread.
+    updateLatencyAndTail();
+    if (data.outputParameterChanges && targetLatency_ != lastSignalledLatency_) {
+        Steinberg::int32 index = 0;
+        if (auto* queue = data.outputParameterChanges->addParameterData(kLatencyOutputId, index)) {
+            queue->addPoint(0, static_cast<Steinberg::Vst::ParamValue>(targetLatency_) / kMaxReportedLatencySamples,
+                            index);
+            lastSignalledLatency_ = targetLatency_;
+        }
+    }
+
+    // A band-count or latency change (parameter or load) before any audio since
+    // activation applies at once; later ones go through the output dip below (D-023)
+    if (!processedSinceActivate_) {
+        const int requested = bandCount_.load(std::memory_order_relaxed);
+        if (requested != crossoverL_.getBandCount()) {
+            switchBandCount(requested);
+        }
+        if (latencyChangePending() || contextChangePending()) {
+            applyLatency(targetLatency_);
+        }
     }
 
     // Check if we have audio to process
@@ -214,18 +339,45 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
     if (!inputL || !inputR || !outputL || !outputR) {
         return Steinberg::kResultTrue;
     }
+    const bool firstAudioBlock = !processedSinceActivate_;
+    processedSinceActivate_ = true;
 
     // ==========================================================================
     // Spectrum Analyzer: Prepare pre-distortion mono mixdown for DataExchange
     // ==========================================================================
     {
-        const auto blockSamples = std::min(
-            static_cast<uint32_t>(data.numSamples), kSpectrumBlockMaxSamples);
+        // The block's LAST samples: they join the next block's without a gap (D-133)
+        const auto totalSamples = static_cast<uint32_t>(std::max(data.numSamples, 0));
+        const auto blockSamples = std::min(totalSamples, kSpectrumBlockMaxSamples);
+        const uint32_t offset = totalSamples - blockSamples;
         for (uint32_t i = 0; i < blockSamples; ++i) {
             spectrumBlockBuffer_.inputSamples[i] =
-                (inputL[i] + inputR[i]) * 0.5f;
+                (inputL[offset + i] + inputR[offset + i]) * 0.5f;
         }
     }
+
+    // ==========================================================================
+    // Modulation input: every band and the dry path run appliedLatency_ samples behind
+    // the input (D-026), so the audio-driven sources and the sweep envelope read the
+    // input that late too, or their modulation lands ahead of the audio it shapes.
+    // Input Gain, which acts before the latency, is the one destination this delays.
+    // A block past maxSamplesPerBlock (a host breaking the contract) reads the input.
+    // ==========================================================================
+    const auto blockSamples = static_cast<size_t>(data.numSamples);
+    const bool modInFits = blockSamples <= modInL_.size();
+    {
+        const auto modLatency = static_cast<size_t>(appliedLatency_);
+        for (size_t i = 0; i < blockSamples; ++i) {
+            modDelayL_.write(inputL[i]);
+            modDelayR_.write(inputR[i]);
+            if (modInFits) {
+                modInL_[i] = modDelayL_.read(modLatency);
+                modInR_[i] = modDelayR_.read(modLatency);
+            }
+        }
+    }
+    const float* modInputL = modInFits ? modInL_.data() : inputL;
+    const float* modInputR = modInFits ? modInR_.data() : inputR;
 
     // ==========================================================================
     // Modulation Engine Processing (spec 008-modulation-system)
@@ -243,8 +395,7 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
             modCtx.isPlaying = (data.processContext->state & Steinberg::Vst::ProcessContext::kPlaying) != 0;
         }
 
-        modulationEngine_.process(modCtx, inputL, inputR,
-                                  static_cast<size_t>(data.numSamples));
+        modulationEngine_.process(modCtx, modInputL, modInputR, blockSamples);
     }
 
     // ==========================================================================
@@ -254,7 +405,27 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
     // When no routing targets a destination, offset is 0 (base value unchanged).
     // ==========================================================================
 
-    const int numBands = bandCount_.load(std::memory_order_relaxed);
+    // The running topology; a requested change starts (or reverses) the dip (D-023)
+    int numBands = crossoverL_.getBandCount();
+    {
+        const bool pending = topologyChangePending();
+        if (bandCountFade_ == BandCountFade::Idle && pending) {
+            bandCountFade_ = BandCountFade::FadeOut;
+            bandCountFadePos_ = 0;
+        } else if (bandCountFade_ == BandCountFade::FadeOut && !pending) {
+            // Back to the running count and latency: ramp up again from the current gain
+            bandCountFade_ = BandCountFade::FadeIn;
+            bandCountFadePos_ = bandCountFadeSamples_ - bandCountFadePos_;
+        }
+        // During FadeIn a new request is picked up when the ramp completes
+    }
+    // An alignment context change at an unchanged latency crossfades instead of dipping
+    // (follow-up 6); with a latency change, or while the dip fades out, the dip's bottom
+    // applies it. One dry crossfade at a time: a later change waits for the running one.
+    if (contextChangePending() && !latencyChangePending() && bandCountFade_ != BandCountFade::FadeOut &&
+        !dryXfading_) {
+        applyAlignmentContext();
+    }
 
     // --- Global parameters ---
     const float modInputGain = modulationEngine_.getModulatedValue(
@@ -277,16 +448,14 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
         const float baseWidthNorm = baseSweepWidthNorm_.load(std::memory_order_relaxed);
         const float modWidthNorm = modulationEngine_.getModulatedValue(
             ModDest::kSweepWidth, baseWidthNorm);
-        constexpr float kMinWidth = 0.5f;
-        constexpr float kMaxWidth = 4.0f;
-        sweepProcessor_.setWidth(kMinWidth + modWidthNorm * (kMaxWidth - kMinWidth));
+        sweepProcessor_.setWidth(kSweepWidthOctRange.toPlain(modWidthNorm));
     }
 
     {
         const float baseIntNorm = baseSweepIntensityNorm_.load(std::memory_order_relaxed);
         const float modIntNorm = modulationEngine_.getModulatedValue(
             ModDest::kSweepIntensity, baseIntNorm);
-        sweepProcessor_.setIntensity(modIntNorm * 2.0f);
+        sweepProcessor_.setIntensity(kSweepIntensityRange.toPlain(modIntNorm));
     }
 
     // --- Per-band parameters (gain, pan, morphX/Y, drive/mix) ---
@@ -306,14 +475,7 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
             ModDest::bandParam(bandIdx, ModDest::kBandPan), basePanNorm);
         bandProcessors_[b].setPan(modPanNorm * 2.0f - 1.0f);
 
-        // Band MorphX/Y: already [0,1] normalized, apply offset
-        const float modMorphX = modulationEngine_.getModulatedValue(
-            ModDest::bandParam(bandIdx, ModDest::kBandMorphX),
-            bandMorphCache_[b].morphX);
-        const float modMorphY = modulationEngine_.getModulatedValue(
-            ModDest::bandParam(bandIdx, ModDest::kBandMorphY),
-            bandMorphCache_[b].morphY);
-        bandProcessors_[b].setMorphPosition(modMorphX, modMorphY);
+        // Band MorphX/Y: set after the sweep below (the sweep link sets their base)
 
         // Band Drive/Mix/Tone/Bias: pass raw offsets to BandProcessor/MorphEngine
         // For morph path: MorphEngine applies per-sample after interpolation
@@ -336,38 +498,46 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
     // Sweep LFO/envelope modulate on top of the (possibly modulated) base freq.
     // ==========================================================================
 
-    // Process envelope follower with input signal (average of L+R)
-    if (sweepEnvelope_.isEnabled()) {
-        float inputMono = (inputL[0] + inputR[0]) * 0.5f;
-        (void)sweepEnvelope_.processSample(inputMono);
-    }
-
-    // Calculate modulated frequency: base (+ mod engine offset) + sweep LFO + envelope
-    float modulatedFreq = baseFreq;
-
-    // Get LFO modulation (bidirectional: +/- 2 octaves at full depth)
-    if (sweepLFO_.isEnabled()) {
-        float lfoValue = sweepLFO_.process();
-        constexpr float kMaxOctaveShift = 2.0f;
-        float octaveShift = lfoValue * kMaxOctaveShift;
-        float log2Freq = std::log2(modulatedFreq) + octaveShift;
-        modulatedFreq = std::pow(2.0f, log2Freq);
-    }
-
-    // Get envelope modulation (unidirectional: 0 to +2 octaves)
-    if (sweepEnvelope_.isEnabled()) {
-        modulatedFreq = sweepEnvelope_.getModulatedFrequency(modulatedFreq);
+    // Synced sweep LFO follows the host tempo (FR-024). A missing, non-finite or
+    // non-positive tempo keeps the last valid one (120 BPM before any).
+    if (data.processContext &&
+        (data.processContext->state & Steinberg::Vst::ProcessContext::kTempoValid) != 0) {
+        const auto hostTempo = static_cast<float>(data.processContext->tempo);
+        if (Krate::DSP::detail::isFinite(hostTempo) && hostTempo > 0.0f) {
+            sweepLFO_.setTempo(hostTempo);
+        }
     }
 
     // Clamp to sweep frequency range (20Hz - 20kHz)
     constexpr float kMinSweepFreq = 20.0f;
     constexpr float kMaxSweepFreq = 20000.0f;
-    modulatedFreq = std::clamp(modulatedFreq, kMinSweepFreq, kMaxSweepFreq);
+    float modulatedFreq = std::clamp(baseFreq, kMinSweepFreq, kMaxSweepFreq);
 
-    // Update sweep processor with modulated frequency
-    sweepProcessor_.setCenterFrequency(modulatedFreq);
-
-    sweepProcessor_.processBlock(data.numSamples);
+    if (sweepLFO_.isEnabled() || sweepEnvelope_.isEnabled()) {
+        // The sweep LFO and envelope follower advance once per sample, and the
+        // centre smoother follows their per-sample target. LFO: +/- 2 octaves at
+        // full depth; envelope: 0 to +2 octaves; summed in log2 space.
+        constexpr float kMaxOctaveShift = 2.0f;
+        const bool lfoOn = sweepLFO_.isEnabled();
+        const bool envOn = sweepEnvelope_.isEnabled();
+        const float log2Base = std::log2(modulatedFreq);
+        for (Steinberg::int32 n = 0; n < data.numSamples; ++n) {
+            float octaveShift = 0.0f;
+            if (lfoOn) {
+                octaveShift += sweepLFO_.process() * kMaxOctaveShift;
+            }
+            if (envOn) {
+                (void)sweepEnvelope_.processSample((modInputL[n] + modInputR[n]) * 0.5f);
+                octaveShift += sweepEnvelope_.getModulationAmount() * kMaxOctaveShift;
+            }
+            modulatedFreq = std::exp2(std::clamp(log2Base + octaveShift, kLog2MinFreq, kLog2MaxFreq));
+            sweepProcessor_.setCenterFrequency(modulatedFreq);
+            sweepProcessor_.process();
+        }
+    } else {
+        sweepProcessor_.setCenterFrequency(modulatedFreq);
+        sweepProcessor_.processBlock(data.numSamples);
+    }
 
     // Push sweep position data for UI synchronization (FR-046)
     if (sweepProcessor_.isEnabled()) {
@@ -387,61 +557,70 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
     }
 
     // ==========================================================================
-    // MIDI Learn: Scan for CC events (FR-028, FR-029)
+    // Sweep -> Morph Link (FR-032, FR-033, D-137) and Band MorphX/Y modulation
+    // Once per block from the smoothed sweep centre (base, mod matrix, sweep LFO
+    // and envelope): a linked axis takes the link curve as its base, None keeps
+    // the manual position. The global Sweep Morph Link drives X of every band
+    // whose own X link is None. Mod-matrix offsets go on top.
     // ==========================================================================
-    if (midiLearnActive_ && data.inputEvents) {
-        Steinberg::int32 eventCount = data.inputEvents->getEventCount();
-        for (Steinberg::int32 ei = 0; ei < eventCount; ++ei) {
-            Steinberg::Vst::Event e{};
-            if (data.inputEvents->getEvent(ei, e) == Steinberg::kResultOk) {
-                if (e.type == Steinberg::Vst::Event::kLegacyMIDICCOutEvent) {
-                    uint8_t cc = e.midiCCOut.controlNumber;
-                    // Write detected CC to output parameter
-                    if (data.outputParameterChanges) {
-                        Steinberg::int32 idx = 0;
-                        auto* q = data.outputParameterChanges->addParameterData(
-                            kSweepDetectedCCOutputId, idx);
-                        if (q) {
-                            q->addPoint(0, static_cast<double>(cc) / 127.0, idx);
-                        }
-                    }
-                    midiLearnActive_ = false;
-                    assignedMidiCC_ = cc;
-                    break;  // Only capture first CC
-                }
-            }
+    {
+        const float sweepNorm = normalizeSweepFrequency(sweepProcessor_.getSmoothedFrequency());
+        const bool sweepNormValid = Krate::DSP::detail::isFinite(sweepNorm);
+        const MorphLinkMode globalLink = sweepProcessor_.getMorphLinkMode();
+        const auto linked = [&](MorphLinkMode mode, float manual) noexcept {
+            if (mode == MorphLinkMode::None || !sweepNormValid) return manual;
+            const float y = (mode == MorphLinkMode::Custom) ? customCurve_.evaluate(sweepNorm)
+                                                            : applyMorphLinkCurve(mode, sweepNorm);
+            return std::clamp(y, 0.0f, 1.0f);
+        };
+        for (int b = 0; b < numBands; ++b) {
+            const auto bandIdx = static_cast<uint8_t>(b);
+            const MorphLinkMode xLink =
+                (bandStates_[b].xLink != MorphLinkMode::None) ? bandStates_[b].xLink : globalLink;
+            const float baseX = linked(xLink, bandMorphCache_[b].morphX);
+            const float baseY = linked(bandStates_[b].yLink, bandMorphCache_[b].morphY);
+            const float modMorphX = modulationEngine_.getModulatedValue(
+                ModDest::bandParam(bandIdx, ModDest::kBandMorphX), baseX);
+            const float modMorphY = modulationEngine_.getModulatedValue(
+                ModDest::bandParam(bandIdx, ModDest::kBandMorphY), baseY);
+            bandProcessors_[b].setMorphPosition(modMorphX, modMorphY);
         }
     }
 
     // ==========================================================================
-    // Per-Band Sweep Intensity (spec 007-sweep-system FR-001, T067)
-    // Calculate and apply sweep intensities to band processors once per block
+    // Per-Band Sweep Intensity (FR-SWEEP-001, D-019, D-037)
+    // Once per block; each band smooths it and scales its shaper's drive with it.
+    // A band's distance from the sweep centre is measured from the geometric
+    // centre of its actual crossover edges (20 Hz / 20 kHz outside). The single
+    // full-range band of 1-band mode always holds the sweep centre.
     // ==========================================================================
 
-    // Band center frequencies (log-spaced for 4-band Bark scale)
-    static constexpr std::array<float, kMaxBands> kBandCenterFreqs = {
-        100.0f, 600.0f, 3000.0f, 12000.0f
-    };
-
     if (sweepProcessor_.isEnabled()) {
-        // Calculate intensities for all active bands
         std::array<float, kMaxBands> sweepIntensities{};
-        sweepProcessor_.calculateAllBandIntensities(
-            kBandCenterFreqs.data(), numBands, sweepIntensities.data());
-
-        // Apply sweep intensities to band processors
+        if (numBands <= 1) {
+            sweepIntensities[0] = sweepProcessor_.getIntensity();
+        } else {
+            std::array<float, kMaxBands> bandCentres{};
+            for (int b = 0; b < numBands; ++b) {
+                const float lo = (b == 0) ? kMinCrossoverHz : crossoverL_.getCrossoverFrequency(b - 1);
+                const float hi = (b == numBands - 1) ? kMaxCrossoverHz : crossoverL_.getCrossoverFrequency(b);
+                bandCentres[b] = std::sqrt(lo * hi);  // crossovers are clamped to >= 20 Hz
+            }
+            sweepProcessor_.calculateAllBandIntensities(
+                bandCentres.data(), numBands, sweepIntensities.data());
+        }
         for (int b = 0; b < numBands; ++b) {
             bandProcessors_[b].setSweepIntensity(sweepIntensities[b]);
         }
     } else {
-        // Sweep disabled: set all bands to full intensity (1.0)
+        // Sweep disabled: every band's drive as set
         for (int b = 0; b < numBands; ++b) {
-            bandProcessors_[b].setSweepIntensity(1.0f);
+            bandProcessors_[b].setSweepIntensity(0.0f);
         }
     }
 
     // ==========================================================================
-    // Band Processing (FR-001a: sample-by-sample processing)
+    // Band Processing: per-sample crossover, per-band blocks, per-sample sum
     // ==========================================================================
 
     // Denormalize global gain/mix parameters
@@ -450,62 +629,203 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
     constexpr float kGainRangeDb = 48.0f; // 24 - (-24)
     const float inputGainDb = kGainMinDb + modInputGain * kGainRangeDb;
     const float outputGainDb = kGainMinDb + modOutputGain * kGainRangeDb;
-    const float inputGainLinear = Krate::DSP::dbToGain(inputGainDb);
-    const float outputGainLinear = Krate::DSP::dbToGain(outputGainDb);
-    // Mix: normalized [0,1] maps directly to dry/wet fraction
-    const float wetMix = modGlobalMix;
-    const float dryMix = 1.0f - wetMix;
+    // Block-rate targets, smoothed per sample below (D-025); the first audio block
+    // after activation starts at them (no ramp from a stale value)
+    const float inputGainTarget = Krate::DSP::dbToGain(inputGainDb);
+    const float outputGainTarget = Krate::DSP::dbToGain(outputGainDb);
+    // Mix: normalized [0,1] maps directly to the wet fraction
+    const float wetMixTarget = modGlobalMix;
+    if (firstAudioBlock) {
+        inputGainSmoother_.snapTo(inputGainTarget);
+        outputGainSmoother_.snapTo(outputGainTarget);
+        wetMixSmoother_.snapTo(wetMixTarget);
+    } else {
+        inputGainSmoother_.setTarget(inputGainTarget);
+        outputGainSmoother_.setTarget(outputGainTarget);
+        wetMixSmoother_.setTarget(wetMixTarget);
+    }
+
+    // Solo/mute logic (FR-025, FR-025a): band states only change in
+    // processParameterChanges, so this holds for the whole block
+    // A change glides through contributionSmoothers_ (T6.07); the first block after
+    // activation starts on the targets
+    const auto setContributionTargets = [this](int bands, bool snap) {
+        for (int b = 0; b < bands; ++b) {
+            const float target = shouldBandContribute(b) ? 1.0f : 0.0f;
+            if (snap) {
+                contributionSmoothers_[b].snapTo(target);
+            } else {
+                contributionSmoothers_[b].setTarget(target);
+            }
+        }
+    };
+    setContributionTargets(numBands, firstAudioBlock);
 
     std::array<float, kMaxBands> bandsL{};
     std::array<float, kMaxBands> bandsR{};
 
-    // Apply block-rate drive/mix modulation to non-morph distortion adapters
-    for (int b = 0; b < numBands; ++b) {
-        bandProcessors_[b].beginBlockModulation();
-    }
+    const auto totalSamples = static_cast<size_t>(data.numSamples);
+    const float fadeInv = 1.0f / static_cast<float>(bandCountFadeSamples_);
+    // Level meters (meter_window.h): input after Input Gain, accumulated per sample
+    float inPeakL = meterAccum_.inPeak[0];
+    float inPeakR = meterAccum_.inPeak[1];
+    float inSumSqL = 0.0f;
+    float inSumSqR = 0.0f;
+    // Output before the safety clipper: the output clip bits read it
+    float preClipPeakL = meterAccum_.outPreClipPeak[0];
+    float preClipPeakR = meterAccum_.outPreClipPeak[1];
+    size_t chunkStart = 0;
+    while (chunkStart < totalSamples) {
+        size_t chunkLen = std::min(totalSamples - chunkStart, BandProcessor::kMaxBlockSize);
+        // A band-count dip ramp ends on a chunk boundary, so the topology switches
+        // exactly where the output gain reaches 0 (D-023)
+        const bool fading = bandCountFade_ != BandCountFade::Idle;
+        if (fading) {
+            chunkLen = std::min(chunkLen, bandCountFadeSamples_ - bandCountFadePos_);
+        }
+        const bool fadeOut = bandCountFade_ == BandCountFade::FadeOut;
+        const float* inL = inputL + chunkStart;
+        const float* inR = inputR + chunkStart;
 
-    for (Steinberg::int32 n = 0; n < data.numSamples; ++n) {
-        // Apply input gain before crossover
-        const float inL = inputL[n] * inputGainLinear;
-        const float inR = inputR[n] * inputGainLinear;
-
-        // Split input through crossover networks (FR-001b: independent L/R)
-        crossoverL_.process(inL, bandsL);
-        crossoverR_.process(inR, bandsR);
-
-        // Initialize output accumulators
-        float sumL = 0.0f;
-        float sumR = 0.0f;
-
-        // Process each band and sum (FR-013: sample-by-sample summation)
-        for (int b = 0; b < numBands; ++b) {
-            // Check solo/mute logic (FR-025, FR-025a)
-            if (!shouldBandContribute(b)) {
-                // Process to keep smoothers running, but don't add to output
-                float discardL = bandsL[b];
-                float discardR = bandsR[b];
-                bandProcessors_[b].process(discardL, discardR);
-                continue;
+        // Split input through crossover networks into per-band block buffers
+        // (FR-001b: independent L/R; input gain before the crossover)
+        for (size_t n = 0; n < chunkLen; ++n) {
+            const float inputGain = inputGainSmoother_.process();
+            const float gainedL = inL[n] * inputGain;
+            const float gainedR = inR[n] * inputGain;
+            inPeakL = std::max(inPeakL, std::abs(gainedL));
+            inPeakR = std::max(inPeakR, std::abs(gainedR));
+            inSumSqL += gainedL * gainedL;
+            inSumSqR += gainedR * gainedR;
+            crossoverL_.process(gainedL, bandsL);
+            crossoverR_.process(gainedR, bandsR);
+            for (int b = 0; b < numBands; ++b) {
+                bandBufL_[b][n] = bandsL[b];
+                bandBufR_[b][n] = bandsR[b];
             }
-
-            // Apply per-band processing (gain, pan, mute with smoothing)
-            float bandL = bandsL[b];
-            float bandR = bandsR[b];
-            bandProcessors_[b].process(bandL, bandR);
-
-            // Sum to output
-            sumL += bandL;
-            sumR += bandR;
         }
 
-        // Apply output gain and dry/wet mix
-        outputL[n] = inputL[n] * dryMix + sumL * outputGainLinear * wetMix;
-        outputR[n] = inputR[n] * dryMix + sumR * outputGainLinear * wetMix;
+        // Each band as a block: oversampling, bypass, block-rate modulation
+        // (processBlock brackets begin/endBlockModulation itself). Non-contributing
+        // bands are processed too, to keep their smoothers running. The band meter
+        // reads the result: after the band's gain/pan/mute, before summation.
+        for (int b = 0; b < numBands; ++b) {
+            bandProcessors_[b].processBlock(bandBufL_[b].data(), bandBufR_[b].data(), chunkLen);
+            float bandPeak = meterAccum_.bandPeak[b];
+            for (size_t n = 0; n < chunkLen; ++n)
+                bandPeak = std::max({bandPeak, std::abs(bandBufL_[b][n]), std::abs(bandBufR_[b][n])});
+            meterAccum_.bandPeak[b] = bandPeak;
+        }
+
+        // Sum contributing bands (FR-013), dry/wet mix, then output gain on the
+        // mix (D-025: post-mix, so it trims the dry path too).
+        // The dry term runs through the crossovers' allpass chain so it has the
+        // phase of the clean band sum: no notches at intermediate mix (D-018), then the
+        // delay every band is compensated to (D-026)
+        float* outL = outputL + chunkStart;
+        float* outR = outputR + chunkStart;
+        // The dry path waits the applied latency plus the reference shift (an allpass fraction
+        // with its delay in [1, 1.5) when the shift is above 0, follow-up 81); during a context
+        // crossfade it also reads the previous shift's path and moves to the new one linearly
+        const bool dryFraction = appliedShift_ > 0.0 && appliedLatency_ >= 1;
+        const auto dryDelay = static_cast<size_t>(dryFraction ? appliedLatency_ - 1 : appliedLatency_);
+        const bool fromFraction = dryFromShift_ > 0.0 && appliedLatency_ >= 1;
+        const auto fromDelay = static_cast<size_t>(fromFraction ? appliedLatency_ - 1 : appliedLatency_);
+        const float dryXfadeInv = 1.0f / static_cast<float>(dryXfadeSamples_);
+        for (size_t n = 0; n < chunkLen; ++n) {
+            float sumL = 0.0f;
+            float sumR = 0.0f;
+            for (int b = 0; b < numBands; ++b) {
+                const float contribution = contributionSmoothers_[b].process();
+                if (contribution == 1.0f) {
+                    sumL += bandBufL_[b][n];
+                    sumR += bandBufR_[b][n];
+                } else if (contribution > 0.0f) {
+                    sumL += bandBufL_[b][n] * contribution;
+                    sumR += bandBufR_[b][n] * contribution;
+                }
+            }
+            const float wetMix = wetMixSmoother_.process();
+            const float dryMix = 1.0f - wetMix;
+            const float outputGain = outputGainSmoother_.process();
+            dryDelayL_.write(crossoverL_.processDryCompensation(inL[n]));
+            dryDelayR_.write(crossoverR_.processDryCompensation(inR[n]));
+            const auto newAllpass = static_cast<size_t>(dryXfading_ ? 1 - dryActive_ : dryActive_);
+            float dryL = dryDelayL_.read(dryDelay);
+            float dryR = dryDelayR_.read(dryDelay);
+            if (dryFraction) {
+                dryL = dryAllpassL_[newAllpass].process(dryL);
+                dryR = dryAllpassR_[newAllpass].process(dryR);
+            }
+            if (dryXfading_) {
+                float fromL = dryDelayL_.read(fromDelay);
+                float fromR = dryDelayR_.read(fromDelay);
+                if (fromFraction) {
+                    fromL = dryAllpassL_[static_cast<size_t>(dryActive_)].process(fromL);
+                    fromR = dryAllpassR_[static_cast<size_t>(dryActive_)].process(fromR);
+                }
+                ++dryXfadePos_;
+                const float g = static_cast<float>(dryXfadePos_) * dryXfadeInv;
+                dryL = fromL + g * (dryL - fromL);
+                dryR = fromR + g * (dryR - fromR);
+                if (dryXfadePos_ >= dryXfadeSamples_) {
+                    dryActive_ = static_cast<int>(newAllpass);
+                    dryXfading_ = false;
+                }
+            }
+            outL[n] = (dryL * dryMix + sumL * wetMix) * outputGain;
+            outR[n] = (dryR * dryMix + sumR * wetMix) * outputGain;
+            if (fading) {
+                ++bandCountFadePos_;
+                const float ramp = static_cast<float>(bandCountFadePos_) * fadeInv;
+                const float fadeGain = fadeOut ? 1.0f - ramp : ramp;
+                outL[n] *= fadeGain;
+                outR[n] *= fadeGain;
+            }
+            // Output safety clipper (user ruling 2026-11-10): exact below -6 dBFS. The clip
+            // light reads the signal before it (user ruling 2026-11-10), so it shows when the
+            // clipper is catching overs
+            preClipPeakL = std::max(preClipPeakL, std::abs(outL[n]));
+            preClipPeakR = std::max(preClipPeakR, std::abs(outR[n]));
+            outL[n] = outClipL_.process(outL[n]);
+            outR[n] = outClipR_.process(outR[n]);
+        }
+
+        chunkStart += chunkLen;
+        if (fading && bandCountFadePos_ >= bandCountFadeSamples_) {
+            advanceBandCountFade();
+            numBands = crossoverL_.getBandCount();
+            // The topology switches where the dip holds the output at 0: start on the targets
+            setContributionTargets(numBands, true);
+        }
     }
 
-    // Restore base distortion params after per-sample processing
-    for (int b = 0; b < numBands; ++b) {
-        bandProcessors_[b].endBlockModulation();
+    // Level meters: output as the host receives it (after Mix, Output Gain, the
+    // dry-path latency compensation and the band-count dip)
+    {
+        float outPeakL = meterAccum_.outPeak[0];
+        float outPeakR = meterAccum_.outPeak[1];
+        float outSumSqL = 0.0f;
+        float outSumSqR = 0.0f;
+        for (size_t n = 0; n < totalSamples; ++n) {
+            const float l = outputL[n];
+            const float r = outputR[n];
+            outPeakL = std::max(outPeakL, std::abs(l));
+            outPeakR = std::max(outPeakR, std::abs(r));
+            outSumSqL += l * l;
+            outSumSqR += r * r;
+        }
+        meterAccum_.inPeak[0] = inPeakL;
+        meterAccum_.inPeak[1] = inPeakR;
+        meterAccum_.inSumSq[0] += inSumSqL;
+        meterAccum_.inSumSq[1] += inSumSqR;
+        meterAccum_.outPeak[0] = outPeakL;
+        meterAccum_.outPeak[1] = outPeakR;
+        meterAccum_.outPreClipPeak[0] = preClipPeakL;
+        meterAccum_.outPreClipPeak[1] = preClipPeakR;
+        meterAccum_.outSumSq[0] += outSumSqL;
+        meterAccum_.outSumSq[1] += outSumSqR;
+        meterAccum_.numSamples += static_cast<uint32_t>(totalSamples);
     }
 
     // ==========================================================================
@@ -551,7 +871,7 @@ int Processor::getMorphCacheActiveNodes(int band) const { return bandMorphCache_
 // ==============================================================================
 
 bool Processor::isAnySoloed() const noexcept {
-    const int numBands = bandCount_.load(std::memory_order_relaxed);
+    const int numBands = crossoverL_.getBandCount();  // the running topology (D-023)
     for (int b = 0; b < numBands; ++b) {
         if (bandStates_[b].solo) {
             return true;
@@ -573,5 +893,149 @@ bool Processor::shouldBandContribute(int bandIndex) const noexcept {
 
     // No solo active - all non-muted bands contribute
     return true;
+}
+
+// ==============================================================================
+// Band-count change (D-023)
+// ==============================================================================
+
+void Processor::switchBandCount(int bands) noexcept {
+    const int previous = crossoverL_.getBandCount();
+    crossoverL_.setBandCount(bands);
+    crossoverR_.setBandCount(bands);
+    const int running = crossoverL_.getBandCount();
+    for (int b = previous; b < running; ++b) {
+        bandProcessors_[b].reset();
+    }
+}
+
+void Processor::advanceBandCountFade() noexcept {
+    bandCountFadePos_ = 0;
+    const int requested = bandCount_.load(std::memory_order_relaxed);
+    if (bandCountFade_ == BandCountFade::FadeOut) {
+        if (requested != crossoverL_.getBandCount()) {
+            const int previous = crossoverL_.getBandCount();
+            switchBandCount(requested);
+            // Joining bands start behind an empty compensation delay: their input fades
+            // in when it emerges, after the dip's own fade-in for a long delay (D-026)
+            for (int b = previous; b < crossoverL_.getBandCount(); ++b) {
+                bandProcessors_[b].armCompensationFadeIn();
+            }
+        }
+        // The compensation delays change on the silent sample (D-026)
+        if (latencyChangePending() || contextChangePending()) {
+            applyLatency(targetLatency_);
+        }
+        bandCountFade_ = BandCountFade::FadeIn;
+    } else {
+        bandCountFade_ = topologyChangePending() ? BandCountFade::FadeOut : BandCountFade::Idle;
+    }
+}
+
+bool Processor::topologyChangePending() const noexcept {
+    return bandCount_.load(std::memory_order_relaxed) != crossoverL_.getBandCount() ||
+           latencyChangePending();
+}
+
+// ==============================================================================
+// Latency and tail (D-026, D-081, D-098, D-108, follow-up 5)
+// ==============================================================================
+
+void Processor::updateLatencyAndTail() noexcept {
+    const int bands = std::clamp(bandCount_.load(std::memory_order_relaxed), 1, kMaxBands);
+    int latency = 0;
+    bool ringing = false;
+    for (int b = 0; b < bands; ++b) {
+        latency = std::max(latency, bandProcessors_[b].getWorstCaseLatency());
+        const auto& cache = bandMorphCache_[b];
+        const int nodes = std::clamp(cache.activeNodeCount, 0, kMaxMorphNodes);
+        for (int n = 0; n < nodes; ++n) {
+            const auto& node = cache.nodes[static_cast<size_t>(n)];
+            switch (node.type) {
+                case DistortionType::FeedbackDist:
+                    ringing = ringing || node.params.feedback > 0.0f;
+                    break;
+                case DistortionType::AllpassResonant:
+                    ringing = ringing || node.params.allpassFeedback > 0.0f;
+                    break;
+                case DistortionType::Granular:
+                case DistortionType::Spectral:
+                    ringing = true;
+                    break;
+                default:
+                    break;
+            }
+        }
+    }
+    targetLatency_ = latency;
+    reportedLatency_.store(latency, std::memory_order_relaxed);
+    // Minimax alignment context (follow-up 81): 4x reachable anywhere, then the shift that keeps
+    // every band's wait at or above 0
+    bool fourX = false;
+    for (int b = 0; b < bands; ++b) fourX = fourX || bandProcessors_[b].canReach4x();
+    double shift = 0.0;
+    for (int b = 0; b < bands; ++b) shift = std::max(shift, bandProcessors_[b].requiredReferenceShift(latency, fourX));
+    targetFourX_ = fourX;
+    targetShift_ = shift;
+    tailSamples_.store(ringing ? Steinberg::Vst::kInfiniteTail : Steinberg::Vst::kNoTail,
+                       std::memory_order_relaxed);
+}
+
+void Processor::applyLatency(int samples) noexcept {
+    appliedLatency_ = samples;
+    // A running dry crossfade ends on its new path (the output is silent here)
+    if (dryXfading_) {
+        dryActive_ = 1 - dryActive_;
+        dryXfading_ = false;
+    }
+    if (targetShift_ != appliedShift_ && targetShift_ > 0.0) {
+        // the dry fraction 1 + shift (dryFraction in process())
+        const double d = 1.0 + targetShift_;
+        const auto a = static_cast<float>((1.0 - d) / (1.0 + d));
+        dryAllpassL_[static_cast<size_t>(dryActive_)].setCoefficient(a);
+        dryAllpassR_[static_cast<size_t>(dryActive_)].setCoefficient(a);
+    }
+    appliedFourX_ = targetFourX_;
+    appliedShift_ = targetShift_;
+    dryFromShift_ = appliedShift_;
+    for (auto& band : bandProcessors_) {
+        band.setLatencyTarget(samples);
+        band.setAlignmentContext(appliedFourX_, appliedShift_);
+        // Silent point: the running lane takes the new target and factor at once
+        band.settleTransitionAtSilence();
+    }
+}
+
+void Processor::applyAlignmentContext() noexcept {
+    const double fromShift = appliedShift_;
+    appliedFourX_ = targetFourX_;
+    appliedShift_ = targetShift_;
+    for (auto& band : bandProcessors_) {
+        band.setAlignmentContext(appliedFourX_, appliedShift_);
+    }
+    if (fromShift == appliedShift_) {
+        return;
+    }
+    // The dry path crossfades from the old fraction to the new one, its allpass cleared
+    const auto incoming = static_cast<size_t>(1 - dryActive_);
+    if (appliedShift_ > 0.0) {
+        const double d = 1.0 + appliedShift_;
+        const auto a = static_cast<float>((1.0 - d) / (1.0 + d));
+        dryAllpassL_[incoming].setCoefficient(a);
+        dryAllpassR_[incoming].setCoefficient(a);
+    }
+    dryAllpassL_[incoming].reset();
+    dryAllpassR_[incoming].reset();
+    dryFromShift_ = fromShift;
+    dryXfading_ = true;
+    dryXfadePos_ = 0;
+}
+
+Steinberg::uint32 PLUGIN_API Processor::getLatencySamples() {
+    return static_cast<Steinberg::uint32>(reportedLatency_.load(std::memory_order_relaxed));
+}
+
+Steinberg::uint32 PLUGIN_API Processor::getTailSamples() {
+    return tailSamples_.load(std::memory_order_relaxed);
 }
 } // namespace Disrumpo

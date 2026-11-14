@@ -10,7 +10,7 @@
 //   - Layer 3: DelayEngine (018)
 //   - Layer 2: MultimodeFilter (008), SaturationProcessor (009)
 //   - Layer 1: OnePoleSmoother
-//   - Layer 0: BlockContext, stereoCrossBlend
+//   - Layer 0: BlockContext, stereoCrossBlend, db_utils (detail::isNaN, fast-math-immune)
 //
 // Constitution Compliance:
 // - Principle II: Real-Time Safety (noexcept, no allocations in process)
@@ -25,6 +25,7 @@
 #pragma once
 
 #include <krate/dsp/core/block_context.h>
+#include <krate/dsp/core/db_utils.h>
 #include <krate/dsp/core/stereo_utils.h>
 #include <krate/dsp/primitives/crossfading_delay_line.h>
 #include <krate/dsp/primitives/dc_blocker.h>
@@ -291,7 +292,7 @@ public:
     /// @brief Set feedback amount (0.0 - 1.2)
     void setFeedbackAmount(float amount) noexcept {
         // FR-013: Reject NaN
-        if (std::isnan(amount)) return;
+        if (detail::isNaN(amount)) return;
 
         // FR-012: Clamp to valid range
         amount = std::clamp(amount, kMinFeedback, kMaxFeedback);
@@ -319,7 +320,7 @@ public:
     /// @brief Set delay time in milliseconds
     void setDelayTimeMs(float ms) noexcept {
         // Reject NaN
-        if (std::isnan(ms)) return;
+        if (detail::isNaN(ms)) return;
 
         // Clamp to valid range
         ms = std::clamp(ms, 0.0f, maxDelayMs_);
@@ -406,7 +407,7 @@ public:
 
     void setCrossFeedbackAmount(float amount) noexcept {
         // Reject NaN
-        if (std::isnan(amount)) return;
+        if (detail::isNaN(amount)) return;
 
         amount = std::clamp(amount, kMinCrossFeedback, kMaxCrossFeedback);
         crossFeedbackAmount_ = amount;

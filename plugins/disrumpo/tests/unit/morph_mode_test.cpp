@@ -10,7 +10,9 @@
 #include <catch2/catch_test_macros.hpp>
 #include <memory>
 #include <catch2/catch_approx.hpp>
+#include <array>
 #include <cmath>
+#include <cstdio>
 
 #include "dsp/morph_engine.h"
 #include "dsp/morph_node.h"
@@ -152,6 +154,65 @@ TEST_CASE("MorphEngine 1D Linear mode - ignores Y position", "[morph][mode][line
 
     REQUIRE(weights1[0] == Approx(weights2[0]).margin(0.001f));
     REQUIRE(weights2[0] == Approx(weights3[0]).margin(0.001f));
+}
+
+// D-029 / D-100 (fix plan T2.11): the processor keeps its nodes at the corners A(0,0),
+// B(1,0), C(0,1), D(1,1). Linear1D used node X only, so C aliased A and D aliased B:
+// C and D never reached weight 1 and the on-node branch at x = 0 / 1 dropped them in
+// one step. Linear1D now places the active nodes evenly along the axis.
+TEST_CASE("Linear1D with 4 corner nodes sweeps A->B->C->D with no weight jump",
+          "[disrumpo][morph][mode][linear][D-029][D-100]") {
+    auto engineOwner = std::make_unique<Disrumpo::MorphEngine>();
+    auto& engine = *engineOwner;
+    prepareTestEngine(engine);
+
+    struct Sweep {
+        int count = 0;
+        std::array<float, Disrumpo::kMaxMorphNodes> xAtOne{-1.0f, -1.0f, -1.0f, -1.0f};
+        float maxStep = 0.0f;
+    };
+    std::array<Sweep, 2> sweeps{};
+    for (size_t c = 0; c < sweeps.size(); ++c) {
+        const int count = static_cast<int>(c) + 3;
+        engine.setNodes(createFourCornerNodes(), count);
+        engine.setMode(Disrumpo::MorphMode::Linear1D);
+
+        auto& xAtOne = sweeps[c].xAtOne;
+        sweeps[c].count = count;
+        std::array<float, Disrumpo::kMaxMorphNodes> previous{};
+        float maxStep = 0.0f;
+        float maxStepX = 0.0f;
+        constexpr int kSteps = 1000;
+        for (int s = 0; s <= kSteps; ++s) {
+            const float x = static_cast<float>(s) / static_cast<float>(kSteps);
+            engine.calculateMorphWeights(x, 0.5f);
+            const auto& w = engine.getWeights();
+            for (int i = 0; i < count; ++i) {
+                if (w[i] == 1.0f && xAtOne[i] < 0.0f) xAtOne[i] = x;
+                if (s > 0 && std::abs(w[i] - previous[i]) > maxStep) {
+                    maxStep = std::abs(w[i] - previous[i]);
+                    maxStepX = x;
+                }
+            }
+            previous = w;
+        }
+        std::printf("T2.11 Linear1D %d corner nodes: weight 1 at x = A %.3f, B %.3f, C %.3f, D %.3f; "
+                    "max |dw| per 1e-3 step %.4f at x = %.3f\n",
+                    count, static_cast<double>(xAtOne[0]), static_cast<double>(xAtOne[1]),
+                    static_cast<double>(xAtOne[2]), static_cast<double>(xAtOne[3]),
+                    static_cast<double>(maxStep), static_cast<double>(maxStepX));
+        sweeps[c].maxStep = maxStep;
+    }
+
+    for (const auto& sweep : sweeps) {
+        INFO("active nodes " << sweep.count);
+        for (int i = 0; i < sweep.count; ++i) {
+            INFO("node " << i);
+            REQUIRE(sweep.xAtOne[i] >= 0.0f);
+            if (i > 0) REQUIRE(sweep.xAtOne[i] > sweep.xAtOne[i - 1]);  // visited in turn A, B, C, D
+        }
+        REQUIRE(sweep.maxStep < 0.05f);
+    }
 }
 
 // =============================================================================

@@ -4,4 +4,4 @@ macro,note,macro_value,axis_reading,running_max_before,valid,pass
 "Clean <-> Violent",E1,0.25,0,0,1,PASS
 "Clean <-> Violent",E1,0.5,0,0,1,PASS
 "Clean <-> Violent",E1,0.75,0,0,1,PASS
-"Clean <-> Violent",E1,1,11.0488,0,1,PASS
+"Clean <-> Violent",E1,1,11.0487,0,1,PASS

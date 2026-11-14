@@ -98,11 +98,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-2022, macos-latest, ubuntu-latest]
+        os: [windows-2022, macos-latest, ubuntu-24.04]
         shard: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           submodules: recursive
 
@@ -122,7 +122,7 @@ jobs:
           test -f /usr/include/X11/Xlib.h || { echo "libx11-dev did not install"; exit 1; }
 
       - name: Cache FetchContent
-        uses: actions/cache@v5
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: build/_deps
           key: fetchcontent-${{ github.repository }}-${{ runner.os }}-vorago-sweep-${{ hashFiles('CMakeLists.txt', 'dsp/CMakeLists.txt', 'plugins/shared/CMakeLists.txt', 'plugins/vorago/CMakeLists.txt') }}
@@ -164,7 +164,7 @@ jobs:
 
       - name: Upload shard records
         if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: vorago-sweep-${{ matrix.os }}-${{ matrix.shard }}
           path: sweep-out
@@ -180,10 +180,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-2022, macos-latest, ubuntu-latest]
+        os: [windows-2022, macos-latest, ubuntu-24.04]
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           submodules: recursive
 
@@ -203,7 +203,7 @@ jobs:
           test -f /usr/include/X11/Xlib.h || { echo "libx11-dev did not install"; exit 1; }
 
       - name: Cache FetchContent
-        uses: actions/cache@v5
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: build/_deps
           key: fetchcontent-${{ github.repository }}-${{ runner.os }}-vorago-sweep-${{ hashFiles('CMakeLists.txt', 'dsp/CMakeLists.txt', 'plugins/shared/CMakeLists.txt', 'plugins/vorago/CMakeLists.txt') }}
@@ -233,7 +233,7 @@ jobs:
           fi
 
       - name: Download this OS's shard records
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: vorago-sweep-${{ matrix.os }}-*
           path: sweep-in

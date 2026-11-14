@@ -13,7 +13,6 @@
 
 #include "distortion_types.h"
 
-#include <krate/dsp/processors/saturation_processor.h>
 #include <krate/dsp/processors/tube_stage.h>
 #include <krate/dsp/processors/tape_saturator.h>
 #include <krate/dsp/processors/fuzz_processor.h>
@@ -33,10 +32,13 @@
 #include <krate/dsp/primitives/chaos_waveshaper.h>
 #include <krate/dsp/primitives/stochastic_shaper.h>
 #include <krate/dsp/primitives/dc_blocker.h>
+#include <krate/dsp/primitives/delay_line.h>
 #include <krate/dsp/primitives/one_pole.h>
+#include <krate/dsp/primitives/smoother.h>
 #include <krate/dsp/primitives/waveshaper.h>
 
 #include <array>
+#include <atomic>
 #include <cmath>
 #include <algorithm>
 
@@ -96,7 +98,7 @@ struct DistortionParams {
     float body = 0.5f;              ///< Asym fuzz body [0, 1]
 
     // Wavefold (D07-D09)
-    float folds = 1.0f;             ///< Fold count [1, 8]
+    float folds = 1.0f;             ///< Fold count [1, 12] (the folders clamp at 10)
     float shape = 0.0f;             ///< Fold curve shape [0, 1]
     float symmetry = 0.5f;          ///< Fold symmetry [0, 1]
     float angle = 0.5f;             ///< TriFold angle [0, 1]
@@ -106,7 +108,7 @@ struct DistortionParams {
     bool dcBlock = true;            ///< DC blocking toggle
 
     // Digital (D12-D14)
-    float bitDepth = 16.0f;         ///< Bit depth [1, 16]
+    float bitDepth = 16.0f;         ///< Bit depth; Bitcrush maps its Bits slot to [4, 16] (BitCrusher's range)
     float sampleRateRatio = 1.0f;   ///< Downsample ratio [1, 32]
     float smoothness = 0.0f;        ///< Anti-alias smoothing [0, 1]
     float dither = 0.0f;            ///< Bitcrush/quantize dither [0, 1]
@@ -118,13 +120,12 @@ struct DistortionParams {
     int bitwiseOp = 0;              ///< Bitwise operation select
     float bitwiseIntensity = 0.5f;  ///< Bitwise intensity [0, 1]
     float bitwisePattern = 0.0f;    ///< Bitwise pattern [0, 1]
-    float bitwiseBits = 0.5f;       ///< Bitwise bits slider [0, 1] (reserved, unused)
 
     // Dynamic (D15)
     float sensitivity = 0.5f;       ///< Envelope sensitivity [0, 1]
-    float attackMs = 10.0f;         ///< Attack time [1, 100] ms
-    float releaseMs = 100.0f;       ///< Release time [10, 500] ms
-    int dynamicMode = 0;            ///< Mode: 0=Envelope, 1=Inverse, 2=Derivative
+    float attackMs = 10.0f;         ///< Attack time [1, 500] ms
+    float releaseMs = 100.0f;       ///< Release time [10, 5000] ms
+    int dynamicMode = 0;            ///< Mode: 0=EnvelopeFollow, 1=InverseEnvelope, 2=Derivative, 3=Hysteresis (menu: Follow, Inverse, Transient, Hyst)
     float dynamicCurve = 0.5f;      ///< Temporal waveshape curve [0, 1]
     float dynamicDepth = 0.5f;      ///< Temporal depth [0, 1]
     float hold = 0.0f;              ///< Temporal hold [0, 1]
@@ -146,20 +147,20 @@ struct DistortionParams {
     float fbDecay = 0.0f;           ///< Feedback decay amount [0, 1] (0=off)
 
     // Aliasing (D18)
-    float freqShift = 0.0f;         ///< Frequency shift [-1000, 1000] Hz
+    float freqShift = 0.0f;         ///< Frequency shift [-5000, 5000] Hz
 
     // Bitwise (D19)
     uint16_t xorPattern = 0xAAAA;   ///< XOR mask [0x0000, 0xFFFF]
 
     // Experimental (D20-D25)
     float chaosAmount = 0.5f;       ///< Attractor influence [0, 1]
-    float attractorSpeed = 1.0f;    ///< Attractor evolution rate [0.1, 10]
+    float attractorSpeed = 1.0f;    ///< Attractor evolution rate [0.01, 100]
     int chaosAttractor = 0;         ///< Chaos attractor model [0-3]
     float chaosCoupling = 0.5f;     ///< Chaos input coupling [0, 1]
     float chaosXDrive = 0.5f;       ///< Chaos X drive [0, 1]
     float chaosYDrive = 0.5f;       ///< Chaos Y drive [0, 1]
     int vowelSelect = 0;            ///< Formant vowel select [0-4]
-    float formantShift = 0.0f;      ///< Formant shift [-12, 12] semitones
+    float formantShift = 0.0f;      ///< Formant shift [-24, 24] semitones
     float formantCurve = 0.5f;      ///< Formant curve [0, 1]
     float formantReso = 0.5f;       ///< Formant resonance [0, 1]
     float formantBW = 0.5f;         ///< Formant bandwidth [0, 1]
@@ -227,32 +228,53 @@ struct DistortionParams {
 /// - Common parameter handling (drive, mix, tone)
 /// - Type-specific parameter routing via setParams()
 /// - DC blocking for asymmetric types
-/// - Block-based latency reporting for Spectral/Granular types
+/// - Latency reporting and alignment for the Spectral type
 ///
 /// Real-time safe: no allocations after prepare().
 ///
 /// @par Signal Flow
 /// Input -> [Drive Scale] -> [processRaw] -> [DC Block (if needed)] ->
 /// [Tone Filter] -> [Mix Blend] -> Output
+/// The level-dependent types run processRaw 18 dB hotter and are brought back down after
+/// it, so drive 1 distorts a -18 dBFS input (drive re-stage, user ruling 2026-11-10).
 ///
 /// @par Drive Gate
-/// When drive == 0.0, the entire distortion path is bypassed and the input
-/// is returned directly to the mix stage (passthrough).
+/// When drive == 0.0, the entire distortion path is bypassed and the dry
+/// image is returned unchanged (passthrough). For 0 < drive < kDriveBlendFull
+/// the wet path runs at kDriveBlendFull and its mix share is scaled by
+/// drive / kDriveBlendFull, so the output is continuous across drive 0 (D-014).
 ///
-/// @par Block-Based Types
-/// Spectral (D23) and Granular (D22) use internal ring buffers and introduce
-/// fixed latency. Query via getProcessingLatency(). Sample-accurate types
-/// return 0 latency.
+/// @par Latency
+/// Spectral (D23) delays its output by its FFT size - 1; its dry image is delayed
+/// by the same amount, so mix < 1 gives one image (D-081). Query via
+/// getProcessingLatency(). Every other type returns 0 latency.
 class DistortionAdapter {
 public:
+    /// @brief Test probe: DistortionAdapter instances alive (each holds every type's
+    /// processor, about 1 MB prepared), so a test can count what an owner keeps.
+    static inline std::atomic<int> debugLiveInstances{0};
+
     // =========================================================================
     // Lifecycle
     // =========================================================================
 
-    /// @brief Prepare all processors for the given sample rate.
-    /// @param sampleRate Processing sample rate (after any oversampling)
+    /// @brief Prepare all processors for the given sample rate (allocates).
+    ///
+    /// Every member's buffers are sized for sampleRate * maxOversampleFactor, so
+    /// setProcessingRate() can later move the adapter to any rate up to that
+    /// without allocating. Processing starts at sampleRate. SpectralDistortion
+    /// allocates in its prepare(), so it is prepared once, at sampleRate, and is
+    /// not re-rated (Spectral recommends 1x, distortion_types.h).
+    /// @param sampleRate Processing sample rate (the host rate for an oversampling owner)
     /// @param maxBlockSize Maximum block size for block-based processors
-    void prepare(double sampleRate, int maxBlockSize = 512) noexcept;
+    /// @param maxOversampleFactor Highest factor setProcessingRate() may be given
+    void prepare(double sampleRate, int maxBlockSize = 512, int maxOversampleFactor = 1) noexcept;
+
+    /// @brief Re-derive every rate-dependent coefficient for the rate the adapter is
+    /// clocked at (D-009). Allocation-free; resets the processors' filter state, so call
+    /// it at the silent point of a factor switch. Clamped to the rate prepare() sized for.
+    /// @param rate Rate at which process() will be called, in Hz
+    void setProcessingRate(double rate) noexcept;
 
     /// @brief Reset all internal state.
     void reset() noexcept;
@@ -262,6 +284,10 @@ public:
     // =========================================================================
 
     /// @brief Set the active distortion type.
+    ///
+    /// A change of type clears the new type's processor at the next process() (after the
+    /// caller's setParams) and crossfades the output from the last sample over 5 ms
+    /// (D-032, D-080, D-141). Setting the current type again changes nothing.
     /// @param type The distortion type to use
     void setType(DistortionType type) noexcept;
 
@@ -272,7 +298,8 @@ public:
     // Parameter Control
     // =========================================================================
 
-    /// @brief Set common parameters.
+    /// @brief Set common parameters. A Drive change re-routes the types that read it in
+    /// their parameter routing (Temporal, Stochastic), whatever order setParams() came in.
     void setCommonParams(const DistortionCommonParams& params) noexcept;
 
     /// @brief Get current common parameters.
@@ -314,29 +341,143 @@ public:
     // Latency Query
     // =========================================================================
 
-    /// @brief Query fixed processing latency introduced by block-based types.
+    /// @brief Query the fixed processing latency of the active type (D-081, T2.10).
     ///
-    /// Returns 0 for sample-accurate types (Saturation, Wavefold, Rectify, etc.).
-    /// Returns the internal ring-buffer size for block-based types:
-    /// - Spectral: FFT size (default 2048 samples)
-    /// - Granular: grain buffer size (derived from grainSizeMs)
+    /// Spectral: FFT size - 1 (SpectralDistortion returns a frame's first output on the
+    /// call that completes the frame; measured 511 / 2047 / 4095 at 512 / 2048 / 4096).
+    /// Every other type: 0. Granular grains read the newest input (measured 0 with grain
+    /// position and position variance at 0); its position and jitter are effect delays,
+    /// like FeedbackDist's delay time, not a latency.
     ///
-    /// @return Latency in samples at the current (potentially oversampled) rate
+    /// @return Latency in samples at the rate process() is clocked at
     [[nodiscard]] int getProcessingLatency() const noexcept;
+
+    /// @brief The latency a prepared adapter of @p type with FFT size @p fftSize reports
+    /// (getProcessingLatency), without an adapter: Spectral's active FFT size (the next power
+    /// of two from SpectralDistortion's 256, at most kSpectralMaxFftSize) - 1, else 0.
+    [[nodiscard]] static int latencyFor(DistortionType type, int fftSize) noexcept {
+        if (type != DistortionType::Spectral) return 0;
+        constexpr std::size_t kSpectralMinFftSize = Krate::DSP::SpectralDistortion::kMinFFTSize;
+        std::size_t pow2 = kSpectralMinFftSize;
+        const auto requested = static_cast<std::size_t>(fftSize);  // as updateBlockLatency passes it
+        while (pow2 < requested && pow2 < kSpectralMaxFftSize) pow2 <<= 1;
+        return std::clamp(static_cast<int>(pow2) - 1, 0, kMaxLatencySamples);
+    }
+
+    /// @brief Pad the output to a total latency of @p samples (clocked samples, clamped
+    /// to [0, kMaxLatencySamples]). An owner that sums adapters of different types
+    /// (MorphEngine) aligns every one to the slowest. Below the own latency it has no effect.
+    void setLatencyAlignment(int samples) noexcept;
+
+    /// @brief Latency of process() output: max(own latency, alignment), in clocked samples.
+    [[nodiscard]] int getAlignedLatency() const noexcept { return std::max(blockLatency_, alignLatency_); }
+
+    /// @brief Rate process() is clocked at (the host rate x the owner's factor).
+    [[nodiscard]] double getProcessingRate() const noexcept { return sampleRate_; }
+
+    /// @brief Take over @p other's Ring Saturation carrier state (phase, tracked frequency),
+    /// rescaled to this adapter's rate: an oversampling crossfade's incoming lane continues the
+    /// running lane's carrier instead of restarting it (follow-up 84, user ruling 2026-11-10).
+    /// @p inputLagSeconds: how much later this adapter's input is than @p other's.
+    void copyCarrierStateFrom(const DistortionAdapter& other, double inputLagSeconds) noexcept {
+        ringSaturation_.setCarrierState(other.ringSaturation_.getCarrierState(), other.ringSaturation_.getSampleRate(),
+                                        inputLagSeconds);
+    }
+
+    /// @brief Start the 10 Hz DC blockers settled on the means @p other's remove, and Allpass
+    /// Resonant's loop in @p other's state (at this adapter's rate): an oversampling crossfade's
+    /// incoming lane, cleared, otherwise passed each blocker's DC as a step that decayed over ~150 ms
+    /// (-24 dBFS from a -58 dBFS input, user ruling 2026-11-11, round 4). Call after this adapter
+    /// is clocked at its rate and configured, before its first sample; @p other runs the same type.
+    void warmStartFrom(const DistortionAdapter& other) noexcept;
+
+    /// @brief True for the types whose shaper runs through first-order antiderivative
+    /// anti-aliasing (ADAA1) when the adapter is clocked above the host rate: HalfRectify
+    /// (the step at the threshold) and TriangleFold (the fold corners), ruling 2026-11-09;
+    /// SoftClip (its knee and tanh, at 4x), ruling 2026-11-10.
+    [[nodiscard]] static bool usesAdaa(DistortionType type) noexcept {
+        return type == DistortionType::HalfRectify || type == DistortionType::TriangleFold ||
+               type == DistortionType::SoftClip;
+    }
+
+    /// ADAA1 delays the shaper by half a clocked sample (its linear segments read the mean of
+    /// the last two inputs); owners align the band to it (BandProcessor latency).
+    static constexpr double kAdaaDelayClockedSamples = 0.5;
+
+    /// True for the type whose shaper runs through second-order ADAA (ADAA2) when oversampled:
+    /// TriangleFold (user ruling 2026-11-11, round 3: ADAA1 at 8x left -47.9 dB of aliasing at
+    /// drive 10 against T6.01's -50 dB). ADAA2 delays the shaper by one clocked sample.
+    [[nodiscard]] static bool usesAdaa2(DistortionType type) noexcept { return type == DistortionType::TriangleFold; }
+
+    /// The delay @p type's anti-aliasing adds when oversampled, in clocked samples: one for ADAA2,
+    /// half for ADAA1, else 0. Owners align the band to the largest among its shapers.
+    [[nodiscard]] static double adaaDelayClockedSamples(DistortionType type) noexcept {
+        if (usesAdaa2(type)) return 1.0;
+        return usesAdaa(type) ? kAdaaDelayClockedSamples : 0.0;
+    }
+
+    /// Largest Spectral FFT size the plugin offers (processor_params.cpp Spectral
+    /// slot 1: 512..4096). SpectralDistortion is allocated for it once in prepare().
+    static constexpr std::size_t kSpectralMaxFftSize = 4096;
+
+    /// Largest latency an adapter can have or be aligned to: Spectral at the largest FFT size.
+    static constexpr int kMaxLatencySamples = static_cast<int>(kSpectralMaxFftSize) - 1;
+
+    /// Drive below which the wet path is blended in by drive / kDriveBlendFull
+    /// (D-014); at and above it the drive gate is fully open.
+    static constexpr float kDriveBlendFull = 0.01f;
 
 private:
     // =========================================================================
     // Internal Processing
     // =========================================================================
 
-    /// @brief Raw processing for the current type (no mix/tone/DC).
-    [[nodiscard]] float processRaw(float input) noexcept;
+    /// @brief Prepare every member except SpectralDistortion for @p rate (sets sampleRate_).
+    void prepareRateDependent(double rate) noexcept;
 
-    /// @brief Apply tone filter to wet signal.
-    [[nodiscard]] float applyTone(float wet) noexcept;
+    /// @brief Raw processing for the current type (no mix/tone/DC).
+    [[nodiscard]] float processRaw(float input) noexcept { return processRawFor(currentType_, input); }
+
+    /// @brief Raw processing for @p type (no mix/tone/DC).
+    [[nodiscard]] float processRawFor(DistortionType type, float input) noexcept;
+
+    /// @brief Drive, type, DC block, tone and mix of @p input; @p dry is the dry image the
+    /// mix and the drive gate use (the input itself, or delayed by a latent type's latency).
+    [[nodiscard]] float processWithDry(float input, float dry) noexcept {
+        return processWithDryFor(currentType_, input, dry, adaaDryPrev_, dcBlocker_, toneFilter_, needsDCBlock_);
+    }
+
+    /// @brief processWithDry() for @p type with its own ADAA1 dry history, DC blocker and tone
+    /// filter: the current type's, or a type-change fade's outgoing type's (fadeFromRunning_).
+    [[nodiscard]] float processWithDryFor(DistortionType type, float input, float dry, float& dryPrev,
+                                          Krate::DSP::DCBlocker& dcBlocker, Krate::DSP::OnePoleLP& toneFilter,
+                                          bool dcBlock) noexcept;
+
+    /// @brief True when @p a and @p b run through a shared processor or filter (the fuzz
+    /// processor, the wavefold smoothing filter, the dither generator): they cannot both run.
+    [[nodiscard]] static bool sharesProcessorState(DistortionType a, DistortionType b) noexcept;
+
+    /// @brief Re-derive blockLatency_ for the active type (Spectral: its active FFT size).
+    void updateBlockLatency() noexcept;
+
+    /// @brief Clear the latency delay lines when the adapter becomes latent (D-081).
+    void refreshLatencyMode() noexcept;
+
+    /// @brief The part of FuzzProcessor's clean blend that Fuzz / AsymmetricFuzz remove above
+    /// drive 1 (the blend scaled by 1 / drive^2), for the fuzz input @p fuzzInput.
+    [[nodiscard]] float fuzzCleanExcess(float fuzzInput) const noexcept;
+
+    /// @brief HardClip's or FullRectify's processRaw over @p n driven samples in place (processBlock).
+    void shapeCurveChunk(float* x, size_t n) noexcept;
 
     /// @brief Update DC blocker state based on current type.
     void updateDCBlockerState() noexcept;
+
+    /// @brief True for the types whose wet signal runs through the tone filter.
+    [[nodiscard]] static bool usesToneFilter(DistortionType type) noexcept;
+
+    /// @brief Clear the state of the processor(s) @p type runs (allocation-free).
+    void resetProcessorFor(DistortionType type) noexcept;
 
     /// @brief Route type-specific parameters to the active processor.
     void routeParamsToProcessor() noexcept;
@@ -345,7 +486,23 @@ private:
     // State
     // =========================================================================
 
-    double sampleRate_ = 44100.0;
+    double sampleRate_ = 44100.0;          ///< Rate process() is clocked at
+    double maxProcessingRate_ = 44100.0;   ///< Rate prepare() sized the buffers for
+    double hostRate_ = 44100.0;            ///< Rate prepare() was called with (the host rate)
+
+    /// @brief ADAA1 runs only when oversampled: at the host rate its cos(pi f / fs) on the
+    /// linear segments would dull the type (-2.4 dB at 10 kHz, 44.1 kHz).
+    [[nodiscard]] bool adaaActive() const noexcept { return sampleRate_ > hostRate_; }
+
+    /// HalfRectify ADAA1: the previous shaper input
+    double halfRectAdaaPrev_ = 0.0;
+    /// SoftClip ADAA1: the previous shaper input
+    double softClipAdaaPrev_ = 0.0;
+    /// Fuzz / AsymmetricFuzz output makeup for the drive (setCommonParams)
+    float fuzzMakeup_ = 1.0f;
+    /// The previous dry image: an ADAA1 type's dry takes the mean of the last two (processWithDry)
+    float adaaDryPrev_ = 0.0f;
+    int maxBlockSize_ = 512;               ///< Block size prepare() was given
     DistortionType currentType_ = DistortionType::SoftClip;
     DistortionCommonParams commonParams_;
     DistortionParams typeParams_;
@@ -367,8 +524,8 @@ private:
     // KrateDSP Processor Instances (all pre-allocated)
     // =========================================================================
 
-    Krate::DSP::SaturationProcessor saturation_;
-    Krate::DSP::TubeStage tube_;
+    /// One TubeStage per cascade stage (satStage 0-3 runs 1-4 of them in series, D-077)
+    std::array<Krate::DSP::TubeStage, 4> tube_;
     Krate::DSP::TapeSaturator tape_;
     Krate::DSP::FuzzProcessor fuzz_;
     Krate::DSP::WavefolderProcessor wavefolder_;
@@ -391,12 +548,6 @@ private:
     // =========================================================================
     // These are used instead of the block-based processors when we need
     // sample-by-sample processing without the overhead of smoothing.
-
-    /// Waveshaper for Tube type (D03)
-    Krate::DSP::Waveshaper tubeShaper_;
-
-    /// Waveshaper for Tape type (D04) - uses Sigmoid::tanh with drive
-    Krate::DSP::Waveshaper tapeShaper_;
 
     /// Single-sample buffer for block processors that only have block processing
     float singleSampleBuffer_[1] = {0.0f};
@@ -429,6 +580,26 @@ private:
     /// Secondary wavefolder for shape crossfade (triangle model for sine/triangle blend)
     Krate::DSP::Wavefolder wavefoldTriangle_;
 
+    /// TriangleFold oversampled (usesAdaa2): WavefolderProcessor's Simple model (fold amount and
+    /// symmetry smoothed over its 5 ms, its 10 Hz DC blocker, mix 1) with the fold through
+    /// second-order ADAA in double (Bilbao et al. 2017, as core/closed_form_adaa2.h, with the
+    /// threshold as a per-sample argument), and the Angle sine fold delayed one clocked sample
+    /// to meet it (user ruling 2026-11-11, round 3)
+    Krate::DSP::OnePoleSmoother triFoldAmountSmoother_;
+    Krate::DSP::OnePoleSmoother triFoldSymmetrySmoother_;
+    Krate::DSP::DCBlocker triFoldDcBlocker_;
+    double triAdaaX1_ = 0.0;
+    double triAdaaX2_ = 0.0;
+    double triAdaaF2x1_ = 0.0;
+    double triAdaaD1_ = 0.0;
+    double triAdaaT_ = -1.0;  ///< threshold triAdaaF2x1_ / triAdaaD1_ were computed at
+    float triAngleDelay_ = 0.0f;
+
+    /// The ADAA2 triangle fold of @p input (bias applied) at the smoothed fold amount and
+    /// symmetry, DC-blocked: one clocked sample late.
+    [[nodiscard]] float triangleFoldAdaa2(float input) noexcept;
+    void resetTriangleFoldAdaa2() noexcept;
+
     /// Phase accumulator for tape flutter LFO (D04)
     float flutterPhase_ = 0.0f;
 
@@ -436,14 +607,77 @@ private:
     // Block-Based Processing State
     // =========================================================================
 
-    /// Ring buffers for block-based processors (Spectral, Granular)
-    static constexpr size_t kMaxBlockBufferSize = 4096;
-    std::array<float, kMaxBlockBufferSize> inputRingBuffer_{};
-    std::array<float, kMaxBlockBufferSize> outputRingBuffer_{};
-    int ringWritePos_ = 0;
-    int ringReadPos_ = 0;
+    /// Fixed latency of the active type in clocked samples (Spectral; 0 otherwise)
     int blockLatency_ = 0;
-    bool isBlockBased_ = false;
+
+    /// Total latency the owner aligns the output to (setLatencyAlignment)
+    int alignLatency_ = 0;
+
+    /// True while blockLatency_ or alignLatency_ is non-zero: process() runs the delays
+    bool latent_ = false;
+
+    /// Input history: the dry image of a latent type, read at blockLatency_ (D-081)
+    Krate::DSP::DelayLine dryDelay_;
+
+    /// Output history: the pad up to alignLatency_, read at alignLatency_ - blockLatency_
+    Krate::DSP::DelayLine padDelay_;
+
+    // =========================================================================
+    // Type-Change Reset and Fade (D-032, D-080, D-141)
+    // =========================================================================
+
+    /// Length of the output crossfade after a type change
+    static constexpr double kTypeFadeSeconds = 0.005;
+
+    /// The new type's processor is cleared at the next process()
+    bool resetPending_ = false;
+
+    /// process() has produced a sample since prepare()/reset()
+    bool hasOutput_ = false;
+
+    /// Last process() output: the origin of the next type-change fade
+    float lastOutput_ = 0.0f;
+
+    /// Output the running fade starts from
+    float typeFadeOrigin_ = 0.0f;
+
+    /// Fade length in clocked samples, and the samples of it still to run
+    int typeFadeLength_ = 1;
+    int typeFadeRemaining_ = 0;
+
+    /// A type-change fade from a type that shares no state with the new one, neither latent, runs
+    /// the outgoing type beside the new one and crossfades from its output instead of from the
+    /// frozen last output (user ruling 2026-11-11, round 3: the frozen origin dipped a
+    /// SoftClip -> Tube switch -4.4 dB in its first 2 ms). Its DC blocker, tone filter and ADAA1
+    /// dry history continue from the shared ones' state at the switch.
+    bool fadeFromRunning_ = false;
+    DistortionType fadeFromType_ = DistortionType::SoftClip;
+    bool fadeFromDCBlock_ = false;
+    float fadeAdaaDryPrev_ = 0.0f;
+    Krate::DSP::DCBlocker fadeDcBlocker_;
+    Krate::DSP::OnePoleLP fadeToneFilter_;
+
+    /// Mix smoothed over kMixSmoothingMs (user ruling 2026-11-11, round 3): a Mix change stepped the
+    /// output from the dry image to the wet one within a sample (Node Mix 0 -> 100 % at drive 5: jump
+    /// ratio 1.82). Snapped before the first output; once on its target the value is the target
+    /// exactly, so a steady Mix is bit-identical. currentMix_ is this sample's value (process()).
+    static constexpr float kMixSmoothingMs = 5.0f;
+
+    /// Samples per chunk of a steady span a block-capable shaper (Fractal) runs as a block (processBlock)
+    static constexpr int kShaperChunk = 64;
+    Krate::DSP::OnePoleSmoother mixSmoother_;
+    float currentMix_ = 1.0f;
+
+    /// Counts this instance in debugLiveInstances
+    struct LiveCount {
+        LiveCount() noexcept { debugLiveInstances.fetch_add(1, std::memory_order_relaxed); }
+        LiveCount(const LiveCount& /*other*/) noexcept { debugLiveInstances.fetch_add(1, std::memory_order_relaxed); }
+        LiveCount(LiveCount&& /*other*/) noexcept { debugLiveInstances.fetch_add(1, std::memory_order_relaxed); }
+        LiveCount& operator=(const LiveCount& /*other*/) noexcept = default;
+        LiveCount& operator=(LiveCount&& /*other*/) noexcept = default;
+        ~LiveCount() { debugLiveInstances.fetch_sub(1, std::memory_order_relaxed); }
+    };
+    LiveCount liveCount_;
 };
 
 } // namespace Disrumpo

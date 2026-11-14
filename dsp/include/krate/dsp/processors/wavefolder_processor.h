@@ -26,6 +26,7 @@
 
 #pragma once
 
+#include <krate/dsp/core/db_utils.h>
 #include <krate/dsp/core/wavefold_math.h>
 #include <krate/dsp/primitives/wavefolder.h>
 #include <krate/dsp/primitives/dc_blocker.h>
@@ -133,6 +134,10 @@ public:
     /// Number of stages in Buchla259 model (FR-021)
     static constexpr size_t kBuchlaStages = 5;
 
+    /// ADAA1 input step at or below which the fold of the midpoint replaces the difference
+    /// quotient (argument units; as HardClipADAA, TanhADAA and ClosedFormAdaa2)
+    static constexpr double kAdaaEpsilon = 1.0e-5;
+
     // =========================================================================
     // Lifecycle (FR-003, FR-004, FR-005, FR-006)
     // =========================================================================
@@ -179,6 +184,7 @@ public:
         symmetrySmoother_.snapToTarget();
         mixSmoother_.snapToTarget();
 
+        adaaPrev_ = 0.0;
         prepared_ = true;
     }
 
@@ -194,6 +200,19 @@ public:
 
         // Reset DC blocker state
         dcBlocker_.reset();
+        adaaPrev_ = 0.0;
+    }
+
+    /// @brief Start the DC blocker settled on the mean @p other's blocker removes (warm start).
+    ///
+    /// For an owner that starts a cleared copy of a running wavefolder, possibly at another
+    /// sample rate (an oversampling switch): from a cleared state the 10 Hz blocker passes the
+    /// fold's DC as a step that decays over ~150 ms. Changes nothing else; never called, nothing
+    /// changes.
+    void seedDcBlockerFrom(const WavefolderProcessor& other) noexcept {
+        DCBlocker probe = other.dcBlocker_;
+        // The next output of a blocker is x - (x[n-1] - R y[n-1]): at x = 0, minus the mean it removes
+        dcBlocker_.setState(-probe.process(0.0f), 0.0f);
     }
 
     // =========================================================================
@@ -273,6 +292,17 @@ public:
     void setSymmetry(float symmetry) noexcept {
         symmetry_ = std::clamp(symmetry, -1.0f, 1.0f);
         symmetrySmoother_.setTarget(symmetry_);
+    }
+
+    /// @brief First-order antiderivative anti-aliasing (ADAA1) of the Simple (triangle) fold.
+    ///
+    /// Off by default, and then the processor is unchanged. On, the Simple model outputs
+    /// (F(x[n]) - F(x[n-1])) / (x[n] - x[n-1]), F the triangle fold's antiderivative (in
+    /// double), or the fold of the midpoint when |x[n] - x[n-1]| <= kAdaaEpsilon. That delays
+    /// the fold by half a sample and shapes its linear segments by cos(pi f / fs). The other
+    /// models ignore it.
+    void setAntiderivativeAntialiasing(bool enabled) noexcept {
+        adaa_ = enabled;
     }
 
     /// @brief Set the dry/wet mix (FR-012).
@@ -356,6 +386,11 @@ public:
             // Apply selected wavefolder model
             switch (model_) {
                 case WavefolderModel::Simple:
+                    if (adaa_) {
+                        wet = triangleFoldAdaa(wet, foldAmt);
+                        break;
+                    }
+                    [[fallthrough]];
                 case WavefolderModel::Serge:
                 case WavefolderModel::Lockhart:
                     // Use Layer 1 Wavefolder primitive (FR-037)
@@ -398,6 +433,36 @@ private:
                 // Buchla259 uses custom implementation, not Wavefolder primitive
                 break;
         }
+    }
+
+    /// @brief Antiderivative of WavefoldMath::triangleFold(x, t), zero at 0. The fold is odd,
+    /// 4t-periodic and has zero mean, so F is even and 4t-periodic (bounded by t^2 / 2).
+    [[nodiscard]] static double triangleFoldIntegral(double x, double t) noexcept {
+        const double p = std::fmod(std::abs(x) + t, 4.0 * t);
+        const double g = p < 2.0 * t ? 0.5 * p * p - t * p
+                                     : 3.0 * t * (p - 2.0 * t) - 0.5 * (p * p - 4.0 * t * t);
+        return g + 0.5 * t * t;
+    }
+
+    /// @brief The Simple model's fold through ADAA1 (setAntiderivativeAntialiasing).
+    [[nodiscard]] float triangleFoldAdaa(float input, float foldAmount) noexcept {
+        if (!detail::isFinite(input)) {
+            // NaN / Inf: the plain fold's answer, and no history to carry it forward
+            adaaPrev_ = 0.0;
+            wavefolder_.setFoldAmount(foldAmount);
+            return wavefolder_.process(input);
+        }
+        // Wavefolder's Triangle threshold: 1 / foldAmount (foldAmount >= kMinFoldAmount)
+        const double t = std::max(static_cast<double>(WavefoldMath::kMinThreshold),
+                                  1.0 / static_cast<double>(foldAmount));
+        const double x = input;
+        const double dx = x - adaaPrev_;
+        const double y = std::abs(dx) > kAdaaEpsilon
+                             ? (triangleFoldIntegral(x, t) - triangleFoldIntegral(adaaPrev_, t)) / dx
+                             : static_cast<double>(WavefoldMath::triangleFold(
+                                   static_cast<float>(0.5 * (x + adaaPrev_)), static_cast<float>(t)));
+        adaaPrev_ = x;
+        return static_cast<float>(y);
     }
 
     /// @brief Apply Buchla259 5-stage parallel folding (FR-021).
@@ -500,6 +565,8 @@ private:
 
     double sampleRate_ = 44100.0;  ///< Current sample rate
     bool prepared_ = false;         ///< Whether prepare() has been called
+    bool adaa_ = false;             ///< ADAA1 on the Simple model (setAntiderivativeAntialiasing)
+    double adaaPrev_ = 0.0;         ///< ADAA1: the previous fold input
 };
 
 } // namespace Krate::DSP

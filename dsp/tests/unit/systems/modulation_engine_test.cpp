@@ -1321,3 +1321,35 @@ TEST_CASE("External source value persists across blocks (hold behavior)",
     engine.process(ctx, silence.data(), silence.data(), 512);
     REQUIRE(engine.getModulationOffset(0) == Approx(0.6f).margin(0.01f));
 }
+
+// =============================================================================
+// D-165 (Disrumpo audit T4.17): LFO1 and LFO2 draw different random sequences
+// =============================================================================
+// Both LFOs were reseeded to the same value on every reset, so two S&H LFOs at
+// the same rate held the same value in every cycle. prepare() now gives LFO2
+// its own seed.
+
+TEST_CASE("LFO1 and LFO2 sample-and-hold sequences differ at the same rate",
+          "[systems][modulation_engine][D-165]") {
+    auto engine = createEngine(44100.0);
+    engine.setLFO1Waveform(Waveform::SampleHold);
+    engine.setLFO2Waveform(Waveform::SampleHold);
+    engine.setLFO1Rate(5.0f);
+    engine.setLFO2Rate(5.0f);
+
+    BlockContext ctx;
+    ctx.sampleRate = 44100.0;
+    ctx.blockSize = 512;
+    std::array<float, 512> silence = {};
+
+    int sameBlocks = 0;
+    constexpr int kBlocks = 172;  // ~2 s, ~10 held values each
+    for (int b = 0; b < kBlocks; ++b) {
+        engine.process(ctx, silence.data(), silence.data(), 512);
+        if (engine.getSourceValue(ModSource::LFO1) == engine.getSourceValue(ModSource::LFO2)) {
+            ++sameBlocks;
+        }
+    }
+    INFO("blocks where LFO1 == LFO2: " << sameBlocks << " of " << kBlocks);
+    REQUIRE(sameBlocks == 0);
+}

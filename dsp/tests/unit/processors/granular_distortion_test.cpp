@@ -12,8 +12,14 @@
 
 #include <krate/dsp/processors/granular_distortion.h>
 
+// allocation_detector.h ONLY: the global operator new/delete replacements live in
+// brownian_drift_test.cpp, the one owner in dsp_processors_tests.
+#include <allocation_detector.h>
+
+#include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstddef>
 #include <numeric>
 #include <set>
 #include <vector>
@@ -1233,4 +1239,258 @@ TEST_CASE("GranularDistortion seed() produces reproducible behavior",
 
     // Same seed should produce identical output
     REQUIRE(buffersEqual(buffer1.data(), buffer2.data(), buffer1.size()));
+}
+
+// =============================================================================
+// D-074: per-grain state follows the grain's pool slot for its whole life
+// =============================================================================
+
+namespace {
+
+struct GrainLifeAudit {
+    size_t readJumps = 0;           ///< Read position did not advance by exactly 1
+    size_t startChanges = 0;        ///< startBufferPos changed mid-life
+    size_t skippedSamples = 0;      ///< A live grain missed a sample
+    size_t duplicateCalls = 0;      ///< Same grain processed twice in one sample
+    size_t callCountMismatches = 0; ///< processGrain calls != active grains
+    size_t distinctMismatches = 0;  ///< Distinct grains processed != active grains
+    size_t firstRetirementSample = 0;
+    size_t firstJumpSample = 0;
+    long long firstJump = 0;
+    long long maxAbsJump = 0;
+    size_t firstMismatchSample = 0;
+    size_t firstMismatchActive = 0;
+    size_t firstMismatchCalls = 0;
+    size_t firstMismatchDistinct = 0;
+};
+
+GrainLifeAudit auditGrainLives(float mix, size_t numSamples) {
+    GranularDistortion gd;
+    gd.prepare(44100.0, 512);
+    gd.setGrainSize(10.0f);
+    gd.setGrainDensity(8.0f);
+    gd.setDrive(5.0f);
+    gd.setMix(mix);
+    gd.seed(12345);
+
+    constexpr size_t kSlots = GranularDistortion::getMaxGrains();
+    constexpr auto kNever = static_cast<size_t>(-1);
+    std::array<size_t, kSlots> lastSample{};
+    std::array<size_t, kSlots> lastReadPos{};
+    std::array<size_t, kSlots> lastStart{};
+    std::array<bool, kSlots> alive{};
+    lastSample.fill(kNever);
+
+    GrainLifeAudit audit;
+    bool retired = false;
+    bool jumped = false;
+    bool mismatched = false;
+
+    for (size_t n = 0; n < numSamples; ++n) {
+        const float x = std::sin(kTestTwoPi * 1000.0f * static_cast<float>(n) / 44100.0f);
+        (void)gd.process(x);
+
+        const auto records = gd.debugGrainReadPositions();
+        const size_t active = gd.debugLastActiveGrainCount();
+        const size_t calls = gd.debugLastProcessedGrainCount();
+        std::array<bool, kSlots> seen{};
+        size_t distinct = 0;
+
+        for (const auto& r : records) {
+            if (seen[r.slot]) {
+                ++audit.duplicateCalls;
+                continue;
+            }
+            seen[r.slot] = true;
+            ++distinct;
+
+            if (r.envelopePhase == 0.0f) {
+                alive[r.slot] = true;  // First sample of a new grain
+            } else if (alive[r.slot]) {
+                if (lastSample[r.slot] != n - 1) ++audit.skippedSamples;
+                if (r.startBufferPos != lastStart[r.slot]) ++audit.startChanges;
+                constexpr auto kSize = static_cast<long long>(GranularDistortion::kBufferSize);
+                auto d = static_cast<long long>(
+                    (r.readPos - lastReadPos[r.slot]) & GranularDistortion::kBufferMask);
+                if (d > kSize / 2) {
+                    d -= kSize;
+                }
+                if (d != 1) {
+                    ++audit.readJumps;
+                    audit.maxAbsJump = std::max(audit.maxAbsJump, d < 0 ? -d : d);
+                    if (!jumped) {
+                        jumped = true;
+                        audit.firstJump = d;
+                        audit.firstJumpSample = n;
+                    }
+                }
+            }
+            lastSample[r.slot] = n;
+            lastReadPos[r.slot] = r.readPos;
+            lastStart[r.slot] = r.startBufferPos;
+        }
+
+        if (calls != active) ++audit.callCountMismatches;
+        if (distinct != active) ++audit.distinctMismatches;
+        if ((calls != active || distinct != active) && !mismatched) {
+            mismatched = true;
+            audit.firstMismatchSample = n;
+            audit.firstMismatchActive = active;
+            audit.firstMismatchCalls = calls;
+            audit.firstMismatchDistinct = distinct;
+        }
+        if (!retired && gd.getActiveGrainCount() < active) {
+            retired = true;
+            audit.firstRetirementSample = n;
+        }
+    }
+    return audit;
+}
+
+void reportGrainLifeAudit(const GrainLifeAudit& a) {
+    INFO("first retirement at sample " << a.firstRetirementSample);
+    INFO("read jumps " << a.readJumps << ", first " << a.firstJump << " samples at sample "
+                       << a.firstJumpSample << ", max |jump| " << a.maxAbsJump);
+    INFO("start changes mid-life " << a.startChanges << ", skipped samples "
+                                   << a.skippedSamples << ", duplicate calls "
+                                   << a.duplicateCalls);
+    INFO("first count mismatch at sample " << a.firstMismatchSample << ": active "
+                                           << a.firstMismatchActive << ", processGrain calls "
+                                           << a.firstMismatchCalls << ", distinct grains "
+                                           << a.firstMismatchDistinct);
+    INFO("samples with calls != active " << a.callCountMismatches
+                                         << ", with distinct != active "
+                                         << a.distinctMismatches);
+    CHECK(a.firstRetirementSample > 0);
+    CHECK(a.readJumps == 0);
+    CHECK(a.startChanges == 0);
+    CHECK(a.skippedSamples == 0);
+    CHECK(a.duplicateCalls == 0);
+    CHECK(a.callCountMismatches == 0);
+    CHECK(a.distinctMismatches == 0);
+}
+
+} // namespace
+
+TEST_CASE("Each grain reads its own state for its whole life",
+          "[processors][granular][D-074]") {
+    SECTION("wet path (mix 1)") {
+        reportGrainLifeAudit(auditGrainLives(1.0f, 2000));
+    }
+    SECTION("bypass path (mix 0) keeps grain state consistent") {
+        reportGrainLifeAudit(auditGrainLives(0.0f, 2000));
+    }
+}
+
+TEST_CASE("GranularDistortion process allocates nothing",
+          "[processors][granular][D-074]") {
+    GranularDistortion gd;
+    gd.prepare(44100.0, 512);
+    gd.setGrainSize(10.0f);
+    gd.setGrainDensity(8.0f);
+    gd.setDrive(5.0f);
+    gd.seed(12345);
+
+    std::vector<float> block(512);
+    std::size_t observed = 0;
+    float sink = 0.0f;
+    {
+        [[maybe_unused]] const TestHelpers::AllocationScope scope;
+        size_t n = 0;
+        for (int b = 0; b < 173; ++b) {  // ~2 s at 44.1 kHz
+            for (auto& s : block) {
+                s = std::sin(kTestTwoPi * 1000.0f * static_cast<float>(n++) / 44100.0f);
+            }
+            gd.setMix((b % 2 == 0) ? 1.0f : 0.0f);  // both grain loops
+            gd.process(block.data(), block.size());
+            sink += block.back();
+        }
+        // AllocationScope latches in its destructor, so the live figure is read while it is open.
+        observed = TestHelpers::AllocationDetector::instance().getAllocationCount();
+    }
+    INFO("allocations observed: " << observed);
+    CHECK(detail::isFinite(sink));
+    REQUIRE(observed == 0u);
+
+    // Positive control: the detector sees an allocation inside an identical scope.
+    std::size_t control = 0;
+    int probeObserved = 0;
+    {
+        [[maybe_unused]] const TestHelpers::AllocationScope scope;
+        // NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
+        int* probe = new int(42);
+        volatile int* probeSink = probe;  // defeat new/delete elision
+        probeObserved = *probeSink;
+        // NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
+        delete probe;
+        control = TestHelpers::AllocationDetector::instance().getAllocationCount();
+    }
+    CHECK(probeObserved == 42);
+    CHECK(control >= 1u);
+}
+
+// The block path (process(float*, size_t)) runs its chunks grain by grain (Disrumpo CPU round 5): it
+// must give what process(float) gives sample by sample, through grain triggers and releases inside
+// a chunk, reads of the oldest buffer sample (Position 1) and of samples the chunk itself writes
+// (Position 0), jitter, drive variation, the curve's pow branch, a Mix of 0 (the per-sample
+// fallback) and odd block lengths. Measured equal to the bit on MSVC; the tolerance covers a
+// different contraction of the two loop shapes under the macOS leg's -ffp-contract=fast.
+TEST_CASE("GranularDistortion block path equals per-sample processing", "[granular][processors][block]") {
+    struct Setup {
+        float position;
+        float curve;
+        float sizeMs;
+        float density;
+    };
+    for (const Setup s : {Setup{0.0f, 0.5f, 5.0f, 8.0f}, Setup{1.0f, 0.5f, 20.0f, 8.0f},
+                          Setup{0.5f, 0.8f, 52.5f, 4.5f}, Setup{0.25f, 0.2f, 100.0f, 8.0f}}) {
+        GranularDistortion perSample;
+        GranularDistortion block;
+        for (GranularDistortion* g : {&perSample, &block}) {
+            g->prepare(88200.0, 512);
+            g->seed(777);
+            g->setGrainSize(s.sizeMs);
+            g->setGrainDensity(s.density);
+            g->setDrive(3.0f);
+            g->setDriveVariation(0.5f);
+            g->setPositionJitter(10.0f);
+            g->setPosition(s.position);
+            g->setCurve(s.curve);
+            g->setEnvelopeType(GrainEnvelopeType::Trapezoid);
+        }
+        constexpr size_t kN = 88200;
+        std::vector<float> x(kN);
+        for (size_t i = 0; i < kN; ++i) {
+            x[i] = 0.5f * std::sin(2.0f * 3.14159265f * 220.0f * static_cast<float>(i) / 88200.0f) +
+                   0.2f * std::sin(2.0f * 3.14159265f * 3300.0f * static_cast<float>(i) / 88200.0f);
+        }
+        std::vector<float> a(x);
+        std::vector<float> b(x);
+        size_t pos = 0;
+        size_t len = 1;
+        while (pos < kN) {
+            const size_t n = std::min(len, kN - pos);
+            const float mix = (pos >= 40000 && pos < 41000) ? 0.0f : 1.0f;
+            perSample.setMix(mix);
+            block.setMix(mix);
+            for (size_t k = pos; k < pos + n; ++k) a[k] = perSample.process(a[k]);
+            block.process(b.data() + pos, n);
+            pos += n;
+            len = len * 3 % 257 + 1;
+        }
+        size_t mismatched = 0;
+        float maxDiff = 0.0f;
+        for (size_t i = 0; i < kN; ++i) {
+            if (a[i] != b[i]) {
+                ++mismatched;
+                maxDiff = std::max(maxDiff, std::abs(a[i] - b[i]));
+            }
+        }
+        INFO("position " << s.position << ", curve " << s.curve << ", size " << s.sizeMs << " ms: " << mismatched
+                         << " samples differ, max |diff| " << maxDiff << ", grains triggered "
+                         << block.getGrainsTriggeredCount());
+        CHECK(block.getGrainsTriggeredCount() == perSample.getGrainsTriggeredCount());
+        CHECK(block.getGrainsTriggeredCount() > 50u);
+        CHECK(maxDiff <= 1.0e-6f);
+    }
 }

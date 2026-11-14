@@ -48,9 +48,12 @@ inline void setSharedArpFieldsDeterministic(P& p) {
     p.retrigger.store(2, memory_order_relaxed);
 
     p.velocityLaneLength.store(16, memory_order_relaxed);
-    for (int i = 0; i < 32; ++i) p.velocityLaneSteps[i].store(0.25f + 0.01f * i, memory_order_relaxed);
+    // Lane values step by exact binary fractions (i / 128, i / 64): with 0.01f * i the product rounded once
+    // when the compiler fused the add into an FMA (the Linux CI leg) and twice where it did not, so the stored
+    // bytes and the hash followed the toolchain (tools/lint-float-bit-goldens.js rule 2).
+    for (int i = 0; i < 32; ++i) p.velocityLaneSteps[i].store(0.25f + static_cast<float>(i) / 128.0f, memory_order_relaxed);
     p.gateLaneLength.store(12, memory_order_relaxed);
-    for (int i = 0; i < 32; ++i) p.gateLaneSteps[i].store(0.5f + 0.02f * i, memory_order_relaxed);
+    for (int i = 0; i < 32; ++i) p.gateLaneSteps[i].store(0.5f + static_cast<float>(i) / 64.0f, memory_order_relaxed);
     p.pitchLaneLength.store(8, memory_order_relaxed);
     for (int i = 0; i < 32; ++i) p.pitchLaneSteps[i].store((i % 25) - 12, memory_order_relaxed);
     p.modifierLaneLength.store(20, memory_order_relaxed);
@@ -96,7 +99,8 @@ inline void setSharedArpFieldsDeterministic(P& p) {
 
 // FNV-1a of the shared 200-byte prefix produced by the deterministic config above.
 // IDENTICAL for both plugins by construction (they call the same shared writer).
-// Pinned from the first run; a change here means the shared save format moved.
-constexpr uint32_t kSharedArpPrefixGoldenFnv = 0x2df4909fu;
+// Pinned from the first run; a change here means the shared save format moved. Re-pinned 2026-11-14 when the lane
+// values became exact binary fractions (the same with and without FMA contraction; format unchanged).
+constexpr uint32_t kSharedArpPrefixGoldenFnv = 0x93e7f0c2u;
 
 }  // namespace Krate::Test

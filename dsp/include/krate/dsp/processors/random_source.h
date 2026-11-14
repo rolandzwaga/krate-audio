@@ -42,16 +42,21 @@ public:
 
     RandomSource() noexcept = default;
 
+    /// @brief Restarts the random sequence (kSeed) and draws its first target, so the output
+    /// does not depend on how often prepare() or reset() ran before.
     void prepare(double sampleRate) noexcept {
         sampleRate_ = sampleRate;
         outputSmoother_.configure(5.0f, static_cast<float>(sampleRate));
         phase_ = 0.0f;
+        rng_.seed(kSeed);
         currentTarget_ = rng_.nextFloat();
         outputSmoother_.snapTo(currentTarget_);
     }
 
+    /// @brief Restarts the random sequence (kSeed); the target returns to 0.
     void reset() noexcept {
         phase_ = 0.0f;
+        rng_.seed(kSeed);
         currentTarget_ = 0.0f;
         outputSmoother_.reset();
     }
@@ -155,7 +160,8 @@ private:
     float phase_ = 0.0f;
     float currentTarget_ = 0.0f;
 
-    Xorshift32 rng_{98765};
+    static constexpr uint32_t kSeed = 98765;  ///< restored by prepare() and reset()
+    Xorshift32 rng_{kSeed};
     OnePoleSmoother outputSmoother_;
     double sampleRate_ = 44100.0;
 };

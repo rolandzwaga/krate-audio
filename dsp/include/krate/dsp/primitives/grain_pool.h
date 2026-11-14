@@ -13,6 +13,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cassert>
 #include <cstddef>
 #include <cstdint>
 #include <span>
@@ -113,6 +114,24 @@ public:
             }
         }
         return {activeList_.data(), count};
+    }
+
+    /// Stable pool slot of a grain owned by this pool, valid for the grain's whole life.
+    /// Use it to index per-grain state kept beside the pool; a grain's position in
+    /// activeGrains() shifts whenever a lower slot retires or is re-acquired.
+    /// @param grain Pointer returned by acquireGrain() or activeGrains()
+    /// @return Index in [0, kMaxGrains); clamped in release if grain is not from this pool
+    [[nodiscard]] size_t indexOf(const Grain* grain) const noexcept {
+        assert(grain >= grains_.data() && grain < grains_.data() + kMaxGrains);
+        const auto index = static_cast<size_t>(grain - grains_.data());
+        return std::min(index, kMaxGrains - 1);
+    }
+
+    /// The grain in pool slot @p index (the inverse of indexOf), active or not.
+    /// @param index Slot in [0, kMaxGrains)
+    [[nodiscard]] Grain* grainAt(size_t index) noexcept {
+        assert(index < kMaxGrains);
+        return &grains_[index];
     }
 
     /// Get count of active grains

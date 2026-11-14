@@ -142,7 +142,7 @@ No current solution provides fluid morphing across multiple distortion types per
 
 ### Solution
 Disrumpo provides a unified environment where:
-1. Users split audio into configurable frequency bands (1-8)
+1. Users split audio into configurable frequency bands (1-4)
 2. Each band has a 2D morph space with up to 4 distortion nodes
 3. A sweepable distortion focus traverses the spectrum
 4. Morph position can be linked to sweep frequency
@@ -155,13 +155,18 @@ Disrumpo provides a unified environment where:
 ### 3.1 Band Management
 
 **FR-BAND-001: Configurable Band Count**
-- Range: 1 to 8 bands
+- Range: 1 to 4 bands
 - Default: 4 bands
 - Adding/removing bands redistributes crossover frequencies evenly unless manually configured
 
 **FR-BAND-002: Adjustable Crossover Frequencies**
 - Range: 20 Hz to 20,000 Hz
 - Constraint: Minimum 0.5 octave between adjacent crossovers
+  - Enforced in the DSP as well (D-124, user ruling 2026-11-09), in Disrumpo's `CrossoverNetwork`, not the shared
+    `MultibandCrossover`: each running crossover i > 0 runs at >= f[i-1] * 2^0.5. Each crossover keeps the value it
+    was given; the running ones are derived from those (order-independent, a pushed crossover returns when the one
+    below moves away). Where the spacing meets the cap (20 kHz or 0.45 * sample rate), the top running crossover
+    takes the cap and each one below is lowered to half an octave under the next. Idle crossovers are not spaced.
 - UI: Draggable dividers on spectrum display
 
 **FR-BAND-003: Crossover Filter Type**
@@ -214,18 +219,27 @@ Disrumpo provides a unified environment where:
 **FR-DIST-003: Type-Specific Parameters**
 
 Saturation: Bias (-1.0 to +1.0), Sag (0.0 to 1.0)
-Wavefold: Folds (1-8), Shape (0.0-1.0), Symmetry (0.0-1.0)
-Digital: Bit Depth (1.0-16.0), Sample Rate Ratio (1.0-32.0), Smoothness (0.0-1.0)
-Dynamic: Sensitivity (0.0-1.0), Attack (1-100ms), Release (10-500ms), Mode (Envelope/Inverse/Derivative)
+Wavefold: Folds (1-12, folders clamp at 10), Shape (0.0-1.0), Symmetry (0.0-1.0)
+Digital: Bit Depth (4.0-16.0), Sample Rate Ratio (1.0-32.0), Smoothness (0.0-1.0)
+Dynamic: Sensitivity (0.0-1.0), Attack (1-500ms), Release (10-5000ms), Mode (Envelope Follow/Inverse Envelope/Derivative/Hysteresis; menu Follow/Inverse/Transient/Hyst; default Envelope Follow)
 Hybrid: Feedback (0.0-1.5), Delay (1-100ms), Stages (1-4), Modulation Depth (0.0-1.0)
-Experimental: Chaos Amount (0.0-1.0), Attractor Speed (0.1-10.0), Grain Size (5-100ms), Formant Shift (-12 to +12 semitones)
+Experimental: Chaos Amount (0.0-1.0), Attractor Speed (0.01-100.0), Grain Size (5-100ms), Formant Shift (-24 to +24 semitones)
+
+Range rulings (Disrumpo audit D-102 / D-171, fix plan T4.06, 2026-11-09): the code's ranges stand where they
+are the DSP limits: Temporal Attack 1-500 ms and Release 10-5000 ms (TemporalDistortion kMaxAttackMs /
+kMaxReleaseMs), Aliasing Frequency Shift +/-5000 Hz (kMaxFrequencyShiftHz), Chaos Attractor Speed 0.01-100
+(ChaosWaveshaper kMin/kMaxAttractorSpeed), Formant Shift +/-24 st (FormantDistortion kMaxShift). Bit Depth is
+BitCrusher's 4-16 (T2.05). Folds (ruled 2026-11-09, fix plan T4.11): the code stands. The Folds shape slot maps
+1-12 (1 + 11 x slot; the node Folds parameter 1 + round(11 x value)), and the folders clamp the amount at 10
+(Wavefolder / WavefolderProcessor kMaxFoldAmount), so 10-12 sound the same. The factory presets depend on this
+mapping, so it is not rescaled to 1-10.
 
 ### 3.3 Morph System
 
 **FR-MORPH-001: Multi-Node Morph Space**
-- 2 to 4 morph nodes per band
+- 1 to 4 morph nodes per band
 - Each node contains distortion type and parameters
-- Default: 2 nodes (A and B)
+- Default: 1 node (A)
 
 **FR-MORPH-002: Morph Modes**
 | Mode | Description | Control |
@@ -363,7 +377,7 @@ Per-Band: Morph X/Y, Drive, Mix, Band Gain, Band Pan
 - Input Gain: -24 to +24 dB
 - Output Gain: -24 to +24 dB
 - Global Mix: 0% to 100%
-- Metering: Input/Output stereo peak+RMS, per-band indicators
+- Metering: Input/Output stereo peak+RMS (input after Input Gain, output after Mix and Output Gain), per-band peak indicators (each band after its gain/pan, before summation), clip indicators (any sample above 0 dBFS) that latch until clicked. Ballistics: instant attack, peak hold 1.5 s then 20 dB/s fall, 300 ms RMS window, scale -60 to +6 dBFS
 
 ---
 
@@ -396,7 +410,7 @@ Per-Band: Morph X/Y, Drive, Mix, Band Gain, Band Pan
 |-----------|-----|-----|---------|
 | Input/Output Gain | -24 dB | +24 dB | 0 dB |
 | Global Mix | 0% | 100% | 100% |
-| Band Count | 1 | 8 | 4 |
+| Band Count | 1 | 4 | 4 |
 | Crossover Freq | 20 Hz | 20 kHz | varies |
 | Band Gain | -24 dB | +24 dB | 0 dB |
 | Band Pan | -100% | +100% | 0% |
@@ -410,8 +424,8 @@ Per-Band: Morph X/Y, Drive, Mix, Band Gain, Band Pan
 | LFO Rate (Free) | 0.01 Hz | 20 Hz | 1 Hz |
 | **Dynamic Parameters** | | | |
 | Sensitivity | 0 | 1 | 0.5 |
-| Attack Time | 1 ms | 100 ms | 10 ms |
-| Release Time | 10 ms | 500 ms | 100 ms |
+| Attack Time | 1 ms | 500 ms | 10 ms |
+| Release Time | 10 ms | 5000 ms | 100 ms |
 | **Hybrid Parameters** | | | |
 | Modulation Depth | 0 | 1 | 0.5 |
 | Stages | 1 | 4 | 1 |
@@ -419,15 +433,15 @@ Per-Band: Morph X/Y, Drive, Mix, Band Gain, Band Pan
 | Delay Time | 1 ms | 100 ms | 10 ms |
 | **Aliasing Parameters** | | | |
 | Downsample Factor | 2 | 32 | 4 |
-| Frequency Shift | -1000 Hz | 1000 Hz | 0 Hz |
+| Frequency Shift | -5000 Hz | 5000 Hz | 0 Hz |
 | **Bitwise Parameters** | | | |
 | Rotate Amount | -16 | 16 | 0 |
 | XOR Pattern | 0x0000 | 0xFFFF | 0xAAAA |
 | **Experimental Parameters** | | | |
 | Chaos Amount | 0 | 1 | 0.5 |
-| Attractor Speed | 0.1 | 10 | 1 |
+| Attractor Speed | 0.01 | 100 | 1 |
 | Grain Size | 5 ms | 100 ms | 50 ms |
-| Formant Shift | -12 st | +12 st | 0 st |
+| Formant Shift | -24 st | +24 st | 0 st |
 | **Spectral Parameters** | | | |
 | FFT Size | 512 | 4096 | 2048 |
 | Magnitude Bits | 1 | 16 | 16 |

@@ -41,8 +41,10 @@
 #include <array>
 #include <chrono>
 #include <cstddef>
+#include <filesystem>
 #include <functional>
 #include <memory>
+#include <utility>
 
 namespace Steinberg {
 class MemoryStream;
@@ -197,6 +199,12 @@ public:
     }
     [[nodiscard]] Krate::Plugins::PresetManager* presetManagerForTest() const noexcept {
         return presetManager_.get();
+    }
+    /// Rebuilds presetManager_ exactly as initialize() does, but over the given user and factory preset
+    /// directories, so a test that loads through the browser never touches the machine's real preset trees.
+    /// Call it before the preset browser opens: an open browser holds the manager it was given.
+    void replacePresetManagerForTest(std::filesystem::path userDir, std::filesystem::path factoryDir) {
+        createPresetManager(std::move(userDir), std::move(factoryDir));
     }
     [[nodiscard]] const std::array<UI::MacroRingKnob*, 5>& macroRingsForTest() const noexcept {
         return macroRings_;
@@ -373,6 +381,10 @@ private:
     /// (processor.cpp:3706-3781). Kinds that carry no SpectralState change -
     /// the editor gate, pan and mask - are no-ops here by design.
     void applyEditToMirror(const UI::EditMessage& m) noexcept;
+
+    /// Builds presetManager_ with its state/load providers. Empty paths keep the platform preset
+    /// directories; replacePresetManagerForTest() passes temp ones.
+    void createPresetManager(std::filesystem::path userDirOverride, std::filesystem::path factoryDirOverride);
 
     std::unique_ptr<Krate::Plugins::PresetManager> presetManager_;
     std::unique_ptr<Krate::Plugins::UpdateChecker> updateChecker_;

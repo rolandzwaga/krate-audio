@@ -5,6 +5,20 @@ All notable changes to Gradus will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.10.4] - 2026-11-10
+
+### Fixed
+
+- **The audition monitor depended on the host's denormal setting** — Every other Krate plugin switches off the processor's slow handling of tiny "denormal" numbers while it processes; Gradus left it to the host. Gradus now switches it off itself too, and restores the host's setting afterwards. The audition monitor's sound does not change.
+- **A possible crash when a host shut Gradus down with its window still open** — If a host shut down the plugin's controller before closing the editor window, the update banner kept checking for updates, twice a second, through memory that had already been freed, which could crash the host. The update check now stays alive until the window is gone.
+- **A possible crash when opening the preset browser after a host shut Gradus down with its window still open** — In the same situation, clicking Presets read the preset list through memory that had already been freed, which could crash the host. The preset list now stays alive until the window is gone.
+- **On macOS, a note-on with a broken velocity slipped past the check** — A host can send a note-on whose velocity is not a real number (NaN or infinite). Gradus is meant to treat that as a note-off, but on macOS the check that catches it could be optimised away, letting it through as a note-on with a meaningless velocity. It is now treated as a note-off on every platform.
+- **A step could fire twice, one sample apart, or a sample late** — At the start of every buffer the arpeggiator lines its step clock up with the host's beat position. It rounded the position within the step down, and the number, which is usually a whole sample, often came out a hair below it, so the clock could restart one sample behind just after a step had fired and fire the same step again one sample later (a doubled note, which also cut a ratchet short), or fire a step one sample late, depending on the buffer size. It now rounds to the nearest sample, so every step fires once, on its beat. Steps that fall between two samples (a 1/16 at 120 BPM lasts 5512.5 samples) now land on the sample before the half instead of the one after.
+
+### Changed
+
+- **Built with VST3 SDK 3.8.1.**
+
 ## [1.10.3] - 2026-11-02
 
 ### Fixed

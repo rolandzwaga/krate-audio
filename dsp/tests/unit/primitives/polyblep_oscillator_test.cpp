@@ -832,6 +832,58 @@ TEST_CASE("PolyBlepOscillator FM/PM non-accumulation", "[PolyBlepOscillator][US6
 // User Story 7: Waveform Switching and Robustness (Phase 9)
 // =============================================================================
 
+// Ruinae re-sends every oscillator parameter at the top of each process() call,
+// so setWaveform() arrives once per host block with the waveform the oscillator
+// already plays. Re-selecting Triangle used to clear the triangle's leaky
+// integrator every time, which restarted the waveform from zero each block: at
+// 65 Hz (a -24 semitone sub under C4) the integrator never settled, and Ruinae's
+// "Gut String" played 2 dB quieter at 64-sample buffers than at 512. Re-selecting
+// the current waveform must leave the integrator alone, so the output cannot
+// depend on the block size.
+TEST_CASE("PolyBlepOscillator output does not depend on the block size when the waveform is re-sent per block",
+          "[PolyBlepOscillator][US7][block_size]") {
+    constexpr size_t kNumSamples = 44100;
+    const auto render = [](OscWaveform wf, float hz, size_t blockSize) {
+        PolyBlepOscillator osc;
+        osc.prepare(44100.0);
+        osc.setFrequency(hz);
+        osc.setWaveform(wf);
+        std::vector<float> out(kNumSamples, 0.0f);
+        for (size_t pos = 0; pos < kNumSamples; pos += blockSize) {
+            osc.setWaveform(wf);  // what Ruinae's per-block parameter refresh does
+            const size_t n = std::min(blockSize, kNumSamples - pos);
+            osc.processBlock(out.data() + pos, n);
+        }
+        return out;
+    };
+
+    for (OscWaveform wf : {OscWaveform::Triangle, OscWaveform::Sawtooth, OscWaveform::Square}) {
+        for (float hz : {65.41f, 440.0f}) {
+            const auto reference = render(wf, hz, kNumSamples);  // re-sent once
+            for (size_t blockSize : {32u, 64u, 512u, 1000u}) {
+                const auto out = render(wf, hz, blockSize);
+                float maxDiff = 0.0f;
+                double sumOut = 0.0;
+                double sumRef = 0.0;
+                for (size_t i = 0; i < kNumSamples; ++i) {
+                    maxDiff = std::max(maxDiff, std::abs(out[i] - reference[i]));
+                    sumOut += static_cast<double>(out[i]) * out[i];
+                    sumRef += static_cast<double>(reference[i]) * reference[i];
+                }
+                // Same phase accumulator, same per-sample arithmetic: a waveform
+                // that survives the re-send renders the same samples, and 1e-6
+                // (-120 dB) only absorbs float noise. An integrator cleared per
+                // block shifts the triangle by its DC (order of the signal).
+                INFO("waveform " << static_cast<int>(wf) << ", " << hz << " Hz, block size "
+                     << blockSize << ": max |diff| " << maxDiff << ", RMS "
+                     << 10.0 * std::log10(sumOut / kNumSamples) << " dB vs "
+                     << 10.0 * std::log10(sumRef / kNumSamples) << " dB");
+                CHECK(maxDiff <= 1e-6f);
+            }
+        }
+    }
+}
+
 TEST_CASE("PolyBlepOscillator waveform switching phase continuity", "[PolyBlepOscillator][US7]") {
     PolyBlepOscillator osc;
     osc.prepare(44100.0);

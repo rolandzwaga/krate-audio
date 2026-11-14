@@ -17,8 +17,12 @@
 #include "dsp/band_processor.h"
 #include "dsp/band_state.h"
 
+#include "test_helpers/signal_metrics.h"
+
 #include <array>
 #include <cmath>
+#include <numbers>
+#include <vector>
 
 using Catch::Approx;
 
@@ -187,7 +191,7 @@ TEST_CASE("BandProcessor receives sweep intensity", "[sweep][integration]") {
         REQUIRE(std::abs(testR) > 0.1f);
     }
 
-    SECTION("Zero sweep intensity attenuates output") {
+    SECTION("Zero sweep intensity leaves the band level unchanged") {
         band.setSweepIntensity(0.0f);
 
         // Let smoother settle
@@ -200,27 +204,56 @@ TEST_CASE("BandProcessor receives sweep intensity", "[sweep][integration]") {
         float testR = 0.5f;
         band.process(testL, testR);
 
-        // With sweep=0.0, output should be zero (before distortion)
-        REQUIRE(std::abs(testL) < 0.01f);
-        REQUIRE(std::abs(testR) < 0.01f);
+        // The sweep scales drive, never the band level (D-019): a clean band passes unchanged
+        REQUIRE(testL == Approx(0.5f).margin(1e-6f));
+        REQUIRE(testR == Approx(0.5f).margin(1e-6f));
     }
 
-    SECTION("Partial sweep intensity scales output") {
-        band.setSweepIntensity(0.5f);
+    SECTION("Sweep intensity scales drive, not output level") {
+        // Saturating legacy band: SoftClip, drive 3 (the sweep scales it at block rate)
+        Disrumpo::DistortionCommonParams cp;
+        cp.drive = 3.0f;
+        cp.mix = 1.0f;
+        cp.toneHz = 8000.0f;
+        band.setDistortionCommonParams(cp);
 
-        // Let smoother settle
-        for (int i = 0; i < 1000; ++i) {
-            float dummy = 0.1f;
-            band.process(dummy, dummy);
-        }
+        // 1378.125 Hz = bin 256 of an 8192-point FFT at 44.1 kHz. At -30 dBFS: the drive re-stage
+        // (user ruling 2026-11-10) runs SoftClip 18.06 dB hotter, and at the -12 dBFS this case
+        // was written for drive 3 already saturated it (THD 33.9 % at 0 %, 35.0 % at 200 %); 18.06
+        // dB lower its shaper sees the drive it saw before
+        constexpr float kHz = 1378.125f;
+        constexpr float kAmp = 0.25f * 0.125f;
+        constexpr size_t kN = 8192;
+        auto measure = [&band](float intensity, float& thd, float& rmsDb) {
+            band.setSweepIntensity(intensity);
+            std::vector<float> l(kN);
+            std::vector<float> r(kN);
+            for (int pass = 0; pass < 2; ++pass) {  // pass 0 lets the sweep smoother settle
+                for (size_t i = 0; i < kN; ++i) {
+                    l[i] = kAmp * std::sin(2.0f * std::numbers::pi_v<float> * kHz * static_cast<float>(i) /
+                                           static_cast<float>(kTestSampleRate));
+                    r[i] = l[i];
+                }
+                for (size_t off = 0; off < kN; off += static_cast<size_t>(kTestBlockSize)) {
+                    band.processBlock(l.data() + off, r.data() + off, static_cast<size_t>(kTestBlockSize));
+                }
+            }
+            thd = Krate::DSP::TestUtils::SignalMetrics::calculateTHD(l.data(), kN, kHz,
+                                                                     static_cast<float>(kTestSampleRate));
+            double s = 0.0;
+            for (float v : l) s += static_cast<double>(v) * v;
+            rmsDb = static_cast<float>(10.0 * std::log10(s / static_cast<double>(kN)));
+        };
 
-        float testL = 1.0f;
-        float testR = 1.0f;
-        band.process(testL, testR);
-
-        // Output should be reduced but not zero
-        REQUIRE(std::abs(testL) > 0.01f);
-        REQUIRE(std::abs(testL) < 0.9f);  // Significantly reduced
+        float thd0 = 0.0f;
+        float db0 = 0.0f;
+        float thd2 = 0.0f;
+        float db2 = 0.0f;
+        measure(0.0f, thd0, db0);
+        measure(2.0f, thd2, db2);
+        INFO("THD at 0 %: " << thd0 << " %, at 200 %: " << thd2 << " %; level " << db0 << " / " << db2 << " dB");
+        REQUIRE(thd2 > thd0 * 1.1f);               // drive doubled: more harmonics
+        REQUIRE(std::abs(db2 - db0) < 3.0f);       // the level does not follow the drive (+6 dB)
     }
 }
 
@@ -272,15 +305,10 @@ TEST_CASE("Sweep-BandProcessor integration workflow", "[sweep][integration]") {
         std::array<float, 8> intensities{};
         sweep.calculateAllBandIntensities(kBandCenterFreqs.data(), 8, intensities.data());
 
-        // When sweep is disabled, bands should use default intensity (1.0)
-        // This test verifies the pattern: if sweep returns 0, band should NOT use 0
-        // Instead, processor should conditionally apply sweep only when enabled
+        // When sweep is disabled every band gets intensity 0: its drive as set (D-019)
         for (int i = 0; i < 8; ++i) {
             REQUIRE(intensities[i] == 0.0f);
         }
-
-        // The actual application logic should be:
-        // if (sweepEnabled) { band.setSweepIntensity(intensity) } else { band.setSweepIntensity(1.0) }
     }
 }
 

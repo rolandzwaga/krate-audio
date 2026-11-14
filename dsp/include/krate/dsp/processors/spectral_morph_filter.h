@@ -25,6 +25,7 @@
 #pragma once
 
 // Layer 0: Core
+#include <krate/dsp/core/db_utils.h>  // detail::isFinite, fast-math-immune
 #include <krate/dsp/core/math_constants.h>
 #include <krate/dsp/core/window_functions.h>
 
@@ -186,6 +187,13 @@ public:
         // Zero buffer for nullptr input handling (pre-allocated for real-time safety)
         zeroBuffer_.resize(fftSize * 4, 0.0f);
 
+        // processBlock's output FIFO. It never holds more than 2 * hopSize
+        // (see processBlock); 2 * fftSize keeps the mask a power of two.
+        blockFifo_.assign(fftSize * 2, 0.0f);
+        blockFifoMask_ = blockFifo_.size() - 1;
+        hopScratch_.assign(hopSize_, 0.0f);
+        resetBlockFifo();
+
         prepared_ = true;
     }
 
@@ -217,6 +225,8 @@ public:
         std::fill(singleSampleOutputBuffer_.begin(), singleSampleOutputBuffer_.end(), 0.0f);
         singleSampleWritePos_ = 0;
         singleSampleReadPos_ = 0;
+
+        resetBlockFifo();
     }
 
     // =========================================================================
@@ -231,6 +241,13 @@ public:
     /// @pre prepare() has been called
     /// @note Real-time safe, noexcept
     /// @note FR-002, FR-016
+    /// @note The output is the morphed stream delayed by exactly
+    ///       getLatencySamples(), whatever the block size: every frame's hop goes
+    ///       into an output FIFO and each call pops exactly numSamples from it.
+    ///       Pulling straight into the caller's block played silence whenever a
+    ///       block ended without completing a frame (7 blocks in 8 at 64-sample
+    ///       blocks) and left part of a hop in the OverlapAdd, which then added the
+    ///       next frame at the wrong overlap offset.
     void processBlock(const float* inputA, const float* inputB,
                       float* output, std::size_t numSamples) noexcept {
         if (!prepared_) {
@@ -241,31 +258,21 @@ public:
             return;
         }
 
-        // Determine effective input pointers
-        const float* effectiveA = (inputA != nullptr) ? inputA : zeroBuffer_.data();
-        const float* effectiveB = (inputB != nullptr) ? inputB : zeroBuffer_.data();
-
-        // Limit chunk size if using zero buffer
-        const bool usingZeroBufferA = (inputA == nullptr);
-        const bool usingZeroBufferB = (inputB == nullptr);
-        const std::size_t maxChunk = (usingZeroBufferA || usingZeroBufferB) ? zeroBuffer_.size() : numSamples;
-
-        // Track output position
-        std::size_t outputWritten = 0;
-
-        // Process samples in chunks
+        // Process samples in chunks of at most one hop: the FIFO then holds at
+        // most 2 * hopSize (one hop owed to the chunk plus one hop of lead), and
+        // a nullptr input never needs more of the zero buffer than one hop.
         std::size_t processed = 0;
         while (processed < numSamples) {
-            const std::size_t chunkSize = std::min(numSamples - processed, maxChunk);
+            const std::size_t chunkSize = std::min(numSamples - processed, hopSize_);
 
             // Get pointers for this chunk
-            const float* chunkA = usingZeroBufferA ? zeroBuffer_.data() : effectiveA + processed;
-            const float* chunkB = usingZeroBufferB ? zeroBuffer_.data() : effectiveB + processed;
+            const float* chunkA = (inputA != nullptr) ? inputA + processed : zeroBuffer_.data();
+            const float* chunkB = (inputB != nullptr) ? inputB + processed : zeroBuffer_.data();
 
             // Check for NaN/Inf in inputs (FR-015)
             bool hasInvalidInput = false;
             for (std::size_t i = 0; i < chunkSize; ++i) {
-                if (!std::isfinite(chunkA[i]) || !std::isfinite(chunkB[i])) {
+                if (!detail::isFinite(chunkA[i]) || !detail::isFinite(chunkB[i])) {
                     hasInvalidInput = true;
                     break;
                 }
@@ -285,8 +292,6 @@ public:
             stftB_.pushSamples(chunkB, chunkSize);
 
             // Process spectral frames when ready
-            // IMPORTANT: Pull output immediately after each synthesize to avoid
-            // overflow in the OverlapAdd buffer
             while (stftA_.canAnalyze() && stftB_.canAnalyze()) {
                 // Analyze both inputs
                 stftA_.analyze(spectrumA_);
@@ -295,30 +300,20 @@ public:
                 // Process the spectral frame
                 processSpectralFrame();
 
-                // Synthesize output
+                // Synthesize output, then pull EXACTLY one hop: OverlapAdd adds
+                // each frame at its read position, so the next frame lands one
+                // hop later only if this one's whole hop was taken.
                 overlapAdd_.synthesize(outputSpectrum_);
-
-                // Pull hopSize samples immediately if available
-                // This prevents buffer overflow and maintains correct overlap-add
-                while (overlapAdd_.samplesAvailable() >= hopSize_ && outputWritten < numSamples) {
-                    const std::size_t toPull = std::min(hopSize_, numSamples - outputWritten);
-                    if (output != nullptr) {
-                        overlapAdd_.pullSamples(output + outputWritten, toPull);
-                    } else {
-                        // Discard samples if no output buffer
-                        std::vector<float> discard(toPull);
-                        overlapAdd_.pullSamples(discard.data(), toPull);
-                    }
-                    outputWritten += toPull;
+                overlapAdd_.pullSamples(hopScratch_.data(), hopSize_);
+                for (std::size_t i = 0; i < hopSize_; ++i) {
+                    blockFifo_[(blockFifoWrite_ + i) & blockFifoMask_] = hopScratch_[i];
                 }
+                blockFifoWrite_ = (blockFifoWrite_ + hopSize_) & blockFifoMask_;
+                blockFifoCount_ += hopSize_;
             }
 
+            popBlockFifo(output != nullptr ? output + processed : nullptr, chunkSize);
             processed += chunkSize;
-        }
-
-        // Fill remaining output with zeros if needed (latency warmup period)
-        if (output != nullptr && outputWritten < numSamples) {
-            std::fill(output + outputWritten, output + numSamples, 0.0f);
         }
     }
 
@@ -335,7 +330,7 @@ public:
         }
 
         // Check for NaN/Inf
-        if (!std::isfinite(input)) {
+        if (!detail::isFinite(input)) {
             reset();
             return 0.0f;
         }
@@ -501,6 +496,36 @@ private:
     // =========================================================================
     // Internal Processing Methods
     // =========================================================================
+
+    /// @brief Empty processBlock's output FIFO and re-arm the latency warm-up.
+    void resetBlockFifo() noexcept {
+        std::fill(blockFifo_.begin(), blockFifo_.end(), 0.0f);
+        blockFifoRead_ = 0;
+        blockFifoWrite_ = 0;
+        blockFifoCount_ = 0;
+        warmupRemaining_ = fftSize_;
+    }
+
+    /// @brief Pop numSamples from processBlock's output FIFO (nullptr discards).
+    ///
+    /// The first fftSize samples after a reset are silence, so input sample n
+    /// leaves at output sample n + fftSize for every partition: the frame holding
+    /// input n completes by input count fftSize + floor(n / hop) * hop <= n + fftSize,
+    /// so its hop is in the FIFO before output n + fftSize is popped. The empty
+    /// branch is therefore unreachable; it degrades to silence, not stale data.
+    void popBlockFifo(float* output, std::size_t numSamples) noexcept {
+        for (std::size_t i = 0; i < numSamples; ++i) {
+            float sample = 0.0f;
+            if (warmupRemaining_ > 0) {
+                --warmupRemaining_;
+            } else if (blockFifoCount_ > 0) {
+                sample = blockFifo_[blockFifoRead_];
+                blockFifoRead_ = (blockFifoRead_ + 1) & blockFifoMask_;
+                --blockFifoCount_;
+            }
+            if (output != nullptr) output[i] = sample;
+        }
+    }
 
     /// @brief Process a single spectral frame (dual-input mode)
     void processSpectralFrame() noexcept {
@@ -792,6 +817,15 @@ private:
 
     // Zero buffer for nullptr input handling (pre-allocated)
     std::vector<float> zeroBuffer_;
+
+    // processBlock output FIFO (fixed latency of fftSize for any block size)
+    std::vector<float> blockFifo_;
+    std::vector<float> hopScratch_;
+    std::size_t blockFifoMask_ = 0;
+    std::size_t blockFifoRead_ = 0;
+    std::size_t blockFifoWrite_ = 0;
+    std::size_t blockFifoCount_ = 0;
+    std::size_t warmupRemaining_ = 0;
 };
 
 } // namespace Krate::DSP

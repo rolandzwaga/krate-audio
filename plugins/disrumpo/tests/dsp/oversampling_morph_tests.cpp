@@ -60,16 +60,27 @@ TEST_CASE("BandProcessor: 2-node morph oversampling factor",
     BandProcessor bp;
     bp.prepare(44100.0, 512);
 
-    SECTION("SoftClip (2x) + HardClip (4x) morph") {
-        setup2NodeMorph(bp, DistortionType::SoftClip, DistortionType::HardClip);
+    SECTION("Tube (2x) + HardClip (4x) morph") {
+        setup2NodeMorph(bp, DistortionType::Tube, DistortionType::HardClip);
 
-        // At position 0.0 (fully on SoftClip = 2x): weighted avg = 2.0 -> 2
+        // At position 0.0 (fully on Tube = 2x): weighted avg = 2.0 -> 2
         bp.setMorphPosition(0.0f, 0.0f);
         CHECK(bp.getOversampleFactor() == 2);
 
         // At position 1.0 (fully on HardClip = 4x): weighted avg = 4.0 -> 4
         bp.setMorphPosition(1.0f, 0.0f);
         CHECK(bp.getOversampleFactor() == 4);
+    }
+
+    SECTION("HardClip (4x) + Tape (8x) morph") {
+        // 8x types (user ruling 2026-11-10): the morph rounds a mean above 4 up to 8
+        setup2NodeMorph(bp, DistortionType::HardClip, DistortionType::Tape);
+        bp.setMorphPosition(0.0f, 0.0f);
+        CHECK(bp.getOversampleFactor() == 4);
+        bp.setMorphPosition(0.5f, 0.0f);
+        CHECK(bp.getOversampleFactor() == 8);
+        bp.setMorphPosition(1.0f, 0.0f);
+        CHECK(bp.getOversampleFactor() == 8);
     }
 
     SECTION("Bitcrush (1x) + HardClip (4x) morph") {
@@ -84,8 +95,8 @@ TEST_CASE("BandProcessor: 2-node morph oversampling factor",
         CHECK(bp.getOversampleFactor() == 4);
     }
 
-    SECTION("same type both nodes (SoftClip 2x + SoftClip 2x)") {
-        setup2NodeMorph(bp, DistortionType::SoftClip, DistortionType::SoftClip);
+    SECTION("same type both nodes (Tube 2x + Tube 2x)") {
+        setup2NodeMorph(bp, DistortionType::Tube, DistortionType::Tube);
 
         // Regardless of position, weighted avg = 2.0 -> 2
         bp.setMorphPosition(0.0f, 0.0f);
@@ -123,12 +134,13 @@ TEST_CASE("BandProcessor: morph weighted average rounding",
     // since BandProcessor morph weights depend on MorphEngine's internal state
     // which we can verify through factor selection behavior.
 
-    SECTION("roundUpToPowerOf2Factor boundary values") {
-        // Already tested in oversampling_utils_tests, but verify critical boundaries
-        CHECK(roundUpToPowerOf2Factor(1.5f) == 2);
-        CHECK(roundUpToPowerOf2Factor(2.0f) == 2);
-        CHECK(roundUpToPowerOf2Factor(2.5f) == 4);
-        CHECK(roundUpToPowerOf2Factor(3.0f) == 4);
+    SECTION("roundToNearestPowerOf2Factor boundary values") {
+        // Already tested in oversampling_utils_tests, but verify critical boundaries. Nearest,
+        // ties up (user ruling 2026-11-11; 2.5 rounded up to 4 before)
+        CHECK(roundToNearestPowerOf2Factor(1.5f) == 2);
+        CHECK(roundToNearestPowerOf2Factor(2.0f) == 2);
+        CHECK(roundToNearestPowerOf2Factor(2.5f) == 2);
+        CHECK(roundToNearestPowerOf2Factor(3.0f) == 4);
     }
 }
 
@@ -143,15 +155,15 @@ TEST_CASE("BandProcessor: 4-node morph oversampling factor",
     bp.prepare(44100.0, 512);
 
     SECTION("4 nodes with mixed factors") {
-        // Node A: SoftClip (2x), Node B: HardClip (4x),
-        // Node C: Bitcrush (1x), Node D: Fuzz (4x)
+        // Node A: Tube (2x), Node B: HardClip (4x),
+        // Node C: Bitcrush (1x), Node D: HalfRectify (4x)
         setup4NodeMorph(bp,
-                        DistortionType::SoftClip,    // 2x
+                        DistortionType::Tube,    // 2x
                         DistortionType::HardClip,    // 4x
                         DistortionType::Bitcrush,    // 1x
-                        DistortionType::Fuzz);       // 4x
+                        DistortionType::HalfRectify);       // 4x
 
-        // At corner (0,0) = Node A only: SoftClip = 2x -> factor 2
+        // At corner (0,0) = Node A only: Tube = 2x -> factor 2
         bp.setMorphPosition(0.0f, 0.0f);
         CHECK(bp.getOversampleFactor() == 2);
 
@@ -163,7 +175,7 @@ TEST_CASE("BandProcessor: 4-node morph oversampling factor",
         bp.setMorphPosition(0.0f, 1.0f);
         CHECK(bp.getOversampleFactor() == 1);
 
-        // At corner (1,1) = Node D only: Fuzz = 4x -> factor 4
+        // At corner (1,1) = Node D only: HalfRectify = 4x -> factor 4
         bp.setMorphPosition(1.0f, 1.0f);
         CHECK(bp.getOversampleFactor() == 4);
     }
@@ -171,9 +183,9 @@ TEST_CASE("BandProcessor: 4-node morph oversampling factor",
     SECTION("all 4 nodes same type (4x)") {
         setup4NodeMorph(bp,
                         DistortionType::HardClip,    // 4x
-                        DistortionType::Fuzz,        // 4x
-                        DistortionType::SineFold,    // 4x
-                        DistortionType::SergeFold);  // 4x
+                        DistortionType::HalfRectify,        // 4x
+                        DistortionType::FullRectify, // 4x
+                        DistortionType::RingSaturation);  // 4x
 
         // Regardless of position, all 4x -> weighted avg = 4.0 -> factor 4
         bp.setMorphPosition(0.5f, 0.5f);
@@ -210,7 +222,7 @@ TEST_CASE("BandProcessor: morph oversampling edge cases",
 
     SECTION("switching from morph to single mode recalculates") {
         // Start in morph mode with 4x types
-        setup2NodeMorph(bp, DistortionType::HardClip, DistortionType::Fuzz);
+        setup2NodeMorph(bp, DistortionType::HardClip, DistortionType::HalfRectify);
         bp.setMorphPosition(0.5f, 0.0f);
         CHECK(bp.getOversampleFactor() == 4);
 
@@ -235,9 +247,9 @@ TEST_CASE("BandProcessor: morph oversampling edge cases",
         // Change nodes to 4x types
         std::array<MorphNode, kMaxMorphNodes> newNodes = {{
             MorphNode(0, 0.0f, 0.0f, DistortionType::HardClip),
-            MorphNode(1, 1.0f, 0.0f, DistortionType::Fuzz),
+            MorphNode(1, 1.0f, 0.0f, DistortionType::HalfRectify),
             MorphNode(2, 0.0f, 1.0f, DistortionType::HardClip),
-            MorphNode(3, 1.0f, 1.0f, DistortionType::Fuzz)
+            MorphNode(3, 1.0f, 1.0f, DistortionType::HalfRectify)
         }};
         bp.setMorphNodes(newNodes, 2);
         // Factor should have increased
@@ -245,7 +257,7 @@ TEST_CASE("BandProcessor: morph oversampling edge cases",
     }
 
     SECTION("global limit clamps morph factor") {
-        setup2NodeMorph(bp, DistortionType::HardClip, DistortionType::Fuzz);
+        setup2NodeMorph(bp, DistortionType::HardClip, DistortionType::HalfRectify);
         bp.setMorphPosition(0.5f, 0.0f);
         CHECK(bp.getOversampleFactor() == 4);
 
@@ -267,16 +279,16 @@ TEST_CASE("BandProcessor: morph transition threshold between factors",
     BandProcessor bp;
     bp.prepare(44100.0, 512);
 
-    // SoftClip (2x) to HardClip (4x) morph
-    // Weighted average = 2 * w_soft + 4 * w_hard
+    // Tube (2x) to HardClip (4x) morph
+    // Weighted average = 2 * w_tube + 4 * w_hard
     // Transition from 2 to 4 when weighted avg > 2.0
     // With Linear1D: at position x, w_A = 1-x, w_B = x
     // weighted avg = 2*(1-x) + 4*x = 2 + 2x
     // > 2.0 when x > 0.0 (i.e., any weight toward HardClip gives > 2.0 -> rounds to 4)
     // BUT: at x=0.0 exactly, weighted avg = 2.0 -> rounds to 2
-    setup2NodeMorph(bp, DistortionType::SoftClip, DistortionType::HardClip);
+    setup2NodeMorph(bp, DistortionType::Tube, DistortionType::HardClip);
 
-    SECTION("at x=0.0 (pure SoftClip), factor is 2") {
+    SECTION("at x=0.0 (pure Tube), factor is 2") {
         bp.setMorphPosition(0.0f, 0.0f);
         CHECK(bp.getOversampleFactor() == 2);
     }

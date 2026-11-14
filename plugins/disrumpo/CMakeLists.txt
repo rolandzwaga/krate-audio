@@ -50,6 +50,9 @@ smtg_add_vst3plugin(${PLUGIN_NAME}
     src/controller/views/custom_curve_editor.h
     src/controller/views/custom_curve_editor.cpp
     src/controller/views/mod_slider.h
+    src/controller/views/level_meter_view.h
+    src/controller/views/level_meter_view.cpp
+    src/controller/meter_ballistics.h
 
     # Sub-Controllers for Band Parameter Remapping
     src/controller/sub_controllers.h
@@ -61,10 +64,6 @@ smtg_add_vst3plugin(${PLUGIN_NAME}
     # Keyboard Shortcut Handler (Spec 012)
     src/controller/keyboard_shortcut_handler.h
     src/controller/keyboard_shortcut_handler.cpp
-
-    # Morph Link Functions (US8)
-    src/controller/morph_link.h
-    src/controller/morph_link.cpp
 
     # DSP Components
     src/dsp/distortion_types.h

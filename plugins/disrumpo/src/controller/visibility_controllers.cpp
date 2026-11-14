@@ -5,11 +5,12 @@
 #include "controller/visibility_controllers.h"
 #include "controller/views/spectrum_display.h"
 #include "controller/views/sweep_indicator.h"
-#include "controller/morph_link.h"
 #include "dsp/sweep_morph_link.h"
 #include "plugin_ids.h"
+#include "state_codec.h"
 #include "dsp/band_state.h"
 #include "dsp/morph_node.h"
+#include "dsp/shape_slot_descriptors.h"
 
 #include <cmath>
 #include <algorithm>
@@ -22,9 +23,11 @@ namespace Disrumpo {
 
 BandCountDisplayController::BandCountDisplayController(
     SpectrumDisplay** displayPtr,
-    Steinberg::Vst::Parameter* bandCountParam)
+    Steinberg::Vst::Parameter* bandCountParam,
+    std::unique_ptr<KeyboardShortcutHandler>* keyboardHandlerPtr)
 : displayPtr_(displayPtr)
 , bandCountParam_(bandCountParam)
+, keyboardHandlerPtr_(keyboardHandlerPtr)
 {
     if (bandCountParam_) {
         bandCountParam_->addRef();
@@ -52,11 +55,65 @@ void PLUGIN_API BandCountDisplayController::update(
     Steinberg::FUnknown* /*changedUnknown*/, Steinberg::int32 message) {
     if (!isActive_.load(std::memory_order_acquire)) return;
 
-    if (message == IDependent::kChanged && bandCountParam_
-        && displayPtr_ && *displayPtr_) {
+    if (message == IDependent::kChanged && bandCountParam_) {
         float normalized = static_cast<float>(bandCountParam_->getNormalized());
         int bandCount = static_cast<int>(std::round(normalized * 3.0f)) + 1;
-        (*displayPtr_)->setNumBands(bandCount);
+        if (displayPtr_ && *displayPtr_)
+            (*displayPtr_)->setNumBands(bandCount);
+        if (keyboardHandlerPtr_ && *keyboardHandlerPtr_)
+            (*keyboardHandlerPtr_)->setActiveBandCount(bandCount);
+    }
+}
+
+// ==============================================================================
+// CrossoverParamObserver
+// ==============================================================================
+
+CrossoverParamObserver::CrossoverParamObserver(
+    SpectrumDisplay** displayPtr,
+    const std::array<Steinberg::Vst::Parameter*, kNumCrossovers>& crossoverParams)
+: displayPtr_(displayPtr)
+, params_(crossoverParams)
+{
+    for (auto* p : params_) {
+        if (p) {
+            p->addRef();
+            p->addDependent(this);
+        }
+    }
+}
+
+CrossoverParamObserver::~CrossoverParamObserver() {
+    deactivate();
+    for (auto*& p : params_) {
+        if (p) {
+            p->release();
+            p = nullptr;
+        }
+    }
+}
+
+void CrossoverParamObserver::deactivate() {
+    if (isActive_.exchange(false, std::memory_order_acq_rel)) {
+        for (auto* p : params_) {
+            if (p) p->removeDependent(this);
+        }
+    }
+}
+
+void PLUGIN_API CrossoverParamObserver::update(
+    Steinberg::FUnknown* changedUnknown, Steinberg::int32 message) {
+    if (!isActive_.load(std::memory_order_acquire)) return;
+    if (message != IDependent::kChanged || !displayPtr_ || !*displayPtr_) return;
+
+    // Same Hz mapping the processor applies (state_codec.h, T1.17)
+    auto* changedParam = Steinberg::FCast<Steinberg::Vst::Parameter>(changedUnknown);
+    for (int i = 0; i < kNumCrossovers; ++i) {
+        auto* p = params_[static_cast<size_t>(i)];
+        if (p != nullptr && p == changedParam) {
+            (*displayPtr_)->setCrossoverFrequency(
+                i, crossoverNormToHz(static_cast<float>(p->getNormalized())));
+        }
     }
 }
 
@@ -114,114 +171,18 @@ void PLUGIN_API SpectrumModeController::update(
 }
 
 // ==============================================================================
-// MorphSweepLinkController
-// ==============================================================================
-
-MorphSweepLinkController::MorphSweepLinkController(
-    Steinberg::Vst::EditControllerEx1* controller,
-    Steinberg::Vst::Parameter* sweepFreqParam)
-: controller_(controller)
-, sweepFreqParam_(sweepFreqParam)
-{
-    if (sweepFreqParam_) {
-        sweepFreqParam_->addRef();
-        sweepFreqParam_->addDependent(this);
-    }
-}
-
-MorphSweepLinkController::~MorphSweepLinkController() {
-    deactivate();
-    if (sweepFreqParam_) {
-        sweepFreqParam_->release();
-        sweepFreqParam_ = nullptr;
-    }
-}
-
-void MorphSweepLinkController::deactivate() {
-    if (isActive_.exchange(false, std::memory_order_acq_rel)) {
-        if (sweepFreqParam_) {
-            sweepFreqParam_->removeDependent(this);
-        }
-    }
-}
-
-void PLUGIN_API MorphSweepLinkController::update(
-    Steinberg::FUnknown* /*changedUnknown*/, Steinberg::int32 message) {
-    if (!isActive_.load(std::memory_order_acquire)) {
-        return;
-    }
-
-    if (message == IDependent::kChanged && sweepFreqParam_ && controller_) {
-        float sweepNorm = static_cast<float>(sweepFreqParam_->getNormalized());
-        for (int band = 0; band < 8; ++band) {
-            updateBandMorphFromSweep(static_cast<uint8_t>(band), sweepNorm);
-        }
-    }
-}
-
-void MorphSweepLinkController::updateBandMorphFromSweep(uint8_t band, float sweepNorm) {
-    auto* morphXLinkParam = controller_->getParameterObject(
-        makeBandParamId(band, BandParamType::kBandMorphXLink));
-    auto* morphYLinkParam = controller_->getParameterObject(
-        makeBandParamId(band, BandParamType::kBandMorphYLink));
-
-    if (!morphXLinkParam || !morphYLinkParam) {
-        return;
-    }
-
-    int xLinkIndex = static_cast<int>(std::round(morphXLinkParam->getNormalized() * 6.0));
-    int yLinkIndex = static_cast<int>(std::round(morphYLinkParam->getNormalized() * 6.0));
-
-    MorphLinkMode xLinkMode = static_cast<MorphLinkMode>(std::clamp(xLinkIndex, 0, 6));
-    MorphLinkMode yLinkMode = static_cast<MorphLinkMode>(std::clamp(yLinkIndex, 0, 6));
-
-    if (xLinkMode == MorphLinkMode::None && yLinkMode == MorphLinkMode::None) {
-        return;
-    }
-
-    auto* morphXParam = controller_->getParameterObject(
-        makeBandParamId(band, BandParamType::kBandMorphX));
-    auto* morphYParam = controller_->getParameterObject(
-        makeBandParamId(band, BandParamType::kBandMorphY));
-
-    if (!morphXParam || !morphYParam) {
-        return;
-    }
-
-    float currentX = static_cast<float>(morphXParam->getNormalized());
-    float currentY = static_cast<float>(morphYParam->getNormalized());
-
-    float newX = applyMorphLinkMode(xLinkMode, sweepNorm, currentX);
-    float newY = applyMorphLinkMode(yLinkMode, sweepNorm, currentY);
-
-    if (xLinkMode != MorphLinkMode::None && std::abs(newX - currentX) > 0.001f) {
-        controller_->setParamNormalized(
-            makeBandParamId(band, BandParamType::kBandMorphX), newX);
-        controller_->performEdit(
-            makeBandParamId(band, BandParamType::kBandMorphX), newX);
-    }
-
-    if (yLinkMode != MorphLinkMode::None && std::abs(newY - currentY) > 0.001f) {
-        controller_->setParamNormalized(
-            makeBandParamId(band, BandParamType::kBandMorphY), newY);
-        controller_->performEdit(
-            makeBandParamId(band, BandParamType::kBandMorphY), newY);
-    }
-}
-
-// ==============================================================================
 // NodeSelectionController
 // ==============================================================================
 
 NodeSelectionController::NodeSelectionController(
     Steinberg::Vst::EditControllerEx1* controller,
     uint8_t band,
-    ShapeShadowStorage* shadowStorage)
+    NodeShapeShadows* shapeShadows)
 : controller_(controller)
 , band_(band)
 , selectedNodeParam_(controller->getParameterObject(
       makeBandParamId(band, BandParamType::kBandSelectedNode)))
-, shapeShadowPtr_(shadowStorage)
+, shapeShadows_(shapeShadows)
 {
     for (int i = 0; i < kNumDisplayedProxyParams; ++i) {
         proxyParams_[i] = controller_->getParameterObject(
@@ -257,6 +218,19 @@ NodeSelectionController::NodeSelectionController(
         }
     }
 
+    // All four nodes are watched; update() ignores the ones that are not selected.
+    for (int n = 0; n < kNumNodes; ++n) {
+        for (int i = 0; i < kNumDisplayedProxyParams; ++i) {
+            auto* nodeParam = controller_->getParameterObject(
+                makeNodeParamId(band, static_cast<uint8_t>(n), kProxyIndexToNodeParam[i]));
+            nodeParams_[n][i] = nodeParam;
+            if (nodeParam) {
+                nodeParam->addRef();
+                nodeParam->addDependent(this);
+            }
+        }
+    }
+
     if (selectedNodeParam_) {
         selectedNodeParam_->deferUpdate();
     }
@@ -284,6 +258,14 @@ NodeSelectionController::~NodeSelectionController() {
             param = nullptr;
         }
     }
+    for (auto& node : nodeParams_) {
+        for (auto*& param : node) {
+            if (param) {
+                param->release();
+                param = nullptr;
+            }
+        }
+    }
 }
 
 void NodeSelectionController::deactivate() {
@@ -304,6 +286,13 @@ void NodeSelectionController::deactivate() {
                 param->removeDependent(this);
             }
         }
+        for (auto& node : nodeParams_) {
+            for (auto* param : node) {
+                if (param) {
+                    param->removeDependent(this);
+                }
+            }
+        }
     }
 }
 
@@ -322,6 +311,8 @@ void PLUGIN_API NodeSelectionController::update(
     isUpdating_ = true;
 
     auto* changedParam = Steinberg::FCast<Steinberg::Vst::Parameter>(changedUnknown);
+    int changedNode = 0;
+    int proxyIndex = 0;
 
     if (changedParam == displayedTypeParam_) {
         copyDisplayedTypeToSelectedNode();
@@ -330,8 +321,13 @@ void PLUGIN_API NodeSelectionController::update(
         copySelectedNodeToProxies();
     } else if (isProxyParam(changedParam)) {
         copyProxyToSelectedNode(changedParam);
+    } else if (findNodeParam(changedParam, changedNode, proxyIndex)) {
+        if (changedNode == getSelectedNode()) {
+            copySelectedNodeParamToProxy(proxyIndex);
+        }
     } else {
         copySelectedNodeToDisplayedType();
+        syncBiasProxy();
     }
 
     isUpdating_ = false;
@@ -345,6 +341,20 @@ int NodeSelectionController::getSelectedNode() const {
 
 bool NodeSelectionController::isProxyParam(Steinberg::Vst::Parameter* param) const {
     return std::ranges::any_of(proxyParams_, [param](const auto* p) { return p == param; });
+}
+
+bool NodeSelectionController::findNodeParam(Steinberg::Vst::Parameter* param, int& node, int& proxyIndex) const {
+    if (!param) return false;
+    for (int n = 0; n < kNumNodes; ++n) {
+        for (int i = 0; i < kNumDisplayedProxyParams; ++i) {
+            if (nodeParams_[n][i] == param) {
+                node = n;
+                proxyIndex = i;
+                return true;
+            }
+        }
+    }
+    return false;
 }
 
 void NodeSelectionController::editParam(Steinberg::Vst::ParamID id, double normValue) {
@@ -376,8 +386,10 @@ void NodeSelectionController::copySelectedNodeToProxies() {
     for (int i = 0; i < kNumDisplayedProxyParams; ++i) {
         if (!proxyParams_[i]) continue;
 
+        // The Bias knob shows the type's Bias slot where it has one (user ruling 2026-11-10)
+        const int source = i == kBiasProxy && selectedBiasSlot() >= 0 ? kFirstShapeProxy + selectedBiasSlot() : i;
         auto* actualParam = controller_->getParameterObject(
-            makeNodeParamId(band_, nodeIdx, kProxyIndexToNodeParam[i]));
+            makeNodeParamId(band_, nodeIdx, kProxyIndexToNodeParam[source]));
         if (!actualParam) continue;
 
         float actualNorm = static_cast<float>(actualParam->getNormalized());
@@ -393,8 +405,16 @@ void NodeSelectionController::copyProxyToSelectedNode(Steinberg::Vst::Parameter*
     int selectedNode = getSelectedNode();
     auto nodeIdx = static_cast<uint8_t>(selectedNode);
 
+    const int biasSlot = selectedBiasSlot();
     for (int i = 0; i < kNumDisplayedProxyParams; ++i) {
         if (proxyParams_[i] != changedProxy) continue;
+
+        if (biasSlot >= 0 && (i == kBiasProxy || i == kFirstShapeProxy + biasSlot)) {
+            // The header Bias knob and the type's Bias slot are one control (user ruling
+            // 2026-11-10): either edits the slot, the other knob follows, and kNodeBias mirrors it
+            editBiasSlot(changedProxy->getNormalized(), i == kBiasProxy ? kFirstShapeProxy + biasSlot : kBiasProxy);
+            return;
+        }
 
         float proxyNorm = static_cast<float>(changedProxy->getNormalized());
         auto actualId = makeNodeParamId(band_, nodeIdx, kProxyIndexToNodeParam[i]);
@@ -407,6 +427,58 @@ void NodeSelectionController::copyProxyToSelectedNode(Steinberg::Vst::Parameter*
 
         editParam(actualId, proxyNorm);
         return;
+    }
+}
+
+void NodeSelectionController::copySelectedNodeParamToProxy(int proxyIndex) {
+    // The real param already changed (host automation, preset); only the
+    // controller-side proxy follows, so the knob moves without a host edit.
+    const int biasSlot = selectedBiasSlot();
+    if (biasSlot >= 0 && (proxyIndex == kBiasProxy || proxyIndex == kFirstShapeProxy + biasSlot)) {
+        // kNodeBias does not move a type with a Bias slot; the slot moves both knobs
+        if (proxyIndex == kFirstShapeProxy + biasSlot) {
+            auto* slotParam = nodeParams_[getSelectedNode()][proxyIndex];
+            if (slotParam && proxyParams_[proxyIndex]) {
+                controller_->setParamNormalized(makeBandParamId(band_, kProxyIndexToBandParam[proxyIndex]),
+                                                slotParam->getNormalized());
+            }
+        }
+        syncBiasProxy();
+        return;
+    }
+    auto* nodeParam = nodeParams_[getSelectedNode()][proxyIndex];
+    if (!nodeParam || !proxyParams_[proxyIndex]) return;
+    controller_->setParamNormalized(makeBandParamId(band_, kProxyIndexToBandParam[proxyIndex]),
+                                    nodeParam->getNormalized());
+}
+
+int NodeSelectionController::selectedBiasSlot() const {
+    const auto* typeParam = nodeTypeParams_[getSelectedNode()];
+    if (!typeParam) return -1;
+    const int typeIdx = std::clamp(static_cast<int>(typeParam->getNormalized() * 25.0 + 0.5), 0, 25);
+    return biasShapeSlot(static_cast<DistortionType>(typeIdx));
+}
+
+void NodeSelectionController::syncBiasProxy() {
+    auto* proxy = proxyParams_[kBiasProxy];
+    if (!proxy) return;
+    const int biasSlot = selectedBiasSlot();
+    const int source = biasSlot >= 0 ? kFirstShapeProxy + biasSlot : kBiasProxy;
+    auto* nodeParam = nodeParams_[getSelectedNode()][source];
+    if (!nodeParam || std::abs(proxy->getNormalized() - nodeParam->getNormalized()) < 1e-9) return;
+    controller_->setParamNormalized(makeBandParamId(band_, kProxyIndexToBandParam[kBiasProxy]),
+                                    nodeParam->getNormalized());
+}
+
+void NodeSelectionController::editBiasSlot(double value, int otherProxy) {
+    const auto nodeIdx = static_cast<uint8_t>(getSelectedNode());
+    const int biasSlot = selectedBiasSlot();
+    const auto slotId = makeNodeParamId(band_, nodeIdx, kProxyIndexToNodeParam[kFirstShapeProxy + biasSlot]);
+    const auto biasId = makeNodeParamId(band_, nodeIdx, NodeParamType::kNodeBias);
+    if (std::abs(controller_->getParamNormalized(slotId) - value) >= 1e-9) editParam(slotId, value);
+    if (std::abs(controller_->getParamNormalized(biasId) - value) >= 1e-9) editParam(biasId, value);
+    if (proxyParams_[otherProxy] && std::abs(proxyParams_[otherProxy]->getNormalized() - value) >= 1e-9) {
+        controller_->setParamNormalized(makeBandParamId(band_, kProxyIndexToBandParam[otherProxy]), value);
     }
 }
 
@@ -427,7 +499,9 @@ void NodeSelectionController::copyDisplayedTypeToSelectedNode() {
     oldTypeIdx = std::clamp(oldTypeIdx, 0, 25);
     newTypeIdx = std::clamp(newTypeIdx, 0, 25);
 
-    if (shapeShadowPtr_) {
+    const auto nodeIdx = static_cast<uint8_t>(selectedNode);
+
+    if (shapeShadows_) {
         float currentSlots[MorphNode::kShapeSlotCount];
         for (int s = 0; s < MorphNode::kShapeSlotCount; ++s) {
             if (proxyParams_[4 + s])
@@ -435,23 +509,26 @@ void NodeSelectionController::copyDisplayedTypeToSelectedNode() {
             else
                 currentSlots[s] = 0.5f;
         }
-        shapeShadowPtr_->save(oldTypeIdx, currentSlots);
+        (*shapeShadows_)[nodeIdx].save(oldTypeIdx, currentSlots);
     }
 
-    auto nodeTypeId = makeNodeParamId(band_, static_cast<uint8_t>(selectedNode),
-                                       NodeParamType::kNodeType);
+    auto nodeTypeId = makeNodeParamId(band_, nodeIdx, NodeParamType::kNodeType);
     editParam(nodeTypeId, displayedTypeNorm);
 
-    if (shapeShadowPtr_) {
+    if (shapeShadows_) {
         float newSlots[MorphNode::kShapeSlotCount];
-        shapeShadowPtr_->load(newTypeIdx, newSlots);
+        (*shapeShadows_)[nodeIdx].load(newTypeIdx, newSlots);
         for (int s = 0; s < MorphNode::kShapeSlotCount; ++s) {
             if (proxyParams_[4 + s]) {
                 editParam(makeBandParamId(band_, kProxyIndexToBandParam[4 + s]),
                           newSlots[s]);
             }
+            // The proxy edit re-enters update() behind isUpdating_, so the
+            // node's real slot is written here rather than by the mirror.
+            editParam(makeNodeParamId(band_, nodeIdx, kProxyIndexToNodeParam[4 + s]), newSlots[s]);
         }
     }
+    syncBiasProxy();
 }
 
 // ==============================================================================
@@ -545,16 +622,13 @@ void PLUGIN_API SweepVisualizationController::update(
     }
 
     if (sweepWidthParam_) {
-        constexpr float kMinWidth = 0.5f;
-        constexpr float kMaxWidth = 4.0f;
         float widthNorm = static_cast<float>(sweepWidthParam_->getNormalized());
-        float widthOct = kMinWidth + widthNorm * (kMaxWidth - kMinWidth);
-        indicator->setWidth(widthOct);
+        indicator->setWidth(kSweepWidthOctRange.toPlain(widthNorm));
     }
 
     if (sweepIntensityParam_) {
         float intensityNorm = static_cast<float>(sweepIntensityParam_->getNormalized());
-        indicator->setIntensity(intensityNorm * 2.0f);
+        indicator->setIntensity(kSweepIntensityRange.toPlain(intensityNorm));
     }
 
     if (sweepFalloffParam_) {
@@ -584,13 +658,11 @@ void SweepVisualizationController::updateSpectrumBandIntensities() {
     float normFreq = static_cast<float>(modFreqParam_->getNormalized());
     float sweepCenterHz = denormalizeSweepFrequency(normFreq);
 
-    constexpr float kMinWidth = 0.5f;
-    constexpr float kMaxWidth = 4.0f;
     float widthNorm = static_cast<float>(sweepWidthParam_->getNormalized());
-    float widthOctaves = kMinWidth + widthNorm * (kMaxWidth - kMinWidth);
+    float widthOctaves = kSweepWidthOctRange.toPlain(widthNorm);
 
     float intensityNorm = static_cast<float>(sweepIntensityParam_->getNormalized());
-    float intensity = intensityNorm * 2.0f;
+    float intensity = kSweepIntensityRange.toPlain(intensityNorm);
 
     bool smoothFalloff = (sweepFalloffParam_ != nullptr) && sweepFalloffParam_->getNormalized() >= 0.5;
 
@@ -640,12 +712,7 @@ void CrossoverDragBridge::onCrossoverChanged(int dividerIndex, float frequencyHz
 
     auto paramId = makeCrossoverParamId(static_cast<uint8_t>(dividerIndex));
 
-    const float logMin = std::log10(kMinCrossoverHz);
-    const float logMax = std::log10(kMaxCrossoverHz);
-    float clampedFreq = std::clamp(frequencyHz, kMinCrossoverHz, kMaxCrossoverHz);
-    float logFreq = std::log10(clampedFreq);
-    double normalized = static_cast<double>(logFreq - logMin) / static_cast<double>(logMax - logMin);
-    normalized = std::clamp(normalized, 0.0, 1.0);
+    const auto normalized = static_cast<double>(crossoverHzToNorm(frequencyHz));
 
     controller_->beginEdit(paramId);
     controller_->setParamNormalized(paramId, normalized);

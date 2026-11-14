@@ -636,6 +636,10 @@ private:
             const float e = 1.0f - bloom_ * kMaxBloomFraction * lead;
             invCompletionPoint_[i] = 1.0f / e;
         }
+        // The top partial's lead is 0 at every bloom, so e = 1 and u_64 is the bare u
+        // (the SC-003 join). Written as the constant, not left to 1.0f / e: x86 fast-math
+        // turns that division into a reciprocal estimate, which returns 0x3f7fffff for 1.
+        invCompletionPoint_[kStatePartials - 1] = 1.0f;
     }
 
     /// @brief FR-041. Amplitudes interpolate linearly in magnitude

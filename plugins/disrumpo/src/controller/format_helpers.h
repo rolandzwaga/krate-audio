@@ -7,6 +7,7 @@
 #include "pluginterfaces/base/ftypes.h"
 #include "pluginterfaces/vst/vsttypes.h"
 #include "dsp/band_state.h"
+#include "dsp/shape_slot_descriptors.h"
 
 #include <algorithm>
 #include <cmath>
@@ -43,101 +44,100 @@ static inline void appendToString128(Steinberg::Vst::String128 dest, const Stein
     dest[len + suffixLen] = 0;
 }
 
-/// @brief Format a shape slot value as a string based on distortion type.
-/// @return true if a custom format was applied, false to fall through to default.
-static inline bool formatShapeSlot(DistortionType distType, int slot, float v,
-                            Steinberg::Vst::String128 string) {
-    if (distType == DistortionType::Temporal) {
-        if (slot == 2) {
-            static const char* const kWaveshapeNames[] = {
-                "Tanh", "Atan", "Cubic", "Quintic",
-                "RSqrt", "Erf", "HardClip", "Diode", "Tube"
-            };
-            int idx = std::clamp(static_cast<int>(v * 8.0f + 0.5f), 0, 8);
-            const char* name = kWaveshapeNames[idx];
-            for (int i = 0; name[i] && i < 127; ++i) {
-                string[i] = static_cast<Steinberg::Vst::TChar>(name[i]);
-                string[i + 1] = 0;
+static inline void asciiToString128(const char* text, Steinberg::Vst::String128 dest) {
+    int i = 0;
+    for (; text[i] && i < 127; ++i) {
+        dest[i] = static_cast<Steinberg::Vst::TChar>(text[i]);
+    }
+    dest[i] = 0;
+}
+
+static inline void appendAsciiToString128(Steinberg::Vst::String128 dest, const char* suffix) {
+    int len = 0;
+    while (dest[len] && len < 127) ++len;
+    for (int i = 0; suffix[i] && len < 127; ++i, ++len) {
+        dest[len] = static_cast<Steinberg::Vst::TChar>(suffix[i]);
+    }
+    dest[len] = 0;
+}
+
+/// @brief Format shape slot @p slot of a @p distType node at value @p v.
+/// Reads the descriptor table the processor maps with (dsp/shape_slot_descriptors.h,
+/// D-090). @p slots are the node's ten slot values (nullptr: none known); Ring
+/// Saturation's carrier slot reads its Freq mode from them.
+/// @return true if the slot has a format, false to fall through to the default.
+static inline bool formatShapeSlot(DistortionType distType, int slot, float v, const float* slots,
+                                   Steinberg::Vst::String128 string) {
+    const int t = static_cast<int>(distType);
+    if (t < 0 || t >= kDistortionTypeCount || slot < 0 || slot >= kShapeSlotDescriptorCount) {
+        return false;
+    }
+    const ShapeSlotDescriptor& d = shapeSlotDescriptor(distType, slot);
+    switch (d.map) {
+        case SlotMap::Unused:
+            return false;
+        case SlotMap::Toggle:
+            asciiToString128(v >= 0.5f ? "On" : "Off", string);
+            return true;
+        case SlotMap::Index:
+        case SlotMap::Pow2:
+            if (d.labels != nullptr) {
+                const int entries = static_cast<int>(d.span) + 1;
+                asciiToString128(d.labels[std::clamp(shapeSlotIndex(d, v), 0, entries - 1)], string);
+            } else {
+                intToString128(shapeSlotInt(d, v), string);
+                appendAsciiToString128(string, d.unit);
+            }
+            return true;
+        case SlotMap::Linear:
+        case SlotMap::Bipolar: {
+            const float range = d.map == SlotMap::Bipolar ? 2.0f * d.span : d.span;
+            int precision = 3;  // about 1/1000 of the range or finer
+            if (range >= 100.0f) {
+                precision = 0;
+            } else if (range >= 10.0f) {
+                precision = 1;
+            } else if (range >= 1.0f) {
+                precision = 2;
+            }
+            floatToString128(shapeSlotFloat(d, v), precision, string);
+            appendAsciiToString128(string, d.unit);
+            return true;
+        }
+        case SlotMap::Norm:
+            break;
+    }
+
+    switch (d.display) {
+        case SlotDisplay::CurveName: {
+            asciiToString128(kWaveshapeCurveNames[static_cast<size_t>(waveshapeCurveIndex(v))], string);
+            return true;
+        }
+        case SlotDisplay::TemporalHoldMs:
+            floatToString128(temporalHoldMs(v), 0, string);
+            appendAsciiToString128(string, " ms");
+            return true;
+        case SlotDisplay::RingCarrier: {
+            const int mode = slots == nullptr
+                ? 0
+                : std::clamp(shapeSlotInt(shapeSlotDescriptor(distType, kRingSatFreqModeSlot),
+                                          slots[kRingSatFreqModeSlot]), 0, 3);
+            if (mode == kRingSatHarmonicFreqMode) {
+                intToString128(static_cast<int>(ringSatHarmonicRatio(v)), string);
+                appendAsciiToString128(string, "x");
+            } else {
+                const float freqHz = ringSatCarrierHz(v);
+                floatToString128(freqHz, freqHz < 100.0f ? 1 : 0, string);
+                appendAsciiToString128(string, " Hz");
             }
             return true;
         }
-        if (slot == 1 || slot == 5) {
-            intToString128(static_cast<int>(std::round(v * 100.0f)), string);
-            appendToString128(string, STR16("%"));
-            return true;
-        }
-        if (slot == 3) {
-            floatToString128(1.0 + v * 499.0, 0, string);
-            appendToString128(string, STR16(" ms"));
-            return true;
-        }
-        if (slot == 4) {
-            floatToString128(10.0 + v * 4990.0, 0, string);
-            appendToString128(string, STR16(" ms"));
-            return true;
-        }
-        if (slot == 7) {
-            floatToString128(1.0 + v * 499.0, 0, string);
-            appendToString128(string, STR16(" ms"));
-            return true;
-        }
+        case SlotDisplay::Plain:
+            break;
     }
-
-    if (distType == DistortionType::RingSaturation) {
-        if (slot == 1) {
-            int stages = 1 + static_cast<int>(v * 3.0f + 0.5f);
-            intToString128(stages, string);
-            appendToString128(string, STR16("x"));
-            return true;
-        }
-        if (slot == 2) {
-            static const char* const kWaveshapeNames[] = {
-                "Tanh", "Atan", "Cubic", "Quintic",
-                "RSqrt", "Erf", "HardClip", "Diode", "Tube"
-            };
-            int idx = std::clamp(static_cast<int>(v * 8.0f + 0.5f), 0, 8);
-            const char* name = kWaveshapeNames[idx];
-            for (int i = 0; name[i] && i < 127; ++i) {
-                string[i] = static_cast<Steinberg::Vst::TChar>(name[i]);
-                string[i + 1] = 0;
-            }
-            return true;
-        }
-        if (slot == 4) {
-            float bias = v * 2.0f - 1.0f;
-            floatToString128(bias, 2, string);
-            return true;
-        }
-        if (slot == 6) {
-            float freqHz = 20.0f * std::pow(250.0, static_cast<double>(v));
-            if (freqHz < 100.0f)
-                floatToString128(freqHz, 1, string);
-            else
-                floatToString128(freqHz, 0, string);
-            appendToString128(string, STR16(" Hz"));
-            return true;
-        }
-    }
-
-    if (distType == DistortionType::Bitcrush) {
-        if (slot == 0) {
-            floatToString128(1.0 + v * 15.0, 1, string);
-            appendToString128(string, STR16(" bit"));
-            return true;
-        }
-        if (slot == 1) {
-            intToString128(static_cast<int>(std::round(v * 100.0f)), string);
-            appendToString128(string, STR16("%"));
-            return true;
-        }
-        if (slot == 3) {
-            intToString128(static_cast<int>(std::round(v * 100.0f)), string);
-            appendToString128(string, STR16("%"));
-            return true;
-        }
-    }
-
-    return false;
+    intToString128(static_cast<int>(std::round(v * 100.0f)), string);
+    appendAsciiToString128(string, "%");
+    return true;
 }
 
 } // namespace Disrumpo

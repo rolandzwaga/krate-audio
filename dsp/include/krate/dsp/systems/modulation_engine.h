@@ -98,6 +98,9 @@ public:
         maxBlockSize_ = maxBlockSize;
 
         lfo1_.prepare(sampleRate);
+        // Its own random sequence (D-165): with one shared seed, two Random /
+        // S&H LFOs at the same rate moved in lockstep.
+        lfo2_.setSeed(kLFO2Seed);
         lfo2_.prepare(sampleRate);
         envFollower_.prepare(sampleRate, maxBlockSize);
         random_.prepare(sampleRate);
@@ -120,11 +123,28 @@ public:
             smoother.snapTo(0.0f);
         }
 
-        reset();
+        resetSources();
     }
 
-    /// @brief Reset all sources and routing state.
+    /// @brief Reset all sources and routing state (routings and macros cleared).
     void reset() noexcept {
+        resetSources();
+
+        // Reset routings
+        for (auto& r : routings_) {
+            r = ModRouting{};
+        }
+
+        // Reset macros
+        for (auto& m : macros_) {
+            m = MacroConfig{};
+        }
+    }
+
+    /// @brief Reset signal state only: sources, offsets, smoothers, transport.
+    /// Routings and macros (user parameters) are kept, so activation and
+    /// prepare() do not drop the mod matrix.
+    void resetSources() noexcept {
         lfo1_.reset();
         lfo2_.reset();
         envFollower_.reset();
@@ -147,16 +167,6 @@ public:
         }
         for (auto& smoother : signalSmoothers_) {
             smoother.reset();
-        }
-
-        // Reset routings
-        for (auto& r : routings_) {
-            r = ModRouting{};
-        }
-
-        // Reset macros
-        for (auto& m : macros_) {
-            m = MacroConfig{};
         }
     }
 
@@ -230,7 +240,7 @@ public:
 
                 // Process transient detector only if routed
                 if (sourceActive_[static_cast<size_t>(ModSource::Transient)]) {
-                    transient_.process(monoInput);
+                    transient_.process(transientAudioDetection_ ? monoInput : 0.0f);
                 }
             }
         }
@@ -524,6 +534,13 @@ public:
     void setTransientAttack(float ms) noexcept { transient_.setAttackTime(ms); }
     void setTransientDecay(float ms) noexcept { transient_.setDecayTime(ms); }
 
+    /// @brief Whether the transient detector listens to the audio input (default) or only to
+    /// triggerTransient() (an instrument without a sidechain fires it from its note-ons).
+    void setTransientAudioDetection(bool enabled) noexcept { transientAudioDetection_ = enabled; }
+
+    /// @brief Fire the transient envelope from outside the audio, peaking at `level` [0, 1].
+    void triggerTransient(float level) noexcept { transient_.trigger(level); }
+
     // =========================================================================
     // Rungler Parameters (Spec 057, FR-008)
     // =========================================================================
@@ -807,6 +824,9 @@ private:
     // Sources
     // =========================================================================
 
+    /// LFO2's random seed; LFO1 keeps the LFO default (12345).
+    static constexpr uint32_t kLFO2Seed = 54321u;
+
     LFO lfo1_;
     LFO lfo2_;
     EnvelopeFollower envFollower_;
@@ -815,6 +835,7 @@ private:
     SampleHoldSource sampleHold_;
     PitchFollowerSource pitchFollower_;
     TransientDetector transient_;
+    bool transientAudioDetection_ = true;
     Rungler rungler_;
 
     // Cached LFO output values (last sample in block)

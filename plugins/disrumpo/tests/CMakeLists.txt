@@ -43,6 +43,9 @@ add_executable(disrumpo_tests
     # Stack footprint guard: types tests build as locals stay under half the Windows thread stack
     unit/stack_footprint_test.cpp
 
+    # Test support smoke: processor render rig (test_support/disrumpo_rig.h)
+    unit/test_support_smoke_test.cpp
+
     # Approval tests - Morph artifact detection (005-morph-system SC-003)
     approval/morph_artifact_test.cpp
 
@@ -67,6 +70,16 @@ add_executable(disrumpo_tests
     dsp/oversampling_integration_tests.cpp
     dsp/oversampling_performance_tests.cpp
 
+    # Per-type render matrix through the Processor (audit T6.01)
+    dsp/type_render_matrix_test.cpp
+    dsp/phase6_ruling_probes_test.cpp
+
+    # Output safety clipper (drive re-stage ruling 2026-11-10)
+    dsp/output_safety_clipper_tests.cpp
+
+    # Morph continuity and on-node behaviour through the Processor (audit T6.06)
+    dsp/morph_continuity_test.cpp
+
     # Unit tests - Preset Serialization (010-preset-system)
     unit/preset/serialization_round_trip_test.cpp
 
@@ -75,6 +88,24 @@ add_executable(disrumpo_tests
 
     # Editor open/close lifecycle regression (willClose UAF guard)
     unit/controller/editor_lifecycle_test.cpp
+
+    # Controller <-> processor state codec (audit T1.17)
+    unit/controller/controller_state_codec_test.cpp
+
+    # Type-specific shape-slot menus in the live editor (audit T1.19)
+    unit/controller/menu_population_test.cpp
+
+    # Proxy / node / pad / selector parameter wiring (audit T1.20)
+    unit/controller/node_proxy_wiring_test.cpp
+
+    # MIDI learn: event bus, IMidiLearn completion, persisted scope (audit T1.18)
+    unit/controller/midi_learn_wiring_test.cpp
+
+    # editor.uidesc control inventory (audit T2.22)
+    unit/controller/uidesc_inventory_test.cpp
+
+    # Editor screenshots for layout review (hidden [.][screenshots])
+    unit/controller/editor_screenshot_test.cpp
 
     # DSP sources (needed for tests)
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/dsp/distortion_adapter.cpp
@@ -93,17 +124,21 @@ add_executable(disrumpo_tests
     # UI sources (needed for MorphPad tests)
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/views/morph_pad.cpp
 
-    # Morph link sources (needed for morph link tests)
-    ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/morph_link.cpp
-
     # Integration tests - Preset Browser (010-preset-system)
     integration/preset/preset_browser_e2e_test.cpp
     integration/preset/preset_save_test.cpp
     integration/preset/preset_search_test.cpp
     integration/preset/factory_preset_validation_test.cpp
+    integration/preset/preset_description_test.cpp
 
     # Unit tests - MIDI CC Manager (012-progressive-disclosure)
     unit/midi_cc_manager_test.cpp
+
+    # Level-meter windows: accumulation, merge, NaN input, Tier 3 (IEEE TU)
+    unit/meter_window_test.cpp
+
+    # Level-meter ballistics: attack, hold, release, RMS window, clip latch
+    unit/meter_ballistics_test.cpp
 
     # Unit tests - Accessibility (012-progressive-disclosure)
     unit/accessibility_test.cpp
@@ -125,12 +160,20 @@ add_executable(disrumpo_tests
     integration/sweep_band_intensity_test.cpp
     integration/modulation_audio_path_test.cpp
     integration/processor_audio_output_test.cpp
+    integration/processor_lifecycle_state_test.cpp
+    integration/processor_stereo_test.cpp
+    integration/processor_sweep_test.cpp
     integration/chaos_distortion_wiring_test.cpp
     integration/multi_node_distortion_test.cpp
     integration/bitcrush_noise_repro_test.cpp
+    integration/processor_cpu_test.cpp
+    integration/processor_rate_parity_test.cpp
+    integration/processor_automation_test.cpp
 
     # Integration tests - DataExchange spectrum pipeline
     integration/data_exchange_spectrum_test.cpp
+    # Displays keep receiving audio across reactivations; teardown in any order is safe
+    integration/display_delivery_test.cpp
 
     # Controller sources (needed for DataExchange integration tests)
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/controller.cpp
@@ -143,6 +186,7 @@ add_executable(disrumpo_tests
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/views/custom_curve_editor.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/views/dynamic_node_selector.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/views/node_editor_border.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/views/level_meter_view.cpp
 
     # Stubs for GetPluginFactory/moduleHandle + SDK symbols (needed by vstgui_support on Linux)
     vstgui_test_stubs.cpp
@@ -171,6 +215,7 @@ target_include_directories(disrumpo_tests
 target_compile_definitions(disrumpo_tests
     PRIVATE
         DISRUMPO_RESOURCES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../resources"
+        DISRUMPO_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/fixtures"
 )
 
 target_compile_features(disrumpo_tests PRIVATE cxx_std_20)
@@ -200,13 +245,31 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         dsp/sweep_envelope_tests.cpp
         integration/sweep_band_intensity_test.cpp
         integration/processor_audio_output_test.cpp
+        integration/processor_lifecycle_state_test.cpp
+        integration/processor_stereo_test.cpp
+        integration/processor_sweep_test.cpp
+        dsp/type_render_matrix_test.cpp
+        dsp/morph_continuity_test.cpp
+        integration/processor_rate_parity_test.cpp
+        integration/processor_automation_test.cpp
         unit/spectrum_analyzer_test.cpp
+        unit/test_support_smoke_test.cpp
+        unit/meter_window_test.cpp
         PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only -ffp-contract=off"
     )
 endif()
 
 # CTest Integration
 catch_discover_tests(disrumpo_tests REPORTER console)
+
+# editor.uidesc geometry lint (audit T3.03, D-152): no overlap outside the audited allow list, nothing out of bounds.
+find_program(KRATE_NODE_EXECUTABLE node)
+if(KRATE_NODE_EXECUTABLE)
+    add_test(NAME disrumpo_uidesc_inventory
+        COMMAND ${KRATE_NODE_EXECUTABLE} tools/uidesc-inventory.js plugins/disrumpo/resources/editor.uidesc --check
+                --allow plugins/disrumpo/tests/uidesc_overlaps_allowed.json
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+endif()
 
 # Precompiled Catch2 + STL when KRATE_TEST_PCH is ON (cmake/KrateTestPch.cmake); after the per-source flag blocks above.
 krate_test_pch(disrumpo_tests)

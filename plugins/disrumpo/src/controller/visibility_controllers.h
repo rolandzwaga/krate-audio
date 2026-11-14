@@ -19,11 +19,15 @@
 #include "vstgui/lib/cframe.h"
 #include "vstgui/lib/controls/ccontrol.h"
 
+#include "controller/keyboard_shortcut_handler.h"
 #include "controller/views/spectrum_display.h"
 
+#include <array>
 #include <atomic>
 #include <functional>
 #include <initializer_list>
+#include <memory>
+#include <utility>
 #include <vector>
 
 namespace Disrumpo {
@@ -156,6 +160,25 @@ public:
         }
     }
 
+    /// @brief Show the container while @p visibleFor(the watched parameter's normalized value) holds.
+    ContainerVisibilityController(
+        VSTGUI::VST3Editor** editorPtr,
+        Steinberg::Vst::Parameter* watchedParam,
+        Steinberg::int32 containerTag,
+        std::function<bool(double)> visibleFor)
+    : editorPtr_(editorPtr)
+    , watchedParam_(watchedParam)
+    , containerTag_(containerTag)
+    , threshold_(0.5f)
+    , visibleFor_(std::move(visibleFor))
+    {
+        if (watchedParam_) {
+            watchedParam_->addRef();
+            watchedParam_->addDependent(this);
+            watchedParam_->deferUpdate();
+        }
+    }
+
     ~ContainerVisibilityController() override {
         deactivate();
         if (watchedParam_) {
@@ -183,6 +206,9 @@ public:
             bool shouldBeVisible = showWhenBelow_ ?
                 (normalizedValue < threshold_) :
                 (normalizedValue >= threshold_);
+            if (visibleFor_) {
+                shouldBeVisible = visibleFor_(watchedParam_->getNormalized());
+            }
 
             auto* container = findContainerByTag(containerTag_);
             if (container) {
@@ -229,7 +255,8 @@ private:
     Steinberg::Vst::Parameter* watchedParam_;
     Steinberg::int32 containerTag_;
     float threshold_;
-    bool showWhenBelow_;
+    bool showWhenBelow_ = true;
+    std::function<bool(double)> visibleFor_;  // replaces the threshold when set
     std::atomic<bool> isActive_{true};
 };
 
@@ -356,9 +383,12 @@ private:
 
 class BandCountDisplayController : public Steinberg::FObject {
 public:
+    /// @param keyboardHandlerPtr optional owner slot of the keyboard handler, which
+    ///        cycles Tab focus over the active bands (D-068)
     BandCountDisplayController(
         SpectrumDisplay** displayPtr,
-        Steinberg::Vst::Parameter* bandCountParam);
+        Steinberg::Vst::Parameter* bandCountParam,
+        std::unique_ptr<KeyboardShortcutHandler>* keyboardHandlerPtr = nullptr);
 
     ~BandCountDisplayController() override;
     void deactivate();
@@ -369,6 +399,31 @@ public:
 private:
     SpectrumDisplay** displayPtr_;
     Steinberg::Vst::Parameter* bandCountParam_;
+    std::unique_ptr<KeyboardShortcutHandler>* keyboardHandlerPtr_;
+    std::atomic<bool> isActive_{true};
+};
+
+// ==============================================================================
+// CrossoverParamObserver: SpectrumDisplay dividers follow the crossover params
+// ==============================================================================
+
+class CrossoverParamObserver : public Steinberg::FObject {
+public:
+    static constexpr int kNumCrossovers = 3;
+
+    CrossoverParamObserver(
+        SpectrumDisplay** displayPtr,
+        const std::array<Steinberg::Vst::Parameter*, kNumCrossovers>& crossoverParams);
+
+    ~CrossoverParamObserver() override;
+    void deactivate();
+    void PLUGIN_API update(Steinberg::FUnknown* changedUnknown, Steinberg::int32 message) override;
+
+    OBJ_METHODS(CrossoverParamObserver, FObject)
+
+private:
+    SpectrumDisplay** displayPtr_;
+    std::array<Steinberg::Vst::Parameter*, kNumCrossovers> params_;
     std::atomic<bool> isActive_{true};
 };
 
@@ -396,39 +451,21 @@ private:
 };
 
 // ==============================================================================
-// MorphSweepLinkController: Update morph position based on sweep frequency
-// ==============================================================================
-
-class MorphSweepLinkController : public Steinberg::FObject {
-public:
-    MorphSweepLinkController(
-        Steinberg::Vst::EditControllerEx1* controller,
-        Steinberg::Vst::Parameter* sweepFreqParam);
-
-    ~MorphSweepLinkController() override;
-    void deactivate();
-    void PLUGIN_API update(Steinberg::FUnknown* changedUnknown, Steinberg::int32 message) override;
-
-    OBJ_METHODS(MorphSweepLinkController, FObject)
-
-private:
-    void updateBandMorphFromSweep(uint8_t band, float sweepNorm);
-
-    Steinberg::Vst::EditControllerEx1* controller_;
-    Steinberg::Vst::Parameter* sweepFreqParam_;
-    std::atomic<bool> isActive_{true};
-};
-
-// ==============================================================================
 // NodeSelectionController: Bidirectional sync between DisplayedType and nodes
 // ==============================================================================
 
+struct ShapeShadowStorage;
+
 class NodeSelectionController : public Steinberg::FObject {
 public:
+    static constexpr int kNumNodes = 4;
+    /// Per-type shape memory of each node of one band (indexed by node).
+    using NodeShapeShadows = std::array<ShapeShadowStorage, kNumNodes>;
+
     NodeSelectionController(
         Steinberg::Vst::EditControllerEx1* controller,
         uint8_t band,
-        struct ShapeShadowStorage* shadowStorage = nullptr);
+        NodeShapeShadows* shapeShadows = nullptr);
 
     ~NodeSelectionController() override;
     void deactivate();
@@ -439,22 +476,36 @@ public:
 private:
     int getSelectedNode() const;
     bool isProxyParam(Steinberg::Vst::Parameter* param) const;
+    bool findNodeParam(Steinberg::Vst::Parameter* param, int& node, int& proxyIndex) const;
     void editParam(Steinberg::Vst::ParamID id, double normValue);
     void copySelectedNodeToDisplayedType();
     void copySelectedNodeToProxies();
     void copyProxyToSelectedNode(Steinberg::Vst::Parameter* changedProxy);
+    void copySelectedNodeParamToProxy(int proxyIndex);
     void copyDisplayedTypeToSelectedNode();
+    /// The selected node's type's Bias slot (biasShapeSlot), or -1.
+    int selectedBiasSlot() const;
+    /// Show on the Bias knob what sets the selected node's bias: its type's Bias slot, else kNodeBias.
+    void syncBiasProxy();
+    /// Edit the selected node's Bias slot to @p value (and kNodeBias, which mirrors it), and move
+    /// the knob of proxy @p otherProxy (the Bias knob or the slot's) to it (user ruling 2026-11-10).
+    void editBiasSlot(double value, int otherProxy);
+
+    static constexpr int kBiasProxy = 3;        // index of the Bias proxy (kProxyIndexToNodeParam)
+    static constexpr int kFirstShapeProxy = 4;  // index of the Shape0 proxy
 
     Steinberg::Vst::EditControllerEx1* controller_;
     uint8_t band_;
     Steinberg::Vst::Parameter* selectedNodeParam_ = nullptr;
-    Steinberg::Vst::Parameter* nodeTypeParams_[4] = {nullptr, nullptr, nullptr, nullptr};
+    Steinberg::Vst::Parameter* nodeTypeParams_[kNumNodes] = {nullptr, nullptr, nullptr, nullptr};
     Steinberg::Vst::Parameter* displayedTypeParam_ = nullptr;
     static constexpr int kNumProxyParams = 14;  // Drive, Mix, Tone, Bias, Shape0-9
     Steinberg::Vst::Parameter* proxyParams_[kNumProxyParams] = {};
+    /// Real node params behind the proxies, [node][proxy index]; watched so automation moves the knobs.
+    Steinberg::Vst::Parameter* nodeParams_[kNumNodes][kNumProxyParams] = {};
     std::atomic<bool> isActive_{true};
     bool isUpdating_ = false;
-    struct ShapeShadowStorage* shapeShadowPtr_ = nullptr;
+    NodeShapeShadows* shapeShadows_ = nullptr;
 };
 
 // ==============================================================================

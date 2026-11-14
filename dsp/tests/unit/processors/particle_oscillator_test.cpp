@@ -805,6 +805,61 @@ TEST_CASE("ParticleOscillator Regular mode produces evenly spaced onsets",
     }
 }
 
+// Ruinae's processor re-sends every oscillator parameter at the top of each
+// process() call, so setSpawnMode() arrives once per host block with the mode
+// the oscillator already has. It used to restart the spawn countdown, spawning a
+// particle at the start of every block on top of the density schedule: at
+// 64-sample blocks that is ~690 spawns/s against 50/s for density 20 and 400 ms,
+// so the swarm filled all 64 slots and played ~5 dB louder than at 512-sample
+// blocks (Ruinae preset "Modulation Maze", oscillator B). Re-setting the same
+// mode must leave the schedule alone, so the output cannot depend on the block size.
+TEST_CASE("ParticleOscillator output does not depend on the block size when parameters are re-sent per block",
+          "[ParticleOscillator][population][block_size]") {
+    constexpr size_t kNumSamples = 44100 * 2;
+    const auto render = [](SpawnMode mode, size_t blockSize) {
+        ParticleOscillator osc;
+        osc.prepare(44100.0);
+        osc.seed(42);
+        std::vector<float> out(kNumSamples, 0.0f);
+        for (size_t pos = 0; pos < kNumSamples; pos += blockSize) {
+            // What Ruinae's applyParamsToEngine() does once per block.
+            osc.setFrequency(261.63f);
+            osc.setFrequencyScatter(5.0f);
+            osc.setDensity(20.0f);
+            osc.setLifetime(400.0f);
+            osc.setSpawnMode(mode);
+            osc.setEnvelopeType(GrainEnvelopeType::Blackman);
+            osc.setDriftAmount(0.3f);
+            const size_t n = std::min(blockSize, kNumSamples - pos);
+            osc.processBlock(out.data() + pos, n);
+        }
+        return out;
+    };
+
+    for (SpawnMode mode : {SpawnMode::Regular, SpawnMode::Random}) {
+        const auto reference = render(mode, 4096);
+        const float refRms = computeRMS(reference.data(), kNumSamples);
+        REQUIRE(refRms > 0.01f);  // not vacuous
+
+        for (size_t blockSize : {32u, 64u, 512u, 1000u}) {
+            const auto out = render(mode, blockSize);
+            float maxDiff = 0.0f;
+            for (size_t i = 0; i < kNumSamples; ++i) {
+                maxDiff = std::max(maxDiff, std::abs(out[i] - reference[i]));
+            }
+            // Spawning is scheduled per sample from one seeded generator, so a
+            // block-size independent schedule renders the same samples; 1e-6
+            // (-120 dB) only absorbs float noise. A schedule that restarts per
+            // block differs by whole particles (order of the signal).
+            INFO("mode " << static_cast<int>(mode) << ", block size " << blockSize
+                 << ": max |diff| " << maxDiff << ", RMS "
+                 << 20.0f * std::log10(computeRMS(out.data(), kNumSamples))
+                 << " dB vs " << 20.0f * std::log10(refRms) << " dB at 4096");
+            CHECK(maxDiff <= 1e-6f);
+        }
+    }
+}
+
 // T075: Random mode produces stochastic onsets (CV > 0.3)
 TEST_CASE("ParticleOscillator Random mode produces stochastic onsets",
           "[ParticleOscillator][population]") {
