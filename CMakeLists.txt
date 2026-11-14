@@ -289,6 +289,10 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
         target_compile_options(vstgui_wayland_protocols PRIVATE -Wno-suggest-override)
     endif()
 endif()
+# MSVC: C4267 (size_t -> int) in ctexteditor.cpp; third-party source we cannot modify.
+if(MSVC AND TARGET vstgui)
+    target_compile_options(vstgui PRIVATE /wd4267)
+endif()
 
 # ==============================================================================
 # Testing Configuration (Constitution Principle VIII)
@@ -367,6 +371,11 @@ set(INSTALL_PFDSP OFF CACHE BOOL "" FORCE)
 set(INSTALL_PFFASTCONV OFF CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(pffft)
 smtg_target_setup_universal_binary(PFFFT)
+# pffft always defines PFDSP (mixer / carrier / CIC helpers) when float is on, with no option to skip it. Nothing
+# here links it, and its pf_cic.cpp raises MSVC C4244 x4: keep it out of the default build.
+if(TARGET PFDSP)
+    set_target_properties(PFDSP PROPERTIES EXCLUDE_FROM_ALL ON)
+endif()
 
 # ==============================================================================
 # cpp-httplib (header-only HTTP/HTTPS client, MIT license)
