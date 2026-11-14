@@ -1,0 +1,159 @@
+name: TSan Nightly
+
+# ============================================================================
+# Nightly ThreadSanitizer run over the tests that run code on more than one thread.
+# ============================================================================
+# TSan finds data races and lock-order inversions, but only in code that runs on
+# several threads during the run, at 5-15x native. Most suites are single-
+# threaded, so tools/tsan-scope.js picks the test files that spawn threads
+# (std::thread / std::jthread / std::async) straight from the sources: --targets
+# names the executables that compile them, --filter selects their cases by
+# Catch2 file tag ([#<file>], run with -#), minus [long], perf and [wallclock].
+# A new threaded test is in scope the night it lands; nothing is tagged by hand.
+#
+# TSan cannot share a build with ASan (sanitizers-nightly.yml), so it has its
+# own build tree. Any report halts the executable and fails its shard; the
+# report is in the uploaded gate logs.
+#
+# Change gate: as valgrind-nightly.yml - the scheduled run happens only when
+# code under test changed since the last run that actually tested
+# (tools/nightly-change-gate.js); workflow_dispatch always runs.
+# ============================================================================
+
+on:
+  schedule:
+    # 06:07 UTC daily: after valgrind-nightly (05:17), so the nightlies do not queue against each other.
+    - cron: '7 6 * * *'
+  workflow_dispatch: {}
+
+concurrency:
+  group: tsan-nightly
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  actions: read  # the change gate reads this workflow's previous runs and their jobs
+
+env:
+  BUILD_TYPE: Release
+  CCACHE_MAXSIZE: 500M
+  CCACHE_COMPRESS: true
+  CCACHE_COMPRESSLEVEL: 6
+
+jobs:
+  # Same change gate as valgrind-nightly.yml (tools/nightly-change-gate.js).
+  check-activity:
+    name: Check for relevant changes
+    runs-on: ubuntu-latest  # runner-pin-ok: git diff and API calls only; run-gate.js is a path in its list
+    outputs:
+      should_run: ${{ steps.check.outputs.should_run }}
+    steps:
+      # Full history without blobs: enough for `git diff --name-only <last tested commit> HEAD`.
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          filter: blob:none
+      - name: Did code under test change since the last tested run?
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          node tools/nightly-change-gate.js --workflow tsan-nightly.yml -- \
+            dsp plugins tests extern cmake CMakeLists.txt CMakePresets.json \
+            tools/tsan-scope.js tools/run-gate.js .github/workflows/tsan-nightly.yml
+
+  tsan:
+    name: Linux ThreadSanitizer (threaded tests)
+    runs-on: ubuntu-24.04  # pinned with ci.yml build-linux (compiler determinism)
+    needs: check-activity
+    if: needs.check-activity.outputs.should_run == 'true'
+    timeout-minutes: 180
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: recursive
+
+      # Direct apt install, not awalsh128/cache-apt-pkgs-action: the action
+      # restored its cache and reported success while /usr/include/X11 was
+      # absent (CI build-linux and the Vorago 1.0.0 release both died on
+      # "Could NOT find X11").
+      - name: Install Linux build dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends \
+            ninja-build libx11-dev libxcb1-dev libxkbcommon-x11-dev libx11-xcb-dev \
+            libxcb-util1 libxcb-util-dev libxcb-keysyms1-dev libxcb-cursor-dev \
+            libxcb-xkb-dev libxkbcommon-dev libfontconfig1-dev libfreetype6-dev \
+            libcairo2-dev libgtkmm-3.0-dev libsqlite3-dev
+          test -f /usr/include/X11/Xlib.h || { echo "libx11-dev did not install"; exit 1; }
+
+      # The runner kernel randomises mmap with more bits than TSan's fixed shadow layout allows, and every TSan
+      # executable then dies at start-up ("unexpected memory mapping"). 28 bits is the long-standing default.
+      - name: Make the address-space layout TSan-compatible
+        run: sudo sysctl vm.mmap_rnd_bits=28
+
+      - name: Setup ccache
+        uses: hendrikmuhs/ccache-action@f09c25b45002a07be2955cbe52e8cee55643f89d # v1.2.24
+        with:
+          key: linux-tsan-${{ env.BUILD_TYPE }}
+          max-size: ${{ env.CCACHE_MAXSIZE }}
+
+      - name: Cache FetchContent
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: build-tsan/_deps
+          key: fetchcontent-${{ github.repository }}-${{ runner.os }}-tsan-${{ hashFiles('**/CMakeLists.txt') }}
+          restore-keys: |
+            fetchcontent-${{ github.repository }}-${{ runner.os }}-tsan-
+
+      - name: Scope (threaded test files and their executables)
+        id: scope
+        run: |
+          node tools/tsan-scope.js --self-test
+          node tools/tsan-scope.js --check
+          node tools/tsan-scope.js
+          echo "targets=$(node tools/tsan-scope.js --targets)" >> "$GITHUB_OUTPUT"
+
+      - name: Configure CMake (Release, ThreadSanitizer)
+        run: |
+          cmake -S . -B build-tsan -G Ninja \
+            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+            -DENABLE_TSAN=ON
+
+      - name: Build the scoped test executables
+        run: |
+          set -o pipefail
+          cmake --build build-tsan --parallel --target ${{ steps.scope.outputs.targets }} 2>&1 | tee build-output.log
+
+      # Zero compiler warnings (CLAUDE.md "Compiler Warnings"), as on every other build.
+      - name: Compiler warning check
+        run: |
+          node tools/check-build-warnings.js --self-test
+          node tools/check-build-warnings.js build-output.log
+
+      - name: Run the threaded tests under ThreadSanitizer
+        timeout-minutes: 120
+        env:
+          TSAN_OPTIONS: halt_on_error=1 second_deadlock_stack=1
+        run: |
+          node tools/run-gate.js --bin "build-tsan/bin/${{ env.BUILD_TYPE }}" --out build-tsan/gate-logs \
+            --filenames-as-tags true --filter "$(node tools/tsan-scope.js --filter)" \
+            ${{ steps.scope.outputs.targets }}
+
+      - name: Upload gate logs
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: tsan-gate-logs
+          path: build-tsan/gate-logs
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Show ccache stats
+        if: always()
+        run: ccache --show-stats

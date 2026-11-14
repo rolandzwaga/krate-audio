@@ -171,6 +171,28 @@ if(ENABLE_UBSAN)
     endif()
 endif()
 
+# ThreadSanitizer (GCC / Clang): data races and lock-order inversions in code that runs on more than one thread.
+# Cannot share a build with ASan. -Wno-tsan: GCC warns that std::atomic_thread_fence is not modelled under TSan; the
+# fences in shipped code are seqlocks whose payload words are themselves atomics (Disrumpo shared_display.h, Profundum
+# processor.cpp), and TSan never reports a race between two atomic accesses, so the warning is about modelling only.
+# Usage: cmake -DENABLE_TSAN=ON ...   (tsan-nightly.yml, Linux; scope: tools/tsan-scope.js)
+option(ENABLE_TSAN "Enable ThreadSanitizer (GCC/Clang)" OFF)
+if(ENABLE_TSAN)
+    if(ENABLE_ASAN)
+        message(FATAL_ERROR "[KRATE] ENABLE_TSAN and ENABLE_ASAN cannot share a build")
+    endif()
+    if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+        add_compile_options(-fsanitize=thread -fno-omit-frame-pointer -g)
+        if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+            add_compile_options(-Wno-tsan)
+        endif()
+        add_link_options(-fsanitize=thread)
+        message(STATUS "[KRATE] ThreadSanitizer ENABLED (-fsanitize=thread)")
+    else()
+        message(WARNING "[KRATE] ThreadSanitizer not supported for this compiler")
+    endif()
+endif()
+
 # ==============================================================================
 # Build-Time Instrumentation (opt-in, OFF by default)
 # ==============================================================================

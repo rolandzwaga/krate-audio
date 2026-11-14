@@ -70,6 +70,8 @@ const LINTS = [
     { script: 'nightly-change-gate.js', args: ['--self-test'], what: 'nightly change-gate self-test (the valgrind / long-tests / sanitizer nightlies run it)' },
     { script: 'lint-nightly-change-gate.js', args: ['--self-test'], what: 'nightly change-gate lint self-test' },
     { script: 'lint-nightly-change-gate.js', what: 'scheduled build/test workflow not gated by tools/nightly-change-gate.js' },
+    { script: 'tsan-scope.js', args: ['--self-test'], what: 'TSan scope self-test (tsan-nightly.yml runs it)' },
+    { script: 'tsan-scope.js', args: ['--check'], what: 'threaded test file in no executable (the TSan nightly cannot run it)' },
     { script: 'lint-workflow-triggers.js', args: ['--self-test'], what: 'workflow-trigger lint self-test' },
     { script: 'lint-workflow-triggers.js', what: 'workflow run twice per PR commit, without a concurrency group, or cancelling its own callers' },
 ];

@@ -41,6 +41,8 @@
 //   --share N  N gates run at the same time (parallel agents, lanes): this one takes (cpu count - 2) / N workers.
 //   --wallclock-workers W  width of the quiet [wallclock] pass (default 4).
 //   --case-times <file>  also write each test case's seconds (Catch2 --durations yes), slowest first.
+//   --filenames-as-tags true  run Catch2 with -# so a filter can name source files as [#<file>] (tsan-nightly.yml,
+//             fed by tools/tsan-scope.js --filter).
 //   Defaults: workers = cpu count - 2, shards-per-exe = 4 x workers, out = f:/tmp/gate/<timestamp> (Windows) or <os tmpdir>/gate/<timestamp>,
 //             bin = build/windows-x64-release/bin/Release.
 // Writes <out>/<exe>-<k>.log per shard (its case list in <exe>-<k>.cases) and <out>/shard-times.tsv (one row per
@@ -89,6 +91,8 @@ const BIN = path.resolve(opts.bin || 'build/windows-x64-release/bin/Release');
 // seconds), slowest first. The CI [long] lane deals its cases to shards by these times (tools/ci-test-shard.js);
 // they are measured under the full worker pool, so they rank cases, they are not standalone timings.
 const CASE_TIMES = opts['case-times'] ? path.resolve(opts['case-times']) : '';
+// -# (Catch2 --filenames-as-tags) on every listing and run, so the filter can select [#<file>] tags.
+const FILE_TAGS = opts['filenames-as-tags'] === 'true' ? ['-#'] : [];
 const listedNames = new Map();  // exe -> Set of listed case names (only test-case durations are kept, not sections)
 const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\..*/, '').replace('T', '-');
 // f:/tmp is the Windows dev box's scratch drive; elsewhere 'f:/tmp' is a relative path and made a folder named "f:"
@@ -118,7 +122,7 @@ function capture(exe, argv) {
         child.on('error', (err) => resolve({ rc: -1, text: String(err) }));
     });
 }
-const LIST = ['--list-tests', '--verbosity', 'quiet', '--order', 'decl'];
+const LIST = ['--list-tests', '--verbosity', 'quiet', '--order', 'decl', ...FILE_TAGS];
 // Quiet listing prints one name per line, a name starting with '#' in quotes (catch_reporter_helpers.cpp).
 const parseList = (text) => text.split(/\r?\n/).filter((l) => l.trim() !== '').map((l) => (/^"#.*"$/.test(l) ? l.slice(1, -1) : l));
 // One input-file line (catch_test_spec_parser.cpp): inside a quoted name '\' escapes the next character, an unescaped
@@ -199,7 +203,8 @@ function runOne(job) {
     return new Promise((resolve) => {
         const log = path.join(OUT, `${job.exe}-${job.pass === 2 ? 'wallclock-' : ''}${job.k}.log`);
         // --order decl: Catch2 >= 3.9 defaults to random order, which re-seeds every shard and breaks disjoint coverage.
-        const argv = [...job.argv, '--allow-running-no-tests', '--order', 'decl', ...(CASE_TIMES ? ['--durations', 'yes'] : [])];
+        const argv = [...job.argv, '--allow-running-no-tests', '--order', 'decl', ...FILE_TAGS,
+            ...(CASE_TIMES ? ['--durations', 'yes'] : [])];
         const s0 = Date.now();
         const run = crashDumps.wrap(exePath(job.exe), argv);
         const child = spawn(run.cmd, run.args, { cwd: process.cwd(), env: run.env, windowsHide: true });
