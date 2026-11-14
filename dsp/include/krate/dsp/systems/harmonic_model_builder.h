@@ -261,12 +261,18 @@ private:
             return amplitude;
         }
 
-        // Copy valid entries and find median
+        // Copy valid entries and find median. Insertion sort, not std::sort: at most kMedianWindowSize entries,
+        // and GCC 13 flags std::sort's never-taken introsort branch on a 5-element array (-Warray-bounds,
+        // -Wstringop-overflow, 2026-11-14).
         std::array<float, kMedianWindowSize> sorted{};
-        for (size_t i = 0; i < count; ++i) {
-            sorted[i] = buffer[i];
+        for (size_t i = 0; i < count && i < kMedianWindowSize; ++i) {
+            const float v = buffer[i];
+            size_t j = i;
+            for (; j > 0 && sorted[j - 1] > v; --j) {
+                sorted[j] = sorted[j - 1];
+            }
+            sorted[j] = v;
         }
-        std::sort(sorted.begin(), sorted.begin() + count);
 
         return sorted[count / 2];
     }

@@ -424,7 +424,9 @@ Skip for docs-only, CI config, or test-only changes.
 
 ### Compiler Warnings
 
-All code must compile with ZERO warnings. Common fixes:
+All code must compile with ZERO warnings, third-party targets included (silence those per target in
+`CMakeLists.txt`, never globally). Gated in CI by `tools/check-build-warnings.js` on every build log, all three OSes.
+Common fixes:
 
 | Warning | Fix |
 |---------|-----|

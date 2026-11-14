@@ -427,10 +427,18 @@ jobs:
           case " $TARGETS " in *" validator "*) ;; *) [ -n "$TARGETS" ] && TARGETS="$TARGETS validator" ;; esac
           if [ -n "$TARGETS" ]; then
             echo "Building targets:$TARGETS"
-            cmake --build build --config ${{ env.BUILD_TYPE }} --parallel --target $TARGETS
+            set -o pipefail
+            cmake --build build --config ${{ env.BUILD_TYPE }} --parallel --target $TARGETS 2>&1 | tee build-output.log
           else
             echo "No targets to build"
           fi
+
+      # Zero compiler warnings (CLAUDE.md "Compiler Warnings"): nothing builds with /WX, so the build log is checked.
+      - name: Compiler warning check
+        shell: bash
+        run: |
+          node tools/check-build-warnings.js --self-test
+          if [ -f build-output.log ]; then node tools/check-build-warnings.js build-output.log; else echo "No build ran"; fi
 
       # The tests run in the test-windows shard jobs at the end of this file (tools/ci-test-shard.js), not
       # here: this job writes the manifest of suites that change detection selected and uploads the test
@@ -709,22 +717,30 @@ jobs:
               AU_TARGETS="$AU_TARGETS $au_target"
             fi
           done
+          set -o pipefail
           # Phase 1: Build VST3 plugins, AUv3, and tests in parallel
           if [ -n "$TARGETS" ]; then
             echo "Phase 1 - Building targets (parallel):$TARGETS"
-            cmake --build build --config ${{ env.BUILD_TYPE }} --parallel --target $TARGETS
+            cmake --build build --config ${{ env.BUILD_TYPE }} --parallel --target $TARGETS 2>&1 | tee -a build-output.log
           fi
           # Phase 2: Build AU v2 targets one at a time (avoids AudioUnitSDK DB lock)
           if [ -n "$AU_TARGETS" ]; then
             echo "Phase 2 - Building AU targets (sequential):$AU_TARGETS"
             for au in $AU_TARGETS; do
               echo "  Building $au..."
-              cmake --build build --config ${{ env.BUILD_TYPE }} --target $au
+              cmake --build build --config ${{ env.BUILD_TYPE }} --target $au 2>&1 | tee -a build-output.log
             done
           fi
           if [ -z "$TARGETS" ] && [ -z "$AU_TARGETS" ]; then
             echo "No targets to build"
           fi
+
+      # Zero compiler warnings (CLAUDE.md "Compiler Warnings"): nothing builds with -Werror, so the build log is checked.
+      - name: Compiler warning check
+        shell: bash
+        run: |
+          node tools/check-build-warnings.js --self-test
+          if [ -f build-output.log ]; then node tools/check-build-warnings.js build-output.log; else echo "No build ran"; fi
 
       # The tests run in the test-macos shard jobs at the end of this file (tools/ci-test-shard.js), not
       # here: this job writes the manifest of suites that change detection selected and uploads the test
@@ -1238,10 +1254,18 @@ jobs:
           case " $TARGETS " in *" validator "*) ;; *) [ -n "$TARGETS" ] && TARGETS="$TARGETS validator" ;; esac
           if [ -n "$TARGETS" ]; then
             echo "Building targets:$TARGETS"
-            cmake --build build --parallel --target $TARGETS
+            set -o pipefail
+            cmake --build build --parallel --target $TARGETS 2>&1 | tee build-output.log
           else
             echo "No targets to build"
           fi
+
+      # Zero compiler warnings (CLAUDE.md "Compiler Warnings"): nothing builds with -Werror, so the build log is checked.
+      - name: Compiler warning check
+        shell: bash
+        run: |
+          node tools/check-build-warnings.js --self-test
+          if [ -f build-output.log ]; then node tools/check-build-warnings.js build-output.log; else echo "No build ran"; fi
 
       # The tests run in the test-linux shard jobs at the end of this file (tools/ci-test-shard.js), not
       # here: this job writes the manifest of suites that change detection selected and uploads the test

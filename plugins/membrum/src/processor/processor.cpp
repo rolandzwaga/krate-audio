@@ -46,30 +46,6 @@ namespace Membrum {
 using namespace Steinberg;
 using namespace Steinberg::Vst;
 
-namespace {
-
-// Helper: apply a normalized parameter change to a voice for a given pad offset.
-// Used by processParameterChanges to update currently-sounding voices when a
-// per-pad param changes. This is the Phase 4 replacement for the Phase 2/3
-// "broadcast to all voices" approach.
-void applyPadParamToMatchingVoices(VoicePool& pool, int padIndex, int offset,
-                                   float fValue,
-                                   [[maybe_unused]] const VoiceMeta* meta,
-                                   int maxPolyphony) noexcept
-{
-    // In Phase 4, parameter changes take effect on the next noteOn (pad config
-    // is read at noteOn time). Currently-sounding voices are NOT modified.
-    // This matches the spec: "does NOT touch currently sounding voices".
-    (void)pool;
-    (void)padIndex;
-    (void)offset;
-    (void)fValue;
-    (void)meta;
-    (void)maxPolyphony;
-}
-
-} // namespace
-
 Processor::Processor()
 {
     setControllerClass(kControllerUID);

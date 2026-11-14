@@ -1031,13 +1031,13 @@ TonalityScore measureTonality(Fixture& f, int16 midi, float velocity = 1.0f)
     // healthy drum has peakLast/peakFirst ≪ 1; a flat beep has it
     // close to 1.
     float peakFirst = 0.0f, peakLast = 0.0f;
-    int firstAudibleIdx = -1, lastAudibleIdx = -1;
+    int firstAudibleIdx = -1;
     for (int w = 0; w < kWindows; ++w)
     {
         if (winPeak[w] > kAudibleThresh)
         {
             if (firstAudibleIdx < 0) { firstAudibleIdx = w; peakFirst = winPeak[w]; }
-            lastAudibleIdx = w; peakLast = winPeak[w];
+            peakLast = winPeak[w];
         }
     }
     const float peakRatio = (peakFirst > 0.0f) ? (peakLast / peakFirst) : 0.0f;
@@ -1556,16 +1556,6 @@ TEST_CASE("Kick→snare on multi-bus configuration",
         events.clear();
     };
 
-    auto blockPeak = [&]() {
-        float p = 0.0f;
-        for (int i = 0; i < kBlocks; ++i)
-        {
-            p = std::max(p, std::fabs(bufL[0][i]));
-            p = std::max(p, std::fabs(bufR[0][i]));
-        }
-        return p;
-    };
-
     events.noteOn(36, 0, 0.787f);
     renderBlock();
     for (int i = 0; i < 8; ++i) renderBlock();
@@ -1934,31 +1924,6 @@ TEST_CASE("Diagnostic: hat hit dominant-frequency capture",
     // Hit pad 6 (closed hat = MIDI 42).
     f.events.noteOn(/*hat=*/ 42, 0, 1.0f);
     f.renderBlock();
-
-    // Capture across the hit, sampling 50 ms windows at t = 0.05, 0.1,
-    // 0.15, 0.2 s and reporting peak + zero-crossing frequency at each.
-    auto measureWindow = [&](float startSec, const char* label)
-    {
-        constexpr int kCapture = 4096;
-        std::vector<float> capture;
-        capture.reserve(kCapture);
-        while (capture.size() < static_cast<std::size_t>(kCapture))
-        {
-            f.renderBlock();
-            for (int i = 0; i < kBlockSize && capture.size() < kCapture; ++i)
-                capture.push_back(f.outL[i]);
-        }
-        float peak = 0.0f;
-        for (float s : capture) peak = std::max(peak, std::fabs(s));
-        int crossings = 0;
-        for (std::size_t i = 1; i < capture.size(); ++i)
-            if ((capture[i - 1] >= 0.0f) != (capture[i] >= 0.0f))
-                ++crossings;
-        const float dominantHz = (crossings * 0.5f * static_cast<float>(kSampleRate))
-                                 / static_cast<float>(capture.size());
-        WARN(label << " @ " << startSec << " s: peak=" << peak
-             << "  dominant frequency ≈ " << dominantHz << " Hz");
-    };
 
     // Trace voice state every 50 ms for 1.5 s.
     const int blocksPer50ms = blocksPerSecond() / 20;

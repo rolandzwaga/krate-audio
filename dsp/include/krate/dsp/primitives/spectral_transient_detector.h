@@ -133,8 +133,9 @@ public:
 
         const std::size_t effectiveBins = std::min(numBins, numBins_);
 
-        // Edge case: zero effective bins
-        if (effectiveBins == 0) {
+        // Edge case: zero effective bins, or no data (a null pointer would otherwise reach std::copy below:
+        // GCC -Wnonnull, 2026-11-14)
+        if (effectiveBins == 0 || magnitudes == nullptr) {
             lastFlux_ = 0.0f;
             transientDetected_ = false;
             // Update running average with flux=0

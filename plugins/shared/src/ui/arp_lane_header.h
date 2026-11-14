@@ -380,7 +380,7 @@ public:
 
             context->setFontColor(labelColor);
 
-            char speedBuf[8];
+            char speedBuf[16];  // "%dx" of any int fits (GCC -Wformat-truncation)
             if (speedMultiplier_ == static_cast<int>(speedMultiplier_))
                 snprintf(speedBuf, sizeof(speedBuf), "%dx", static_cast<int>(speedMultiplier_));
             else
@@ -545,7 +545,7 @@ private:
 
         int currentIdx = 3; // default 1x
         for (int i = 0; i < kSpeedCount; ++i) {
-            char buf[8];
+            char buf[16];  // "%dx" of any int fits (GCC -Wformat-truncation)
             if (kSpeedValues[i] == static_cast<int>(kSpeedValues[i]))
                 snprintf(buf, sizeof(buf), "%dx", static_cast<int>(kSpeedValues[i]));
             else

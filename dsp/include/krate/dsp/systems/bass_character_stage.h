@@ -743,9 +743,11 @@ private:
         }
         [[nodiscard]] float pre(float x) noexcept { return preTilt.process(x); }
         [[nodiscard]] BranchOut process(float u) noexcept {
-            std::array<float, 2> buf{};
+            // Sized for the oversampler's largest factor: prepare() sets 2, but a default-constructed
+            // oversampler is 4x, and upsample() writes factor() samples (GCC -Warray-bounds, 2026-11-14).
+            std::array<float, PolyphaseHalfbandOversampler::kMaxFactor> buf{};
             os.upsample(u, buf.data());
-            stage.process(buf.data(), buf.size());
+            stage.process(buf.data(), os.factor());
             const float y = os.downsample(buf.data());
             const float l = u2;
             u2 = u1;

@@ -162,8 +162,10 @@ public:
             return false;
         }
 
-        // Shift remaining breakpoints down
-        for (int i = index; i < count_ - 1; ++i) {
+        // Shift remaining breakpoints down. count_ <= kMaxBreakpoints by construction; the bound lets GCC see it
+        // (-Wstringop-overflow on the memmove it makes of this loop, 2026-11-14).
+        const int last = std::min(count_, kMaxBreakpoints) - 1;
+        for (int i = index; i < last; ++i) {
             breakpoints_[i] = breakpoints_[i + 1];
         }
         --count_;

@@ -403,7 +403,7 @@ public:
             if (x0 + colW < bodyLeft || x0 > w) continue;
             context->setFontColor(step == playheadStep_
                 ? accentColor_ : VSTGUI::CColor{0x70, 0x70, 0x78, 0xFF});
-            char numBuf[4];
+            char numBuf[12];  // any int fits (GCC -Wformat-truncation)
             snprintf(numBuf, sizeof(numBuf), "%d", step + 1);
             VSTGUI::CRect numRect(x0, numBarTop, x0 + colW, numBarTop + kStepNumberBarH);
             context->drawString(numBuf, numRect, VSTGUI::kCenterText);

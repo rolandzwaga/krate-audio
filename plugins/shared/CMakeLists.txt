@@ -88,6 +88,9 @@ add_library(KratePluginsShared STATIC
 target_include_directories(KratePluginsShared
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+# SYSTEM: GCC otherwise reports -Wextra / -Wignored-qualifiers inside VSTGUI's own headers (vstguibase.h, cstring.h).
+target_include_directories(KratePluginsShared SYSTEM
     PRIVATE
         ${vst3sdk_SOURCE_DIR}
         ${vst3sdk_SOURCE_DIR}/vstgui4

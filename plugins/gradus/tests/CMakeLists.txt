@@ -162,6 +162,10 @@ else()
     )
 endif()
 
+# SDK source we cannot modify: memcpy / memset over PClassInfo structs (GCC -Wclass-memaccess, which -Wall enables).
+set_source_files_properties(${vst3sdk_SOURCE_DIR}/public.sdk/source/main/pluginfactory.cpp
+    PROPERTIES COMPILE_OPTIONS "$<$<CXX_COMPILER_ID:GNU>:-Wno-class-memaccess>")
+
 # CTest Integration
 catch_discover_tests(gradus_tests REPORTER console)
 

@@ -72,7 +72,6 @@ void CustomCurveEditor::drawBackground(VSTGUI::CDrawContext* context) {
 }
 
 void CustomCurveEditor::drawGrid(VSTGUI::CDrawContext* context) {
-    auto rect = getViewSize();
 
     context->setFrameColor(VSTGUI::CColor(0x2A, 0x2A, 0x30, 0xFF));
     context->setLineWidth(0.5);
@@ -180,7 +179,6 @@ void CustomCurveEditor::drawControlPoints(VSTGUI::CDrawContext* context) {
 // ==============================================================================
 
 void CustomCurveEditor::onMouseDownEvent(VSTGUI::MouseDownEvent& event) {
-    auto viewSize = getViewSize();
     float localX = static_cast<float>(event.mousePosition.x);
     float localY = static_cast<float>(event.mousePosition.y);
 

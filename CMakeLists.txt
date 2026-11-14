@@ -237,6 +237,23 @@ endif()
 set(CMAKE_CXX_CLANG_TIDY "${_SAVED_CLANG_TIDY}")
 smtg_enable_vst3_sdk()
 
+# The SDK's toolset adds -Wsuggest-override with a plain add_compile_options (SMTG_PlatformToolset.cmake, GCC), so it
+# reaches C sources too and GCC warns "valid for C++/ObjC++ but not for C" (pffft, VSTGUI's wayland protocols). Make
+# it C++-only: in this directory (every target from here on) and on the SDK's one C target, made in its own directory.
+function(krate_cxx_only_suggest_override)
+    get_directory_property(_opts COMPILE_OPTIONS)
+    list(TRANSFORM _opts REPLACE "^-Wsuggest-override$" "$<$<COMPILE_LANGUAGE:CXX>:-Wsuggest-override>")
+    set_directory_properties(PROPERTIES COMPILE_OPTIONS "${_opts}")
+    if(TARGET vstgui_wayland_protocols)
+        get_target_property(_topts vstgui_wayland_protocols COMPILE_OPTIONS)
+        if(_topts)
+            list(TRANSFORM _topts REPLACE "^-Wsuggest-override$" "$<$<COMPILE_LANGUAGE:CXX>:-Wsuggest-override>")
+            set_target_properties(vstgui_wayland_protocols PROPERTIES COMPILE_OPTIONS "${_topts}")
+        endif()
+    endif()
+endfunction()
+krate_cxx_only_suggest_override()
+
 # Suppress compiler warnings from VST3 SDK and VSTGUI headers.
 # The SDK sets PUBLIC (non-SYSTEM) include directories, which causes GCC/Clang
 # to emit warnings for third-party code we can't modify. Re-adding them as
@@ -283,10 +300,6 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     endif()
     if(TARGET vstgui_support)
         target_compile_options(vstgui_support PRIVATE -Wno-deprecated-declarations)
-    endif()
-    # -Wsuggest-override passed to C compiler for wayland protocol .c files
-    if(TARGET vstgui_wayland_protocols)
-        target_compile_options(vstgui_wayland_protocols PRIVATE -Wno-suggest-override)
     endif()
 endif()
 # MSVC: C4267 (size_t -> int) in ctexteditor.cpp; third-party source we cannot modify.
@@ -350,6 +363,10 @@ FetchContent_MakeAvailable(highway)
 # macOS universal binary (x86_64 + arm64) - must match KrateDSP/plugin targets
 smtg_target_setup_universal_binary(hwy)
 smtg_target_setup_universal_binary(hwy_contrib)
+# Every consumer (Profundum's goertzel_bank_simd.cpp links hwy directly) sees Highway's headers as SYSTEM: GCC's
+# -Wpedantic otherwise reports its __int128 use in hwy/base.h.
+smtg_mark_includes_as_system(hwy)
+smtg_mark_includes_as_system(hwy_contrib)
 
 # ==============================================================================
 # pffft (SIMD-optimized FFT, marton78 fork, BSD license)
@@ -371,6 +388,10 @@ set(INSTALL_PFDSP OFF CACHE BOOL "" FORCE)
 set(INSTALL_PFFASTCONV OFF CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(pffft)
 smtg_target_setup_universal_binary(PFFFT)
+# Third-party source: unused parameter `l1` in src/pffft_priv_impl.h (GCC/Clang -Wunused-parameter).
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(PFFFT PRIVATE -Wno-unused-parameter)
+endif()
 # pffft always defines PFDSP (mixer / carrier / CIC helpers) when float is on, with no option to skip it. Nothing
 # here links it, and its pf_cic.cpp raises MSVC C4244 x4: keep it out of the default build.
 if(TARGET PFDSP)
