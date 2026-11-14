@@ -61,6 +61,11 @@ const LINTS = [
     { script: 'lint-allocation-probes.js', what: 'allocation probe the optimiser may elide (use TestHelpers::allocateObservably)' },
     { script: 'lint-ci-runner-pins.js', args: ['--self-test'], what: 'CI runner pin lint self-test' },
     { script: 'lint-ci-runner-pins.js', what: 'CI job building/testing on a floating ubuntu-latest / windows-latest image' },
+    { script: 'lint-manager-version.js', what: 'Krate Manager version drift (manager-ci.yml)' },
+    { script: 'lint-released-ports.js', args: ['--self-test'], what: 'released-port lint self-test' },
+    { script: 'lint-released-ports.js', what: 'socket released after its URL/port was taken (port reuse race)' },
+    { script: 'lint-gate-mirrors-ci.js', args: ['--self-test'], what: 'gate-mirrors-CI lint self-test' },
+    { script: 'lint-gate-mirrors-ci.js', what: 'a workflow check this commit gate does not run' },
 ];
 
 // Node test suites of the other workflows (2026-11-13: an action-pin commit edited .github/workflows/*.yml and the PR

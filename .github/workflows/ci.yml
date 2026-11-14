@@ -314,6 +314,22 @@ jobs:
           node tools/lint-ci-runner-pins.js --self-test
           node tools/lint-ci-runner-pins.js
 
+      # Catches test/tool code that takes a socket's URL or port and then releases the socket while the URL is still
+      # to be used: the OS hands the port to the next bind, and parallel tests bind constantly. The Krate Manager
+      # updater-refusals harness's `offline` endpoint did that and read another scenario's server on CI (2026-11-14).
+      - name: Released-port lint
+        run: |
+          node tools/lint-released-ports.js --self-test
+          node tools/lint-released-ports.js
+
+      # Every node check a workflow runs (lint-*.js, gen-*.js --check, node --test) must also run in the commit gate
+      # (tools/hooks/guard-ci-gates.js), so a CI check cannot be first exercised after a push. Every CI red on the
+      # audit/disrumpo PR was a check the gate did not list (2026-11-13/14).
+      - name: Commit gate mirrors CI lint
+        run: |
+          node tools/lint-gate-mirrors-ci.js --self-test
+          node tools/lint-gate-mirrors-ci.js
+
   build-windows:
     name: Windows (MSVC)
     # Pinned to windows-2022 (Visual Studio 2022 / MSVC v143). GitHub migrated
