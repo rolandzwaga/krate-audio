@@ -327,6 +327,14 @@ jobs:
           node tools/lint-ci-runner-pins.js --self-test
           node tools/lint-ci-runner-pins.js
 
+      # Catches a scheduled workflow with a build/test job that does not run through tools/nightly-change-gate.js (or
+      # gates on another workflow's history): the nightlies re-ran hours of memcheck and [long] renders after any push
+      # anywhere until the gate existed (2026-11-14). Self-test first, then the tree.
+      - name: Nightly change-gate lint
+        run: |
+          node tools/lint-nightly-change-gate.js --self-test
+          node tools/lint-nightly-change-gate.js
+
       # Catches test/tool code that takes a socket's URL or port and then releases the socket while the URL is still
       # to be used: the OS hands the port to the next bind, and parallel tests bind constantly. The Krate Manager
       # updater-refusals harness's `offline` endpoint did that and read another scenario's server on CI (2026-11-14).
