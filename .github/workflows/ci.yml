@@ -306,6 +306,14 @@ jobs:
           node tools/lint-allocation-probes.js --self-test
           node tools/lint-allocation-probes.js
 
+      # Catches a job that builds or runs the C++ tests on a floating ubuntu-latest / windows-latest image: a new
+      # image brings a compiler with different floating-point codegen (Ubuntu 26's FMA contraction failed seven Linux
+      # shards on its first run, 2026-11-14; VS 2026 the Windows suites before that). Self-test first, then the tree.
+      - name: CI runner pin lint
+        run: |
+          node tools/lint-ci-runner-pins.js --self-test
+          node tools/lint-ci-runner-pins.js
+
   build-windows:
     name: Windows (MSVC)
     # Pinned to windows-2022 (Visual Studio 2022 / MSVC v143). GitHub migrated
@@ -1101,7 +1109,12 @@ jobs:
   # Linux build (optional per constitution - Platform Support Matrix)
   build-linux:
     name: Linux (GCC)
-    runs-on: ubuntu-latest
+    # Pinned to ubuntu-24.04 (GCC 13), as Windows is pinned to windows-2022 above: DSP numerical determinism needs
+    # a pinned compiler. ubuntu-latest began moving to Ubuntu 26 on 2026-10-19, whose toolchain contracted float
+    # multiply-adds into FMA where GCC 13 does not (the arp shared-prefix golden read exactly the fused value,
+    # 0xb8314cb3, on the first Ubuntu 26 run), and tolerance-tight renders moved with it. 24.04 also matches the
+    # WSL Ubuntu used to reproduce Linux reds locally.
+    runs-on: ubuntu-24.04
     needs: detect-changes
     outputs:
       has-tests: ${{ steps.manifest.outputs.has_tests }}
@@ -1482,7 +1495,7 @@ jobs:
 
   test-linux:
     name: Linux tests (shard ${{ matrix.shard }})
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04  # the build's image (build-linux): same libstdc++ and CPU baseline
     needs: [detect-changes, build-linux]
     if: needs.build-linux.outputs.has-tests == 'true'
     timeout-minutes: ${{ inputs.long-tests && 200 || 75 }}
