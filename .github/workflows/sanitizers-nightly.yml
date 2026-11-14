@@ -1,0 +1,92 @@
+# ============================================================================
+# Sanitizers Nightly - every suite under AddressSanitizer + UBSan (Linux)
+# ============================================================================
+# Builds the test executables with -DENABLE_ASAN=ON -DENABLE_UBSAN=ON and runs
+# the per-push lane (minus [wallclock]) over EVERY suite by calling ci.yml with
+# sanitize: true. Any ASan or UBSan report aborts the executable and fails its
+# shard; the report is in the shard log artifact.
+#
+# What it catches, for all plugins and the DSP library: use-after-free, heap /
+# stack / global buffer overflows, double free, allocation/deallocation family
+# mismatches (new vs free), signed integer overflow, out-of-range shifts,
+# misaligned access and invalid casts.
+#
+# What it does not: reads of uninitialised memory. Valgrind finds those
+# (valgrind-nightly.yml), at 50-80x native, which is why valgrind runs only
+# the editor-lifecycle cases of every plugin while this lane, at ~2-3x
+# native, runs every suite. Leak checking is off (see ci.yml test-linux).
+#
+# The per-push lane is ~21 min of tests at native speed, cut into 8 shards,
+# so a shard stays well inside its 60-minute cap at the sanitizer slowdown.
+#
+# Idle-repo skip: same gate as valgrind-nightly.yml - the scheduled run is
+# skipped when nothing has been pushed for 24 h; workflow_dispatch always
+# runs.
+# ============================================================================
+
+name: Sanitizers Nightly
+
+on:
+  schedule:
+    # 03:37 UTC daily: before long-tests-nightly (04:43) and valgrind-nightly (05:17),
+    # so the three never queue against each other for runners.
+    - cron: '37 3 * * *'
+  workflow_dispatch: {}
+
+concurrency:
+  group: sanitizers-nightly
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  BUILD_TYPE: Release
+
+jobs:
+  # Same idle-repo gate as valgrind-nightly.yml (see the comment there for the
+  # pushed_at semantics and the stricter per-branch alternative).
+  check-activity:
+    name: Check for recent pushes
+    runs-on: ubuntu-latest
+    outputs:
+      should_run: ${{ steps.check.outputs.should_run }}
+    steps:
+      - name: Determine whether the repo was pushed to in the last 24 h
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          if [ "${{ github.event_name }}" != "schedule" ]; then
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+            echo "Manual run (${{ github.event_name }}) - activity gate not applied." \
+              >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          PUSHED_AT="$(gh api "repos/$REPO" --jq '.pushed_at')"
+          PUSHED_EPOCH="$(date -u -d "$PUSHED_AT" +%s)"
+          NOW_EPOCH="$(date -u +%s)"
+          AGE_SECONDS=$(( NOW_EPOCH - PUSHED_EPOCH ))
+          AGE_HOURS=$(( AGE_SECONDS / 3600 ))
+
+          if [ "$AGE_SECONDS" -lt 86400 ]; then
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+            echo "Last push $PUSHED_AT (${AGE_HOURS}h ago) - running the sanitizer lane." \
+              >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+            echo "Last push $PUSHED_AT (${AGE_HOURS}h ago) - repository idle for over 24h, skipping the sanitizer lane." \
+              >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+  sanitizers:
+    name: ASan + UBSan via CI
+    needs: check-activity
+    if: needs.check-activity.outputs.should_run == 'true'
+    uses: ./.github/workflows/ci.yml
+    with:
+      sanitize: true

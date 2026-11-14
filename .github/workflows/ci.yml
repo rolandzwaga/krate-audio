@@ -31,8 +31,18 @@ on:
         default: ''
       long-tests:
         # Run ONLY the [long]-tagged tests (heavy renders excluded from the
-        # per-push lane) across every suite on all three OSes. Used by the
-        # nightly workflow; per-push runs leave this false and exclude [long].
+        # per-push lane) across every suite, on Linux only, in 20 shards dealt
+        # case by case (tools/ci-test-shard.js). Windows and macOS are skipped:
+        # dsp_systems_tests' [long] set alone is ~22 runner-hours, and the lane
+        # never finished on three OSes (2026-11-14). Used by the nightly
+        # workflow; per-push runs leave this false and exclude [long].
+        type: boolean
+        required: false
+        default: false
+      sanitize:
+        # Linux only: build with AddressSanitizer + UndefinedBehaviorSanitizer (-DENABLE_ASAN=ON -DENABLE_UBSAN=ON)
+        # and run the per-push lane minus [wallclock] over every suite. Windows and macOS are skipped. Used by
+        # sanitizers-nightly.yml.
         type: boolean
         required: false
         default: false
@@ -42,7 +52,7 @@ on:
 # plugin releases started from main share "Release-refs/heads/main" and the second cancels the first's build
 # (tools/lint-workflow-triggers.js).
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.plugin }}-${{ inputs.long-tests }}
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.plugin }}-${{ inputs.long-tests }}-${{ inputs.sanitize }}
   cancel-in-progress: true
 
 env:
@@ -76,9 +86,9 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Detect file changes
-        # Skipped for release.yml (specific plugin) and for the nightly long-tests
-        # call (runs everything; paths-filter has no diff base on a schedule event).
-        if: inputs.plugin == '' && !inputs.long-tests
+        # Skipped for release.yml (specific plugin) and for the nightly long-tests and sanitizer
+        # calls (run everything; paths-filter has no diff base on a schedule event).
+        if: inputs.plugin == '' && !inputs.long-tests && !inputs.sanitize
         uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
         id: filter
         with:
@@ -117,8 +127,8 @@ jobs:
         id: set-outputs
         run: |
           PLUGIN="${{ inputs.plugin }}"
-          if [ "${{ inputs.long-tests }}" = "true" ]; then
-            # Nightly long-tests lane: every suite on every OS.
+          if [ "${{ inputs.long-tests }}" = "true" ] || [ "${{ inputs.sanitize }}" = "true" ]; then
+            # Nightly long-tests lane (every suite on every OS) or sanitizer lane (every suite, Linux).
             for area in dsp shared infra iterum disrumpo ruinae innexus gradus membrum seraphis vorago profundum; do
               echo "$area=true" >> $GITHUB_OUTPUT
             done
@@ -352,6 +362,7 @@ jobs:
     # every numerical tolerance for v144.
     runs-on: windows-2022
     needs: detect-changes
+    if: ${{ !inputs.sanitize && !inputs.long-tests }}  # the sanitizer and long-tests lanes are Linux only
     outputs:
       has-tests: ${{ steps.manifest.outputs.has_tests }}
 
@@ -630,6 +641,7 @@ jobs:
     name: macOS (Clang)
     runs-on: macos-latest
     needs: detect-changes
+    if: ${{ !inputs.sanitize && !inputs.long-tests }}  # the sanitizer and long-tests lanes are Linux only
     outputs:
       has-tests: ${{ steps.manifest.outputs.has_tests }}
 
@@ -1187,7 +1199,7 @@ jobs:
       - name: Setup ccache
         uses: hendrikmuhs/ccache-action@f09c25b45002a07be2955cbe52e8cee55643f89d # v1.2.24
         with:
-          key: linux-gcc-${{ env.BUILD_TYPE }}
+          key: linux-gcc-${{ env.BUILD_TYPE }}${{ inputs.sanitize && '-sanitize' || '' }}
           max-size: ${{ env.CCACHE_MAXSIZE }}
 
       # Cache CMake FetchContent downloads
@@ -1207,7 +1219,8 @@ jobs:
           cmake -S . -B build -G Ninja \
             -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
             -DCMAKE_C_COMPILER_LAUNCHER=ccache \
-            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+            ${{ inputs.sanitize && '-DENABLE_ASAN=ON -DENABLE_UBSAN=ON' || '' }}
 
       # Build all changed targets in a single cmake invocation.
       # Ninja already parallelizes compilation, but a single invocation avoids
@@ -1553,7 +1566,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [0, 1, 2, 3, 4, 5, 6, 7]
+        # Long lane: 20 shards (the account's concurrent-job limit), ~66 min each at CI's measured ~190 s per
+        # dsp_systems_tests [long] case; keep in step with --count below.
+        shard: ${{ fromJSON(inputs.long-tests && '[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19]' || '[0,1,2,3,4,5,6,7]') }}
     steps:
       # The source tree is needed at run time: the editor-lifecycle tests read resources/editor.uidesc
       # through <PLUGIN>_RESOURCES_DIR, the preset tests read resources/presets, and the DSP suites read
@@ -1590,7 +1605,13 @@ jobs:
       - name: Run shard
         shell: bash
         timeout-minutes: ${{ inputs.long-tests && 180 || 60 }}
-        run: node tools/ci-test-shard.js --os linux --bin "build/bin/${{ env.BUILD_TYPE }}" --manifest build/test-manifest.txt --shard ${{ matrix.shard }} --count 8 --long "${{ inputs.long-tests }}" --log-dir build/test-logs
+        # Sanitizer lane: any ASan / UBSan report aborts the executable, so the shard goes red and the report is in
+        # its log. Leak checking is off, as in valgrind-nightly.yml: Catch2 and VSTGUI keep process-lifetime
+        # allocations, and the lane is for invalid accesses and undefined behaviour.
+        env:
+          ASAN_OPTIONS: ${{ inputs.sanitize && 'detect_leaks=0:abort_on_error=1:halt_on_error=1:strict_string_checks=1:detect_stack_use_after_return=1' || '' }}
+          UBSAN_OPTIONS: ${{ inputs.sanitize && 'print_stacktrace=1:halt_on_error=1' || '' }}
+        run: node tools/ci-test-shard.js --os linux --bin "build/bin/${{ env.BUILD_TYPE }}" --manifest build/test-manifest.txt --shard ${{ matrix.shard }} --count ${{ inputs.long-tests && 20 || 8 }} --long "${{ inputs.long-tests }}" --sanitize "${{ inputs.sanitize }}" --log-dir build/test-logs
       - name: Upload shard log
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

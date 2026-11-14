@@ -157,6 +157,20 @@ if(ENABLE_ASAN)
     endif()
 endif()
 
+# UndefinedBehaviorSanitizer (GCC / Clang): signed overflow, out-of-range shifts, misaligned access, bad casts, ...
+# Recoverable by default; the CI sanitizer lane sets UBSAN_OPTIONS=halt_on_error=1 so any report fails the run.
+# Usage: cmake -DENABLE_ASAN=ON -DENABLE_UBSAN=ON ...   (sanitizers-nightly.yml, Linux)
+option(ENABLE_UBSAN "Enable UndefinedBehaviorSanitizer (GCC/Clang)" OFF)
+if(ENABLE_UBSAN)
+    if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+        add_compile_options(-fsanitize=undefined -fno-omit-frame-pointer -g)
+        add_link_options(-fsanitize=undefined)
+        message(STATUS "[KRATE] UndefinedBehaviorSanitizer ENABLED (-fsanitize=undefined)")
+    else()
+        message(WARNING "[KRATE] UndefinedBehaviorSanitizer not supported for this compiler")
+    endif()
+endif()
+
 # ==============================================================================
 # Build-Time Instrumentation (opt-in, OFF by default)
 # ==============================================================================

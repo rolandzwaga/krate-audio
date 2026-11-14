@@ -1,5 +1,5 @@
 # ============================================================================
-# Long-Tests Nightly - the [long]-tagged heavy renders, on all three OSes
+# Long-Tests Nightly - the [long]-tagged heavy renders (Linux, 20 shards)
 # ============================================================================
 # The per-push CI lane excludes tests tagged [long]: multi-minute preset
 # sweeps, full-bank MIDI goldens, and click-free automation renders whose
@@ -12,6 +12,13 @@
 # up in long trajectory-accumulating renders first), so this workflow runs
 # ONLY the [long] cases nightly by calling ci.yml with long-tests: true.
 # Coverage is deferred a day, not lost.
+#
+# Linux only since 2026-11-14: dsp_systems_tests' [long] set alone is ~22
+# runner-hours (one eighth ran 2 h 46 min on Linux, the rest hit the 180-min
+# cap), so the three-OS lane never finished once in five weeks. ci.yml deals
+# the cases one by one into 20 Linux shards, weighted by long_cases in
+# tools/ci-test-times.json; refresh it from the shard logs' --durations lines.
+# The cross-platform canaries stay in the per-push lane on all three OSes.
 #
 # Idle-repo skip: same gate as valgrind-nightly.yml - the scheduled run is
 # skipped when nothing has been pushed for 24 h; workflow_dispatch always
