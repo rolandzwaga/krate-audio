@@ -99,6 +99,9 @@ namespace Seraphis {
 // pairwise spread of the new table: 3.273 (MSVC, seeds 0-5), 2.581 (GCC, seeds
 // 8-9), 2.111 (clang-cl fast-math, seeds 8-9; both of the latter are pairs the
 // re-pick does not touch). floor(2.111 / 1.05) = 2, so the gate stands.
+// RE-MEASURED the same day once AetherReverb's morph path became the same on
+// every toolchain (aether_reverb.h, canonical planes at theta = pi): minimum
+// 2.662 MSVC, 2.662 GCC 13, 2.660 clang-cl fast-math, all seeds 0-5; gate 2.
 inline constexpr std::array<std::uint32_t, 16> kSeedValues = {
     0x00000001u, 0x51A8749Bu, 0x2ACBD1F1u, 0x2E89A193u,
     0x72403C09u, 0x3B343439u, 0x3B0E7D2Fu, 0x46980CADu,

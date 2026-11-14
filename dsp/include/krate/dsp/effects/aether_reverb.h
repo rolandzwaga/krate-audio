@@ -1045,6 +1045,13 @@ inline void aetherBuildRandomOrthogonal(double* m, std::size_t n,
     // step 4/5 comment for why there is no epsilon branch on lambda itself.
     constexpr double kSkewMinNorm = 1e-9;
     constexpr double kDeflationMinNorm = 1e-6;
+    // A cluster whose restriction deviates from +/-I by at most this is treated as +/-I (float-rounded inputs sit
+    // ~5e-7 off; a real rotation this close to 0 or pi is inaudible as one). See the canonical-plane block below.
+    constexpr double kSignedIdentityTolerance = 1e-5;
+    // Gram-Schmidt acceptance for the canonical planes: far above rounding (dependent candidates leave ~1e-15),
+    // and 16 * 0.1^2 < 1, so it can never leave the basis short.
+    constexpr double kCanonicalMinNorm = 0.1;
+    constexpr double kPiDouble = 3.14159265358979323846;
 
     if ((r == nullptr) || (v == nullptr) || (thetas == nullptr)) {
         return false;
@@ -1198,6 +1205,102 @@ inline void aetherBuildRandomOrthogonal(double* m, std::size_t n,
         for (std::size_t a = 0; a < size; ++a) {
             for (std::size_t b = 0; b < size; ++b) {
                 skew[(a * size) + b] = 0.5 * (cluster[(a * size) + b] - cluster[(b * size) + a]);
+            }
+        }
+
+        // R restricted to this cluster is +/-I (theta = 0 or pi): every plane of the eigenspace is invariant, so
+        // the reduction is not unique there, and for theta = pi the GEODESIC is not either - V B(u*pi) V^T turns
+        // the cluster about whichever planes were picked. The deflation below picked them from the eigensolver's
+        // basis of the eigenspace, which rounding decides: a 1e-12 nudge of R moved the Householder -> Hadamard
+        // midpoint by 1.02, and MSVC /fp:fast, macOS -ffast-math and strict IEEE built three different feedback
+        // matrices (CavernVerb SC-016 c-2 red on Linux only, 2026-11-14). The planes are taken instead from a
+        // reference the eigenspace alone fixes: the projections of e_{n-1}, e_{n-2}, ... onto it, orthonormalised
+        // in that order and paired in that order, with theta exactly 0 or pi.
+        {
+            double centre = 0.0;
+            for (std::size_t a = 0; a < size; ++a) {
+                centre += cluster[(a * size) + a];
+            }
+            centre /= static_cast<double>(size);
+            double deviation = 0.0;
+            for (std::size_t a = 0; a < size; ++a) {
+                for (std::size_t b = 0; b < size; ++b) {
+                    const double expected = (a == b) ? centre : 0.0;
+                    deviation = std::max(deviation, std::abs(cluster[(a * size) + b] - expected));
+                }
+            }
+            if (deviation <= kSignedIdentityTolerance) {
+                // In cluster coordinates the projection of e_k is row k of Qc. A residual above
+                // kCanonicalMinNorm is accepted; below it the vector is (numerically) dependent. The threshold
+                // can never starve the basis: the squared residuals of all n candidates sum to at least one per
+                // missing dimension, and n * kCanonicalMinNorm^2 < 1.
+                // DESCENDING index order (e_{n-1} first). Any fixed order makes the path unique; this one was
+                // chosen (2026-11-14, user ruling) as the only one of four deterministic variants - ascending /
+                // descending order x the two plane orientations - that keeps both SC-006 clause 3
+                // (AetherReverb_ShimmerRegenerationStability: ascending orders left a -186 dBFS tail whose HF
+                // fraction read 405x the sends-off reference) and SC-016 c-2 (CavernVerb ratio 0.293 here; the
+                // other variants 0.269 - 0.331).
+                std::size_t found = 0;
+                for (std::size_t kk = 0; (kk < n) && (found < size); ++kk) {
+                    const std::size_t k = n - 1u - kk;
+                    double w[kOrder]{};
+                    for (std::size_t a = 0; a < size; ++a) {
+                        w[a] = q[(k * n) + clusterStart + a];
+                    }
+                    double wNorm = 0.0;
+                    for (int pass = 0; pass < 2; ++pass) {
+                        for (std::size_t prev = 0; prev < found; ++prev) {
+                            double d = 0.0;
+                            for (std::size_t a = 0; a < size; ++a) {
+                                d += remaining[(prev * size) + a] * w[a];
+                            }
+                            for (std::size_t a = 0; a < size; ++a) {
+                                w[a] -= d * remaining[(prev * size) + a];
+                            }
+                        }
+                        wNorm = 0.0;
+                        for (std::size_t a = 0; a < size; ++a) {
+                            wNorm += w[a] * w[a];
+                        }
+                        wNorm = std::sqrt(wNorm);
+                        if (wNorm <= kCanonicalMinNorm) {
+                            break;
+                        }
+                        for (std::size_t a = 0; a < size; ++a) {
+                            w[a] /= wNorm;
+                        }
+                    }
+                    if (wNorm > kCanonicalMinNorm) {
+                        for (std::size_t a = 0; a < size; ++a) {
+                            remaining[(found * size) + a] = w[a];
+                        }
+                        ++found;
+                    }
+                }
+                if (found != size) {
+                    return false;
+                }
+                const double angle = (centre < 0.0) ? kPiDouble : 0.0;
+                for (std::size_t pair = 0; pair < pairs; ++pair) {
+                    const double* p1 = &remaining[(2u * pair) * size];
+                    const double* p2 = &remaining[((2u * pair) + 1u) * size];
+                    for (std::size_t i = 0; i < n; ++i) {
+                        double acc1 = 0.0;
+                        double acc2 = 0.0;
+                        for (std::size_t a = 0; a < size; ++a) {
+                            const double qia = q[(i * n) + clusterStart + a];
+                            acc1 += qia * p1[a];
+                            acc2 += qia * p2[a];
+                        }
+                        v[(i * n) + emitted] = acc1;
+                        v[(i * n) + emitted + 1u] = acc2;
+                    }
+                    emitted += 2u;
+                    thetas[blockIndex] = angle;
+                    ++blockIndex;
+                }
+                clusterStart = clusterEnd;
+                continue;
             }
         }
 

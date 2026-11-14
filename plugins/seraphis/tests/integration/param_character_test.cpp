@@ -193,7 +193,9 @@ constexpr bool kSeedSpreadGateIsMeasured = true;
 /// had fallen to 2.028 on MSVC and 1.929 on Linux GCC 13 with the audit
 /// branch's shared-DSP fixes; dropdown_mappings.h records the pick): new table
 /// minimum 3.273 MSVC (seeds 0-5), 2.581 GCC 13 (8-9), 2.111 clang-cl /fp:fast
-/// proxy (8-9). floor(2.111 / 1.05) = 2: the gate stands.
+/// proxy (8-9). floor(2.111 / 1.05) = 2: the gate stands. Re-measured after the
+/// Aether morph path became toolchain-independent: 2.662 MSVC, 2.662 GCC 13,
+/// 2.660 clang-cl fast-math (seeds 0-5 on all three).
 constexpr double kSeedSpreadGate = 2.0;
 
 // MEASURED SIXTEEN-SEED TABLE
