@@ -1636,10 +1636,11 @@ const MUTATIONS = [
     onWorkflow((w) =>
       replaceOnce(
         w,
-        "  push:\n    paths:\n      - 'apps/krate-manager/**'\n      - '.github/workflows/manager-ci.yml'\n" +
-          "      - 'tools/lint-manager-version.js'\n      - 'tools/feed-contract/**'\n",
-        "  push:\n    paths:\n      - 'apps/krate-manager/**'\n      - '.github/workflows/manager-ci.yml'\n" +
-          "      - 'tools/lint-manager-version.js'\n",
+        "  push:\n    branches: [main]\n    paths:\n      - 'apps/krate-manager/**'\n" +
+          "      - '.github/workflows/manager-ci.yml'\n      - 'tools/lint-manager-version.js'\n" +
+          "      - 'tools/feed-contract/**'\n",
+        "  push:\n    branches: [main]\n    paths:\n      - 'apps/krate-manager/**'\n" +
+          "      - '.github/workflows/manager-ci.yml'\n      - 'tools/lint-manager-version.js'\n",
       ),
     ),
     /on\.push\.paths/,

@@ -1,7 +1,9 @@
 name: Feed tools
 
 on:
+  # push runs on main only: a branch commit is already tested by its pull_request run (tools/lint-workflow-triggers.js).
   push:
+    branches: [main]
     paths:
       - 'tools/gen-feed.js'
       - 'tools/gen-release-manifest.js'
@@ -69,6 +71,10 @@ on:
 
 permissions:
   contents: read
+
+concurrency:
+  group: feed-tools-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   node-test:

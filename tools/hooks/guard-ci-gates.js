@@ -66,6 +66,8 @@ const LINTS = [
     { script: 'lint-released-ports.js', what: 'socket released after its URL/port was taken (port reuse race)' },
     { script: 'lint-gate-mirrors-ci.js', args: ['--self-test'], what: 'gate-mirrors-CI lint self-test' },
     { script: 'lint-gate-mirrors-ci.js', what: 'a workflow check this commit gate does not run' },
+    { script: 'lint-workflow-triggers.js', args: ['--self-test'], what: 'workflow-trigger lint self-test' },
+    { script: 'lint-workflow-triggers.js', what: 'workflow run twice per PR commit, without a concurrency group, or cancelling its own callers' },
 ];
 
 // Node test suites of the other workflows (2026-11-13: an action-pin commit edited .github/workflows/*.yml and the PR
