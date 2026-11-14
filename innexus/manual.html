@@ -577,39 +577,39 @@
         <col style="width: 59%" />
         </colgroup>
         <thead>
-        <tr class="header">
+        <tr>
         <th>Control</th>
         <th>Description</th>
         </tr>
         </thead>
         <tbody>
-        <tr class="odd">
+        <tr>
         <td><strong>INNEXUS</strong></td>
         <td>Plugin title (left side)</td>
         </tr>
-        <tr class="even">
+        <tr>
         <td><strong>Source</strong></td>
         <td>Input source selector: <strong>Sample</strong> (analyze a
         loaded audio file) or <strong>Sidechain</strong> (analyze live
         audio from the DAW’s sidechain input)</td>
         </tr>
-        <tr class="odd">
+        <tr>
         <td><strong>Load</strong></td>
         <td>Click to load a .wav or .aiff file for analysis. You can
         also drag and drop files directly onto the plugin window.</td>
         </tr>
-        <tr class="even">
+        <tr>
         <td><strong>Filename</strong></td>
         <td>Displays the name of the currently loaded sample</td>
         </tr>
-        <tr class="odd">
+        <tr>
         <td><strong>Latency</strong></td>
         <td>Analysis precision mode: <strong>Low Latency</strong> (11.6
         ms processing delay, faster response) or <strong>High
         Precision</strong> (longer analysis windows, detects
         fundamentals down to 40 Hz, better frequency resolution)</td>
         </tr>
-        <tr class="even">
+        <tr>
         <td><strong>Gain</strong></td>
         <td>Master output level (0.0-1.0, default 0.8) — controls the
         final output volume</td>
@@ -651,14 +651,14 @@
         <col style="width: 44%" />
         </colgroup>
         <thead>
-        <tr class="header">
+        <tr>
         <th>Control</th>
         <th>Range</th>
         <th>Description</th>
         </tr>
         </thead>
         <tbody>
-        <tr class="odd">
+        <tr>
         <td><strong>Freeze</strong></td>
         <td>On/Off</td>
         <td>Captures and holds the current harmonic state as a frozen
@@ -666,7 +666,7 @@
         state. Uses a 10 ms crossfade when disengaging to prevent click
         artifacts.</td>
         </tr>
-        <tr class="even">
+        <tr>
         <td><strong>Morph</strong></td>
         <td>0.0-1.0</td>
         <td>Blends between the frozen state (0.0) and live analysis
@@ -674,14 +674,14 @@
         and frequency interpolation with smooth 7 ms filtering to
         prevent zipper noise.</td>
         </tr>
-        <tr class="odd">
+        <tr>
         <td><strong>Response</strong></td>
         <td>0.0-1.0</td>
         <td>Controls how quickly the live analysis updates (sidechain
         mode only). 0.0 = slowest/most stable, 1.0 = fastest/most
         responsive. Default 0.5.</td>
         </tr>
-        <tr class="even">
+        <tr>
         <td><strong>Harmonic Filter</strong></td>
         <td>5 modes</td>
         <td>Per-partial amplitude mask applied after morph, before
@@ -696,33 +696,33 @@
         <col style="width: 68%" />
         </colgroup>
         <thead>
-        <tr class="header">
+        <tr>
         <th>Mode</th>
         <th>Description</th>
         </tr>
         </thead>
         <tbody>
-        <tr class="odd">
+        <tr>
         <td><strong>All-Pass</strong></td>
         <td>No filtering — all partials pass through at full
         amplitude</td>
         </tr>
-        <tr class="even">
+        <tr>
         <td><strong>Odd Only</strong></td>
         <td>Keeps only odd-numbered harmonics (1st, 3rd, 5th, …) —
         creates a hollow, clarinet-like character</td>
         </tr>
-        <tr class="odd">
+        <tr>
         <td><strong>Even Only</strong></td>
         <td>Keeps only even-numbered harmonics (2nd, 4th, 6th, …) —
         creates a thinner, octave-up quality</td>
         </tr>
-        <tr class="even">
+        <tr>
         <td><strong>Low Harm.</strong></td>
         <td>Emphasizes the fundamental and lower partials; upper
         harmonics are progressively attenuated</td>
         </tr>
-        <tr class="odd">
+        <tr>
         <td><strong>High Harm.</strong></td>
         <td>Emphasizes upper partials; the fundamental is attenuated by
         18 dB or more</td>
@@ -741,14 +741,14 @@
         <col style="width: 44%" />
         </colgroup>
         <thead>
-        <tr class="header">
+        <tr>
         <th>Control</th>
         <th>Range</th>
         <th>Description</th>
         </tr>
         </thead>
         <tbody>
-        <tr class="odd">
+        <tr>
         <td><strong>Release</strong></td>
         <td>20-5000 ms</td>
         <td>Exponential fade-out time on MIDI note-off. Controls how
@@ -756,7 +756,7 @@
         (20-50 ms) for percussive sounds, longer values (500-5000 ms)
         for pads.</td>
         </tr>
-        <tr class="even">
+        <tr>
         <td><strong>Partials</strong></td>
         <td>48 / 64 / 80 / 96</td>
         <td>Number of active oscillators in the resynthesis engine. 48 =
@@ -764,7 +764,7 @@
         more spectral detail including subtle sub-harmonics. Higher
         counts increase CPU usage.</td>
         </tr>
-        <tr class="odd">
+        <tr>
         <td><strong>Inharm.</strong></td>
         <td>0-100%</td>
         <td>Inharmonicity amount. At 100%, the oscillators use the
@@ -783,20 +783,20 @@
         <col style="width: 44%" />
         </colgroup>
         <thead>
-        <tr class="header">
+        <tr>
         <th>Control</th>
         <th>Range</th>
         <th>Description</th>
         </tr>
         </thead>
         <tbody>
-        <tr class="odd">
+        <tr>
         <td><strong>Harmonic Level</strong></td>
         <td>0.0-2.0</td>
         <td>Output level of the tonal harmonic content. 0.0 = silence,
         1.0 = unity, 2.0 = +6 dB boost. Default 1.0.</td>
         </tr>
-        <tr class="even">
+        <tr>
         <td><strong>Residual Level</strong></td>
         <td>0.0-2.0</td>
         <td>Output level of the noise/residual component (non-harmonic
@@ -804,14 +804,14 @@
         pure tones only, 1.0 = balanced mix, 2.0 = emphasis on noisy
         textures. Default 0.3.</td>
         </tr>
-        <tr class="odd">
+        <tr>
         <td><strong>Residual Brightness</strong></td>
         <td>-1.0 to +1.0</td>
         <td>Spectral tilt of the residual noise. Negative = darker
         (sub-harmonic rumble), 0.0 = neutral (matches analysis),
         positive = brighter (sizzle, air).</td>
         </tr>
-        <tr class="even">
+        <tr>
         <td><strong>Transient Emphasis</strong></td>
         <td>0.0-2.0</td>
         <td>Boosts or suppresses detected attack transients. 0.0 = no
@@ -832,30 +832,30 @@
         <col style="width: 59%" />
         </colgroup>
         <thead>
-        <tr class="header">
+        <tr>
         <th>Control</th>
         <th>Description</th>
         </tr>
         </thead>
         <tbody>
-        <tr class="odd">
+        <tr>
         <td><strong>Slot</strong></td>
         <td>Selector for the active memory slot (1-8)</td>
         </tr>
-        <tr class="even">
+        <tr>
         <td><strong>Capture</strong></td>
         <td>Saves the current harmonic state into the selected slot.
         Captures from whatever source is active — post-morph blend,
         frozen frame, live sidechain, or sample analysis. Can be
         triggered at any time during playback.</td>
         </tr>
-        <tr class="odd">
+        <tr>
         <td><strong>Recall</strong></td>
         <td>Loads the harmonic snapshot from the selected slot.
         Automatically engages Freeze and loads the recalled state with a
         click-free crossfade transition.</td>
         </tr>
-        <tr class="even">
+        <tr>
         <td><strong>Slot Status</strong></td>
         <td>Visual grid showing which slots contain saved data. Occupied
         slots are highlighted; empty slots are grayed out.</td>
@@ -871,14 +871,14 @@
         <col style="width: 44%" />
         </colgroup>
         <thead>
-        <tr class="header">
+        <tr>
         <th>Control</th>
         <th>Range</th>
         <th>Description</th>
         </tr>
         </thead>
         <tbody>
-        <tr class="odd">
+        <tr>
         <td><strong>Stereo Spread</strong></td>
         <td>0.0-1.0</td>
         <td>Per-partial stereo panning for decorrelation. At 0.0, all
@@ -887,7 +887,7 @@
         25%. Values of 0.3-0.7 create a lush, widened stereo image
         without phasing artifacts. Default 0.0.</td>
         </tr>
-        <tr class="even">
+        <tr>
         <td><strong>Detune Spread</strong></td>
         <td>0.0-1.0</td>
         <td>Per-partial frequency offset for chorus-like richness. Odd
@@ -911,39 +911,39 @@
         <col style="width: 44%" />
         </colgroup>
         <thead>
-        <tr class="header">
+        <tr>
         <th>Control</th>
         <th>Range</th>
         <th>Description</th>
         </tr>
         </thead>
         <tbody>
-        <tr class="odd">
+        <tr>
         <td><strong>Enable</strong></td>
         <td>On/Off</td>
         <td>Activates autonomous morphing between occupied memory
         slots</td>
         </tr>
-        <tr class="even">
+        <tr>
         <td><strong>Speed</strong></td>
         <td>0.01-10.0 Hz</td>
         <td>Rate of evolution. 0.01 Hz = 100 seconds per cycle, 0.1 Hz =
         10 seconds, 1.0 Hz = 1 second, 10.0 Hz = chaotic rapid
         morphing.</td>
         </tr>
-        <tr class="odd">
+        <tr>
         <td><strong>Depth</strong></td>
         <td>0.0-1.0</td>
         <td>How deeply to explore the morph range between waypoints. 0.0
         = nearly static, 0.5 = balanced exploration, 1.0 = maximum morph
         excursion. Default 0.5.</td>
         </tr>
-        <tr class="even">
+        <tr>
         <td><strong>Mode</strong></td>
         <td>3 modes</td>
         <td>Traversal pattern through occupied memory slots</td>
         </tr>
-        <tr class="odd">
+        <tr>
         <td><strong>Position</strong></td>
         <td>(visual)</td>
         <td>Indicator dot showing the current interpolation position
@@ -958,23 +958,23 @@
         <col style="width: 68%" />
         </colgroup>
         <thead>
-        <tr class="header">
+        <tr>
         <th>Mode</th>
         <th>Description</th>
         </tr>
         </thead>
         <tbody>
-        <tr class="odd">
+        <tr>
         <td><strong>Cycle</strong></td>
         <td>1 -&gt; 2 -&gt; 3 -&gt; 4 -&gt; 1 -&gt; 2 -&gt; … Linear
         forward motion, wraps around.</td>
         </tr>
-        <tr class="even">
+        <tr>
         <td><strong>PingPong</strong></td>
         <td>1 -&gt; 2 -&gt; 3 -&gt; 4 -&gt; 3 -&gt; 2 -&gt; 1 -&gt; 2
         -&gt; … Bounces back and forth.</td>
         </tr>
-        <tr class="odd">
+        <tr>
         <td><strong>Random Walk</strong></td>
         <td>Drifts randomly within the depth range. Unpredictable,
         organic movement.</td>
@@ -993,18 +993,18 @@
         <col style="width: 59%" />
         </colgroup>
         <thead>
-        <tr class="header">
+        <tr>
         <th>Control</th>
         <th>Description</th>
         </tr>
         </thead>
         <tbody>
-        <tr class="odd">
+        <tr>
         <td><strong>Preset Browser</strong></td>
         <td>Opens an overlay with factory presets organized by category.
         Search and filter by name, load with one click.</td>
         </tr>
-        <tr class="even">
+        <tr>
         <td><strong>Save</strong></td>
         <td>Opens a dialog to save the current state as a user preset,
         including all parameter values and memory slot contents.</td>
@@ -1024,60 +1024,60 @@
         <col style="width: 44%" />
         </colgroup>
         <thead>
-        <tr class="header">
+        <tr>
         <th>Control</th>
         <th>Range</th>
         <th>Description</th>
         </tr>
         </thead>
         <tbody>
-        <tr class="odd">
+        <tr>
         <td><strong>Enable</strong></td>
         <td>On/Off</td>
         <td>Activates this modulator</td>
         </tr>
-        <tr class="even">
+        <tr>
         <td><strong>Waveform</strong></td>
         <td>5 shapes</td>
         <td>Sine, Triangle, Square, Saw, or Random S&amp;H
         (sample-and-hold noise)</td>
         </tr>
-        <tr class="odd">
+        <tr>
         <td><strong>Rate</strong></td>
         <td>0.01-20.0 Hz</td>
         <td>LFO frequency in free-running Hz mode</td>
         </tr>
-        <tr class="even">
+        <tr>
         <td><strong>Rate Sync</strong></td>
         <td>On/Off</td>
         <td>When on, the Rate control switches to note values for
         tempo-synced modulation. When off, Rate is in free Hz. Default
         on.</td>
         </tr>
-        <tr class="odd">
+        <tr>
         <td><strong>Note Value</strong></td>
         <td>21 values</td>
         <td>Tempo-synced rate when Rate Sync is enabled. Ranges from
         1/64 triplet through 4 bars dotted. Default 1/8 note.</td>
         </tr>
-        <tr class="even">
+        <tr>
         <td><strong>Depth</strong></td>
         <td>0.0-1.0</td>
         <td>How much the LFO modulates the target. 0.0 = no modulation,
         1.0 = maximum.</td>
         </tr>
-        <tr class="odd">
+        <tr>
         <td><strong>Range Start</strong></td>
         <td>1-96</td>
         <td>First partial affected by this modulator</td>
         </tr>
-        <tr class="even">
+        <tr>
         <td><strong>Range End</strong></td>
         <td>1-96</td>
         <td>Last partial affected by this modulator. Only partials
         between Start and End are modulated.</td>
         </tr>
-        <tr class="odd">
+        <tr>
         <td><strong>Target</strong></td>
         <td>3 modes</td>
         <td>What the LFO modulates</td>
@@ -1091,23 +1091,23 @@
         <col style="width: 61%" />
         </colgroup>
         <thead>
-        <tr class="header">
+        <tr>
         <th>Target</th>
         <th>Description</th>
         </tr>
         </thead>
         <tbody>
-        <tr class="odd">
+        <tr>
         <td><strong>Amplitude</strong></td>
         <td>Multiplicative modulation — partials get quieter and louder
         rhythmically. Unipolar (0 to 1).</td>
         </tr>
-        <tr class="even">
+        <tr>
         <td><strong>Frequency</strong></td>
         <td>Additive pitch modulation in cents (up to +/-50 cents).
         Creates vibrato and pitch wobble effects. Bipolar.</td>
         </tr>
-        <tr class="odd">
+        <tr>
         <td><strong>Pan</strong></td>
         <td>Stereo position offset (up to +/-0.5). Partials drift left
         and right. Bipolar.</td>
@@ -1129,27 +1129,27 @@
         <col style="width: 44%" />
         </colgroup>
         <thead>
-        <tr class="header">
+        <tr>
         <th>Control</th>
         <th>Range</th>
         <th>Description</th>
         </tr>
         </thead>
         <tbody>
-        <tr class="odd">
+        <tr>
         <td><strong>Enable</strong></td>
         <td>On/Off</td>
         <td>Activates blend mode. When on, overrides normal
         recall/freeze/evolution.</td>
         </tr>
-        <tr class="even">
+        <tr>
         <td><strong>Slot 1-8</strong></td>
         <td>0.0-1.0 each</td>
         <td>Individual weight for each memory slot. Only occupied slots
         contribute (empty slots add nothing). Weights are automatically
         normalized so that total output level stays consistent.</td>
         </tr>
-        <tr class="odd">
+        <tr>
         <td><strong>Live</strong></td>
         <td>0.0-1.0</td>
         <td>Weight of the live sidechain/sample analysis input. 0.0 =
@@ -1170,14 +1170,14 @@
         <col style="width: 44%" />
         </colgroup>
         <thead>
-        <tr class="header">
+        <tr>
         <th>Control</th>
         <th>Range</th>
         <th>Description</th>
         </tr>
         </thead>
         <tbody>
-        <tr class="odd">
+        <tr>
         <td><strong>Exciter Type</strong></td>
         <td>3 modes</td>
         <td>Selects the excitation source: <strong>Residual</strong>
@@ -1198,34 +1198,34 @@
         <col style="width: 44%" />
         </colgroup>
         <thead>
-        <tr class="header">
+        <tr>
         <th>Control</th>
         <th>Range</th>
         <th>Description</th>
         </tr>
         </thead>
         <tbody>
-        <tr class="odd">
+        <tr>
         <td><strong>Hardness</strong></td>
         <td>0.0-1.0</td>
         <td>Mallet hardness. 0.0 = soft felt (muted, mellow), 0.5 =
         medium rubber (balanced), 1.0 = hard metal (bright, percussive).
         Default 0.5.</td>
         </tr>
-        <tr class="even">
+        <tr>
         <td><strong>Mass</strong></td>
         <td>0.0-1.0</td>
         <td>Mallet mass. Low values = light, snappy attack. High values
         = heavy, booming impact with longer contact time. Default
         0.3.</td>
         </tr>
-        <tr class="odd">
+        <tr>
         <td><strong>Brightness</strong></td>
         <td>-1.0 to +1.0</td>
         <td>Spectral coloration of the impact burst. Negative = darker,
         0.0 = neutral, positive = brighter.</td>
         </tr>
-        <tr class="even">
+        <tr>
         <td><strong>Position</strong></td>
         <td>0.0-1.0</td>
         <td>Strike point along the resonating body. 0.0 = near the
@@ -1245,33 +1245,33 @@
         <col style="width: 44%" />
         </colgroup>
         <thead>
-        <tr class="header">
+        <tr>
         <th>Control</th>
         <th>Range</th>
         <th>Description</th>
         </tr>
         </thead>
         <tbody>
-        <tr class="odd">
+        <tr>
         <td><strong>Pressure</strong></td>
         <td>0.0-1.0</td>
         <td>Bow pressure against the string. Low = airy, flautando. High
         = intense, crunchy. Default 0.3.</td>
         </tr>
-        <tr class="even">
+        <tr>
         <td><strong>Speed</strong></td>
         <td>0.0-1.0</td>
         <td>Bow velocity. Low = slow, gentle. High = fast, aggressive.
         Default 0.5.</td>
         </tr>
-        <tr class="odd">
+        <tr>
         <td><strong>Position</strong></td>
         <td>0.0-1.0</td>
         <td>Bow contact point. 0.0 = sul ponticello (bridge, glassy
         harmonics), 0.5 = normal position, 1.0 = sul tasto (fingerboard,
         muted). Default 0.13.</td>
         </tr>
-        <tr class="even">
+        <tr>
         <td><strong>Oversampling</strong></td>
         <td>On/Off</td>
         <td>Enables 2x oversampling for the bow model. Improves
@@ -1292,14 +1292,14 @@
         <col style="width: 44%" />
         </colgroup>
         <thead>
-        <tr class="header">
+        <tr>
         <th>Control</th>
         <th>Range</th>
         <th>Description</th>
         </tr>
         </thead>
         <tbody>
-        <tr class="odd">
+        <tr>
         <td><strong>Resonance Type</strong></td>
         <td>Modal / Waveguide</td>
         <td>Selects the resonance algorithm. <strong>Modal</strong> uses
@@ -1317,35 +1317,35 @@
         <col style="width: 44%" />
         </colgroup>
         <thead>
-        <tr class="header">
+        <tr>
         <th>Control</th>
         <th>Range</th>
         <th>Description</th>
         </tr>
         </thead>
         <tbody>
-        <tr class="odd">
+        <tr>
         <td><strong>Decay</strong></td>
         <td>0.01-5.0 s</td>
         <td>How long modal resonances ring. Short (0.01-0.1 s) for
         percussive sounds, long (1-5 s) for sustained ringing. Default
         0.5 s. Exponential mapping.</td>
         </tr>
-        <tr class="even">
+        <tr>
         <td><strong>Brightness</strong></td>
         <td>0.0-1.0</td>
         <td>Spectral tilt of the resonator modes. 0.0 = dark (upper
         modes decay faster), 0.5 = neutral, 1.0 = bright (all modes ring
         equally). Default 0.5.</td>
         </tr>
-        <tr class="odd">
+        <tr>
         <td><strong>Stretch</strong></td>
         <td>0.0-1.0</td>
         <td>Stretches the spacing of resonant modes. 0.0 = harmonic
         (perfect integer ratios), 1.0 = fully stretched (piano-like
         inharmonicity).</td>
         </tr>
-        <tr class="even">
+        <tr>
         <td><strong>Scatter</strong></td>
         <td>0.0-1.0</td>
         <td>Randomizes per-mode decay rates. 0.0 = uniform decay, 1.0 =
@@ -1363,21 +1363,21 @@
         <col style="width: 44%" />
         </colgroup>
         <thead>
-        <tr class="header">
+        <tr>
         <th>Control</th>
         <th>Range</th>
         <th>Description</th>
         </tr>
         </thead>
         <tbody>
-        <tr class="odd">
+        <tr>
         <td><strong>Stiffness</strong></td>
         <td>0.0-1.0</td>
         <td>String stiffness. 0.0 = ideal flexible string. Higher values
         add inharmonic dispersion (higher partials go slightly sharp),
         like a real piano or metallic string.</td>
         </tr>
-        <tr class="even">
+        <tr>
         <td><strong>Pick Position</strong></td>
         <td>0.0-1.0</td>
         <td>Pluck or excitation point on the string. Affects which
@@ -1398,28 +1398,28 @@
         <col style="width: 44%" />
         </colgroup>
         <thead>
-        <tr class="header">
+        <tr>
         <th>Control</th>
         <th>Range</th>
         <th>Description</th>
         </tr>
         </thead>
         <tbody>
-        <tr class="odd">
+        <tr>
         <td><strong>Size</strong></td>
         <td>0.0-1.0</td>
         <td>Body size. Small values = compact, bright body (ukulele,
         snare). Large values = spacious, deep body (cello, concert
         grand). Default 0.5.</td>
         </tr>
-        <tr class="even">
+        <tr>
         <td><strong>Material</strong></td>
         <td>0.0-1.0</td>
         <td>Body material character. 0.0 = dense, metallic. 0.5 = wood
         (warm, balanced). 1.0 = thin, resonant membrane. Default
         0.5.</td>
         </tr>
-        <tr class="odd">
+        <tr>
         <td><strong>Mix</strong></td>
         <td>0.0-1.0</td>
         <td>Body resonance contribution. 0.0 = no body (dry resonator
@@ -1435,14 +1435,14 @@
         <col style="width: 44%" />
         </colgroup>
         <thead>
-        <tr class="header">
+        <tr>
         <th>Control</th>
         <th>Range</th>
         <th>Description</th>
         </tr>
         </thead>
         <tbody>
-        <tr class="odd">
+        <tr>
         <td><strong>Phys Model Mix</strong></td>
         <td>0.0-1.0</td>
         <td>Blends between the standard residual path (0.0) and the
@@ -1465,14 +1465,14 @@
         <col style="width: 44%" />
         </colgroup>
         <thead>
-        <tr class="header">
+        <tr>
         <th>Control</th>
         <th>Range</th>
         <th>Description</th>
         </tr>
         </thead>
         <tbody>
-        <tr class="odd">
+        <tr>
         <td><strong>Amount</strong></td>
         <td>0.0-1.0</td>
         <td>Sympathetic string activation level. 0.0 = off, 0.5 = subtle
@@ -1480,7 +1480,7 @@
         the resonator pool is populated with modes matching the note’s
         partials. Default 0.0.</td>
         </tr>
-        <tr class="even">
+        <tr>
         <td><strong>Decay</strong></td>
         <td>0.0-1.0</td>
         <td>How long sympathetic resonances ring after the excitation
@@ -1503,14 +1503,14 @@
         <col style="width: 44%" />
         </colgroup>
         <thead>
-        <tr class="header">
+        <tr>
         <th>Control</th>
         <th>Range</th>
         <th>Description</th>
         </tr>
         </thead>
         <tbody>
-        <tr class="odd">
+        <tr>
         <td><strong>Warmth</strong></td>
         <td>0.0-1.0</td>
         <td>Soft saturation applied to partial amplitudes. Compresses
@@ -1520,7 +1520,7 @@
         Output energy is guaranteed not to exceed input. Default
         0.0.</td>
         </tr>
-        <tr class="even">
+        <tr>
         <td><strong>Coupling</strong></td>
         <td>0.0-1.0</td>
         <td>Nearest-neighbor energy sharing between adjacent harmonics.
@@ -1530,7 +1530,7 @@
         individual clarity. Energy is conserved within 0.001%. Default
         0.0.</td>
         </tr>
-        <tr class="odd">
+        <tr>
         <td><strong>Stability</strong></td>
         <td>0.0-1.0</td>
         <td>Inertia for partial amplitude changes. 0.0 = responsive
@@ -1539,7 +1539,7 @@
         heavily preserved. Reinforces persistent partials and resists
         transient noise. Default 0.0.</td>
         </tr>
-        <tr class="even">
+        <tr>
         <td><strong>Entropy</strong></td>
         <td>0.0-1.0</td>
         <td>Natural decay rate of partials. 0.0 = partials sustain
@@ -1563,14 +1563,14 @@
         <col style="width: 44%" />
         </colgroup>
         <thead>
-        <tr class="header">
+        <tr>
         <th>Control</th>
         <th>Range</th>
         <th>Description</th>
         </tr>
         </thead>
         <tbody>
-        <tr class="odd">
+        <tr>
         <td><strong>Feedback Amount</strong></td>
         <td>0.0-1.0</td>
         <td>Mix ratio of synth output fed back into the analysis input.
@@ -1579,7 +1579,7 @@
         states). A built-in soft limiter prevents clipping. Default
         0.0.</td>
         </tr>
-        <tr class="even">
+        <tr>
         <td><strong>Feedback Decay</strong></td>
         <td>0.0-1.0</td>
         <td>Exponential entropy leak in the feedback buffer. 0.0 = no
@@ -1615,39 +1615,39 @@
         <col style="width: 44%" />
         </colgroup>
         <thead>
-        <tr class="header">
+        <tr>
         <th>Control</th>
         <th>Range</th>
         <th>Description</th>
         </tr>
         </thead>
         <tbody>
-        <tr class="odd">
+        <tr>
         <td><strong>Attack</strong></td>
         <td>1-5000 ms</td>
         <td>Time from note-on to peak amplitude. Auto-detected from the
         sample’s leading edge. 1 ms = percussive click, 10 ms =
         standard, 500 ms = smooth pad entry. Default 10 ms.</td>
         </tr>
-        <tr class="even">
+        <tr>
         <td><strong>Decay</strong></td>
         <td>1-5000 ms</td>
         <td>Time from peak to sustain level. Detected from the sample’s
         post-attack settling. Default 100 ms.</td>
         </tr>
-        <tr class="odd">
+        <tr>
         <td><strong>Sustain</strong></td>
         <td>0.0-1.0</td>
         <td>Level held while the MIDI note is pressed. 1.0 = full
         amplitude, 0.0 = silence after decay. Default 1.0.</td>
         </tr>
-        <tr class="even">
+        <tr>
         <td><strong>Release</strong></td>
         <td>1-5000 ms</td>
         <td>Time from note-off to silence. Detected from the sample’s
         tail decay. Default 100 ms.</td>
         </tr>
-        <tr class="odd">
+        <tr>
         <td><strong>Amount</strong></td>
         <td>0.0-1.0</td>
         <td>Blend between the detected envelope (1.0) and no envelope
@@ -1664,34 +1664,34 @@
         <col style="width: 44%" />
         </colgroup>
         <thead>
-        <tr class="header">
+        <tr>
         <th>Control</th>
         <th>Range</th>
         <th>Description</th>
         </tr>
         </thead>
         <tbody>
-        <tr class="odd">
+        <tr>
         <td><strong>Time Scale</strong></td>
         <td>0.25-4.0x</td>
         <td>Multiplies all time parameters uniformly. 0.25x = 4x faster
         (snappier), 1.0x = original, 4.0x = 4x slower (more spacious).
         Default 1.0x.</td>
         </tr>
-        <tr class="even">
+        <tr>
         <td><strong>Attack Curve</strong></td>
         <td>-1.0 to +1.0</td>
         <td>Shape of the attack ramp. -1.0 = exponential (slow start,
         fast finish), 0.0 = linear, +1.0 = logarithmic (fast start, slow
         finish).</td>
         </tr>
-        <tr class="odd">
+        <tr>
         <td><strong>Decay Curve</strong></td>
         <td>-1.0 to +1.0</td>
         <td>Shape of the decay from peak to sustain. Same curve range as
         attack.</td>
         </tr>
-        <tr class="even">
+        <tr>
         <td><strong>Release Curve</strong></td>
         <td>-1.0 to +1.0</td>
         <td>Shape of the release from sustain to silence. Same curve
@@ -1708,14 +1708,14 @@
         <col style="width: 44%" />
         </colgroup>
         <thead>
-        <tr class="header">
+        <tr>
         <th>Control</th>
         <th>Range</th>
         <th>Description</th>
         </tr>
         </thead>
         <tbody>
-        <tr class="odd">
+        <tr>
         <td><strong>Voice Mode</strong></td>
         <td>3 modes</td>
         <td><strong>Mono</strong> = single voice (default). <strong>4
@@ -1736,29 +1736,29 @@
         <col style="width: 40%" />
         </colgroup>
         <thead>
-        <tr class="header">
+        <tr>
         <th>Expression</th>
         <th>Range</th>
         <th>Description</th>
         </tr>
         </thead>
         <tbody>
-        <tr class="odd">
+        <tr>
         <td><strong>Tuning</strong></td>
         <td>-1.0 to +1.0</td>
         <td>Per-note pitch bend in semitones</td>
         </tr>
-        <tr class="even">
+        <tr>
         <td><strong>Volume</strong></td>
         <td>0.0-1.0</td>
         <td>Per-note volume (0.25 normalized = unity gain)</td>
         </tr>
-        <tr class="odd">
+        <tr>
         <td><strong>Pan</strong></td>
         <td>0.0-1.0</td>
         <td>Per-note stereo position (0.5 = center)</td>
         </tr>
-        <tr class="even">
+        <tr>
         <td><strong>Brightness</strong></td>
         <td>0.0-1.0</td>
         <td>Per-note harmonic/residual balance (0.5 = neutral, 0.0 =
