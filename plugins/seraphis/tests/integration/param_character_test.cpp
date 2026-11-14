@@ -188,6 +188,12 @@ constexpr bool kSeedSpreadGateIsMeasured = true;
 /// toolchain is a defect of C-10's checked-in seed table (dropdown_mappings.h)
 /// and is fixed by re-picking the offending constant, never by lowering this
 /// number again without a new cross-toolchain measurement.
+///
+/// RE-MEASURED 2026-11-14 after C-10's slot 14 was re-picked (seeds 13 and 14
+/// had fallen to 2.028 on MSVC and 1.929 on Linux GCC 13 with the audit
+/// branch's shared-DSP fixes; dropdown_mappings.h records the pick): new table
+/// minimum 3.273 MSVC (seeds 0-5), 2.581 GCC 13 (8-9), 2.111 clang-cl /fp:fast
+/// proxy (8-9). floor(2.111 / 1.05) = 2: the gate stands.
 constexpr double kSeedSpreadGate = 2.0;
 
 // MEASURED SIXTEEN-SEED TABLE

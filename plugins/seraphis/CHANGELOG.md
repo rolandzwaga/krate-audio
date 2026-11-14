@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **Stone Circle is brighter** — Its decay cloud is tilted 0.5 dB per octave brighter, so it no longer sounds almost the same as Deep Well.
+- **Seed 15 plays a new variation** — With this release's DSP fixes, seeds 14 and 15 came out almost the same (their measured difference fell below what Seraphis guarantees between any two seeds on Linux). Seed 15 now starts from a different value, chosen to sit well apart from all the others on every platform. A project or preset set to Seed 15 plays a different, equally random realisation of the same sound; among the factory presets that is Tectonic, Ghost Choir and Vast. The other fifteen seeds are unchanged.
 - **Built with VST3 SDK 3.8.1.**
 
 ## [1.0.4] - 2026-11-02

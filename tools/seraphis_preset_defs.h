@@ -986,6 +986,10 @@ inline constexpr std::array<std::string_view, 7> kCategories{
                 {kMorphTravelRateId, 0.53169217},  // 404 log [1/600, 1] -> 0.05 /s
                 {kAetherTideDepthId, 0.60},
                 {kAetherMixId, 0.50},
+                // 202 lin [-6, +6] dB/oct -> +0.5 dB/oct (2026-11-14): at the 0 dB/oct default its
+                // sustain fingerprint sat 0.0182 from Choirs/Angelic Drift on Linux GCC 13, under
+                // SC-028's 0.02 floor (Stone Circle took the same lever against Deep Well).
+                {kCloudTiltId, 0.52083333},
                 {kSeedId, 5.0 / 15.0},
             },
             /*.stimulus =*/std::nullopt},
