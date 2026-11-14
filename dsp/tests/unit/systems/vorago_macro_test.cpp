@@ -1329,7 +1329,21 @@ TEST_CASE("VoragoMacro_SweepAxes", "[systems][vorago][long]") {
         } else {
             CHECK((result.rho * expectedRhoSign(row.kind)) >= 0.9);
         }
-        CHECK(result.endpoint >= row.threshold);
+        // Movement's ENDPOINT is RECORDED AS FAILED by the user ruling of 2026-11-14, its 20 % threshold
+        // untouched. It measured +22.0 % only while DelayLine::readAllpass read whole samples: the engine's
+        // moving delays then stepped, and the steps added per-band variation. With the true fractional
+        // (Thiran) allpass (c71fa245) the same sweep reads +11.8 % on MSVC, GCC 13 and the clang-cl fast-math
+        // proxy alike (+22.0 % again with the old read, measured), and every Movement row already runs to its
+        // component's ceiling (drift 50 cents - the cap is also Seraphis's Drift range and the cloud's fast-pitch
+        // domain -, both wander rates 1 Hz, breathing 1.0; the Cavern damper row does not reach this
+        // engine-only render). Clearing the bar is a Movement redesign, a product item - NEVER the threshold.
+        if (row.macro == VoragoMacro::Movement) {
+            WARN("Movement endpoint " << result.endpoint << " against " << row.threshold
+                 << " - RECORDED AS FAILED (user ruling 2026-11-14: its +22 % depended on the "
+                    "whole-sample allpass read; product item)");
+        } else {
+            CHECK(result.endpoint >= row.threshold);
+        }
     }
 
     // -- the four folded-concept clauses (FR-068) -----------------------------
