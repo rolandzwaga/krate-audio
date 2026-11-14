@@ -27,10 +27,8 @@ const WORKFLOWS = path.join(REPO_ROOT, '.github', 'workflows');
 const FLOATING = /\b(?:ubuntu|windows)-latest\b/;
 const BUILDS = /\bcmake\s+(?:--build|-S|-B|--preset)|\bctest\s+-|ci-test-shard\.js|run-gate\.js|\bvalgrind\s+-/;
 const OK_MARK = 'runner-pin-ok:';
-// Jobs that cannot carry the marker. release.yml is held byte-for-byte to a snapshot by
-// tools/feed-contract/tests/workflow-shape.test.js ("release.yml equals its pre-Phase-12 snapshot"), so pinning its
-// preset-generation job is a release-pipeline change of its own (open as of 2026-11-14).
-const KNOWN_FLOATING = new Set(['release.yml:generate-presets']);
+// Jobs that cannot carry the marker (none since release.yml generate-presets was pinned, 2026-11-14).
+const KNOWN_FLOATING = new Set();
 
 /** [{ line, job, text }] for one workflow's text. */
 function findings(text) {
