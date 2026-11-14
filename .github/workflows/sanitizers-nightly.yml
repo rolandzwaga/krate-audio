@@ -19,9 +19,9 @@
 # The per-push lane is ~21 min of tests at native speed, cut into 8 shards,
 # so a shard stays well inside its 60-minute cap at the sanitizer slowdown.
 #
-# Idle-repo skip: same gate as valgrind-nightly.yml - the scheduled run is
-# skipped when nothing has been pushed for 24 h; workflow_dispatch always
-# runs.
+# Change gate: same as valgrind-nightly.yml - the scheduled run happens only
+# when code under test changed since the last run that actually tested
+# (tools/nightly-change-gate.js); workflow_dispatch always runs.
 # ============================================================================
 
 name: Sanitizers Nightly
@@ -39,49 +39,34 @@ concurrency:
 
 permissions:
   contents: read
+  actions: read  # the change gate reads this workflow's previous runs and their jobs
 
 env:
   BUILD_TYPE: Release
 
 jobs:
-  # Same idle-repo gate as valgrind-nightly.yml (see the comment there for the
-  # pushed_at semantics and the stricter per-branch alternative).
+  # Same change gate as valgrind-nightly.yml (tools/nightly-change-gate.js).
+  # The paths are what the sanitizer lane builds and runs, plus its scripts.
   check-activity:
-    name: Check for recent pushes
-    runs-on: ubuntu-latest
+    name: Check for relevant changes
+    runs-on: ubuntu-latest  # runner-pin-ok: git diff and API calls only; ci-test-shard.js is a path in its list
     outputs:
       should_run: ${{ steps.check.outputs.should_run }}
     steps:
-      - name: Determine whether the repo was pushed to in the last 24 h
+      # Full history without blobs: enough for `git diff --name-only <last tested commit> HEAD`.
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          filter: blob:none
+      - name: Did code under test change since the last tested run?
         id: check
         env:
           GH_TOKEN: ${{ github.token }}
-          REPO: ${{ github.repository }}
         run: |
-          set -euo pipefail
-
-          if [ "${{ github.event_name }}" != "schedule" ]; then
-            echo "should_run=true" >> "$GITHUB_OUTPUT"
-            echo "Manual run (${{ github.event_name }}) - activity gate not applied." \
-              >> "$GITHUB_STEP_SUMMARY"
-            exit 0
-          fi
-
-          PUSHED_AT="$(gh api "repos/$REPO" --jq '.pushed_at')"
-          PUSHED_EPOCH="$(date -u -d "$PUSHED_AT" +%s)"
-          NOW_EPOCH="$(date -u +%s)"
-          AGE_SECONDS=$(( NOW_EPOCH - PUSHED_EPOCH ))
-          AGE_HOURS=$(( AGE_SECONDS / 3600 ))
-
-          if [ "$AGE_SECONDS" -lt 86400 ]; then
-            echo "should_run=true" >> "$GITHUB_OUTPUT"
-            echo "Last push $PUSHED_AT (${AGE_HOURS}h ago) - running the sanitizer lane." \
-              >> "$GITHUB_STEP_SUMMARY"
-          else
-            echo "should_run=false" >> "$GITHUB_OUTPUT"
-            echo "Last push $PUSHED_AT (${AGE_HOURS}h ago) - repository idle for over 24h, skipping the sanitizer lane." \
-              >> "$GITHUB_STEP_SUMMARY"
-          fi
+          node tools/nightly-change-gate.js --workflow sanitizers-nightly.yml -- \
+            dsp plugins tests extern cmake CMakeLists.txt CMakePresets.json \
+            tools/ci-test-shard.js .github/workflows/ci.yml .github/workflows/sanitizers-nightly.yml
 
   sanitizers:
     name: ASan + UBSan via CI

@@ -67,6 +67,7 @@ const LINTS = [
     { script: 'lint-gate-mirrors-ci.js', args: ['--self-test'], what: 'gate-mirrors-CI lint self-test' },
     { script: 'lint-gate-mirrors-ci.js', what: 'a workflow check this commit gate does not run' },
     { script: 'check-build-warnings.js', args: ['--self-test'], what: 'build-warning checker self-test (ci.yml runs it on every build log)' },
+    { script: 'nightly-change-gate.js', args: ['--self-test'], what: 'nightly change-gate self-test (the valgrind / long-tests / sanitizer nightlies run it)' },
     { script: 'lint-workflow-triggers.js', args: ['--self-test'], what: 'workflow-trigger lint self-test' },
     { script: 'lint-workflow-triggers.js', what: 'workflow run twice per PR commit, without a concurrency group, or cancelling its own callers' },
 ];
