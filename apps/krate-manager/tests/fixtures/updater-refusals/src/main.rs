@@ -150,7 +150,9 @@ pub fn bind_loopback_listener(addr: SocketAddr) -> Result<TcpListener, HarnessEr
 /// fixture server, take its URL and drop it, but the scenarios run as parallel child processes, so another scenario's
 /// server could be handed the freed port first: on CI (ubuntu-24.04, 2026-11-14) `offline` read a fixture's reply
 /// (E_SELF_UPDATE_MANIFEST) and `same-version`'s trap proxy saw the stray request, in the same run.
-pub fn bind_refusing_loopback(addr: SocketAddr) -> Result<(socket2::Socket, SocketAddr), HarnessError> {
+pub fn bind_refusing_loopback(
+    addr: SocketAddr,
+) -> Result<(socket2::Socket, SocketAddr), HarnessError> {
     check_bind(addr)?;
     let socket = socket2::Socket::new(socket2::Domain::IPV4, socket2::Type::STREAM, None)
         .expect("refusing: socket");

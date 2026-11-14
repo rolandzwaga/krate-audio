@@ -6,7 +6,9 @@ name: Manager CI
 # elevated jobs (FR-102b); they write only under RUNNER_TEMP, the admin-only run directory, the fixture receipt and
 # the fixture's own uninstall key (FR-111), on ephemeral hosted runners only.
 on:
+  # push runs on main only: a branch commit is already tested by its pull_request run (tools/lint-workflow-triggers.js).
   push:
+    branches: [main]
     paths:
       - 'apps/krate-manager/**'
       - '.github/workflows/manager-ci.yml'

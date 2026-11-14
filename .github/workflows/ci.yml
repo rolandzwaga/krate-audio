@@ -37,9 +37,12 @@ on:
         required: false
         default: false
 
-# Cancel in-progress runs when a new commit is pushed
+# Cancel in-progress runs when a new commit is pushed. Called from release.yml / long-tests-nightly.yml, github.workflow
+# is the CALLER's name (GitHub docs, "Reusable workflows"), so the group also carries the call inputs: without them, two
+# plugin releases started from main share "Release-refs/heads/main" and the second cancels the first's build
+# (tools/lint-workflow-triggers.js).
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.plugin }}-${{ inputs.long-tests }}
   cancel-in-progress: true
 
 env:
@@ -329,6 +332,14 @@ jobs:
         run: |
           node tools/lint-gate-mirrors-ci.js --self-test
           node tools/lint-gate-mirrors-ci.js
+
+      # Workflow triggers: push + pull_request with push on every branch ran each PR commit twice (feed-tools.yml,
+      # manager-ci.yml); a push/PR workflow needs a concurrency group; a reusable workflow's cancel group must carry
+      # its call inputs, since github.workflow is the caller's name there (ci.yml under release.yml, 2026-11-14).
+      - name: Workflow trigger lint
+        run: |
+          node tools/lint-workflow-triggers.js --self-test
+          node tools/lint-workflow-triggers.js
 
   build-windows:
     name: Windows (MSVC)
