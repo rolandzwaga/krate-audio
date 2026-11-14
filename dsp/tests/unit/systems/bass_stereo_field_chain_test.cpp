@@ -659,11 +659,14 @@ TEST_CASE("BassStereoField_WideAliasing", "[systems][profundum][stereo-field][sc
               << "\n";
 }
 
-// SC-007 smoke (deviation 6): Rectify and Fracture at E1, 48 kHz.
+// SC-007 smoke (deviation 6): Rectify, Fracture and Crush at E1, 48 kHz. Crush (2026-11-14): the [long] grid read
+// -77.2 dBFS on macOS arm64 (nightly of 2026-11-12) against -135 dBFS on x86 under the same fast-math flags, and the
+// [long] lane runs on Linux only now, so this per-push cell is the only arm64 reading of it.
 TEST_CASE("BassStereoField_WideAliasingSmoke", "[systems][profundum][stereo-field][sc-007]") {
     std::cout << std::setprecision(6);
     for (const BsfAlgorithmEntry& alg : kBsfAlgorithms) {
-        if (alg.algorithm == BsfAlgorithm::Rectify || alg.algorithm == BsfAlgorithm::Fracture)
+        if (alg.algorithm == BsfAlgorithm::Rectify || alg.algorithm == BsfAlgorithm::Fracture
+            || alg.algorithm == BsfAlgorithm::Crush)
             bsfWideAliasingCell(alg, Sct::kE1Hz, "E1", kBsfFs);
     }
 }
