@@ -125,7 +125,11 @@ public:
     /// it). Noiseless: no dither, no jitter.
     static constexpr float kCrushHysteresisSteps = 0.25f;
     /// Slot memory is dropped when the bit depth has moved by this much since the memory was keyed (an Amount
-    /// move: the smoothed bits change continuously, so a fixed fraction of a bit rather than any change).
+    /// move: the smoothed bits change continuously, so a fixed fraction of a bit rather than any change). When
+    /// the move settles (the first unchanged Amount after a change), the memory is re-keyed once more to the
+    /// settled depth if it is keyed to any other (settle re-key, 2026-11-14): otherwise it stays keyed up to
+    /// this far off for good, and the same setting renders differently depending on the path to it (0.98 dB
+    /// on h13 after a Crush -> Amount 0 -> Crush excursion, SC-006(b) of Profundum Phase 8).
     static constexpr float kCrushHysteresisRekeyBits = 1.0f / 16.0f;
     /// Slot memory per engine: m_hi reaches m(0) + 1 = 65 at Amount 0.
     static constexpr std::size_t kCrushMaxSlots = static_cast<std::size_t>(kCrushMultipleLo) + 1;
@@ -978,6 +982,11 @@ private:
             if (m != memM || std::abs(bits - memBits) >= kCrushHysteresisRekeyBits)
                 forgetSlots(m, bits);
         }
+        /// Settle re-key (kCrushHysteresisRekeyBits): keys the slot memory to exactly `bits`.
+        void keySlotsSettled(float bits) noexcept {
+            if (bits != memBits)
+                forgetSlots(m, bits);
+        }
         /// The level slot k outputs for held value v whose plain quantisation is q (step: one quantiser step
         /// in the same units): re-quantises only when the slot is invalid or v moved from v_ref by more than
         /// kCrushHysteresisSteps·step; otherwise keeps q_ref.
@@ -1060,6 +1069,8 @@ private:
         float qStep = 0.0f;         // one quantiser step at B(A), in the units of the held value
         float uPrev = 0.0f;
         float lastAmount = -1.0f;  // configure() recomputes only on a changed Amount
+        bool amountMoving = false;  // the Amount changed at the last configure()
+        bool settleRekey = false;   // the Amount just settled: the next process() keys the slots to `bits`
         std::size_t occupancyPeak = 0;  // largest active-step count of one engine since the stage read it
         std::size_t retirements = 0;    // ring-full retirements since the stage read them
         void prepare(double baseRate, double processRateIn, std::uint32_t channel) noexcept {
@@ -1082,6 +1093,7 @@ private:
                 e.reset();
             phase = 0.0;
             uPrev = 0.0f;
+            settleRekey = false;
             occupancyPeak = 0;
             retirements = 0;
         }
@@ -1095,8 +1107,15 @@ private:
         }
         void configure(float amount, float tone) noexcept {
             postTilt.setTone(tone);
-            if (std::bit_cast<std::uint32_t>(amount) == std::bit_cast<std::uint32_t>(lastAmount))
+            if (std::bit_cast<std::uint32_t>(amount) == std::bit_cast<std::uint32_t>(lastAmount)) {
+                // The smoother snaps to its target when complete, so the first unchanged Amount is the settled one.
+                if (amountMoving) {
+                    amountMoving = false;
+                    settleRekey = true;
+                }
                 return;
+            }
+            amountMoving = true;
             lastAmount = amount;
             const auto a = static_cast<double>(amount);
             mAmount = static_cast<double>(kCrushMultipleLo)
@@ -1131,6 +1150,8 @@ private:
                 HoldEngine& h = engine[e];
                 h.advance();
                 h.keySlots(bits);
+                if (settleRekey)
+                    h.keySlotsSettled(bits);
                 const auto md = static_cast<double>(h.m);
                 // Sample points at θ = (k + 1/2)/m: half a hold step off the period start, where the
                 // core's waveforms put their edge (a point on a band-limited edge makes the held value
@@ -1155,6 +1176,7 @@ private:
                 occupancyPeak = std::max(occupancyPeak, h.count);
                 out[e] = h.output();
             }
+            settleRekey = false;
             phase = (th >= 1.0) ? th - 1.0 : th;
             uPrev = u;
             return {.y = (1.0f - frac) * out[eLo] + frac * out[eHi], .lin = 0.0f};

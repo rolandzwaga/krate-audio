@@ -156,11 +156,14 @@ struct BassCharacterStageProbe {
         std::array<float, Stage::kCrushMaxSlots> level{};
         std::array<float, Stage::kCrushMaxSlots> input{};
         std::array<bool, Stage::kCrushMaxSlots> valid{};
+        float memBits = 0.0f;  ///< the bit depth the slot memory is keyed to
+        float bits = 0.0f;     ///< the branch's current bit depth B(A)
     };
     [[nodiscard]] static CrushSlots crushSlots(const Stage& s, int ch, std::size_t e) noexcept {
         const auto& c = s.ch_[idx(ch)].crush;
         const auto& h = c.engine[e];
-        return CrushSlots{.m = h.m, .step = c.qStep, .level = h.slotLevel, .input = h.slotInput, .valid = h.slotValid};
+        return CrushSlots{.m = h.m, .step = c.qStep, .level = h.slotLevel, .input = h.slotInput, .valid = h.slotValid,
+                          .memBits = h.memBits, .bits = c.bits};
     }
     /// Fracture's ÷2-phasor increment Δφ = f0 / (F·fs), periods of f0 per F-sample.
     [[nodiscard]] static double fracturePhaseIncrement(const Stage& s, int ch) noexcept {

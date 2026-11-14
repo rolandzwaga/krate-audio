@@ -355,6 +355,36 @@ std::pair<MorphState, MorphState> bmcIdempotentPair(std::mt19937& rng) {
     return pr;
 }
 
+/// The Fold amount HarmonicFold receives for `s`: MassLaw's FoldAmount row at s's Mass (up to +61.3 at Mass 100).
+float bmcEffectiveFold(const MorphState& s) {
+    return Krate::DSP::MassLaw::evaluate(s.mass, Bmt::baseFor(s)).foldAmount;
+}
+
+/// B10-3 applied to what HarmonicFold sees (2026-11-14): its detector hysteresis above kSoftEnd is path-dependent by
+/// Phase 2 design, so A's EFFECTIVE Fold is kept in the soft regime. Clamping the raw leaf alone let Mass carry A to
+/// 57.8 and 85.7 (pairs 1 and 6, 0.105-0.15 dB residue at the fold tap onward). Lowers the Fold leaf first, then the
+/// Mass when Fold 0 is still above kSoftEnd; each by bisection on the real MassLaw (monotonic in both).
+void bmcClampToSoftFold(MorphState& s) {
+    const float soft = Krate::DSP::HarmonicFold::kSoftEnd;
+    const auto largestWithin = [&](float lo, float hi, auto&& set) {
+        for (int i = 0; i < 40; ++i) {
+            const float mid = 0.5f * (lo + hi);
+            set(mid);
+            (bmcEffectiveFold(s) <= soft ? lo : hi) = mid;
+        }
+        set(lo);
+    };
+    if (bmcEffectiveFold(s) <= soft)
+        return;
+    const float fold = s.foldAmount;
+    s.foldAmount = 0.0f;
+    if (bmcEffectiveFold(s) <= soft) {
+        largestWithin(0.0f, fold, [&](float v) { s.foldAmount = v; });
+        return;
+    }
+    largestWithin(0.0f, s.mass, [&](float v) { s.mass = v; });
+}
+
 constexpr std::size_t kBmcIdemUp = 12000;     // 0.25 s
 constexpr std::size_t kBmcIdemDown = 36000;   // 0.75 s
 
@@ -412,6 +442,88 @@ double bmcIdempotentCell(const MorphState& a, const MorphState& b, BmMode mode, 
     table << pairIdx << "," << bmcModeName(mode) << "," << tLand << "," << counted << "," << worstN << "," << worst
         << "\n";
     return worst;
+}
+
+/// Hidden diagnostic (2026-11-14): where in the chain the SC-006(b) residue of one pair first appears. A -> B -> A
+/// (Lock) against A alone, both with per-sample dynamics taps; per tap, the worst harmonic delta over harmonics within
+/// 60 dB of the strongest (the SC-006(b) rule), read one settle second after landing; plus the mean compressor and
+/// shaper gain difference over the same frame.
+void bmcIdempotentTapProbe(const MorphState& a, const MorphState& b, std::size_t pairIdx) {
+    const double f0 = bmcNoteHz(28);
+    constexpr double kSettle = 1.0;
+    Bmt::MorphChainConfig rc = bmcSteady(a, a, BmMode::Blend, 0.0f, f0);
+    rc.seconds = bmcIdempotentSeconds(kSettle);
+    rc.tail.chain.perSampleDynamicsTaps = true;
+    const Bmt::MorphChainTaps ref = Bmt::renderMorphChain(rc);
+    Bmt::MorphChainConfig c = bmcSteady(a, b, BmMode::Lock, 0.0f, f0);
+    c.seconds = bmcIdempotentSeconds(kSettle);
+    c.tail.chain.perSampleDynamicsTaps = true;
+    c.automation.push_back(bmcPositionEvent(kBmcIdemUp, 1.0f));
+    c.automation.push_back(bmcPositionEvent(kBmcIdemDown, 0.0f));
+    const Bmt::MorphChainTaps t = Bmt::renderMorphChain(c);
+    std::size_t tLand = kBmcNoSample;
+    for (std::size_t i = 0; i < t.resolvedPerInterval.size(); ++i) {
+        if (t.advanceSamples[i] >= kBmcIdemDown && bmcSameBits(t.resolvedPerInterval[i].position, 0.0f)) {
+            tLand = t.advanceSamples[i];
+            break;
+        }
+    }
+    REQUIRE(tLand != kBmcNoSample);
+    const std::size_t start = tLand + static_cast<std::size_t>(std::llround(kSettle * kBmcFs));
+    const std::size_t len = Krate::DSP::TestUtils::kLowFrequencyFftSize;
+    struct Tap { const char* name; const std::vector<float>* tl; const std::vector<float>* tr;
+                 const std::vector<float>* rl; const std::vector<float>* rr; };
+    const std::array<Tap, 9> taps{{
+        {"core", &t.coreL, &t.coreR, &ref.coreL, &ref.coreR},
+        {"fold", &t.foldL, &t.foldR, &ref.foldL, &ref.foldR},
+        {"character", &t.characterL, &t.characterR, &ref.characterL, &ref.characterR},
+        {"anchor", &t.anchorL, &t.anchorR, &ref.anchorL, &ref.anchorR},
+        {"sum", &t.sumL, &t.sumR, &ref.sumL, &ref.sumR},
+        {"dyn", &t.dynL, &t.dynR, &ref.dynL, &ref.dynR},
+        {"dc", &t.dcL, &t.dcR, &ref.dcL, &ref.dcR},
+        {"stageOut", &t.stageOutL, &t.stageOutR, &ref.stageOutL, &ref.stageOutR},
+        {"out", &t.outL, &t.outR, &ref.outL, &ref.outR},
+    }};
+    for (const Tap& tap : taps) {
+        if (tap.tl->size() < start + len || tap.rl->size() < start + len) {
+            std::cout << "SC006 TAP pair " << pairIdx << " " << tap.name << ": not recorded\n";
+            continue;
+        }
+        const std::vector<double> wT = bmcFirst16(Bmt::midOf(*tap.tl, *tap.tr), f0, start);
+        const std::vector<double> wR = bmcFirst16(Bmt::midOf(*tap.rl, *tap.rr), f0, start);
+        const double strongT = *std::max_element(wT.begin(), wT.end());
+        const double strongR = *std::max_element(wR.begin(), wR.end());
+        double worst = 0.0;
+        std::size_t worstN = 0;
+        for (std::size_t n = 0; n < wR.size(); ++n) {
+            if (wR[n] < strongR * 1e-6 && wT[n] < strongT * 1e-6)
+                continue;
+            const double d = std::fabs(Krate::DSP::ProfundumTest::safeDb10(wT[n])
+                                       - Krate::DSP::ProfundumTest::safeDb10(wR[n]));
+            if (d > worst) {
+                worst = d;
+                worstN = n + 1;
+            }
+        }
+        std::cout << "SC006 TAP pair " << pairIdx << " " << tap.name << ": worst harmonic delta " << worst
+                  << " dB at h" << worstN << "\n";
+    }
+    if (!ref.targetsPerInterval.empty() && !ref.massPerInterval.empty())
+        std::cout << "SC006 TAP pair " << pairIdx << " A effective fold (MassLaw target) "
+                  << ref.targetsPerInterval.back().foldAmount << " at Mass " << ref.massPerInterval.back()
+                  << " (kSoftEnd " << Krate::DSP::HarmonicFold::kSoftEnd << ")\n";
+    for (const auto& [name, gt, gr] : {std::tuple{"compGainDb", &t.compGainDb, &ref.compGainDb},
+                                       std::tuple{"shaperGainDb", &t.shaperGainDb, &ref.shaperGainDb}}) {
+        if (gt->size() < start + len || gr->size() < start + len) {
+            std::cout << "SC006 TAP pair " << pairIdx << " " << name << ": not recorded\n";
+            continue;
+        }
+        double sum = 0.0;
+        for (std::size_t i = start; i < start + len; ++i)
+            sum += static_cast<double>((*gt)[i]) - static_cast<double>((*gr)[i]);
+        std::cout << "SC006 TAP pair " << pairIdx << " " << name << ": mean difference "
+                  << sum / static_cast<double>(len) << " dB\n";
+    }
 }
 
 /// Hidden diagnostic (main loop, 2026-10-19): the SC-006(b) residue of pairs 2 and 6 against the settle time after
@@ -474,14 +586,36 @@ void bmcIdempotentRender(std::size_t numPairs, std::span<const BmMode> modes) {
         auto pr = bmcIdempotentPair(rng);
         // B10-3 (2026-10-19): A's Fold is constrained to the soft regime (HarmonicFold's detector hysteresis above
         // kSoftEnd is path-dependent by Phase 2 design); a clamped pair is also rendered unclamped and recorded.
-        if (pr.first.foldAmount > Krate::DSP::HarmonicFold::kSoftEnd) {
+        // The regime is read on the EFFECTIVE Fold, after MassLaw (bmcClampToSoftFold, 2026-11-14).
+        if (bmcEffectiveFold(pr.first) > Krate::DSP::HarmonicFold::kSoftEnd) {
             Bmt::MorphChainConfig rcu = bmcSteady(pr.first, pr.first, BmMode::Blend, 0.0f, f0);
             rcu.seconds = bmcIdempotentSeconds();
             const Bmt::MorphChainTaps refU = Bmt::renderMorphChain(rcu);
             const double worstU = bmcIdempotentCell(pr.first, pr.second, BmMode::Lock, refU, table, k);
-            std::cout << "SC006 recorded(b) pair " << k << " unclamped A fold " << pr.first.foldAmount
-                      << ": worst harmonic delta " << worstU << " dB (B10-3: fold regime, recorded)\n";
-            pr.first.foldAmount = Krate::DSP::HarmonicFold::kSoftEnd;
+            std::cout << "SC006 recorded(b) pair " << k << " unclamped A fold " << pr.first.foldAmount << " mass "
+                      << pr.first.mass << " (effective fold " << bmcEffectiveFold(pr.first)
+                      << "): worst harmonic delta " << worstU << " dB (B10-3: fold regime, recorded)\n";
+            bmcClampToSoftFold(pr.first);
+            REQUIRE(bmcEffectiveFold(pr.first) <= Krate::DSP::HarmonicFold::kSoftEnd);
+            REQUIRE(Krate::DSP::isValidMorphState(pr.first));
+            std::cout << "SC006 clamped(b) pair " << k << " A fold " << pr.first.foldAmount << " mass "
+                      << pr.first.mass << " (effective fold " << bmcEffectiveFold(pr.first) << ")\n";
+        }
+        // B10-3 extended to Crush (2026-11-14): Crush's per-slot quantiser hysteresis (kCrushHysteresisSteps) keeps
+        // the level a slot latched on the way to a setting whose steady input sits within a quarter step of it,
+        // path-dependent by Phase 5 design (BassCharacter_OnsetInvariance, ruling 2026-10-16): pair 6 read 0.98 dB
+        // on h13 at the character tap with every upstream tap clean. A's Crush is held at Amount 0 for the gated
+        // render; such a pair is also rendered as drawn (after the Fold constraint) and recorded.
+        if (pr.first.characterAlgorithm == Krate::DSP::BassCharacterStage::Algorithm::Crush
+            && pr.first.characterAmount > 0.0f) {
+            Bmt::MorphChainConfig rcc = bmcSteady(pr.first, pr.first, BmMode::Blend, 0.0f, f0);
+            rcc.seconds = bmcIdempotentSeconds();
+            const Bmt::MorphChainTaps refC = Bmt::renderMorphChain(rcc);
+            const double worstC = bmcIdempotentCell(pr.first, pr.second, BmMode::Lock, refC, table, k);
+            std::cout << "SC006 recorded(b) pair " << k << " A Crush amount " << pr.first.characterAmount
+                      << ": worst harmonic delta " << worstC << " dB (B10-3: Crush hysteresis, recorded)\n";
+            pr.first.characterAmount = 0.0f;
+            REQUIRE(Krate::DSP::isValidMorphState(pr.first));
         }
         // A alone: at p = 0 the resolved state is A bitwise in every mode (SC-001), so one reference serves all three.
         Bmt::MorphChainConfig rc = bmcSteady(pr.first, pr.first, BmMode::Blend, 0.0f, f0);
@@ -1133,5 +1267,29 @@ TEST_CASE("BassMorph_IdempotentRenderSmoke", "[systems][profundum][bass-morph][s
 TEST_CASE("BassMorph_IdempotentSettleProbe", "[systems][profundum][bass-morph][.]") {
     enableFTZDAZ();
     bmcIdempotentSettleProbe();
+    CHECK(true);
+}
+
+// Hidden diagnostic (2026-11-14): the per-tap SC-006(b) residue of the pairs the long case failed (1 and 6), with the
+// long case's own A-Fold clamp (B10-3, on the effective Fold).
+TEST_CASE("BassMorph_IdempotentTapProbe", "[systems][profundum][bass-morph][.]") {
+    enableFTZDAZ();
+    std::mt19937 rng(0x8066u);
+    for (std::size_t k = 0; k < 8; ++k) {
+        auto pr = bmcIdempotentPair(rng);
+        bmcClampToSoftFold(pr.first);
+        std::cout << "SC006 TAP pair " << k << ": A mass " << pr.first.mass << " fold " << pr.first.foldAmount
+                  << " char " << static_cast<int>(pr.first.characterAlgorithm) << "/" << pr.first.characterAmount
+                  << " | B mass " << pr.second.mass << " fold " << pr.second.foldAmount << " char "
+                  << static_cast<int>(pr.second.characterAlgorithm) << "/" << pr.second.characterAmount << "\n";
+        bmcIdempotentTapProbe(pr.first, pr.second, k);
+        if (pr.first.characterAlgorithm == Krate::DSP::BassCharacterStage::Algorithm::Crush
+            && pr.first.characterAmount > 0.0f) {
+            MorphState a = pr.first;
+            a.characterAmount = 0.0f;
+            std::cout << "SC006 TAP pair " << k << " variant A Crush amount 0:\n";
+            bmcIdempotentTapProbe(a, pr.second, 100 + k);
+        }
+    }
     CHECK(true);
 }

@@ -746,6 +746,51 @@ TEST_CASE("BassCharacter_CrushHoldRing", "[systems][profundum][shape-character][
     }
 }
 
+// FR-051 settle re-key (2026-11-14): once an Amount move settles, every Crush hold engine's slot memory is keyed to
+// the settled bit depth B(A). The 1/16-bit re-key rule alone left the memory keyed up to 1/16 bit off after a
+// Crush -> Amount 0 -> Crush excursion, and the slot hysteresis then held those levels for good: the same setting
+// rendered 0.98 dB off on h13 against a fresh render (BassMorph_IdempotentRender pair 6, SC-006(b)).
+TEST_CASE("BassCharacter_CrushSettledDepthRekey", "[systems][profundum][shape-character][bass-character]") {
+    namespace Sct = Krate::DSP::ShapeCharacterTest;
+    constexpr double fs = kBcsFs;
+    const double f0 = Sct::kE1Hz;
+    constexpr std::size_t kBlock = 64;
+    constexpr double kTotalSeconds = 1.5;
+    const std::vector<float> in = Sct::fixture(SpectralShapeRecipe::kSawAnchor, f0, fs, kTotalSeconds);
+    const std::size_t n = in.size();
+    for (const float amount : {0.24f, 0.5f, 0.75f}) {
+        // Amount: held 0.5 s, 0 (the bypass) for 0.25 s, back to `amount` for the remaining 0.75 s.
+        const auto amountAt = [amount](double t) { return (t >= 0.5 && t < 0.75) ? 0.0f : amount; };
+        BassCharacterStage s;
+        s.setAlgorithm(BcsAlgo::Crush);
+        s.setAmount(amount);
+        s.setTone(0.5f);
+        s.setFundamentalHz(static_cast<float>(f0));
+        s.prepare(fs, 512);
+        std::vector<float> l = in;
+        std::vector<float> r = in;
+        for (std::size_t pos = 0; pos < n; pos += kBlock) {
+            s.setAmount(amountAt(static_cast<double>(pos) / fs));
+            s.processBlock(l.data() + pos, r.data() + pos, std::min(kBlock, n - pos));
+        }
+        REQUIRE(s.stateFinite());
+        std::size_t checked = 0;
+        for (int ch = 0; ch < 2; ++ch) {
+            for (std::size_t e = 0; e < 2; ++e) {
+                const BcsProbe::CrushSlots slots = BcsProbe::crushSlots(s, ch, e);
+                if (std::none_of(slots.valid.begin(), slots.valid.end(), [](bool v) { return v; }))
+                    continue;  // a mono-linked channel 1 never runs (FR-027)
+                ++checked;
+                INFO("Amount " << amount << " channel " << ch << " engine " << e << " (m " << slots.m
+                               << "): slot memory keyed at " << slots.memBits << " bits, settled depth "
+                               << slots.bits << " bits");
+                CHECK(slots.memBits == slots.bits);
+            }
+        }
+        CHECK(checked >= 2);  // not vacuous: both of channel 0's engines quantised
+    }
+}
+
 // =============================================================================
 // T017: character behaviour gates (SC-008, SC-009, SC-013, SC-021, SC-026(b)(c)(d), SC-027, SC-029;
 // plan S1 C-14, C-16, C-17, C-21)

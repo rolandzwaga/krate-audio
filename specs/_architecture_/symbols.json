@@ -313,7 +313,7 @@
       "scope": "Krate::DSP::BassCharacterStage",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/bass_character_stage.h",
-      "line": 886
+      "line": 890
     },
     {
       "name": "BitwiseMangler",
@@ -393,7 +393,7 @@
       "scope": "Krate::DSP::BassCharacterStage",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/bass_character_stage.h",
-      "line": 167
+      "line": 171
     },
     {
       "name": "BreathingModulator",
@@ -473,7 +473,7 @@
       "scope": "Krate::DSP::BassCharacterStage",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/bass_character_stage.h",
-      "line": 1291
+      "line": 1313
     },
     {
       "name": "Channel",
@@ -673,7 +673,7 @@
       "scope": "Krate::DSP::BassCharacterStage",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/bass_character_stage.h",
-      "line": 1049
+      "line": 1058
     },
     {
       "name": "CycleBuffer",
@@ -1137,7 +1137,7 @@
       "scope": "Krate::DSP::BassCharacterStage",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/bass_character_stage.h",
-      "line": 141
+      "line": 145
     },
     {
       "name": "FMOperator",
@@ -1169,7 +1169,7 @@
       "scope": "Krate::DSP::BassCharacterStage",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/bass_character_stage.h",
-      "line": 770
+      "line": 774
     },
     {
       "name": "FormantData",
@@ -1241,7 +1241,7 @@
       "scope": "Krate::DSP::BassCharacterStage",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/bass_character_stage.h",
-      "line": 1182
+      "line": 1204
     },
     {
       "name": "FreezeFeedbackProcessor",
@@ -1529,7 +1529,7 @@
       "scope": "Krate::DSP::BassCharacterStage",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/bass_character_stage.h",
-      "line": 943
+      "line": 947
     },
     {
       "name": "HouseholderMatrix",
@@ -2809,7 +2809,7 @@
       "scope": "Krate::DSP::BassCharacterStage",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/bass_character_stage.h",
-      "line": 827
+      "line": 831
     },
     {
       "name": "ResetProcessorVisitor",
@@ -3305,7 +3305,7 @@
       "scope": "Krate::DSP::BassCharacterStage",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/bass_character_stage.h",
-      "line": 1285
+      "line": 1307
     },
     {
       "name": "Slot",
@@ -3505,7 +3505,7 @@
       "scope": "Krate::DSP::BassCharacterStage::HoldEngine",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/bass_character_stage.h",
-      "line": 944
+      "line": 948
     },
     {
       "name": "StereoField",
@@ -3793,7 +3793,7 @@
       "scope": "Krate::DSP::BassCharacterStage",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/bass_character_stage.h",
-      "line": 691
+      "line": 695
     },
     {
       "name": "TubeStage",
