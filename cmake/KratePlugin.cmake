@@ -131,6 +131,46 @@ endmacro()
 # NOTE: the macOS AU branch cannot be exercised on the Windows-primary CI; verify
 # with an Xcode build before relying on changes here.
 # ------------------------------------------------------------------------------
+#   krate_check_audiounit_sdk_standard(sdk_dir cxx_std)
+#   Fails configure when the fetched AudioUnitSDK's Xcode project needs a newer C++ standard than cxx_std, the
+#   standard the VST3 SDK's AU wrapper compiles at. Without it a bad pin surfaces minutes into the macOS build as
+#   dozens of std::expected errors in *_AU (PR #293; 89f7b1c3). An unreadable project or an unknown standard
+#   token fails too, so the guard can never pass vacuously. Self-test: tools/test-audiounit-sdk-guard.cmake.
+function(krate_check_audiounit_sdk_standard sdk_dir cxx_std)
+    set(_pbx "${sdk_dir}/AudioUnitSDK.xcodeproj/project.pbxproj")
+    if(NOT EXISTS "${_pbx}")
+        message(FATAL_ERROR "[KRATE] AudioUnitSDK guard: ${_pbx} not found; cannot read the SDK's C++ standard")
+    endif()
+    file(STRINGS "${_pbx}" _lines REGEX "CLANG_CXX_LANGUAGE_STANDARD")
+    if(NOT _lines)
+        message(FATAL_ERROR "[KRATE] AudioUnitSDK guard: no CLANG_CXX_LANGUAGE_STANDARD in ${_pbx}")
+    endif()
+    foreach(_line IN LISTS _lines)
+        if(NOT _line MATCHES "\\+\\+([0-9][0-9a-z])\"")
+            message(FATAL_ERROR "[KRATE] AudioUnitSDK guard: unreadable standard in '${_line}'")
+        endif()
+        set(_tok "${CMAKE_MATCH_1}")
+        set(_map_1z 17)
+        set(_map_2a 20)
+        set(_map_2b 23)
+        set(_map_2c 26)
+        if(DEFINED _map_${_tok})
+            set(_std "${_map_${_tok}}")
+        elseif(_tok MATCHES "^[0-9][0-9]$")
+            set(_std "${_tok}")
+        else()
+            message(FATAL_ERROR "[KRATE] AudioUnitSDK guard: unknown standard token '${_tok}' in '${_line}'")
+        endif()
+        if(_std LESS 50)  # c++98 sorts after c++23 numerically; 98 and 03 are older than any cxx_std we use
+            if(_std GREATER cxx_std)
+                message(FATAL_ERROR "[KRATE] AudioUnitSDK at ${sdk_dir} needs C++${_std} (${_line}), but the "
+                    "VST3 SDK AU wrapper compiles as C++${cxx_std}: every *_AU target would fail "
+                    "(std::expected, PR #293). Pin an AudioUnitSDK release built at C++${cxx_std} or older.")
+            endif()
+        endif()
+    endforeach()
+endfunction()
+
 function(krate_plugin_platform_setup target)
     set(oneValueArgs TAG BUNDLE_BASE ENTITLEMENTS KIND)
     cmake_parse_arguments(KP "" "${oneValueArgs}" "" ${ARGN})
@@ -175,16 +215,22 @@ function(krate_plugin_platform_setup target)
             FetchContent_Declare(
                 AudioUnitSDK
                 GIT_REPOSITORY https://github.com/apple/AudioUnitSDK.git
-                # 1.4.0, the version the VST3 SDK's audiounit-tutorial fetches (HEAD): its project sets
-                # ENABLE_USER_SCRIPT_SANDBOXING = YES; under 1.1.0 every AU build warned that the unsandboxed
-                # "Install clang-format hook" phase (a no-op outside Debug) delays Copy Headers.
-                GIT_TAG AudioUnitSDK-1.4.0
+                # PINNED: 1.3.0. Do not bump without building every *_AU target on macOS.
+                # - 1.4.0+ uses C++23 std::expected in AUUtility.h / AUBuffer.h, but the VST3 SDK's AU wrapper
+                #   (auwrapper.mm, aucocoaview.mm) compiles at CMAKE_CXX_STANDARD (20): every *_AU target fails
+                #   with "no template named 'expected' in namespace 'std'". Bumped to 1.4.0 and broken twice
+                #   (PR #293, then 89f7b1c3); krate_check_audiounit_sdk_standard below now fails configure instead.
+                # - 1.1.0 / 1.2.0 lack ENABLE_USER_SCRIPT_SANDBOXING = YES: every AU build warned that the
+                #   unsandboxed "Install clang-format hook" phase delays Copy Headers (CI warning gate).
+                # 1.3.0 is the one release with sandboxing at C++20 (its project: CLANG_CXX_LANGUAGE_STANDARD c++20).
+                GIT_TAG AudioUnitSDK-1.3.0
             )
             FetchContent_MakeAvailable(AudioUnitSDK)
             FetchContent_GetProperties(
                 AudioUnitSDK
                 SOURCE_DIR SMTG_AUDIOUNIT_SDK_PATH
             )
+            krate_check_audiounit_sdk_standard("${SMTG_AUDIOUNIT_SDK_PATH}" "${CMAKE_CXX_STANDARD}")
 
             list(APPEND CMAKE_MODULE_PATH "${vst3sdk_SOURCE_DIR}/cmake/modules")
             include(SMTG_AddVST3AuV2)
