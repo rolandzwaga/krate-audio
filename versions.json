@@ -233,29 +233,29 @@
       }
     },
     "Profundum": {
-      "version": "1.0.1",
+      "version": "1.0.2",
       "download_url": "https://krateaudio.com/profundum/",
       "release_notes": "",
-      "tag": "profundum/v1.0.1",
-      "pub_date": "2026-11-02T23:10:15Z",
+      "tag": "profundum/v1.0.2",
+      "pub_date": "2026-11-15T21:26:28Z",
       "channel": "stable",
-      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/profundum/v1.0.1",
+      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/profundum/v1.0.2",
       "description": "Mass Bass Instrument",
-      "notes_markdown": "### Fixed\n\n- **The AUv3 version ran only on Apple Silicon** — In the macOS installer, the AUv3 app (`Profundum AUv3.app`) and the extension inside it were built for Apple Silicon only, while the VST3 and AU beside them were universal, so on an Intel Mac the AUv3 version did not load. Both are now universal (Apple Silicon and Intel), like the rest of the package.\n- **The update check never worked on Linux** — The check could not fetch over https, so the update banner never appeared on Linux. It now fetches through the system's libcurl (`libcurl.so.4`, or `libcurl-gnutls.so.4`), loaded when the check runs; on a system without libcurl the check stays silent, as before.\n- **The plugin bundle reported version 0.8.0** — The bundle's `moduleinfo.json` (and, on macOS, the version Finder shows for the bundle) carried the shared build's version 0.8.0 instead of the plugin's own. It now matches the version shown in the editor. Hosts never used this value for anything audible; it matters for tools that list installed plugins.",
+      "notes_markdown": "### Fixed\n\n- **Sample & Hold and Smooth Random morph cycles repeated too soon** — The random generator behind these two cycle shapes overflowed and cycled after about 79,000 values instead of running its full sequence. It now runs the full sequence, so these shapes play a different random pattern than before.\n- **The stereo field's band split lost precision at low frequencies** — Its crossover filters now run in double precision, which removes a small level error at low split frequencies, largest at high sample rates.\n- **A possible crash when a host shut Profundum down with its window still open** — If a host shut down the plugin's controller before closing the editor window, the update banner kept checking for updates, twice a second, through memory that had already been freed, which could crash the host. The update check now stays alive until the window is gone.\n- **A possible crash when opening the preset browser after a host shut Profundum down with its window still open** — In the same situation, clicking Presets read the preset list through memory that had already been freed, which could crash the host. The preset list now stays alive until the window is gone.\n\n- **Long preset descriptions were cut off in the preset browser** — The description under the preset list was a single line, so a long one ended mid-word at the edge. It now wraps onto up to three lines, ending with \"…\" if it is longer still, and hovering over it shows the whole text.\n\n### Changed\n\n- **Built with VST3 SDK 3.8.1.**",
       "platforms": {
         "darwin-universal": {
-          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/profundum/v1.0.1/Profundum-1.0.1-macOS.pkg",
-          "size": 6908117,
-          "sha256": "319983a7a59807a5ad0c3d789cd53647bd92311a88022420ebcf27e0c0da65ee",
-          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+Tbrn58Q/D85kDQLq9iAlcvnT5agPu7WaH38aeIJmvUwNM6e3lR/NR/BbYwz2Z3oTI99wttNvRTrJ35hVUxl4UtJVgg=\ntrusted comment: krate:1:Profundum:1.0.1:darwin-universal:Profundum-1.0.1-macOS.pkg\nWLJpk9fxXNhSaLtpnLolCOZtGIO07B922RIN4M1ah3P4EWUMUHTeSgUcPJXaxU9aWZovnnCb4ukXH/IOrWkjDw==\n",
+          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/profundum/v1.0.2/Profundum-1.0.2-macOS.pkg",
+          "size": 6909446,
+          "sha256": "8f4e1f2a7eb308f3a4347131048e4e59dc3b940b6de9b57db428cad22f296e45",
+          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+Tbrn+Nevlphvz9PCdJa07VEEvEEeTcX3gkwJDHgBqFrxwZXXLhPniMe7AmgE46I11CW6T6lKXJGhc1kPyZ0dgnwKgg=\ntrusted comment: krate:1:Profundum:1.0.2:darwin-universal:Profundum-1.0.2-macOS.pkg\ndtUkYu167tPoK8Zwuzgkf2CGcb07F0hCM6YRwcjKqkwdc3Dfx9th8In6eNPVZCpTV/vZHJpy7DRrifnknArLAA==\n",
           "format": "pkg",
           "min_os": "26.5"
         },
         "linux-x86_64": {
-          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/profundum/v1.0.1/Profundum-1.0.1-Linux-x64.tar.gz",
-          "size": 1597762,
-          "sha256": "e58022506da936db6110ba9cb20c32572ddf91dfb10124719b242ec438e0b7cd",
-          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+TbrnyP6zW3U29PweNSAv7RmDvt8iYRe57l+6erleZ7h+6Z5+6KozPpRMD6Khf3sDuP9rGp8Zlxjem8FQHYeGyCs1wg=\ntrusted comment: krate:1:Profundum:1.0.1:linux-x86_64:Profundum-1.0.1-Linux-x64.tar.gz\nbeAmkIHzss9pUUZatkE84AVhW5FLgxnN8RYPVQbogzUVPc/08rSuUaiO/jxbXNNWQKEc2pLLHEzj41LhWJAcCw==\n",
+          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/profundum/v1.0.2/Profundum-1.0.2-Linux-x64.tar.gz",
+          "size": 1613587,
+          "sha256": "fca8315904ee21133121a29eb2c57ba64d0de6f343fa3c801dfaa3e7245adb7a",
+          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+Tbrn6C2irSpe/k8earCnGOSLv8C2JW7hqRfBnBnT4Mcifbl1b/0qinDg/UAmbzCOk1S9CFE36utBcSzjljE7CVUSQo=\ntrusted comment: krate:1:Profundum:1.0.2:linux-x86_64:Profundum-1.0.2-Linux-x64.tar.gz\nCh1Cst6KYq4FRbrjTLDy3oPBPUWVVXz9Un9xrrhU5Wa2Fexl1w57sbHCPi471bvHZtkTrKrghD9cqkHJNwEEAg==\n",
           "format": "tar.gz",
           "min_os": "2.38",
           "payload": {
@@ -264,10 +264,10 @@
           }
         },
         "windows-x86_64": {
-          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/profundum/v1.0.1/Profundum-1.0.1-Windows-x64.exe",
-          "size": 3469507,
-          "sha256": "acf3824ec400513756a3878baf5f29d70754d5d15883a6731e65ed80d6ecad5a",
-          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+TbrnwE9SWbf6VAh+OcJHqp7n6EB1i2Ag9m8mqKIIXUpAWZ4gfwawhmgEiqpCahmMutQhAMTnE37XHFEwEhLASycpAY=\ntrusted comment: krate:1:Profundum:1.0.1:windows-x86_64:Profundum-1.0.1-Windows-x64.exe\nKySrU3lfIJJB69XlYFyH9kPneFb8iXSzqLP/9ODu01m0yT30oZr9wbGtXSnZ+/xUt6Qi7JeiXUlKgXYuhSmFBg==\n",
+          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/profundum/v1.0.2/Profundum-1.0.2-Windows-x64.exe",
+          "size": 3476708,
+          "sha256": "72789f31b2c1216397e5fb9605d40f3518d011e6618f7986b134d598f4186a55",
+          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+Tbrnz+2k2bBRjrhQ6O/QJZKRpcjELEDufqlmiKrCDWHIjstaj8UjaGN82cUWorsmtlZ3OxA+602VBk9ok1xcBJfIwM=\ntrusted comment: krate:1:Profundum:1.0.2:windows-x86_64:Profundum-1.0.2-Windows-x64.exe\n+GIDyVYw9irfxzJp/TYbeex37wuSOmFyd+MaPHRjD0mKXSFKViA8XqvudixfCV78XlTIkL2QH9CmYkPqqXh9DA==\n",
           "format": "inno-exe"
         }
       },
