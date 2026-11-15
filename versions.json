@@ -325,29 +325,29 @@
       }
     },
     "Seraphis": {
-      "version": "1.0.4",
+      "version": "1.0.5",
       "download_url": "https://krateaudio.com/seraphis/",
       "release_notes": "",
-      "tag": "seraphis/v1.0.4",
-      "pub_date": "2026-11-02T22:24:05Z",
+      "tag": "seraphis/v1.0.5",
+      "pub_date": "2026-11-15T22:04:36Z",
       "channel": "stable",
-      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/seraphis/v1.0.4",
+      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/seraphis/v1.0.5",
       "description": "Spectral Organism Synthesizer",
-      "notes_markdown": "### Fixed\n\n- **The AUv3 version ran only on Apple Silicon** — In the macOS installer, the AUv3 app (`Seraphis AUv3.app`) and the extension inside it were built for Apple Silicon only, while the VST3 and AU beside them were universal, so on an Intel Mac the AUv3 version did not load. Both are now universal (Apple Silicon and Intel), like the rest of the package.\n- **The update check never worked on Linux** — The check could not fetch over https, so the update banner never appeared on Linux. It now fetches through the system's libcurl (`libcurl.so.4`, or `libcurl-gnutls.so.4`), loaded when the check runs; on a system without libcurl the check stays silent, as before.",
+      "notes_markdown": "### Fixed\n\n- **The Aether reverb and the body's decay cloud ignored the fraction of their delay times** — Their diffusers' allpass interpolation worked out to a whole-sample delay. It is now a true fractional allpass. The reverb and decay textures change subtly: of the presets measured, Warm Static is about 0.5 dB louder, and Vast and Cathedral Moss moved by less than 0.1 dB.\n- **A possible crash when a host shut Seraphis down with its window still open** — If a host shut down the plugin's controller before closing the editor window, the update banner kept checking for updates, twice a second, through memory that had already been freed, which could crash the host. The update check now stays alive until the window is gone.\n- **A possible crash when loading a preset after a host shut Seraphis down with its window still open** — In the same situation, double-clicking a preset in an open preset browser loaded it through memory that had already been freed, which could crash the host. The preset list now stays alive until the window is gone.\n- **The FX delay took about 25 seconds to follow a change, and a synced delay started at the wrong time** *(shared DSP)* — The FX delay smooths every change over 50 ms, but its smoothing moved only once per analysis frame, so changing Delay Time, Spread, Feedback, Tilt, Diffusion or Width, a new tempo, or loading a preset glided for about 25 seconds. With Sync on, a preset or project started at a different delay time (250 ms, or the free Delay Time) and slid onto the synced note length. Every change now settles in 50 ms and a synced delay starts on its note length. Of the factory presets only Restless is affected: its first 30 seconds are up to 0.3 dB louder and slightly darker, and after that it sounds as before.\n- **The FX delay's Width could make the channels cancel** *(shared DSP)* — The random per-frequency phase offsets behind Width drifted the same way on both channels, so at middle settings left and right came out nearly opposite and almost cancelled in mono. Width now spreads the channels apart without cancelling. Of the factory presets only Restless runs the delay with Width: it is narrower, and its master gain is raised by 1.1 dB to keep its loudness.\n- **The reverb's feedback mix was not the same on every platform** *(shared DSP)* — The Aether reverb morphs between three mixing matrices, and part of that morph has no single natural path; which one it took was decided by tiny rounding differences in how each compiler builds the plug-in, so the Windows, macOS and Linux builds mixed their reverb lines differently (on Linux a dark Cavern setting let its low end die away about a quarter faster). The morph now follows one fixed path on every platform. The reverb texture changes subtly on all three; every factory preset stays within the loudness and stability checks the presets are held to.\n\n### Changed\n\n- **Stone Circle is brighter** — Its decay cloud is tilted 0.5 dB per octave brighter, so it no longer sounds almost the same as Deep Well.\n- **Seed 15 plays a new variation** — With this release's DSP fixes, seeds 14 and 15 came out almost the same (their measured difference fell below what Seraphis guarantees between any two seeds on Linux). Seed 15 now starts from a different value, chosen to sit well apart from all the others on every platform. A project or preset set to Seed 15 plays a different, equally random realisation of the same sound; among the factory presets that is Tectonic, Ghost Choir and Vast. The other fifteen seeds are unchanged.\n- **Built with VST3 SDK 3.8.1.**",
       "platforms": {
         "darwin-universal": {
-          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/seraphis/v1.0.4/Seraphis-1.0.4-macOS.pkg",
-          "size": 7227331,
-          "sha256": "a47b7d0a891be0fd16a352c2cfeb1c9b15acf197658fc86db8bff2b6f7aa5651",
-          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+Tbrn1SN97oLaJvGN9M3q6+axmxsQ3+9SfG4fvidyhclUbbX6DVGG5uBXWWKw5dvU5yeyemmviANSqbrGuQDFAqUjgQ=\ntrusted comment: krate:1:Seraphis:1.0.4:darwin-universal:Seraphis-1.0.4-macOS.pkg\nGiaQYKtEKTz/bfcxN8Wl//OeADtbYwcdbii/QVwy/NBhl0AUNx/J86eCHbFarAm8jpKHWGPrtZ4e6wa33gMqAQ==\n",
+          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/seraphis/v1.0.5/Seraphis-1.0.5-macOS.pkg",
+          "size": 7236575,
+          "sha256": "9067bad384772c3ac1f29a6838a4a9f526b1256e6f3196135197f985d0b3a3bb",
+          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+Tbrn5ywsN1hUu1n7+3Q1Zcd9ZU3KFpJ9IQTVIyzOG12oDNHtA6WavlXVtUq1gZ1ku/Yn46bj9aCGfY1S1xQGo2ZYQ4=\ntrusted comment: krate:1:Seraphis:1.0.5:darwin-universal:Seraphis-1.0.5-macOS.pkg\nMxLptqe3vBbQipPLXMx8yPXQTOvCc04rGNiBW4lEtZfzrN9S/mUK4vq5uUcs7TmgCfAWp0oMZ3EBxK45fHHZDg==\n",
           "format": "pkg",
           "min_os": "26.5"
         },
         "linux-x86_64": {
-          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/seraphis/v1.0.4/Seraphis-1.0.4-Linux-x64.tar.gz",
-          "size": 1675426,
-          "sha256": "2e1258161311a6d69a05c3de0a607c5d32862166e6731811220e402cf94436c8",
-          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+Tbrn7E6oJOilSBnGjYGNGP6ximnvgoJDF7Fc6yG6navywxppRDsf9YII/6LtToXK+TzITx5GcrfLsBqdNbx6ohD2Qo=\ntrusted comment: krate:1:Seraphis:1.0.4:linux-x86_64:Seraphis-1.0.4-Linux-x64.tar.gz\nNuhqUr71mGCXgPh3WmAcsXcpJCGR3mfI4nwDdxYlREky3shWMpminsBiH7IcmqLqtwJ09GorMZDHZE2/v7E6Dw==\n",
+          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/seraphis/v1.0.5/Seraphis-1.0.5-Linux-x64.tar.gz",
+          "size": 1698985,
+          "sha256": "1e6288e55c2d523f233b4c3480121a441909ed6d1f815f7119d3bd7115930908",
+          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+Tbrn7EZuPBICtD0t+I+eGXheU968nd6Kn9dg249rBzVZcv+7H8lC+CMuBYF8PgK0sPpCabQind8tqsB4gREF0Wu5Qg=\ntrusted comment: krate:1:Seraphis:1.0.5:linux-x86_64:Seraphis-1.0.5-Linux-x64.tar.gz\nEc10fl7wgSJ35Po2F5RzOFbs1WO6ChIzehmpGAqdiTFuFooDspK61jO+E7qj1+Y2dVbcNiFCrS4zCgV6Rrw4CA==\n",
           "format": "tar.gz",
           "min_os": "2.38",
           "payload": {
@@ -356,10 +356,10 @@
           }
         },
         "windows-x86_64": {
-          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/seraphis/v1.0.4/Seraphis-1.0.4-Windows-x64.exe",
-          "size": 3525302,
-          "sha256": "a185f18d683d2f9c57ae2242cb49e99dfb856c16bd236c7d1b86529692ffc5f2",
-          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+Tbrn72igrnrNqWw8Njag34C1T3imxY/etxQ9M3F3clB7OPewVdd500MXzqZEUer8Bb73ZXTFaC7IDiigroZk6mJAw8=\ntrusted comment: krate:1:Seraphis:1.0.4:windows-x86_64:Seraphis-1.0.4-Windows-x64.exe\nqtqbmSUpcOD8yeXzww/RVrlR7rtGRDT2YmTempAIUttVZ9e5z7KXJLpCN/NfbNTbp4LMyc8AamkF6hZSAuJjBg==\n",
+          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/seraphis/v1.0.5/Seraphis-1.0.5-Windows-x64.exe",
+          "size": 3548360,
+          "sha256": "c5a83c6c94bb866ba00adaa401d50fff67864df4d375b62d4020a5d044b02bbb",
+          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+Tbrn76qeFkwbB6lnnUlmZWpLIdIEFpvbfqJzjOs4nxzBWYmpAgGKJR7xHf16EPTl6G7bNIjV8b/eBFUxiRA+W0UNgg=\ntrusted comment: krate:1:Seraphis:1.0.5:windows-x86_64:Seraphis-1.0.5-Windows-x64.exe\nd6+czDnL6A9NImaHx45IGw+WoAx5T851M2x2O8DwzPFL44xsmmnlyVWGENooQxIHj3RA7koLYiMhWQuDvYyGAw==\n",
           "format": "inno-exe"
         }
       },
