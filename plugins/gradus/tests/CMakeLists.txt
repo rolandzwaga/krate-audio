@@ -165,6 +165,12 @@ endif()
 # SDK source we cannot modify: memcpy / memset over PClassInfo structs (GCC -Wclass-memaccess, which -Wall enables).
 set_source_files_properties(${vst3sdk_SOURCE_DIR}/public.sdk/source/main/pluginfactory.cpp
     PROPERTIES COMPILE_OPTIONS "$<$<CXX_COMPILER_ID:GNU>:-Wno-class-memaccess>")
+# SDK source we cannot modify: virtual destructors inside final classes in hostclasses.h (clang
+# -Wunnecessary-virtual-specifier, which -Wall enables; macOS CI). Probe: root CMakeLists.txt.
+if(KRATE_CXX_HAS_WUNNECESSARY_VIRTUAL_SPECIFIER)
+    set_source_files_properties(${vst3sdk_SOURCE_DIR}/public.sdk/source/vst/hosting/hostclasses.cpp
+        PROPERTIES COMPILE_OPTIONS "-Wno-unnecessary-virtual-specifier")
+endif()
 
 # CTest Integration
 catch_discover_tests(gradus_tests REPORTER console)

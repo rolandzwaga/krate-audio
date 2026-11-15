@@ -383,7 +383,13 @@ public:
     // Intentionally hides CView::hitTest -- this view uses a DragTarget-
     // returning overload for its custom handle/segment logic. The base
     // hitTest(CPoint&, const Event&) is not meaningful here, so the
-    // -Woverloaded-virtual hide is deliberate.
+    // -Woverloaded-virtual hide is deliberate. (A using-declaration would not
+    // do: CView::hitTest(where, event = noEvent()) is non-const, so hitTest(where)
+    // from a non-const member would then pick the base. Same as ADSRDisplay.)
+#if defined(__clang__) || defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Woverloaded-virtual"
+#endif
     [[nodiscard]] DragTarget hitTest(const VSTGUI::CPoint& point) const {
         // Hit-test priority (Surge MSEG / Vital convention):
         //   1. Endpoint nodes (Start, End) take priority over interior handles.
@@ -434,6 +440,9 @@ public:
 
         return DragTarget::None;
     }
+#if defined(__clang__) || defined(__GNUC__)
+#pragma GCC diagnostic pop
+#endif
 
     // =========================================================================
     // CControl Overrides

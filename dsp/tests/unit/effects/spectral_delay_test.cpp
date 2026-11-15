@@ -2656,8 +2656,10 @@ double toneWetDb(float delayMs, float freqHz) {
             input[i] = 0.5f * std::sin(6.28318530718f * freqHz * static_cast<float>(s + i)
                                        / static_cast<float>(kLevelSampleRate));
         }
-        left = input;
-        right = input;
+        // std::copy, not vector assignment: GCC 13 -O3 -Wstringop-overflow misreads the inlined
+        // operator= of equal-size vectors as a write into a zero-size region.
+        std::copy(input.begin(), input.end(), left.begin());
+        std::copy(input.begin(), input.end(), right.begin());
         d.process(left.data(), right.data(), kLevelBlock, ctx);
         if (s >= static_cast<std::size_t>(kLevelSampleRate)) {
             for (std::size_t i = 0; i < kLevelBlock; ++i) {

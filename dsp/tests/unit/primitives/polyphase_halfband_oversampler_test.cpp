@@ -516,9 +516,8 @@ TEST_CASE("PolyphaseHalfband_GroupDelayRecorded", "[primitives][polyphase-halfba
 TEST_CASE("PolyphaseHalfband_NoexceptAndNoHeap", "[primitives][polyphase-halfband]") {
     using P = PolyphaseHalfbandOversampler;
     static_assert(noexcept(std::declval<P&>().upsample(0.0f, std::declval<float*>())));
-    static_assert(noexcept(std::declval<float&>() = std::declval<P&>().downsample(std::declval<const float*>())));
-    static_assert(noexcept(std::declval<float&>() =
-                               std::declval<P&>().downsample(std::declval<const float*>(), IdentityHook{})));
+    static_assert(noexcept(std::declval<P&>().downsample(std::declval<const float*>())));
+    static_assert(noexcept(std::declval<P&>().downsample(std::declval<const float*>(), IdentityHook{})));
     static_assert(noexcept(std::declval<P&>().reset()));
     static_assert(noexcept(std::declval<P&>().setFactor(std::size_t{2})));
     static_assert(std::is_trivially_copyable_v<P>);

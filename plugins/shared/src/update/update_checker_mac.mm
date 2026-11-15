@@ -16,17 +16,38 @@ std::string UpdateChecker::fetchJsonMac(const std::string& url) {
             cachePolicy:NSURLRequestReloadIgnoringLocalCacheData
             timeoutInterval:10.0];
 
-        // Synchronous request (called from worker thread)
-        NSHTTPURLResponse* response = nil;
-        NSError* error = nil;
-        NSData* data = [NSURLConnection sendSynchronousRequest:request
-            returningResponse:&response error:&error];
+        // Blocking fetch on the calling worker thread: an NSURLSession data task plus a
+        // semaphore (NSURLConnection's sendSynchronousRequest is deprecated since 10.11).
+        // The session's request and resource timeouts guarantee the handler runs, so the
+        // wait cannot outlive `body`.
+        NSURLSessionConfiguration* config = [NSURLSessionConfiguration ephemeralSessionConfiguration];
+        config.requestCachePolicy = NSURLRequestReloadIgnoringLocalCacheData;
+        config.timeoutIntervalForRequest = 10.0;
+        config.timeoutIntervalForResource = 15.0;
+        NSURLSession* session = [NSURLSession sessionWithConfiguration:config];
 
-        if (error || !data || response.statusCode != 200) {
-            return {};
-        }
+        std::string body;
+        std::string* const bodyOut = &body;
+        __block bool ok = false;
+        dispatch_semaphore_t done = dispatch_semaphore_create(0);
+        NSURLSessionDataTask* task = [session dataTaskWithRequest:request
+            completionHandler:^(NSData* data, NSURLResponse* response, NSError* error) {
+                if (error == nil && data != nil &&
+                    [response isKindOfClass:[NSHTTPURLResponse class]] &&
+                    ((NSHTTPURLResponse*)response).statusCode == 200) {
+                    bodyOut->assign(static_cast<const char*>(data.bytes), data.length);
+                    ok = true;
+                }
+                dispatch_semaphore_signal(done);
+            }];
+        [task resume];
+        dispatch_semaphore_wait(done, DISPATCH_TIME_FOREVER);
+        [session finishTasksAndInvalidate];
+#if !__has_feature(objc_arc)
+        dispatch_release(done);
+#endif
 
-        return std::string(static_cast<const char*>(data.bytes), data.length);
+        return ok ? body : std::string{};
     }
 }
 

@@ -170,7 +170,7 @@ struct BsfTally {
     std::string name;
     std::size_t checks = 0;
     std::size_t violations = 0;
-    double worstExcess = -std::numeric_limits<double>::infinity();
+    double worstExcess = std::numeric_limits<double>::lowest();  // no infinity under -ffast-math (macOS)
     std::string worstWhere;
 
     template <class F>
@@ -828,7 +828,7 @@ struct BsfAttenResult {
     bool valid = false;
     BsfSideBand band{};
     std::size_t thirdsValid = 0;
-    double worstThirdDb = std::numeric_limits<double>::infinity();
+    double worstThirdDb = std::numeric_limits<double>::max();  // no infinity under -ffast-math (macOS)
     double gravity0Db = 0.0;
 };
 

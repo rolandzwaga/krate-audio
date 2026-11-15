@@ -32,13 +32,6 @@ namespace {
 constexpr double kSampleRate = 44100.0;
 constexpr int    kLengthSamples = static_cast<int>(0.5 * 44100); // 500 ms
 
-inline bool isFiniteSample(float x) noexcept
-{
-    std::uint32_t bits = 0;
-    std::memcpy(&bits, &x, sizeof(bits));
-    return (bits & 0x7F800000u) != 0x7F800000u;
-}
-
 // Goertzel single-bin magnitude over [start, start+len).
 double goertzelMag(const float* samples, int start, int len,
                    double sampleRate, double targetHz)

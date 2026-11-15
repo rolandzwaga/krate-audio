@@ -264,6 +264,13 @@ if(NOT MSVC)
     )
 endif()
 
+# SDK source we cannot modify: virtual destructors inside final classes in hostclasses.h (clang
+# -Wunnecessary-virtual-specifier, which -Wall enables; macOS CI). Probe: root CMakeLists.txt.
+if(KRATE_CXX_HAS_WUNNECESSARY_VIRTUAL_SPECIFIER)
+    set_source_files_properties(${vst3sdk_SOURCE_DIR}/public.sdk/source/vst/hosting/hostclasses.cpp
+        PROPERTIES COMPILE_OPTIONS "-Wno-unnecessary-virtual-specifier")
+endif()
+
 # CTest Integration
 catch_discover_tests(membrum_tests REPORTER console)
 

@@ -145,6 +145,20 @@ function(krate_plugin_platform_setup target)
             COMPANY_NAME "Krate Audio"
         )
 
+        # Release (DEPLOYMENT_POSTPROCESSING = YES, SMTG_AddSMTGLibrary.cmake) runs Xcode's Strip on the binary after
+        # the post-build phase, where the SDK's "Adhoc codesign workaround for Xcode 15" (SMTG_AddVST3Library.cmake)
+        # signed it so moduleinfotool could load it. Strip then warns, per architecture, that it invalidates that
+        # signature. Drop the signature as the last post-build step (after moduleinfo; this function runs after
+        # smtg_add_vst3plugin, and the later krate_plugin_install_* steps are Windows-only): Strip gets an unsigned
+        # binary, and Xcode's own CodeSign step, which runs after Strip, signs the stripped result. Debug: no Strip,
+        # so `true` leaves the signature alone.
+        if(XCODE)
+            add_custom_command(TARGET ${target} POST_BUILD
+                COMMAND "$<IF:$<CONFIG:Release>,codesign,true>" --remove-signature "$<TARGET_FILE:${target}>"
+                COMMENT "[KRATE] Drop the pre-Strip ad-hoc signature (Xcode re-signs after Strip)"
+            )
+        endif()
+
         # ----------------------------------------------------------------------
         # Audio Unit v2 Support (macOS only)
         # ----------------------------------------------------------------------
@@ -157,7 +171,10 @@ function(krate_plugin_platform_setup target)
             FetchContent_Declare(
                 AudioUnitSDK
                 GIT_REPOSITORY https://github.com/apple/AudioUnitSDK.git
-                GIT_TAG AudioUnitSDK-1.1.0
+                # 1.4.0, the version the VST3 SDK's audiounit-tutorial fetches (HEAD): its project sets
+                # ENABLE_USER_SCRIPT_SANDBOXING = YES; under 1.1.0 every AU build warned that the unsandboxed
+                # "Install clang-format hook" phase (a no-op outside Debug) delays Copy Headers.
+                GIT_TAG AudioUnitSDK-1.4.0
             )
             FetchContent_MakeAvailable(AudioUnitSDK)
             FetchContent_GetProperties(
@@ -174,6 +191,11 @@ function(krate_plugin_platform_setup target)
                 INFO_PLIST_TEMPLATE ${CMAKE_CURRENT_SOURCE_DIR}/resources/au-info.plist
                 VST3_PLUGIN_TARGET ${target}
             )
+            # The target compiles the SDK's auwrapper.mm, third-party source we cannot modify: C++ variable-length
+            # arrays (clang -Wvla-cxx-extension). KRATE_CXX_HAS_WVLA_CXX_EXTENSION: root CMakeLists.txt.
+            if(KRATE_CXX_HAS_WVLA_CXX_EXTENSION)
+                target_compile_options(${target}_AU PRIVATE -Wno-vla-cxx-extension)
+            endif()
 
             message(STATUS "[${KP_TAG}] AudioUnit target: ${target}_AU")
         elseif(SMTG_ENABLE_AUV2_BUILDS AND NOT XCODE)
@@ -230,6 +252,12 @@ function(krate_plugin_platform_setup target)
             # build dependencies, causing "library not found" with parallel builds.
             if(TARGET auv3_wrapper_macos AND AUV3_EXTENSION_TARGET)
                 add_dependencies(${AUV3_EXTENSION_TARGET} auv3_wrapper_macos)
+            endif()
+
+            # effect/ViewController.m filters its open panel with UTType (allowedContentTypes); link the
+            # framework explicitly rather than relying on Xcode's module auto-linking.
+            if(AUV3_APP_TARGET AND KP_KIND STREQUAL "effect")
+                target_link_libraries(${AUV3_APP_TARGET} PRIVATE "-framework UniformTypeIdentifiers")
             endif()
 
             # smtg_add_auv3_app never applies the SDK's universal-binary setting (the VST3 and AU targets

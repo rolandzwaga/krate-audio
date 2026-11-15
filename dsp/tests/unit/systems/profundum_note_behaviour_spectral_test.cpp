@@ -1569,7 +1569,7 @@ T22ClickReport t22CountClicks(const PT::NoteBehaviourTraces& tr, double fs, floa
                                                 static_cast<std::size_t>(std::max(0.0, std::ceil(lo))));
             matched = first != ref->det.end() && static_cast<double>(*first) <= mStar + static_cast<double>(rep.n);
             // Distance to the nearest reference detection (recorded: the choice of N).
-            double best = std::numeric_limits<double>::infinity();
+            double best = std::numeric_limits<double>::max();  // no infinity under -ffast-math (macOS)
             const auto at = std::lower_bound(ref->det.begin(), ref->det.end(),
                                              static_cast<std::size_t>(std::max(0.0, std::floor(mStar))));
             if (at != ref->det.end())

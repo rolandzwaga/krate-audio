@@ -337,10 +337,57 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     if(TARGET vstgui_support)
         target_compile_options(vstgui_support PRIVATE -Wno-deprecated-declarations)
     endif()
+    # -Wsuggest-override: OnDestroy::onDestroy in uidescription-scripting/detail/scriptobject.h
+    if(TARGET vstgui_uiscripting)
+        target_compile_options(vstgui_uiscripting PRIVATE -Wno-suggest-override)
+    endif()
 endif()
+# SDK source we cannot modify, compiled into this directory's preset generators (seraphis / vorago / profundum) and
+# gen_v2_fixtures: memcpy / memset over PClassInfo structs (GCC -Wclass-memaccess, which -Wall enables). The same
+# suppression as plugins/gradus/tests and plugins/shared/tests (source properties are per directory).
+set_source_files_properties(${vst3sdk_SOURCE_DIR}/public.sdk/source/main/pluginfactory.cpp
+    PROPERTIES COMPILE_OPTIONS "$<$<CXX_COMPILER_ID:GNU>:-Wno-class-memaccess>")
 # MSVC: C4267 (size_t -> int) in ctexteditor.cpp; third-party source we cannot modify.
 if(MSVC AND TARGET vstgui)
     target_compile_options(vstgui PRIVATE /wd4267)
+endif()
+
+# Clang warning groups that older compilers lack: probe each once, so a per-target -Wno-<x> below (and in the
+# plugin / test CMakeLists) never trips -Wunknown-warning-option. GCC rejects an unknown positive -W, so it reads OFF.
+include(CheckCXXCompilerFlag)
+check_cxx_compiler_flag(-Wnan-infinity-disabled KRATE_CXX_HAS_WNAN_INFINITY_DISABLED)
+check_cxx_compiler_flag(-Wvla-cxx-extension KRATE_CXX_HAS_WVLA_CXX_EXTENSION)
+check_cxx_compiler_flag(-Wunnecessary-virtual-specifier KRATE_CXX_HAS_WUNNECESSARY_VIRTUAL_SPECIFIER)
+check_cxx_compiler_flag("-W#pragma-messages" KRATE_CXX_HAS_WPRAGMA_MESSAGES)
+
+# Third-party SDK sources we cannot modify (macOS CI, Xcode 26.6 / macOS 26.5 SDK):
+# - sdk_hosting / sdk_common / sdk: stringconvert.cpp instantiates std::wstring_convert, which libc++ marks
+#   deprecated (C++17).
+# - auv3_wrapper_macos: AUv3Wrapper.mm uses C++ variable-length arrays and UTGetOSTypeFromString (deprecated in
+#   macOS 12).
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    foreach(_sdk_target IN ITEMS sdk_hosting sdk_common sdk)
+        if(TARGET ${_sdk_target})
+            target_compile_options(${_sdk_target} PRIVATE -Wno-deprecated-declarations)
+        endif()
+    endforeach()
+    if(TARGET auv3_wrapper_macos)
+        target_compile_options(auv3_wrapper_macos PRIVATE -Wno-deprecated-declarations)
+        if(KRATE_CXX_HAS_WVLA_CXX_EXTENSION)
+            target_compile_options(auv3_wrapper_macos PRIVATE -Wno-vla-cxx-extension)
+        endif()
+    endif()
+endif()
+# Third-party static libraries whose sources compile to empty objects on macOS: the other platforms' files
+# (sdk_common: systemclipboard_win32 / _linux, threadchecker_win32 / _linux), VSTGUI's cpoint / crect (all inline)
+# and vstgui_uidescription's editor files (VSTGUI_LIVE_EDITING off). Apple libtool warns "has no symbols" per object.
+if(XCODE)
+    foreach(_empty_obj_target IN ITEMS sdk_common vstgui vstgui_uidescription)
+        if(TARGET ${_empty_obj_target})
+            set_target_properties(${_empty_obj_target} PROPERTIES
+                XCODE_ATTRIBUTE_OTHER_LIBTOOLFLAGS "-no_warning_for_no_symbols")
+        endif()
+    endforeach()
 endif()
 
 # ==============================================================================
@@ -359,6 +406,11 @@ if(VSTWORK_BUILD_TESTS)
         GIT_TAG v3.16.1
     )
     FetchContent_MakeAvailable(Catch2)
+    # Third-party source: catch_matchers_floating_point.cpp spells numeric_limits<>::infinity(), which clang flags
+    # under the -ffast-math the SDK enables on macOS (-Wnan-infinity-disabled).
+    if(KRATE_CXX_HAS_WNAN_INFINITY_DISABLED AND TARGET Catch2)
+        target_compile_options(Catch2 PRIVATE -Wno-nan-infinity-disabled)
+    endif()
     list(APPEND CMAKE_MODULE_PATH ${catch2_SOURCE_DIR}/extras)
     include(Catch)
 
@@ -428,6 +480,11 @@ smtg_target_setup_universal_binary(PFFFT)
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     target_compile_options(PFFFT PRIVATE -Wno-unused-parameter)
 endif()
+# Third-party source: src/simd/pf_sse1_float.h / pf_neon_float.h announce their SIMD path with #pragma message
+# (clang -W#pragma-messages, macOS universal build).
+if(KRATE_CXX_HAS_WPRAGMA_MESSAGES)
+    target_compile_options(PFFFT PRIVATE "-Wno-#pragma-messages")
+endif()
 # pffft always defines PFDSP (mixer / carrier / CIC helpers) when float is on, with no option to skip it. Nothing
 # here links it, and its pf_cic.cpp raises MSVC C4244 x4: keep it out of the default build.
 if(TARGET PFDSP)
@@ -461,6 +518,10 @@ FetchContent_Declare(
 set(JSON_BuildTests OFF CACHE BOOL "" FORCE)
 set(JSON_Install OFF CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(nlohmann_json)
+# Header-only third-party code compiled inside our targets: binary_reader.hpp spells numeric_limits<>::infinity(),
+# which clang flags under the macOS -ffast-math (-Wnan-infinity-disabled). SYSTEM includes keep its diagnostics out
+# of KratePluginsShared / shared_tests, as for the SDK headers above.
+smtg_mark_includes_as_system(nlohmann_json)
 
 # ==============================================================================
 # Eigen 5 (linear algebra, MPL-2 license) -- used by tools/membrum-fit
@@ -529,6 +590,10 @@ if(VSTWORK_BUILD_MEMBRUM_FIT)
         # Make `nlopt` depend on `generate-fortran` so Xcode sees a valid DAG.
         if(CMAKE_GENERATOR STREQUAL "Xcode" AND TARGET nlopt AND TARGET generate-fortran)
             add_dependencies(nlopt generate-fortran)
+        endif()
+        # Third-party: GCC -Wsuggest-override on ProblemInternal's virtuals in src/algs/ags/solver.cc.
+        if(TARGET nlopt AND CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+            target_compile_options(nlopt PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-Wno-suggest-override>)
         endif()
     endif()
 endif()

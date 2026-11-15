@@ -170,8 +170,6 @@ private:
     float intensity_ = 1.0f;
 
     // Interpolation state for smooth 60fps display (FR-047)
-    float lastCenterFreq_ = 1000.0f;
-    float lastWidthOctaves_ = 2.0f;
     static constexpr float kInterpolationFactor = 0.3f;  // Smoothing factor
 
     // High contrast mode (Spec 012 FR-025a)

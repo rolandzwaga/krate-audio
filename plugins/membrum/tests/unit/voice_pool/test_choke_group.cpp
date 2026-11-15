@@ -41,18 +41,6 @@ inline int blocksForMs(double ms)
     return std::max(1, (samples + kBlockSize - 1) / kBlockSize);
 }
 
-// Peak of absolute values in a buffer.
-inline float peakAbs(const float* buf, int n)
-{
-    float peak = 0.0f;
-    for (int i = 0; i < n; ++i)
-    {
-        const float a = std::fabs(buf[i]);
-        if (a > peak) peak = a;
-    }
-    return peak;
-}
-
 // Configure a pool with a single choke group value broadcast across all pads.
 // VoicePool is non-copyable and non-movable, so this takes the pool by
 // reference and seeds it in place.
