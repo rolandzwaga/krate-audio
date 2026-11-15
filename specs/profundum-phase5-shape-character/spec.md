@@ -493,6 +493,9 @@ that implements it, and the analysis frame and window are that helper's (no sing
   after a change) it is re-keyed once more to the settled depth if keyed to any other, so it is never left up to 1/16
   bit off for good (measured: 10.105 / 10.125 bits against a settled 10.08 after Amount 0.24 → 0 → 0.24). Gate:
   `BassCharacter_CrushSettledDepthRekey`. The ¼-step hysteresis itself stays path-dependent by design (SC-030 ruling).
+  **Level-step count (amended 2026-11-15, Phase 7 SC-007):** each Crush branch counts its level steps (a valid slot
+  re-quantising to a different level) since reset, read through the test probe, so a measurement can tell a one-time
+  hysteresis step from aliasing. Gate: `BassCharacter_CrushLevelStepCount`.
 - **FR-072 Phasor sync to the core (user ruling 2026-10-16, Clarifications "Group 9 rulings").** `BassCharacterStage`
   exposes `syncPhase(float coreCycles)` which sets Crush's hold phasor θ and Fracture's ÷2 phasor φ from the core's h1
   phase in cycles (θ = frac(coreCycles), φ = coreCycles mod 2, both at the hold grid's own convention), so that which part of

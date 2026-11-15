@@ -165,6 +165,11 @@ struct BassCharacterStageProbe {
         return CrushSlots{.m = h.m, .step = c.qStep, .level = h.slotLevel, .input = h.slotInput, .valid = h.slotValid,
                           .memBits = h.memBits, .bits = c.bits};
     }
+    /// Crush level steps of channel ch since reset: valid hold slots re-quantised to a different level (FR-051
+    /// level-step count; Phase 7 SC-007 reads its window step-free).
+    [[nodiscard]] static std::size_t crushLevelSteps(const Stage& s, int ch) noexcept {
+        return s.ch_[idx(ch)].crush.levelSteps;
+    }
     /// Fracture's ÷2-phasor increment Δφ = f0 / (F·fs), periods of f0 per F-sample.
     [[nodiscard]] static double fracturePhaseIncrement(const Stage& s, int ch) noexcept {
         return s.ch_[idx(ch)].frac.inc;

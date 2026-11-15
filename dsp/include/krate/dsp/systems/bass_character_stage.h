@@ -989,9 +989,12 @@ private:
         }
         /// The level slot k outputs for held value v whose plain quantisation is q (step: one quantiser step
         /// in the same units): re-quantises only when the slot is invalid or v moved from v_ref by more than
-        /// kCrushHysteresisSteps·step; otherwise keeps q_ref.
-        [[nodiscard]] float hysteresis(std::size_t k, float v, float q, float step) noexcept {
+        /// kCrushHysteresisSteps·step; otherwise keeps q_ref. A valid slot re-quantising to a different level is
+        /// a level step, counted in levelSteps (FR-051 level-step count, Phase 7 SC-007 step-free window).
+        [[nodiscard]] float hysteresis(std::size_t k, float v, float q, float step, std::size_t& levelSteps) noexcept {
             if (!slotValid[k] || std::abs(v - slotInput[k]) > kCrushHysteresisSteps * step) {
+                if (slotValid[k] && q != slotLevel[k])
+                    ++levelSteps;
                 slotLevel[k] = q;
                 slotInput[k] = v;
                 slotValid[k] = true;
@@ -1073,6 +1076,7 @@ private:
         bool settleRekey = false;   // the Amount just settled: the next process() keys the slots to `bits`
         std::size_t occupancyPeak = 0;  // largest active-step count of one engine since the stage read it
         std::size_t retirements = 0;    // ring-full retirements since the stage read them
+        std::size_t levelSteps = 0;     // valid slots re-quantised to a different level since reset (probe)
         void prepare(double baseRate, double processRateIn, std::uint32_t channel) noexcept {
             postTilt.prepare(baseRate);
             postTilt.configure(kPostTiltPivot, kPostTiltDb);
@@ -1096,6 +1100,7 @@ private:
             settleRekey = false;
             occupancyPeak = 0;
             retirements = 0;
+            levelSteps = 0;
         }
         void setFundamentalHz(float f0) noexcept {
             postTilt.setFundamentalHz(f0);
@@ -1169,7 +1174,7 @@ private:
                                              static_cast<double>(kCrushPreScale) * value / static_cast<double>(kP)));
                     const auto slot = static_cast<std::size_t>(kPrev + static_cast<double>(j))
                                       % static_cast<std::size_t>(h.m);
-                    const float q = h.hysteresis(slot, static_cast<float>(value), qPlain, qStep);
+                    const float q = h.hysteresis(slot, static_cast<float>(value), qPlain, qStep, levelSteps);
                     h.push(q - h.held, 1.0 - tau, retirements);
                     h.held = q;
                 }

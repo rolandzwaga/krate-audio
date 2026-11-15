@@ -791,6 +791,43 @@ TEST_CASE("BassCharacter_CrushSettledDepthRekey", "[systems][profundum][shape-ch
     }
 }
 
+// FR-051 level-step count (2026-11-15, Phase 7 SC-007 step-free window): a Crush branch counts each valid hold slot
+// that re-quantises to a different level. A constant input holds the same value at every crossing, so once settled
+// no slot steps; a jump of about 32 quantiser steps (8 bits at Amount 0.5) re-quantises every slot of both engines.
+TEST_CASE("BassCharacter_CrushLevelStepCount", "[systems][profundum][shape-character][bass-character]") {
+    namespace Sct = Krate::DSP::ShapeCharacterTest;
+    constexpr double fs = kBcsFs;
+    constexpr std::size_t kBlock = 64;
+    const auto quarter = static_cast<std::size_t>(0.25 * fs);
+    BassCharacterStage s;
+    s.setAlgorithm(BcsAlgo::Crush);
+    s.setAmount(0.5f);
+    s.setTone(0.5f);
+    s.setFundamentalHz(static_cast<float>(Sct::kE1Hz));
+    s.prepare(fs, 512);
+    REQUIRE(BcsProbe::crushLevelSteps(s, 0) == 0u);
+    const auto run = [&](float dc, std::size_t samples) {
+        std::vector<float> l(kBlock), r(kBlock);
+        for (std::size_t pos = 0; pos < samples; pos += kBlock) {
+            const std::size_t len = std::min(kBlock, samples - pos);
+            std::fill_n(l.begin(), len, dc);
+            std::fill_n(r.begin(), len, dc);
+            s.processBlock(l.data(), r.data(), len);
+        }
+    };
+    run(0.1f, quarter);   // settle: the oversampler's step response may step slots on its way up
+    const std::size_t settled = BcsProbe::crushLevelSteps(s, 0);
+    run(0.1f, quarter);
+    INFO("constant input: " << BcsProbe::crushLevelSteps(s, 0) - settled << " level steps after the settle (want 0)");
+    CHECK(BcsProbe::crushLevelSteps(s, 0) == settled);
+    run(0.2f, quarter);
+    const auto mLo = static_cast<std::size_t>(std::floor(BcsProbe::crushHoldMultiple(s, 0)));
+    const std::size_t stepped = BcsProbe::crushLevelSteps(s, 0) - settled;
+    INFO("jump 0.1 -> 0.2: " << stepped << " level steps (want >= m_lo = " << mLo << ")");
+    CHECK(stepped >= mLo);
+    REQUIRE(s.stateFinite());
+}
+
 // =============================================================================
 // T017: character behaviour gates (SC-008, SC-009, SC-013, SC-021, SC-026(b)(c)(d), SC-027, SC-029;
 // plan S1 C-14, C-16, C-17, C-21)

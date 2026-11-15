@@ -301,18 +301,58 @@ struct BsfOut {
 
 /// SC-007 per cell: the WIDE dirty arm at `a`, Amount 1, offsets at the FR-041 ceilings (K_wide forced to 1 by
 /// the probe), Fold 100, Spread 1; wideAliasedDbfs of characterL and characterR.
+///
+/// Step-free window (user ruling 2026-11-15, spec SC-007): a Crush level step (a hold slot re-quantising to another
+/// level under FR-051's 1/4-step hysteresis, path-dependent by design) is a one-time change of the steady waveform,
+/// not aliasing. The render is extended until the window starts >= kBsfStepMarginSeconds after the last level step of
+/// either channel, at most kBsfMaxWindowExtensions times. (macOS arm64 read R at -77.15 dBFS on Crush E1 48 kHz
+/// with one step at 2.93 s; x86 reproduces it at f0 * (1 - 1e-7).)
+constexpr double kBsfStepMarginSeconds = 0.05;
+constexpr int kBsfMaxWindowExtensions = 3;
+
+/// The first sample known to follow the last Crush level step of either channel: a count first seen changed at
+/// interval j was taken after interval j-1's first character run, so the step lies before (j + 1)·kGrid. 0 = none.
+std::size_t bsfLastLevelStepEnd(const Sft::FieldChainTaps& t) {
+    std::size_t end = 0;
+    std::array<std::size_t, 2> prev{};
+    for (std::size_t j = 0; j < t.crushLevelStepsPerInterval.size(); ++j) {
+        if (t.crushLevelStepsPerInterval[j] != prev)
+            end = (j + 1) * Sft::kGrid;
+        prev = t.crushLevelStepsPerInterval[j];
+    }
+    return end;
+}
+
 void bsfWideAliasingCell(const BsfAlgorithmEntry& alg, double f0, const char* noteName, double fs) {
     const double f = alg.algorithm == BsfAlgorithm::Fracture ? 0.5 * f0 : f0;
     const std::size_t fftLen = Hft::aliasFftLength(fs, f);
-    const double seconds = Mdt::kSettleSeconds + static_cast<double>(fftLen) / fs + 0.05;
+    double seconds = Mdt::kSettleSeconds + static_cast<double>(fftLen) / fs + 0.05;
     Sft::FieldChainConfig cfg = bsfChainConfig(f0, fs, seconds, 512);
     bsfSetDirty(cfg, alg.algorithm);
     cfg.wideScaleOverride = 1.0f;   // the FR-041 ceilings, whatever K_wide the harvest commits
     cfg.field = bsfControls(BsfMode::Wide, 1.0f, 0.5f, BassStereoField::kDefaultCrossoverHz, 0.5f, 0.0f,
                             BsfSource::Drift);
-    const Sft::FieldChainTaps t = Sft::renderFieldChain(cfg);
+    const auto margin = static_cast<std::size_t>(std::llround(kBsfStepMarginSeconds * fs));
+    Sft::FieldChainTaps t;
+    std::size_t lastStepEnd = 0;
+    std::size_t windowStart = 0;
+    int extensions = 0;
+    for (;;) {
+        cfg.chain.seconds = seconds;
+        t = Sft::renderFieldChain(cfg);
+        lastStepEnd = bsfLastLevelStepEnd(t);
+        REQUIRE(t.characterL.size() >= fftLen);
+        windowStart = t.characterL.size() - fftLen;
+        if (lastStepEnd + margin <= windowStart || extensions == kBsfMaxWindowExtensions)
+            break;
+        seconds += static_cast<double>(lastStepEnd + margin - windowStart) / fs;
+        ++extensions;
+    }
 
     INFO("SC-007 " << alg.name << " " << noteName << " fs " << fs);
+    INFO("last Crush level step before sample " << lastStepEnd << ", window from " << windowStart << " after "
+                                                << extensions << " extension(s)");
+    REQUIRE(lastStepEnd + margin <= windowStart);
     REQUIRE(!t.offsetsPerInterval.empty());
     const BassStereoField::ChannelOffsets o = t.offsetsPerInterval.back();
     const float ceiling = BassStereoField::wideCeiling(alg.algorithm);
@@ -323,7 +363,10 @@ void bsfWideAliasingCell(const BsfAlgorithmEntry& alg, double f0, const char* no
     const double aR = Sft::wideAliasedDbfs(t.characterR, fs, f0, alg.algorithm);
     std::cout << "SC007," << alg.name << ',' << noteName << ',' << fs << ",fft," << fftLen << ",offset," << o.amount
               << ",aliasL_dbfs," << aL << ",aliasR_dbfs," << aR << ",bar," << kBsfAliasBarDbfs << ','
-              << ((aL <= kBsfAliasBarDbfs && aR <= kBsfAliasBarDbfs) ? "PASS" : "FAIL") << "\n";
+              << ((aL <= kBsfAliasBarDbfs && aR <= kBsfAliasBarDbfs) ? "PASS" : "FAIL") << ",level_steps_L,"
+              << t.crushLevelStepsPerInterval.back()[0] << ",level_steps_R," << t.crushLevelStepsPerInterval.back()[1]
+              << ",last_step_s," << static_cast<double>(lastStepEnd) / fs << ",render_s," << seconds << ",extensions,"
+              << extensions << "\n";
     CHECK(aL <= kBsfAliasBarDbfs);
     CHECK(aR <= kBsfAliasBarDbfs);
 }

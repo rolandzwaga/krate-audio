@@ -38,6 +38,7 @@
 
 #include "../processors/harmonic_fold_test_helpers.h"
 #include "../processors/shape_character_metric_helpers.h"
+#include "bass_character_stage_probe.h"
 #include "bass_stereo_field_probe.h"
 #include "mass_dynamics_test_helpers.h"
 #include "profundum_core_test_helpers.h"
@@ -142,6 +143,9 @@ struct FieldChainTaps : MassDynamicsTest::ChainTaps {
     std::vector<float> stageCrossoverPerInterval; ///< stageCrossoverHz() after advanceControl (SC-009(c))
     std::vector<float> modeFadePerSample;         ///< modeFade() after each sample (perSampleStage only)
     std::vector<float> h1DeliveredPerInterval;    ///< core.deliveredGains()[0] after the interval's first core run (SC-018)
+    /// Crush level steps of L and R since prepare, after the interval's first character run ({0, 0} without a
+    /// character stage; SC-007 step-free window, 2026-11-15).
+    std::vector<std::array<std::size_t, 2>> crushLevelStepsPerInterval;
 };
 
 inline bool sameExcitation(const ProfundumCore::ExcitationControls& a, const ProfundumCore::ExcitationControls& b) {
@@ -197,6 +201,7 @@ inline void allocateFieldTaps(FieldChainTaps& t, std::size_t total, const FieldC
     t.lawCrossoverPerInterval.reserve(intervals);
     t.stageCrossoverPerInterval.reserve(intervals);
     t.h1DeliveredPerInterval.reserve(intervals);
+    t.crushLevelStepsPerInterval.reserve(intervals);
 }
 
 /// dyn -> [stage] (tap stageOut) -> DC x2 (tap dc) -> limiter (tap out), over [start, start + len).
@@ -414,6 +419,11 @@ inline FieldChainTaps renderFieldChain(const FieldChainConfig& cfg) {
         if (atGrid) {
             taps.a1PerInterval.push_back(sounding ? a1 : 0.0f);
             taps.h1DeliveredPerInterval.push_back(sounding ? core->deliveredGains()[0] : 0.0f);
+            using Bcsp = Krate::DSP::detail::BassCharacterStageProbe;
+            taps.crushLevelStepsPerInterval.push_back(
+                character ? std::array<std::size_t, 2>{Bcsp::crushLevelSteps(*character, 0),
+                                                       Bcsp::crushLevelSteps(*character, 1)}
+                          : std::array<std::size_t, 2>{});
         }
         processFieldTail(taps, cfg, *dyn.md, dyn.dcL, dyn.dcR, *dyn.limiter, cfg.bypassField ? nullptr : field.get(),
                          start, len, total);

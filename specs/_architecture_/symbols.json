@@ -473,7 +473,7 @@
       "scope": "Krate::DSP::BassCharacterStage",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/bass_character_stage.h",
-      "line": 1313
+      "line": 1318
     },
     {
       "name": "Channel",
@@ -673,7 +673,7 @@
       "scope": "Krate::DSP::BassCharacterStage",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/bass_character_stage.h",
-      "line": 1058
+      "line": 1061
     },
     {
       "name": "CycleBuffer",
@@ -1241,7 +1241,7 @@
       "scope": "Krate::DSP::BassCharacterStage",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/bass_character_stage.h",
-      "line": 1204
+      "line": 1209
     },
     {
       "name": "FreezeFeedbackProcessor",
@@ -3305,7 +3305,7 @@
       "scope": "Krate::DSP::BassCharacterStage",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/bass_character_stage.h",
-      "line": 1307
+      "line": 1312
     },
     {
       "name": "Slot",
