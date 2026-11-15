@@ -18,6 +18,16 @@ project(KrateAudio
     LANGUAGES C CXX
 )
 
+# Apple's linker resolves static archives in any order, so the repeats CMake < 3.29 writes for traditional linkers
+# (KrateDSP, sdk, hwy after KratePluginsShared) only earn "ld: warning: ignoring duplicate libraries" on macOS.
+# CMP0156 NEW de-duplicates by linker capability. Apple only (APPLE is set by project()): the Windows and Linux link
+# lines stay as they are. The default variable covers directories that call cmake_minimum_required again
+# (plugins/profundum, plugins/vorago).
+if(APPLE AND POLICY CMP0156)
+    cmake_policy(SET CMP0156 NEW)
+    set(CMAKE_POLICY_DEFAULT_CMP0156 NEW)
+endif()
+
 # C++ Standard (Constitution Principle III: C++17 minimum, C++20 preferred)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)

@@ -152,9 +152,13 @@ function(krate_plugin_platform_setup target)
         # smtg_add_vst3plugin, and the later krate_plugin_install_* steps are Windows-only): Strip gets an unsigned
         # binary, and Xcode's own CodeSign step, which runs after Strip, signs the stripped result. Debug: no Strip,
         # so `true` leaves the signature alone.
+        # The path is the SDK's own (SMTG_PLUGIN_PACKAGE_PATH, the .vst3 bundle its workaround signs), never
+        # $<TARGET_FILE>: that names <target>.bundle/Contents/MacOS/<target>, which does not exist because the SDK
+        # renames the bundle to .vst3 (macOS CI 2026-11-15: "Vorago.bundle/Contents/MacOS/Vorago: No such file").
         if(XCODE)
+            get_target_property(_krate_package_path ${target} SMTG_PLUGIN_PACKAGE_PATH)
             add_custom_command(TARGET ${target} POST_BUILD
-                COMMAND "$<IF:$<CONFIG:Release>,codesign,true>" --remove-signature "$<TARGET_FILE:${target}>"
+                COMMAND "$<IF:$<CONFIG:Release>,codesign,true>" --remove-signature "${_krate_package_path}"
                 COMMENT "[KRATE] Drop the pre-Strip ad-hoc signature (Xcode re-signs after Strip)"
             )
         endif()

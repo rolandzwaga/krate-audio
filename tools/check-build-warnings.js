@@ -33,8 +33,10 @@ const PATTERNS = [
   { re: /^\s*(.+?)\s+:\s+warning\s+(LNK\d+|MSB\d+)\s*:\s*(.*?)(?:\s+\[[^\]]+\])?\s*$/, file: 1, code: 2, msg: 3 },
   // GCC / Clang: path:line:col: warning: message [-Wflag]
   { re: /^(.+?):(\d+):(?:(\d+):)?\s+warning:\s+(.*?)(?:\s+\[(-W[^\]]+)\])?\s*$/, file: 1, line: 2, msg: 4, code: 5 },
-  // Tools without a source location (cc1, cc1plus, ld, libtool, ...) and Xcode: `[tool: ]warning: message`.
-  { re: /^\s*(?:[\w./+-]+:\s*)?warning:\s+(.*?)\s*$/, msg: 1 },
+  // Tools without a source location (cc1, cc1plus, ld, libtool, ...) and Xcode: `[tool: ]warning: message`. Xcode
+  // prefixes a linker warning with the project and target, so the prefix is a chain:
+  // `/p/KrateAudio.xcodeproj: Seraphis: ld: warning: ignoring duplicate libraries: ...` (missed until 2026-11-15).
+  { re: /^\s*(?:[\w./+-]+:\s*)*warning:\s+(.*?)\s*$/, msg: 1 },
 ];
 
 function parse(text) {
@@ -77,6 +79,7 @@ function selfTest() {
     ['clang, no flag', '/Users/runner/work/r/r/a.mm:3:1: warning: method possibly missing a [super dealloc] call', 1],
     ['ld', 'ld: warning: object file (x.o) was built for newer macOS version (15.0) than being linked (13.0)', 1],
     ['/usr/bin/ld', '/usr/bin/ld: warning: x.o: missing .note.GNU-stack section implies executable stack', 1],
+    ['xcode ld, project + target prefix', "/Users/runner/work/r/r/build/KrateAudio.xcodeproj: Seraphis: ld: warning: ignoring duplicate libraries: '/b/lib/Release/libKrateDSP.a', '/b/lib/Release/libsdk.a'", 1],
     ['cc1 option', "cc1: warning: command-line option '-Wsuggest-override' is valid for C++/ObjC++ but not for C", 1],
     ['xcode run script', "warning: Run script build phase 'Copy' will be run during every build because it does not specify any outputs.", 1],
     ['colourised gcc', "\x1b[01m\x1b[K/src/a.cpp:1:2:\x1b[m\x1b[K \x1b[01;35m\x1b[Kwarning: \x1b[m\x1b[Kunused [-Wunused]", 1],
