@@ -429,7 +429,7 @@ inline constexpr std::string_view kInitCategory = "Init";
                 {kSpaceSizeId, 0.70},             // 1100
                 {kSpaceMixId, 0.55},              // 1105
                 {kSpaceDecayId, 0.519041},        // 1102 -> 6 s
-                {kGhostPeakLevelId, 0.15},        // 1400
+                {kGhostPeakLevelId, 0.05},        // 1400 (2026-11-15 retune 0.15 -> 0.05: the fractional-allpass Cavern left S1 at 3.89; 4.87 here, 5.21 at 0)
                 {kLifeTidalDepthId, 0.55},        // 1502
                 {kLifeBreathingDepthId, 0.0},      // 1500 -> 0: 13c ruling B-15 - breath gain 3.0 masked S1 at the inherited 0.30 (3.06; 4.98 at 0)
                 {kSeedId, 2.0 / 15.0},            // 2 index 2 -> "Seed 3"
@@ -858,6 +858,7 @@ inline constexpr std::string_view kInitCategory = "Init";
                 {kSpaceSizeId, 0.80},                // 1100
                 {kSpaceDecayId, 0.855217},           // 1102 -> 30 s
                 {kSubLevelOffsetId, 0.375},          // 600 -> -6 dB (sweep 2: 0 dB still sat at the limiter, peak 0.966 / late-sustain +14 dB; probe M5 3.52 - best reading, under F)
+                {kMasterGainId, 0.47203044},         // 0 -> -0.5 dB (2026-11-15 re-level, B-18 method: take 2 seed 2 arm 1 hi -5.94 dB at unity, -6.09 at -0.3, -6.20 here)
                 {kGhostPeakLevelId, 0.20},           // 1400
                 {kSeedId, 1.0 / 15.0},               // 2 index 1 -> "Seed 2"
             }},
@@ -974,7 +975,7 @@ inline constexpr std::string_view kInitCategory = "Init";
                 {kGhostBlurId, 0.50},              // 1401
                 {kSpaceFogId, 0.0},                // 1103
                 {kLifeTidalDepthId, 0.10},         // 1502
-                {kSpaceMixId, 0.90},               // 1105 (sweep 2 probe: M9 1.70 - best reading, under F; 1.41 at 0.80)
+                {kSpaceMixId, 1.0},                // 1105 (2026-11-15 retune 0.90 -> 1.0: the fractional-allpass Cavern left M9 at 3.76; 4.34 here, S1 1.93. Sweep 2 probe: M9 1.70 at 0.90, 1.41 at 0.80)
                 {kCloudRichnessId, 0.60},          // 200
                 {kSeedId, 9.0 / 15.0},             // 2 index 9 -> "Seed 10"
             }},
@@ -992,8 +993,8 @@ inline constexpr std::string_view kInitCategory = "Init";
             {C::D13SlowEvents},
             {
                 {kMacroLifeId, 0.70},            // 109 (displaced 0.7 >= 0.5)
-                {kEventsRateScaleId, 0.150515},  // 800 -> 0.2x (D13.1 <= 0.3)
-                {kEcosystemDepthId, 0.15},       // 900: 13d M10 companion - the Life row (+0.65) clamps at 1.0 from a full depth (combo_m10_gate.log d 4.6265)
+                {kEventsRateScaleId, 0.075},     // 800 -> 0.14x (D13.1 <= 0.3; 2026-11-15 retune 0.2x -> 0.14x with 900 0.20: D13.1 2.34, S7 conjunct 2.33, M10 5.24; 0.2x / 0.15 read S7 1.45)
+                {kEcosystemDepthId, 0.20},       // 900: 13d M10 companion - the Life row (+0.65) clamps at 1.0 from a full depth (combo_m10_gate.log d 4.6265); 0.15 -> 0.20 2026-11-15, 0.18-0.25 all verify at 0.14x
                 {kBloomDepthId, 0.85},           // 1300
                 {kBloomSpawnRateId, 0.30},       // 1301 a slow base, Life raises it
                 {kResonanceMixId, 0.60},         // 401
@@ -1708,7 +1709,7 @@ inline constexpr std::string_view kInitCategory = "Init";
                 {kNoiseSlot1ModelId, 2.0 / 3.0},       // 311 index 2 -> GranularDust (its default)
                 {kNoiseSlot2ModelId, 2.0 / 3.0},       // 312 index 2 -> GranularDust
                 {kNoiseSlot3ModelId, 2.0 / 3.0},       // 313 index 2 -> GranularDust
-                {kNoiseWakeId, 0.40},                  // 301 (1.0.4 retune 0.75 -> 0.40: D3.3 3.56 -> 4.19 after the fractional-allpass Cavern fix; 0.35-0.50 all read >= 4.11)
+                {kNoiseWakeId, 0.50},                  // 301 (1.0.4 retune 0.75 -> 0.40: D3.3 3.56 -> 4.19 after the fractional-allpass Cavern fix; 2026-11-15 0.40 -> 0.50: D3.3 4.28 and the D11 conjunct verifies, which 0.40 did not)
                 {kGhostPeakLevelId, 0.90},             // 1400 (S9, the D11 conjunct)
                 {kGhostReverseProbabilityId, 0.60},    // 1402 (D11 >= 0.5)
                 {kEventsRateScaleId, 0.650515},        // 800 -> 2.0x, more ghost requests (the schedulers)
@@ -1741,8 +1742,8 @@ inline constexpr std::string_view kInitCategory = "Init";
                 {kNoiseSlot2ModelId, 1.0},             // 312 index 3 -> MetallicHiss
                 {kNoiseSlot3ModelId, 1.0},             // 313 index 3 -> MetallicHiss (its default)
                 {kNoiseWakeId, 1.0},                   // 301
-                {kEcologyMixId, 0.70},                 // 500 (S4, the D6.3 conjunct)
-                {kEcologyLoopGainId, 0.60},            // 501 -> 0.54
+                {kEcologyMixId, 0.90},                 // 500 (S4, the D6.3 conjunct; 2026-11-15 retune 0.70 -> 0.90 with 501 1.0: S4 0.35 -> 2.44, D3.4 5.27, peak 0.51)
+                {kEcologyLoopGainId, 1.0},             // 501 -> 0.90 (2026-11-15, was 0.60)
                 {kEcologyLoop0FilterModeId, 1.0},      // 510 index 2 -> Highpass (D6.3)
                 {kEcologyLoop2FilterModeId, 1.0},      // 512 index 2 -> Highpass
                 {kEcologyLoop4FilterModeId, 1.0},      // 514 index 2 -> Highpass

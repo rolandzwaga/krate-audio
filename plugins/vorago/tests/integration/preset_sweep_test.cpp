@@ -1193,21 +1193,42 @@ TEST_CASE("Vorago_PresetSweep_AblationVerifiesClaims", "[vorago][preset][long][v
         const auto outcome = [&rec](PD::Capability c) -> const VoragoTest::CellOutcome& {
             return rec.vec.cells[static_cast<std::size_t>(c)];
         };
+        // A ruled claim (VoragoTest::kRuledClaims, user ruling 2026-11-15) is
+        // recorded with its reading, never gated; every other claim is gated.
+        const auto recordRuled = [&rec](PD::Capability c, const VoragoTest::CellOutcome& o,
+                                        bool verified) {
+            std::printf("  %s %s: d %.4f state %s conjunct %s -> %s\n",
+                        verified ? "RULED, NOW VERIFIES (remove it from kRuledClaims):"
+                                 : "RECORDED BY RULING (not gated):",
+                        t041Label(c).c_str(), o.d, t041Yes(o.stateOk), t041Yes(o.conjunctOk),
+                        rec.name.c_str());
+        };
         {
             const VoragoTest::CellOutcome& o = outcome(primary);
             INFO(rec.name << " primary " << t041Label(primary) << ": d " << o.d << ", 2s(P) "
                           << o.twoS << ", attrib " << o.attribBase << ", skip [" << o.skip
                           << "]");
             // The one rule (plan 6.12): the primary verifies at 1.5 and at F = 4.0.
-            CHECK(VoragoTest::verifiedAt(o, primary, ClaimRole::Secondary));
-            CHECK(VoragoTest::verifiedAt(o, primary, ClaimRole::Primary));
+            const bool atSecondary = VoragoTest::verifiedAt(o, primary, ClaimRole::Secondary);
+            const bool atPrimary = VoragoTest::verifiedAt(o, primary, ClaimRole::Primary);
+            if (VoragoTest::isRuledClaim(rec.name, primary)) {
+                recordRuled(primary, o, atSecondary && atPrimary);
+            } else {
+                CHECK(atSecondary);
+                CHECK(atPrimary);
+            }
         }
         for (const PD::Capability c : def->secondaries) {
             const VoragoTest::CellOutcome& o = outcome(c);
             INFO(rec.name << " secondary " << t041Label(c) << ": d " << o.d << ", 2s(P) "
                           << o.twoS << ", attrib " << o.attribBase << ", skip [" << o.skip
                           << "]");
-            CHECK(VoragoTest::verifiedAt(o, c, ClaimRole::Secondary));
+            const bool verified = VoragoTest::verifiedAt(o, c, ClaimRole::Secondary);
+            if (VoragoTest::isRuledClaim(rec.name, c)) {
+                recordRuled(c, o, verified);
+            } else {
+                CHECK(verified);
+            }
         }
     }
 }

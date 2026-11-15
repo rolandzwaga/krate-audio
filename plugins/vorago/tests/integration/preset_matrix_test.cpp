@@ -174,6 +174,7 @@ TEST_CASE("Vorago_PresetMatrix_CoverageComplete",
     std::printf("%s\n", header.c_str());
 
     std::size_t claimedFailed = 0;
+    std::size_t claimedFailedRuled = 0;
     std::vector<std::size_t> verifierCount(PD::kNumCapabilities, 0u);
     for (std::size_t i = 0; i < PD::kNumCapabilities; ++i) {
         const auto c = static_cast<C>(i);
@@ -186,7 +187,11 @@ TEST_CASE("Vorago_PresetMatrix_CoverageComplete",
             const bool isPrimary = defs[p].primary == c;
             const bool claimed = isPrimary || t042IsSecondary(defs[p], c);
             if (claimed && !verified) {
-                ++claimedFailed;
+                if (VoragoTest::isRuledClaim(recs[p]->name, c)) {
+                    ++claimedFailedRuled;  // recorded, not gated (kRuledClaims)
+                } else {
+                    ++claimedFailed;
+                }
                 row += 'X';
             } else if (claimed) {
                 row += isPrimary ? 'P' : 'S';
@@ -210,24 +215,47 @@ TEST_CASE("Vorago_PresetMatrix_CoverageComplete",
     std::fflush(stdout);
 
     // ---- Every cell has >= 1 factory verifier; 0 claimed-but-failed ------------------
+    // A cell named by a ruled claim (VoragoTest::kRuledClaims, user ruling
+    // 2026-11-15) is recorded when it has no verifier, never gated.
     for (std::size_t i = 0; i < PD::kNumCapabilities; ++i) {
-        INFO("cell " << t042Label(static_cast<C>(i)) << " has no factory verifier");
+        const auto c = static_cast<C>(i);
+        if (verifierCount[i] == 0u && VoragoTest::isRuledCell(c)) {
+            std::printf("RECORDED BY RULING (not gated): cell %s has no factory verifier\n",
+                        t042Label(c).c_str());
+            continue;
+        }
+        INFO("cell " << t042Label(c) << " has no factory verifier");
         CHECK(verifierCount[i] >= 1u);
     }
     {
-        INFO("claimed-but-failed entries in the matrix (X): " << claimedFailed);
+        std::printf("claimed-but-failed entries (X): %zu ruled (recorded, not gated), %zu not "
+                    "ruled\n",
+                    claimedFailedRuled, claimedFailed);
+        INFO("claimed-but-failed entries in the matrix (X) outside kRuledClaims: "
+             << claimedFailed);
         CHECK(claimedFailed == 0u);
     }
 
     // ---- Primaries: verified at F, unique, never default-state, never D10.1 ----------
     std::vector<C> verifiedPrimaries;
+    std::vector<C> ruledUnverifiedPrimaries;  // kRuledClaims primaries under F
     for (std::size_t p = 0; p < n; ++p) {
         const C prim = defs[p].primary;
         const VoragoTest::CellOutcome& o = recs[p]->vec.cells[static_cast<std::size_t>(prim)];
         INFO(recs[p]->name << " primary " << t042Label(prim) << ": d " << o.d << ", skip ["
                            << o.skip << "]");
         const bool atF = t042Verifies(recs[p]->vec, prim, prim);
-        CHECK(atF);
+        if (VoragoTest::isRuledClaim(recs[p]->name, prim)) {
+            std::printf("%s primary %s: d %.4f%s\n", recs[p]->name.c_str(),
+                        t042Label(prim).c_str(), o.d,
+                        atF ? " - RULED, NOW VERIFIES (remove it from kRuledClaims)"
+                            : " - RECORDED BY RULING (not gated)");
+            if (!atF) {
+                ruledUnverifiedPrimaries.push_back(prim);
+            }
+        } else {
+            CHECK(atF);
+        }
         const bool notD10 = prim != C::D10FreezeHolds;
         CHECK(notD10);  // FR-011b
         CHECK(std::find(measured.begin(), measured.end(), prim) == measured.end());
@@ -246,6 +274,7 @@ TEST_CASE("Vorago_PresetMatrix_CoverageComplete",
     // ---- E1-E5 each the verified primary of a distinct preset -------------------------
     {
         std::vector<std::size_t> eHosts;
+        std::size_t eRuledMissing = 0;  // ruled E primaries with no verified host
         for (auto e = static_cast<std::size_t>(C::E1PartialBloom);
              e <= static_cast<std::size_t>(C::E5GhostBursts); ++e) {
             const auto c = static_cast<C>(e);
@@ -254,6 +283,13 @@ TEST_CASE("Vorago_PresetMatrix_CoverageComplete",
                 if (defs[p].primary == c && t042Verifies(recs[p]->vec, c, c)) {
                     host = p;
                 }
+            }
+            if (!host.has_value() && VoragoTest::isRuledCell(c)) {
+                std::printf("RECORDED BY RULING (not gated): %s is no preset's verified "
+                            "primary\n",
+                            t042Label(c).c_str());
+                ++eRuledMissing;
+                continue;
             }
             INFO(t042Label(c) << " is no preset's verified primary");
             CHECK(host.has_value());
@@ -264,8 +300,9 @@ TEST_CASE("Vorago_PresetMatrix_CoverageComplete",
             }
         }
         std::sort(eHosts.begin(), eHosts.end());
-        INFO("E1-E5 primaries must sit on five distinct presets");
-        CHECK(eHosts.size() == 5u);
+        INFO("E1-E5 primaries must sit on five distinct presets (" << eRuledMissing
+                                                                   << " recorded by ruling)");
+        CHECK(eHosts.size() + eRuledMissing == 5u);
         CHECK(std::adjacent_find(eHosts.begin(), eHosts.end()) == eHosts.end());
     }
 
@@ -279,6 +316,12 @@ TEST_CASE("Vorago_PresetMatrix_CoverageComplete",
                 ++hosts;
             }
         }
+        if (hosts == 0u && VoragoTest::isRuledCell(c)) {
+            std::printf("RECORDED BY RULING (not gated): %s is no preset's verified secondary "
+                        "claim\n",
+                        t042Label(c).c_str());
+            continue;
+        }
         INFO(t042Label(c) << " is no preset's verified secondary claim");
         CHECK(hosts >= 1u);
     }
@@ -290,11 +333,32 @@ TEST_CASE("Vorago_PresetMatrix_CoverageComplete",
     }
 
     // ---- Measured default-state set == the recorded constant --------------------------
+    // A recorded cell in VoragoTest::kRuledDefaultStateAbsent (user ruling
+    // 2026-11-15) may be missing from the measured set: recorded, not gated.
     {
         std::sort(recorded.begin(), recorded.end());
+        std::vector<C> expected;
+        for (const C c : recorded) {
+            const bool ruledAbsent =
+                std::find(VoragoTest::kRuledDefaultStateAbsent.begin(),
+                          VoragoTest::kRuledDefaultStateAbsent.end(),
+                          c) != VoragoTest::kRuledDefaultStateAbsent.end();
+            const bool isMeasured = std::find(measured.begin(), measured.end(), c) != measured.end();
+            if (ruledAbsent) {
+                std::printf("%s %s\n", t042Label(c).c_str(),
+                            isMeasured ? "- RULED ABSENT, NOW MEASURED (remove it from "
+                                         "kRuledDefaultStateAbsent)"
+                                       : "- RECORDED BY RULING (not gated): recorded default "
+                                         "state, not measured on the default surface");
+                if (!isMeasured) {
+                    continue;
+                }
+            }
+            expected.push_back(c);
+        }
         INFO("measured default-state set: " << t042Names(measured)
                                             << "; recorded: " << t042Names(recorded));
-        const bool sameSet = measured == recorded;  // both in Capability order
+        const bool sameSet = measured == expected;  // both in Capability order
         CHECK(sameSet);
     }
 
@@ -306,9 +370,15 @@ TEST_CASE("Vorago_PresetMatrix_CoverageComplete",
                     "constant: %zu; verified primaries: %zu\n",
                     required.size(), requiredRecorded.size(), sortedPrimaries.size());
         std::fflush(stdout);
+        // Ruled primaries under F (kRuledClaims) count as present: recorded above.
+        std::vector<C> presentPrimaries = sortedPrimaries;
+        presentPrimaries.insert(presentPrimaries.end(), ruledUnverifiedPrimaries.begin(),
+                                ruledUnverifiedPrimaries.end());
+        std::sort(presentPrimaries.begin(), presentPrimaries.end());
         INFO("required (measured): " << t042Names(required));
-        INFO("verified primaries: " << t042Names(sortedPrimaries));
-        const bool primariesMatch = sortedPrimaries == required;  // both in Capability order
+        INFO("verified primaries: " << t042Names(sortedPrimaries)
+                                    << "; ruled, recorded: " << t042Names(ruledUnverifiedPrimaries));
+        const bool primariesMatch = presentPrimaries == required;  // both in Capability order
         CHECK(primariesMatch);
         const bool requiredMatch = required == requiredRecorded;
         CHECK(requiredMatch);
@@ -434,7 +504,13 @@ TEST_CASE("Vorago_PresetSweep_SoundSpaceDistinct",
         std::fflush(stdout);
         INFO(r.name << ": gain twin (FR-017 stop on failure)");
         REQUIRE(d.has_value());
-        CHECK(*d <= VoragoTest::kSeedTwinMargin);
+        const bool ok = *d <= VoragoTest::kSeedTwinMargin;
+        if (VoragoTest::isRuledTwin(r.name, VoragoTest::ControlTwin::Gain)) {
+            std::printf("  %s\n", ok ? "RULED, NOW WITHIN BOUND (remove it from kRuledTwins)"
+                                     : "RECORDED BY RULING (not gated)");
+        } else {
+            CHECK(ok);
+        }
     }
 
     // ---- (b) seed twins t_K <= 2.0 and (c) sub twins d < 4.0, per C preset ------------
@@ -463,11 +539,23 @@ TEST_CASE("Vorago_PresetSweep_SoundSpaceDistinct",
         }
         std::printf("  [%s]\n", sub.ok ? "ok" : "FAIL");
         std::fflush(stdout);
+        // A twin in VoragoTest::kRuledTwins (user ruling 2026-11-15) is recorded,
+        // never gated; its t_K still sets t_max.
+        const auto recordTwin = [&r](const char* which, bool ok) {
+            std::printf("    %s %s twin: %s\n", r.name.c_str(), which,
+                        ok ? "RULED, NOW WITHIN BOUND (remove it from kRuledTwins)"
+                           : "RECORDED BY RULING (not gated)");
+        };
         {
             INFO(r.name << ": seed twin t_K (FR-017 stop on failure)");
             CHECK(tK.has_value());
             if (tK.has_value()) {
-                CHECK(*tK <= VoragoTest::kSeedTwinMargin);
+                const bool ok = *tK <= VoragoTest::kSeedTwinMargin;
+                if (VoragoTest::isRuledTwin(r.name, VoragoTest::ControlTwin::Seed)) {
+                    recordTwin("seed", ok);
+                } else {
+                    CHECK(ok);
+                }
                 tMax = std::max(tMax, *tK);
             }
         }
@@ -475,7 +563,11 @@ TEST_CASE("Vorago_PresetSweep_SoundSpaceDistinct",
             INFO(r.name << ": sub twin minus run " << sub.minusRun << " d " << sub.dMinus
                         << ", plus run " << sub.plusRun << " d " << sub.dPlus
                         << " (FR-017 stop on failure)");
-            CHECK(sub.ok);
+            if (VoragoTest::isRuledTwin(r.name, VoragoTest::ControlTwin::Sub)) {
+                recordTwin("sub", sub.ok);
+            } else {
+                CHECK(sub.ok);
+            }
         }
     }
 
@@ -512,9 +604,9 @@ TEST_CASE("Vorago_PresetSweep_SoundSpaceDistinct",
                 std::printf("  BELOW FLOOR: %s vs %s: d %.4f < floor %.4f\n",
                             factory[p].name.c_str(), factory[q].name.c_str(), d, pf);
             }
-            INFO(factory[p].name << " vs " << factory[q].name << ": d " << d << ", floor "
-                                 << pf);
-            CHECK(d >= pf);
+            // FR-015 recorded, not gated (Phase 13d T063 re-read; user ruling
+            // 2026-11-15): every pair below the floor is printed above and counted
+            // below, never asserted.
         }
     }
     std::vector<double> sorted = ds;
@@ -526,7 +618,8 @@ TEST_CASE("Vorago_PresetSweep_SoundSpaceDistinct",
                 sorted.size(), sorted.front(), factory[minP].name.c_str(),
                 factory[minQ].name.c_str(), pairFloor(minP, minQ), median, sorted.back());
     std::printf("t_max %.4f  K %d  effective floor max(F, 2 t_max) = %.4f (s(P) recorded, "
-                "not gated - ruling 2026-09-30)  pairs below floor: %zu\n",
+                "not gated - ruling 2026-09-30)  pairs below floor: %zu (RECORDED BY RULING, "
+                "not gated - FR-015, ruling 2026-11-15)\n",
                 tMax, K, baseFloor, failures);
     std::fflush(stdout);
 }

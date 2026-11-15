@@ -33,6 +33,7 @@
 #include <cstddef>
 #include <optional>
 #include <span>
+#include <string_view>
 #include <vector>
 
 namespace VoragoTest {
@@ -1148,6 +1149,75 @@ namespace detail {
     }
     return verifiedAt(o, v, role);
 }
+
+// ---- Ruled reds (user ruling 2026-11-15) --------------------------------------------
+// The claims, control twins and default-state cell ruled red: RECORDED, not gated.
+// They carry the Phase 13d close rulings (E1 / M4 / M5 / E6.hi / E7.hi engine-limited;
+// the out-of-roster secondaries D6.2, D13.2, D14.2; the FR-017a control twins;
+// specs/vorago-phase13d-engine-ceilings/artifacts/t063_reread.md) onto the tree after
+// the 1.0.4 fractional-allpass Cavern fix. A membership list, never a d floor: the
+// sweep runs on three OSes whose readings differ. A listed entry prints RECORDED BY
+// RULING with its reading; a red that is NOT listed still fails; a listed entry that
+// verifies prints "remove it from the list".
+
+struct RuledClaim {
+    std::string_view preset;
+    ::Vorago::PresetDefs::Capability cell;
+};
+
+inline constexpr std::array<RuledClaim, 8> kRuledClaims{{
+    {"Bloom Colony", ::Vorago::PresetDefs::Capability::E1PartialBloom},     // primary
+    {"Drifting Strata", ::Vorago::PresetDefs::Capability::M4Movement},      // primary
+    {"Drifting Strata", ::Vorago::PresetDefs::Capability::D14Tidal},
+    {"Stone Gravity", ::Vorago::PresetDefs::Capability::M5Gravity},         // primary
+    {"Colony Pulse", ::Vorago::PresetDefs::Capability::D13FastEvents},
+    {"Colony Pulse", ::Vorago::PresetDefs::Capability::E6SyncRateHi},
+    {"Colony Pulse", ::Vorago::PresetDefs::Capability::E7SelfAffinityHi},
+    {"Spore Drift", ::Vorago::PresetDefs::Capability::D6Bandpass},
+}};
+
+[[nodiscard]] inline bool isRuledClaim(std::string_view preset,
+                                       ::Vorago::PresetDefs::Capability cell) noexcept {
+    return std::any_of(kRuledClaims.begin(), kRuledClaims.end(), [&](const RuledClaim& r) {
+        return r.preset == preset && r.cell == cell;
+    });
+}
+
+/// A cell named by any ruled claim: its "every cell has a factory verifier" and
+/// "E6.hi / E7.hi have a verified secondary" checks are recorded, not gated.
+[[nodiscard]] inline bool isRuledCell(::Vorago::PresetDefs::Capability cell) noexcept {
+    return std::any_of(kRuledClaims.begin(), kRuledClaims.end(),
+                       [cell](const RuledClaim& r) { return r.cell == cell; });
+}
+
+enum class ControlTwin : std::uint8_t { Gain, Seed, Sub };
+
+struct RuledTwin {
+    std::string_view preset;
+    ControlTwin twin;
+};
+
+/// FR-017a control twins over their bounds. Weighted Deep's sub twin is new on the
+/// 1.0.4 tree (+0.125 reads 4.37; 3.92 at 13d sweep 6) and joined by the same ruling.
+inline constexpr std::array<RuledTwin, 5> kRuledTwins{{
+    {"Pressure Front", ControlTwin::Gain},
+    {"Pressure Front", ControlTwin::Seed},
+    {"Weighted Deep", ControlTwin::Seed},
+    {"Monolith", ControlTwin::Sub},
+    {"Weighted Deep", ControlTwin::Sub},
+}};
+
+[[nodiscard]] inline bool isRuledTwin(std::string_view preset, ControlTwin twin) noexcept {
+    return std::any_of(kRuledTwins.begin(), kRuledTwins.end(), [&](const RuledTwin& r) {
+        return r.preset == preset && r.twin == twin;
+    });
+}
+
+/// Recorded default-state cells the default surface no longer verifies (D7.1 since
+/// 13d sweep 6: the measured set lacks it; kRecordedDefaultStateCells keeps it).
+inline constexpr std::array<::Vorago::PresetDefs::Capability, 1> kRuledDefaultStateAbsent{{
+    ::Vorago::PresetDefs::Capability::D7Div2,
+}};
 
 // ---- Vector (plan 5.8, 6.12) --------------------------------------------------------
 
