@@ -125,7 +125,11 @@ public:
     /// it). Noiseless: no dither, no jitter.
     static constexpr float kCrushHysteresisSteps = 0.25f;
     /// Slot memory is dropped when the bit depth has moved by this much since the memory was keyed (an Amount
-    /// move: the smoothed bits change continuously, so a fixed fraction of a bit rather than any change).
+    /// move: the smoothed bits change continuously, so a fixed fraction of a bit rather than any change). When
+    /// the move settles (the first unchanged Amount after a change), the memory is re-keyed once more to the
+    /// settled depth if it is keyed to any other (settle re-key, 2026-11-14): otherwise it stays keyed up to
+    /// this far off for good, and the same setting renders differently depending on the path to it (0.98 dB
+    /// on h13 after a Crush -> Amount 0 -> Crush excursion, SC-006(b) of Profundum Phase 8).
     static constexpr float kCrushHysteresisRekeyBits = 1.0f / 16.0f;
     /// Slot memory per engine: m_hi reaches m(0) + 1 = 65 at Amount 0.
     static constexpr std::size_t kCrushMaxSlots = static_cast<std::size_t>(kCrushMultipleLo) + 1;
@@ -743,9 +747,11 @@ private:
         }
         [[nodiscard]] float pre(float x) noexcept { return preTilt.process(x); }
         [[nodiscard]] BranchOut process(float u) noexcept {
-            std::array<float, 2> buf{};
+            // Sized for the oversampler's largest factor: prepare() sets 2, but a default-constructed
+            // oversampler is 4x, and upsample() writes factor() samples (GCC -Warray-bounds, 2026-11-14).
+            std::array<float, PolyphaseHalfbandOversampler::kMaxFactor> buf{};
             os.upsample(u, buf.data());
-            stage.process(buf.data(), buf.size());
+            stage.process(buf.data(), os.factor());
             const float y = os.downsample(buf.data());
             const float l = u2;
             u2 = u1;
@@ -976,11 +982,19 @@ private:
             if (m != memM || std::abs(bits - memBits) >= kCrushHysteresisRekeyBits)
                 forgetSlots(m, bits);
         }
+        /// Settle re-key (kCrushHysteresisRekeyBits): keys the slot memory to exactly `bits`.
+        void keySlotsSettled(float bits) noexcept {
+            if (bits != memBits)
+                forgetSlots(m, bits);
+        }
         /// The level slot k outputs for held value v whose plain quantisation is q (step: one quantiser step
         /// in the same units): re-quantises only when the slot is invalid or v moved from v_ref by more than
-        /// kCrushHysteresisSteps·step; otherwise keeps q_ref.
-        [[nodiscard]] float hysteresis(std::size_t k, float v, float q, float step) noexcept {
+        /// kCrushHysteresisSteps·step; otherwise keeps q_ref. A valid slot re-quantising to a different level is
+        /// a level step, counted in levelSteps (FR-051 level-step count, Phase 7 SC-007 step-free window).
+        [[nodiscard]] float hysteresis(std::size_t k, float v, float q, float step, std::size_t& levelSteps) noexcept {
             if (!slotValid[k] || std::abs(v - slotInput[k]) > kCrushHysteresisSteps * step) {
+                if (slotValid[k] && q != slotLevel[k])
+                    ++levelSteps;
                 slotLevel[k] = q;
                 slotInput[k] = v;
                 slotValid[k] = true;
@@ -1058,8 +1072,11 @@ private:
         float qStep = 0.0f;         // one quantiser step at B(A), in the units of the held value
         float uPrev = 0.0f;
         float lastAmount = -1.0f;  // configure() recomputes only on a changed Amount
+        bool amountMoving = false;  // the Amount changed at the last configure()
+        bool settleRekey = false;   // the Amount just settled: the next process() keys the slots to `bits`
         std::size_t occupancyPeak = 0;  // largest active-step count of one engine since the stage read it
         std::size_t retirements = 0;    // ring-full retirements since the stage read them
+        std::size_t levelSteps = 0;     // valid slots re-quantised to a different level since reset (probe)
         void prepare(double baseRate, double processRateIn, std::uint32_t channel) noexcept {
             postTilt.prepare(baseRate);
             postTilt.configure(kPostTiltPivot, kPostTiltDb);
@@ -1080,8 +1097,10 @@ private:
                 e.reset();
             phase = 0.0;
             uPrev = 0.0f;
+            settleRekey = false;
             occupancyPeak = 0;
             retirements = 0;
+            levelSteps = 0;
         }
         void setFundamentalHz(float f0) noexcept {
             postTilt.setFundamentalHz(f0);
@@ -1093,8 +1112,15 @@ private:
         }
         void configure(float amount, float tone) noexcept {
             postTilt.setTone(tone);
-            if (std::bit_cast<std::uint32_t>(amount) == std::bit_cast<std::uint32_t>(lastAmount))
+            if (std::bit_cast<std::uint32_t>(amount) == std::bit_cast<std::uint32_t>(lastAmount)) {
+                // The smoother snaps to its target when complete, so the first unchanged Amount is the settled one.
+                if (amountMoving) {
+                    amountMoving = false;
+                    settleRekey = true;
+                }
                 return;
+            }
+            amountMoving = true;
             lastAmount = amount;
             const auto a = static_cast<double>(amount);
             mAmount = static_cast<double>(kCrushMultipleLo)
@@ -1129,6 +1155,8 @@ private:
                 HoldEngine& h = engine[e];
                 h.advance();
                 h.keySlots(bits);
+                if (settleRekey)
+                    h.keySlotsSettled(bits);
                 const auto md = static_cast<double>(h.m);
                 // Sample points at θ = (k + 1/2)/m: half a hold step off the period start, where the
                 // core's waveforms put their edge (a point on a band-limited edge makes the held value
@@ -1146,13 +1174,14 @@ private:
                                              static_cast<double>(kCrushPreScale) * value / static_cast<double>(kP)));
                     const auto slot = static_cast<std::size_t>(kPrev + static_cast<double>(j))
                                       % static_cast<std::size_t>(h.m);
-                    const float q = h.hysteresis(slot, static_cast<float>(value), qPlain, qStep);
+                    const float q = h.hysteresis(slot, static_cast<float>(value), qPlain, qStep, levelSteps);
                     h.push(q - h.held, 1.0 - tau, retirements);
                     h.held = q;
                 }
                 occupancyPeak = std::max(occupancyPeak, h.count);
                 out[e] = h.output();
             }
+            settleRekey = false;
             phase = (th >= 1.0) ? th - 1.0 : th;
             uPrev = u;
             return {.y = (1.0f - frac) * out[eLo] + frac * out[eHi], .lin = 0.0f};

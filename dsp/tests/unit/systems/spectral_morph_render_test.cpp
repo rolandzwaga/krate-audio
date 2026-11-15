@@ -898,6 +898,16 @@ constexpr std::uint32_t kMorphSeed = 1u;
         return "Glass";
     case SpectralStateId::Breath:
         return "Breath";
+    case SpectralStateId::Hollow:
+        return "Hollow";
+    case SpectralStateId::Metal:
+        return "Metal";
+    case SpectralStateId::Organ:
+        return "Organ";
+    case SpectralStateId::Vowel:
+        return "Vowel";
+    case SpectralStateId::Shimmer:
+        return "Shimmer";
     }
     return "?";
 }

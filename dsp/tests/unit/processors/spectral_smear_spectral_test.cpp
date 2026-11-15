@@ -1940,7 +1940,9 @@ TEST_CASE("SpectralSmear_BoundednessSoak", "[spectral_smear][long]") {
             std::fill(left.begin(), left.end(), 0.0f);
             loopPos = (loopPos + kSoakBlock) % loopSamples;
         }
-        right = left;
+        // Same size: std::copy, not vector::operator=, whose reallocation path GCC 13 flags with a false
+        // -Wstringop-overflow.
+        std::copy(left.begin(), left.end(), right.begin());
 
         smear.processBlock(left.data(), right.data(), kSoakBlock);
 

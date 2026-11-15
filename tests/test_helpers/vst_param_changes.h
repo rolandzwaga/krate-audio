@@ -33,7 +33,7 @@ namespace Krate::Test {
 // -----------------------------------------------------------------------------
 // ParamValueQueue — one parameter, a single automation point (sampleOffset 0).
 // -----------------------------------------------------------------------------
-class ParamValueQueue : public Steinberg::Vst::IParamValueQueue {
+class ParamValueQueue final : public Steinberg::Vst::IParamValueQueue {
 public:
     ParamValueQueue(Steinberg::Vst::ParamID id, double value)
         : id_(id), value_(value) {}
@@ -75,7 +75,7 @@ private:
 // Default-constructed instance models an empty IParameterChanges (count 0).
 // Call addChange(id, value) to inject parameter automation.
 // -----------------------------------------------------------------------------
-class ParameterChanges : public Steinberg::Vst::IParameterChanges {
+class ParameterChanges final : public Steinberg::Vst::IParameterChanges {
 public:
     Steinberg::tresult PLUGIN_API queryInterface(const Steinberg::TUID /*iid*/,
                                                  void** /*obj*/) override {

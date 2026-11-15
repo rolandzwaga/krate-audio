@@ -7,7 +7,6 @@
 # Define KrateDSP as a static library
 # Most DSP code is header-only; .cpp files provide out-of-line implementations
 add_library(KrateDSP STATIC
-    include/krate/dsp/core/dsp_utils.cpp
     include/krate/dsp/core/spectral_simd.cpp
     include/krate/dsp/processors/spectral_state.cpp
     include/krate/dsp/effects/fdn_reverb_simd.cpp

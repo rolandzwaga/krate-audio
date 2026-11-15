@@ -14,7 +14,9 @@
 #if KRATE_DISPLAY_BRIDGE_LOG
 
 #include <cstdarg>
+#include <cstddef>
 #include <cstdio>
+#include <cstring>
 
 #ifdef _WIN32
 #ifndef WIN32_LEAN_AND_MEAN
@@ -28,13 +30,22 @@
 
 namespace Krate::Plugins::Detail {
 
+/// Prints "[KrateBridge] <message>\n". The prefix and newline are added here, not pasted in the macro: pasting
+/// needs `, ##__VA_ARGS__` for argument-free calls, a GNU extension (-Wgnu-zero-variadic-macro-arguments, macOS).
 inline void displayBridgeLog(const char* fmt, ...) // NOLINT(cert-dcl50-cpp)
 {
+    static constexpr char kPrefix[] = "[KrateBridge] ";
     char buf[512];
+    std::snprintf(buf, sizeof(buf), "%s", kPrefix);
+    constexpr std::size_t kPrefixLen = sizeof(kPrefix) - 1u;
+    // Leave room for the newline and the terminator.
     va_list args;
     va_start(args, fmt);
-    vsnprintf(buf, sizeof(buf), fmt, args);
+    std::vsnprintf(buf + kPrefixLen, sizeof(buf) - kPrefixLen - 1u, fmt, args);
     va_end(args);
+    const std::size_t len = std::strlen(buf);
+    buf[len] = '\n';
+    buf[len + 1u] = '\0';
 #ifdef _WIN32
     OutputDebugStringA(buf);
 #else
@@ -44,9 +55,8 @@ inline void displayBridgeLog(const char* fmt, ...) // NOLINT(cert-dcl50-cpp)
 
 } // namespace Krate::Plugins::Detail
 
-#define KRATE_BRIDGE_LOG(fmt, ...) \
-    Krate::Plugins::Detail::displayBridgeLog("[KrateBridge] " fmt "\n", ##__VA_ARGS__)
+#define KRATE_BRIDGE_LOG(...) Krate::Plugins::Detail::displayBridgeLog(__VA_ARGS__)
 
 #else
-#define KRATE_BRIDGE_LOG(fmt, ...) ((void)0)
+#define KRATE_BRIDGE_LOG(...) ((void)0)
 #endif

@@ -135,7 +135,7 @@ PeakResult measurePad(int16 midi, float velocity)
     r.peakLinear = std::max(peakL, peakR);
     r.peakDbfs = (r.peakLinear > 0.0f)
         ? 20.0f * std::log10(r.peakLinear)
-        : -std::numeric_limits<float>::infinity();
+        : std::numeric_limits<float>::lowest();  // silence; no infinity under -ffast-math
     r.rms = std::sqrt(sumSq / std::max<size_t>(1, totalSamples));
     return r;
 }
@@ -144,7 +144,7 @@ void report(const char* name, int16 midi, const PeakResult& r)
 {
     const double rmsDb = (r.rms > 0.0)
         ? 20.0 * std::log10(r.rms)
-        : -std::numeric_limits<double>::infinity();
+        : std::numeric_limits<double>::lowest();  // silence; no infinity under -ffast-math
     std::printf("[level] %-18s MIDI=%2d  peak=%7.4f (%+6.2f dBFS)  RMS=%.4f (%+6.2f dB)  L=%.4f R=%.4f\n",
                 name, static_cast<int>(midi),
                 static_cast<double>(r.peakLinear), static_cast<double>(r.peakDbfs),

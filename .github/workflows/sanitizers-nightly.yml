@@ -1,0 +1,77 @@
+# ============================================================================
+# Sanitizers Nightly - every suite under AddressSanitizer + UBSan (Linux)
+# ============================================================================
+# Builds the test executables with -DENABLE_ASAN=ON -DENABLE_UBSAN=ON and runs
+# the per-push lane (minus [wallclock]) over EVERY suite by calling ci.yml with
+# sanitize: true. Any ASan or UBSan report aborts the executable and fails its
+# shard; the report is in the shard log artifact.
+#
+# What it catches, for all plugins and the DSP library: use-after-free, heap /
+# stack / global buffer overflows, double free, allocation/deallocation family
+# mismatches (new vs free), signed integer overflow, out-of-range shifts,
+# misaligned access and invalid casts.
+#
+# What it does not: reads of uninitialised memory. Valgrind finds those
+# (valgrind-nightly.yml), at 50-80x native, which is why valgrind runs only
+# the editor-lifecycle cases of every plugin while this lane, at ~2-3x
+# native, runs every suite. Leak checking is off (see ci.yml test-linux).
+#
+# The per-push lane is ~21 min of tests at native speed, cut into 8 shards,
+# so a shard stays well inside its 60-minute cap at the sanitizer slowdown.
+#
+# Change gate: same as valgrind-nightly.yml - the scheduled run happens only
+# when code under test changed since the last run that actually tested
+# (tools/nightly-change-gate.js); workflow_dispatch always runs.
+# ============================================================================
+
+name: Sanitizers Nightly
+
+on:
+  schedule:
+    # 03:37 UTC daily: before long-tests-nightly (04:43) and valgrind-nightly (05:17),
+    # so the three never queue against each other for runners.
+    - cron: '37 3 * * *'
+  workflow_dispatch: {}
+
+concurrency:
+  group: sanitizers-nightly
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  actions: read  # the change gate reads this workflow's previous runs and their jobs
+
+env:
+  BUILD_TYPE: Release
+
+jobs:
+  # Same change gate as valgrind-nightly.yml (tools/nightly-change-gate.js).
+  # The paths are what the sanitizer lane builds and runs, plus its scripts.
+  check-activity:
+    name: Check for relevant changes
+    runs-on: ubuntu-latest  # runner-pin-ok: git diff and API calls only; ci-test-shard.js is a path in its list
+    outputs:
+      should_run: ${{ steps.check.outputs.should_run }}
+    steps:
+      # Full history without blobs: enough for `git diff --name-only <last tested commit> HEAD`.
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          filter: blob:none
+      - name: Did code under test change since the last tested run?
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          node tools/nightly-change-gate.js --workflow sanitizers-nightly.yml -- \
+            dsp plugins tests extern cmake CMakeLists.txt CMakePresets.json \
+            tools/ci-test-shard.js .github/workflows/ci.yml .github/workflows/sanitizers-nightly.yml
+
+  sanitizers:
+    name: ASan + UBSan via CI
+    needs: check-activity
+    if: needs.check-activity.outputs.should_run == 'true'
+    uses: ./.github/workflows/ci.yml
+    with:
+      sanitize: true

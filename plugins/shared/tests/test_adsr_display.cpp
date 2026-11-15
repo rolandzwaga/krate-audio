@@ -126,7 +126,6 @@ TEST_CASE("Coordinate round-trip accuracy within 0.01 tolerance (SC-012)", "[ads
 
     // Round-trip: set attack -> get layout -> attackEndX -> convert back to time
     // The pixel positions encode the parameter values; converting back should be close
-    auto layout = display.getLayout();
 
     // Sustain level round-trip via pixel
     float sustainPixelY = display.levelToPixelY(0.6f);

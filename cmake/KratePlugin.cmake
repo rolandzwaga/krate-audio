@@ -131,6 +131,46 @@ endmacro()
 # NOTE: the macOS AU branch cannot be exercised on the Windows-primary CI; verify
 # with an Xcode build before relying on changes here.
 # ------------------------------------------------------------------------------
+#   krate_check_audiounit_sdk_standard(sdk_dir cxx_std)
+#   Fails configure when the fetched AudioUnitSDK's Xcode project needs a newer C++ standard than cxx_std, the
+#   standard the VST3 SDK's AU wrapper compiles at. Without it a bad pin surfaces minutes into the macOS build as
+#   dozens of std::expected errors in *_AU (PR #293; 89f7b1c3). An unreadable project or an unknown standard
+#   token fails too, so the guard can never pass vacuously. Self-test: tools/test-audiounit-sdk-guard.cmake.
+function(krate_check_audiounit_sdk_standard sdk_dir cxx_std)
+    set(_pbx "${sdk_dir}/AudioUnitSDK.xcodeproj/project.pbxproj")
+    if(NOT EXISTS "${_pbx}")
+        message(FATAL_ERROR "[KRATE] AudioUnitSDK guard: ${_pbx} not found; cannot read the SDK's C++ standard")
+    endif()
+    file(STRINGS "${_pbx}" _lines REGEX "CLANG_CXX_LANGUAGE_STANDARD")
+    if(NOT _lines)
+        message(FATAL_ERROR "[KRATE] AudioUnitSDK guard: no CLANG_CXX_LANGUAGE_STANDARD in ${_pbx}")
+    endif()
+    foreach(_line IN LISTS _lines)
+        if(NOT _line MATCHES "\\+\\+([0-9][0-9a-z])\"")
+            message(FATAL_ERROR "[KRATE] AudioUnitSDK guard: unreadable standard in '${_line}'")
+        endif()
+        set(_tok "${CMAKE_MATCH_1}")
+        set(_map_1z 17)
+        set(_map_2a 20)
+        set(_map_2b 23)
+        set(_map_2c 26)
+        if(DEFINED _map_${_tok})
+            set(_std "${_map_${_tok}}")
+        elseif(_tok MATCHES "^[0-9][0-9]$")
+            set(_std "${_tok}")
+        else()
+            message(FATAL_ERROR "[KRATE] AudioUnitSDK guard: unknown standard token '${_tok}' in '${_line}'")
+        endif()
+        if(_std LESS 50)  # c++98 sorts after c++23 numerically; 98 and 03 are older than any cxx_std we use
+            if(_std GREATER cxx_std)
+                message(FATAL_ERROR "[KRATE] AudioUnitSDK at ${sdk_dir} needs C++${_std} (${_line}), but the "
+                    "VST3 SDK AU wrapper compiles as C++${cxx_std}: every *_AU target would fail "
+                    "(std::expected, PR #293). Pin an AudioUnitSDK release built at C++${cxx_std} or older.")
+            endif()
+        endif()
+    endforeach()
+endfunction()
+
 function(krate_plugin_platform_setup target)
     set(oneValueArgs TAG BUNDLE_BASE ENTITLEMENTS KIND)
     cmake_parse_arguments(KP "" "${oneValueArgs}" "" ${ARGN})
@@ -145,6 +185,32 @@ function(krate_plugin_platform_setup target)
             COMPANY_NAME "Krate Audio"
         )
 
+        # Release (DEPLOYMENT_POSTPROCESSING = YES, SMTG_AddSMTGLibrary.cmake) would run Xcode's Strip on the binary
+        # after the post-build phase, where the SDK's "Adhoc codesign workaround for Xcode 15"
+        # (SMTG_AddVST3Library.cmake) signed it so moduleinfotool could load it; Strip then warns, per architecture,
+        # that it invalidates that signature. So Xcode's Strip is off for plugin targets and the post-build strips
+        # itself, as its last steps (after moduleinfo; this function runs after smtg_add_vst3plugin, and the later
+        # krate_plugin_install_* steps are Windows-only): drop the signature, strip with Xcode's own flags
+        # (`strip -D -x -T`, from the CI log), re-sign ad hoc. Every run of the phase ENDS SIGNED. The previous
+        # version only dropped the signature and relied on Xcode's CodeSign after Strip; CI's separate AU pass re-runs
+        # this phase with no Strip or CodeSign after it, so Iterum.vst3 shipped unsigned and arm64 refused to load it
+        # ("Invalid Module!", validator, macOS CI 2026-11-15). Debug: no strip, `true` leaves the signature alone.
+        # The path is the SDK's own (SMTG_PLUGIN_PACKAGE_PATH, the .vst3 bundle its workaround signs), never
+        # $<TARGET_FILE>: that names <target>.bundle/Contents/MacOS/<target>, which does not exist because the SDK
+        # renames the bundle to .vst3 (macOS CI 2026-11-15: "Vorago.bundle/Contents/MacOS/Vorago: No such file").
+        if(XCODE)
+            get_target_property(_krate_package_path ${target} SMTG_PLUGIN_PACKAGE_PATH)
+            set_target_properties(${target} PROPERTIES XCODE_ATTRIBUTE_STRIP_INSTALLED_PRODUCT NO)
+            set(_krate_release_tool "$<IF:$<CONFIG:Release>,xcrun,true>")
+            add_custom_command(TARGET ${target} POST_BUILD
+                COMMAND ${_krate_release_tool} codesign --remove-signature "${_krate_package_path}"
+                COMMAND ${_krate_release_tool} strip -D -x -T
+                    "${_krate_package_path}/Contents/MacOS/$<TARGET_FILE_NAME:${target}>"
+                COMMAND ${_krate_release_tool} codesign --force --sign - "${_krate_package_path}"
+                COMMENT "[KRATE] Strip the unsigned binary, then re-sign ad hoc (Xcode's Strip is off for this target)"
+            )
+        endif()
+
         # ----------------------------------------------------------------------
         # Audio Unit v2 Support (macOS only)
         # ----------------------------------------------------------------------
@@ -157,13 +223,22 @@ function(krate_plugin_platform_setup target)
             FetchContent_Declare(
                 AudioUnitSDK
                 GIT_REPOSITORY https://github.com/apple/AudioUnitSDK.git
-                GIT_TAG AudioUnitSDK-1.1.0
+                # PINNED: 1.3.0. Do not bump without building every *_AU target on macOS.
+                # - 1.4.0+ uses C++23 std::expected in AUUtility.h / AUBuffer.h, but the VST3 SDK's AU wrapper
+                #   (auwrapper.mm, aucocoaview.mm) compiles at CMAKE_CXX_STANDARD (20): every *_AU target fails
+                #   with "no template named 'expected' in namespace 'std'". Bumped to 1.4.0 and broken twice
+                #   (PR #293, then 89f7b1c3); krate_check_audiounit_sdk_standard below now fails configure instead.
+                # - 1.1.0 / 1.2.0 lack ENABLE_USER_SCRIPT_SANDBOXING = YES: every AU build warned that the
+                #   unsandboxed "Install clang-format hook" phase delays Copy Headers (CI warning gate).
+                # 1.3.0 is the one release with sandboxing at C++20 (its project: CLANG_CXX_LANGUAGE_STANDARD c++20).
+                GIT_TAG AudioUnitSDK-1.3.0
             )
             FetchContent_MakeAvailable(AudioUnitSDK)
             FetchContent_GetProperties(
                 AudioUnitSDK
                 SOURCE_DIR SMTG_AUDIOUNIT_SDK_PATH
             )
+            krate_check_audiounit_sdk_standard("${SMTG_AUDIOUNIT_SDK_PATH}" "${CMAKE_CXX_STANDARD}")
 
             list(APPEND CMAKE_MODULE_PATH "${vst3sdk_SOURCE_DIR}/cmake/modules")
             include(SMTG_AddVST3AuV2)
@@ -174,6 +249,11 @@ function(krate_plugin_platform_setup target)
                 INFO_PLIST_TEMPLATE ${CMAKE_CURRENT_SOURCE_DIR}/resources/au-info.plist
                 VST3_PLUGIN_TARGET ${target}
             )
+            # The target compiles the SDK's auwrapper.mm, third-party source we cannot modify: C++ variable-length
+            # arrays (clang -Wvla-cxx-extension). KRATE_CXX_HAS_WVLA_CXX_EXTENSION: root CMakeLists.txt.
+            if(KRATE_CXX_HAS_WVLA_CXX_EXTENSION)
+                target_compile_options(${target}_AU PRIVATE -Wno-vla-cxx-extension)
+            endif()
 
             message(STATUS "[${KP_TAG}] AudioUnit target: ${target}_AU")
         elseif(SMTG_ENABLE_AUV2_BUILDS AND NOT XCODE)
@@ -230,6 +310,12 @@ function(krate_plugin_platform_setup target)
             # build dependencies, causing "library not found" with parallel builds.
             if(TARGET auv3_wrapper_macos AND AUV3_EXTENSION_TARGET)
                 add_dependencies(${AUV3_EXTENSION_TARGET} auv3_wrapper_macos)
+            endif()
+
+            # effect/ViewController.m filters its open panel with UTType (allowedContentTypes); link the
+            # framework explicitly rather than relying on Xcode's module auto-linking.
+            if(AUV3_APP_TARGET AND KP_KIND STREQUAL "effect")
+                target_link_libraries(${AUV3_APP_TARGET} PRIVATE "-framework UniformTypeIdentifiers")
             endif()
 
             # smtg_add_auv3_app never applies the SDK's universal-binary setting (the VST3 and AU targets

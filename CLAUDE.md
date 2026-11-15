@@ -424,7 +424,9 @@ Skip for docs-only, CI config, or test-only changes.
 
 ### Compiler Warnings
 
-All code must compile with ZERO warnings. Common fixes:
+All code must compile with ZERO warnings, third-party targets included (silence those per target in
+`CMakeLists.txt`, never globally). Gated in CI by `tools/check-build-warnings.js` on every build log, all three OSes.
+Common fixes:
 
 | Warning | Fix |
 |---------|-----|
@@ -511,7 +513,7 @@ ctest --test-dir build/windows-x64-release -C Release -j 30 --output-on-failure
 
 # [long] tag convention: multi-minute render cases whose assertions are
 # toolchain-INDEPENDENT (preset sweeps, MIDI goldens, click-free renders) carry
-# the [long] tag. Per-push CI EXCLUDES them (they run nightly on all 3 OSes via
+# the [long] tag. Per-push CI EXCLUDES them (they run nightly on Linux, 20 shards, via
 # long-tests-nightly.yml); local runs include them by default — a full local
 # suite run remains the release-grade check. Tag a new test [long] only if it
 # costs >~15 s AND its failure mode is not toolchain-specific; NEVER tag

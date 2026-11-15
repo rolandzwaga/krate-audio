@@ -52,7 +52,6 @@
   "plugins/membrum/tests/unit/test_stability_guard.cpp": 1,
   "plugins/membrum/tests/unit/tone_shaper/test_pitch_envelope_808.cpp": 1,
   "plugins/membrum/tests/unit/unnatural/test_coupling_no_homogenization.cpp": 1,
-  "plugins/membrum/tests/unit/unnatural/test_decay_skew.cpp": 1,
   "plugins/membrum/tests/unit/unnatural/test_material_morph.cpp": 1,
   "plugins/membrum/tests/unit/unnatural/test_mode_inject.cpp": 1,
   "plugins/membrum/tests/unit/unnatural/test_mode_stretch.cpp": 1,

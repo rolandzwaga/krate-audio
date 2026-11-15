@@ -196,15 +196,18 @@ inline void applyInversion(ChordResult& chord, InversionType inv) noexcept {
 /// @param rngState  Random state for Random mode (XOR-shifted internally)
 inline void applyVoicing(ChordResult& chord, VoicingMode mode,
                          uint32_t rngState) noexcept {
-    if (mode == VoicingMode::Close || chord.count <= 1) {
+    // count is 1-5 by construction; bounding it by the array also lets GCC prove the writes in range
+    // (-Wstringop-overflow "writing 1 byte into a region of size 0" when inlined into ArpeggiatorCore::fireStep).
+    const size_t count = std::min(chord.count, chord.notes.size());
+    if (mode == VoicingMode::Close || count <= 1) {
         return;
     }
 
     switch (mode) {
         case VoicingMode::Drop2: {
             // Drop the second-from-top note down an octave
-            if (chord.count >= 2) {
-                size_t dropIdx = chord.count - 2;
+            if (count >= 2) {
+                size_t dropIdx = count - 2;
                 int dropped = static_cast<int>(chord.notes[dropIdx]) - 12;
                 chord.notes[dropIdx] = static_cast<uint8_t>(
                     std::clamp(dropped, 0, 127));
@@ -213,7 +216,7 @@ inline void applyVoicing(ChordResult& chord, VoicingMode mode,
         }
         case VoicingMode::Spread: {
             // Raise odd-indexed notes up an octave
-            for (size_t i = 1; i < chord.count; i += 2) {
+            for (size_t i = 1; i < count; i += 2) {
                 int raised = static_cast<int>(chord.notes[i]) + 12;
                 chord.notes[i] = static_cast<uint8_t>(
                     std::clamp(raised, 0, 127));
@@ -223,7 +226,7 @@ inline void applyVoicing(ChordResult& chord, VoicingMode mode,
         case VoicingMode::Random: {
             // Each non-root note: 50% chance to go up an octave
             uint32_t state = rngState;
-            for (size_t i = 1; i < chord.count; ++i) {
+            for (size_t i = 1; i < count; ++i) {
                 // Simple xorshift32 step
                 state ^= state << 13;
                 state ^= state >> 17;

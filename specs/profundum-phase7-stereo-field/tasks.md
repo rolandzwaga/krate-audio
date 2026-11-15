@@ -807,7 +807,11 @@ read the committed `kSideFloorGain` / `kWideOffsetScale`; with the seeds they ma
   −120 dBFS from 500 ms after the crossfade end; print the first time it crosses −120 dBFS. CSV `evidence/sc004-a3-convergence.csv`.
 - `BassStereoField_WideAliasing` `[long][sc-007]` (FR-078): the WIDE dirty arm, every algorithm, Amount 1, offsets at the ceilings, Fold 100, E0,
   E1, E2, at 44.1, 48 and 96 kHz: `wideAliasedDbfs` of `characterL` and of `characterR` ≤ −80 dBFS.
-- `BassStereoField_WideAliasingSmoke` `[sc-007]`: Rectify and Fracture at E1, 48 kHz.
+- `BassStereoField_WideAliasingSmoke` `[sc-007]`: Rectify, Fracture and (amended 2026-11-14) Crush at E1, 48 kHz.
+- (amended 2026-11-15, spec Clarifications "Session 2026-11-15") Both cases read a step-free window: `FieldChainTaps`
+  records Crush's cumulative level steps per channel per interval (`BassCharacterStageProbe::crushLevelSteps`); the
+  cell re-renders, longer, until the window starts ≥ 50 ms after the last step (at most 3 extensions) and prints
+  `stepsL`, `stepsR`, the last step's time and the render length.
 - `BassStereoField_TransitionsClickFree` `[sc-009]` (SC-009(b), per-push; **RULED 2026-10-18, G7-1: the long-ramp form — rewrite this case; keep
   the rest of the TU, including the already-fixed `bsfControlGridPoint` positive-control placement**): `kSawAnchor` Anchor arm (Tube) at E0, E2,
   C3, host blocks {64, 512}, 3 s; steps at 1 s and 2 s: SOLID → SPREAD → WIDE, WIDE → SPREAD → SOLID, Gravity 0 → 1 → 0, crossover 60 → 250 → 60.

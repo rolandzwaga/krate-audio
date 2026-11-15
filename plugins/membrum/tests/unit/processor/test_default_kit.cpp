@@ -57,9 +57,8 @@ TEST_CASE("DefaultKit::apply initializes all 32 pads", "[default_kit]")
     {
         for (int i = 0; i < kNumPads; ++i) {
             INFO("Pad index: " << i);
-            REQUIRE(static_cast<int>(pads[i].exciterType) >= 0);
+            // The enums are unsigned, so only the upper bound can fail (GCC -Wtype-limits on a >= 0 check).
             REQUIRE(static_cast<int>(pads[i].exciterType) < static_cast<int>(ExciterType::kCount));
-            REQUIRE(static_cast<int>(pads[i].bodyModel) >= 0);
             REQUIRE(static_cast<int>(pads[i].bodyModel) < static_cast<int>(BodyModelType::kCount));
         }
     }

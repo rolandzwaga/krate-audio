@@ -16,6 +16,7 @@
 #include <krate/dsp/primitives/fft.h>
 #include <spectral_analysis.h>
 
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <complex>
@@ -2756,8 +2757,9 @@ TEST_CASE("PitchShiftProcessor: PitchSync mode handles shimmer-like feedback", "
         // No NaN or Inf
         CHECK(!hasInvalidSamples(output.data(), output.size()));
 
-        // Feed output back (simulating feedback)
-        signal = output;
+        // Feed output back (simulating feedback). Same size: std::copy, not vector::operator=, whose
+        // reallocation path GCC 13 flags with a false -Wstringop-overflow.
+        std::copy(output.begin(), output.end(), signal.begin());
     }
 }
 

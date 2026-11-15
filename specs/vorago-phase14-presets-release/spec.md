@@ -877,13 +877,17 @@ roster, and thread parallelism buys little on 2–3 vCPUs. So:
   ratified roster-extension cell (`E6.hi`, `E7.hi`) MUST likewise be the verified **primary** of its own
   distinct preset (seven distinct primary presets across Group E in total). The harness MUST print the full preset × cell matrix (verified
   as primary / verified as secondary / claimed-failed / unclaimed), the default-state cells, and the
-  FR-011a witnesses for the compliance record.
+  FR-011a witnesses for the compliance record. *Ruled reds (2026-11-15):* the cells of the claims in
+  `VoragoTest::kRuledClaims` and the default-state cells in `kRuledDefaultStateAbsent` are recorded, not
+  gated; see "Ruled-reds list" below.
 - **FR-014** Every preset MUST satisfy C-7.1 (parameter-space distinctness) against every other preset
   and against the default surface. [roadmap 633]
 - **FR-015** Every preset pair MUST satisfy C-7.3's sound-space floor, computed on the seed-marginal,
   K-take descriptor `D(P)` (Clarification Q2/FR-017a) and including the `2·t_K` term; all four C-7.3
   negative controls (level, gain, seed, sub twins) MUST pass on the control set in the
-  same run. [roadmap 635-637]
+  same run. [roadmap 635-637] *Ruled reds (2026-11-15):* the pair floor is recorded, not gated (the
+  13d T063 reading made binding), and the twins in `VoragoTest::kRuledTwins` are recorded, not gated;
+  see "Ruled-reds list" below.
 - **FR-016** The plan MUST derive the preset list from the matrix (each preset = a primary cell plus
   compatible secondaries), and only then assign categories; the plan MUST NOT start from a per-category
   count. [roadmap 635]
@@ -1089,6 +1093,8 @@ roster, and thread parallelism buys little on 2–3 vCPUs. So:
   per **every** E route (E1…E5) plus the preset's `R_∅` pair, and one ablation render per ratified-roster
   E cell (C-2.3), for every preset (C-2.1 Group E). This full-vector render set is what FR-012 caches and
   FR-011a/FR-013 consume; no additional on-demand renders are made for non-subset evaluation.
+  *Ruled reds (2026-11-15):* a claim in `VoragoTest::kRuledClaims` is printed with its reading and not
+  gated; every other claim is gated; see "Ruled-reds list" below.
 - **FR-038** **Reproducibility** (`[long]`): two renders of each preset over `[0, A + 65 s]` from fresh
   processors agree under `compareFingerprints` at the shared tolerances.
 - **FR-039** **Sequential load:** loading every preset between `process()` calls of a warm processor
@@ -1735,3 +1741,25 @@ take 3.49 ≥ 4.0 only as the 4-take mean 6.25; all four arms green on all takes
 body itself, which 13c's engine changes widened. Ruled (user, 2026-10-06): **K = 4 stays the sweep contract; the STOP is
 recorded as a surfaced FR-017a exception for Glass Well, not cleared by re-authoring; F and K are not moved.** Sweep 5 at
 K = 4 stands as the confirming run. Glass Well's own verdicts in the sweep are read at K = 4 like every other preset.
+
+### Ruled-reds list (2026-11-15, after the 1.0.4 fractional-allpass Cavern fix)
+
+The Vorago sweep nightly had been red since the Phase 13d close on reds that were already ruled there (engine-limited
+cells, out-of-roster secondaries, FR-017a control twins, the FR-015 pair floor recorded) but still asserted. The 1.0.4
+diffuser fix moved further readings. A full Windows sweep on 2026-11-14 (`[vorago-sweep]`, 10 shards + aggregate) read
+14 failing claim checks on 9 presets and 219 failing aggregate assertions. Ruled (user, 2026-11-15):
+
+- **Six presets retuned** (probe-verified, then confirmed by the full sweep): Wind Through Basalt ghost peak 0.15 → 0.05
+  (S1 3.89 → 4.87), Fogbound space mix 0.90 → 1.0 (M9 3.76 → 4.34), Stone Gravity master gain −0.5 dB (take 2 arm 1
+  −5.94 → −6.20 dB), Steam Vent ecology mix 0.70 → 0.90 + loop gain 0.60 → 1.0 (S4 conjunct 0.35 → 2.44: D6.3 and D7.2
+  verify), Teeming ecosystem depth 0.15 → 0.20 + event rate 0.2x → 0.14x (D13.1 2.34, S7 conjunct 2.33), Spore Drift
+  noise wake 0.40 → 0.50 (D3.3 4.28; the D11 conjunct verifies).
+- **A membership list, not a d floor** (`plugins/vorago/tests/preset_test_support.h`): the sweep runs on three OSes and
+  only Windows readings exist. `kRuledClaims` = Bloom Colony E1, Drifting Strata M4 and D14.2, Stone Gravity M5, Colony
+  Pulse D13.2 / E6.hi / E7.hi, Spore Drift D6.2 (no setting reached S4 ≥ 1.5 with D3.3 ≥ 4.0: mix 0.85 reads 1.13 / 3.93,
+  0.87 1.55 / 3.86, 0.90 2.40 / 3.24). `kRuledTwins` = Pressure Front gain and seed twins, Weighted Deep seed and sub twins
+  (the sub twin is new on the 1.0.4 tree: +0.125 reads 4.37, 3.92 at 13d sweep 6), Monolith sub twin.
+  `kRuledDefaultStateAbsent` = D7.1. The FR-015 pair floor is recorded, not gated. A listed entry prints RECORDED BY
+  RULING with its reading; a red not on the list fails; a listed entry that verifies prints "remove it from the list".
+- FR-017's "never relax a predicate, a floor or a control" is unchanged for every entry not on the list; the list is
+  what the user ruled, and it only shrinks.

@@ -17,6 +17,7 @@
 #include <krate/dsp/primitives/fft.h>
 #include <spectral_analysis.h>
 
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <numeric>
@@ -1453,8 +1454,11 @@ double toneWetDb() {
             input[i] = 0.5f * std::sin(6.28318530718f * 440.0f * static_cast<float>(s + i)
                                        / static_cast<float>(kSampleRate));
         }
-        left = input;
-        right = input;
+        // std::copy into the same-size buffers, not vector operator=: GCC 13 -O3 reads
+        // operator='s reallocation branch as a write past a 0-byte region
+        // (-Wstringop-overflow, Linux CI).
+        std::copy(input.begin(), input.end(), left.begin());
+        std::copy(input.begin(), input.end(), right.begin());
         d.process(left.data(), right.data(), kBlockSize, ctx);
         if (s >= static_cast<size_t>(kSampleRate)) {
             for (size_t i = 0; i < kBlockSize; ++i) {

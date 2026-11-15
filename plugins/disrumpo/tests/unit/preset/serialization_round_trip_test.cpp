@@ -369,7 +369,7 @@ static bool compareV6PresetStreams(MemoryStream& a, MemoryStream& b) {
     if (!readAndCompareInt32(rA, rB)) return false;
 
     // Per-band state: 4 bands x (float, float, int8, int8, int8)
-    for (int b = 0; b < kMaxBands; ++b) {
+    for (int band = 0; band < kMaxBands; ++band) {
         if (!readAndCompareFloat(rA, rB)) return false;  // gainDb
         if (!readAndCompareFloat(rA, rB)) return false;  // pan
         if (!readAndCompareInt8(rA, rB)) return false;    // solo
@@ -478,7 +478,7 @@ static bool compareV6PresetStreams(MemoryStream& a, MemoryStream& b) {
     }
 
     // Morph nodes: 4 bands x (float, float, int8, int8, float, 4 nodes x 7 values)
-    for (int b = 0; b < kMaxBands; ++b) {
+    for (int band = 0; band < kMaxBands; ++band) {
         if (!readAndCompareFloat(rA, rB)) return false;  // morphX
         if (!readAndCompareFloat(rA, rB)) return false;  // morphY
         if (!readAndCompareInt8(rA, rB)) return false;   // morphMode

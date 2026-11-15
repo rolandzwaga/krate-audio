@@ -386,7 +386,7 @@ TEST_CASE("Reverb damping maps to cutoff frequency", "[reverb][parameters]") {
 
     // Send short burst of white noise to excite all frequencies
     for (int i = 0; i < 100; ++i) {
-        float noise = static_cast<float>((i * 1103515245 + 12345) & 0x7fff) / 16384.0f - 1.0f;
+        float noise = static_cast<float>((static_cast<uint32_t>(i) * 1103515245u + 12345u) & 0x7fffu) / 16384.0f - 1.0f;
         float l1 = noise, r1 = noise, l2 = noise, r2 = noise;
         reverbBright.process(l1, r1);
         reverbDark.process(l2, r2);
@@ -701,7 +701,7 @@ TEST_CASE("Reverb freeze mode sustains tail indefinitely", "[reverb][freeze]") {
 
     // Feed signal to build up tail
     for (int i = 0; i < 4410; ++i) {
-        float noise = static_cast<float>((i * 1103515245 + 12345) & 0x7fff) / 32768.0f;
+        float noise = static_cast<float>((static_cast<uint32_t>(i) * 1103515245u + 12345u) & 0x7fffu) / 32768.0f;
         float l = noise, r = noise;
         reverb.process(l, r);
     }
@@ -763,7 +763,7 @@ TEST_CASE("Reverb freeze blocks new input", "[reverb][freeze]") {
 
     // Build up a tail
     for (int i = 0; i < 4410; ++i) {
-        float noise = static_cast<float>((i * 1103515245 + 12345) & 0x7fff) / 32768.0f;
+        float noise = static_cast<float>((static_cast<uint32_t>(i) * 1103515245u + 12345u) & 0x7fffu) / 32768.0f;
         float l = noise, r = noise;
         reverb.process(l, r);
     }
@@ -822,7 +822,7 @@ TEST_CASE("Reverb unfreeze resumes normal decay", "[reverb][freeze]") {
 
     // Build up tail
     for (int i = 0; i < 4410; ++i) {
-        float noise = static_cast<float>((i * 1103515245 + 12345) & 0x7fff) / 32768.0f;
+        float noise = static_cast<float>((static_cast<uint32_t>(i) * 1103515245u + 12345u) & 0x7fffu) / 32768.0f;
         float l = noise, r = noise;
         reverb.process(l, r);
     }

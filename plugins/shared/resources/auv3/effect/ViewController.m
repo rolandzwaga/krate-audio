@@ -4,6 +4,7 @@
 
 #import "ViewController.h"
 #import <CoreAudioKit/AUViewController.h>
+#import <UniformTypeIdentifiers/UniformTypeIdentifiers.h>
 #import "public.sdk/source/vst/auv3wrapper/Shared/AUv3AudioEngine.h"
 #import "public.sdk/source/vst/auv3wrapper/Shared/AUv3Wrapper.h"
 
@@ -97,12 +98,19 @@
 {
     NSOpenPanel* openPanel = [NSOpenPanel openPanel];
     openPanel.title = @"Choose an audio file";
-    openPanel.showsResizeIndicator = YES;
     openPanel.canChooseFiles = YES;
     openPanel.allowsMultipleSelection = NO;
     openPanel.canChooseDirectories = NO;
     openPanel.canCreateDirectories = YES;
-    openPanel.allowedFileTypes = @[@"aac", @"aif", @"aiff", @"caf", @"m4a", @"mp3", @"wav"];
+    // allowedContentTypes, not the deprecated allowedFileTypes (macOS 12); the same seven extensions.
+    NSMutableArray<UTType*>* types = [NSMutableArray array];
+    for (NSString* ext in @[@"aac", @"aif", @"aiff", @"caf", @"m4a", @"mp3", @"wav"])
+    {
+        UTType* type = [UTType typeWithFilenameExtension:ext];
+        if (type != nil)
+            [types addObject:type];
+    }
+    openPanel.allowedContentTypes = types;
 
     if ( [openPanel runModal] == NSModalResponseOK )
     {

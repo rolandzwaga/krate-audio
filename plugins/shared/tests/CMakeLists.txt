@@ -65,6 +65,10 @@ target_include_directories(shared_tests
 
 target_compile_features(shared_tests PRIVATE cxx_std_20)
 
+# SDK source we cannot modify: memcpy / memset over PClassInfo structs (GCC -Wclass-memaccess).
+set_source_files_properties(${vst3sdk_SOURCE_DIR}/public.sdk/source/main/pluginfactory.cpp
+    PROPERTIES COMPILE_OPTIONS "$<$<CXX_COMPILER_ID:GNU>:-Wno-class-memaccess>")
+
 # Krate Manager Phase 3 (FR-046): the committed feed fixtures the "one v2 plugin among eight v1 plugins" case reads.
 target_compile_definitions(shared_tests
     PRIVATE

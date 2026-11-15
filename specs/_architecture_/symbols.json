@@ -49,7 +49,7 @@
       "scope": "Krate::DSP",
       "layer": "effects",
       "header": "dsp/include/krate/dsp/effects/aether_reverb.h",
-      "line": 1498
+      "line": 1499
     },
     {
       "name": "AlgorithmTopology",
@@ -313,7 +313,7 @@
       "scope": "Krate::DSP::BassCharacterStage",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/bass_character_stage.h",
-      "line": 884
+      "line": 890
     },
     {
       "name": "BitwiseMangler",
@@ -393,7 +393,7 @@
       "scope": "Krate::DSP::BassCharacterStage",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/bass_character_stage.h",
-      "line": 167
+      "line": 171
     },
     {
       "name": "BreathingModulator",
@@ -473,7 +473,7 @@
       "scope": "Krate::DSP::BassCharacterStage",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/bass_character_stage.h",
-      "line": 1289
+      "line": 1318
     },
     {
       "name": "Channel",
@@ -673,7 +673,7 @@
       "scope": "Krate::DSP::BassCharacterStage",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/bass_character_stage.h",
-      "line": 1047
+      "line": 1061
     },
     {
       "name": "CycleBuffer",
@@ -1137,7 +1137,7 @@
       "scope": "Krate::DSP::BassCharacterStage",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/bass_character_stage.h",
-      "line": 141
+      "line": 145
     },
     {
       "name": "FMOperator",
@@ -1169,7 +1169,7 @@
       "scope": "Krate::DSP::BassCharacterStage",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/bass_character_stage.h",
-      "line": 768
+      "line": 774
     },
     {
       "name": "FormantData",
@@ -1241,7 +1241,7 @@
       "scope": "Krate::DSP::BassCharacterStage",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/bass_character_stage.h",
-      "line": 1180
+      "line": 1209
     },
     {
       "name": "FreezeFeedbackProcessor",
@@ -1529,7 +1529,7 @@
       "scope": "Krate::DSP::BassCharacterStage",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/bass_character_stage.h",
-      "line": 941
+      "line": 947
     },
     {
       "name": "HouseholderMatrix",
@@ -1761,7 +1761,7 @@
       "scope": "Krate::DSP::AetherReverb",
       "layer": "effects",
       "header": "dsp/include/krate/dsp/effects/aether_reverb.h",
-      "line": 3087
+      "line": 3088
     },
     {
       "name": "MemorySlot",
@@ -2553,7 +2553,7 @@
       "scope": "Krate::DSP::AetherReverb",
       "layer": "effects",
       "header": "dsp/include/krate/dsp/effects/aether_reverb.h",
-      "line": 1710
+      "line": 1711
     },
     {
       "name": "PrepareConfig",
@@ -2809,7 +2809,7 @@
       "scope": "Krate::DSP::BassCharacterStage",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/bass_character_stage.h",
-      "line": 825
+      "line": 831
     },
     {
       "name": "ResetProcessorVisitor",
@@ -3305,7 +3305,7 @@
       "scope": "Krate::DSP::BassCharacterStage",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/bass_character_stage.h",
-      "line": 1283
+      "line": 1312
     },
     {
       "name": "Slot",
@@ -3505,7 +3505,7 @@
       "scope": "Krate::DSP::BassCharacterStage::HoldEngine",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/bass_character_stage.h",
-      "line": 942
+      "line": 948
     },
     {
       "name": "StereoField",
@@ -3793,7 +3793,7 @@
       "scope": "Krate::DSP::BassCharacterStage",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/bass_character_stage.h",
-      "line": 691
+      "line": 695
     },
     {
       "name": "TubeStage",

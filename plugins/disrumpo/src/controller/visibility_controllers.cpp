@@ -589,11 +589,11 @@ SweepVisualizationController::~SweepVisualizationController() {
 
 void SweepVisualizationController::deactivate() {
     if (isActive_.exchange(false, std::memory_order_acq_rel)) {
-        removeDependent(modFreqParam_);
-        removeDependent(sweepEnableParam_);
-        removeDependent(sweepWidthParam_);
-        removeDependent(sweepIntensityParam_);
-        removeDependent(sweepFalloffParam_);
+        detachFrom(modFreqParam_);
+        detachFrom(sweepEnableParam_);
+        detachFrom(sweepWidthParam_);
+        detachFrom(sweepIntensityParam_);
+        detachFrom(sweepFalloffParam_);
     }
 }
 
@@ -686,7 +686,7 @@ void SweepVisualizationController::updateSpectrumBandIntensities() {
     display->setSweepBandIntensities(intensities, numBands);
 }
 
-void SweepVisualizationController::removeDependent(Steinberg::Vst::Parameter* param) {
+void SweepVisualizationController::detachFrom(Steinberg::Vst::Parameter* param) {
     if (param) {
         param->removeDependent(this);
     }

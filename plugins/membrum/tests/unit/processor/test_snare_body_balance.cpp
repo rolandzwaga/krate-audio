@@ -208,8 +208,6 @@ double spectralCentroid(const std::vector<float>& x, double sr, double lo, doubl
     return den > 0.0 ? num / den : 0.0;
 }
 
-double toDb(double powerRatio) { return 10.0 * std::log10(std::max(powerRatio, 1e-30)); }
-
 struct SnareMetrics
 {
     double peak;

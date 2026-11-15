@@ -529,7 +529,7 @@ public:
 
 private:
     void updateSpectrumBandIntensities();
-    void removeDependent(Steinberg::Vst::Parameter* param);
+    void detachFrom(Steinberg::Vst::Parameter* param);  // not removeDependent: that hides FObject::removeDependent(IDependent*)
     static void releaseParam(Steinberg::Vst::Parameter*& param);
 
     Steinberg::Vst::EditControllerEx1* controller_;

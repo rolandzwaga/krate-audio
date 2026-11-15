@@ -189,7 +189,7 @@ double mdpMeasure(MdpCell cell, const MdpInput& in, double& checksum) {
 
     const auto blocksPerRep = static_cast<std::size_t>(std::llround(kMdpSeconds * kMdpFs)) / kMdpBlock;
     const double audioSeconds = static_cast<double>(blocksPerRep * kMdpBlock) / kMdpFs;
-    double best = std::numeric_limits<double>::infinity();
+    double best = std::numeric_limits<double>::max();  // no infinity under -ffast-math (macOS)
     for (int rep = 0; rep < kMdpReps; ++rep) {
         const auto t0 = std::chrono::steady_clock::now();
         for (std::size_t b = 0; b < blocksPerRep; ++b)
@@ -210,7 +210,7 @@ double mdpMeasureSilence(const MdpInput& in, double& checksum) {
     rig->prepare();
     MdpBuffers buf;
     const double audioSeconds = static_cast<double>(kMdpBlocksPerSecond * kMdpBlock) / kMdpFs;
-    double best = std::numeric_limits<double>::infinity();
+    double best = std::numeric_limits<double>::max();  // no infinity under -ffast-math (macOS)
     for (int rep = 0; rep < kMdpReps; ++rep) {
         for (std::size_t b = 0; b < kMdpBlocksPerSecond; ++b) {
             buf.fill(in);

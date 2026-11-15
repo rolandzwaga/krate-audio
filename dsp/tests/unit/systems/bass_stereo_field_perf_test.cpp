@@ -169,7 +169,7 @@ double sfpTime(double fs, double seconds, int reps, const BlockFn& block) {
         block();
     const auto blocksPerRep = static_cast<std::size_t>(std::llround(seconds * fs)) / kSfpBlock;
     const double audioSeconds = static_cast<double>(blocksPerRep * kSfpBlock) / fs;
-    double best = std::numeric_limits<double>::infinity();
+    double best = std::numeric_limits<double>::max();  // no infinity under -ffast-math (macOS)
     for (int rep = 0; rep < reps; ++rep) {
         const auto t0 = std::chrono::steady_clock::now();
         for (std::size_t b = 0; b < blocksPerRep; ++b)

@@ -763,6 +763,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <numbers>
 #include <numeric>
 #include <utility>
 #include <vector>
@@ -1051,7 +1052,7 @@ inline void aetherBuildRandomOrthogonal(double* m, std::size_t n,
     // Gram-Schmidt acceptance for the canonical planes: far above rounding (dependent candidates leave ~1e-15),
     // and 16 * 0.1^2 < 1, so it can never leave the basis short.
     constexpr double kCanonicalMinNorm = 0.1;
-    constexpr double kPiDouble = 3.14159265358979323846;
+    constexpr double kPiDouble = std::numbers::pi;
 
     if ((r == nullptr) || (v == nullptr) || (thetas == nullptr)) {
         return false;

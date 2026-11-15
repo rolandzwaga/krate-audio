@@ -66,6 +66,12 @@ const LINTS = [
     { script: 'lint-released-ports.js', what: 'socket released after its URL/port was taken (port reuse race)' },
     { script: 'lint-gate-mirrors-ci.js', args: ['--self-test'], what: 'gate-mirrors-CI lint self-test' },
     { script: 'lint-gate-mirrors-ci.js', what: 'a workflow check this commit gate does not run' },
+    { script: 'check-build-warnings.js', args: ['--self-test'], what: 'build-warning checker self-test (ci.yml runs it on every build log)' },
+    { script: 'nightly-change-gate.js', args: ['--self-test'], what: 'nightly change-gate self-test (the valgrind / long-tests / sanitizer nightlies run it)' },
+    { script: 'lint-nightly-change-gate.js', args: ['--self-test'], what: 'nightly change-gate lint self-test' },
+    { script: 'lint-nightly-change-gate.js', what: 'scheduled build/test workflow not gated by tools/nightly-change-gate.js' },
+    { script: 'tsan-scope.js', args: ['--self-test'], what: 'TSan scope self-test (tsan-nightly.yml runs it)' },
+    { script: 'tsan-scope.js', args: ['--check'], what: 'threaded test file in no executable (the TSan nightly cannot run it)' },
     { script: 'lint-workflow-triggers.js', args: ['--self-test'], what: 'workflow-trigger lint self-test' },
     { script: 'lint-workflow-triggers.js', what: 'workflow run twice per PR commit, without a concurrency group, or cancelling its own callers' },
 ];

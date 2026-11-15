@@ -234,7 +234,7 @@ std::string isoTimestamp()
 #else
     gmtime_r(&t, &tmUtc);
 #endif
-    char buf[32];
+    char buf[80];  // the worst case of six %d fields fits (GCC -Wformat-truncation)
     std::snprintf(buf, sizeof(buf),
                   "%04d-%02d-%02dT%02d:%02d:%02dZ",
                   tmUtc.tm_year + 1900,

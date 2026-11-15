@@ -1,5 +1,5 @@
 # ============================================================================
-# Long-Tests Nightly - the [long]-tagged heavy renders, on all three OSes
+# Long-Tests Nightly - the [long]-tagged heavy renders (Linux, 20 shards)
 # ============================================================================
 # The per-push CI lane excludes tests tagged [long]: multi-minute preset
 # sweeps, full-bank MIDI goldens, and click-free automation renders whose
@@ -13,9 +13,17 @@
 # ONLY the [long] cases nightly by calling ci.yml with long-tests: true.
 # Coverage is deferred a day, not lost.
 #
-# Idle-repo skip: same gate as valgrind-nightly.yml - the scheduled run is
-# skipped when nothing has been pushed for 24 h; workflow_dispatch always
-# runs.
+# Linux only since 2026-11-14: dsp_systems_tests' [long] set alone is ~22
+# runner-hours (one eighth ran 2 h 46 min on Linux, the rest hit the 180-min
+# cap), so the three-OS lane never finished once in five weeks. ci.yml deals
+# the cases one by one into 20 Linux shards, weighted by long_cases in
+# tools/ci-test-times.json; refresh it from the shard logs' --durations lines.
+# The cross-platform canaries stay in the per-push lane on all three OSes.
+#
+# Change gate: same as valgrind-nightly.yml - the scheduled run happens only
+# when code the [long] cases or the Vorago sweep test changed since the last
+# run that actually tested (tools/nightly-change-gate.js); workflow_dispatch
+# always runs.
 # ============================================================================
 
 name: Long Tests Nightly
@@ -33,49 +41,35 @@ concurrency:
 
 permissions:
   contents: read
+  actions: read  # the change gate reads this workflow's previous runs and their jobs
 
 env:
   BUILD_TYPE: Release
 
 jobs:
-  # Same idle-repo gate as valgrind-nightly.yml (see the comment there for the
-  # pushed_at semantics and the stricter per-branch alternative).
+  # Same change gate as valgrind-nightly.yml (tools/nightly-change-gate.js).
+  # The paths are what the [long] lane and the Vorago sweep build and run,
+  # plus the lane's own scripts.
   check-activity:
-    name: Check for recent pushes
-    runs-on: ubuntu-latest
+    name: Check for relevant changes
+    runs-on: ubuntu-latest  # runner-pin-ok: git diff and API calls only; ci-test-shard.js is a path in its list
     outputs:
       should_run: ${{ steps.check.outputs.should_run }}
     steps:
-      - name: Determine whether the repo was pushed to in the last 24 h
+      # Full history without blobs: enough for `git diff --name-only <last tested commit> HEAD`.
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          filter: blob:none
+      - name: Did code under test change since the last tested run?
         id: check
         env:
           GH_TOKEN: ${{ github.token }}
-          REPO: ${{ github.repository }}
         run: |
-          set -euo pipefail
-
-          if [ "${{ github.event_name }}" != "schedule" ]; then
-            echo "should_run=true" >> "$GITHUB_OUTPUT"
-            echo "Manual run (${{ github.event_name }}) - activity gate not applied." \
-              >> "$GITHUB_STEP_SUMMARY"
-            exit 0
-          fi
-
-          PUSHED_AT="$(gh api "repos/$REPO" --jq '.pushed_at')"
-          PUSHED_EPOCH="$(date -u -d "$PUSHED_AT" +%s)"
-          NOW_EPOCH="$(date -u +%s)"
-          AGE_SECONDS=$(( NOW_EPOCH - PUSHED_EPOCH ))
-          AGE_HOURS=$(( AGE_SECONDS / 3600 ))
-
-          if [ "$AGE_SECONDS" -lt 86400 ]; then
-            echo "should_run=true" >> "$GITHUB_OUTPUT"
-            echo "Last push $PUSHED_AT (${AGE_HOURS}h ago) - running long tests." \
-              >> "$GITHUB_STEP_SUMMARY"
-          else
-            echo "should_run=false" >> "$GITHUB_OUTPUT"
-            echo "Last push $PUSHED_AT (${AGE_HOURS}h ago) - repository idle for over 24h, skipping long tests." \
-              >> "$GITHUB_STEP_SUMMARY"
-          fi
+          node tools/nightly-change-gate.js --workflow long-tests-nightly.yml -- \
+            dsp plugins tests extern cmake CMakeLists.txt CMakePresets.json \
+            tools/ci-test-shard.js tools/ci-test-times.json .github/workflows/ci.yml .github/workflows/long-tests-nightly.yml
 
   long-tests:
     name: Long tests via CI

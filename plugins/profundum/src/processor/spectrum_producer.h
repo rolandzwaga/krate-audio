@@ -102,8 +102,7 @@ public:
         // (render-neutral), sanitised and clamped to [0, 1]; both staging sites copy it into the frame.
         const float m = engine.morphResolvedPosition();
         morphPos_ = Krate::DSP::detail::isFinite(m) ? std::clamp(m, 0.0f, 1.0f) : 0.0f;
-        using Engine = Krate::DSP::ProfundumEngine;
-        const bool poly = engine.appliedVoiceMode() == Engine::VoiceMode::Poly;
+        const bool poly = engine.appliedVoiceMode() == Krate::DSP::ProfundumEngine::VoiceMode::Poly;
 
         // Focus rule (plan 4.3.2).
         int focus = -1;
@@ -111,7 +110,7 @@ public:
             focus = engine.voiceRenderedThisInterval(0) ? 0 : -1;
         } else {
             std::uint64_t bestSeq = 0;
-            for (std::size_t v = 0; v < Engine::kMaxVoices; ++v) {
+            for (std::size_t v = 0; v < Krate::DSP::ProfundumEngine::kMaxVoices; ++v) {
                 if (!engine.voiceRenderedThisInterval(v) || !engine.voiceForDisplay(v).held())
                     continue;
                 const int note = engine.voiceMidiNote(v);

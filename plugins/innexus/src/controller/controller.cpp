@@ -191,7 +191,6 @@ public:
         }
 
         // Draw expand arrows icon (four outward arrows)
-        auto center = r.getCenter();
         auto iconFont = VSTGUI::makeOwned<VSTGUI::CFontDesc>("Arial", 11);
         context->setFont(iconFont);
         context->setFontColor(VSTGUI::CColor(192, 192, 192));

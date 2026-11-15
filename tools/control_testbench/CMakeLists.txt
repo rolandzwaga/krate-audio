@@ -22,7 +22,15 @@ set(${target}_sources
     src/control_registry.cpp
     src/parameter_logger.h
     src/parameter_logger.cpp
+    # Plugin-entry stubs + SDK sources for vstgui_support's vstguieditor.cpp (see the stubs file)
+    src/vst3_entry_stubs.cpp
+    ${vst3sdk_SOURCE_DIR}/public.sdk/source/main/moduleinit.cpp
+    ${vst3sdk_SOURCE_DIR}/public.sdk/source/main/pluginfactory.cpp
 )
+# SDK source we cannot modify: memcpy / memset over PClassInfo structs (GCC -Wclass-memaccess).
+# Source properties are per directory, so the root CMakeLists.txt setting does not reach this target.
+set_source_files_properties(${vst3sdk_SOURCE_DIR}/public.sdk/source/main/pluginfactory.cpp
+    PROPERTIES COMPILE_OPTIONS "$<$<CXX_COMPILER_ID:GNU>:-Wno-class-memaccess>")
 
 # ==============================================================================
 # TapPatternEditor Sources (adapted for standalone)
@@ -89,6 +97,11 @@ target_include_directories(${target}
         ${CMAKE_SOURCE_DIR}/plugins/shared/src
         # KrateDSP headers (for EuclideanPattern used by StepPatternEditor)
         ${CMAKE_SOURCE_DIR}/dsp/include
+)
+# Third-party headers as SYSTEM, like every plugin target (root smtg_mark_includes_as_system): VSTGUI's own
+# headers trip GCC -Wextra / -Wignored-qualifiers (vstguibase.h, cstring.h) under this target's -Wall -Wextra.
+target_include_directories(${target}
+    SYSTEM PRIVATE
         # VSTGUI includes
         ${vst3sdk_SOURCE_DIR}/vstgui4
         # VST3 SDK includes (needed for XYMorphPad's EditControllerEx1 type)
@@ -111,6 +124,10 @@ target_link_libraries(${target}
         vstgui
         vstgui_uidescription
         vstgui_standalone
+        # ArcKnob dynamic_casts to Steinberg::Vst::VSTGUIEditor; on the Itanium ABI (Linux/macOS) its typeinfo
+        # lives only in vstgui_support's vstguieditor.cpp (MSVC emits it per TU, so Windows linked without it).
+        # Listed before sdk: GNU ld resolves static archives in one pass, left to right.
+        vstgui_support
         sdk
 )
 

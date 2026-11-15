@@ -74,6 +74,12 @@ constexpr float kDriftMargin = 1.0e-6f;
     volatile float v = x;
     return v;
 }
+/// A non-finite input from its IEEE bit pattern, routed through a volatile: under -ffast-math (macOS)
+/// numeric_limits<float>::infinity() / quiet_NaN() are undefined behaviour and fold to finite values.
+[[nodiscard]] float nonFiniteFromBits(std::uint32_t pattern) noexcept {
+    volatile std::uint32_t v = pattern;
+    return std::bit_cast<float>(static_cast<std::uint32_t>(v));
+}
 
 [[nodiscard]] float spanOf(Target t) noexcept {
     switch (t) {
@@ -408,10 +414,10 @@ TEST_CASE("ProfundumMotion_TempoAndSeed", "[systems][profundum][voice-engine][fr
         ref->setConfig(c);
         bad->setConfig(c);
         slow->setConfig(c);
-        bad->setTempoBpm(std::numeric_limits<float>::quiet_NaN());
+        bad->setTempoBpm(nonFiniteFromBits(0x7FC00000u));  // quiet NaN
         bad->setTempoBpm(0.0f);
         bad->setTempoBpm(-10.0f);
-        bad->setTempoBpm(std::numeric_limits<float>::infinity());
+        bad->setTempoBpm(nonFiniteFromBits(0x7F800000u));  // +inf
         slow->setTempoBpm(60.0f);   // positive control: a valid tempo moves the period
         bool same = true;
         bool slowDiffers = false;

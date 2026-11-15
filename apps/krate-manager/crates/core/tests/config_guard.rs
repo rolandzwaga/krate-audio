@@ -1620,7 +1620,7 @@ fn check_app_meta(f: &AppMetaFiles) -> Vec<String> {
         None => m.push("package.json has no devDependencies object (FR-050)".to_owned()),
         Some(dev) => {
             for (name, version) in dev {
-                if !version.as_str().is_some_and(is_exact_version) {
+                if !version.as_str().is_some_and(is_exact_npm_spec) {
                     m.push(format!("package.json devDependencies `{name}` is {version}, not an exact X.Y.Z (FR-050)"));
                 }
             }
@@ -1949,6 +1949,17 @@ fn is_exact_version(text: &str) -> bool {
         && parts
             .iter()
             .all(|part| !part.is_empty() && part.bytes().all(|b| b.is_ascii_digit()))
+}
+
+/// A package.json version spec pinned to one release: `X.Y.Z`, or an npm alias `npm:<package>@X.Y.Z`
+/// (FR-050; the TypeScript 7 side-by-side layout aliases `@typescript/native` and `typescript`).
+fn is_exact_npm_spec(text: &str) -> bool {
+    match text.strip_prefix("npm:") {
+        None => is_exact_version(text),
+        Some(alias) => alias.rsplit_once('@').is_some_and(|(package, version)| {
+            !package.is_empty() && !package.ends_with('/') && is_exact_version(version)
+        }),
+    }
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -2766,6 +2777,20 @@ fn planted_app_metadata_changes_fail_the_guard() {
         ("vite ^8.3.5", &["devDependencies `vite`"], |f| {
             f.package_json["devDependencies"]["vite"] = json!("^8.3.5");
         }),
+        (
+            "typescript alias ^7.0.2",
+            &["devDependencies `typescript`"],
+            |f| {
+                f.package_json["devDependencies"]["typescript"] = json!("npm:typescript@^7.0.2");
+            },
+        ),
+        (
+            "typescript alias without a version",
+            &["devDependencies `typescript`"],
+            |f| {
+                f.package_json["devDependencies"]["typescript"] = json!("npm:typescript");
+            },
+        ),
         (
             "noUncheckedIndexedAccess deleted",
             &["compilerOptions.noUncheckedIndexedAccess"],

@@ -852,7 +852,7 @@ TEST_CASE("808 toms: per-pad mode 0 readback through real load path",
     outBus.numChannels = 2;
     outBus.channelBuffers32 = outChans;
 
-    struct Q : Steinberg::Vst::IParamValueQueue {
+    struct Q final : Steinberg::Vst::IParamValueQueue {
         Q(Steinberg::Vst::ParamID i, Steinberg::Vst::ParamValue v) : id(i), val(v) {}
         Steinberg::tresult PLUGIN_API queryInterface(const Steinberg::TUID, void**) override
         { return Steinberg::kNoInterface; }
@@ -1109,7 +1109,7 @@ TEST_CASE("Processor full path: trace DC offset (high tom +0.04 mean repro)",
     outBus.numChannels = 2;
     outBus.channelBuffers32 = outChans;
 
-    struct Q : Steinberg::Vst::IParamValueQueue {
+    struct Q final : Steinberg::Vst::IParamValueQueue {
         Q(Steinberg::Vst::ParamID i, Steinberg::Vst::ParamValue v) : id(i), val(v) {}
         Steinberg::tresult PLUGIN_API queryInterface(const Steinberg::TUID, void**) override
         { return Steinberg::kNoInterface; }

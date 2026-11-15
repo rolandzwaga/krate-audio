@@ -186,7 +186,6 @@ TEST_CASE("getIconPath each type has distinct point count or positions", "[osc_s
     // and icons should be visually distinguishable (not identical paths)
     auto path0 = getIconPath(Krate::DSP::OscType::PolyBLEP);
     auto path1 = getIconPath(Krate::DSP::OscType::Wavetable);
-    auto path9 = getIconPath(Krate::DSP::OscType::Noise);
 
     // Different types should produce different paths
     bool allSame = (path0.count == path1.count);

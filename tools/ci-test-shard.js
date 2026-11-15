@@ -12,6 +12,9 @@
 // filtered case list deterministically). Units are assigned to the N job shards by longest-processing-time-
 // first over the measured seconds in tools/ci-test-times.json, so the slowest unit goes first and the shards
 // end up roughly even. A stale timing entry only unbalances the shards; it never changes what runs.
+// The nightly long lane deals single test cases instead (one unit per [long] case, weighted by long_cases in the
+// same file) and runs each suite's share through a Catch2 input file (-f), because its cases range from seconds
+// to a quarter of an hour and a count-based slice cannot be balanced.
 //
 // WITHIN A SHARD the executables still run one at a time: concurrent heavy DSP suites on a 4-vCPU / 7 GB
 // runner caused memory-pressure segfaults (the reason the old lane was sequential). Parallelism comes from
@@ -22,8 +25,10 @@
 //                               --shard <i> --count <N> [--long true|false] [--list] [--dry-run]
 //   --manifest  one executable basename per line (no extension), written by the build job from the same
 //               change-detection selection the build used
-//   --list      print the assignment of every shard and exit (no tests run)
+//   --list      print the assignment of every shard and exit (no tests run; the long lane lists the binaries)
 //   --long      run the nightly [long]~[vorago-sweep] lane instead of the per-push lane
+//   --sanitize  ASan/UBSan binaries: the per-push lane minus [wallclock] (~21 min of tests at native speed, so
+//               the usual 8 shards stay well inside their cap at the ~2-3x sanitizer slowdown)
 //   --log-dir   also write everything this shard prints to <dir>/<os>-shard<i>.log (uploaded as an artifact)
 //   --skip-presets  do not mirror the Windows factory-preset install (local runs: the build already did it)
 //
@@ -32,7 +37,8 @@
 // through the check-runs API with a token that cannot download job logs, so a red shard names its failing
 // tests without anyone opening the log.
 'use strict';
-const { spawn } = require('child_process');
+const { spawn, spawnSync } = require('child_process');
+const os = require('os');
 const fs = require('fs');
 const path = require('path');
 
@@ -88,6 +94,8 @@ const manifestPath = opt('--manifest', 'build/test-manifest.txt');
 const shardIndex = Number(opt('--shard', '0'));
 const shardCount = Number(opt('--count', '8'));
 const longLane = String(opt('--long', 'false')) === 'true';
+// Sanitizer lane (sanitizers-nightly.yml via ci.yml `sanitize`): ASan + UBSan binaries, ~2-3x slower.
+const sanitizeLane = String(opt('--sanitize', 'false')) === 'true';
 const listOnly = flag('--list');
 const dryRun = flag('--dry-run');
 const logDir = opt('--log-dir', '');
@@ -101,15 +109,17 @@ if (logDir) {
 const emit = (s) => { process.stdout.write(s); if (logFile !== null) fs.writeSync(logFile, s); };
 const log = (line) => emit(`${line}\n`);
 
-// How many Catch2 shards each executable is cut into. Everything else runs whole. Keep a unit under about
-// ten minutes on a GitHub runner; when a suite grows past that, raise its count here and refresh the times.
-const kSuiteShards = longLane
-    ? { dsp_systems_tests: 8, vorago_tests: 2, seraphis_tests: 2, profundum_tests: 4 }
-    : { dsp_systems_tests: 6, vorago_tests: 2, seraphis_tests: 2 };
+// Per-push lane: how many Catch2 shards each executable is cut into. Everything else runs whole. Keep a unit under
+// about ten minutes on a GitHub runner; when a suite grows past that, raise its count here and refresh the times.
+// (The long lane deals single test cases instead: see "cut the units".)
+const kSuiteShards = { dsp_systems_tests: 6, vorago_tests: 2, seraphis_tests: 2 };
 
 // Per-push: everything except perf/benchmark and the [long] renders (those run nightly, and always locally).
 // Nightly: ONLY the [long] renders, minus the Vorago factory sweep, which has its own sharded nightly job.
-const kFilter = longLane ? '[long]~[vorago-sweep]' : '~[performance]~[perf]~[benchmark]~[!benchmark]~[long]';
+// Sanitizer: the per-push lane minus [wallclock], whose wall-clock bars cannot hold at the sanitizer slowdown.
+const kFilter = longLane ? '[long]~[vorago-sweep]'
+    : sanitizeLane ? '~[performance]~[perf]~[benchmark]~[!benchmark]~[long]~[wallclock]'
+    : '~[performance]~[perf]~[benchmark]~[!benchmark]~[long]';
 const kWarnSeconds = 900;  // a unit over this prints a ::warning:: - rebalance kSuiteShards, do not wait for red
 
 if (!Number.isInteger(shardIndex) || !Number.isInteger(shardCount) || shardCount < 1 || shardIndex < 0 || shardIndex >= shardCount) {
@@ -131,17 +141,56 @@ if (suites.length === 0) {
     process.exit(0);
 }
 
+// --- Catch2 listing and input files (same rules as tools/run-gate.js) -------------------------------------
+const exeOf = (suite) => path.join(binDir, osName === 'windows' ? `${suite}.exe` : suite);
+const LIST = ['--list-tests', '--verbosity', 'quiet', '--order', 'decl'];
+// Quiet listing prints one name per line, a name starting with '#' in quotes (catch_reporter_helpers.cpp).
+const parseList = (text) => text.split(/\r?\n/).filter((l) => l.trim() !== '').map((l) => (/^"#.*"$/.test(l) ? l.slice(1, -1) : l));
+// One input-file line (catch_test_spec_parser.cpp): inside a quoted name '\' escapes the next character, an unescaped
+// ',' makes the spec invalid and '"' ends the name.
+const specLine = (name) => `"${name.replace(/[\\",]/g, (c) => `\\${c}`)}"`;
+function listCases(suite, argv) {
+    const r = spawnSync(exeOf(suite), [...argv, ...LIST], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
+    return r.status === 0 ? parseList(r.stdout) : null;
+}
+
 // --- cut the units ---------------------------------------------------------------------------------------
+// Per-push: whole suites and Catch2 --shard-index slices, weighted by tools/ci-test-times.json per_push.
+// Long lane: one unit per [long] TEST CASE, weighted by its measured seconds (long_cases), so a shard's load is
+// known case by case. Catch2's --shard-count splits by case COUNT, and the [long] cases range from 1 s to 15 min:
+// a dsp_systems_tests eighth estimated at 33 min ran 2 h 46 min on CI and the lane never finished (2026-11-14).
+const kUnknownCaseSeconds = 120;  // a [long] case with no measurement yet
+const caseTimes = times.long_cases || {};
 const units = [];
 for (const suite of suites) {
-    const k = kSuiteShards[suite] || 1;
+    if (longLane && fs.existsSync(exeOf(suite))) {
+        const names = listCases(suite, [kFilter]);
+        if (names === null) {
+            log(`::warning::${suite}: listing its [long] cases failed - it runs whole`);
+        } else if (names.some((n) => /^\s*\*|\*\s*$/.test(n))) {
+            log(`::warning::${suite}: a case name starts or ends with '*' (a Catch2 wildcard) - it runs whole`);
+        } else {
+            // Catch2 matches names case-insensitively: cases sharing a name go to one shard, named once.
+            const seen = new Set();
+            for (const n of names) {
+                const key = n.trim().toLowerCase();
+                if (seen.has(key)) continue;
+                seen.add(key);
+                const t = (caseTimes[suite] || {})[n.trim()];
+                units.push({ suite, name: n.trim(), est: t !== undefined ? t : kUnknownCaseSeconds });
+            }
+            continue;
+        }
+    }
+    const k = longLane ? 1 : (kSuiteShards[suite] || 1);
     const total = laneTimes[suite] !== undefined ? laneTimes[suite] : 60;  // unknown suite: assume a minute
     for (let idx = 0; idx < k; ++idx) {
         units.push({ suite, idx, k, est: total / k });
     }
 }
 // Longest-processing-time first onto the least-loaded shard. Deterministic: ties keep manifest order.
-units.sort((a, b) => b.est - a.est || a.suite.localeCompare(b.suite) || a.idx - b.idx);
+units.sort((a, b) => b.est - a.est || a.suite.localeCompare(b.suite)
+    || (a.name || '').localeCompare(b.name || '') || (a.idx || 0) - (b.idx || 0));
 const shards = Array.from({ length: shardCount }, () => ({ load: 0, units: [] }));
 for (const u of units) {
     let best = 0;
@@ -150,11 +199,29 @@ for (const u of units) {
     shards[best].load += u.est;
 }
 
-const describe = (u) => (u.k > 1 ? `${u.suite} [${u.idx + 1}/${u.k}]` : u.suite);
+// What one shard executes: one run per suite. Case units of the same suite merge into one run over an input file
+// (-f) naming exactly those cases; suite and slice units run as before.
+function runsOf(shardUnits) {
+    const runs = [];
+    const bySuite = new Map();
+    for (const u of shardUnits) {
+        if (u.name === undefined) { runs.push({ ...u, label: u.k > 1 ? `${u.suite} [${u.idx + 1}/${u.k}]` : u.suite }); continue; }
+        if (!bySuite.has(u.suite)) {
+            const r = { suite: u.suite, cases: [], est: 0 };
+            bySuite.set(u.suite, r);
+            runs.push(r);
+        }
+        const r = bySuite.get(u.suite);
+        r.cases.push(u.name);
+        r.est += u.est;
+        r.label = `${u.suite} (${r.cases.length} case${r.cases.length === 1 ? '' : 's'})`;
+    }
+    return runs;
+}
 if (listOnly) {
     log(`lane: ${longLane ? 'long' : 'per-push'}  filter: ${kFilter}  shards: ${shardCount}`);
     shards.forEach((s, i) => {
-        log(`shard ${i}: est ${Math.round(s.load)} s  ${s.units.map(describe).join(', ') || '(empty)'}`);
+        log(`shard ${i}: est ${Math.round(s.load)} s  ${runsOf(s.units).map((r) => r.label).join(', ') || '(empty)'}`);
     });
     process.exit(0);
 }
@@ -192,9 +259,9 @@ function installWindowsPresets() {
 }
 
 // --- run this shard --------------------------------------------------------------------------------------
-const mine = shards[shardIndex].units;
+const mine = runsOf(shards[shardIndex].units);
 log(`ci-test-shard: ${osName} shard ${shardIndex}/${shardCount}, ${longLane ? 'long' : 'per-push'} lane, filter ${kFilter}`);
-log(`units (est ${Math.round(shards[shardIndex].load)} s): ${mine.map(describe).join(', ') || '(empty)'}`);
+log(`units (est ${Math.round(shards[shardIndex].load)} s): ${mine.map((r) => r.label).join(', ') || '(empty)'}`);
 if (mine.length === 0) process.exit(0);
 
 installWindowsPresets();
@@ -232,12 +299,28 @@ const property = (s) => annotation(s).replace(/:/g, '%3A').replace(/,/g, '%2C');
     const results = [];
     const failedCases = [];
     for (const u of mine) {
-        const exe = path.join(binDir, osName === 'windows' ? `${u.suite}.exe` : u.suite);
+        const exe = exeOf(u.suite);
+        const describe = () => u.label;
         // --order decl: Catch2 >= 3.9 defaults to random order, which re-seeds every shard and breaks disjoint coverage.
-        const argv = [kFilter, '--skip-benchmarks', '--order', 'decl'];
-        // A Catch2 shard of a small [long] set can hold zero cases; so can a whole suite with no [long] cases.
-        if (longLane || u.k > 1) argv.push('--allow-running-no-tests');
-        if (u.k > 1) argv.push('--shard-count', String(u.k), '--shard-index', String(u.idx));
+        let argv;
+        let caseFileError = '';
+        if (u.cases) {
+            // Exactly the dealt cases, through an input file that must read back as the same cases (a name Catch2
+            // parses differently would otherwise drop out of the lane without a trace). --durations yes keeps
+            // per-case seconds in the shard log for refreshing long_cases in tools/ci-test-times.json.
+            const file = path.join(logDir || os.tmpdir(), `${osName}-shard${shardIndex}-${u.suite}.cases`);
+            fs.writeFileSync(file, u.cases.map(specLine).join('\n') + '\n');
+            argv = ['-f', file, '--skip-benchmarks', '--order', 'decl', '--durations', 'yes'];
+            const back = listCases(u.suite, ['-f', file]);
+            if (back === null || back.length !== u.cases.length) {
+                caseFileError = `${u.suite}: the case file named ${u.cases.length} case(s), Catch2 read back ${back === null ? 'an error' : back.length}`;
+            }
+        } else {
+            argv = [kFilter, '--skip-benchmarks', '--order', 'decl'];
+            // A whole suite with no [long] cases holds zero cases; so can a Catch2 slice of a small set.
+            if (longLane || u.k > 1) argv.push('--allow-running-no-tests');
+            if (u.k > 1) argv.push('--shard-count', String(u.k), '--shard-index', String(u.idx));
+        }
         log(`::group::${describe(u)}`);
         log(`$ ${exe} ${argv.join(' ')}`);
         const t0 = Date.now();
@@ -246,6 +329,9 @@ const property = (s) => annotation(s).replace(/:/g, '%3A').replace(/,/g, '%2C');
         if (!fs.existsSync(exe)) {
             log(`::error::${exe} is not in the test artifact`);
             rc = 127;
+        } else if (caseFileError) {
+            log(`::error::${caseFileError}`);
+            rc = 2;
         } else if (!dryRun) {
             const r = await runExe(exe, argv);
             rc = r.rc;
@@ -269,7 +355,9 @@ const property = (s) => annotation(s).replace(/:/g, '%3A').replace(/,/g, '%2C');
             }
         }
         if (wall > kWarnSeconds) {
-            log(`::warning::${describe(u)} took ${wall.toFixed(0)} s - raise its entry in kSuiteShards (tools/ci-test-shard.js) and refresh tools/ci-test-times.json`);
+            log(u.cases
+                ? `::warning::${describe(u)} took ${wall.toFixed(0)} s - refresh long_cases in tools/ci-test-times.json from this log's durations, or raise the long-lane shard count in ci.yml`
+                : `::warning::${describe(u)} took ${wall.toFixed(0)} s - raise its entry in kSuiteShards (tools/ci-test-shard.js) and refresh tools/ci-test-times.json`);
         }
     }
 

@@ -1169,7 +1169,6 @@ private:
     void renderSlice(const float* inL, const float* inR, float* outL, float* outR,
                      std::size_t slice, std::size_t phase) noexcept {
         constexpr float kInvChunk = 1.0f / static_cast<float>(kControlChunkSamples);
-        constexpr float kHalfPi = 1.57079633f;
 
         for (std::size_t k = 0; k < slice; ++k) {
             // FR-064: sanitise ONCE, before ANY consumer - the ER line

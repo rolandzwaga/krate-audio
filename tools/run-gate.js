@@ -40,6 +40,9 @@
 //   <exe>    basename without extension (profundum_tests, dsp_systems_tests, ...)
 //   --share N  N gates run at the same time (parallel agents, lanes): this one takes (cpu count - 2) / N workers.
 //   --wallclock-workers W  width of the quiet [wallclock] pass (default 4).
+//   --case-times <file>  also write each test case's seconds (Catch2 --durations yes), slowest first.
+//   --filenames-as-tags true  run Catch2 with -# so a filter can name source files as [#<file>] (tsan-nightly.yml,
+//             fed by tools/tsan-scope.js --filter).
 //   Defaults: workers = cpu count - 2, shards-per-exe = 4 x workers, out = f:/tmp/gate/<timestamp> (Windows) or <os tmpdir>/gate/<timestamp>,
 //             bin = build/windows-x64-release/bin/Release.
 // Writes <out>/<exe>-<k>.log per shard (its case list in <exe>-<k>.cases) and <out>/shard-times.tsv (one row per
@@ -84,6 +87,13 @@ const TWO_PASS = !filter.includes('[wallclock]');
 const PASS1 = TWO_PASS ? orTerms.map((term) => `${term}~[wallclock]`).join(',') : filter;
 const PASS2 = orTerms.map((term) => `${term}[wallclock]`).join(',');
 const BIN = path.resolve(opts.bin || 'build/windows-x64-release/bin/Release');
+// --case-times <file>: run every shard with Catch2's --durations yes and write one row per test case (exe, case,
+// seconds), slowest first. The CI [long] lane deals its cases to shards by these times (tools/ci-test-shard.js);
+// they are measured under the full worker pool, so they rank cases, they are not standalone timings.
+const CASE_TIMES = opts['case-times'] ? path.resolve(opts['case-times']) : '';
+// -# (Catch2 --filenames-as-tags) on every listing and run, so the filter can select [#<file>] tags.
+const FILE_TAGS = opts['filenames-as-tags'] === 'true' ? ['-#'] : [];
+const listedNames = new Map();  // exe -> Set of listed case names (only test-case durations are kept, not sections)
 const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\..*/, '').replace('T', '-');
 // f:/tmp is the Windows dev box's scratch drive; elsewhere 'f:/tmp' is a relative path and made a folder named "f:"
 // inside the repo (WSL run, 2026-11-05), so other platforms use the OS temp dir.
@@ -112,7 +122,7 @@ function capture(exe, argv) {
         child.on('error', (err) => resolve({ rc: -1, text: String(err) }));
     });
 }
-const LIST = ['--list-tests', '--verbosity', 'quiet', '--order', 'decl'];
+const LIST = ['--list-tests', '--verbosity', 'quiet', '--order', 'decl', ...FILE_TAGS];
 // Quiet listing prints one name per line, a name starting with '#' in quotes (catch_reporter_helpers.cpp).
 const parseList = (text) => text.split(/\r?\n/).filter((l) => l.trim() !== '').map((l) => (/^"#.*"$/.test(l) ? l.slice(1, -1) : l));
 // One input-file line (catch_test_spec_parser.cpp): inside a quoted name '\' escapes the next character, an unescaped
@@ -141,6 +151,8 @@ async function planShards(exe, pass, passFilter, count) {
     const listed = await capture(exe, [passFilter, ...LIST]);
     if (listed.rc !== 0) return contiguous(`listing exit ${listed.rc}`);
     const names = parseList(listed.text);
+    if (!listedNames.has(exe)) listedNames.set(exe, new Set());
+    for (const n of names) listedNames.get(exe).add(n.trim());
     // No shard at all: an EMPTY input file selects every case of the executable (measured).
     if (names.length === 0) return { exe, pass, mode: 'interleaved', jobs: [] };
     // Catch2 allows one name twice (disrumpo_tests has such a pair) and matches case-insensitively: one pattern runs
@@ -191,25 +203,51 @@ function runOne(job) {
     return new Promise((resolve) => {
         const log = path.join(OUT, `${job.exe}-${job.pass === 2 ? 'wallclock-' : ''}${job.k}.log`);
         // --order decl: Catch2 >= 3.9 defaults to random order, which re-seeds every shard and breaks disjoint coverage.
-        const argv = [...job.argv, '--allow-running-no-tests', '--order', 'decl'];
+        const argv = [...job.argv, '--allow-running-no-tests', '--order', 'decl', ...FILE_TAGS,
+            ...(CASE_TIMES ? ['--durations', 'yes'] : [])];
         const s0 = Date.now();
         const run = crashDumps.wrap(exePath(job.exe), argv);
         const child = spawn(run.cmd, run.args, { cwd: process.cwd(), env: run.env, windowsHide: true });
+        // The log is written as output arrives, not at exit: a shard that runs for an hour shows its finished
+        // cases (and their --durations lines) on disk the whole time (2026-11-14: a [long] timing run read
+        // "0 of 68 shards" for 78 min with nothing on disk to say how far its shards had got).
+        const fd = fs.openSync(log, 'w');
+        running.set(job, s0);
         const chunks = [];
-        child.stdout.on('data', (d) => chunks.push(d));
-        child.stderr.on('data', (d) => chunks.push(d));
+        const onData = (d) => { chunks.push(d); fs.writeSync(fd, d); };
+        child.stdout.on('data', onData);
+        child.stderr.on('data', onData);
         child.on('close', (rc) => {
-            const text = Buffer.concat(chunks).toString('utf8');
-            fs.writeFileSync(log, text);
-            resolve({ ...job, rc, wall: (Date.now() - s0) / 1000, text, log });
+            fs.closeSync(fd);
+            running.delete(job);
+            resolve({ ...job, rc, wall: (Date.now() - s0) / 1000, text: Buffer.concat(chunks).toString('utf8'), log });
         });
-        child.on('error', (err) => resolve({ ...job, rc: -1, wall: 0, text: String(err), log }));
+        child.on('error', (err) => {
+            fs.closeSync(fd);
+            running.delete(job);
+            resolve({ ...job, rc: -1, wall: 0, text: String(err), log });
+        });
     });
 }
+const running = new Map();  // job -> start time, for the heartbeat
 async function runPool(jobs, width) {
     let next = 0;
     const worker = async () => { while (next < jobs.length) results.push(await runOne(jobs[next++])); };
     await Promise.all(Array.from({ length: Math.min(width, jobs.length) }, worker));
+}
+// Heartbeat every 5 min: shards done / total and every running shard's age, so a slow gate is visible in its own
+// output long before it ends.
+const kHeartbeatMs = 5 * 60 * 1000;
+function startHeartbeat(total) {
+    const mmss = (ms) => `${Math.floor(ms / 60000)}:${String(Math.floor(ms / 1000) % 60).padStart(2, '0')}`;
+    const timer = setInterval(() => {
+        const now = Date.now();
+        const ages = [...running.entries()].sort((a, b) => a[1] - b[1])
+            .map(([j, s]) => `${j.exe}#${j.k}${j.pass === 2 ? 'w' : ''} ${mmss(now - s)}`);
+        console.log(`heartbeat ${mmss(now - t0)}: ${results.length}/${total} shards done; running: ${ages.join(', ') || 'none'}`);
+    }, kHeartbeatMs);
+    timer.unref();
+    return timer;
 }
 
 (async () => {
@@ -220,9 +258,11 @@ async function runPool(jobs, width) {
     ]);
     const pass1Jobs = plans.filter((p) => p.pass === 1).flatMap((p) => p.jobs);
     const pass2Jobs = plans.filter((p) => p.pass === 2).flatMap((p) => p.jobs);
+    const heartbeat = startHeartbeat(pass1Jobs.length + pass2Jobs.length);
     await runPool(pass1Jobs, WORKERS);
     const wall1 = ((Date.now() - t0) / 1000).toFixed(1);
     await runPool(pass2Jobs, WALL_WORKERS);
+    clearInterval(heartbeat);
     const wall = ((Date.now() - t0) / 1000).toFixed(1);
     const wallCases = results.filter((r) => r.pass === 2).reduce((n, r) => n + ((totals(r.text) || {}).cases || 0), 0);
     if (TWO_PASS) console.log(`pass 1 (~[wallclock], ${WORKERS} workers): ${wall1}s | pass 2 ([wallclock], ${WALL_WORKERS} workers): ${(wall - wall1).toFixed(1)}s, ${wallCases} case(s)`);
@@ -252,6 +292,20 @@ async function runPool(jobs, width) {
         console.log(`${exe}: cases=${cases} assertions=${assertions} failed_cases=${failedCases} shards=${mine.length} slowest_shard=${slowest.toFixed(1)}s median_shard=${median.toFixed(1)}s sharding=${modes}`);
     }
     fs.writeFileSync(path.join(OUT, 'shard-times.tsv'), timeRows.join('\n') + '\n');
+    if (CASE_TIMES) {
+        // Catch2 prints "<seconds> s: <name>" for every section with --durations yes; a test case's own line carries
+        // its listed name.
+        const rows = [];
+        for (const r of results) {
+            const names = listedNames.get(r.exe) || new Set();
+            for (const m of r.text.matchAll(/^(\d+\.\d+) s: (.+?)\s*$/gm)) {
+                if (names.has(m[2].trim())) rows.push({ exe: r.exe, name: m[2].trim(), s: Number(m[1]) });
+            }
+        }
+        rows.sort((a, b) => b.s - a.s);
+        fs.writeFileSync(CASE_TIMES, ['exe\tcase\tseconds', ...rows.map((x) => `${x.exe}\t${x.name}\t${x.s.toFixed(3)}`)].join('\n') + '\n');
+        console.log(`case times: ${rows.length} case(s) -> ${CASE_TIMES}`);
+    }
     for (const p of problems) console.log(p);
     const tally = perExe.map((e) => `${e.exe} cases=${e.cases} assertions=${e.assertions}`).join(' | ');
     if (problems.length === 0 && perExe.every((e) => e.failedCases === 0)) {

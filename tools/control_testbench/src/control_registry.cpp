@@ -85,7 +85,7 @@ VSTGUI::CView* TestbenchController::createView(
         if (*customViewName == "TapPatternEditor") {
             // Get size from attributes or use default
             VSTGUI::CRect size(0, 0, 400, 200);
-            if (auto sizeAttr = attributes.getAttributeValue("size")) {
+            if (attributes.getAttributeValue("size") != nullptr) {
                 // Parse size string "width, height"
             }
 
