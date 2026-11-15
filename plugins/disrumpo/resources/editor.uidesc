@@ -24,6 +24,8 @@
     <color name="border" rgba="#3A3A40ff"/>
     <color name="panel" rgba="#202024ff"/>
     <color name="panel-expanded" rgba="#2A2A30ff"/>
+    <color name="button-outline" rgba="#4A4A54ff"/>
+    <color name="button-hover" rgba="#FFFFFF26"/>
     <color name="shadow" rgba="#00000080"/>
     <color name="meter-low" rgba="#4ECDC4ff"/>
     <color name="meter-mid" rgba="#FFCB6Bff"/>
@@ -543,7 +545,7 @@
         <view class="CParamDisplay" origin="0, 0" size="0, 0" control-tag="Band1Container" back-color="transparent"/>
         <view class="CTextLabel" origin="0, 5" size="200, 20" title="Band 1" font="section-font" font-color="band-1" text-alignment="center"/>
         <view custom-view-name="Band1LevelMeter" origin="0, 25" size="200, 4" tooltip="Band 1 level (click to clear the clip light)"/>
-        <view class="ToggleButton" origin="200, 5" size="25, 20" on-color="accent-primary" off-color="text-secondary" control-tag="Band1Expanded" default-value="0" tooltip="Expand Band 1" icon-style="chevron" on-orientation="down" off-orientation="right"/>
+        <view class="ToggleButton" origin="200, 5" size="25, 20" on-color="accent-primary" off-color="text-secondary" control-tag="Band1Expanded" default-value="0" tooltip="Expand Band 1" icon-style="chevron" frame-color="button-outline" hover-color="button-hover" on-orientation="down" off-orientation="right"/>
         <view class="CTextLabel" origin="10, 30" size="50, 15" title="Type" font="small-font" font-color="text-secondary"/>
         <view class="COptionMenu" origin="10, 45" size="215, 22" control-tag="Band1DisplayedType" font="value-font" font-color="text-primary" back-color="background-secondary" frame-color="border"/>
         <view class="CSegmentButton" origin="10, 72" size="215, 20" control-tag="Band1TabView" default-value="0" style="horizontal" segment-names="Main, Shape" font="small-font" font-color="text-primary" frame-color="border" gradient="button-default" selected-gradient="button-active"/>
@@ -554,7 +556,7 @@
         <view class="CParamDisplay" origin="0, 0" size="0, 0" control-tag="Band2Container" back-color="transparent"/>
         <view class="CTextLabel" origin="0, 5" size="200, 20" title="Band 2" font="section-font" font-color="band-2" text-alignment="center"/>
         <view custom-view-name="Band2LevelMeter" origin="0, 25" size="200, 4" tooltip="Band 2 level (click to clear the clip light)"/>
-        <view class="ToggleButton" origin="200, 5" size="25, 20" on-color="accent-primary" off-color="text-secondary" control-tag="Band2Expanded" default-value="0" tooltip="Expand Band 2" icon-style="chevron" on-orientation="down" off-orientation="right"/>
+        <view class="ToggleButton" origin="200, 5" size="25, 20" on-color="accent-primary" off-color="text-secondary" control-tag="Band2Expanded" default-value="0" tooltip="Expand Band 2" icon-style="chevron" frame-color="button-outline" hover-color="button-hover" on-orientation="down" off-orientation="right"/>
         <view class="CTextLabel" origin="10, 30" size="50, 15" title="Type" font="small-font" font-color="text-secondary"/>
         <view class="COptionMenu" origin="10, 45" size="215, 22" control-tag="Band2DisplayedType" font="value-font" font-color="text-primary" back-color="background-secondary" frame-color="border"/>
         <view class="CSegmentButton" origin="10, 72" size="215, 20" control-tag="Band2TabView" default-value="0" style="horizontal" segment-names="Main, Shape" font="small-font" font-color="text-primary" frame-color="border" gradient="button-default" selected-gradient="button-active"/>
@@ -565,7 +567,7 @@
         <view class="CParamDisplay" origin="0, 0" size="0, 0" control-tag="Band3Container" back-color="transparent"/>
         <view class="CTextLabel" origin="0, 5" size="200, 20" title="Band 3" font="section-font" font-color="band-3" text-alignment="center"/>
         <view custom-view-name="Band3LevelMeter" origin="0, 25" size="200, 4" tooltip="Band 3 level (click to clear the clip light)"/>
-        <view class="ToggleButton" origin="200, 5" size="25, 20" on-color="accent-primary" off-color="text-secondary" control-tag="Band3Expanded" default-value="0" tooltip="Expand Band 3" icon-style="chevron" on-orientation="down" off-orientation="right"/>
+        <view class="ToggleButton" origin="200, 5" size="25, 20" on-color="accent-primary" off-color="text-secondary" control-tag="Band3Expanded" default-value="0" tooltip="Expand Band 3" icon-style="chevron" frame-color="button-outline" hover-color="button-hover" on-orientation="down" off-orientation="right"/>
         <view class="CTextLabel" origin="10, 30" size="50, 15" title="Type" font="small-font" font-color="text-secondary"/>
         <view class="COptionMenu" origin="10, 45" size="215, 22" control-tag="Band3DisplayedType" font="value-font" font-color="text-primary" back-color="background-secondary" frame-color="border"/>
         <view class="CSegmentButton" origin="10, 72" size="215, 20" control-tag="Band3TabView" default-value="0" style="horizontal" segment-names="Main, Shape" font="small-font" font-color="text-primary" frame-color="border" gradient="button-default" selected-gradient="button-active"/>
@@ -576,7 +578,7 @@
         <view class="CParamDisplay" origin="0, 0" size="0, 0" control-tag="Band4Container" back-color="transparent"/>
         <view class="CTextLabel" origin="0, 5" size="200, 20" title="Band 4" font="section-font" font-color="band-4" text-alignment="center"/>
         <view custom-view-name="Band4LevelMeter" origin="0, 25" size="200, 4" tooltip="Band 4 level (click to clear the clip light)"/>
-        <view class="ToggleButton" origin="200, 5" size="25, 20" on-color="accent-primary" off-color="text-secondary" control-tag="Band4Expanded" default-value="0" tooltip="Expand Band 4" icon-style="chevron" on-orientation="down" off-orientation="right"/>
+        <view class="ToggleButton" origin="200, 5" size="25, 20" on-color="accent-primary" off-color="text-secondary" control-tag="Band4Expanded" default-value="0" tooltip="Expand Band 4" icon-style="chevron" frame-color="button-outline" hover-color="button-hover" on-orientation="down" off-orientation="right"/>
         <view class="CTextLabel" origin="10, 30" size="50, 15" title="Type" font="small-font" font-color="text-secondary"/>
         <view class="COptionMenu" origin="10, 45" size="215, 22" control-tag="Band4DisplayedType" font="value-font" font-color="text-primary" back-color="background-secondary" frame-color="border"/>
         <view class="CSegmentButton" origin="10, 72" size="215, 20" control-tag="Band4TabView" default-value="0" style="horizontal" segment-names="Main, Shape" font="small-font" font-color="text-primary" frame-color="border" gradient="button-default" selected-gradient="button-active"/>
@@ -642,7 +644,7 @@
       <view class="CTextLabel" origin="780, 11" size="25, 20" title="Rel" font="small-font" font-color="text-secondary"/>
       <view class="CSlider" origin="805, 11" size="40, 20" orientation="horizontal" control-tag="SweepEnvRelease" default-value="0.2" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="accent-secondary" draw-frame="true" draw-frame-color="border"/>
       <view class="CTextLabel" origin="855, 11" size="30, 20" title="Mod" font="small-font" font-color="accent-secondary"/>
-      <view class="ToggleButton" origin="885, 8" size="25, 25" on-color="accent-primary" off-color="text-secondary" control-tag="ModPanelVisible" default-value="0" tooltip="Show modulation panel" icon-style="chevron" on-orientation="down" off-orientation="right"/>
+      <view class="ToggleButton" origin="885, 8" size="25, 25" on-color="accent-primary" off-color="text-secondary" control-tag="ModPanelVisible" default-value="0" tooltip="Show modulation panel" icon-style="chevron" frame-color="button-outline" hover-color="button-hover" on-orientation="down" off-orientation="right"/>
       <view class="CTextLabel" origin="920, 11" size="60, 20" title="Disrumpo" font="small-font" font-color="text-secondary" text-alignment="right"/>
       <view class="CTextLabel" origin="20, 41" size="50, 20" title="Intensity" font="small-font" font-color="text-secondary"/>
       <view class="ArcKnob" origin="70, 39" size="30, 25" control-tag="SweepIntensity" default-value="0.25" min-value="0" max-value="1" arc-color="accent-secondary" tooltip="Sweep intensity (0-200 %)"/>
@@ -1332,7 +1334,7 @@
   <template name="BandExpandedStrip" class="CViewContainer" size="680, 280" background-color="panel">
     <view class="CViewContainer" origin="0, 0" size="680, 40" background-color="background-secondary">
       <view class="CTextLabel" origin="10, 10" size="60, 20" title="Band 1" font="section-font" font-color="band-1" text-alignment="left"/>
-      <view class="ToggleButton" origin="640, 8" size="30, 24" on-color="accent-primary" off-color="text-secondary" control-tag="Band.Expanded" default-value="1" tooltip="Collapse expanded view" icon-style="chevron" on-orientation="down" off-orientation="right"/>
+      <view class="ToggleButton" origin="640, 8" size="30, 24" on-color="accent-primary" off-color="text-secondary" control-tag="Band.Expanded" default-value="1" tooltip="Collapse expanded view" icon-style="chevron" frame-color="button-outline" hover-color="button-hover" on-orientation="down" off-orientation="right"/>
       <view class="CTextLabel" origin="80, 12" size="35, 16" title="Type" font="small-font" font-color="text-secondary"/>
       <view class="COptionMenu" origin="115, 10" size="100, 20" control-tag="Band.DisplayedType" font="value-font" font-color="text-primary" back-color="background-secondary" frame-color="border"/>
       <view class="CTextLabel" origin="230, 2" size="40, 12" title="Drive" font="small-font" font-color="text-secondary" text-alignment="center"/>

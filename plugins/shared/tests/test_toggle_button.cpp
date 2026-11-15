@@ -10,6 +10,9 @@
 
 #include "ui/toggle_button.h"
 
+#include <algorithm>
+#include <string>
+
 using namespace Krate::Plugins;
 
 // ==============================================================================
@@ -104,6 +107,69 @@ TEST_CASE("ToggleButton gear icon with iconSize=1.0 does not crash on constructi
     REQUIRE(button->getIconSize() == 1.0f);
     REQUIRE(button->getIconStyle() == IconStyle::kGear);
 
+    button->forget();
+}
+
+// ==============================================================================
+// Button chrome: rounded outline + hover background (opt-in)
+// ==============================================================================
+
+TEST_CASE("ToggleButton draws no outline or hover background unless configured",
+          "[toggle_button][chrome]") {
+    auto* button = new ToggleButton(VSTGUI::CRect(0, 0, 25, 20), nullptr, -1);
+
+    CHECK(button->getFrameColor().alpha == 0);
+    CHECK(button->getHoverColor().alpha == 0);
+    CHECK_FALSE(button->isHovered());
+
+    button->forget();
+}
+
+TEST_CASE("ToggleButton is hovered between mouse enter and mouse exit", "[toggle_button][chrome]") {
+    auto* button = new ToggleButton(VSTGUI::CRect(0, 0, 25, 20), nullptr, -1);
+    VSTGUI::CPoint where(10, 10);
+    const VSTGUI::CButtonState noButtons;
+
+    REQUIRE_FALSE(button->isHovered());
+    button->onMouseEntered(where, noButtons);
+    CHECK(button->isHovered());
+    button->onMouseExited(where, noButtons);
+    CHECK_FALSE(button->isHovered());
+
+    button->forget();
+}
+
+TEST_CASE("ToggleButtonCreator applies and reports frame-color, hover-color and corner-radius",
+          "[toggle_button][chrome]") {
+    auto* button = new ToggleButton(VSTGUI::CRect(0, 0, 25, 20), nullptr, -1);
+    VSTGUI::UIAttributes attributes;
+    attributes.setAttribute("frame-color", "#4A4A52FF");
+    attributes.setAttribute("hover-color", "#FFFFFF14");
+    attributes.setAttribute("corner-radius", "5");
+
+    REQUIRE(gToggleButtonCreator.apply(button, attributes, nullptr));
+
+    CHECK(button->getFrameColor() == VSTGUI::CColor(0x4A, 0x4A, 0x52, 0xFF));
+    CHECK(button->getHoverColor() == VSTGUI::CColor(0xFF, 0xFF, 0xFF, 0x14));
+    CHECK(button->getCornerRadius() == 5.0);
+
+    VSTGUI::IViewCreator::StringList names;
+    REQUIRE(gToggleButtonCreator.getAttributeNames(names));
+    for (const char* name : {"frame-color", "hover-color", "corner-radius"}) {
+        INFO(name);
+        CHECK(std::find(names.begin(), names.end(), name) != names.end());
+        std::string value;
+        CHECK(gToggleButtonCreator.getAttributeValue(button, name, value, nullptr));
+        CHECK_FALSE(value.empty());
+    }
+
+    // A copy (template instantiation copies views) keeps the chrome.
+    auto* copy = new ToggleButton(*button);
+    CHECK(copy->getFrameColor() == button->getFrameColor());
+    CHECK(copy->getHoverColor() == button->getHoverColor());
+    CHECK(copy->getCornerRadius() == button->getCornerRadius());
+
+    copy->forget();
     button->forget();
 }
 

@@ -2,7 +2,8 @@
 // Editor screenshots for layout review (hidden: [.][screenshots]; never a gate)
 // ==============================================================================
 // Opens the editor headlessly with Sweep enabled and renders it offscreen at 2x into PNG files: the whole editor
-// (default height, mod panel closed), the sweep row, the header bar, the band panels' title rows, and the editor
+// (default height, mod panel closed), the sweep row, the header bar, the band panels' title rows (also with Band 1's
+// expand chevron hovered), and the editor
 // with Band 1's expanded strip open. The level meters are fed one fixed window first (Output L clipped). Not goldens:
 // nothing asserts on pixels. Every parameter is at its registered default except Sweep Enable and Band 1 Expanded.
 //
@@ -167,6 +168,16 @@ TEST_CASE("Disrumpo_EditorScreenshots", "[.][screenshots]") {
         // The header bar (IN/OUT meters) and the band panels' title rows (band meters)
         shoot(root, VSTGUI::CRect(0.0, 0.0, root->getViewSize().getWidth(), 50.0), dir / "header.png");
         shoot(root, VSTGUI::CRect(20.0, 190.0, 980.0, 222.0), dir / "band-titles.png");
+
+        // Band 1's expand chevron under the mouse (its hover background)
+        {
+            VSTGUI::CControl* expand = findDisrumpoTaggedControl(root, static_cast<std::int32_t>(band1ExpandedId));
+            REQUIRE(expand != nullptr);
+            VSTGUI::CPoint where = expand->getViewSize().getCenter();
+            expand->onMouseEntered(where, VSTGUI::CButtonState());
+            shoot(root, VSTGUI::CRect(20.0, 190.0, 980.0, 222.0), dir / "band-titles-hover.png");
+            expand->onMouseExited(where, VSTGUI::CButtonState());
+        }
 
         // Band 1's expanded strip: the param drives AnimatedExpandController (shown at once headlessly).
         controller->setParamNormalized(band1ExpandedId, 1.0);

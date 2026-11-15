@@ -18,6 +18,11 @@
 // When title is set: draws centered text label instead of any icon.
 // When title AND title-position are set: draws both icon and text side by side.
 //
+// Optional button chrome (off unless set, so existing editors are unchanged):
+// - "frame-color": rounded outline around the view bounds.
+// - "hover-color": rounded background fill while the mouse is over the button.
+// - "corner-radius": radius of both (default 4).
+//
 // All drawing uses CGraphicsPath (no bitmaps, cross-platform).
 //
 // Registered as "ToggleButton" via VSTGUI ViewCreator system.
@@ -81,7 +86,10 @@ public:
         , offOrientation_(other.offOrientation_)
         , title_(other.title_)
         , titlePosition_(other.titlePosition_)
-        , font_(other.font_) {}
+        , font_(other.font_)
+        , frameColor_(other.frameColor_)
+        , hoverColor_(other.hoverColor_)
+        , cornerRadius_(other.cornerRadius_) {}
 
     CLASS_METHODS(ToggleButton, CControl)
 
@@ -100,6 +108,21 @@ public:
 
     void setStrokeWidth(VSTGUI::CCoord width) { strokeWidth_ = width; setDirty(); }
     [[nodiscard]] VSTGUI::CCoord getStrokeWidth() const { return strokeWidth_; }
+
+    // =========================================================================
+    // Button Chrome Attributes (outline + hover background)
+    // =========================================================================
+
+    void setFrameColor(const VSTGUI::CColor& color) { frameColor_ = color; setDirty(); }
+    [[nodiscard]] VSTGUI::CColor getFrameColor() const { return frameColor_; }
+
+    void setHoverColor(const VSTGUI::CColor& color) { hoverColor_ = color; setDirty(); }
+    [[nodiscard]] VSTGUI::CColor getHoverColor() const { return hoverColor_; }
+
+    void setCornerRadius(VSTGUI::CCoord radius) { cornerRadius_ = radius; setDirty(); }
+    [[nodiscard]] VSTGUI::CCoord getCornerRadius() const { return cornerRadius_; }
+
+    [[nodiscard]] bool isHovered() const { return hovered_; }
 
     // =========================================================================
     // Icon Style Attributes
@@ -141,6 +164,8 @@ public:
         bool isOn = getValueNormalized() >= 0.5f;
         VSTGUI::CColor activeColor = isOn ? onColor_ : offColor_;
 
+        drawChrome(context);
+
         if (!title_.empty() && titlePosition_ != TitlePosition::kNone) {
             drawIconAndTitle(context, activeColor, isOn);
         } else if (!title_.empty()) {
@@ -171,6 +196,11 @@ public:
         return false;
     }
 
+    bool removed(VSTGUI::CView* parent) override {
+        hovered_ = false;  // no exit event arrives once detached
+        return CControl::removed(parent);
+    }
+
     // =========================================================================
     // Mouse Interaction (click to toggle)
     // =========================================================================
@@ -180,6 +210,7 @@ public:
         const VSTGUI::CButtonState& /*buttons*/) override {
         if (auto* frame = getFrame())
             frame->setCursor(VSTGUI::kCursorHand);
+        setHovered(true);
         return VSTGUI::kMouseEventHandled;
     }
 
@@ -188,6 +219,7 @@ public:
         const VSTGUI::CButtonState& /*buttons*/) override {
         if (auto* frame = getFrame())
             frame->setCursor(VSTGUI::kCursorDefault);
+        setHovered(false);
         return VSTGUI::kMouseEventHandled;
     }
 
@@ -217,9 +249,45 @@ public:
     }
 
 private:
+    void setHovered(bool hovered) {
+        if (hovered_ == hovered)
+            return;
+        hovered_ = hovered;
+        if (hoverColor_.alpha != 0)
+            invalid();
+    }
+
     // =========================================================================
     // Drawing Helpers
     // =========================================================================
+
+    /// Hover background, then the outline, both inside the view bounds. Nothing when neither color is set.
+    void drawChrome(VSTGUI::CDrawContext* context) const {
+        const bool fill = hovered_ && hoverColor_.alpha != 0;
+        const bool stroke = frameColor_.alpha != 0;
+        if (!fill && !stroke)
+            return;
+
+        constexpr VSTGUI::CCoord kFrameWidth = 1.0;
+        VSTGUI::CRect r = getViewSize();
+        r.inset(kFrameWidth / 2.0, kFrameWidth / 2.0);  // keeps the 1 px stroke inside the bounds, on pixel centres
+        const VSTGUI::CCoord radius =
+            std::min(cornerRadius_, std::min(r.getWidth(), r.getHeight()) / 2.0);
+
+        auto path = VSTGUI::owned(context->createRoundRectGraphicsPath(r, radius));
+        if (!path)
+            return;
+        if (fill) {
+            context->setFillColor(hoverColor_);
+            context->drawGraphicsPath(path, VSTGUI::CDrawContext::kPathFilled);
+        }
+        if (stroke) {
+            context->setFrameColor(frameColor_);
+            context->setLineWidth(kFrameWidth);
+            context->setLineStyle(VSTGUI::kLineSolid);
+            context->drawGraphicsPath(path, VSTGUI::CDrawContext::kPathStroked);
+        }
+    }
 
     void drawPowerIcon(VSTGUI::CDrawContext* context,
                        const VSTGUI::CColor& color) const {
@@ -529,6 +597,10 @@ private:
     std::string title_;
     TitlePosition titlePosition_ = TitlePosition::kNone;
     VSTGUI::SharedPointer<VSTGUI::CFontDesc> font_{VSTGUI::kNormalFontSmall};
+    VSTGUI::CColor frameColor_{0, 0, 0, 0};   // transparent = no outline
+    VSTGUI::CColor hoverColor_{0, 0, 0, 0};   // transparent = no hover fill
+    VSTGUI::CCoord cornerRadius_ = 4.0;
+    bool hovered_ = false;
     bool inValueChanged_ = false;
 };
 
@@ -627,6 +699,12 @@ struct ToggleButtonCreator : VSTGUI::ViewCreatorAdapter {
         if (VSTGUI::UIViewCreator::stringToColor(
                 attributes.getAttributeValue("off-color"), color, description))
             btn->setOffColor(color);
+        if (VSTGUI::UIViewCreator::stringToColor(
+                attributes.getAttributeValue("frame-color"), color, description))
+            btn->setFrameColor(color);
+        if (VSTGUI::UIViewCreator::stringToColor(
+                attributes.getAttributeValue("hover-color"), color, description))
+            btn->setHoverColor(color);
 
         // Numeric attributes
         double d;
@@ -634,6 +712,8 @@ struct ToggleButtonCreator : VSTGUI::ViewCreatorAdapter {
             btn->setIconSize(static_cast<float>(d));
         if (attributes.getDoubleAttribute("stroke-width", d))
             btn->setStrokeWidth(d);
+        if (attributes.getDoubleAttribute("corner-radius", d))
+            btn->setCornerRadius(d);
 
         // Icon style
         if (const auto *val = attributes.getAttributeValue("icon-style"))
@@ -675,6 +755,9 @@ struct ToggleButtonCreator : VSTGUI::ViewCreatorAdapter {
         attributeNames.emplace_back("title");
         attributeNames.emplace_back("title-position");
         attributeNames.emplace_back("font");
+        attributeNames.emplace_back("frame-color");
+        attributeNames.emplace_back("hover-color");
+        attributeNames.emplace_back("corner-radius");
         return true;
     }
 
@@ -690,6 +773,9 @@ struct ToggleButtonCreator : VSTGUI::ViewCreatorAdapter {
         if (attributeName == "title") return kStringType;
         if (attributeName == "title-position") return kListType;
         if (attributeName == "font") return kFontType;
+        if (attributeName == "frame-color") return kColorType;
+        if (attributeName == "hover-color") return kColorType;
+        if (attributeName == "corner-radius") return kFloatType;
         return kUnknownType;
     }
 
@@ -785,6 +871,21 @@ struct ToggleButtonCreator : VSTGUI::ViewCreatorAdapter {
                 if (fontName)
                     stringValue = fontName;
             }
+            return true;
+        }
+        if (attributeName == "frame-color") {
+            VSTGUI::UIViewCreator::colorToString(
+                btn->getFrameColor(), stringValue, desc);
+            return true;
+        }
+        if (attributeName == "hover-color") {
+            VSTGUI::UIViewCreator::colorToString(
+                btn->getHoverColor(), stringValue, desc);
+            return true;
+        }
+        if (attributeName == "corner-radius") {
+            stringValue = VSTGUI::UIAttributes::doubleToString(
+                btn->getCornerRadius());
             return true;
         }
         return false;
