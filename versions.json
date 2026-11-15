@@ -186,29 +186,29 @@
       }
     },
     "Membrum": {
-      "version": "0.12.3",
+      "version": "0.12.4",
       "download_url": "https://krateaudio.com/membrum/",
       "release_notes": "",
-      "tag": "membrum/v0.12.3",
-      "pub_date": "2026-11-02T22:00:24Z",
+      "tag": "membrum/v0.12.4",
+      "pub_date": "2026-11-15T21:01:23Z",
       "channel": "stable",
-      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/membrum/v0.12.3",
+      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/membrum/v0.12.4",
       "description": "Synthesized Drum Machine",
-      "notes_markdown": "### Fixed\n\n- **The AUv3 version ran only on Apple Silicon** — In the macOS installer, the AUv3 app (`Membrum AUv3.app`) and the extension inside it were built for Apple Silicon only, while the VST3 and AU beside them were universal, so on an Intel Mac the AUv3 version did not load. Both are now universal (Apple Silicon and Intel), like the rest of the package.\n- **The update check never worked on Linux** — The check could not fetch over https, so the update banner never appeared on Linux. It now fetches through the system's libcurl (`libcurl.so.4`, or `libcurl-gnutls.so.4`), loaded when the check runs; on a system without libcurl the check stays silent, as before.\n- **The plugin bundle reported version 0.8.0** — The bundle's `moduleinfo.json` (and, on macOS, the version Finder shows for the bundle) carried the shared build's version 0.8.0 instead of the plugin's own. It now matches the version shown in the editor. Hosts never used this value for anything audible; it matters for tools that list installed plugins.",
+      "notes_markdown": "### Changed\n\n- **Built with VST3 SDK 3.8.1.**",
       "platforms": {
         "darwin-universal": {
-          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/membrum/v0.12.3/Membrum-0.12.3-macOS.pkg",
-          "size": 6796309,
-          "sha256": "e99125d8933a1e652ee5a41c59eeead9ab306fde3111a08e1da7e6242eea638e",
-          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+Tbrn78brqyJq6edwytPb/6CjLE1wVKeEW6BYnbN+0cKVWw9ROJq1/gjDFtGMEvI0hUA5Lt1Q2v8EYlbDhUtnfh6pQk=\ntrusted comment: krate:1:Membrum:0.12.3:darwin-universal:Membrum-0.12.3-macOS.pkg\nVwtYB+sO9ytD6fWuiz5QJz0QT8oiCtB4qWVaJNZGfy/GZp+ubDOVD3yZHHnqV7ufQEuXImm5QeXHqP6XoxznDA==\n",
+          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/membrum/v0.12.4/Membrum-0.12.4-macOS.pkg",
+          "size": 6776042,
+          "sha256": "5cbd905dfa07ea06b23dc5156338679f340b140e682bd389835d4e723fc96c70",
+          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+Tbrn71U7UGG/jy4nlpqEciThZVuV9HRWFUSWJyFEGWejUS6Z7ojyJ7XygyRIE9p46DZyKDk2z/Gi2o4MVPg6WcvdA8=\ntrusted comment: krate:1:Membrum:0.12.4:darwin-universal:Membrum-0.12.4-macOS.pkg\ndSuo9UEHFLBRMVV/sV4qT4lw8GjuUmdpZvM08WUBRY6mWGuTGWwClLR69ZDgMTiTRkYbIcD+toSskoj0fcXrAA==\n",
           "format": "pkg",
           "min_os": "26.5"
         },
         "linux-x86_64": {
-          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/membrum/v0.12.3/Membrum-0.12.3-Linux-x64.tar.gz",
-          "size": 1582943,
-          "sha256": "1f31cef1aa48be01c8437dd34dc22a4d65f95a4eec88dfb10a6d107f09b3a509",
-          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+Tbrn6Q1OZp9raHuVU398IWB1QXbe7TF2rZLiwHIHu/JlOcCdcU2Z8amnr0ll6J14aRgyuLdvJeIPscfymi0nfT8CgE=\ntrusted comment: krate:1:Membrum:0.12.3:linux-x86_64:Membrum-0.12.3-Linux-x64.tar.gz\nRqSh3wFhLiOHSZKYTiYnni1Q2I6isFhREDmALvoFyYvL9cWylxyVk5pC9kz8nuf6BgIH3dQyzljz2r34L/9BBw==\n",
+          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/membrum/v0.12.4/Membrum-0.12.4-Linux-x64.tar.gz",
+          "size": 1598896,
+          "sha256": "4b9bb7ce3cd79ef5f85e8e8195dae1b7b39fb28239b7f0e31295e43be202c754",
+          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+Tbrn3RTg5SACcU2QoZ5gmk99WxYyks9Qs86Ulu/i4lqur7lOrNijPtLO16Ou0+7FiQS9LX0ikXvVQSuhvU41H89oQo=\ntrusted comment: krate:1:Membrum:0.12.4:linux-x86_64:Membrum-0.12.4-Linux-x64.tar.gz\nMq/uJ9bKI+6a3UG0gMw94SkADbtm215biygQ1q5i8EPFM0TaWQQyt4OP/AC0W/ixSq5p4ZbzHvyvpq5qd8TqCw==\n",
           "format": "tar.gz",
           "min_os": "2.38",
           "payload": {
@@ -217,10 +217,10 @@
           }
         },
         "windows-x86_64": {
-          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/membrum/v0.12.3/Membrum-0.12.3-Windows-x64.exe",
-          "size": 3491997,
-          "sha256": "6b903141bc3e3c214b13a8dc3a0d5a4664084da9cd2bf429497f822d4c517b07",
-          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+Tbrn+CMBXsgCXLM9WK4k0/jn0/1FnwZ918KJx7rDFOFYspq0rDqe9+DCUhyD8haBopnE5sl/K56TQ/oaSBJKyLLugk=\ntrusted comment: krate:1:Membrum:0.12.3:windows-x86_64:Membrum-0.12.3-Windows-x64.exe\nI87zq2qJNlVpQ7M8L/EwcelCCpG3KWFTFPNwBuQUMTuOeyGWslXXWOoskUsOpLREAUOwTMqebLBFtThVPK3eBw==\n",
+          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/membrum/v0.12.4/Membrum-0.12.4-Windows-x64.exe",
+          "size": 3498075,
+          "sha256": "1dc2d6ffac1b9ce69137e1b6af4c3283c8658ba3b5565a4d1a5ef46f7ea70f25",
+          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+Tbrn0r/2W7Ewgx7ssbPk3sV9l6pN9qF2Ufsh0uauuTuIDCQyotRZcQZygxoz4k7kKd2ysPGfvNFIvGQB2bZtesvDA0=\ntrusted comment: krate:1:Membrum:0.12.4:windows-x86_64:Membrum-0.12.4-Windows-x64.exe\nBtl7+LrXqjqN1WvI2G9xX30dbiotheimQvopNdLh2kAr4WQzXeWweHONZJEaFdSEaQOVsGXyT6z9uUQWc2TzAg==\n",
           "format": "inno-exe"
         }
       },
