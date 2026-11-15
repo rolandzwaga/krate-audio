@@ -13,9 +13,25 @@
 // Exit 0 if every bundle has a non-empty editor.uidesc and moduleinfo.json and
 // moduleinfo.json's "Version" (and every class Version) matches
 // plugins/<name>/version.json; exit 1 (with a report) otherwise. Node only.
+//
+// On macOS it also runs `codesign --verify --strict` on the bundle: arm64 refuses to
+// load unsigned code, and the SDK validator then says only "Invalid Module! The bundle
+// couldn't be loaded." A post-build step that dropped the signature on a pass with no
+// re-sign after it shipped every bundle unsigned that way (macOS CI, 2026-11-15).
 
 const fs = require('fs');
 const path = require('path');
+const { spawnSync } = require('child_process');
+
+// macOS only: [] when the bundle's code signature verifies, else the problem.
+function checkSignature(bundle) {
+  if (process.platform !== 'darwin') return [];
+  const r = spawnSync('codesign', ['--verify', '--strict', bundle], { encoding: 'utf8' });
+  if (r.error) return [`codesign could not run: ${r.error.message}`];
+  if (r.status === 0) return [];
+  const why = `${r.stderr || ''}${r.stdout || ''}`.trim().split('\n').pop();
+  return [`code signature does not verify (arm64 will not load it): ${why}`];
+}
 
 const REQUIRED = [
   ['Contents', 'Resources', 'editor.uidesc'],
@@ -83,11 +99,13 @@ for (const bundle of bundles) {
   if (problems.length === 0) {
     problems.push(...checkVersions(bundle, name));
   }
+  problems.push(...checkSignature(bundle));
   if (problems.length) {
     console.error(`FAIL ${name}: ${problems.join('; ')}`);
     failures++;
   } else {
-    console.log(`OK   ${name}: editor.uidesc + moduleinfo.json present, version matches version.json`);
+    const signed = process.platform === 'darwin' ? ', code signature verifies' : '';
+    console.log(`OK   ${name}: editor.uidesc + moduleinfo.json present, version matches version.json${signed}`);
   }
 }
 

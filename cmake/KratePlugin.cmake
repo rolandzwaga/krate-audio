@@ -185,21 +185,29 @@ function(krate_plugin_platform_setup target)
             COMPANY_NAME "Krate Audio"
         )
 
-        # Release (DEPLOYMENT_POSTPROCESSING = YES, SMTG_AddSMTGLibrary.cmake) runs Xcode's Strip on the binary after
-        # the post-build phase, where the SDK's "Adhoc codesign workaround for Xcode 15" (SMTG_AddVST3Library.cmake)
-        # signed it so moduleinfotool could load it. Strip then warns, per architecture, that it invalidates that
-        # signature. Drop the signature as the last post-build step (after moduleinfo; this function runs after
-        # smtg_add_vst3plugin, and the later krate_plugin_install_* steps are Windows-only): Strip gets an unsigned
-        # binary, and Xcode's own CodeSign step, which runs after Strip, signs the stripped result. Debug: no Strip,
-        # so `true` leaves the signature alone.
+        # Release (DEPLOYMENT_POSTPROCESSING = YES, SMTG_AddSMTGLibrary.cmake) would run Xcode's Strip on the binary
+        # after the post-build phase, where the SDK's "Adhoc codesign workaround for Xcode 15"
+        # (SMTG_AddVST3Library.cmake) signed it so moduleinfotool could load it; Strip then warns, per architecture,
+        # that it invalidates that signature. So Xcode's Strip is off for plugin targets and the post-build strips
+        # itself, as its last steps (after moduleinfo; this function runs after smtg_add_vst3plugin, and the later
+        # krate_plugin_install_* steps are Windows-only): drop the signature, strip with Xcode's own flags
+        # (`strip -D -x -T`, from the CI log), re-sign ad hoc. Every run of the phase ENDS SIGNED. The previous
+        # version only dropped the signature and relied on Xcode's CodeSign after Strip; CI's separate AU pass re-runs
+        # this phase with no Strip or CodeSign after it, so Iterum.vst3 shipped unsigned and arm64 refused to load it
+        # ("Invalid Module!", validator, macOS CI 2026-11-15). Debug: no strip, `true` leaves the signature alone.
         # The path is the SDK's own (SMTG_PLUGIN_PACKAGE_PATH, the .vst3 bundle its workaround signs), never
         # $<TARGET_FILE>: that names <target>.bundle/Contents/MacOS/<target>, which does not exist because the SDK
         # renames the bundle to .vst3 (macOS CI 2026-11-15: "Vorago.bundle/Contents/MacOS/Vorago: No such file").
         if(XCODE)
             get_target_property(_krate_package_path ${target} SMTG_PLUGIN_PACKAGE_PATH)
+            set_target_properties(${target} PROPERTIES XCODE_ATTRIBUTE_STRIP_INSTALLED_PRODUCT NO)
+            set(_krate_release_tool "$<IF:$<CONFIG:Release>,xcrun,true>")
             add_custom_command(TARGET ${target} POST_BUILD
-                COMMAND "$<IF:$<CONFIG:Release>,codesign,true>" --remove-signature "${_krate_package_path}"
-                COMMENT "[KRATE] Drop the pre-Strip ad-hoc signature (Xcode re-signs after Strip)"
+                COMMAND ${_krate_release_tool} codesign --remove-signature "${_krate_package_path}"
+                COMMAND ${_krate_release_tool} strip -D -x -T
+                    "${_krate_package_path}/Contents/MacOS/$<TARGET_FILE_NAME:${target}>"
+                COMMAND ${_krate_release_tool} codesign --force --sign - "${_krate_package_path}"
+                COMMENT "[KRATE] Strip the unsigned binary, then re-sign ad hoc (Xcode's Strip is off for this target)"
             )
         endif()
 
