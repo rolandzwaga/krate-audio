@@ -1,0 +1,6 @@
+crash dumps: a crashing shard writes a minidump to f:/tmp/crashdumps
+pass 1 (~[wallclock], 7 workers): 0.8s | pass 2 ([wallclock], 4 workers): 0.0s, 0 case(s)
+ruinae_tests: cases=15 assertions=154 failed_cases=2 shards=15 slowest_shard=0.3s median_shard=0.2s sharding=pass1 interleaved, pass2 interleaved
+ruinae_tests FAILED "audit-probe: Dist_Spectral destroyed by view-mode toggle, then Spectral Mode" F:\projects\iterum\plugins\ruinae\tests\audit\view_switch_lifecycle_probe.cpp:336 {Unknown expression after the reported line} due to unexpected exception with message: Unknown exception
+ruinae_tests FAILED "audit-probe: Dist_Spectral destroyed by view-mode toggle, then arp-only preset" F:\projects\iterum\plugins\ruinae\tests\audit\view_switch_lifecycle_probe.cpp:336 {Unknown expression after the reported line} due to unexpected exception with message: Unknown exception
+GATE RED 2 problem line(s) above | ruinae_tests cases=15 assertions=154 wall=0.8s workers=7 logs=f:\tmp\gate\20261116-105019

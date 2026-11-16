@@ -1,0 +1,945 @@
+// ==============================================================================
+// Ruinae audit probe: controller view-pointer lifecycle across view switches
+// (TEMPORARY measurement lane, hidden tag [.][audit-probe])
+// ==============================================================================
+// Opens the real editor headlessly and drives every UIViewSwitchContainer the
+// way a host-driven (automation) or UI-driven parameter change does in a real,
+// attached editor:
+//
+//   1. EditController::setParamNormalized (base): Parameter::changed ->
+//      ParameterChangeListener::update -> CControl::setValue + valueChanged ->
+//      UIDescriptionViewSwitchController::valueChanged -> setCurrentViewIndex.
+//      The incoming template is created (verifyView caches its pointers) and the
+//      outgoing template is removed BEFORE step 2. (MainTab fades for 120 ms in a
+//      real host, so its outgoing template is removed 120 ms later; same end state.)
+//   2. Controller::setParamNormalized's own hook (onTabChanged / resets) runs.
+//
+// Headless, the switch controllers are not registered as control listeners
+// (the frame is never attached), so step 1's switch is performed by hand
+// between the base call and the derived call. Nested switches inside a new
+// template are instantiated from their parameter, as attach would do.
+//
+// For every cached view pointer of interest the probe prints one of:
+//   NULL     - pointer is null
+//   LIVE     - points at a view in the current frame tree
+//   FREED    - not in the tree, and the view's destructor ran (viewWillDelete)
+//   DETACHED - not in the tree, not destroyed (a CControl kept alive only by
+//              the headless ParameterChangeListener reference; a real host's
+//              onViewRemoved drops that reference, so it is freed there)
+//   REUSED   - pointer unchanged across the step, its view was destroyed, and a
+//              new view now sits at the same address (dangling by identity)
+// and "follow" lines that change a parameter and check that the VISIBLE view
+// reacts (R-131: incoming template pointers nulled after the switch).
+// Nothing here asserts: lines are read by the auditor.
+// ==============================================================================
+
+#include <editor_lifecycle_harness.h>
+
+#include <catch2/catch_test_macros.hpp>
+
+#include "vstgui/lib/cframe.h"
+#include "vstgui/lib/cviewcontainer.h"
+#include "vstgui/lib/iviewlistener.h"
+#include "vstgui/lib/controls/ccontrol.h"
+#include "vstgui/lib/controls/coptionmenu.h"
+#include "vstgui/uidescription/uiviewswitchcontainer.h"
+
+#include "controller/controller.h"
+#include "processor/processor.h"
+#include "plugin_ids.h"
+
+#include "ui/step_pattern_editor.h"
+#include "ui/arp_lane_editor.h"
+#include "ui/arp_lane_container.h"
+#include "ui/arp_modifier_lane.h"
+#include "ui/arp_condition_lane.h"
+#include "ui/arp_chord_lane.h"
+#include "ui/arp_inversion_lane.h"
+#include "ui/xy_morph_pad.h"
+#include "ui/adsr_display.h"
+#include "ui/mod_matrix_grid.h"
+#include "ui/mod_ring_indicator.h"
+#include "ui/euclidean_dot_display.h"
+#include "ui/lfo_waveform_display.h"
+#include "ui/chaos_mod_display.h"
+#include "ui/rungler_display.h"
+#include "ui/sample_hold_display.h"
+#include "ui/random_mod_display.h"
+
+#include "public.sdk/source/common/memorystream.h"
+#include "vst_param_changes.h"
+
+#include <algorithm>
+#include <array>
+#include <cmath>
+#include <cstdio>
+#include <initializer_list>
+#include <functional>
+#include <map>
+#include <memory>
+#include <set>
+#include <string>
+#include <utility>
+#include <vector>
+
+// ------------------------------------------------------------------------------
+// Private-member access through explicit instantiation (access checking does not
+// apply to names in an explicit instantiation's template arguments).
+// ------------------------------------------------------------------------------
+namespace audit_rob {
+template <typename Tag, typename Tag::type M>
+struct Rob {
+    friend typename Tag::type robGet(Tag) { return M; }
+};
+}  // namespace audit_rob
+
+#define AUDIT_ROB(member, T)                                       \
+    namespace audit_rob {                                          \
+    struct Tag_##member {                                          \
+        using type = T Ruinae::Controller::*;                      \
+        friend type robGet(Tag_##member);                          \
+    };                                                             \
+    template struct Rob<Tag_##member, &Ruinae::Controller::member>; \
+    }
+
+#define AUDIT_VIEW_MEMBERS(X)                                                 \
+    X(stepPatternEditor_, Krate::Plugins::StepPatternEditor*)                 \
+    X(presetDropdown_, VSTGUI::COptionMenu*)                                  \
+    X(xyMorphPad_, Krate::Plugins::XYMorphPad*)                               \
+    X(modMatrixGrid_, Krate::Plugins::ModMatrixGrid*)                         \
+    X(ampEnvDisplay_, Krate::Plugins::ADSRDisplay*)                           \
+    X(filterEnvDisplay_, Krate::Plugins::ADSRDisplay*)                        \
+    X(modEnvDisplay_, Krate::Plugins::ADSRDisplay*)                           \
+    X(euclideanControlsGroup_, VSTGUI::CView*)                                \
+    X(euclideanDotDisplay_, Krate::Plugins::EuclideanDotDisplay*)             \
+    X(lfo1RateGroup_, VSTGUI::CView*)                                         \
+    X(lfo2RateGroup_, VSTGUI::CView*)                                         \
+    X(lfo1NoteValueGroup_, VSTGUI::CView*)                                    \
+    X(lfo2NoteValueGroup_, VSTGUI::CView*)                                    \
+    X(lfo1WaveformDisplay_, Krate::Plugins::LfoWaveformDisplay*)              \
+    X(lfo2WaveformDisplay_, Krate::Plugins::LfoWaveformDisplay*)              \
+    X(chaosModDisplay_, Krate::Plugins::ChaosModDisplay*)                     \
+    X(runglerDisplay_, Krate::Plugins::RunglerDisplay*)                       \
+    X(sampleHoldDisplay_, Krate::Plugins::SampleHoldDisplay*)                 \
+    X(randomModDisplay_, Krate::Plugins::RandomModDisplay*)                   \
+    X(sidechainIndicatorEnvFollower_, VSTGUI::CView*)                         \
+    X(sidechainIndicatorPitchFollower_, VSTGUI::CView*)                       \
+    X(sidechainIndicatorTransient_, VSTGUI::CView*)                           \
+    X(chaosRateGroup_, VSTGUI::CView*)                                        \
+    X(chaosNoteValueGroup_, VSTGUI::CView*)                                   \
+    X(shRateGroup_, VSTGUI::CView*)                                           \
+    X(shNoteValueGroup_, VSTGUI::CView*)                                      \
+    X(randomRateGroup_, VSTGUI::CView*)                                       \
+    X(randomNoteValueGroup_, VSTGUI::CView*)                                  \
+    X(delayTimeGroup_, VSTGUI::CView*)                                        \
+    X(delayNoteValueGroup_, VSTGUI::CView*)                                   \
+    X(phaserRateGroup_, VSTGUI::CView*)                                       \
+    X(phaserNoteValueGroup_, VSTGUI::CView*)                                  \
+    X(noModulationGroup_, VSTGUI::CView*)                                     \
+    X(phaserControlsGroup_, VSTGUI::CView*)                                   \
+    X(flangerControlsGroup_, VSTGUI::CView*)                                  \
+    X(chorusControlsGroup_, VSTGUI::CView*)                                   \
+    X(flangerRateGroup_, VSTGUI::CView*)                                      \
+    X(flangerNoteValueGroup_, VSTGUI::CView*)                                 \
+    X(chorusRateGroup_, VSTGUI::CView*)                                       \
+    X(chorusNoteValueGroup_, VSTGUI::CView*)                                  \
+    X(tranceGateRateGroup_, VSTGUI::CView*)                                   \
+    X(tranceGateNoteValueGroup_, VSTGUI::CView*)                              \
+    X(arpRateGroup_, VSTGUI::CViewContainer*)                                 \
+    X(arpNoteValueGroup_, VSTGUI::CViewContainer*)                            \
+    X(arpLaneContainer_, Krate::Plugins::ArpLaneContainer*)                   \
+    X(velocityLane_, Krate::Plugins::ArpLaneEditor*)                          \
+    X(gateLane_, Krate::Plugins::ArpLaneEditor*)                              \
+    X(pitchLane_, Krate::Plugins::ArpLaneEditor*)                             \
+    X(ratchetLane_, Krate::Plugins::ArpLaneEditor*)                           \
+    X(modifierLane_, Krate::Plugins::ArpModifierLane*)                        \
+    X(conditionLane_, Krate::Plugins::ArpConditionLane*)                      \
+    X(chordLane_, Krate::Plugins::ArpChordLane*)                              \
+    X(inversionLane_, Krate::Plugins::ArpInversionLane*)                      \
+    X(polyGroup_, VSTGUI::CView*)                                             \
+    X(monoGroup_, VSTGUI::CView*)                                             \
+    X(oscAPWKnob_, VSTGUI::CView*)                                            \
+    X(oscBPWKnob_, VSTGUI::CView*)                                            \
+    X(spectralCurveDropdown_, VSTGUI::CView*)                                 \
+    X(spectralBitsGroup_, VSTGUI::CViewContainer*)                            \
+    X(arpEuclideanGroup_, VSTGUI::CView*)                                     \
+    X(diceButton_, VSTGUI::CControl*)                                         \
+    X(arpRootNoteGroup_, VSTGUI::CViewContainer*)                             \
+    X(arpQuantizeInputGroup_, VSTGUI::CViewContainer*)
+
+AUDIT_VIEW_MEMBERS(AUDIT_ROB)
+
+using AuditRingArray = std::array<Krate::Plugins::ModRingIndicator*, 7>;
+using AuditHarmRowArray = std::array<VSTGUI::CViewContainer*, 4>;
+AUDIT_ROB(ringIndicators_, AuditRingArray)
+AUDIT_ROB(harmonizerVoiceRows_, AuditHarmRowArray)
+
+namespace audit_rob {
+struct Tag_loadComponentStateWithNotify {
+    using type = bool (Ruinae::Controller::*)(Steinberg::IBStream*, bool);
+    friend type robGet(Tag_loadComponentStateWithNotify);
+};
+template struct Rob<Tag_loadComponentStateWithNotify,
+                    &Ruinae::Controller::loadComponentStateWithNotify>;
+}  // namespace audit_rob
+
+namespace {
+
+using Steinberg::Vst::ParamID;
+
+const Steinberg::FIDString kPlatformType = Krate::TestSupport::nativePlatformType();
+
+std::string uidescPath() { return std::string(RUINAE_RESOURCES_DIR) + "/editor.uidesc"; }
+
+struct MemberEntry {
+    std::string name;
+    std::function<VSTGUI::CView*(Ruinae::Controller&)> get;
+};
+
+#define AUDIT_ENTRY(member, T)                                           \
+    MemberEntry{#member, [](Ruinae::Controller& c) -> VSTGUI::CView* {   \
+                    return c.*robGet(audit_rob::Tag_##member{});         \
+                }},
+
+const std::vector<MemberEntry>& members() {
+    static const std::vector<MemberEntry> table = [] {
+        std::vector<MemberEntry> v{AUDIT_VIEW_MEMBERS(AUDIT_ENTRY)};
+        for (size_t i = 0; i < 7; ++i) {
+            v.push_back(MemberEntry{"ringIndicators_[" + std::to_string(i) + "]",
+                                    [i](Ruinae::Controller& c) -> VSTGUI::CView* {
+                                        return (c.*robGet(audit_rob::Tag_ringIndicators_{}))[i];
+                                    }});
+        }
+        for (size_t i = 0; i < 4; ++i) {
+            v.push_back(MemberEntry{"harmonizerVoiceRows_[" + std::to_string(i) + "]",
+                                    [i](Ruinae::Controller& c) -> VSTGUI::CView* {
+                                        return (c.*robGet(audit_rob::Tag_harmonizerVoiceRows_{}))[i];
+                                    }});
+        }
+        return v;
+    }();
+    return table;
+}
+
+void forEachDescendant(VSTGUI::CViewContainer* parent, const std::function<void(VSTGUI::CView*)>& fn) {
+    if (!parent) return;
+    parent->forEachChild([&fn](VSTGUI::CView* child) {
+        fn(child);
+        if (auto* c = child->asViewContainer()) forEachDescendant(c, fn);
+    });
+}
+
+std::vector<VSTGUI::UIViewSwitchContainer*> collectSwitches(VSTGUI::CViewContainer* root) {
+    std::vector<VSTGUI::UIViewSwitchContainer*> out;
+    forEachDescendant(root, [&out](VSTGUI::CView* v) {
+        if (auto* sw = dynamic_cast<VSTGUI::UIViewSwitchContainer*>(v)) out.push_back(sw);
+    });
+    return out;
+}
+
+VSTGUI::CControl* findControl(VSTGUI::CViewContainer* root, ParamID tag) {
+    VSTGUI::CControl* found = nullptr;
+    forEachDescendant(root, [&](VSTGUI::CView* v) {
+        if (found) return;
+        if (auto* c = dynamic_cast<VSTGUI::CControl*>(v); c && c->getTag() == static_cast<int32_t>(tag))
+            found = c;
+    });
+    return found;
+}
+
+// Records every tracked view whose destructor runs. deletedEver_ keeps an address
+// until a NEW view is registered at it (allocator reuse); deletedStep_ is per step.
+class DeleteTracker final : public VSTGUI::ViewListenerAdapter {
+public:
+    void track(VSTGUI::CViewContainer* root) {
+        forEachDescendant(root, [this](VSTGUI::CView* v) {
+            if (registered_.insert(v).second) {
+                deletedEver_.erase(v);
+                v->registerViewListener(this);
+            }
+        });
+    }
+    void viewWillDelete(VSTGUI::CView* v) override {
+        deletedEver_.insert(v);
+        deletedStep_.insert(v);
+        registered_.erase(v);
+        v->unregisterViewListener(this);
+    }
+    void clearStep() { deletedStep_.clear(); }
+    [[nodiscard]] bool deletedEver(const VSTGUI::CView* v) const { return deletedEver_.count(v) != 0; }
+    [[nodiscard]] bool deletedThisStep(const VSTGUI::CView* v) const { return deletedStep_.count(v) != 0; }
+
+private:
+    std::set<const VSTGUI::CView*> registered_;
+    std::set<const VSTGUI::CView*> deletedEver_;
+    std::set<const VSTGUI::CView*> deletedStep_;
+};
+
+using ViewPath = std::vector<int>;
+using PathMap = std::map<std::string, ViewPath>;
+
+bool pathOf(VSTGUI::CViewContainer* root, const VSTGUI::CView* target, ViewPath& path) {
+    int idx = 0;
+    bool found = false;
+    root->forEachChild([&](VSTGUI::CView* child) {
+        if (found) return;
+        path.push_back(idx);
+        if (child == target) {
+            found = true;
+            return;
+        }
+        if (auto* c = child->asViewContainer(); c && pathOf(c, target, path)) {
+            found = true;
+            return;
+        }
+        path.pop_back();
+        ++idx;
+    });
+    return found;
+}
+
+VSTGUI::CView* viewAt(VSTGUI::CViewContainer* root, const ViewPath& path) {
+    VSTGUI::CView* cur = root;
+    for (int want : path) {
+        auto* c = cur ? cur->asViewContainer() : nullptr;
+        if (!c) return nullptr;
+        VSTGUI::CView* next = nullptr;
+        int idx = 0;
+        c->forEachChild([&](VSTGUI::CView* child) {
+            if (idx++ == want) next = child;
+        });
+        cur = next;
+    }
+    return cur;
+}
+
+using Snapshot = std::vector<VSTGUI::CView*>;
+using Inventory = std::map<std::string, std::string>;  // member -> status
+
+struct EditorFixture {
+    DeleteTracker tracker;  // declared first: outlives every view
+    Ruinae::Controller ctl;
+    VSTGUI::VST3Editor* editor = nullptr;
+    Steinberg::IPlugView* view = nullptr;
+    VSTGUI::CFrame* frame = nullptr;
+    bool isOpen = false;
+    std::map<std::string, std::pair<VSTGUI::CView*, bool>> lastState_;
+
+    explicit EditorFixture(const std::vector<std::pair<ParamID, double>>& preOpenParams = {}) {
+        REQUIRE(ctl.initialize(nullptr) == Steinberg::kResultOk);
+        for (const auto& [id, v] : preOpenParams) ctl.setParamNormalized(id, v);
+        Krate::TestSupport::ensureVstguiInitialized();
+        editor = new VSTGUI::VST3Editor(&ctl, "editor", uidescPath().c_str());
+        view = editor;
+        REQUIRE(view->attached(nullptr, kPlatformType) == Steinberg::kResultTrue);
+        frame = editor->getFrame();
+        REQUIRE(frame != nullptr);
+        isOpen = true;
+        instantiatePendingSwitches();  // what attach does for every switch container
+        tracker.track(frame);
+    }
+
+    // Tree path of every non-null cached pointer (valid on a fresh open).
+    PathMap paths() {
+        PathMap out;
+        for (const auto& m : members()) {
+            if (VSTGUI::CView* v = m.get(ctl)) {
+                ViewPath p;
+                if (pathOf(frame, v, p)) out[m.name] = p;
+            }
+        }
+        return out;
+    }
+    ~EditorFixture() { close(); }
+    EditorFixture(const EditorFixture&) = delete;
+    EditorFixture& operator=(const EditorFixture&) = delete;
+
+    void close() {
+        if (!isOpen) return;
+        isOpen = false;
+        view->removed();
+        view->release();
+        ctl.terminate();
+    }
+
+    int indexFor(VSTGUI::UIViewSwitchContainer* sw) {
+        auto* dc = dynamic_cast<VSTGUI::UIDescriptionViewSwitchController*>(sw->getController());
+        if (!dc) return -1;
+        const int32_t tag = dc->getSwitchControlTag();
+        if (tag < 0) return -1;
+        std::string names;
+        dc->getTemplateNames(names);
+        const int n = 1 + static_cast<int>(std::count(names.begin(), names.end(), ','));
+        const auto norm = static_cast<float>(ctl.getParamNormalized(static_cast<ParamID>(tag)));
+        // Same formula as UIDescriptionViewSwitchController::valueChanged.
+        return std::min(static_cast<int>(norm * static_cast<float>(n)), n - 1);
+    }
+
+    int32_t switchTag(VSTGUI::UIViewSwitchContainer* sw) {
+        auto* dc = dynamic_cast<VSTGUI::UIDescriptionViewSwitchController*>(sw->getController());
+        return dc ? dc->getSwitchControlTag() : -1;
+    }
+
+    void instantiatePendingSwitches() {
+        std::set<VSTGUI::UIViewSwitchContainer*> tried;
+        for (bool changed = true; changed;) {
+            changed = false;
+            for (auto* sw : collectSwitches(frame)) {
+                if (sw->getCurrentViewIndex() != -1 || tried.count(sw)) continue;
+                tried.insert(sw);
+                const int idx = indexFor(sw);
+                if (idx < 0) continue;
+                sw->setCurrentViewIndex(idx);
+                changed = true;
+                break;  // the tree changed: re-collect
+            }
+        }
+    }
+
+    Snapshot snapshot() {
+        Snapshot s;
+        for (const auto& m : members()) s.push_back(m.get(ctl));
+        return s;
+    }
+
+    // Host- or UI-driven change of a parameter that drives view switches.
+    Snapshot hostSwitch(ParamID tag, double norm) {
+        tracker.track(frame);
+        tracker.clearStep();
+        Snapshot before = snapshot();
+        // (1) base class: parameter + its controls move; the switch controllers follow.
+        ctl.Steinberg::Vst::EditController::setParamNormalized(tag, norm);
+        for (bool changed = true; changed;) {
+            changed = false;
+            for (auto* sw : collectSwitches(frame)) {
+                if (switchTag(sw) != static_cast<int32_t>(tag)) continue;
+                const int idx = indexFor(sw);
+                if (idx >= 0 && idx != sw->getCurrentViewIndex()) {
+                    sw->setCurrentViewIndex(idx);
+                    changed = true;
+                    break;
+                }
+            }
+        }
+        instantiatePendingSwitches();
+        // (2) the derived controller's hook.
+        ctl.setParamNormalized(tag, norm);
+        return before;
+    }
+
+    Inventory inventory(const char* label, const Snapshot& before, bool printLive = true) {
+        std::set<const VSTGUI::CView*> live;
+        forEachDescendant(frame, [&live](VSTGUI::CView* v) { live.insert(v); });
+        Inventory inv;
+        std::string nulls;
+        const auto& ms = members();
+        for (size_t i = 0; i < ms.size(); ++i) {
+            VSTGUI::CView* v = ms[i].get(ctl);
+            std::string st;
+            auto& last = lastState_[ms[i].name];  // {value, stale}
+            const bool unchanged = (v == last.first) && (i < before.size() && before[i] == v);
+            if (!v) {
+                st = "NULL";
+                nulls += ms[i].name + " ";
+            } else if (!live.count(v)) {
+                st = tracker.deletedEver(v) ? "FREED" : "DETACHED";
+            } else if (unchanged && (last.second || tracker.deletedThisStep(v))) {
+                st = "REUSED";  // never re-assigned, its view died, a new view sits at the address
+            } else {
+                st = "LIVE";
+            }
+            last = {v, st != "NULL" && st != "LIVE"};
+            inv[ms[i].name] = st;
+            if (st != "NULL" && (st != "LIVE" || printLive))
+                std::printf("PROBE ptr | %s | %s = %s\n", label, ms[i].name.c_str(), st.c_str());
+        }
+        std::printf("PROBE ptr | %s | NULL: %s\n", label, nulls.c_str());
+        std::fflush(stdout);
+        return inv;
+    }
+};
+
+bool anyDangling(const Inventory& inv, std::initializer_list<const char*> names) {
+    for (const char* n : names) {
+        auto it = inv.find(n);
+        if (it != inv.end() && it->second != "NULL" && it->second != "LIVE") return true;
+    }
+    return false;
+}
+
+// Toggle a sync param and check the visible rate group follows. The group is located
+// by its tree path on a FRESH open showing the same templates (the knob class is not
+// registered in the test binary, so groups cannot be found through their knob).
+void followSync(EditorFixture& f, const Inventory& inv, const PathMap& freshPaths, const char* label,
+                const char* what, ParamID syncId, const char* groupMember,
+                std::initializer_list<const char*> derefs) {
+    auto pit = freshPaths.find(groupMember);
+    VSTGUI::CView* group = pit == freshPaths.end() ? nullptr : viewAt(f.frame, pit->second);
+    if (!group) {
+        std::printf("PROBE follow | %s | %s | n/a (group not shown)\n", label, what);
+        return;
+    }
+    if (anyDangling(inv, derefs)) {
+        std::printf("PROBE follow | %s | %s | SKIPPED (the branch would deref a dangling pointer)\n",
+                    label, what);
+        return;
+    }
+    const double cur = f.ctl.getParamNormalized(syncId);
+    const double next = cur < 0.5 ? 1.0 : 0.0;
+    const bool visBefore = group->isVisible();
+    f.ctl.setParamNormalized(syncId, next);
+    const bool visAfter = group->isVisible();
+    const bool expect = next < 0.5;
+    std::printf("PROBE follow | %s | %s | sync %.0f->%.0f rate-group visible %d->%d expected %d | %s\n",
+                label, what, cur, next, visBefore, visAfter, expect,
+                visAfter == expect ? "FOLLOWS" : "STALE (controller pointer null)");
+    f.ctl.setParamNormalized(syncId, cur);
+    std::fflush(stdout);
+}
+
+void followSpectralDim(EditorFixture& f, const Inventory& inv, const char* label) {
+    auto* dropdown = findControl(f.frame, Ruinae::kDistortionSpectralCurveId);
+    if (!dropdown) {
+        std::printf("PROBE follow | %s | spectral dim | n/a (Dist_Spectral not shown)\n", label);
+        return;
+    }
+    if (anyDangling(inv, {"spectralCurveDropdown_", "spectralBitsGroup_"})) {
+        std::printf("PROBE follow | %s | spectral dim | SKIPPED (would deref a dangling pointer)\n", label);
+        return;
+    }
+    f.ctl.setParamNormalized(Ruinae::kDistortionSpectralModeId, 1.0);  // SpectralBitcrush
+    const float aBit = dropdown->getAlphaValue();
+    f.ctl.setParamNormalized(Ruinae::kDistortionSpectralModeId, 0.0);  // PerBinSaturate
+    const float aSat = dropdown->getAlphaValue();
+    const bool ok = aBit < 0.5f && aSat > 0.9f;
+    std::printf("PROBE follow | %s | spectral dim | curve dropdown alpha bitcrush=%.2f saturate=%.2f "
+                "(expected 0.35/1.00) | %s\n",
+                label, static_cast<double>(aBit), static_cast<double>(aSat),
+                ok ? "FOLLOWS" : "STALE (controller pointer null)");
+    std::fflush(stdout);
+}
+
+template <typename EditorT>
+EditorT* findEditorOfType(VSTGUI::CViewContainer* root, bool excludeArpLanes) {
+    EditorT* found = nullptr;
+    forEachDescendant(root, [&](VSTGUI::CView* v) {
+        if (found) return;
+        auto* e = dynamic_cast<EditorT*>(v);
+        if (!e) return;
+        if (excludeArpLanes && dynamic_cast<Krate::Plugins::ArpLaneEditor*>(v)) return;
+        found = e;
+    });
+    return found;
+}
+
+void followStepEditors(EditorFixture& f, const char* label) {
+    if (auto* sp = findEditorOfType<Krate::Plugins::StepPatternEditor>(f.frame, true)) {
+        const double cur = f.ctl.getParamNormalized(Ruinae::kTranceGateStepLevel0Id);
+        const double next = cur > 0.5 ? 0.25 : 0.75;
+        f.ctl.setParamNormalized(Ruinae::kTranceGateStepLevel0Id, next);
+        const float got = sp->getStepLevel(0);
+        std::printf("PROBE follow | %s | trance-gate step 0 -> %.2f | editor shows %.2f | %s\n", label,
+                    next, static_cast<double>(got),
+                    std::abs(got - static_cast<float>(next)) < 1e-3f ? "FOLLOWS" : "STALE (controller pointer null)");
+        f.ctl.setParamNormalized(Ruinae::kTranceGateStepLevel0Id, cur);
+    }
+    Krate::Plugins::ArpLaneEditor* vel = nullptr;
+    forEachDescendant(f.frame, [&](VSTGUI::CView* v) {
+        if (vel) return;
+        auto* e = dynamic_cast<Krate::Plugins::ArpLaneEditor*>(v);
+        if (e && e->getLaneType() == Krate::Plugins::ArpLaneType::kVelocity) vel = e;
+    });
+    if (vel) {
+        const double cur = f.ctl.getParamNormalized(Ruinae::kArpVelocityLaneStep0Id);
+        const double next = cur > 0.5 ? 0.25 : 0.75;
+        f.ctl.setParamNormalized(Ruinae::kArpVelocityLaneStep0Id, next);
+        const float got = vel->getStepLevel(0);
+        std::printf("PROBE follow | %s | arp velocity step 0 -> %.2f | lane shows %.2f | %s\n", label,
+                    next, static_cast<double>(got),
+                    std::abs(got - static_cast<float>(next)) < 1e-3f ? "FOLLOWS" : "STALE (controller pointer null)");
+        f.ctl.setParamNormalized(Ruinae::kArpVelocityLaneStep0Id, cur);
+    }
+    // Trance-gate Invert transform button (the controller is its sub-listener).
+    auto* sp = findEditorOfType<Krate::Plugins::StepPatternEditor>(f.frame, true);
+    auto* invert = findControl(f.frame, Ruinae::kActionTransformInvertTag);
+    if (sp && invert) {
+        const float before = sp->getStepLevel(0);
+        invert->setValue(1.0f);
+        f.ctl.valueChanged(invert);
+        invert->setValue(0.0f);
+        const float after = sp->getStepLevel(0);
+        std::printf("PROBE follow | %s | trance-gate Invert button | step 0 %.2f -> %.2f | %s\n", label,
+                    static_cast<double>(before), static_cast<double>(after),
+                    std::abs(after - before) > 1e-3f ? "WORKS" : "DEAD (stepPatternEditor_ null)");
+        // Invert back so later checks see the same pattern.
+        if (std::abs(after - before) > 1e-3f) {
+            invert->setValue(1.0f);
+            f.ctl.valueChanged(invert);
+            invert->setValue(0.0f);
+        }
+    }
+    std::fflush(stdout);
+}
+
+void followAllSyncs(EditorFixture& f, const Inventory& inv, const PathMap& paths, const char* label) {
+    followSync(f, inv, paths, label, "LFO1", Ruinae::kLFO1SyncId, "lfo1RateGroup_",
+               {"lfo1RateGroup_", "lfo1NoteValueGroup_", "lfo1WaveformDisplay_"});
+    followSync(f, inv, paths, label, "LFO2", Ruinae::kLFO2SyncId, "lfo2RateGroup_",
+               {"lfo2RateGroup_", "lfo2NoteValueGroup_", "lfo2WaveformDisplay_"});
+    followSync(f, inv, paths, label, "Chaos", Ruinae::kChaosModSyncId, "chaosRateGroup_",
+               {"chaosRateGroup_", "chaosNoteValueGroup_", "chaosModDisplay_"});
+    followSync(f, inv, paths, label, "S&H", Ruinae::kSampleHoldSyncId, "shRateGroup_",
+               {"shRateGroup_", "shNoteValueGroup_", "sampleHoldDisplay_"});
+    followSync(f, inv, paths, label, "Random", Ruinae::kRandomSyncId, "randomRateGroup_",
+               {"randomRateGroup_", "randomNoteValueGroup_", "randomModDisplay_"});
+    followSync(f, inv, paths, label, "Delay", Ruinae::kDelaySyncId, "delayTimeGroup_",
+               {"delayTimeGroup_", "delayNoteValueGroup_"});
+    followSync(f, inv, paths, label, "Phaser", Ruinae::kPhaserSyncId, "phaserRateGroup_",
+               {"phaserRateGroup_", "phaserNoteValueGroup_"});
+    followSync(f, inv, paths, label, "Flanger", Ruinae::kFlangerSyncId, "flangerRateGroup_",
+               {"flangerRateGroup_", "flangerNoteValueGroup_"});
+    followSync(f, inv, paths, label, "Chorus", Ruinae::kChorusSyncId, "chorusRateGroup_",
+               {"chorusRateGroup_", "chorusNoteValueGroup_"});
+    followSync(f, inv, paths, label, "TranceGate", Ruinae::kTranceGateTempoSyncId, "tranceGateRateGroup_",
+               {"tranceGateRateGroup_", "tranceGateNoteValueGroup_"});
+    followSync(f, inv, paths, label, "Arp", Ruinae::kArpTempoSyncId, "arpRateGroup_",
+               {"arpRateGroup_", "arpNoteValueGroup_"});
+    followStepEditors(f, label);
+}
+
+// What a FRESH open on the given views caches: non-null members and their tree paths.
+struct FreshInfo {
+    std::set<std::string> nonNull;
+    PathMap paths;
+};
+
+FreshInfo freshOpen(const std::vector<std::pair<ParamID, double>>& preOpenParams) {
+    EditorFixture f(preOpenParams);
+    FreshInfo out;
+    for (const auto& m : members())
+        if (m.get(f.ctl)) out.nonNull.insert(m.name);
+    out.paths = f.paths();
+    return out;
+}
+
+void reportLost(const char* label, const FreshInfo& fresh, Inventory& inv) {
+    std::string lost;
+    int nLost = 0;
+    for (const auto& name : fresh.nonNull) {
+        if (inv[name] == "NULL") {
+            lost += name + " ";
+            ++nLost;
+        }
+    }
+    std::printf("PROBE r131 | %s | %d of %zu pointers a fresh open caches are NULL after the switch: %s\n",
+                label, nLost, fresh.nonNull.size(), lost.c_str());
+    std::fflush(stdout);
+}
+
+class AuditStateProcessor : public Ruinae::Processor {
+public:
+    using Ruinae::Processor::processParameterChanges;
+};
+
+std::vector<char> makeState(double modTypeNorm, double flangerSync, double chorusSync) {
+    auto p = std::make_unique<AuditStateProcessor>();
+    REQUIRE(p->initialize(nullptr) == Steinberg::kResultOk);
+    Steinberg::Vst::ProcessSetup setup{};
+    setup.processMode = Steinberg::Vst::kRealtime;
+    setup.symbolicSampleSize = Steinberg::Vst::kSample32;
+    setup.sampleRate = 44100.0;
+    setup.maxSamplesPerBlock = 512;
+    p->setupProcessing(setup);
+    Krate::Test::ParameterChanges ch;
+    ch.add(Ruinae::kModulationTypeId, modTypeNorm);
+    ch.add(Ruinae::kFlangerSyncId, flangerSync);
+    ch.add(Ruinae::kChorusSyncId, chorusSync);
+    p->processParameterChanges(&ch);
+    Steinberg::MemoryStream s;
+    REQUIRE(p->getState(&s) == Steinberg::kResultTrue);
+    std::vector<char> bytes(s.getData(), s.getData() + s.getSize());
+    p->terminate();
+    return bytes;
+}
+
+const char* kTabNames[4] = {"Tab_Sound", "Tab_Mod", "Tab_Fx", "Tab_Seq"};
+const char* kSrcNames[10] = {"LFO1", "LFO2", "Chaos", "Macros", "Rungler",
+                             "EnvFollower", "SampleHold", "Random", "PitchFollower", "Transient"};
+
+// Fresh open on FX, then MainTab FX -> SEQ -> SOUND -> MOD by host switch.
+Inventory leaveFxTab(EditorFixture& f) {
+    f.inventory("fresh Tab_Fx", f.snapshot(), true);
+    Inventory inv;
+    for (int t : {3, 0, 1}) {
+        const std::string label = std::string("host switch -> ") + kTabNames[t];
+        auto before = f.hostSwitch(Ruinae::kMainTabTag, t / 3.0);
+        inv = f.inventory(label.c_str(), before, false);
+    }
+    const bool dangling = anyDangling(inv, {"noModulationGroup_", "phaserControlsGroup_",
+                                            "flangerControlsGroup_", "chorusControlsGroup_",
+                                            "flangerRateGroup_", "flangerNoteValueGroup_",
+                                            "chorusRateGroup_", "chorusNoteValueGroup_"});
+    std::printf("PROBE r079 | after FX->SEQ->SOUND->MOD | FX modulation-type/flanger/chorus groups dangling = %s\n",
+                dangling ? "YES" : "no");
+    std::fflush(stdout);
+    return inv;
+}
+
+// Fresh open on MOD showing the given mod-source template, then host-switch to Macros.
+Inventory leaveModSource(EditorFixture& f, int srcIndex) {
+    auto inv0 = f.inventory("fresh", f.snapshot(), true);
+    (void)inv0;
+    const std::string label = std::string("modsource ") + kSrcNames[srcIndex] + " -> Macros";
+    auto before = f.hostSwitch(Ruinae::kModSourceViewModeTag, 3.0 / 9.0);
+    return f.inventory(label.c_str(), before, true);
+}
+
+void uafModSourceSync(int srcIndex, ParamID syncId) {
+    EditorFixture f({{Ruinae::kMainTabTag, 1.0 / 3.0}, {Ruinae::kModSourceViewModeTag, srcIndex / 9.0}});
+    leaveModSource(f, srcIndex);
+    std::printf("PROBE uaf | %s template destroyed by ModSourceViewMode switch; setParamNormalized(sync %u) | calling\n",
+                kSrcNames[srcIndex], static_cast<unsigned>(syncId));
+    std::fflush(stdout);
+    f.ctl.setParamNormalized(syncId, 1.0);
+    f.ctl.setParamNormalized(syncId, 0.0);
+    std::printf("PROBE uaf | %s sync automation | returned, process alive\n", kSrcNames[srcIndex]);
+    std::fflush(stdout);
+}
+
+// Dist_Spectral built by the view-mode toggle, then destroyed by it.
+void distortionSpectralBuiltThenDestroyed(EditorFixture& f) {
+    f.hostSwitch(Ruinae::kDistortionTypeId, 2.0 / 6.0);       // Spectral, General view shown
+    f.hostSwitch(Ruinae::kDistortionViewModeTag, 1.0);         // Dist_Spectral built
+    auto before = f.hostSwitch(Ruinae::kDistortionViewModeTag, 0.0);  // Dist_Spectral destroyed
+    auto inv = f.inventory("UAF setup: Spectral, TypeSpecific -> General", before);
+    std::printf("PROBE r080/r130 | spectral pointers dangling after view-mode toggle = %s\n",
+                anyDangling(inv, {"spectralCurveDropdown_", "spectralBitsGroup_"}) ? "YES" : "no");
+    std::fflush(stdout);
+}
+
+}  // namespace
+
+// ------------------------------------------------------------------------------
+// (d) MainTab: fresh-open vs host-switch inventory, and incoming-view follow.
+// ------------------------------------------------------------------------------
+TEST_CASE("audit-probe: MainTab host switch - incoming template pointers and visible-view sync",
+          "[.][audit-probe][view-lifecycle]") {
+    std::array<FreshInfo, 4> fresh;
+    for (int t = 0; t < 4; ++t) {
+        fresh[static_cast<size_t>(t)] = freshOpen({{Ruinae::kMainTabTag, t / 3.0}});
+        std::printf("PROBE fresh | open on %s | %zu non-null cached pointers\n", kTabNames[t],
+                    fresh[static_cast<size_t>(t)].nonNull.size());
+    }
+    // Positive control: a fresh open on each tab.
+    for (int t = 0; t < 4; ++t) {
+        EditorFixture f({{Ruinae::kMainTabTag, t / 3.0}});
+        const std::string label = std::string("fresh ") + kTabNames[t];
+        auto inv = f.inventory(label.c_str(), f.snapshot(), false);
+        followAllSyncs(f, inv, fresh[static_cast<size_t>(t)].paths, label.c_str());
+    }
+    EditorFixture f;  // opens on Tab_Sound (MainTab default 0)
+    for (int t : {1, 2, 3, 0, 2, 1}) {
+        const std::string label = std::string("host switch -> ") + kTabNames[t];
+        auto before = f.hostSwitch(Ruinae::kMainTabTag, t / 3.0);
+        auto inv = f.inventory(label.c_str(), before, false);
+        reportLost(label.c_str(), fresh[static_cast<size_t>(t)], inv);
+        followAllSyncs(f, inv, fresh[static_cast<size_t>(t)].paths, label.c_str());
+    }
+    SUCCEED();
+}
+
+// ------------------------------------------------------------------------------
+// (a) FX-tab pointers after leaving FX, then setComponentState / preset load.
+// One UAF trigger per case: under ASan the first report aborts the process.
+// ------------------------------------------------------------------------------
+TEST_CASE("audit-probe: FX groups after leaving FX, then setComponentState",
+          "[.][audit-probe][view-lifecycle][uaf]") {
+    const auto state = makeState(2.0 / 3.0, 1.0, 1.0);  // Flanger, flanger + chorus synced
+    EditorFixture f({{Ruinae::kMainTabTag, 2.0 / 3.0}});
+    leaveFxTab(f);
+    std::printf("PROBE uaf | setComponentState(Flanger, synced) on Tab_Mod | calling\n");
+    std::fflush(stdout);
+    Steinberg::MemoryStream ms(const_cast<char*>(state.data()), static_cast<Steinberg::TSize>(state.size()));
+    const auto r = f.ctl.setComponentState(&ms);
+    std::printf("PROBE uaf | setComponentState | returned %d, process alive\n", static_cast<int>(r));
+    std::fflush(stdout);
+    SUCCEED();
+}
+
+TEST_CASE("audit-probe: FX groups after leaving FX, then loadComponentStateWithNotify",
+          "[.][audit-probe][view-lifecycle][uaf]") {
+    const auto state = makeState(1.0, 1.0, 1.0);  // Chorus, flanger + chorus synced
+    EditorFixture f({{Ruinae::kMainTabTag, 2.0 / 3.0}});
+    leaveFxTab(f);
+    std::printf("PROBE uaf | loadComponentStateWithNotify(Chorus, synced) on Tab_Mod | calling\n");
+    std::fflush(stdout);
+    Steinberg::MemoryStream ms(const_cast<char*>(state.data()), static_cast<Steinberg::TSize>(state.size()));
+    const bool ok = (f.ctl.*robGet(audit_rob::Tag_loadComponentStateWithNotify{}))(&ms, false);
+    std::printf("PROBE uaf | loadComponentStateWithNotify | returned %d, process alive\n", ok ? 1 : 0);
+    std::fflush(stdout);
+    SUCCEED();
+}
+
+TEST_CASE("audit-probe: FX groups after leaving FX, then host automation of mod type / syncs",
+          "[.][audit-probe][view-lifecycle][uaf]") {
+    EditorFixture f({{Ruinae::kMainTabTag, 2.0 / 3.0}});
+    leaveFxTab(f);
+    for (ParamID id : {Ruinae::kModulationTypeId, Ruinae::kFlangerSyncId, Ruinae::kChorusSyncId}) {
+        std::printf("PROBE uaf | setParamNormalized(%u) on Tab_Mod | calling\n", static_cast<unsigned>(id));
+        std::fflush(stdout);
+        f.ctl.setParamNormalized(id, 1.0);
+        f.ctl.setParamNormalized(id, 0.0);
+        std::printf("PROBE uaf | setParamNormalized(%u) | returned, process alive\n", static_cast<unsigned>(id));
+        std::fflush(stdout);
+    }
+    SUCCEED();
+}
+
+// ------------------------------------------------------------------------------
+// (b) DistortionViewMode General <-> TypeSpecific with type Spectral.
+// ------------------------------------------------------------------------------
+TEST_CASE("audit-probe: DistortionViewMode toggle and DistortionType switch with Spectral",
+          "[.][audit-probe][view-lifecycle]") {
+    const double kSpectral = 2.0 / 6.0;
+    const double kChaos = 1.0 / 6.0;
+    EditorFixture f;  // Tab_Sound, distortion General view
+    {
+        auto before = f.hostSwitch(Ruinae::kDistortionTypeId, kSpectral);
+        auto inv = f.inventory("type -> Spectral (General view)", before, false);
+        followSpectralDim(f, inv, "type -> Spectral (General view)");
+    }
+    {
+        auto before = f.hostSwitch(Ruinae::kDistortionViewModeTag, 1.0);  // Dist_Spectral built
+        auto inv = f.inventory("viewmode -> TypeSpecific", before, false);
+        followSpectralDim(f, inv, "viewmode -> TypeSpecific");
+    }
+    {
+        auto before = f.hostSwitch(Ruinae::kDistortionViewModeTag, 0.0);  // Dist_Spectral destroyed
+        f.inventory("viewmode -> General", before, false);
+    }
+    {
+        auto before = f.hostSwitch(Ruinae::kDistortionViewModeTag, 1.0);
+        auto inv = f.inventory("viewmode -> TypeSpecific again", before, false);
+        followSpectralDim(f, inv, "viewmode -> TypeSpecific again");
+    }
+    {
+        auto before = f.hostSwitch(Ruinae::kDistortionTypeId, kChaos);  // Dist_Chaos replaces Dist_Spectral
+        f.inventory("TypeSpecific: type -> Chaos", before, false);
+    }
+    {
+        auto before = f.hostSwitch(Ruinae::kDistortionTypeId, kSpectral);  // Dist_Spectral rebuilt, hook nulls
+        auto inv = f.inventory("TypeSpecific: type -> Spectral", before, false);
+        followSpectralDim(f, inv, "TypeSpecific: type -> Spectral");
+    }
+    SUCCEED();
+}
+
+TEST_CASE("audit-probe: Dist_Spectral destroyed by view-mode toggle, then Spectral Mode automation",
+          "[.][audit-probe][view-lifecycle][uaf]") {
+    EditorFixture f;
+    distortionSpectralBuiltThenDestroyed(f);
+    std::printf("PROBE uaf | setParamNormalized(kDistortionSpectralModeId) | calling\n");
+    std::fflush(stdout);
+    f.ctl.setParamNormalized(Ruinae::kDistortionSpectralModeId, 1.0);
+    std::printf("PROBE uaf | setParamNormalized(kDistortionSpectralModeId) | returned, process alive\n");
+    std::fflush(stdout);
+    SUCCEED();
+}
+
+TEST_CASE("audit-probe: Dist_Spectral destroyed by view-mode toggle, then setComponentState",
+          "[.][audit-probe][view-lifecycle][uaf]") {
+    const auto state = makeState(0.0, 0.0, 0.0);
+    EditorFixture f;
+    distortionSpectralBuiltThenDestroyed(f);
+    std::printf("PROBE uaf | setComponentState (syncAllViews spectral block) | calling\n");
+    std::fflush(stdout);
+    Steinberg::MemoryStream ms(const_cast<char*>(state.data()), static_cast<Steinberg::TSize>(state.size()));
+    const auto r = f.ctl.setComponentState(&ms);
+    std::printf("PROBE uaf | setComponentState | returned %d, process alive\n", static_cast<int>(r));
+    std::fflush(stdout);
+    SUCCEED();
+}
+
+// ------------------------------------------------------------------------------
+// (c) ModSourceViewMode through all ten templates, then each sync parameter.
+// ------------------------------------------------------------------------------
+TEST_CASE("audit-probe: ModSourceViewMode through ten templates",
+          "[.][audit-probe][view-lifecycle]") {
+    std::array<FreshInfo, 10> fresh;
+    for (int i = 0; i < 10; ++i) {
+        fresh[static_cast<size_t>(i)] =
+            freshOpen({{Ruinae::kMainTabTag, 1.0 / 3.0}, {Ruinae::kModSourceViewModeTag, i / 9.0}});
+        EditorFixture fc({{Ruinae::kMainTabTag, 1.0 / 3.0}, {Ruinae::kModSourceViewModeTag, i / 9.0}});
+        const std::string label = std::string("fresh Tab_Mod / ") + kSrcNames[i];
+        auto inv = fc.inventory(label.c_str(), fc.snapshot(), false);
+        followAllSyncs(fc, inv, fresh[static_cast<size_t>(i)].paths, label.c_str());
+    }
+    EditorFixture f({{Ruinae::kMainTabTag, 1.0 / 3.0}});  // fresh open on MOD / LFO1
+    f.inventory("fresh Tab_Mod / LFO1 (walk start)", f.snapshot(), true);
+    for (int i : {1, 2, 3, 4, 5, 6, 7, 8, 9, 0}) {
+        const std::string label = std::string("modsource -> ") + kSrcNames[i];
+        auto before = f.hostSwitch(Ruinae::kModSourceViewModeTag, i / 9.0);
+        auto inv = f.inventory(label.c_str(), before, true);
+        reportLost(label.c_str(), fresh[static_cast<size_t>(i)], inv);
+        followAllSyncs(f, inv, fresh[static_cast<size_t>(i)].paths, label.c_str());
+    }
+    SUCCEED();
+}
+
+TEST_CASE("audit-probe: ModSource LFO1 template destroyed, then LFO1 Sync automation",
+          "[.][audit-probe][view-lifecycle][uaf]") {
+    uafModSourceSync(0, Ruinae::kLFO1SyncId);
+    SUCCEED();
+}
+TEST_CASE("audit-probe: ModSource LFO2 template destroyed, then LFO2 Sync automation",
+          "[.][audit-probe][view-lifecycle][uaf]") {
+    uafModSourceSync(1, Ruinae::kLFO2SyncId);
+    SUCCEED();
+}
+TEST_CASE("audit-probe: ModSource Chaos template destroyed, then Chaos Sync automation",
+          "[.][audit-probe][view-lifecycle][uaf]") {
+    uafModSourceSync(2, Ruinae::kChaosModSyncId);
+    SUCCEED();
+}
+TEST_CASE("audit-probe: ModSource S&H template destroyed, then S&H Sync automation",
+          "[.][audit-probe][view-lifecycle][uaf]") {
+    uafModSourceSync(6, Ruinae::kSampleHoldSyncId);
+    SUCCEED();
+}
+TEST_CASE("audit-probe: ModSource Random template destroyed, then Random Sync automation",
+          "[.][audit-probe][view-lifecycle][uaf]") {
+    uafModSourceSync(7, Ruinae::kRandomSyncId);
+    SUCCEED();
+}
+
+// A full state load does not touch kModSourceViewModeTag (UI-only, not in the
+// state), so nothing nulls the LFO1 groups before syncAllViews reads them.
+TEST_CASE("audit-probe: ModSource LFO1 template destroyed, then setComponentState",
+          "[.][audit-probe][view-lifecycle][uaf]") {
+    const auto state = makeState(0.0, 0.0, 0.0);
+    EditorFixture f({{Ruinae::kMainTabTag, 1.0 / 3.0}, {Ruinae::kModSourceViewModeTag, 0.0}});
+    leaveModSource(f, 0);
+    std::printf("PROBE uaf | LFO1 template destroyed; setComponentState (syncAllViews) | calling\n");
+    std::fflush(stdout);
+    Steinberg::MemoryStream ms(const_cast<char*>(state.data()), static_cast<Steinberg::TSize>(state.size()));
+    const auto r = f.ctl.setComponentState(&ms);
+    std::printf("PROBE uaf | setComponentState | returned %d, process alive\n", static_cast<int>(r));
+    std::fflush(stdout);
+    SUCCEED();
+}
+
+// An arp-only preset load discards synth params through a no-op setter, so the
+// kDistortionTypeId hook that would null the spectral pointers never runs.
+TEST_CASE("audit-probe: Dist_Spectral destroyed by view-mode toggle, then arp-only preset load",
+          "[.][audit-probe][view-lifecycle][uaf]") {
+    const auto state = makeState(0.0, 0.0, 0.0);
+    EditorFixture f;
+    distortionSpectralBuiltThenDestroyed(f);
+    std::printf("PROBE uaf | loadComponentStateWithNotify(arpOnly=true) (syncAllViews spectral block) | calling\n");
+    std::fflush(stdout);
+    Steinberg::MemoryStream ms(const_cast<char*>(state.data()), static_cast<Steinberg::TSize>(state.size()));
+    const bool ok = (f.ctl.*robGet(audit_rob::Tag_loadComponentStateWithNotify{}))(&ms, true);
+    std::printf("PROBE uaf | loadComponentStateWithNotify(arpOnly) | returned %d, process alive\n", ok ? 1 : 0);
+    std::fflush(stdout);
+    SUCCEED();
+}
