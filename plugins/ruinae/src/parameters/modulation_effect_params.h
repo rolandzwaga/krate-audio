@@ -26,6 +26,7 @@
 #include <algorithm>
 #include <atomic>
 #include <cstdio>
+#include <cstring>
 
 namespace Ruinae {
 
@@ -76,6 +77,31 @@ static_assert(kChorusConfig.waveformId() == kChorusWaveformId);
 static_assert(kChorusConfig.noteValueId() == kChorusNoteValueId);
 
 // =============================================================================
+// Defaults
+// =============================================================================
+
+/// The one table of defaults (stereo spread lives in the config). The struct
+/// initializers, the registered defaults and the reset a state older than the
+/// effect gets (processor: resetModEffectParams; controller: the registered
+/// defaults) all read it, so a fresh instance, a host "reset to default" and a
+/// legacy preset agree.
+struct ModEffectDefaults {
+    float rateHz;
+    float depth;
+    float feedback;
+    float mix;
+    int voices;
+    int waveform;
+    bool sync;
+    int noteValue;
+};
+
+inline constexpr ModEffectDefaults kModEffectDefaults{
+    .rateHz = 0.5f, .depth = 0.5f, .feedback = 0.0f, .mix = 0.5f,
+    .voices = 2, .waveform = 1, .sync = false,
+    .noteValue = Parameters::kNoteValueDefaultIndex};
+
+// =============================================================================
 // Parameter Struct
 // =============================================================================
 
@@ -87,16 +113,31 @@ static_assert(kChorusConfig.noteValueId() == kChorusNoteValueId);
 /// never serializes it.
 template <const ModEffectConfig& Cfg>
 struct ModEffectParams {
-    std::atomic<float> rateHz{0.5f};        // 0.05 .. rateMaxHz
-    std::atomic<float> depth{0.5f};         // 0-1
-    std::atomic<float> feedback{0.0f};      // -1 to +1
-    std::atomic<float> mix{0.5f};           // 0-1 (true crossfade)
+    std::atomic<float> rateHz{kModEffectDefaults.rateHz};      // 0.05 .. rateMaxHz
+    std::atomic<float> depth{kModEffectDefaults.depth};        // 0-1
+    std::atomic<float> feedback{kModEffectDefaults.feedback};  // -1 to +1
+    std::atomic<float> mix{kModEffectDefaults.mix};            // 0-1 (true crossfade)
     std::atomic<float> stereoSpread{Cfg.defaultStereoSpread};  // 0-360 degrees
-    std::atomic<int> voices{2};             // 1-4 (chorus only)
-    std::atomic<int> waveform{1};           // 0=Sine, 1=Triangle
-    std::atomic<bool> sync{false};          // tempo sync
-    std::atomic<int> noteValue{Parameters::kNoteValueDefaultIndex};
+    std::atomic<int> voices{kModEffectDefaults.voices};        // 1-4 (chorus only)
+    std::atomic<int> waveform{kModEffectDefaults.waveform};    // 0=Sine, 1=Triangle
+    std::atomic<bool> sync{kModEffectDefaults.sync};           // tempo sync
+    std::atomic<int> noteValue{kModEffectDefaults.noteValue};
 };
+
+/// Puts every field at its default: the processor's load of a state written
+/// before the effect existed (flanger: version < 6, chorus: version < 7).
+template <typename Params>
+inline void resetModEffectParams(const ModEffectConfig& cfg, Params& params) {
+    params.rateHz.store(kModEffectDefaults.rateHz, std::memory_order_relaxed);
+    params.depth.store(kModEffectDefaults.depth, std::memory_order_relaxed);
+    params.feedback.store(kModEffectDefaults.feedback, std::memory_order_relaxed);
+    params.mix.store(kModEffectDefaults.mix, std::memory_order_relaxed);
+    params.stereoSpread.store(cfg.defaultStereoSpread, std::memory_order_relaxed);
+    params.voices.store(kModEffectDefaults.voices, std::memory_order_relaxed);
+    params.waveform.store(kModEffectDefaults.waveform, std::memory_order_relaxed);
+    params.sync.store(kModEffectDefaults.sync, std::memory_order_relaxed);
+    params.noteValue.store(kModEffectDefaults.noteValue, std::memory_order_relaxed);
+}
 
 // =============================================================================
 // Parameter Change Handler (denormalization)
@@ -164,35 +205,43 @@ inline void registerModEffectParams(Steinberg::Vst::ParameterContainer& paramete
                                     const Steinberg::Vst::TChar* prefix) {
     using namespace Steinberg::Vst;
 
-    // Default rate of 0.5 Hz expressed in the effect's own normalized range.
-    const double defaultRate = static_cast<double>((0.5f - 0.05f) / cfg.rateSpan());
+    // Normalized forms of kModEffectDefaults, by the same maps the controller's
+    // state restore uses (loadModEffectParamsToController).
+    const double defaultRate =
+        static_cast<double>((kModEffectDefaults.rateHz - 0.05f) / cfg.rateSpan());
 
     parameters.addParameter(ModEffectTitle(prefix, STR16("Rate")), STR16("Hz"), 0,
         defaultRate, ParameterInfo::kCanAutomate, cfg.rateId());
-    parameters.addParameter(ModEffectTitle(prefix, STR16("Depth")), STR16("%"), 0, 0.5,
+    parameters.addParameter(ModEffectTitle(prefix, STR16("Depth")), STR16("%"), 0,
+        static_cast<double>(kModEffectDefaults.depth),
         ParameterInfo::kCanAutomate, cfg.depthId());
-    parameters.addParameter(ModEffectTitle(prefix, STR16("Feedback")), STR16(""), 0, 0.5,
+    parameters.addParameter(ModEffectTitle(prefix, STR16("Feedback")), STR16(""), 0,
+        static_cast<double>((kModEffectDefaults.feedback + 1.0f) / 2.0f),
         ParameterInfo::kCanAutomate, cfg.feedbackId());  // 0.5 norm = 0.0 feedback
-    parameters.addParameter(ModEffectTitle(prefix, STR16("Mix")), STR16("%"), 0, 0.5,
+    parameters.addParameter(ModEffectTitle(prefix, STR16("Mix")), STR16("%"), 0,
+        static_cast<double>(kModEffectDefaults.mix),
         ParameterInfo::kCanAutomate, cfg.mixId());
-    parameters.addParameter(ModEffectTitle(prefix, STR16("Spread")), STR16("\xC2\xB0"), 0,
+    parameters.addParameter(ModEffectTitle(prefix, STR16("Spread")), STR16("\u00B0"), 0,
         static_cast<double>(cfg.defaultStereoSpread / 360.0f),
         ParameterInfo::kCanAutomate, cfg.stereoSpreadId());
     if (cfg.hasVoices) {
-        parameters.addParameter(createDropdownParameter(
+        parameters.addParameter(createDropdownParameterWithDefault(
             ModEffectTitle(prefix, STR16("Voices")), cfg.voicesId(),
+            kModEffectDefaults.voices - 1,
             {STR16("1"), STR16("2"), STR16("3"), STR16("4")}));
     }
-    parameters.addParameter(createDropdownParameter(
+    parameters.addParameter(createDropdownParameterWithDefault(
         ModEffectTitle(prefix, STR16("Waveform")), cfg.waveformId(),
+        kModEffectDefaults.waveform,
         {STR16("Sine"), STR16("Triangle")}));
-    parameters.addParameter(ModEffectTitle(prefix, STR16("Sync")), STR16(""), 1, 0.0,
+    parameters.addParameter(ModEffectTitle(prefix, STR16("Sync")), STR16(""), 1,
+        kModEffectDefaults.sync ? 1.0 : 0.0,
         ParameterInfo::kCanAutomate, cfg.syncId());
     parameters.addParameter(createNoteValueDropdown(
         ModEffectTitle(prefix, STR16("Note Value")), cfg.noteValueId(),
         Parameters::kNoteValueDropdownStrings,
         Parameters::kNoteValueDropdownCount,
-        Parameters::kNoteValueDefaultIndex
+        kModEffectDefaults.noteValue
     ));
 }
 
@@ -224,8 +273,12 @@ inline Steinberg::tresult formatModEffectParam(
     }
     if (id == cfg.stereoSpreadId()) {
         const float deg = static_cast<float>(value * 360.0);
-        snprintf(text, sizeof(text), "%.0f\xC2\xB0", deg);
+        snprintf(text, sizeof(text), "%.0f", deg);
         UString(string, 128).fromAscii(text);
+        // fromAscii is 7-bit only: append the degree sign as one UTF-16 unit.
+        const size_t degLen = std::strlen(text);
+        string[degLen] = static_cast<Steinberg::Vst::TChar>(0x00B0);
+        string[degLen + 1] = 0;
         return kResultOk;
     }
     return kResultFalse;

@@ -18,6 +18,7 @@
 
 #include <krate/dsp/core/block_context.h>
 #include <krate/dsp/core/chord_generator.h>
+#include <krate/dsp/core/db_utils.h>
 #include <krate/dsp/core/euclidean_pattern.h>
 #include <krate/dsp/core/note_value.h>
 #include <krate/dsp/core/random.h>
@@ -436,12 +437,16 @@ public:
     }
 
     /// @brief Set free-running rate in Hz, clamped 0.5-50.0 (FR-014).
+    /// A non-finite rate keeps the previous one (it feeds a size_t cast).
     void setFreeRate(float hz) noexcept {
+        if (!detail::isFinite(hz)) return;
         freeRateHz_ = std::clamp(hz, kMinFreeRate, kMaxFreeRate);
     }
 
     /// @brief Set gate length as percentage 1-200% (FR-015).
+    /// A non-finite length keeps the previous one (it feeds a size_t cast).
     void setGateLength(float percent) noexcept {
+        if (!detail::isFinite(percent)) return;
         gateLengthPercent_ = std::clamp(percent, kMinGateLength, kMaxGateLength);
     }
 
@@ -699,7 +704,9 @@ public:
     /// Lane indices: 0=velocity, 1=gate, 2=pitch, 3=modifier, 4=ratchet,
     ///               5=condition, 6=chord, 7=inversion
     void setLaneSpeed(size_t laneIndex, float speed) noexcept {
-        if (laneIndex < kNumLanes)
+        // A non-finite speed keeps the previous one: a NaN step accumulator
+        // never crosses its threshold again and the lane freezes.
+        if (laneIndex < kNumLanes && detail::isFinite(speed))
             laneSpeedMultipliers_[laneIndex] = std::clamp(speed, 0.25f, 4.0f);
     }
 

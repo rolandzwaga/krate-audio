@@ -178,9 +178,19 @@ public:
         calcReleaseCoefficients();
     }
 
+    /// True when all four control-point coordinates are finite. A Bezier setter
+    /// given a non-finite point keeps its previous table: one NaN would fill
+    /// every table entry (even t = 0) and the envelope would output NaN.
+    [[nodiscard]] static bool bezierPointsFinite(float cp1x, float cp1y,
+                                                 float cp2x, float cp2y) noexcept {
+        return detail::isFinite(cp1x) && detail::isFinite(cp1y) &&
+               detail::isFinite(cp2x) && detail::isFinite(cp2y);
+    }
+
     /// Set Bezier curve for attack segment (4 control point coordinates)
     void setAttackBezierCurve(float cp1x, float cp1y,
                                float cp2x, float cp2y) noexcept {
+        if (!bezierPointsFinite(cp1x, cp1y, cp2x, cp2y)) return;
         generateBezierCurveTable(attackTable_, cp1x, cp1y, cp2x, cp2y, 0.0f, 1.0f);
         useTableProcessing_ = true;
         calcAttackCoefficients();
@@ -189,6 +199,7 @@ public:
     /// Set Bezier curve for decay segment (4 control point coordinates)
     void setDecayBezierCurve(float cp1x, float cp1y,
                               float cp2x, float cp2y) noexcept {
+        if (!bezierPointsFinite(cp1x, cp1y, cp2x, cp2y)) return;
         generateBezierCurveTable(decayTable_, cp1x, cp1y, cp2x, cp2y, 1.0f, 0.0f);
         useTableProcessing_ = true;
         calcDecayCoefficients();
@@ -197,6 +208,7 @@ public:
     /// Set Bezier curve for release segment (4 control point coordinates)
     void setReleaseBezierCurve(float cp1x, float cp1y,
                                 float cp2x, float cp2y) noexcept {
+        if (!bezierPointsFinite(cp1x, cp1y, cp2x, cp2y)) return;
         generateBezierCurveTable(releaseTable_, cp1x, cp1y, cp2x, cp2y, 1.0f, 0.0f);
         useTableProcessing_ = true;
         calcReleaseCoefficients();

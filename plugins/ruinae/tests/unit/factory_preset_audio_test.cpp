@@ -14,6 +14,7 @@
 #include "processor/processor.h"
 #include "controller/controller.h"
 #include "plugin_ids.h"
+#include "parameters/dropdown_mappings.h"
 
 #include "public.sdk/source/common/memorystream.h"
 #include "public.sdk/source/vst/vstpresetfile.h"
@@ -26,6 +27,7 @@
 #include <catch2/catch_approx.hpp>
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <filesystem>
 #include <string>
@@ -427,4 +429,124 @@ TEST_CASE("Ruinae filter resonance defaults to Butterworth",
 
         controller.terminate();
     }
+}
+
+// =============================================================================
+// R-022: Formant presets keep the vowel position they always played
+// =============================================================================
+// Before state v9 the Formant Vowel was ignored and Morph alone was the vowel
+// position. Morph is now an offset from the Vowel, so the generator re-authors
+// every Formant oscillator as vowel = floor(old position), morph = the rest.
+// Two keep their authored vowel on purpose and take the new sound their comments
+// describe: Vowel Descent OSC B (pure E) and Vocal Bass OSC A (just past O).
+
+TEST_CASE("Ruinae Formant factory presets play their re-authored vowel position",
+          "[processor][presets][formant]")
+{
+    struct Expected {
+        const char* stem;
+        float oscA;  ///< vowel + morph, or -1 when that oscillator is not Formant
+        float oscB;
+    };
+    const std::vector<Expected> expected = {
+        {.stem = "Vowel_Descent", .oscA = 0.0f, .oscB = 1.0f},  // OSC B: pure E (new)
+        {.stem = "Vox_Oracle", .oscA = 0.6f, .oscB = 3.4f},
+        {.stem = "Lydian_Aurora", .oscA = 1.5f, .oscB = -1.0f},
+        {.stem = "Choir", .oscA = 0.0f, .oscB = -1.0f},
+        {.stem = "Vox_Automata", .oscA = 0.0f, .oscB = 2.0f},
+        {.stem = "Formant_Sea", .oscA = 0.3f, .oscB = 3.5f},
+        {.stem = "Crystal_Choir", .oscA = 1.0f, .oscB = -1.0f},
+        {.stem = "Vox_Machina", .oscA = 2.2f, .oscB = -1.0f},
+        {.stem = "Vocal_Bass", .oscA = 3.6f, .oscB = -1.0f},    // O + 0.6 (new)
+        {.stem = "Vowel_Ghost", .oscA = 2.0f, .oscB = 3.8f},
+        {.stem = "Vowel_Cloud", .oscA = 1.0f, .oscB = 2.8f},
+        {.stem = "Glossolalia", .oscA = 1.5f, .oscB = -1.0f},
+        {.stem = "Arp_Morph_Sequence", .oscA = 1.2f, .oscB = -1.0f},
+        {.stem = "Macro_Performer", .oscA = -1.0f, .oscB = 1.5f},
+        {.stem = "Swing_Vox", .oscA = 0.3f, .oscB = -1.0f},
+    };
+
+    constexpr double kFormantTypeNorm =
+        static_cast<double>(Krate::DSP::OscType::Formant) / (Ruinae::kOscTypeCount - 1);
+
+    struct Slot {
+        ParamID type, vowel, morph;
+    };
+    const Slot slots[2] = {
+        {Ruinae::kOscATypeId, Ruinae::kOscAFormantVowelId, Ruinae::kOscAFormantMorphId},
+        {Ruinae::kOscBTypeId, Ruinae::kOscBFormantVowelId, Ruinae::kOscBFormantMorphId},
+    };
+
+    /// Vowel position per slot (-1 when not Formant) the controller shows after `state`.
+    const auto positionsAfter = [&](IBStream* state) {
+        Ruinae::Controller controller;
+        REQUIRE(controller.initialize(nullptr) == kResultOk);
+        REQUIRE(controller.setComponentState(state) == kResultTrue);
+        std::array<float, 2> pos{};
+        for (size_t s = 0; s < 2; ++s) {
+            const bool formant =
+                std::abs(controller.getParamNormalized(slots[s].type) - kFormantTypeNorm) < 1e-6;
+            pos[s] = formant
+                ? static_cast<float>(std::round(controller.getParamNormalized(slots[s].vowel) * 4.0) +
+                                     controller.getParamNormalized(slots[s].morph) * 4.0)
+                : -1.0f;
+        }
+        controller.terminate();
+        return pos;
+    };
+
+    size_t matched = 0;
+    for (const auto& p : enumerateAllPresets()) {
+        const std::string stem = p.stem().string();
+        const auto it = std::find_if(expected.begin(), expected.end(),
+                                     [&](const Expected& e) { return stem == e.stem; });
+
+        // Processor load path: setState, snapshot drain, getState.
+        auto proc = std::make_unique<Ruinae::Processor>();
+        proc->initialize(nullptr);
+        ProcessSetup setup{};
+        setup.processMode = kRealtime;
+        setup.symbolicSampleSize = kSample32;
+        setup.sampleRate = kSampleRate;
+        setup.maxSamplesPerBlock = kBlockSize;
+        proc->setupProcessing(setup);
+        proc->setActive(true);
+        REQUIRE(loadPresetFileIntoProcessor(p, *proc));
+        {
+            ProcessData drainData{};
+            drainData.numSamples = 0;
+            proc->process(drainData);
+        }
+        MemoryStream saved;
+        REQUIRE(proc->getState(&saved) == kResultTrue);
+        saved.seek(0, IBStream::kIBSeekSet, nullptr);
+        const auto fromProcessor = positionsAfter(&saved);
+        proc->setActive(false);
+        proc->terminate();
+
+        // Controller load path: the preset's own component state.
+        auto* file = FileStream::open(p.string().c_str(), "rb");
+        REQUIRE(file != nullptr);
+        PresetFile presetFile(file);
+        REQUIRE((presetFile.readChunkList() && presetFile.seekToComponentState()));
+        const auto* entry = presetFile.getEntry(kComponentState);
+        REQUIRE(entry != nullptr);
+        auto component = owned(new ReadOnlyBStream(file, entry->offset, entry->size));
+        const auto fromController = positionsAfter(component);
+        file->release();
+
+        INFO("preset: " << stem);
+        if (it == expected.end()) {
+            // A Formant oscillator outside the table would be unchecked.
+            CHECK(fromProcessor[0] < 0.0f);
+            CHECK(fromProcessor[1] < 0.0f);
+            continue;
+        }
+        ++matched;
+        for (const auto& pos : {fromProcessor, fromController}) {
+            CHECK(std::abs(pos[0] - it->oscA) < 1e-4f);
+            CHECK(std::abs(pos[1] - it->oscB) < 1e-4f);
+        }
+    }
+    CHECK(matched == expected.size());
 }

@@ -10,6 +10,7 @@
 #include "controller/parameter_helpers.h"
 #include "parameters/dropdown_mappings.h"
 #include "parameters/note_value_ui.h"
+#include "parameters/state_load_helpers.h"
 #include "pluginterfaces/base/ustring.h"
 #include "public.sdk/source/vst/vstparameters.h"
 #include "public.sdk/source/vst/vsteditcontroller.h"
@@ -250,9 +251,9 @@ inline void saveLFOParams(const LFOParams& params, Steinberg::IBStreamer& stream
 
 inline bool loadLFOParams(LFOParams& params, Steinberg::IBStreamer& streamer) {
     float fv = 0.0f; Steinberg::int32 iv = 0;
-    if (!streamer.readFloat(fv)) { return false; } params.rateHz.store(fv, std::memory_order_relaxed);
+    if (!streamer.readFloat(fv)) { return false; } params.rateHz.store(finiteClamp(fv, 0.01f, 50.0f, 1.0f), std::memory_order_relaxed);
     if (!streamer.readInt32(iv)) { return false; } params.shape.store(iv, std::memory_order_relaxed);
-    if (!streamer.readFloat(fv)) { return false; } params.depth.store(fv, std::memory_order_relaxed);
+    if (!streamer.readFloat(fv)) { return false; } params.depth.store(finiteClamp(fv, 0.0f, 1.0f, 1.0f), std::memory_order_relaxed);
     if (!streamer.readInt32(iv)) { return false; } params.sync.store(iv != 0, std::memory_order_relaxed);
     return true;
 }
@@ -270,12 +271,12 @@ inline void saveLFOExtendedParams(const LFOParams& params, Steinberg::IBStreamer
 
 inline bool loadLFOExtendedParams(LFOParams& params, Steinberg::IBStreamer& streamer) {
     float fv = 0.0f; Steinberg::int32 iv = 0;
-    if (!streamer.readFloat(fv)) { return false; } params.phaseOffset.store(fv, std::memory_order_relaxed);
+    if (!streamer.readFloat(fv)) { return false; } params.phaseOffset.store(finiteClamp(fv, 0.0f, 360.0f, 0.0f), std::memory_order_relaxed);
     if (!streamer.readInt32(iv)) { return false; } params.retrigger.store(iv != 0, std::memory_order_relaxed);
     if (!streamer.readInt32(iv)) { return false; } params.noteValue.store(iv, std::memory_order_relaxed);
     if (!streamer.readInt32(iv)) { return false; } params.unipolar.store(iv != 0, std::memory_order_relaxed);
-    if (!streamer.readFloat(fv)) { return false; } params.fadeInMs.store(fv, std::memory_order_relaxed);
-    if (!streamer.readFloat(fv)) { return false; } params.symmetry.store(fv, std::memory_order_relaxed);
+    if (!streamer.readFloat(fv)) { return false; } params.fadeInMs.store(finiteClamp(fv, 0.0f, 5000.0f, 0.0f), std::memory_order_relaxed);
+    if (!streamer.readFloat(fv)) { return false; } params.symmetry.store(finiteClamp(fv, 0.0f, 1.0f, 0.5f), std::memory_order_relaxed);
     if (!streamer.readInt32(iv)) { return false; } params.quantizeSteps.store(iv, std::memory_order_relaxed);
     return true;
 }

@@ -85,12 +85,13 @@ Steinberg::tresult PLUGIN_API Controller::getParamStringByValue(
         result = formatDelayParam(id, valueNormalized, string);
     } else if (id >= kReverbBaseId && id <= kReverbEndId) {
         result = formatReverbParam(id, valueNormalized, string);
-    } else if (id >= kPhaserBaseId && id <= kPhaserEndId) {
-        result = formatPhaserParam(id, valueNormalized, string);
     } else if (id >= kFlangerRateId && id <= kFlangerEndId) {
+        // Flanger/chorus IDs sit inside the phaser range (1900-1999): test them first.
         result = formatFlangerParam(id, valueNormalized, string);
     } else if (id >= kChorusBaseId && id <= kChorusEndId) {
         result = formatChorusParam(id, valueNormalized, string);
+    } else if (id >= kPhaserBaseId && id <= kPhaserEndId) {
+        result = formatPhaserParam(id, valueNormalized, string);
     } else if (id >= kHarmonizerBaseId && id <= kHarmonizerEndId) {
         result = formatHarmonizerParam(id, valueNormalized, string);
     } else if (id >= kMonoBaseId && id <= kMonoEndId) {

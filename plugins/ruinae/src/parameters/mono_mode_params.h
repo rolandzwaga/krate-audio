@@ -14,7 +14,7 @@
 namespace Ruinae {
 
 struct MonoModeParams {
-    std::atomic<int> priority{0};          // MonoMode index (0-2: Last/High/Low)
+    std::atomic<int> priority{0};          // MonoMode index (0-2: Last/Low/High)
     std::atomic<bool> legato{false};
     std::atomic<float> portamentoTimeMs{0.0f}; // 0-5000 ms
     std::atomic<int> portaMode{0};         // PortaMode index (0-1: Always/Legato)
@@ -47,7 +47,7 @@ inline void registerMonoModeParams(Steinberg::Vst::ParameterContainer& parameter
     using namespace Steinberg::Vst;
     parameters.addParameter(createDropdownParameter(
         STR16("Mono Priority"), kMonoPriorityId,
-        {STR16("Last"), STR16("High"), STR16("Low")}
+        {STR16("Last"), STR16("Low"), STR16("High")}
     ));
     parameters.addParameter(STR16("Legato"), STR16(""), 1, 0.0,
         ParameterInfo::kCanAutomate, kMonoLegatoId);

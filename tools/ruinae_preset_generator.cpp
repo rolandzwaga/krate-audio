@@ -1165,7 +1165,7 @@ std::vector<PresetDef> createAllPresets() {
         p.state.oscA.level = 0.85f;
         p.state.oscB.type = 7;             // Formant engine
         p.state.oscB.formantVowel = 3;     // base vowel O
-        p.state.oscB.formantMorph = 3.4f;  // parked between O and U (dark/round)
+        p.state.oscB.formantMorph = 0.4f;  // + 0.4: parked between O and U (dark/round)
         p.state.oscB.fineCents = 6.0f;     // tiny beat so the two vowels don't phase-lock
         p.state.oscB.level = 0.7f;
         p.state.mixer.mode = 0;            // Crossfade A<->B
@@ -1818,8 +1818,8 @@ std::vector<PresetDef> createAllPresets() {
         // --- Voice: Formant (vocal) oscillator A over an airy saw bed B; the mixer
         //     morphs vocal<->saw, and we hand that morph to AFTERTOUCH.
         s.oscA.type = 7;                 // Formant engine
-        s.oscA.formantVowel = 0;         // A
-        s.oscA.formantMorph = 1.5f;      // drift toward E/I -> brighter 'aah/eee'
+        s.oscA.formantVowel = 1;         // E
+        s.oscA.formantMorph = 0.5f;      // drift toward I -> brighter 'eee'
         s.oscA.level = 0.8f;
         s.oscB.type = 0;                 // PolyBLEP saw bed
         s.oscB.waveform = 1;             // Saw
@@ -2165,11 +2165,11 @@ std::vector<PresetDef> createAllPresets() {
         s.oscB.waveform = 0; // Sine
         s.oscB.level = 0.32f;
         s.oscB.tuneSemitones = 12.0f;
-        // SpectralMorph mixer with tilt + shift ACTIVE (FFT interpolation A<->B)
+        // SpectralMorph mixer with tilt ACTIVE (FFT interpolation A<->B)
         s.mixer.mode = 1; // Spectral Morph
         s.mixer.position = 0.5f;
         s.mixer.tilt = -3.0f; // darken the morphed spectrum
-        s.mixer.shift = 0.25f; // normalized [0,1] -> 25% inharmonic frequency shift for drift
+        s.mixer.shift = 0.5f; // no shift: the shipped sound (Spectral Shift had no effect before state v9)
         // Comb filter adds a metallic resonant body with damped feedback
         s.filter.type = 6; // Comb
         s.filter.cutoffHz = 3000.0f; // comb tuning
@@ -3701,8 +3701,8 @@ std::vector<PresetDef> createAllPresets() {
         s.oscA.formantMorph = 0.0f;
         s.oscA.level = 0.8f;
         s.oscB.type = 7; // Formant
-        s.oscB.formantVowel = 3; // O (rounded, dark)
-        s.oscB.formantMorph = 2.0f; // starts mid-morph toward I/U
+        s.oscB.formantVowel = 2; // I (the vowel this preset has always played)
+        s.oscB.formantMorph = 0.0f;
         s.oscB.fineCents = 6.0f; // slight beat between the two throats
         s.oscB.level = 0.6f;
         s.mixer.position = 0.5f;
@@ -4251,7 +4251,7 @@ std::vector<PresetDef> createAllPresets() {
         s.mixer.mode = 1; // SpectralMorph
         s.mixer.position = 0.35f;
         s.mixer.tilt = -4.0f; // darken the morphed spectrum
-        s.mixer.shift = 12.0f; // small inharmonic freq shift for otherworldliness
+        s.mixer.shift = 0.5f; // no shift: the shipped sound (Spectral Shift had no effect before state v9)
         // FILTER: SVF LP (NON-spectral) kept below max so the corrected filter-env sweep is audible
         s.filter.type = 0; // SVF LP
         s.filter.cutoffHz = 2500.0f; s.filter.resonance = 4.09f;
@@ -4430,7 +4430,7 @@ std::vector<PresetDef> createAllPresets() {
         s.oscA.type = 7; // Formant
         s.oscA.formantVowel = 0; s.oscA.formantMorph = 0.3f; s.oscA.level = 0.7f;
         s.oscB.type = 7; // Formant
-        s.oscB.formantVowel = 4; s.oscB.formantMorph = 3.5f; // toward U
+        s.oscB.formantVowel = 3; s.oscB.formantMorph = 0.5f; // O, halfway toward U
         s.oscB.fineCents = 5.0f; s.oscB.level = 0.55f;
         // Mixer sits at 0.5 so the LFO->MorphPos sweep crossfades A<->B = vowel morph ("talking")
         s.mixer.position = 0.5f;
@@ -4478,7 +4478,7 @@ std::vector<PresetDef> createAllPresets() {
         auto& s = p.state;
         // OSC A: Formant on vowel E (bright, forward), OSC B: PolyBLEP triangle body
         s.oscA.type = 7; // Formant
-        s.oscA.formantVowel = 1; s.oscA.formantMorph = 1.0f; s.oscA.level = 0.75f;
+        s.oscA.formantVowel = 1; s.oscA.formantMorph = 0.0f; s.oscA.level = 0.75f;
         s.oscB.type = 0; s.oscB.waveform = 4; // Triangle
         s.oscB.level = 0.3f;
         s.mixer.position = 0.25f; // mostly the formant voice
@@ -4592,7 +4592,7 @@ std::vector<PresetDef> createAllPresets() {
         s.mixer.mode = 1;                          // SpectralMorph (not plain crossfade)
         s.mixer.position = 0.4f;                   // base blend (keyTrack sweeps it)
         s.mixer.tilt = 3.0f;                       // extra spectral brightness in the morph
-        s.mixer.shift = 0.15f;                     // subtle inharmonic freq shift
+        s.mixer.shift = 0.5f;                      // no shift: the shipped sound (no effect before state v9)
         // --- SVF Hi-Shelf filter lifts the very top for that solar sparkle
         s.filter.type = 10;                        // SVF Hi Shelf
         s.filter.cutoffHz = 3500.0f; s.filter.resonance = 2.96f;
@@ -4812,8 +4812,8 @@ std::vector<PresetDef> createAllPresets() {
         auto& s = p.state;
         // --- Oscillator: pure Formant engine, single voice (OscB muted) ---
         s.oscA.type = 7;              // Formant
-        s.oscA.formantVowel = 1;      // base vowel 'E'
-        s.oscA.formantMorph = 2.2f;   // morph toward 'I' -> bright "eee" vocal color
+        s.oscA.formantVowel = 2;      // base vowel 'I'
+        s.oscA.formantMorph = 0.2f;   // nudged toward 'O' -> bright "eee" vocal color
         s.oscA.level = 0.85f;
         s.oscB.level = 0.0f;          // formant osc stands alone
         s.mixer.position = 0.0f;      // OscA only
@@ -6524,9 +6524,9 @@ std::vector<PresetDef> createAllPresets() {
         // OSC A + B: two Formant engines on OPPOSITE CLOSE vowels. This trio's bright
         // member: 'I' (ee) against 'U' (oo) - distinct from Formant Sea (A/O) and
         // Vowel Cloud (E/O). Morphing the mixer position makes the vowel genuinely shift.
-        s.oscA.type = 7; s.oscA.formantVowel = 2; s.oscA.formantMorph = 2.0f; // 'I'
+        s.oscA.type = 7; s.oscA.formantVowel = 2; s.oscA.formantMorph = 0.0f; // 'I'
         s.oscA.level = 0.65f;
-        s.oscB.type = 7; s.oscB.formantVowel = 4; s.oscB.formantMorph = 3.8f; // 'U'
+        s.oscB.type = 7; s.oscB.formantVowel = 3; s.oscB.formantMorph = 0.8f; // 'O', most of the way to 'U'
         s.oscB.level = 0.65f;
         // SpectralMorph mixer = FFT interpolation A<->B = a real vowel morph
         s.mixer.mode = 1;                          // SpectralMorph
@@ -7100,10 +7100,10 @@ std::vector<PresetDef> createAllPresets() {
         // This trio's WARM member: mid vowels E(1)<->O(3), distinct from Formant Sea
         // (A/O) and Vowel Ghost (I/U).
         s.oscA.type = 7;                                // Formant
-        s.oscA.formantVowel = 1; s.oscA.formantMorph = 1.0f;   // E
+        s.oscA.formantVowel = 1; s.oscA.formantMorph = 0.0f;   // E
         s.oscA.level = 0.7f;
         s.oscB.type = 7;                                // Formant
-        s.oscB.formantVowel = 3; s.oscB.formantMorph = 2.8f;   // O
+        s.oscB.formantVowel = 2; s.oscB.formantMorph = 0.8f;   // I, most of the way to O
         s.oscB.level = 0.65f;
         s.mixer.mode = 1;                               // Spectral Morph
         s.mixer.position = 0.5f; s.mixer.tilt = 1.0f;   // centered, gentle bright tilt
@@ -8224,7 +8224,7 @@ std::vector<PresetDef> createAllPresets() {
 
         // --- Formant oscillator: a synthetic voice between two vowels ---
         s.oscA.type = 7;            // Formant
-        s.oscA.formantVowel = 0; s.oscA.formantMorph = 1.5f; // between A and I
+        s.oscA.formantVowel = 1; s.oscA.formantMorph = 0.5f; // between E and I
         s.oscA.level = 0.85f;
         s.oscB.type = 0; s.oscB.waveform = 0; s.oscB.tuneSemitones = -12.0f; s.oscB.level = 0.25f; // sub body
         s.mixer.position = 0.15f;
@@ -8967,7 +8967,7 @@ std::vector<PresetDef> createAllPresets() {
         // OSC A vowel formant, OSC B rich additive - blended in the FFT morph domain
         s.oscA.type = 7;                               // Formant
         s.oscA.formantVowel = 1;                       // 'E' base vowel
-        s.oscA.formantMorph = 1.2f;                    // sit between E and I for a nasal 'eee'
+        s.oscA.formantMorph = 0.2f;                    // sit between E and I for a nasal 'eee'
         s.oscA.level = 0.8f;
         s.oscB.type = 4;                               // Additive
         s.oscB.additivePartials = 28; s.oscB.additiveTilt = 3.0f; // bright partial stack
@@ -9512,7 +9512,7 @@ std::vector<PresetDef> createAllPresets() {
         s.oscA.type = 0; s.oscA.waveform = 1; s.oscA.level = 0.7f;   // PolyBLEP saw
         s.oscB.type = 7;                          // Formant
         s.oscB.formantVowel = 1;                  // 'E'
-        s.oscB.formantMorph = 1.5f;               // sit between E and I for a nasal edge
+        s.oscB.formantMorph = 0.5f;               // sit between E and I for a nasal edge
         s.oscB.level = 0.6f;
         s.mixer.mode = 1;                         // Spectral Morph
         s.mixer.position = 0.3f;

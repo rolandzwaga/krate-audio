@@ -17,6 +17,8 @@
 #include <krate/dsp/core/midi_utils.h>
 #include <krate/dsp/core/math_constants.h>
 
+#include "test_helpers/reverb_metrics.h"
+
 #include <algorithm>
 #include <array>
 #include <chrono>
@@ -24,6 +26,7 @@
 #include <limits>
 #include <memory>
 #include <numeric>
+#include <optional>
 #include <vector>
 
 using namespace Krate::DSP;
@@ -1417,6 +1420,58 @@ TEST_CASE("RuinaeEngine AllVoice modulation forwarding", "[ruinae-engine][modula
         REQUIRE(rmsFlat > 0.0f);
         REQUIRE(rmsTilt > 0.0f);
     }
+}
+
+// =============================================================================
+// R-182: the mixer's Spectral Shift reaches the spectral morph filter
+// =============================================================================
+
+namespace {
+
+/// Holds C4 on a fresh engine in SpectralMorph mode and returns the left channel
+/// of the last 8 of 24 blocks. `shiftNormalized` empty = setMixShift never called.
+std::vector<float> renderSpectralMorphTail(std::optional<float> shiftNormalized) {
+    auto engine = std::make_unique<RuinaeEngine>();
+    engine->prepare(44100.0, 512);
+    engine->setMixMode(MixMode::SpectralMorph);
+    engine->setMixPosition(0.5f);
+    if (shiftNormalized) engine->setMixShift(*shiftNormalized);
+    engine->noteOn(60, 100);
+
+    std::vector<float> left(512), right(512), tail;
+    for (int b = 0; b < 24; ++b) {
+        engine->processBlock(left.data(), right.data(), 512);
+        if (b >= 16) tail.insert(tail.end(), left.begin(), left.end());
+    }
+    return tail;
+}
+
+}  // namespace
+
+TEST_CASE("Mixer spectral shift moves the spectrum in SpectralMorph mode",
+          "[ruinae-engine][mixer]") {
+    using Krate::DSP::TestUtils::spectralCentroidHz;
+
+    const auto down = renderSpectralMorphTail(0.25f);  // -12 st
+    const auto up = renderSpectralMorphTail(0.75f);    // +12 st
+    REQUIRE(computeRMS(down.data(), down.size()) > 1e-4f);
+    REQUIRE(computeRMS(up.data(), up.size()) > 1e-4f);
+
+    const double centroidDown = spectralCentroidHz(down, 44100.0);
+    const double centroidUp = spectralCentroidHz(up, 44100.0);
+    INFO("centroid at shift 0.25: " << centroidDown << " Hz, at 0.75: " << centroidUp << " Hz");
+    CHECK(centroidUp > centroidDown * 1.5);
+
+    // 0.5 is the centre of the knob: no shift, the render of an engine never given one.
+    const auto centre = renderSpectralMorphTail(0.5f);
+    const auto unset = renderSpectralMorphTail(std::nullopt);
+    REQUIRE(centre.size() == unset.size());
+    float maxDiff = 0.0f;
+    for (size_t i = 0; i < centre.size(); ++i) {
+        maxDiff = std::max(maxDiff, std::abs(centre[i] - unset[i]));
+    }
+    INFO("max |shift 0.5 - no shift| = " << maxDiff);
+    CHECK(maxDiff <= 1e-6f);
 }
 
 TEST_CASE("RuinaeEngine parameter safety", "[ruinae-engine][safety]") {

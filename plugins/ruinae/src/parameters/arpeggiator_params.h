@@ -10,6 +10,7 @@
 #include "plugin_ids.h"
 #include "parameters/note_value_ui.h"
 #include "parameters/dropdown_mappings.h"
+#include "parameters/state_load_helpers.h"
 #include "controller/parameter_helpers.h"
 
 // Shared arp save serialization (Gradus + Ruinae), from plugins/shared/src.
@@ -23,6 +24,7 @@
 #include "base/source/fstreamer.h"
 #include "pluginterfaces/base/ustring.h"
 #include "pluginterfaces/vst/vsttypes.h"
+#include "public.sdk/source/common/memorystream.h"
 #include "public.sdk/source/vst/vstparameters.h"
 #include "public.sdk/source/vst/vsteditcontroller.h"
 
@@ -31,6 +33,7 @@
 #include <atomic>
 #include <cstdint>
 #include <cstdio>
+#include <vector>
 
 namespace Ruinae {
 
@@ -63,6 +66,21 @@ static constexpr float kLaneSpeedValues[] = {
 };
 static constexpr int kLaneSpeedCount = 10;
 static constexpr int kLaneSpeedDefault = 3; // index 3 = 1.0x
+
+/// The kLaneSpeedValues entry nearest `speed` (a loaded lane speed lands on the
+/// same discrete set the parameter produces); a non-finite speed loads as 1.0x.
+inline float snapLaneSpeed(float speed) {
+    if (!Krate::DSP::detail::isFinite(speed)) {
+        return kLaneSpeedValues[kLaneSpeedDefault];
+    }
+    int bestIdx = kLaneSpeedDefault;
+    float bestDist = std::abs(kLaneSpeedValues[kLaneSpeedDefault] - speed);
+    for (int si = 0; si < kLaneSpeedCount; ++si) {
+        const float dist = std::abs(kLaneSpeedValues[si] - speed);
+        if (dist < bestDist) { bestDist = dist; bestIdx = si; }
+    }
+    return kLaneSpeedValues[bestIdx];
+}
 
 struct ArpeggiatorParams {
     // Base arp params (Phase 3)
@@ -1244,13 +1262,43 @@ inline void saveArpParams(
 // =============================================================================
 // loadArpParams: Deserialize from stream (FR-012)
 // =============================================================================
-// Returns false without corrupting state when stream ends early
-// (backward compatibility with old presets).
+// A state that carries the arp pack defines every serialized field: a field the
+// pack does not carry (gated by the state version, or after an EOF early
+// return) takes its default, never the value the previous preset left behind.
+// Both load paths apply the same rule (loadArpParams for the processor,
+// loadArpParamsToController for the controller), so a legacy preset loads the
+// same values through the host and through the preset browser. A state that
+// ends before the pack leaves the arp untouched, like every other tail pack.
 
-inline bool loadArpParams(
+namespace detail {
+
+/// Writes a default instance's arp pack into `stream` and rewinds it. The save
+/// format is the one list of serialized fields and their defaults, so the
+/// legacy resets cannot drift from it.
+inline void writeDefaultArpPack(Steinberg::MemoryStream& stream) {
+    const ArpeggiatorParams defaults;
+    Steinberg::IBStreamer streamer(&stream, kLittleEndian);
+    saveArpParams(defaults, streamer);
+    stream.seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
+}
+
+/// True when the stream still holds the arp pack's first field. The read
+/// position is left where it was.
+inline bool arpPackFollows(Steinberg::IBStreamer& streamer) {
+    const Steinberg::int64 position = streamer.tell();
+    Steinberg::int32 probe = 0;
+    const bool present = streamer.readInt32(probe);
+    streamer.seek(position, Steinberg::kSeekSet);
+    return present;
+}
+
+/// Reads one arp pack into `params`. Fields the stream does not carry are left
+/// untouched; loadArpParams resets them first. Returns false when the stream
+/// ends inside a field group (corrupt) or before the pack.
+inline bool readArpParams(
     ArpeggiatorParams& params,
     Steinberg::IBStreamer& streamer,
-    Steinberg::int32 stateVersion = kCurrentStateVersion)
+    Steinberg::int32 stateVersion)
 {
     Steinberg::int32 intVal = 0;
     float floatVal = 0.0f;
@@ -1282,13 +1330,13 @@ inline bool loadArpParams(
         std::memory_order_relaxed);
 
     if (!streamer.readFloat(floatVal)) return false;
-    params.freeRate.store(std::clamp(floatVal, 0.5f, 50.0f), std::memory_order_relaxed);
+    params.freeRate.store(finiteClamp(floatVal, 0.5f, 50.0f, 4.0f), std::memory_order_relaxed);
 
     if (!streamer.readFloat(floatVal)) return false;
-    params.gateLength.store(std::clamp(floatVal, 1.0f, 200.0f), std::memory_order_relaxed);
+    params.gateLength.store(finiteClamp(floatVal, 1.0f, 200.0f, 80.0f), std::memory_order_relaxed);
 
     if (!streamer.readFloat(floatVal)) return false;
-    params.swing.store(std::clamp(floatVal, 0.0f, 75.0f), std::memory_order_relaxed);
+    params.swing.store(finiteClamp(floatVal, 0.0f, 75.0f, 0.0f), std::memory_order_relaxed);
 
     if (!streamer.readInt32(intVal)) return false;
     params.latchMode.store(std::clamp(intVal, 0, 2), std::memory_order_relaxed);
@@ -1304,7 +1352,7 @@ inline bool loadArpParams(
     for (int i = 0; i < 32; ++i) {
         if (!streamer.readFloat(floatVal)) return false;
         params.velocityLaneSteps[i].store(
-            std::clamp(floatVal, 0.0f, 1.0f), std::memory_order_relaxed);
+            finiteClamp(floatVal, 0.0f, 1.0f, 1.0f), std::memory_order_relaxed);
     }
 
     // --- Gate Lane (072-independent-lanes, US2) ---
@@ -1315,7 +1363,7 @@ inline bool loadArpParams(
     for (int i = 0; i < 32; ++i) {
         if (!streamer.readFloat(floatVal)) return false;
         params.gateLaneSteps[i].store(
-            std::clamp(floatVal, 0.01f, 2.0f), std::memory_order_relaxed);
+            finiteClamp(floatVal, 0.01f, 2.0f, 1.0f), std::memory_order_relaxed);
     }
 
     // --- Pitch Lane (072-independent-lanes, US3) ---
@@ -1348,7 +1396,7 @@ inline bool loadArpParams(
 
     // Slide time
     if (!streamer.readFloat(floatVal)) return false;  // Corrupt: accentVelocity present but no slideTime
-    params.slideTime.store(std::clamp(floatVal, 0.0f, 500.0f), std::memory_order_relaxed);
+    params.slideTime.store(finiteClamp(floatVal, 0.0f, 500.0f, 60.0f), std::memory_order_relaxed);
 
     // --- Ratchet Lane (074-ratcheting) ---
     // EOF-safe: if ratchet data is missing entirely (Phase 5 preset), keep defaults.
@@ -1396,15 +1444,15 @@ inline bool loadArpParams(
     // --- Spice/Dice & Humanize (077-spice-dice-humanize) ---
     // EOF-safe: if Spice/Humanize data is missing (Phase 8 preset), keep defaults (FR-038)
     if (!streamer.readFloat(floatVal)) return true;  // EOF at first Spice field = Phase 8 compat
-    params.spice.store(std::clamp(floatVal, 0.0f, 1.0f), std::memory_order_relaxed);
+    params.spice.store(finiteClamp(floatVal, 0.0f, 1.0f, 0.0f), std::memory_order_relaxed);
 
     if (!streamer.readFloat(floatVal)) return false;  // Corrupt: spice present but no humanize
-    params.humanize.store(std::clamp(floatVal, 0.0f, 1.0f), std::memory_order_relaxed);
+    params.humanize.store(finiteClamp(floatVal, 0.0f, 1.0f, 0.0f), std::memory_order_relaxed);
 
     // --- Ratchet Swing (078-ratchet-swing) ---
     // EOF-safe: if ratchet swing data is missing (Phase 9 preset), keep default (50%)
     if (!streamer.readFloat(floatVal)) return true;
-    params.ratchetSwing.store(std::clamp(floatVal, 50.0f, 75.0f), std::memory_order_relaxed);
+    params.ratchetSwing.store(finiteClamp(floatVal, 50.0f, 75.0f, 50.0f), std::memory_order_relaxed);
 
     // --- Scale Mode (084-arp-scale-mode) ---
     // EOF-safe: if scale data is missing (pre-scale-mode preset), keep defaults
@@ -1446,7 +1494,7 @@ inline bool loadArpParams(
         float speed = 1.0f;
         auto loadSpeed = [&](std::atomic<float>& target) {
             if (streamer.readFloat(speed))
-                target.store(speed, std::memory_order_relaxed);
+                target.store(snapLaneSpeed(speed), std::memory_order_relaxed);
         };
         loadSpeed(params.velocityLaneSpeed);
         loadSpeed(params.gateLaneSpeed);
@@ -1461,15 +1509,41 @@ inline bool loadArpParams(
     return true;
 }
 
+} // namespace detail
+
+/// Puts every serialized arp field at its default.
+inline void resetArpParamsToDefaults(ArpeggiatorParams& params) {
+    Steinberg::MemoryStream stream;
+    detail::writeDefaultArpPack(stream);
+    Steinberg::IBStreamer streamer(&stream, kLittleEndian);
+    detail::readArpParams(params, streamer, kCurrentStateVersion);
+}
+
+/// Returns false when the stream ends before the pack or inside a field group.
+inline bool loadArpParams(
+    ArpeggiatorParams& params,
+    Steinberg::IBStreamer& streamer,
+    Steinberg::int32 stateVersion = kCurrentStateVersion)
+{
+    if (!detail::arpPackFollows(streamer))
+        return false;
+    resetArpParamsToDefaults(params);
+    return detail::readArpParams(params, streamer, stateVersion);
+}
+
 // =============================================================================
 // loadArpParamsToController: Controller-side state restore (FR-012)
 // =============================================================================
 
+namespace detail {
+
+/// Controller mirror of readArpParams: calls setParam for each field the
+/// stream carries, and for no other.
 template<typename SetParamFunc>
-inline void loadArpParamsToController(
+inline void readArpParamsToController(
     Steinberg::IBStreamer& streamer,
     const SetParamFunc& setParam,
-    Steinberg::int32 stateVersion = kCurrentStateVersion)
+    Steinberg::int32 stateVersion)
 {
     Steinberg::int32 intVal = 0;
     float floatVal = 0.0f;
@@ -1726,6 +1800,39 @@ inline void loadArpParamsToController(
             }
         }
     }
+}
+
+} // namespace detail
+
+/// The controller side of loadArpParams: the fields the stream carries, then
+/// every other serialized field at the default the processor resets it to (one
+/// edit per parameter, so the browser path sends each value once).
+template<typename SetParamFunc>
+inline void loadArpParamsToController(
+    Steinberg::IBStreamer& streamer,
+    const SetParamFunc& setParam,
+    Steinberg::int32 stateVersion = kCurrentStateVersion)
+{
+    if (!detail::arpPackFollows(streamer))
+        return;
+
+    std::vector<Steinberg::Vst::ParamID> loaded;
+    detail::readArpParamsToController(streamer,
+        [&](Steinberg::Vst::ParamID id, double value) {
+            loaded.push_back(id);
+            setParam(id, value);
+        },
+        stateVersion);
+
+    Steinberg::MemoryStream defaultsStream;
+    detail::writeDefaultArpPack(defaultsStream);
+    Steinberg::IBStreamer defaults(&defaultsStream, kLittleEndian);
+    detail::readArpParamsToController(defaults,
+        [&](Steinberg::Vst::ParamID id, double value) {
+            if (std::find(loaded.begin(), loaded.end(), id) == loaded.end())
+                setParam(id, value);
+        },
+        kCurrentStateVersion);
 }
 
 } // namespace Ruinae

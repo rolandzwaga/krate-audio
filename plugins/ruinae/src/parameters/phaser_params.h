@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <atomic>
 #include <cstdio>
+#include <cstring>
 
 namespace Ruinae {
 
@@ -106,7 +107,7 @@ inline void registerPhaserParams(Steinberg::Vst::ParameterContainer& parameters)
          STR16("8"), STR16("10"), STR16("12")}));
     parameters.addParameter(STR16("Phaser Center Freq"), STR16("Hz"), 0, 0.0909,
         ParameterInfo::kCanAutomate, kPhaserCenterFreqId);  // default ~1000 Hz
-    parameters.addParameter(STR16("Phaser Spread"), STR16("\xC2\xB0"), 0, 0.0,
+    parameters.addParameter(STR16("Phaser Spread"), STR16("\u00B0"), 0, 0.0,
         ParameterInfo::kCanAutomate, kPhaserStereoSpreadId);
     parameters.addParameter(createDropdownParameter(
         STR16("Phaser Waveform"), kPhaserWaveformId,
@@ -155,8 +156,12 @@ inline Steinberg::tresult formatPhaserParam(
         }
         case kPhaserStereoSpreadId: {
             float deg = static_cast<float>(value * 360.0);
-            snprintf(text, sizeof(text), "%.0f\xC2\xB0", deg);
+            snprintf(text, sizeof(text), "%.0f", deg);
             UString(string, 128).fromAscii(text);
+            // fromAscii is 7-bit only: append the degree sign as one UTF-16 unit.
+            const size_t degLen = std::strlen(text);
+            string[degLen] = static_cast<Steinberg::Vst::TChar>(0x00B0);
+            string[degLen + 1] = 0;
             return kResultOk;
         }
         default: break;

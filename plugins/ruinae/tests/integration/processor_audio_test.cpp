@@ -25,6 +25,7 @@
 #include <vector>
 #include "vst_param_changes.h"
 #include "vst_event_list.h"
+#include "test_helpers/reverb_metrics.h"
 
 using Catch::Approx;
 
@@ -374,6 +375,143 @@ TEST_CASE("Processor phaser end-to-end: phaser ON vs OFF produces different outp
 // change, then playing MIDI notes, produces no audio.
 // Tests the full VST3 pipeline: parameter change → processParameterChanges →
 // applyParamsToEngine → processEvents → engine_.processBlock.
+
+TEST_CASE("Mono priority index 1 plays the lower note", "[integration][mono]") {
+    Ruinae::Processor processor;
+    REQUIRE(processor.initialize(nullptr) == Steinberg::kResultTrue);
+
+    Steinberg::Vst::ProcessSetup setup{};
+    setup.processMode = Steinberg::Vst::kRealtime;
+    setup.symbolicSampleSize = Steinberg::Vst::kSample32;
+    setup.sampleRate = 44100.0;
+    setup.maxSamplesPerBlock = 512;
+    REQUIRE(processor.setupProcessing(setup) == Steinberg::kResultTrue);
+    REQUIRE(processor.setActive(true) == Steinberg::kResultTrue);
+
+    constexpr size_t kBlockSize = 512;
+    std::vector<float> outL(kBlockSize, 0.0f);
+    std::vector<float> outR(kBlockSize, 0.0f);
+
+    auto processBlock = [&](Steinberg::Vst::IParameterChanges* params,
+                            Steinberg::Vst::IEventList* events) {
+        float* channelBuffers[2] = {outL.data(), outR.data()};
+        Steinberg::Vst::AudioBusBuffers outputBus{};
+        outputBus.numChannels = 2;
+        outputBus.channelBuffers32 = channelBuffers;
+        MockParameterChanges emptyParams;
+        MockEventList emptyEvents;
+        Steinberg::Vst::ProcessData data{};
+        data.processMode = Steinberg::Vst::kRealtime;
+        data.symbolicSampleSize = Steinberg::Vst::kSample32;
+        data.numSamples = static_cast<Steinberg::int32>(kBlockSize);
+        data.numOutputs = 1;
+        data.outputs = &outputBus;
+        data.inputParameterChanges = params ? params : &emptyParams;
+        data.inputEvents = events ? events : &emptyEvents;
+        return processor.process(data);
+    };
+
+    MockParamChangesWithData modeParams;
+    modeParams.addChange(Ruinae::kVoiceModeId, 1.0);     // Mono
+    modeParams.addChange(Ruinae::kMonoPriorityId, 0.5);  // index 1 = LowNote
+    processBlock(&modeParams, nullptr);
+
+    MockEventList events;
+    events.addNoteOn(48, 0.8f);  // C3
+    events.addNoteOn(60, 0.8f);  // C4
+    processBlock(nullptr, &events);
+
+    // Settle (effects chain latency), then measure over several blocks.
+    for (int i = 0; i < 20; ++i) processBlock(nullptr, nullptr);
+
+    std::vector<float> rendered;
+    for (int i = 0; i < 16; ++i) {
+        processBlock(nullptr, nullptr);
+        rendered.insert(rendered.end(), outL.begin(), outL.end());
+    }
+
+    // Zero-crossing pitch estimate (rising crossings per second).
+    size_t crossings = 0;
+    for (size_t i = 1; i < rendered.size(); ++i) {
+        if (rendered[i - 1] <= 0.0f && rendered[i] > 0.0f) ++crossings;
+    }
+    const double seconds = static_cast<double>(rendered.size()) / 44100.0;
+    const double freq = static_cast<double>(crossings) / seconds;
+
+    // C3 = 130.8 Hz, C4 = 261.6 Hz: 196 Hz separates them.
+    INFO("estimated pitch " << freq << " Hz");
+    REQUIRE(hasNonZeroSamples(rendered.data(), rendered.size()));
+    CHECK(freq < 196.0);
+
+    processor.setActive(false);
+    processor.terminate();
+}
+
+// R-182: the Spectral Shift parameter reaches the audio through the processor.
+TEST_CASE("Mixer spectral shift parameter reaches the audio", "[integration][mixer]") {
+    // Holds C4 in SpectralMorph mode with Spectral Shift at `shiftNormalized` and
+    // returns the left channel of 8 blocks after a 20-block settle.
+    auto render = [](double shiftNormalized) {
+        Ruinae::Processor processor;
+        REQUIRE(processor.initialize(nullptr) == Steinberg::kResultTrue);
+        Steinberg::Vst::ProcessSetup setup{};
+        setup.processMode = Steinberg::Vst::kRealtime;
+        setup.symbolicSampleSize = Steinberg::Vst::kSample32;
+        setup.sampleRate = 44100.0;
+        setup.maxSamplesPerBlock = 512;
+        REQUIRE(processor.setupProcessing(setup) == Steinberg::kResultTrue);
+        REQUIRE(processor.setActive(true) == Steinberg::kResultTrue);
+
+        constexpr size_t kBlockSize = 512;
+        std::vector<float> outL(kBlockSize, 0.0f);
+        std::vector<float> outR(kBlockSize, 0.0f);
+        auto processBlock = [&](Steinberg::Vst::IParameterChanges* params,
+                                Steinberg::Vst::IEventList* events) {
+            float* channelBuffers[2] = {outL.data(), outR.data()};
+            Steinberg::Vst::AudioBusBuffers outputBus{};
+            outputBus.numChannels = 2;
+            outputBus.channelBuffers32 = channelBuffers;
+            MockParameterChanges emptyParams;
+            MockEventList emptyEvents;
+            Steinberg::Vst::ProcessData data{};
+            data.processMode = Steinberg::Vst::kRealtime;
+            data.symbolicSampleSize = Steinberg::Vst::kSample32;
+            data.numSamples = static_cast<Steinberg::int32>(kBlockSize);
+            data.numOutputs = 1;
+            data.outputs = &outputBus;
+            data.inputParameterChanges = params ? params : &emptyParams;
+            data.inputEvents = events ? events : &emptyEvents;
+            return processor.process(data);
+        };
+
+        MockParamChangesWithData params;
+        params.addChange(Ruinae::kMixerModeId, 1.0);  // Spectral Morph
+        params.addChange(Ruinae::kMixerShiftId, shiftNormalized);
+        MockEventList events;
+        events.addNoteOn(60, 0.8f);
+        processBlock(&params, &events);
+        for (int i = 0; i < 20; ++i) processBlock(nullptr, nullptr);
+
+        std::vector<float> rendered;
+        for (int i = 0; i < 8; ++i) {
+            processBlock(nullptr, nullptr);
+            rendered.insert(rendered.end(), outL.begin(), outL.end());
+        }
+        processor.setActive(false);
+        processor.terminate();
+        return rendered;
+    };
+
+    using Krate::DSP::TestUtils::spectralCentroidHz;
+    const auto down = render(0.25);  // -12 st
+    const auto up = render(0.75);    // +12 st
+    REQUIRE(hasNonZeroSamples(down.data(), down.size()));
+    REQUIRE(hasNonZeroSamples(up.data(), up.size()));
+    const double centroidDown = spectralCentroidHz(down, 44100.0);
+    const double centroidUp = spectralCentroidHz(up, 44100.0);
+    INFO("centroid at shift 0.25: " << centroidDown << " Hz, at 0.75: " << centroidUp << " Hz");
+    CHECK(centroidUp > centroidDown * 1.5);
+}
 
 TEST_CASE("Processor mono mode produces audio via parameter change",
           "[processor][integration][mono-silence-bug]") {

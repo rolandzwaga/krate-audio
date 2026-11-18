@@ -14,6 +14,7 @@
 
 #pragma once
 
+#include <krate/dsp/core/db_utils.h>
 #include <krate/dsp/core/note_value.h>
 #include <krate/dsp/core/phase_utils.h>
 
@@ -211,6 +212,8 @@ public:
 
     /// @brief Set the LFO frequency in Hz.
     void setFrequency(float hz) noexcept {
+        // A NaN rate would make the phase accumulator NaN for good.
+        if (!detail::isFinite(hz)) return;
         frequency_ = std::clamp(hz, kMinFrequency, kMaxFrequency);
         if (!tempoSync_) {
             updatePhaseIncrement();
@@ -295,6 +298,7 @@ public:
     /// @brief Set the symmetry/skew of the LFO waveform.
     /// @param value 0.0-1.0 where 0.5 = no skew (centered). Affects Sine/Tri/Saw/Square.
     void setSymmetry(float value) noexcept {
+        if (!detail::isFinite(value)) return;
         symmetry_ = std::clamp(value, 0.001f, 0.999f);
     }
 

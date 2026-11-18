@@ -1,5 +1,6 @@
 #pragma once
 #include "plugin_ids.h"
+#include "parameters/state_load_helpers.h"
 #include "pluginterfaces/base/ustring.h"
 #include "public.sdk/source/vst/vstparameters.h"
 #include "public.sdk/source/vst/vsteditcontroller.h"
@@ -72,10 +73,10 @@ inline void saveMacroParams(const MacroParams& params, Steinberg::IBStreamer& st
 
 inline bool loadMacroParams(MacroParams& params, Steinberg::IBStreamer& streamer) {
     float fv = 0.0f;
-    if (!streamer.readFloat(fv)) { return false; } params.values[0].store(fv, std::memory_order_relaxed);
-    if (!streamer.readFloat(fv)) { return false; } params.values[1].store(fv, std::memory_order_relaxed);
-    if (!streamer.readFloat(fv)) { return false; } params.values[2].store(fv, std::memory_order_relaxed);
-    if (!streamer.readFloat(fv)) { return false; } params.values[3].store(fv, std::memory_order_relaxed);
+    for (auto& value : params.values) {
+        if (!streamer.readFloat(fv)) { return false; }
+        value.store(finiteClamp(fv, 0.0f, 1.0f, 0.0f), std::memory_order_relaxed);
+    }
     return true;
 }
 

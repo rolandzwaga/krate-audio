@@ -1,5 +1,6 @@
 #pragma once
 #include "plugin_ids.h"
+#include "parameters/state_load_helpers.h"
 #include "pluginterfaces/base/ustring.h"
 #include "public.sdk/source/vst/vstparameters.h"
 #include "public.sdk/source/vst/vsteditcontroller.h"
@@ -173,15 +174,15 @@ inline void saveReverbParams(const RuinaeReverbParams& params, Steinberg::IBStre
 
 inline bool loadReverbParams(RuinaeReverbParams& params, Steinberg::IBStreamer& streamer) {
     float fv = 0.0f; Steinberg::int32 iv = 0;
-    if (!streamer.readFloat(fv)) { return false; } params.size.store(fv, std::memory_order_relaxed);
-    if (!streamer.readFloat(fv)) { return false; } params.damping.store(fv, std::memory_order_relaxed);
-    if (!streamer.readFloat(fv)) { return false; } params.width.store(fv, std::memory_order_relaxed);
-    if (!streamer.readFloat(fv)) { return false; } params.mix.store(fv, std::memory_order_relaxed);
-    if (!streamer.readFloat(fv)) { return false; } params.preDelayMs.store(fv, std::memory_order_relaxed);
-    if (!streamer.readFloat(fv)) { return false; } params.diffusion.store(fv, std::memory_order_relaxed);
+    if (!streamer.readFloat(fv)) { return false; } params.size.store(finiteClamp(fv, 0.0f, 1.0f, 0.5f), std::memory_order_relaxed);
+    if (!streamer.readFloat(fv)) { return false; } params.damping.store(finiteClamp(fv, 0.0f, 1.0f, 0.5f), std::memory_order_relaxed);
+    if (!streamer.readFloat(fv)) { return false; } params.width.store(finiteClamp(fv, 0.0f, 1.0f, 1.0f), std::memory_order_relaxed);
+    if (!streamer.readFloat(fv)) { return false; } params.mix.store(finiteClamp(fv, 0.0f, 1.0f, 0.5f), std::memory_order_relaxed);
+    if (!streamer.readFloat(fv)) { return false; } params.preDelayMs.store(finiteClamp(fv, 0.0f, 100.0f, 0.0f), std::memory_order_relaxed);
+    if (!streamer.readFloat(fv)) { return false; } params.diffusion.store(finiteClamp(fv, 0.0f, 1.0f, 0.7f), std::memory_order_relaxed);
     if (!streamer.readInt32(iv)) { return false; } params.freeze.store(iv != 0, std::memory_order_relaxed);
-    if (!streamer.readFloat(fv)) { return false; } params.modRateHz.store(fv, std::memory_order_relaxed);
-    if (!streamer.readFloat(fv)) { return false; } params.modDepth.store(fv, std::memory_order_relaxed);
+    if (!streamer.readFloat(fv)) { return false; } params.modRateHz.store(finiteClamp(fv, 0.0f, 2.0f, 0.5f), std::memory_order_relaxed);
+    if (!streamer.readFloat(fv)) { return false; } params.modDepth.store(finiteClamp(fv, 0.0f, 1.0f, 0.0f), std::memory_order_relaxed);
     return true;
 }
 

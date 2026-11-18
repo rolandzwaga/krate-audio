@@ -176,8 +176,8 @@ Generates vowel-like sounds by emphasizing formant frequencies. Useful for vocal
 
 | Control | Description |
 |---------|-------------|
-| **Vowel** | Selects the target vowel formant (A, E, I, O, U and blends between them) |
-| **Morph** | Smoothly morphs between adjacent vowel shapes |
+| **Vowel** | Selects the vowel the oscillator starts from (A, E, I, O or U) |
+| **Morph** | Moves away from the selected Vowel toward the next ones, in vowel steps (0 = the Vowel itself, 1 = the next vowel, up to U). Projects and presets saved before this worked keep their sound: they load with Vowel A and their Morph |
 
 ##### Spectral Freeze
 

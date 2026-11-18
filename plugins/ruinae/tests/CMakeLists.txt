@@ -232,6 +232,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/processor/reverb_type_test.cpp
         unit/processor/modulation_type_test.cpp
         integration/mpe_test.cpp
+        unit/state_migration_test.cpp
         PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only -ffp-contract=off"
     )
 endif()

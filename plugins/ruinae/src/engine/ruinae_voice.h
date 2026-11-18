@@ -148,6 +148,7 @@ public:
         spectralMorph_ = std::make_unique<SpectralMorphFilter>();
         spectralMorph_->prepare(sampleRate, 1024);
         spectralMorph_->setMorphAmount(mixPosition_);
+        spectralMorph_->setSpectralShift(mixShiftSemitones_);
 
         // Initialize TranceGate (FR-016)
         tranceGate_.prepare(sampleRate);
@@ -420,6 +421,15 @@ public:
             if (blockOscBLevel != 1.0f) {
                 for (size_t i = 0; i < numSamples; ++i) oscBBuffer_[i] *= blockOscBLevel;
             }
+
+            // Per-voice MorphPosition modulation (R-023): block-rate, from the
+            // previous block's router offset, like the OscLevel offsets above.
+            // The per-sample crossfade path that applies it is CrossfadeMix only.
+            const float blockMorphOffset =
+                modRouter_.getOffset(VoiceModDest::MorphPosition)
+                * modDestScales_[static_cast<size_t>(VoiceModDest::MorphPosition)];
+            spectralMorph_->setMorphAmount(
+                std::clamp(mixPosition_ + blockMorphOffset, 0.0f, 1.0f));
 
             // SpectralMorph mode: FFT-based spectral interpolation (FR-006)
             spectralMorph_->processBlock(oscABuffer_.data(), oscBBuffer_.data(),
@@ -735,6 +745,14 @@ public:
         if (detail::isNaN(tiltDb) || detail::isInf(tiltDb)) return;
         mixTilt_ = std::clamp(tiltDb, -12.0f, 12.0f);
         if (spectralMorph_) spectralMorph_->setSpectralTilt(mixTilt_);
+    }
+
+    /// @brief Set the spectral shift for SpectralMorph mode from the knob's
+    /// normalized value: 0 = -24 st, 0.5 = no shift, 1 = +24 st.
+    void setMixShift(float normalized) noexcept {
+        if (detail::isNaN(normalized) || detail::isInf(normalized)) return;
+        mixShiftSemitones_ = (std::clamp(normalized, 0.0f, 1.0f) * 2.0f - 1.0f) * 24.0f;
+        if (spectralMorph_) spectralMorph_->setSpectralShift(mixShiftSemitones_);
     }
 
     // =========================================================================
@@ -1703,6 +1721,7 @@ private:
     MixMode mixMode_{MixMode::CrossfadeMix};
     float mixPosition_{0.5f};
     float mixTilt_{0.0f};   // Base spectral tilt in dB/octave [-12, +12]
+    float mixShiftSemitones_{0.0f};  // Spectral shift in semitones [-24, +24]
     std::unique_ptr<SpectralMorphFilter> spectralMorph_;  // Pre-allocated at prepare() (SC-004)
 
     // Pre-allocated filters (FR-010: all types alive simultaneously)

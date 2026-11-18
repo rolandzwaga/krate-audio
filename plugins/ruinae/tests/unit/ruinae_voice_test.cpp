@@ -2464,6 +2464,49 @@ TEST_CASE("SpectralMorph mode responds to OSC A level",
 }
 
 // =============================================================================
+// R-023: per-voice MorphPosition route must act in SpectralMorph mode
+// =============================================================================
+
+TEST_CASE("RuinaeVoice: per-voice morph route is audible in SpectralMorph mode",
+          "[ruinae-voice][spectral-morph][modmatrix]") {
+    constexpr size_t kBlockSize = 512;
+    constexpr size_t kBlocks = 12; // past the FFT latency and the one-block route delay
+
+    auto render = [](bool routed) {
+        auto pVoice = std::make_unique<RuinaeVoice>();
+        pVoice->prepare(44100.0, kBlockSize);
+        pVoice->setFilterCutoff(20000.0f);
+        pVoice->setMixMode(MixMode::SpectralMorph);
+        pVoice->setMixPosition(0.0f);
+        pVoice->setOscAType(OscType::PolyBLEP);
+        pVoice->setOscBType(OscType::Noise);
+        pVoice->getAmpEnvelope().setAttack(0.1f);
+        pVoice->getAmpEnvelope().setSustain(1.0f);
+        if (routed) {
+            pVoice->setModRoute(0, {VoiceModSource::Velocity, VoiceModDest::MorphPosition, 1.0f});
+            pVoice->setModRouteScale(VoiceModDest::MorphPosition, 1.0f);
+        }
+        pVoice->noteOn(220.0f, 1.0f);
+        std::vector<float> out(kBlockSize * kBlocks, 0.0f);
+        for (size_t b = 0; b < kBlocks; ++b) {
+            pVoice->processBlock(out.data() + b * kBlockSize, kBlockSize);
+        }
+        return out;
+    };
+
+    const auto base = render(false);
+    const auto routed = render(true);
+
+    double diff = 0.0;
+    for (size_t i = kBlockSize * 6; i < base.size(); ++i) {
+        const double d = static_cast<double>(base[i]) - routed[i];
+        diff += d * d;
+    }
+    diff = std::sqrt(diff / static_cast<double>(base.size() - kBlockSize * 6));
+    REQUIRE(diff > 1e-3);
+}
+
+// =============================================================================
 // A retriggered voice must not resume an interrupted glide
 // =============================================================================
 // The portamento fields are set only by glideToFrequency() and were cleared by

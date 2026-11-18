@@ -16,6 +16,7 @@
 #pragma once
 
 #include <krate/dsp/core/block_context.h>
+#include <krate/dsp/core/db_utils.h>
 #include <krate/dsp/core/modulation_curves.h>
 #include <krate/dsp/core/modulation_types.h>
 #include <krate/dsp/primitives/lfo.h>
@@ -464,7 +465,7 @@ public:
     // =========================================================================
 
     void setMacroValue(size_t index, float value) noexcept {
-        if (index < kMaxMacros) {
+        if (index < kMaxMacros && detail::isFinite(value)) {
             macros_[index].value = std::clamp(value, 0.0f, 1.0f);
         }
     }
@@ -771,9 +772,11 @@ private:
                 continue;
             }
 
-            // Get raw source value (constant within this block)
+            // Get raw source value (constant within this block). A non-finite
+            // value contributes nothing: std::clamp passes NaN, and a NaN offset
+            // latches downstream state such as the global SVF's integrators.
             float sourceValue = getRawSourceValue(routing.source);
-            sourceValue = std::clamp(sourceValue, -1.0f, 1.0f);
+            sourceValue = detail::isFinite(sourceValue) ? std::clamp(sourceValue, -1.0f, 1.0f) : 0.0f;
 
             // Capture smoother state BEFORE advance → start-of-block amount
             amountSmoothers_[i].setTarget(routing.amount);
@@ -788,6 +791,8 @@ private:
             // Compute start and end contributions
             float contribStart = applyBipolarModulation(routing.curve, sourceValue, amountStart);
             float contribEnd = applyBipolarModulation(routing.curve, sourceValue, amountEnd);
+            if (!detail::isFinite(contribStart)) contribStart = 0.0f;
+            if (!detail::isFinite(contribEnd)) contribEnd = 0.0f;
 
             // Apply per-route signal smoothing if enabled
             if (routing.smoothMs > 0.0f) {
@@ -808,11 +813,13 @@ private:
             }
         }
 
-        // Clamp each destination offset to [-1, +1] per FR-061
+        // Clamp each destination offset to [-1, +1] per FR-061; a non-finite sum is 0
         for (size_t i = 0; i < kMaxModDestinations; ++i) {
             if (destActive_[i]) {
-                modOffsetsStart_[i] = std::clamp(modOffsetsStart_[i], -1.0f, 1.0f);
-                modOffsetsEnd_[i] = std::clamp(modOffsetsEnd_[i], -1.0f, 1.0f);
+                modOffsetsStart_[i] = detail::isFinite(modOffsetsStart_[i])
+                                          ? std::clamp(modOffsetsStart_[i], -1.0f, 1.0f) : 0.0f;
+                modOffsetsEnd_[i] = detail::isFinite(modOffsetsEnd_[i])
+                                        ? std::clamp(modOffsetsEnd_[i], -1.0f, 1.0f) : 0.0f;
             }
         }
 

@@ -20,6 +20,7 @@
 
 #pragma once
 
+#include <krate/dsp/core/db_utils.h>
 #include <krate/dsp/core/euclidean_pattern.h>
 #include <krate/dsp/core/note_value.h>
 #include <krate/dsp/core/transport_sync.h>
@@ -150,7 +151,20 @@ public:
     // =========================================================================
 
     /// @brief Set all gate parameters at once.
-    void setParams(const TranceGateParams& params) noexcept {
+    void setParams(const TranceGateParams& requested) noexcept {
+        // A non-finite field keeps its current value: std::clamp passes NaN, which
+        // would reach the smoother coefficients, the gain and a size_t cast.
+        TranceGateParams params = requested;
+        const auto keepFinite = [](float& v, float current) noexcept {
+            if (!detail::isFinite(v)) v = current;
+        };
+        keepFinite(params.rateHz, params_.rateHz);
+        keepFinite(params.depth, params_.depth);
+        keepFinite(params.attackMs, params_.attackMs);
+        keepFinite(params.releaseMs, params_.releaseMs);
+        keepFinite(params.phaseOffset, params_.phaseOffset);
+        keepFinite(params.retriggerDepth, params_.retriggerDepth);
+
         const float clampedAttack = std::clamp(params.attackMs, kMinAttackMs, kMaxAttackMs);
         const float clampedRelease = std::clamp(params.releaseMs, kMinReleaseMs, kMaxReleaseMs);
 
@@ -173,11 +187,13 @@ public:
 
     /// @brief Set gate depth [0.0, 1.0] without reconfiguring other params.
     void setDepth(float depth) noexcept {
+        if (!detail::isFinite(depth)) return;
         params_.depth = std::clamp(depth, 0.0f, 1.0f);
     }
 
     /// @brief Set free-run rate in Hz (only effective when tempoSync is off).
     void setRate(float hz) noexcept {
+        if (!detail::isFinite(hz)) return;
         params_.rateHz = std::clamp(hz, 0.1f, 100.0f);
         updateStepDuration();
     }
@@ -194,7 +210,7 @@ public:
 
     /// @brief Set a single step's level.
     void setStep(int index, float level) noexcept {
-        if (index < 0 || index >= kMaxSteps) {
+        if (index < 0 || index >= kMaxSteps || !detail::isFinite(level)) {
             return;
         }
         pattern_[static_cast<size_t>(index)] = std::clamp(level, 0.0f, 1.0f);

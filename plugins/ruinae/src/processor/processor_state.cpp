@@ -153,9 +153,9 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
 
         // Load all parameter packs into atomics (safe from any thread)
         if (!loadGlobalParams(globalParams_, streamer)) return Steinberg::kResultTrue;
-        if (!loadOscAParams(oscAParams_, streamer)) return Steinberg::kResultTrue;
-        if (!loadOscBParams(oscBParams_, streamer)) return Steinberg::kResultTrue;
-        if (!loadMixerParams(mixerParams_, streamer)) return Steinberg::kResultTrue;
+        if (!loadOscAParams(oscAParams_, streamer, version)) return Steinberg::kResultTrue;
+        if (!loadOscBParams(oscBParams_, streamer, version)) return Steinberg::kResultTrue;
+        if (!loadMixerParams(mixerParams_, streamer, version)) return Steinberg::kResultTrue;
         if (!loadFilterParams(filterParams_, streamer)) return Steinberg::kResultTrue;
         if (!loadDistortionParams(distortionParams_, streamer)) return Steinberg::kResultTrue;
         if (!loadTranceGateParams(tranceGateParams_, streamer)) return Steinberg::kResultTrue;
@@ -231,15 +231,9 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
         if (version >= 6) {
             loadFlangerParams(flangerParams_, streamer);
         } else {
-            // Old preset: no flanger data, reset to defaults
-            flangerParams_.rateHz.store(0.5f, std::memory_order_relaxed);
-            flangerParams_.depth.store(0.5f, std::memory_order_relaxed);
-            flangerParams_.feedback.store(0.0f, std::memory_order_relaxed);
-            flangerParams_.mix.store(0.5f, std::memory_order_relaxed);
-            flangerParams_.stereoSpread.store(90.0f, std::memory_order_relaxed);
-            flangerParams_.waveform.store(1, std::memory_order_relaxed);
-            flangerParams_.sync.store(false, std::memory_order_relaxed);
-            flangerParams_.noteValue.store(Parameters::kNoteValueDefaultIndex, std::memory_order_relaxed);
+            // Old preset: no flanger data, reset to defaults (the controller
+            // loads the same registered defaults, loadStateCore)
+            resetModEffectParams(kFlangerConfig, flangerParams_);
         }
 
         // Chorus params (version 7+)
@@ -247,15 +241,7 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
             loadChorusParams(chorusParams_, streamer);
         } else {
             // Old preset: no chorus data, reset to defaults
-            chorusParams_.rateHz.store(0.5f, std::memory_order_relaxed);
-            chorusParams_.depth.store(0.5f, std::memory_order_relaxed);
-            chorusParams_.feedback.store(0.0f, std::memory_order_relaxed);
-            chorusParams_.mix.store(0.5f, std::memory_order_relaxed);
-            chorusParams_.stereoSpread.store(180.0f, std::memory_order_relaxed);
-            chorusParams_.voices.store(2, std::memory_order_relaxed);
-            chorusParams_.waveform.store(1, std::memory_order_relaxed);
-            chorusParams_.sync.store(false, std::memory_order_relaxed);
-            chorusParams_.noteValue.store(Parameters::kNoteValueDefaultIndex, std::memory_order_relaxed);
+            resetModEffectParams(kChorusConfig, chorusParams_);
         }
 
         // Extended LFO params
@@ -319,9 +305,9 @@ void Processor::applyPresetSnapshot(const PresetSnapshot& snapshot) {
     // Skip past all atomic parameter packs to reach voiceRoutes_
     // (params were already applied in setState on the UI thread)
     if (!loadGlobalParams(globalParams_, streamer)) return;
-    if (!loadOscAParams(oscAParams_, streamer)) return;
-    if (!loadOscBParams(oscBParams_, streamer)) return;
-    if (!loadMixerParams(mixerParams_, streamer)) return;
+    if (!loadOscAParams(oscAParams_, streamer, version)) return;
+    if (!loadOscBParams(oscBParams_, streamer, version)) return;
+    if (!loadMixerParams(mixerParams_, streamer, version)) return;
     if (!loadFilterParams(filterParams_, streamer)) return;
     if (!loadDistortionParams(distortionParams_, streamer)) return;
     if (!loadTranceGateParams(tranceGateParams_, streamer)) return;

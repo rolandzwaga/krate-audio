@@ -45,7 +45,7 @@ public:
 // Constants
 // ==============================================================================
 
-static constexpr int32_t kStateVersion = 8;
+static constexpr int32_t kStateVersion = 9;
 
 // Trance gate state version marker (must match kTranceGateStateVersion in trance_gate_params.h)
 static constexpr int32_t kTranceGateStateVersion = 3;
@@ -171,7 +171,7 @@ struct MixerState {
     int32_t mode = 0;
     float position = 0.5f;
     float tilt = 0.0f;
-    float shift = 0.0f;
+    float shift = 0.5f; // 0.5 = no shift (Spectral Shift is audible from state v9)
 
     void serialize(BinaryWriter& w) const {
         w.writeInt32(mode);

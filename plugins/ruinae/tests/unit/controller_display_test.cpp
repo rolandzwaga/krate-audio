@@ -202,6 +202,42 @@ TEST_CASE("Reverb Pre-Delay displays in ms", "[controller][display]") {
     ctrl->terminate();
 }
 
+static std::u16string getDisplayU16(Ruinae::Controller* ctrl, ParamID id, double value) {
+    String128 str{};
+    ctrl->getParamStringByValue(id, value, str);
+    std::u16string result;
+    for (int i = 0; i < 128 && str[i] != 0; ++i) {
+        result += static_cast<char16_t>(str[i]);
+    }
+    return result;
+}
+
+TEST_CASE("Flanger and chorus parameters use their own formatters", "[controller][display]") {
+    auto* ctrl = makeControllerRaw();
+
+    const std::string rate = getDisplayString(ctrl, Ruinae::kFlangerRateId, 0.5);
+    REQUIRE(rate.size() >= 2);
+    CHECK(rate.substr(rate.size() - 2) == "Hz");
+
+    const std::string fb = getDisplayString(ctrl, Ruinae::kChorusFeedbackId, 0.5);
+    CHECK((fb == "0%" || fb == "+0%"));
+
+    CHECK(getDisplayU16(ctrl, Ruinae::kPhaserStereoSpreadId, 0.25) == u"90\u00B0");
+    CHECK(getDisplayU16(ctrl, Ruinae::kFlangerStereoSpreadId, 0.25) == u"90\u00B0");
+    CHECK(getDisplayU16(ctrl, Ruinae::kChorusStereoSpreadId, 0.25) == u"90\u00B0");
+
+    for (ParamID id : {static_cast<ParamID>(Ruinae::kPhaserStereoSpreadId),
+                       static_cast<ParamID>(Ruinae::kFlangerStereoSpreadId),
+                       static_cast<ParamID>(Ruinae::kChorusStereoSpreadId)}) {
+        auto* p = ctrl->getParameterObject(id);
+        REQUIRE(p != nullptr);
+        const TChar* u = p->getInfo().units;
+        CHECK((u[0] == 0x00B0 && u[1] == 0));
+    }
+
+    ctrl->terminate();
+}
+
 TEST_CASE("Portamento Time displays in ms or s", "[controller][display]") {
     auto* ctrl = makeControllerRaw();
 

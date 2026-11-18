@@ -724,7 +724,14 @@ inline void saveOscParams(const OscParams& params, Steinberg::IBStreamer& stream
     streamer.writeInt32(params.noiseColor.load(std::memory_order_relaxed));
 }
 
-inline bool loadOscParams(OscParams& params, Steinberg::IBStreamer& streamer) {
+/// First state version in which the Formant Vowel reaches the audio (R-022):
+/// Morph is now an offset from the Vowel. Before, Morph alone set the position
+/// and the Vowel was ignored, so older states load Vowel A and keep their Morph,
+/// which plays exactly the position they were saved with.
+inline constexpr Steinberg::int32 kFormantVowelAudibleStateVersion = 9;
+
+inline bool loadOscParams(OscParams& params, Steinberg::IBStreamer& streamer,
+                          Steinberg::int32 stateVersion = kCurrentStateVersion) {
     Steinberg::int32 intVal = 0;
     float floatVal = 0.0f;
 
@@ -804,8 +811,10 @@ inline bool loadOscParams(OscParams& params, Steinberg::IBStreamer& streamer) {
     if (streamer.readFloat(floatVal))
         params.particleDrift.store(finiteClamp(floatVal, 0.0f, 1.0f, 0.0f), std::memory_order_relaxed);
     // Formant
-    if (streamer.readInt32(intVal))
+    if (streamer.readInt32(intVal)) {
+        if (stateVersion < kFormantVowelAudibleStateVersion) intVal = 0;
         params.formantVowel.store(std::clamp(static_cast<int>(intVal), 0, 4), std::memory_order_relaxed);
+    }
     if (streamer.readFloat(floatVal))
         params.formantMorph.store(finiteClamp(floatVal, 0.0f, 4.0f, 0.0f), std::memory_order_relaxed);
     // Spectral Freeze
@@ -825,7 +834,7 @@ inline bool loadOscParams(OscParams& params, Steinberg::IBStreamer& streamer) {
 template<typename SetParamFunc>
 inline void loadOscParamsToController(
     Steinberg::Vst::ParamID base, Steinberg::IBStreamer& streamer,
-    const SetParamFunc& setParam) {
+    const SetParamFunc& setParam, Steinberg::int32 stateVersion = kCurrentStateVersion) {
     Steinberg::int32 intVal = 0;
     float floatVal = 0.0f;
 
@@ -922,9 +931,12 @@ inline void loadOscParamsToController(
     if (streamer.readFloat(floatVal))
         setParam((base + kOscParticleDriftOffset), static_cast<double>(floatVal));
 
-    // Formant: Vowel (int 0-4 -> normalized /4)
-    if (streamer.readInt32(intVal))
+    // Formant: Vowel (int 0-4 -> normalized /4); A for states saved before it
+    // was audible (kFormantVowelAudibleStateVersion)
+    if (streamer.readInt32(intVal)) {
+        if (stateVersion < kFormantVowelAudibleStateVersion) intVal = 0;
         setParam((base + kOscFormantVowelOffset), static_cast<double>(intVal) / 4.0);
+    }
     // Formant: Morph (0-4 -> normalized /4)
     if (streamer.readFloat(floatVal))
         setParam((base + kOscFormantMorphOffset), static_cast<double>(floatVal / 4.0f));

@@ -398,9 +398,9 @@ bool Controller::loadStateCore(Steinberg::IBStreamer& streamer,
 
     // Parameter packs in deterministic order (matching Processor::getState)
     loadGlobalParamsToController(streamer, synthSetter);
-    loadOscAParamsToController(streamer, synthSetter);
-    loadOscBParamsToController(streamer, synthSetter);
-    loadMixerParamsToController(streamer, synthSetter);
+    loadOscAParamsToController(streamer, synthSetter, version);
+    loadOscBParamsToController(streamer, synthSetter, version);
+    loadMixerParamsToController(streamer, synthSetter, version);
     loadFilterParamsToController(streamer, synthSetter);
     loadDistortionParamsToController(streamer, synthSetter);
     loadTranceGateParamsToController(streamer, synthSetter);
@@ -470,18 +470,34 @@ bool Controller::loadStateCore(Steinberg::IBStreamer& streamer,
 
     // Phaser params + modulation type (int8: 0=None, 1=Phaser, 2=Flanger, 3=Chorus)
     loadPhaserParamsToController(streamer, synthSetter);
-    if (!streamer.readInt8(flag)) return false;
+    // A state without the byte loads Phaser, as Processor::setState does.
+    if (!streamer.readInt8(flag)) flag = 1;
     // Map int8 to StringListParameter normalized: index / stepCount = index / 3
     synthSetter(kModulationTypeId, static_cast<double>(flag) / 3.0);
+
+    // A state written before an effect existed loads that effect's registered
+    // defaults: the values Processor::setState resets it to (kModEffectDefaults).
+    // The browser path reaches the processor only through these edits, so
+    // skipping them would keep the previous preset's values there.
+    const auto loadModEffectDefaults = [&](const ModEffectConfig& cfg) {
+        for (auto id = cfg.rateId(); id <= cfg.noteValueId(); ++id) {
+            if (const auto* param = getParameterObject(id))
+                synthSetter(id, param->getInfo().defaultNormalizedValue);
+        }
+    };
 
     // Flanger params (version 6+)
     if (version >= 6) {
         loadFlangerParamsToController(streamer, synthSetter);
+    } else {
+        loadModEffectDefaults(kFlangerConfig);
     }
 
     // Chorus params (version 7+)
     if (version >= 7) {
         loadChorusParamsToController(streamer, synthSetter);
+    } else {
+        loadModEffectDefaults(kChorusConfig);
     }
 
     // Extended LFO, Macro, Rungler, Settings, Mod sources

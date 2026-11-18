@@ -935,6 +935,8 @@ add_executable(dsp_ieee_tests
     unit/core/sigmoid_nonfinite_test.cpp
     # Disrumpo audit T5.09: BiquadCascade block / pair paths and the stereo IIR oversampler, bit for bit
     unit/primitives/biquad_cascade_block_test.cpp
+    # Ruinae audit T2.1 (R-170..R-174): setters across layers ignore NaN/Inf arguments
+    unit/systems/nonfinite_setters_test.cpp
     # Iterum Freeze P11: the PitchSync splice search without per-sample division, against its frozen copy, bit for bit
     unit/core/ring_splice_search_test.cpp
     # Innexus M6 SC-008: HarmonicOscillatorBank::applyPanOffsets' cache against the frozen loop, bit for bit
@@ -1426,6 +1428,8 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/core/sigmoid_nonfinite_test.cpp
         # Disrumpo audit T5.09: bit-exactness against Biquad::process, NaN/Inf bit patterns.
         unit/primitives/biquad_cascade_block_test.cpp
+        # Ruinae audit T2.1: injects NaN/Inf bit patterns into DSP setters (R-170..R-174).
+        unit/systems/nonfinite_setters_test.cpp
         PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only -ffp-contract=off"
     )
 

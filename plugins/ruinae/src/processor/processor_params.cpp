@@ -307,6 +307,7 @@ void Processor::applyVoiceAndOscParams() {
         mixerParams_.mode.load(std::memory_order_relaxed)));
     engine_.setMixPosition(mixerParams_.position.load(std::memory_order_relaxed));
     engine_.setMixTilt(mixerParams_.tilt.load(std::memory_order_relaxed));
+    engine_.setMixShift(mixerParams_.shift.load(std::memory_order_relaxed));
 }
 
 /// Apply the per-voice filter.

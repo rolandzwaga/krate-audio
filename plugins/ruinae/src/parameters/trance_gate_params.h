@@ -3,6 +3,7 @@
 #include "controller/parameter_helpers.h"
 #include "parameters/dropdown_mappings.h"
 #include "parameters/note_value_ui.h"
+#include "parameters/state_load_helpers.h"
 #include "pluginterfaces/base/ustring.h"
 #include "public.sdk/source/vst/vstparameters.h"
 #include "public.sdk/source/vst/vsteditcontroller.h"
@@ -306,13 +307,13 @@ inline bool loadTranceGateParams(RuinaeTranceGateParams& params, Steinberg::IBSt
     int numStepsRaw = intVal;
 
     if (!streamer.readFloat(floatVal)) return false;
-    params.rateHz.store(floatVal, std::memory_order_relaxed);
+    params.rateHz.store(finiteClamp(floatVal, 0.1f, 100.0f, 4.0f), std::memory_order_relaxed);
     if (!streamer.readFloat(floatVal)) return false;
-    params.depth.store(floatVal, std::memory_order_relaxed);
+    params.depth.store(finiteClamp(floatVal, 0.0f, 1.0f, 1.0f), std::memory_order_relaxed);
     if (!streamer.readFloat(floatVal)) return false;
-    params.attackMs.store(floatVal, std::memory_order_relaxed);
+    params.attackMs.store(finiteClamp(floatVal, 1.0f, 20.0f, 2.0f), std::memory_order_relaxed);
     if (!streamer.readFloat(floatVal)) return false;
-    params.releaseMs.store(floatVal, std::memory_order_relaxed);
+    params.releaseMs.store(finiteClamp(floatVal, 1.0f, 50.0f, 10.0f), std::memory_order_relaxed);
     if (!streamer.readInt32(intVal)) return false;
     params.tempoSync.store(intVal != 0, std::memory_order_relaxed);
     if (!streamer.readInt32(intVal)) return false;
@@ -332,20 +333,20 @@ inline bool loadTranceGateParams(RuinaeTranceGateParams& params, Steinberg::IBSt
         if (streamer.readInt32(intVal))
             params.euclideanRotation.store(std::clamp(intVal, 0, 31), std::memory_order_relaxed);
         if (streamer.readFloat(floatVal))
-            params.phaseOffset.store(std::clamp(floatVal, 0.0f, 1.0f), std::memory_order_relaxed);
+            params.phaseOffset.store(finiteClamp(floatVal, 0.0f, 1.0f, 0.0f), std::memory_order_relaxed);
 
         // Read 32 step levels
         for (int i = 0; i < 32; ++i) {
             if (streamer.readFloat(floatVal)) {
                 params.stepLevels[static_cast<size_t>(i)].store(
-                    std::clamp(floatVal, 0.0f, 1.0f), std::memory_order_relaxed);
+                    finiteClamp(floatVal, 0.0f, 1.0f, 1.0f), std::memory_order_relaxed);
             }
         }
 
         // v3: retrigger depth
         if (versionMarker >= 3) {
             if (streamer.readFloat(floatVal))
-                params.retriggerDepth.store(std::clamp(floatVal, 0.0f, 1.0f), std::memory_order_relaxed);
+                params.retriggerDepth.store(finiteClamp(floatVal, 0.0f, 1.0f, 0.0f), std::memory_order_relaxed);
         } else {
             params.retriggerDepth.store(0.0f, std::memory_order_relaxed);
         }
@@ -419,12 +420,24 @@ inline void loadTranceGateParamsToController(
         if (versionMarker >= 3) {
             if (streamer.readFloat(floatVal))
                 setParam(kTranceGateRetriggerDepthId, static_cast<double>(floatVal));
+        } else {
+            // Same reset as loadTranceGateParams: the browser path reaches the
+            // processor only through these edits.
+            setParam(kTranceGateRetriggerDepthId, 0.0);
         }
     } else {
         // v1: numStepsRaw is dropdown index
         int steps = numStepsFromIndex(numStepsRaw);
         setParam(kTranceGateNumStepsId, static_cast<double>(steps - 2) / 30.0);
-        // v2 fields keep their defaults (no params to set)
+
+        // v2+ fields take the defaults loadTranceGateParams stores
+        setParam(kTranceGateEuclideanEnabledId, 0.0);
+        setParam(kTranceGateEuclideanHitsId, 4.0 / 32.0);
+        setParam(kTranceGateEuclideanRotationId, 0.0);
+        setParam(kTranceGatePhaseOffsetId, 0.0);
+        setParam(kTranceGateRetriggerDepthId, 0.0);
+        for (int i = 0; i < 32; ++i)
+            setParam(static_cast<Steinberg::Vst::ParamID>(kTranceGateStepLevel0Id + i), 1.0);
     }
 }
 

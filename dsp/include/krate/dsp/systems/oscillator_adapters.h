@@ -321,14 +321,21 @@ public:
                 default: break;
             }
         }
-        // Formant
+        // Formant: Morph is an offset from the selected Vowel (R-022). Hosts
+        // re-send both every block, and FormantOscillator::setMorphPosition()
+        // replaces whatever setVowel() selected, so forwarding them one by one
+        // left the vowel unheard. Both feed one morph position instead.
         else if constexpr (std::is_same_v<OscT, FormantOscillator>) {
+            if (detail::isNaN(value) || detail::isInf(value)) return;
             switch (param) {
                 case OscParam::FormantVowel:
-                    osc_.setVowel(static_cast<Vowel>(static_cast<int>(value)));
+                    formant_.vowel = static_cast<float>(
+                        std::clamp(static_cast<int>(value), 0, static_cast<int>(kNumVowels) - 1));
+                    applyFormantPosition();
                     break;
                 case OscParam::FormantMorph:
-                    osc_.setMorphPosition(value);
+                    formant_.morph = value;
+                    applyFormantPosition();
                     break;
                 default: break;
             }
@@ -459,6 +466,20 @@ private:
         }
     }
 
+    /// @brief Play the morph position vowel + morph, clamped to [A, U].
+    ///
+    /// Only a changed position reaches the oscillator, so the per-block
+    /// re-send of unchanged values costs nothing.
+    void applyFormantPosition() noexcept {
+        if constexpr (std::is_same_v<OscT, FormantOscillator>) {
+            const float position = std::clamp(formant_.vowel + formant_.morph, 0.0f, 4.0f);
+            if (position != formant_.appliedPosition) {
+                osc_.setMorphPosition(position);
+                formant_.appliedPosition = position;
+            }
+        }
+    }
+
     // =========================================================================
     // Additive level normalisation
     // =========================================================================
@@ -578,6 +599,15 @@ private:
     };
     struct NoAdditiveLevel {};
     std::conditional_t<std::is_same_v<OscT, AdditiveOscillator>, AdditiveLevel, NoAdditiveLevel> additive_{};
+
+    // Formant vowel and morph offset (applyFormantPosition); an empty struct for other types.
+    struct FormantPosition {
+        float vowel{0.0f};              ///< selected vowel index, 0 (A) to 4 (U)
+        float morph{0.0f};              ///< offset from the vowel, in vowel steps
+        float appliedPosition{-1.0f};   ///< position last sent; -1 forces the first send
+    };
+    struct NoFormantPosition {};
+    std::conditional_t<std::is_same_v<OscT, FormantOscillator>, FormantPosition, NoFormantPosition> formant_{};
 };
 
 } // namespace Krate::DSP

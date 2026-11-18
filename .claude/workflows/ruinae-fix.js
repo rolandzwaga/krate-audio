@@ -141,7 +141,7 @@ const EXEC_RULES = `EXECUTION RULES:
 - ONE heavy job at a time: build, gate, pluginval, clang-tidy, CPU lane and WSL tools never run concurrently.
 - Every long command runs in the FOREGROUND (Bash timeout 600000) with stdout+stderr redirected to a log under ${LOG_ROOT}/<task id>/, then tail that log. Read a failing shard's log from the gate --out directory; never re-run a slow command to re-read its output.
 - NEVER use run_in_background, the Monitor tool, sleep, or polling. NEVER run find /c, find /, du or any disk-wide walk; never cat a whole log. Never run tools/clean-test-output.js.
-- After any WSL tool (macos-fastmath-repro.sh, check-portability.js), run: wsl --shutdown
+- WSL tools (macos-fastmath-repro.sh, check-portability.js) may be used, but NEVER run wsl --shutdown, wsl --terminate or anything that stops or restarts WSL: the user runs WSL in other sessions at the same time (user, 2026-11-18). A hook blocks it.
 - New files with the Write tool (no heredocs). Read a file before editing it. Before creating any class or struct, grep dsp/ and plugins/ for the name (ODR). Node.js for any helper script, never Python. One git operation per command, never chained.
 - Thresholds in the plan are final. Never relax a threshold, weaken an assertion, tag a test hidden/[.], or shrink a workload to get green. If the plan's threshold cannot be met, stop with status "blocked", blocker_kind "threshold_unmet", and the measured numbers.
 - If the task needs a decision only the user can make that the Rulings table does not cover, stop with status "blocked", blocker_kind "needs_user", and state the question with your recommended answer.

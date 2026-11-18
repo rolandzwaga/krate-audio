@@ -31,6 +31,7 @@
 #include <krate/dsp/core/sigmoid.h>
 
 // Layer 1
+#include <krate/dsp/primitives/adsr_envelope.h>
 #include <krate/dsp/primitives/svf.h>
 
 // Layer 2
@@ -1094,6 +1095,12 @@ public:
         for (auto& voice : voices_) { voice.setMixTilt(voiceMixTilt_); }
     }
 
+    /// Spectral Shift knob, normalized: 0 = -24 st, 0.5 = no shift, 1 = +24 st.
+    void setMixShift(float normalized) noexcept {
+        if (detail::isNaN(normalized) || detail::isInf(normalized)) return;
+        for (auto& voice : voices_) { voice.setMixShift(normalized); }
+    }
+
     // --- Filter ---
 
     void setFilterType(RuinaeFilterType type) noexcept {
@@ -1443,14 +1450,17 @@ public:
     }
 
     void setAmpAttackBezierCurve(float cp1x, float cp1y, float cp2x, float cp2y) noexcept {
+        if (!ADSREnvelope::bezierPointsFinite(cp1x, cp1y, cp2x, cp2y)) return;
         for (auto& voice : voices_) { voice.getAmpEnvelope().setAttackBezierCurve(cp1x, cp1y, cp2x, cp2y); }
     }
 
     void setAmpDecayBezierCurve(float cp1x, float cp1y, float cp2x, float cp2y) noexcept {
+        if (!ADSREnvelope::bezierPointsFinite(cp1x, cp1y, cp2x, cp2y)) return;
         for (auto& voice : voices_) { voice.getAmpEnvelope().setDecayBezierCurve(cp1x, cp1y, cp2x, cp2y); }
     }
 
     void setAmpReleaseBezierCurve(float cp1x, float cp1y, float cp2x, float cp2y) noexcept {
+        if (!ADSREnvelope::bezierPointsFinite(cp1x, cp1y, cp2x, cp2y)) return;
         for (auto& voice : voices_) { voice.getAmpEnvelope().setReleaseBezierCurve(cp1x, cp1y, cp2x, cp2y); }
     }
 
@@ -1504,14 +1514,17 @@ public:
     }
 
     void setFilterAttackBezierCurve(float cp1x, float cp1y, float cp2x, float cp2y) noexcept {
+        if (!ADSREnvelope::bezierPointsFinite(cp1x, cp1y, cp2x, cp2y)) return;
         for (auto& voice : voices_) { voice.getFilterEnvelope().setAttackBezierCurve(cp1x, cp1y, cp2x, cp2y); }
     }
 
     void setFilterDecayBezierCurve(float cp1x, float cp1y, float cp2x, float cp2y) noexcept {
+        if (!ADSREnvelope::bezierPointsFinite(cp1x, cp1y, cp2x, cp2y)) return;
         for (auto& voice : voices_) { voice.getFilterEnvelope().setDecayBezierCurve(cp1x, cp1y, cp2x, cp2y); }
     }
 
     void setFilterReleaseBezierCurve(float cp1x, float cp1y, float cp2x, float cp2y) noexcept {
+        if (!ADSREnvelope::bezierPointsFinite(cp1x, cp1y, cp2x, cp2y)) return;
         for (auto& voice : voices_) { voice.getFilterEnvelope().setReleaseBezierCurve(cp1x, cp1y, cp2x, cp2y); }
     }
 
@@ -1565,14 +1578,17 @@ public:
     }
 
     void setModAttackBezierCurve(float cp1x, float cp1y, float cp2x, float cp2y) noexcept {
+        if (!ADSREnvelope::bezierPointsFinite(cp1x, cp1y, cp2x, cp2y)) return;
         for (auto& voice : voices_) { voice.getModEnvelope().setAttackBezierCurve(cp1x, cp1y, cp2x, cp2y); }
     }
 
     void setModDecayBezierCurve(float cp1x, float cp1y, float cp2x, float cp2y) noexcept {
+        if (!ADSREnvelope::bezierPointsFinite(cp1x, cp1y, cp2x, cp2y)) return;
         for (auto& voice : voices_) { voice.getModEnvelope().setDecayBezierCurve(cp1x, cp1y, cp2x, cp2y); }
     }
 
     void setModReleaseBezierCurve(float cp1x, float cp1y, float cp2x, float cp2y) noexcept {
+        if (!ADSREnvelope::bezierPointsFinite(cp1x, cp1y, cp2x, cp2y)) return;
         for (auto& voice : voices_) { voice.getModEnvelope().setReleaseBezierCurve(cp1x, cp1y, cp2x, cp2y); }
     }
 

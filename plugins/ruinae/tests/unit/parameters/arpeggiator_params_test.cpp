@@ -489,8 +489,25 @@ TEST_CASE("ArpParams_LoadToController_NormalizesCorrectly", "[arp][params][state
         loadArpParamsToController(readStream, setParam);
     }
 
-    // Should have 11 calls
-    REQUIRE(calls.size() == 11);
+    // The 11 carried fields come first, in stream order. Every other serialized
+    // arp field follows once, at its default: a field the pack does not carry
+    // never keeps the previous preset's value (R-074).
+    REQUIRE(calls.size() > 11);
+    for (size_t i = 1; i < calls.size(); ++i) {
+        for (size_t j = 0; j < i; ++j) {
+            INFO("call " << i << " id " << calls[i].id);
+            REQUIRE(calls[i].id != calls[j].id);
+        }
+    }
+    const auto valueOf = [&calls](Steinberg::Vst::ParamID id) {
+        for (const auto& call : calls)
+            if (call.id == id) return call.value;
+        return -1.0;
+    };
+    CHECK(valueOf(kArpVelocityLaneLengthId) == Approx(15.0 / 31.0).margin(1e-6));  // 16 steps
+    CHECK(valueOf(kArpVelocityLaneSpeedId) == Approx(3.0 / 9.0).margin(1e-6));     // 1.0x
+    CHECK(valueOf(kArpChordLaneLengthId) == Approx(0.0).margin(1e-6));             // 1 step
+    CHECK(valueOf(kArpMidiOutId) == Approx(0.0).margin(1e-6));                     // off
 
     // Verify each normalized value
     // operatingMode: kArpMIDI (1) -> 1.0/3.0

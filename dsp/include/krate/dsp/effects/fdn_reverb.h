@@ -547,8 +547,25 @@ private:
     // Internal parameter update
     // =========================================================================
 
-    void setParamsInternal(const ReverbParams& params) noexcept {
+    void setParamsInternal(const ReverbParams& requested) noexcept {
         using namespace fdn_detail;
+
+        // A non-finite field keeps its last applied value: a NaN size or damping
+        // would write NaN into every feedback gain and filter coefficient, and the
+        // tank would recirculate it after the parameter is finite again.
+        ReverbParams params = requested;
+        const auto keepFinite = [](float& v, float last) noexcept {
+            if (!detail::isFinite(v)) v = last;
+        };
+        keepFinite(params.roomSize, appliedParams_.roomSize);
+        keepFinite(params.damping, appliedParams_.damping);
+        keepFinite(params.width, appliedParams_.width);
+        keepFinite(params.mix, appliedParams_.mix);
+        keepFinite(params.preDelayMs, appliedParams_.preDelayMs);
+        keepFinite(params.diffusion, appliedParams_.diffusion);
+        keepFinite(params.modRate, appliedParams_.modRate);
+        keepFinite(params.modDepth, appliedParams_.modDepth);
+        appliedParams_ = params;
 
         float roomSize = std::clamp(params.roomSize, 0.0f, 1.0f);
         float damping = std::clamp(params.damping, 0.0f, 1.0f);
@@ -767,6 +784,7 @@ private:
     float width_ = 1.0f;
     float preDelaySamples_ = 0.0f;
     float dcBlockR_ = 0.9999f;  // DC blocker coefficient, computed in prepare()
+    ReverbParams appliedParams_{};  // last applied (finite) parameters
 
     // =========================================================================
     // SoA state arrays (FR-014) - alignas(32) for SIMD

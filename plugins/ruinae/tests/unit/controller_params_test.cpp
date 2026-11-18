@@ -154,6 +154,23 @@ TEST_CASE("Specific parameters are registered with correct names", "[controller]
     ctrl->terminate();
 }
 
+TEST_CASE("Mono Priority list entries name the MonoMode at the same index", "[controller][params]") {
+    auto* ctrl = makeControllerRaw();
+
+    // MonoMode enum order: LastNote = 0, LowNote = 1, HighNote = 2
+    auto entry = [&](double normalized) {
+        String128 str{};
+        REQUIRE(ctrl->getParamStringByValue(Ruinae::kMonoPriorityId, normalized, str) == kResultOk);
+        return to_string(str);
+    };
+    CHECK(entry(0.0).find("Last") != std::string::npos);
+    CHECK(entry(0.5).find("Low") != std::string::npos);
+    CHECK(entry(1.0).find("High") != std::string::npos);
+
+    ctrl->terminate();
+    ctrl->release();
+}
+
 TEST_CASE("Discrete parameters have correct step counts", "[controller][params]") {
     auto* ctrl = makeControllerRaw();
 

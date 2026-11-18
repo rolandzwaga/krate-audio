@@ -17,7 +17,9 @@ namespace Ruinae {
 
 // State version for serialization (bump when format changes post-release)
 // Shared between Processor and Controller — lives here to avoid cross-includes.
-constexpr Steinberg::int32 kCurrentStateVersion = 8;
+// v9: same layout as v8; Spectral Shift reaches the audio, so older states load it at 0.5 (no shift);
+//     Formant Morph is an offset from the Formant Vowel, so older states load Vowel A (their sound).
+constexpr Steinberg::int32 kCurrentStateVersion = 9;
 
 // Processor Component ID
 // The audio processing component (runs on audio thread)
@@ -666,7 +668,7 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     // Mono Mode Parameters (1800-1899)
     // ==========================================================================
     kMonoBaseId = 1800,
-    kMonoPriorityId = 1800,    // Last/High/Low
+    kMonoPriorityId = 1800,    // Last/Low/High
     kMonoLegatoId = 1801,      // on/off
     kMonoPortamentoTimeId = 1802, // 0-5000ms
     kMonoPortaModeId = 1803,   // Always/Legato

@@ -35,14 +35,16 @@ inline void saveOscBParams(const OscBParams& params, Steinberg::IBStreamer& stre
     saveOscParams(params, streamer);
 }
 
-inline bool loadOscBParams(OscBParams& params, Steinberg::IBStreamer& streamer) {
-    return loadOscParams(params, streamer);
+inline bool loadOscBParams(OscBParams& params, Steinberg::IBStreamer& streamer,
+                           Steinberg::int32 stateVersion = kCurrentStateVersion) {
+    return loadOscParams(params, streamer, stateVersion);
 }
 
 template<typename SetParamFunc>
 inline void loadOscBParamsToController(
-    Steinberg::IBStreamer& streamer, const SetParamFunc& setParam) {
-    loadOscParamsToController(kOscBTypeId, streamer, std::move(setParam));
+    Steinberg::IBStreamer& streamer, const SetParamFunc& setParam,
+    Steinberg::int32 stateVersion = kCurrentStateVersion) {
+    loadOscParamsToController(kOscBTypeId, streamer, std::move(setParam), stateVersion);
 }
 
 } // namespace Ruinae

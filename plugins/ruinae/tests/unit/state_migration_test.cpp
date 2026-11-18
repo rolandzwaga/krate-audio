@@ -10,7 +10,10 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include "processor/processor.h"
+#include "controller/controller.h"
 #include "plugin_ids.h"
+#include "parameters/dropdown_mappings.h"
+#include "parameters/lfo_params.h"
 #include "drain_preset_transfer.h"
 
 #include "vst_event_list.h"
@@ -21,12 +24,14 @@
 #include "pluginterfaces/vst/ivstaudioprocessor.h"
 
 #include <krate/dsp/core/db_utils.h>
+#include <krate/dsp/core/modulation_types.h>
 
 #include <algorithm>
 #include <cmath>
 #include <cstring>
 #include <cstdint>
 #include <random>
+#include <utility>
 #include <vector>
 
 // =============================================================================
@@ -316,7 +321,7 @@ TEST_CASE("setState of the audit's garbage stream returns within one block", "[s
     std::mt19937 rng(1234);
     std::vector<uint8_t> junk;
     for (int g = 0; g <= 2; ++g) {
-        junk.assign(static_cast<size_t>(200 + 900 * g), 0);
+        junk.assign(static_cast<size_t>(200) + (static_cast<size_t>(900) * static_cast<size_t>(g)), 0);
         for (auto& c : junk) c = static_cast<uint8_t>(rng() & 0xFF);
     }
     const Steinberg::int32 version = 8;
@@ -358,4 +363,342 @@ TEST_CASE("setState of the audit's garbage stream returns within one block", "[s
 
     proc->setActive(static_cast<Steinberg::TBool>(false));
     proc->terminate();
+}
+
+// =============================================================================
+// R-170..R-174: a NaN float in a state must not reach the DSP
+// =============================================================================
+
+namespace {
+
+using ParamList = std::vector<std::pair<Steinberg::Vst::ParamID, double>>;
+
+/// Saves the state of a fresh processor after one block that applies `changes`.
+std::vector<uint8_t> stateWithChanges(const ParamList& changes) {
+    auto proc = makeProcessor();
+    Krate::Test::ParameterChanges pc;
+    for (const auto& [id, value] : changes) pc.addChange(id, value);
+    Steinberg::Vst::ProcessData data{};
+    data.numSamples = 0;
+    data.inputParameterChanges = &pc;
+    proc->process(data);
+
+    Steinberg::MemoryStream out;
+    REQUIRE(proc->getState(&out) == Steinberg::kResultTrue);
+    auto bytes = streamBytes(out);
+    proc->terminate();
+    return bytes;
+}
+
+/// The one stream offset whose float reads `storedA` after `base` + {id, normA} and
+/// `storedB` after `base` + {id, normB}.
+size_t locateFloat(const ParamList& base, Steinberg::Vst::ParamID id,
+                   double normA, float storedA, double normB, float storedB) {
+    ParamList a = base;
+    a.emplace_back(id, normA);
+    ParamList b = base;
+    b.emplace_back(id, normB);
+    const auto blobA = stateWithChanges(a);
+    const auto blobB = stateWithChanges(b);
+    REQUIRE(blobA.size() == blobB.size());
+    size_t offset = 0;
+    int matches = 0;
+    for (size_t i = 4; i + sizeof(float) <= blobA.size(); ++i) {
+        if (floatAt(blobA, i) == storedA && floatAt(blobB, i) == storedB) {
+            offset = i;
+            ++matches;
+        }
+    }
+    INFO("param " << id);
+    REQUIRE(matches == 1);
+    return offset;
+}
+
+struct RenderResult {
+    int nonFinite = 0;
+    float peak = 0.0f;
+};
+
+/// Holds a C major chord from the first block and renders `blocks` blocks with the
+/// transport playing at 120 BPM.
+RenderResult renderChord(Ruinae::Processor& proc, int blocks) {
+    constexpr Steinberg::int32 kBlock = 512;
+    std::vector<float> outL(static_cast<size_t>(kBlock), 0.0f);
+    std::vector<float> outR(static_cast<size_t>(kBlock), 0.0f);
+    float* channels[2] = {outL.data(), outR.data()};
+    Steinberg::Vst::AudioBusBuffers outputBus{};
+    outputBus.numChannels = 2;
+    outputBus.channelBuffers32 = channels;
+    Krate::Test::EventList events;
+    Steinberg::Vst::ProcessContext ctx{};
+    ctx.state = Steinberg::Vst::ProcessContext::kPlaying | Steinberg::Vst::ProcessContext::kTempoValid |
+                Steinberg::Vst::ProcessContext::kTimeSigValid;
+    ctx.tempo = 120.0;
+    ctx.timeSigNumerator = 4;
+    ctx.timeSigDenominator = 4;
+    ctx.sampleRate = 44100.0;
+    Steinberg::Vst::ProcessData data{};
+    data.processMode = Steinberg::Vst::kRealtime;
+    data.symbolicSampleSize = Steinberg::Vst::kSample32;
+    data.numSamples = kBlock;
+    data.numOutputs = 1;
+    data.outputs = &outputBus;
+    data.inputEvents = &events;
+    data.processContext = &ctx;
+
+    RenderResult r;
+    for (int b = 0; b < blocks; ++b) {
+        events.clear();
+        if (b == 0) {
+            events.addNoteOn(48, 0.8f);
+            events.addNoteOn(52, 0.8f);
+            events.addNoteOn(55, 0.8f);
+        }
+        proc.process(data);
+        for (const float* ch : {outL.data(), outR.data()}) {
+            for (Steinberg::int32 i = 0; i < kBlock; ++i) {
+                if (!Krate::DSP::detail::isFinite(ch[i])) {
+                    ++r.nonFinite;
+                } else {
+                    r.peak = std::max(r.peak, std::fabs(ch[i]));
+                }
+            }
+        }
+        ctx.projectTimeSamples += kBlock;
+        ctx.projectTimeMusic += static_cast<double>(kBlock) / 44100.0 * 2.0;
+    }
+    return r;
+}
+
+void loadBlob(Ruinae::Processor& proc, std::vector<uint8_t> blob) {
+    Steinberg::MemoryStream in;
+    Steinberg::int32 written = 0;
+    in.write(blob.data(), static_cast<Steinberg::int32>(blob.size()), &written);
+    in.seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
+    REQUIRE(proc.setState(&in) == Steinberg::kResultTrue);
+    drainPresetTransfer(&proc);
+}
+
+}  // namespace
+
+TEST_CASE("setState sanitises non-finite floats", "[state][robustness]") {
+    using namespace Ruinae;
+    // Every field below reaches DSP state that a NaN latches: LFO 1 routed to the
+    // global filter cutoff (global filter on), the Hall reverb, the filter envelope's
+    // Bezier attack curve, the trance gate, and the free-running MIDI arp.
+    const double srcLfo1 = static_cast<double>(static_cast<int>(Krate::DSP::ModSource::LFO1)) /
+                           static_cast<double>(kModSourceCount - 1);
+    const ParamList base = {
+        {kGlobalFilterEnabledId, 1.0},
+        {kGlobalFilterCutoffId, 0.5},
+        {kModMatrixSlot0SourceId, srcLfo1},
+        {kModMatrixSlot0DestId, 0.0},     // Global Filter Cutoff
+        {kModMatrixSlot0AmountId, 0.75},  // +0.5
+        {kLFO1SyncId, 0.0},
+        {kReverbEnabledId, 1.0},
+        {kReverbTypeId, 1.0},  // Hall
+        {static_cast<Steinberg::Vst::ParamID>(kFilterEnvBaseId + 7), 1.0},  // Bezier on
+        {kTranceGateEnabledId, 1.0},
+        {kArpOperatingModeId, 1.0 / 3.0},  // MIDI
+        {kArpTempoSyncId, 0.0},
+    };
+
+    struct Field {
+        const char* name;
+        size_t offset;
+    };
+    const std::vector<Field> fields = {
+        {.name = "LFO 1 rate",
+         .offset = locateFloat(base, kLFO1RateId, 0.25, lfoRateFromNormalized(0.25), 0.75,
+                               lfoRateFromNormalized(0.75))},
+        {.name = "reverb size", .offset = locateFloat(base, kReverbSizeId, 0.25, 0.25f, 0.75, 0.75f)},
+        {.name = "filter env attack Bezier cp1 y",
+         .offset = locateFloat(base, static_cast<Steinberg::Vst::ParamID>(kFilterEnvBaseId + 11), 0.25,
+                               0.25f, 0.75, 0.75f)},
+        {.name = "trance gate depth",
+         .offset = locateFloat(base, kTranceGateDepthId, 0.25, 0.25f, 0.75, 0.75f)},
+        {.name = "arp free rate", .offset = locateFloat(base, kArpFreeRateId, 0.0, 0.5f, 1.0, 50.0f)},
+        {.name = "arp velocity lane speed",
+         .offset = locateFloat(base, kArpVelocityLaneSpeedId, 0.0, 0.25f, 1.0, 4.0f)},
+    };
+
+    const auto clean = stateWithChanges(base);
+    constexpr std::uint32_t kNaNBits = 0x7FC00000u;
+    constexpr int kBlocks = 87;  // ~1 s at 44.1 kHz
+
+    // Each field alone, then all of them at once.
+    for (size_t pick = 0; pick <= fields.size(); ++pick) {
+        const bool all = pick == fields.size();
+        DYNAMIC_SECTION("NaN in " << (all ? "every field" : fields[pick].name)) {
+            auto corrupt = clean;
+            for (size_t f = 0; f < fields.size(); ++f) {
+                if (all || f == pick) {
+                    std::memcpy(corrupt.data() + fields[f].offset, &kNaNBits, sizeof(kNaNBits));
+                }
+            }
+
+            auto proc = makeProcessor();
+            REQUIRE(proc->setActive(true) == Steinberg::kResultTrue);
+            loadBlob(*proc, corrupt);
+
+            // The loaded parameters are finite (getState writes the stored atomics back).
+            Steinberg::MemoryStream out;
+            REQUIRE(proc->getState(&out) == Steinberg::kResultTrue);
+            const auto saved = streamBytes(out);
+            REQUIRE(saved.size() == corrupt.size());
+            for (const auto& field : fields) {
+                INFO(field.name << " loads as " << floatAt(saved, field.offset));
+                CHECK(Krate::DSP::detail::isFinite(floatAt(saved, field.offset)));
+            }
+
+            const auto first = renderChord(*proc, kBlocks);
+            CHECK(first.nonFinite == 0);
+            CHECK(first.peak > 1e-3f);
+
+            // A clean state afterwards plays normally: nothing stayed stuck-silent.
+            loadBlob(*proc, clean);
+            const auto second = renderChord(*proc, kBlocks);
+            CHECK(second.nonFinite == 0);
+            CHECK(second.peak > 1e-3f);
+
+            proc->setActive(static_cast<Steinberg::TBool>(false));
+            proc->terminate();
+        }
+    }
+}
+
+// =============================================================================
+// R-182: Spectral Shift had no audio path before state v9. Older states stored
+// 0.0 for a knob shown at 50 %; they load the centre (no shift), their sound.
+// =============================================================================
+
+namespace {
+
+/// The shift the processor stores after loading `blob` (setState + snapshot drain).
+float processorShiftAfterLoad(const std::vector<uint8_t>& blob, size_t shiftOffset) {
+    auto proc = makeProcessor();
+    loadBlob(*proc, blob);
+    Steinberg::MemoryStream out;
+    REQUIRE(proc->getState(&out) == Steinberg::kResultTrue);
+    const auto saved = streamBytes(out);
+    proc->terminate();
+    REQUIRE(saved.size() > shiftOffset + sizeof(float));
+    return floatAt(saved, shiftOffset);
+}
+
+/// The normalized Spectral Shift the controller shows after setComponentState(blob).
+double controllerShiftAfterLoad(std::vector<uint8_t> blob) {
+    auto* ctrl = new Ruinae::Controller();
+    REQUIRE(ctrl->initialize(nullptr) == Steinberg::kResultTrue);
+    Steinberg::MemoryStream in;
+    Steinberg::int32 written = 0;
+    in.write(blob.data(), static_cast<Steinberg::int32>(blob.size()), &written);
+    in.seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
+    REQUIRE(ctrl->setComponentState(&in) == Steinberg::kResultTrue);
+    const double value = ctrl->getParamNormalized(Ruinae::kMixerShiftId);
+    ctrl->terminate();
+    ctrl->release();
+    return value;
+}
+
+}  // namespace
+
+TEST_CASE("State v8 loads spectral shift as 0.5", "[state][migration]") {
+    using namespace Ruinae;
+    const size_t shiftOffset = locateFloat({}, kMixerShiftId, 0.25, 0.25f, 0.75, 0.75f);
+
+    for (const float stored : {0.0f, 0.7f}) {
+        DYNAMIC_SECTION("version 8 storing " << stored) {
+            auto v8 = stateWithChanges({});
+            const Steinberg::int32 version8 = 8;
+            std::memcpy(v8.data(), &version8, sizeof(version8));
+            std::memcpy(v8.data() + shiftOffset, &stored, sizeof(stored));
+
+            CHECK(processorShiftAfterLoad(v8, shiftOffset) == 0.5f);
+            CHECK(controllerShiftAfterLoad(v8) == 0.5);
+        }
+    }
+
+    SECTION("the current version keeps the stored shift") {
+        const auto current = stateWithChanges({{kMixerShiftId, 0.25}});
+        CHECK(processorShiftAfterLoad(current, shiftOffset) == 0.25f);
+        CHECK(controllerShiftAfterLoad(current) == 0.25);
+    }
+}
+
+// =============================================================================
+// R-022: before state v9 the Formant Vowel was ignored and Morph alone set the
+// vowel position. Since v9 Morph is an offset from the Vowel, so older states
+// load Vowel A and keep their Morph: the position they were saved with.
+// =============================================================================
+
+namespace {
+
+/// The normalized values the controller shows for `ids` after setComponentState(blob).
+std::vector<double> controllerParamsAfterLoad(std::vector<uint8_t> blob,
+                                              const std::vector<Steinberg::Vst::ParamID>& ids) {
+    auto* ctrl = new Ruinae::Controller();
+    REQUIRE(ctrl->initialize(nullptr) == Steinberg::kResultTrue);
+    Steinberg::MemoryStream in;
+    Steinberg::int32 written = 0;
+    in.write(blob.data(), static_cast<Steinberg::int32>(blob.size()), &written);
+    in.seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
+    REQUIRE(ctrl->setComponentState(&in) == Steinberg::kResultTrue);
+    std::vector<double> values;
+    for (const auto id : ids) values.push_back(ctrl->getParamNormalized(id));
+    ctrl->terminate();
+    ctrl->release();
+    return values;
+}
+
+/// The processor's state after loading `blob` (setState + snapshot drain), saved again.
+std::vector<uint8_t> processorStateAfterLoad(const std::vector<uint8_t>& blob) {
+    auto proc = makeProcessor();
+    loadBlob(*proc, blob);
+    Steinberg::MemoryStream out;
+    REQUIRE(proc->getState(&out) == Steinberg::kResultTrue);
+    auto saved = streamBytes(out);
+    proc->terminate();
+    return saved;
+}
+
+}  // namespace
+
+TEST_CASE("State v8 loads formant vowel as A and keeps morph", "[state][migration]") {
+    using namespace Ruinae;
+    const std::vector<Steinberg::Vst::ParamID> ids = {
+        kOscAFormantVowelId, kOscAFormantMorphId, kOscBFormantVowelId, kOscBFormantMorphId};
+    constexpr double kVowelO = 3.0 / 4.0;
+    constexpr double kMorph22 = 2.2 / 4.0;
+    const auto saved = stateWithChanges({{kOscAFormantVowelId, kVowelO},
+                                         {kOscAFormantMorphId, kMorph22},
+                                         {kOscBFormantVowelId, kVowelO},
+                                         {kOscBFormantMorphId, kMorph22}});
+
+    SECTION("version 8: vowel A, morph 2.2 on the processor and the controller") {
+        auto v8 = saved;
+        const Steinberg::int32 version8 = 8;
+        std::memcpy(v8.data(), &version8, sizeof(version8));
+
+        // The processor's loaded atomics, read back through a current-version save.
+        const auto fromProcessor = controllerParamsAfterLoad(processorStateAfterLoad(v8), ids);
+        const auto fromController = controllerParamsAfterLoad(v8, ids);
+        for (const auto& values : {fromProcessor, fromController}) {
+            CHECK(values[0] == 0.0);
+            CHECK(std::abs(values[1] - kMorph22) < 1e-6);
+            CHECK(values[2] == 0.0);
+            CHECK(std::abs(values[3] - kMorph22) < 1e-6);
+        }
+    }
+
+    SECTION("the current version keeps vowel O") {
+        const auto fromProcessor = controllerParamsAfterLoad(processorStateAfterLoad(saved), ids);
+        const auto fromController = controllerParamsAfterLoad(saved, ids);
+        for (const auto& values : {fromProcessor, fromController}) {
+            CHECK(values[0] == kVowelO);
+            CHECK(std::abs(values[1] - kMorph22) < 1e-6);
+            CHECK(values[2] == kVowelO);
+            CHECK(std::abs(values[3] - kMorph22) < 1e-6);
+        }
+    }
 }
