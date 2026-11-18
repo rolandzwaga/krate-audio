@@ -27,6 +27,7 @@
 #include "pluginterfaces/vst/ivstprocesscontext.h"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <map>
 #include <set>
@@ -287,6 +288,121 @@ struct ArpIntegrationFixture {
             processContext.state &= ~static_cast<Steinberg::uint32>(
                 Steinberg::Vst::ProcessContext::kPlaying);
         }
+    }
+};
+
+// =============================================================================
+// Stuck-note checks (R-029, R-064, R-065, R-114, R-115)
+// =============================================================================
+
+/// Per-pitch NoteOn / NoteOff counts read off the processor's MIDI output.
+struct MidiOutTally {
+    std::array<int, 128> on{};
+    std::array<int, 128> off{};
+    std::array<bool, 128> lastIsOn{};  ///< the pitch's most recent event was a NoteOn
+    int totalOn = 0;
+
+    /// Count every note event in `out`, then empty it for the next block.
+    void collect(ArpTestEventList& out) {
+        for (Steinberg::int32 i = 0; i < out.getEventCount(); ++i) {
+            Steinberg::Vst::Event e{};
+            if (out.getEvent(i, e) != Steinberg::kResultTrue) continue;
+            if (e.type == Steinberg::Vst::Event::kNoteOnEvent && e.noteOn.velocity > 0.0f) {
+                ++on[static_cast<size_t>(e.noteOn.pitch & 0x7F)];
+                lastIsOn[static_cast<size_t>(e.noteOn.pitch & 0x7F)] = true;
+                ++totalOn;
+            } else if (e.type == Steinberg::Vst::Event::kNoteOnEvent) {
+                ++off[static_cast<size_t>(e.noteOn.pitch & 0x7F)];
+                lastIsOn[static_cast<size_t>(e.noteOn.pitch & 0x7F)] = false;
+            } else if (e.type == Steinberg::Vst::Event::kNoteOffEvent) {
+                ++off[static_cast<size_t>(e.noteOff.pitch & 0x7F)];
+                lastIsOn[static_cast<size_t>(e.noteOff.pitch & 0x7F)] = false;
+            }
+        }
+        out.clear();
+    }
+
+    /// Pitches whose most recent event is a NoteOn (still sounding downstream).
+    [[nodiscard]] int pitchesEndingOnNoteOn() const {
+        return static_cast<int>(std::count(lastIsOn.begin(), lastIsOn.end(), true));
+    }
+
+    /// Pitches whose NoteOn count differs from their NoteOff count.
+    [[nodiscard]] int unbalancedPitches() const {
+        int n = 0;
+        for (size_t p = 0; p < 128; ++p) {
+            if (on[p] != off[p]) ++n;
+        }
+        return n;
+    }
+};
+
+/// Fixture plus a captured MIDI output bus, tallied block by block.
+struct StuckNoteRig {
+    ArpIntegrationFixture f;
+    ArpTestEventList out;
+    MidiOutTally tally;
+
+    // The default amp release is 200 ms = 18 blocks of 512 at 44.1 kHz; the
+    // plan's bound is that time plus 10 blocks.
+    static constexpr int kReleasePlus10Blocks = 18 + 10;
+
+    StuckNoteRig() { f.data.outputEvents = &out; }
+
+    void block() {
+        f.processBlock();
+        tally.collect(out);
+    }
+
+    void blockWithParams(ArpTestParamChanges& params) {
+        f.processBlockWithParams(params);
+        tally.collect(out);
+    }
+
+    void setParam(Steinberg::Vst::ParamID id, double value) {
+        ArpTestParamChanges params;
+        params.addChange(id, value);
+        blockWithParams(params);
+    }
+
+    [[nodiscard]] bool blockIsSilent() const {
+        return !hasNonZeroSamples(f.outL.data(), f.kBlockSize)
+            && !hasNonZeroSamples(f.outR.data(), f.kBlockSize);
+    }
+
+    /// Process until a NoteOn newer than the ones seen so far reaches the
+    /// output, then two more blocks, so a mode change lands mid-gate.
+    [[nodiscard]] bool runUntilNextStepPlusTwoBlocks() {
+        const int seen = tally.totalOn;
+        for (int i = 0; i < 100; ++i) {
+            block();
+            if (tally.totalOn > seen) {
+                block();
+                block();
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /// Process blocks until the engine holds no voice; returns the blocks
+    /// taken, or -1 if it still holds one after `maxBlocks`.
+    [[nodiscard]] int blocksUntilNoVoice(int maxBlocks) {
+        for (int i = 1; i <= maxBlocks; ++i) {
+            block();
+            if (f.processor.engineActiveVoiceCountForTest() == 0) return i;
+        }
+        return -1;
+    }
+
+    /// True when the next `n` blocks are all exactly silent.
+    [[nodiscard]] bool nextBlocksSilent(int n) {
+        bool silent = true;
+        for (int i = 0; i < n; ++i) {
+            block();
+            if (!blockIsSilent()) silent = false;
+        }
+        return silent;
     }
 };
 
@@ -659,65 +775,40 @@ TEST_CASE("ArpProcessor_StateRoundTrip_AllParams", "[arp][integration][state]") 
 // Phase 7 (US5) Tests: T051, T052, T053
 // =============================================================================
 
-// T051: ArpIntegration_DisableWhilePlaying_NoStuckNotes (SC-005)
+// T051: ArpIntegration_DisableWhilePlaying_NoStuckNotes (SC-005, R-064, R-114)
 //
-// Enable arp, send note-on events, process blocks to generate arp events,
-// then disable arp and process more blocks. After disabling, the arp queues
-// cleanup note-offs via setEnabled(false) -> processBlock(). The engine should
-// eventually go silent (all note-offs delivered, no orphaned notes).
-TEST_CASE("ArpIntegration_DisableWhilePlaying_NoStuckNotes", "[arp][integration][transition]") {
-    ArpIntegrationFixture f;
-
-    // Enable arp
-    f.enableArp();
-
-    // Send a chord (C4, E4, G4)
-    f.events.addNoteOn(60, 0.8f);
-    f.events.addNoteOn(64, 0.8f);
-    f.events.addNoteOn(67, 0.8f);
-    f.processBlock();
-    f.clearEvents();
-
-    // Process enough blocks for the arp to generate note events and the
-    // engine to produce audio. At 120 BPM / 1/8 note = ~11025 samples per
-    // step = ~22 blocks of 512. Process 60 blocks (~30720 samples = ~2.7 steps).
-    bool audioFoundBeforeDisable = false;
-    for (int i = 0; i < 60; ++i) {
-        f.processBlock();
-        if (hasNonZeroSamples(f.outL.data(), f.kBlockSize)) {
-            audioFoundBeforeDisable = true;
-        }
-    }
-    REQUIRE(audioFoundBeforeDisable);
-
-    // Disable the arp. setEnabled(false) queues cleanup note-offs internally;
-    // the processBlock() inside disableArp() drains them. FR-017 guarantees
-    // every sounding arp note gets a matching note-off.
-    f.disableArp();
-
-    // Process many more blocks. The synth engine has a release tail (amp
-    // envelope release), so audio won't go silent immediately. But it MUST
-    // eventually go silent -- if notes are stuck, audio persists indefinitely.
-    // The default amp envelope release is short (~200ms = ~9000 samples = ~18
-    // blocks). Process 200 blocks to be absolutely sure.
-    bool allSilentAfterRelease = false;
-    int silentBlockCount = 0;
-    for (int i = 0; i < 200; ++i) {
-        f.processBlock();
-        if (!hasNonZeroSamples(f.outL.data(), f.kBlockSize)) {
-            ++silentBlockCount;
-            // Require 10 consecutive silent blocks to confirm silence
-            if (silentBlockCount >= 10) {
-                allSilentAfterRelease = true;
-                break;
-            }
-        } else {
-            silentBlockCount = 0;
-        }
+// Gate 200 % so an arp note is always sounding, then switch the arp Off two
+// blocks after a step fired, with the chord still held. Every NoteOn on the
+// MIDI output gets its NoteOff, and the engine releases the arp voice.
+TEST_CASE("ArpIntegration_DisableWhilePlaying_NoStuckNotes",
+          "[arp][integration][transition][stuck-notes]") {
+    StuckNoteRig r;
+    {
+        ArpTestParamChanges params;
+        params.addChange(Ruinae::kArpOperatingModeId, 1.0 / 3.0); // MIDI
+        params.addChange(Ruinae::kArpGateLengthId, 1.0);          // 200 %
+        params.addChange(Ruinae::kArpOctaveRangeId, 1.0 / 3.0);   // 2 octaves
+        params.addChange(Ruinae::kArpMidiOutId, 1.0);
+        r.blockWithParams(params);
     }
 
-    // If no stuck notes, audio should have gone silent
-    REQUIRE(allSilentAfterRelease);
+    r.f.events.addNoteOn(60, 0.8f);
+    r.f.events.addNoteOn(64, 0.8f);
+    r.f.events.addNoteOn(67, 0.8f);
+    r.block();
+    r.f.clearEvents();
+
+    REQUIRE(r.runUntilNextStepPlusTwoBlocks());
+    REQUIRE(r.f.processor.engineActiveVoiceCountForTest() > 0);
+
+    r.setParam(Ruinae::kArpOperatingModeId, 0.0); // Off, keys still held
+
+    const int blocks = r.blocksUntilNoVoice(StuckNoteRig::kReleasePlus10Blocks);
+    INFO("blocks until the engine held no voice: " << blocks);
+    REQUIRE(blocks > 0);
+    REQUIRE(r.nextBlocksSilent(10));
+    REQUIRE(r.tally.totalOn > 0);
+    REQUIRE(r.tally.unbalancedPitches() == 0);
 }
 
 // T052: ArpIntegration_TransportStop_ResetsTimingPreservesLatch (FR-018)
@@ -792,15 +883,14 @@ TEST_CASE("ArpIntegration_TransportStop_PreservesLatch", "[arp][integration][tra
     REQUIRE(audioFoundAfterRestart);
 }
 
-// T053: ArpIntegration_EnableWithExistingHeldNote_NoStuckNotes
+// T053: ArpIntegration_EnableWithExistingHeldNote_NoStuckNotes (R-029, R-115)
 //
 // With arp disabled, send a note-on directly to the engine (it plays normally).
-// Then enable the arp. The previously-held note in the engine should NOT get a
-// spurious duplicate note-off from the arp transition (since the arp has no
-// knowledge of engine-held notes). After enabling, audio from the direct note
-// should continue normally and eventually go silent only when a note-off is
-// sent via the normal MIDI path.
-TEST_CASE("ArpIntegration_EnableWithExistingHeldNote_NoStuckNotes", "[arp][integration][transition]") {
+// Then enable the arp. Enabling must not cut the held note, and releasing the
+// key afterwards must end it: its note-off goes to the engine, where its
+// note-on went, even though the arp now owns new keys.
+TEST_CASE("ArpIntegration_EnableWithExistingHeldNote_NoStuckNotes",
+          "[arp][integration][transition][stuck-notes]") {
     ArpIntegrationFixture f;
 
     // Arp disabled by default -- send a note directly to engine
@@ -835,38 +925,147 @@ TEST_CASE("ArpIntegration_EnableWithExistingHeldNote_NoStuckNotes", "[arp][integ
     }
     REQUIRE(audioStillPresent);
 
-    // Now send note-off for the direct note through the arp path (since arp is
-    // now enabled, note-off goes to arpCore_, not engine). But the engine note
-    // was sent via direct path -- the engine won't receive this note-off through
-    // the arp. So we need to also verify that when we send a new note through
-    // the arp path, it doesn't cause duplicate events.
-    //
-    // The key verification here is that enabling the arp did NOT send any
-    // spurious note-on or note-off events that would cause glitches. The engine
-    // note continues to sound until it naturally releases.
-    //
-    // Send note-off for the original note. Since arp is enabled, this goes to
-    // arpCore_.noteOff(60). The arp doesn't have this note, so it should be a
-    // no-op for the arp. The engine note continues until the amp envelope
-    // naturally releases it (since no one sent engine_.noteOff(60)).
+    // Release the key. The engine got its note-on, so it gets the note-off.
     f.events.addNoteOff(60);
     f.processBlock();
     f.clearEvents();
 
-    // Audio should still be present (the engine note was never told to stop
-    // via engine_.noteOff -- the note-off went to arpCore_ which didn't have it)
-    bool audioAfterNoteOff = false;
-    for (int i = 0; i < 3; ++i) {
+    // Silent within the release time plus 10 blocks, and stays silent.
+    constexpr int kReleasePlus10Blocks = 18 + 10; // 200 ms default release
+    int silentRun = 0;
+    int blocksToSilence = -1;
+    for (int i = 1; i <= kReleasePlus10Blocks + 10; ++i) {
         f.processBlock();
-        if (hasNonZeroSamples(f.outL.data(), f.kBlockSize)) {
-            audioAfterNoteOff = true;
+        if (hasNonZeroSamples(f.outL.data(), f.kBlockSize)
+            || hasNonZeroSamples(f.outR.data(), f.kBlockSize)) {
+            silentRun = 0;
+        } else if (++silentRun == 10) {
+            blocksToSilence = i - 9;
             break;
         }
     }
-    // The original engine note should still be sounding because the note-off
-    // went to the arp (not the engine). This is the expected behavior -- no
-    // duplicate note-offs or stuck notes from the transition.
-    CHECK(audioAfterNoteOff);
+    INFO("first block of 10 consecutive silent blocks: " << blocksToSilence);
+    REQUIRE(blocksToSilence > 0);
+    REQUIRE(blocksToSilence <= kReleasePlus10Blocks);
+    REQUIRE(f.processor.engineActiveVoiceCountForTest() == 0);
+}
+
+// R-029 (c): MIDI -> Mod while the arp's voices sound. Mod mode drops arp
+// note events, so the voices the MIDI mode started must be released at the
+// switch, or they hold at sustain 1.0 forever.
+TEST_CASE("ArpIntegration_MidiToMod_ReleasesArpVoices", "[arp][integration][stuck-notes]") {
+    StuckNoteRig r;
+    {
+        ArpTestParamChanges params;
+        params.addChange(Ruinae::kArpOperatingModeId, 1.0 / 3.0); // MIDI
+        params.addChange(Ruinae::kArpGateLengthId, 1.0);          // 200 %
+        params.addChange(Ruinae::kArpOctaveRangeId, 1.0 / 3.0);   // 2 octaves
+        params.addChange(Ruinae::kArpMidiOutId, 1.0);
+        params.addChange(Ruinae::kAmpEnvSustainId, 1.0);
+        r.blockWithParams(params);
+    }
+
+    r.f.events.addNoteOn(60, 0.8f);
+    r.f.events.addNoteOn(64, 0.8f);
+    r.f.events.addNoteOn(67, 0.8f);
+    r.block();
+    r.f.clearEvents();
+
+    // Steps 2-4 (64, 67, 72): the switch lands while 72 sounds, a pitch no
+    // key release can end by accident.
+    for (int step = 0; step < 3; ++step) REQUIRE(r.runUntilNextStepPlusTwoBlocks());
+    REQUIRE(r.tally.on[72] == 1);
+    REQUIRE(r.f.processor.engineActiveVoiceCountForTest() > 0);
+
+    r.setParam(Ruinae::kArpOperatingModeId, 2.0 / 3.0); // Mod
+
+    r.f.events.addNoteOff(60);
+    r.f.events.addNoteOff(64);
+    r.f.events.addNoteOff(67);
+    r.block();
+    r.f.clearEvents();
+
+    // 1 s later (87 blocks of 512 at 44.1 kHz): no voice, silence, balance.
+    for (int i = 0; i < 87; ++i) r.block();
+    REQUIRE(r.f.processor.engineActiveVoiceCountForTest() == 0);
+    REQUIRE(r.nextBlocksSilent(10));
+    REQUIRE(r.tally.totalOn > 0);
+    REQUIRE(r.tally.unbalancedPitches() == 0);
+}
+
+// R-065: keys released while the arp is Off must leave the arp's held buffer,
+// or switching it on again arpeggiates keys nobody holds.
+TEST_CASE("ArpIntegration_ReleaseWhileOff_NoPhantomPattern", "[arp][integration][stuck-notes]") {
+    StuckNoteRig r;
+    {
+        ArpTestParamChanges params;
+        params.addChange(Ruinae::kArpOperatingModeId, 1.0 / 3.0); // MIDI
+        params.addChange(Ruinae::kArpMidiOutId, 1.0);
+        r.blockWithParams(params);
+    }
+
+    r.f.events.addNoteOn(60, 0.8f);
+    r.f.events.addNoteOn(64, 0.8f);
+    r.f.events.addNoteOn(67, 0.8f);
+    r.block();
+    r.f.clearEvents();
+    for (int i = 0; i < 30; ++i) r.block();
+    REQUIRE(r.tally.totalOn > 0);
+
+    r.setParam(Ruinae::kArpOperatingModeId, 0.0); // Off
+
+    r.f.events.addNoteOff(60);
+    r.f.events.addNoteOff(64);
+    r.f.events.addNoteOff(67);
+    r.block();
+    r.f.clearEvents();
+
+    r.setParam(Ruinae::kArpOperatingModeId, 1.0 / 3.0); // MIDI again, no key down
+    const int onsBeforeReenable = r.tally.totalOn;
+
+    // 2 s (173 blocks); the last 10 must be silent.
+    for (int i = 0; i < 163; ++i) r.block();
+    const bool tailSilent = r.nextBlocksSilent(10);
+
+    INFO("NoteOns after re-enabling with no key held: " << (r.tally.totalOn - onsBeforeReenable));
+    REQUIRE(r.tally.totalOn == onsBeforeReenable);
+    REQUIRE(tailSilent);
+    REQUIRE(r.f.processor.engineActiveVoiceCountForTest() == 0);
+    REQUIRE(r.tally.unbalancedPitches() == 0);
+}
+
+// R-064 with Latch Hold: the keys are already up and the latched pattern is
+// playing when the arp is switched Off mid-gate.
+TEST_CASE("ArpIntegration_LatchedDisable_NoStuckNotes", "[arp][integration][stuck-notes]") {
+    StuckNoteRig r;
+    {
+        ArpTestParamChanges params;
+        params.addChange(Ruinae::kArpOperatingModeId, 1.0 / 3.0); // MIDI
+        params.addChange(Ruinae::kArpLatchModeId, 0.5);           // Hold
+        params.addChange(Ruinae::kArpGateLengthId, 1.0);          // 200 %
+        params.addChange(Ruinae::kArpMidiOutId, 1.0);
+        r.blockWithParams(params);
+    }
+
+    r.f.events.addNoteOn(60, 0.8f);
+    r.f.events.addNoteOn(64, 0.8f);
+    r.block();
+    r.f.clearEvents();
+    r.f.events.addNoteOff(60);
+    r.f.events.addNoteOff(64);
+    r.block();
+    r.f.clearEvents();
+
+    REQUIRE(r.runUntilNextStepPlusTwoBlocks());
+    REQUIRE(r.f.processor.engineActiveVoiceCountForTest() > 0);
+
+    r.setParam(Ruinae::kArpOperatingModeId, 0.0); // Off
+
+    const int blocks = r.blocksUntilNoVoice(StuckNoteRig::kReleasePlus10Blocks);
+    INFO("blocks until the engine held no voice: " << blocks);
+    REQUIRE(blocks > 0);
+    REQUIRE(r.nextBlocksSilent(10));
+    REQUIRE(r.tally.unbalancedPitches() == 0);
 }
 
 // =============================================================================
@@ -1755,6 +1954,87 @@ TEST_CASE("ArpIntegration_NormalStepPassesLegatoFalse",
 
     // Normal noteOn with legato=false should produce audio normally
     REQUIRE(audioFound);
+}
+
+// R-113: a Slide step sends a legato NoteOn and no NoteOff for the note it
+// replaces. On the MIDI output the replaced pitch must still end (at the slide
+// onset), or it hangs on the downstream instrument.
+TEST_CASE("ArpMidiOut_SlideStep_EveryNoteOnHasNoteOff", "[arp][integration][stuck-notes]") {
+    StuckNoteRig r;
+    {
+        ArpTestParamChanges params;
+        params.addChange(Ruinae::kArpOperatingModeId, 1.0 / 3.0);       // MIDI
+        params.addChange(Ruinae::kArpMidiOutId, 1.0);
+        params.addChange(Ruinae::kArpModifierLaneLengthId, 1.0 / 31.0); // 2 steps
+        params.addChange(Ruinae::kArpModifierLaneStep0Id, 1.0 / 255.0); // Active
+        params.addChange(static_cast<Steinberg::Vst::ParamID>(Ruinae::kArpModifierLaneStep0Id + 1),
+                         5.0 / 255.0);                                    // Active|Slide
+        r.blockWithParams(params);
+    }
+
+    r.f.events.addNoteOn(60, 0.8f);
+    r.f.events.addNoteOn(64, 0.8f);
+    r.f.events.addNoteOn(67, 0.8f);
+    r.block();
+    r.f.clearEvents();
+
+    // 4 bars at 120 BPM = 8 s = 689 blocks of 512 at 44.1 kHz.
+    for (int i = 0; i < 689; ++i) r.block();
+    REQUIRE(r.tally.totalOn >= 8);
+
+    r.f.events.addNoteOff(60);
+    r.f.events.addNoteOff(64);
+    r.f.events.addNoteOff(67);
+    r.block();
+    r.f.clearEvents();
+
+    // One more bar (2 s).
+    for (int i = 0; i < 173; ++i) r.block();
+
+    INFO("NoteOns on the output: " << r.tally.totalOn);
+    REQUIRE(r.tally.unbalancedPitches() == 0);
+    REQUIRE(r.tally.pitchesEndingOnNoteOn() == 0);
+}
+
+// R-028: a Slide step on a chord step whose pitches change. Every voice of the
+// old chord must either glide to a new chord note or be released; none may
+// stay gated once the arp has stopped.
+TEST_CASE("ArpIntegration_ChordSlide_NoStuckVoices", "[arp][integration][stuck-notes]") {
+    StuckNoteRig r;
+    {
+        ArpTestParamChanges params;
+        params.addChange(Ruinae::kVoiceModeId, 0.0);                     // Poly
+        params.addChange(Ruinae::kArpOperatingModeId, 1.0 / 3.0);       // MIDI
+        params.addChange(Ruinae::kArpMidiOutId, 1.0);
+        params.addChange(Ruinae::kArpModifierLaneLengthId, 1.0 / 31.0); // 2 steps
+        params.addChange(Ruinae::kArpModifierLaneStep0Id, 1.0 / 255.0); // Active
+        params.addChange(static_cast<Steinberg::Vst::ParamID>(Ruinae::kArpModifierLaneStep0Id + 1),
+                         5.0 / 255.0);                                    // Active|Slide
+        params.addChange(Ruinae::kArpChordLaneLengthId, 0.0);           // 1 step
+        params.addChange(Ruinae::kArpChordLaneStep0Id, 2.0 / 4.0);      // Triad
+        r.blockWithParams(params);
+    }
+
+    // Two keys, so the chord root changes from step 1 to the Slide step 2.
+    r.f.events.addNoteOn(60, 0.8f);
+    r.f.events.addNoteOn(62, 0.8f);
+    r.block(); // step 1 fires with the keys: the triad on 60
+    r.f.clearEvents();
+    REQUIRE(r.tally.totalOn == 3);
+
+    REQUIRE(r.runUntilNextStepPlusTwoBlocks()); // step 2: Slide to the triad on 62
+    REQUIRE(r.tally.totalOn == 6);
+
+    r.f.events.addNoteOff(60);
+    r.f.events.addNoteOff(62);
+    r.block();
+    r.f.clearEvents();
+
+    // 3 s (259 blocks); the last 10 must be silent.
+    for (int i = 0; i < 249; ++i) r.block();
+    REQUIRE(r.nextBlocksSilent(10));
+    REQUIRE(r.f.processor.engineActiveVoiceCountForTest() == 0);
+    REQUIRE(r.tally.unbalancedPitches() == 0);
 }
 
 // =============================================================================

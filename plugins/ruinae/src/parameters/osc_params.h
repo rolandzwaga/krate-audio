@@ -10,6 +10,7 @@
 #include "plugin_ids.h"
 #include "controller/parameter_helpers.h"
 #include "parameters/dropdown_mappings.h"
+#include "parameters/state_load_helpers.h"
 #include "pluginterfaces/base/ustring.h"
 #include "public.sdk/source/vst/vstparameters.h"
 #include "public.sdk/source/vst/vsteditcontroller.h"
@@ -727,17 +728,22 @@ inline bool loadOscParams(OscParams& params, Steinberg::IBStreamer& streamer) {
     Steinberg::int32 intVal = 0;
     float floatVal = 0.0f;
 
+    // Every value is clamped to the range handleOscParamChange produces (R-147:
+    // a stored PhaseMod of 1e30 hung the oscillator's phase wrap). Non-finite
+    // floats load as the struct default.
+
     // Existing fields (required -- return false if missing)
     if (!streamer.readInt32(intVal)) return false;
-    params.type.store(intVal, std::memory_order_relaxed);
+    params.type.store(std::clamp(static_cast<int>(intVal), 0, kOscTypeCount - 1),
+                      std::memory_order_relaxed);
     if (!streamer.readFloat(floatVal)) return false;
-    params.tuneSemitones.store(floatVal, std::memory_order_relaxed);
+    params.tuneSemitones.store(finiteClamp(floatVal, -24.0f, 24.0f, 0.0f), std::memory_order_relaxed);
     if (!streamer.readFloat(floatVal)) return false;
-    params.fineCents.store(floatVal, std::memory_order_relaxed);
+    params.fineCents.store(finiteClamp(floatVal, -100.0f, 100.0f, 0.0f), std::memory_order_relaxed);
     if (!streamer.readFloat(floatVal)) return false;
-    params.level.store(floatVal, std::memory_order_relaxed);
+    params.level.store(finiteClamp(floatVal, 0.0f, 1.0f, 1.0f), std::memory_order_relaxed);
     if (!streamer.readFloat(floatVal)) return false;
-    params.phase.store(floatVal, std::memory_order_relaxed);
+    params.phase.store(finiteClamp(floatVal, 0.0f, 1.0f, 0.0f), std::memory_order_relaxed);
 
     // Type-specific fields (068-osc-type-params)
     // When readFloat()/readInt32() returns false, the old preset lacks these fields;
@@ -745,73 +751,73 @@ inline bool loadOscParams(OscParams& params, Steinberg::IBStreamer& streamer) {
 
     // PolyBLEP / Wavetable shared
     if (streamer.readInt32(intVal))
-        params.waveform.store(intVal, std::memory_order_relaxed);
+        params.waveform.store(std::clamp(static_cast<int>(intVal), 0, 4), std::memory_order_relaxed);
     if (streamer.readFloat(floatVal))
-        params.pulseWidth.store(floatVal, std::memory_order_relaxed);
+        params.pulseWidth.store(finiteClamp(floatVal, 0.01f, 0.99f, 0.5f), std::memory_order_relaxed);
     if (streamer.readFloat(floatVal))
-        params.phaseMod.store(floatVal, std::memory_order_relaxed);
+        params.phaseMod.store(finiteClamp(floatVal, -1.0f, 1.0f, 0.0f), std::memory_order_relaxed);
     if (streamer.readFloat(floatVal))
-        params.freqMod.store(floatVal, std::memory_order_relaxed);
+        params.freqMod.store(finiteClamp(floatVal, -1.0f, 1.0f, 0.0f), std::memory_order_relaxed);
     // Phase Distortion
     if (streamer.readInt32(intVal))
-        params.pdWaveform.store(intVal, std::memory_order_relaxed);
+        params.pdWaveform.store(std::clamp(static_cast<int>(intVal), 0, 7), std::memory_order_relaxed);
     if (streamer.readFloat(floatVal))
-        params.pdDistortion.store(floatVal, std::memory_order_relaxed);
+        params.pdDistortion.store(finiteClamp(floatVal, 0.0f, 1.0f, 0.0f), std::memory_order_relaxed);
     // Sync
     if (streamer.readFloat(floatVal))
-        params.syncRatio.store(floatVal, std::memory_order_relaxed);
+        params.syncRatio.store(finiteClamp(floatVal, 1.0f, 8.0f, 2.0f), std::memory_order_relaxed);
     if (streamer.readInt32(intVal))
-        params.syncWaveform.store(intVal, std::memory_order_relaxed);
+        params.syncWaveform.store(std::clamp(static_cast<int>(intVal), 0, 4), std::memory_order_relaxed);
     if (streamer.readInt32(intVal))
-        params.syncMode.store(intVal, std::memory_order_relaxed);
+        params.syncMode.store(std::clamp(static_cast<int>(intVal), 0, 2), std::memory_order_relaxed);
     if (streamer.readFloat(floatVal))
-        params.syncAmount.store(floatVal, std::memory_order_relaxed);
+        params.syncAmount.store(finiteClamp(floatVal, 0.0f, 1.0f, 1.0f), std::memory_order_relaxed);
     if (streamer.readFloat(floatVal))
-        params.syncPulseWidth.store(floatVal, std::memory_order_relaxed);
+        params.syncPulseWidth.store(finiteClamp(floatVal, 0.01f, 0.99f, 0.5f), std::memory_order_relaxed);
     // Additive
     if (streamer.readInt32(intVal))
-        params.additivePartials.store(intVal, std::memory_order_relaxed);
+        params.additivePartials.store(std::clamp(static_cast<int>(intVal), 1, 128), std::memory_order_relaxed);
     if (streamer.readFloat(floatVal))
-        params.additiveTilt.store(floatVal, std::memory_order_relaxed);
+        params.additiveTilt.store(finiteClamp(floatVal, -24.0f, 24.0f, 0.0f), std::memory_order_relaxed);
     if (streamer.readFloat(floatVal))
-        params.additiveInharm.store(floatVal, std::memory_order_relaxed);
+        params.additiveInharm.store(finiteClamp(floatVal, 0.0f, 1.0f, 0.0f), std::memory_order_relaxed);
     // Chaos
     if (streamer.readInt32(intVal))
-        params.chaosAttractor.store(intVal, std::memory_order_relaxed);
+        params.chaosAttractor.store(std::clamp(static_cast<int>(intVal), 0, 4), std::memory_order_relaxed);
     if (streamer.readFloat(floatVal))
-        params.chaosAmount.store(floatVal, std::memory_order_relaxed);
+        params.chaosAmount.store(finiteClamp(floatVal, 0.0f, 1.0f, 0.5f), std::memory_order_relaxed);
     if (streamer.readFloat(floatVal))
-        params.chaosCoupling.store(floatVal, std::memory_order_relaxed);
+        params.chaosCoupling.store(finiteClamp(floatVal, 0.0f, 1.0f, 0.0f), std::memory_order_relaxed);
     if (streamer.readInt32(intVal))
-        params.chaosOutput.store(intVal, std::memory_order_relaxed);
+        params.chaosOutput.store(std::clamp(static_cast<int>(intVal), 0, 2), std::memory_order_relaxed);
     // Particle
     if (streamer.readFloat(floatVal))
-        params.particleScatter.store(floatVal, std::memory_order_relaxed);
+        params.particleScatter.store(finiteClamp(floatVal, 0.0f, 12.0f, 3.0f), std::memory_order_relaxed);
     if (streamer.readFloat(floatVal))
-        params.particleDensity.store(floatVal, std::memory_order_relaxed);
+        params.particleDensity.store(finiteClamp(floatVal, 1.0f, 64.0f, 16.0f), std::memory_order_relaxed);
     if (streamer.readFloat(floatVal))
-        params.particleLifetime.store(floatVal, std::memory_order_relaxed);
+        params.particleLifetime.store(finiteClamp(floatVal, 5.0f, 2000.0f, 200.0f), std::memory_order_relaxed);
     if (streamer.readInt32(intVal))
-        params.particleSpawnMode.store(intVal, std::memory_order_relaxed);
+        params.particleSpawnMode.store(std::clamp(static_cast<int>(intVal), 0, 2), std::memory_order_relaxed);
     if (streamer.readInt32(intVal))
-        params.particleEnvType.store(intVal, std::memory_order_relaxed);
+        params.particleEnvType.store(std::clamp(static_cast<int>(intVal), 0, 5), std::memory_order_relaxed);
     if (streamer.readFloat(floatVal))
-        params.particleDrift.store(floatVal, std::memory_order_relaxed);
+        params.particleDrift.store(finiteClamp(floatVal, 0.0f, 1.0f, 0.0f), std::memory_order_relaxed);
     // Formant
     if (streamer.readInt32(intVal))
-        params.formantVowel.store(intVal, std::memory_order_relaxed);
+        params.formantVowel.store(std::clamp(static_cast<int>(intVal), 0, 4), std::memory_order_relaxed);
     if (streamer.readFloat(floatVal))
-        params.formantMorph.store(floatVal, std::memory_order_relaxed);
+        params.formantMorph.store(finiteClamp(floatVal, 0.0f, 4.0f, 0.0f), std::memory_order_relaxed);
     // Spectral Freeze
     if (streamer.readFloat(floatVal))
-        params.spectralPitch.store(floatVal, std::memory_order_relaxed);
+        params.spectralPitch.store(finiteClamp(floatVal, -24.0f, 24.0f, 0.0f), std::memory_order_relaxed);
     if (streamer.readFloat(floatVal))
-        params.spectralTilt.store(floatVal, std::memory_order_relaxed);
+        params.spectralTilt.store(finiteClamp(floatVal, -12.0f, 12.0f, 0.0f), std::memory_order_relaxed);
     if (streamer.readFloat(floatVal))
-        params.spectralFormant.store(floatVal, std::memory_order_relaxed);
+        params.spectralFormant.store(finiteClamp(floatVal, -12.0f, 12.0f, 0.0f), std::memory_order_relaxed);
     // Noise
     if (streamer.readInt32(intVal))
-        params.noiseColor.store(intVal, std::memory_order_relaxed);
+        params.noiseColor.store(std::clamp(static_cast<int>(intVal), 0, 5), std::memory_order_relaxed);
 
     return true;
 }

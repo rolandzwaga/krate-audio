@@ -98,7 +98,7 @@ void Processor::applyTimedEvent(const TimedEvent& event) noexcept {
             else engine_.noteOff(event.pitch);
             break;
         case TimedEventKind::ArpNoteOn:
-            engine_.noteOn(event.pitch, event.velocity, event.legato);
+            engine_.noteOn(event.pitch, event.velocity, event.legato, event.legatoContinues);
             break;
         case TimedEventKind::ArpNoteOff:
             engine_.noteOff(event.pitch);
@@ -154,8 +154,23 @@ void Processor::renderEngineSegments(float* left, float* right, size_t numSample
 // ==============================================================================
 // MIDI Dispatcher Callbacks (FR-006)
 // ==============================================================================
-// NOLINTNEXTLINE(readability-convert-member-functions-to-static) accesses members arpParams_, arpCore_, engine_
+// The plain overloads are the noteId-aware ones with no id (-1), which the
+// timed-event queue already treats as "route by pitch".
 void Processor::onNoteOn(int16_t pitch, float velocity) {
+    onNoteOn(pitch, velocity, -1);
+}
+
+void Processor::onNoteOff(int16_t pitch) {
+    onNoteOff(pitch, -1);
+}
+
+// ==============================================================================
+// MPE Callbacks (noteId-aware overloads)
+// ==============================================================================
+
+// NOLINTNEXTLINE(readability-convert-member-functions-to-static) accesses members arpParams_, arpCore_, engine_
+void Processor::onNoteOn(int16_t pitch, float velocity, int32_t noteId) {
+    if (pitch < 0 || pitch > 127) return;
     auto midiPitch = static_cast<uint8_t>(pitch);
     auto midiVelocity = static_cast<uint8_t>(velocity * 127.0f + 0.5f);
 
@@ -168,67 +183,31 @@ void Processor::onNoteOn(int16_t pitch, float velocity) {
     if (arpRunning) {
         // Feed note to arp core for pattern building
         arpCore_.noteOn(midiPitch, midiVelocity);
+        if (arpCoreKeysOpen_[midiPitch] < UINT8_MAX) ++arpCoreKeysOpen_[midiPitch];
     }
     if (!arpDispatchesNotes) {
         // Direct to engine: Off mode or Mod-only mode (voices play held notes)
         queueTimedEvent({.offset = currentEventOffset_, .kind = TimedEventKind::NoteOn,
-                         .pitch = midiPitch, .velocity = midiVelocity});
-    }
-}
-
-// NOLINTNEXTLINE(readability-convert-member-functions-to-static) accesses members arpParams_, arpCore_, engine_
-void Processor::onNoteOff(int16_t pitch) {
-    auto midiPitch = static_cast<uint8_t>(pitch);
-
-    const int opMode = arpParams_.operatingMode.load(std::memory_order_relaxed);
-
-    const bool arpRunning = (opMode != kArpOff);
-    const bool arpDispatchesNotes = (opMode == kArpMIDI || opMode == kArpMIDIMod);
-
-    if (arpRunning) {
-        arpCore_.noteOff(midiPitch);
-    }
-    if (!arpDispatchesNotes) {
-        queueTimedEvent({.offset = currentEventOffset_, .kind = TimedEventKind::NoteOff, .pitch = midiPitch});
-    }
-}
-
-// ==============================================================================
-// MPE Callbacks (noteId-aware overloads)
-// ==============================================================================
-
-// NOLINTNEXTLINE(readability-convert-member-functions-to-static)
-void Processor::onNoteOn(int16_t pitch, float velocity, int32_t noteId) {
-    auto midiPitch = static_cast<uint8_t>(pitch);
-    auto midiVelocity = static_cast<uint8_t>(velocity * 127.0f + 0.5f);
-
-    const int opMode = arpParams_.operatingMode.load(std::memory_order_relaxed);
-
-    const bool arpRunning = (opMode != kArpOff);
-    const bool arpDispatchesNotes = (opMode == kArpMIDI || opMode == kArpMIDIMod);
-
-    if (arpRunning) {
-        arpCore_.noteOn(midiPitch, midiVelocity);
-    }
-    if (!arpDispatchesNotes) {
-        queueTimedEvent({.offset = currentEventOffset_, .kind = TimedEventKind::NoteOn,
                          .pitch = midiPitch, .velocity = midiVelocity, .noteId = noteId});
+        if (engineDirectOpen_[midiPitch] < UINT8_MAX) ++engineDirectOpen_[midiPitch];
     }
 }
 
-// NOLINTNEXTLINE(readability-convert-member-functions-to-static)
+// The release goes to every sink its note-on reached, whatever the operating
+// mode is now: a key pressed with the arp Off and released after switching it
+// on still ends its engine voice, and a key released while the arp is Off
+// still leaves the arp's held buffer (R-029, R-065).
+// NOLINTNEXTLINE(readability-convert-member-functions-to-static) accesses members arpCore_, engine_
 void Processor::onNoteOff(int16_t pitch, int32_t noteId) {
+    if (pitch < 0 || pitch > 127) return;
     auto midiPitch = static_cast<uint8_t>(pitch);
 
-    const int opMode = arpParams_.operatingMode.load(std::memory_order_relaxed);
-
-    const bool arpRunning = (opMode != kArpOff);
-    const bool arpDispatchesNotes = (opMode == kArpMIDI || opMode == kArpMIDIMod);
-
-    if (arpRunning) {
+    if (arpCoreKeysOpen_[midiPitch] > 0) {
+        --arpCoreKeysOpen_[midiPitch];
         arpCore_.noteOff(midiPitch);
     }
-    if (!arpDispatchesNotes) {
+    if (engineDirectOpen_[midiPitch] > 0) {
+        --engineDirectOpen_[midiPitch];
         queueTimedEvent({.offset = currentEventOffset_, .kind = TimedEventKind::NoteOff,
                          .pitch = midiPitch, .noteId = noteId});
     }

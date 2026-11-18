@@ -11,8 +11,10 @@
 #include <catch2/catch_approx.hpp>
 
 #include "processor/processor.h"
+#include "parameters/env_params.h"
 #include "plugin_ids.h"
 
+#include "public.sdk/source/common/memorystream.h"
 #include "pluginterfaces/vst/ivstevents.h"
 #include "pluginterfaces/vst/ivstparameterchanges.h"
 #include "pluginterfaces/vst/ivstprocesscontext.h"
@@ -550,6 +552,172 @@ TEST_CASE("Processor mono mode produces audio via parameter change",
         INFO("Poly→release→mono→new note should produce audio");
         REQUIRE(hasAudio);
     }
+
+    processor.setActive(false);
+    processor.terminate();
+}
+
+// =============================================================================
+// R-054: delay and reverb survive an engine reset
+// =============================================================================
+// setActive(true) and every host preset load call engine_.reset(). The
+// processor re-applies the delay/reverb enable flags every block, but the chain
+// ignores a flag that did not change, so a reset that dropped the slots to Off
+// left an enabled delay and reverb silent until the user toggled them.
+
+namespace {
+
+constexpr size_t kFxBlockSize = 512;
+constexpr float kFxDelayMs = 200.0f;
+constexpr int kFxPassBlocks = 48;
+constexpr int kFxNoteOffBlock = 4;
+// Dry note ends at block ~5 (note-off at 4, 5 ms release). The first echo
+// arrives at the 6144-sample latency compensation + 200 ms, i.e. block ~29.
+constexpr int kFxReverbWindowBegin = 10;
+constexpr int kFxReverbWindowEnd = 25;
+constexpr int kFxEchoWindowBegin = 27;
+constexpr int kFxEchoWindowEnd = 42;
+
+struct FxTailLevels {
+    float reverbRms = 0.0f; // after the dry note, before the echo arrives
+    float echoRms = 0.0f;   // around the first delay echo
+};
+
+void processFxBlock(Ruinae::Processor& proc, Steinberg::Vst::IParameterChanges& params,
+                    Steinberg::Vst::IEventList& events, std::vector<float>& outL,
+                    std::vector<float>& outR) {
+    std::fill(outL.begin(), outL.end(), 0.0f);
+    std::fill(outR.begin(), outR.end(), 0.0f);
+    float* channelBuffers[2] = {outL.data(), outR.data()};
+
+    Steinberg::Vst::AudioBusBuffers outputBus{};
+    outputBus.numChannels = 2;
+    outputBus.channelBuffers32 = channelBuffers;
+
+    Steinberg::Vst::ProcessData data{};
+    data.processMode = Steinberg::Vst::kRealtime;
+    data.symbolicSampleSize = Steinberg::Vst::kSample32;
+    data.numSamples = static_cast<Steinberg::int32>(kFxBlockSize);
+    data.numInputs = 0;
+    data.inputs = nullptr;
+    data.numOutputs = 1;
+    data.outputs = &outputBus;
+    data.inputParameterChanges = &params;
+    data.inputEvents = &events;
+    data.processContext = nullptr;
+    proc.process(data);
+}
+
+float windowRms(const std::vector<float>& signal, int beginBlock, int endBlock) {
+    const size_t begin = static_cast<size_t>(beginBlock) * kFxBlockSize;
+    const size_t end = static_cast<size_t>(endBlock) * kFxBlockSize;
+    double sum = 0.0;
+    for (size_t i = begin; i < end; ++i) {
+        sum += static_cast<double>(signal[i]) * static_cast<double>(signal[i]);
+    }
+    return static_cast<float>(std::sqrt(sum / static_cast<double>(end - begin)));
+}
+
+/// Plays one short note and measures the reverb tail and the first echo.
+FxTailLevels playNoteAndMeasureTails(Ruinae::Processor& proc) {
+    std::vector<float> outL(kFxBlockSize, 0.0f);
+    std::vector<float> outR(kFxBlockSize, 0.0f);
+    std::vector<float> captured;
+    captured.reserve(static_cast<size_t>(kFxPassBlocks) * kFxBlockSize);
+
+    MockParameterChanges noParams;
+    for (int block = 0; block < kFxPassBlocks; ++block) {
+        MockEventList events;
+        if (block == 0) events.addNoteOn(60, 0.8f);
+        if (block == kFxNoteOffBlock) events.addNoteOff(60);
+        processFxBlock(proc, noParams, events, outL, outR);
+        captured.insert(captured.end(), outL.begin(), outL.end());
+    }
+
+    FxTailLevels levels;
+    levels.reverbRms = windowRms(captured, kFxReverbWindowBegin, kFxReverbWindowEnd);
+    levels.echoRms = windowRms(captured, kFxEchoWindowBegin, kFxEchoWindowEnd);
+    return levels;
+}
+
+std::vector<char> captureProcessorState(Ruinae::Processor& proc) {
+    Steinberg::MemoryStream stream;
+    proc.getState(&stream);
+    Steinberg::int64 size = 0;
+    stream.seek(0, Steinberg::IBStream::kIBSeekEnd, &size);
+    stream.seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
+    std::vector<char> bytes(static_cast<size_t>(size));
+    Steinberg::int32 bytesRead = 0;
+    stream.read(bytes.data(), static_cast<Steinberg::int32>(size), &bytesRead);
+    return bytes;
+}
+
+void loadProcessorState(Ruinae::Processor& proc, const std::vector<char>& bytes) {
+    Steinberg::MemoryStream stream;
+    stream.write(const_cast<char*>(bytes.data()), // NOLINT(cppcoreguidelines-pro-type-const-cast): IBStream::write takes void*
+        static_cast<Steinberg::int32>(bytes.size()), nullptr);
+    stream.seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
+    proc.setState(&stream);
+}
+
+} // namespace
+
+TEST_CASE("Delay and reverb survive setActive cycle and a delay-on preset load",
+          "[integration][fx][lifecycle]") {
+    Ruinae::Processor processor;
+    REQUIRE(processor.initialize(nullptr) == Steinberg::kResultTrue);
+
+    Steinberg::Vst::ProcessSetup setup{};
+    setup.processMode = Steinberg::Vst::kRealtime;
+    setup.symbolicSampleSize = Steinberg::Vst::kSample32;
+    setup.sampleRate = 44100.0;
+    setup.maxSamplesPerBlock = static_cast<Steinberg::int32>(kFxBlockSize);
+    REQUIRE(processor.setupProcessing(setup) == Steinberg::kResultTrue);
+    REQUIRE(processor.setActive(true) == Steinberg::kResultTrue);
+
+    // Delay and reverb on, a short free-running echo and a short dry note.
+    {
+        MockParamChangesWithData params;
+        params.addChange(Ruinae::kDelayEnabledId, 1.0);
+        params.addChange(Ruinae::kReverbEnabledId, 1.0);
+        params.addChange(Ruinae::kDelayTypeId, 0.0); // Digital
+        params.addChange(Ruinae::kDelaySyncId, 0.0);
+        params.addChange(Ruinae::kDelayTimeId, (kFxDelayMs - 1.0) / 4999.0);
+        params.addChange(Ruinae::kDelayFeedbackId, 0.0);
+        params.addChange(Ruinae::kDelayMixId, 0.5);
+        params.addChange(Ruinae::kReverbMixId, 0.5);
+        params.addChange(Ruinae::kAmpEnvAttackId, Ruinae::envTimeToNormalized(1.0f));
+        params.addChange(Ruinae::kAmpEnvSustainId, 1.0);
+        params.addChange(Ruinae::kAmpEnvReleaseId, Ruinae::envTimeToNormalized(5.0f));
+        MockEventList noEvents;
+        std::vector<float> outL(kFxBlockSize, 0.0f);
+        std::vector<float> outR(kFxBlockSize, 0.0f);
+        // Two blocks: apply the parameters, then let the slot fade-ins finish.
+        processFxBlock(processor, params, noEvents, outL, outR);
+        MockParameterChanges noParams;
+        processFxBlock(processor, noParams, noEvents, outL, outR);
+    }
+
+    const FxTailLevels before = playNoteAndMeasureTails(processor);
+    INFO("before reset: reverb RMS " << before.reverbRms << ", echo RMS " << before.echoRms);
+    REQUIRE(before.reverbRms > 1e-3f);
+    REQUIRE(before.echoRms > 1e-3f);
+
+    SECTION("setActive(false) then setActive(true)") {
+        REQUIRE(processor.setActive(false) == Steinberg::kResultTrue);
+        REQUIRE(processor.setActive(true) == Steinberg::kResultTrue);
+    }
+
+    SECTION("setState of a delay-on state over a delay-on processor") {
+        const auto bytes = captureProcessorState(processor);
+        REQUIRE_FALSE(bytes.empty());
+        loadProcessorState(processor, bytes);
+    }
+
+    const FxTailLevels after = playNoteAndMeasureTails(processor);
+    INFO("after reset: reverb RMS " << after.reverbRms << ", echo RMS " << after.echoRms);
+    CHECK(after.reverbRms > 0.5f * before.reverbRms);
+    CHECK(after.echoRms > 0.5f * before.echoRms);
 
     processor.setActive(false);
     processor.terminate();

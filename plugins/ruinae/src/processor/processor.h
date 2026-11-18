@@ -188,6 +188,11 @@ public:
     /// synchronous host sendMessage() calls.
     [[nodiscard]] bool handshakeMessagesSent() const { return handshakeMessagesSent_; }
 
+    /// Test hook: voices the engine still holds (gated or releasing).
+    [[nodiscard]] uint32_t engineActiveVoiceCountForTest() const noexcept {
+        return engine_.getActiveVoiceCount();
+    }
+
 protected:
     // ==========================================================================
     // Parameter Handling
@@ -208,6 +213,7 @@ protected:
         uint8_t pitch{0};
         uint8_t velocity{0};
         bool legato{false};
+        bool legatoContinues{false};  ///< ArpNoteOn: same Slide batch as the previous legato note
         int32_t noteId{-1};
         uint32_t typeId{0};
         double value{0.0};
@@ -335,6 +341,27 @@ private:
     int prevArpNoteValue_{10};  // kNoteValueDefaultIndex
     Krate::DSP::LatchMode prevArpLatchMode_{Krate::DSP::LatchMode::Off};
     Krate::DSP::ArpRetriggerMode prevArpRetrigger_{Krate::DSP::ArpRetriggerMode::Off};
+
+    // Note ownership (R-029, R-064, R-065). A note-off goes wherever its
+    // note-on went, whatever the operating mode is by then. Open-note counts
+    // per pitch, so two notes on one pitch (MPE) each get their note-off.
+    std::array<uint8_t, 128> engineDirectOpen_{};  ///< host notes queued straight to the engine
+    std::array<uint8_t, 128> arpCoreKeysOpen_{};   ///< host notes fed to arpCore_
+    std::array<uint8_t, 128> arpEngineOpen_{};     ///< arp NoteOns queued to the engine
+    std::array<uint8_t, 128> arpMidiOutOpen_{};    ///< arp NoteOns added to the MIDI output
+    int prevArpOpMode_{kArpOff};  ///< operating mode of the previous block
+
+    /// Release every arp note still open on the engine and the MIDI output, at
+    /// `offset`, and zero both ledgers. With `out` null the MIDI-out ledger is
+    /// kept for a later flush.
+    void flushArpLedger(Steinberg::Vst::IEventList* out, Steinberg::int32 offset) noexcept;
+
+    /// Route one arp Slide step (R-028, R-113): arpEvents_[begin, end) are its
+    /// legato NoteOns. Each goes to the engine as a legato note of one batch and
+    /// to the MIDI output; then every arp note still open that is not in the
+    /// batch is released on both sinks, at the batch's last NoteOn.
+    void routeArpSlideBatch(Steinberg::Vst::ProcessData& data, size_t begin, size_t end,
+                            bool midiOut) noexcept;
 
     // ==========================================================================
     // DSP Engine

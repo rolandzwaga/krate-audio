@@ -56,32 +56,9 @@ Steinberg::tresult PLUGIN_API Controller::setParamNormalized(
     // Let the base class handle its bookkeeping first
     auto result = EditControllerEx1::setParamNormalized(tag, value);
 
-    // CRITICAL: Pointer-nulling for view lifecycle must happen even during bulk
-    // loads. The base class setParamNormalized triggers IDependent notifications
-    // which cause UIViewSwitchContainer to destroy old tab views. If we skip
-    // onTabChanged(), the cached pointers become dangling and syncAllViews()
-    // will dereference freed memory (use-after-free -> ACCESS_VIOLATION).
-    if (tag == kMainTabTag) {
-        int newTab = static_cast<int>(std::round(value * 3.0));
-        onTabChanged(newTab);
-    }
-    if (tag == kOscATypeId && value > 0.01) {
-        oscAPWKnob_ = nullptr;
-    }
-    if (tag == kOscBTypeId && value > 0.01) {
-        oscBPWKnob_ = nullptr;
-    }
-    if (tag == kDistortionTypeId) {
-        spectralCurveDropdown_ = nullptr;
-        spectralBitsGroup_ = nullptr;
-    }
-    // Same lifecycle hazard one level down: the nine mod-source views live inside
-    // the ModSourceViewMode UIViewSwitchContainer, so switching it destroys the
-    // outgoing template's children while the controller still caches pointers to
-    // them.
-    if (tag == kModSourceViewModeTag) {
-        resetModSourceViewPointers();
-    }
+    // No pointer clearing here: the base call above can already have switched a
+    // template (the incoming views are cached by now), and the cached view
+    // pointers clear themselves when their views are destroyed (viewRegistry_).
 
     // During bulk parameter loads (preset switching), skip per-param view updates.
     // syncAllViews() will do a single batch sync afterwards.

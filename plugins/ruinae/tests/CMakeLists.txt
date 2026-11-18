@@ -100,6 +100,7 @@ add_executable(ruinae_tests
     unit/controller/editor_lifecycle_test.cpp
     unit/controller/editor_screenshot_test.cpp
     unit/controller/mod_source_view_teardown_test.cpp
+    unit/controller/view_switch_lifecycle_test.cpp
 
     # Preset Format Compatibility Tests (generator ↔ processor)
     unit/preset_format_compat_test.cpp

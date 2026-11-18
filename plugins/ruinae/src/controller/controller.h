@@ -26,6 +26,7 @@
 #include "update/update_checker.h"
 #include "ui/arp_lane.h"
 #include "ui/mod_matrix_types.h"
+#include "controller/cached_view_registry.h"
 
 #include <array>
 #include <atomic>
@@ -34,6 +35,7 @@
 #include <memory>
 #include <cstdint>
 #include <utility>
+#include <vector>
 
 namespace Ruinae {
 class ADSRExpandedOverlayView;
@@ -228,24 +230,18 @@ public:
     // Test hooks
     // ===========================================================================
 
-    /// Number of cached mod-source view pointers (the nine views that live inside
-    /// the ModSourceViewMode switch container, plus the sidechain indicators) that
-    /// are currently non-null. Editor-lifecycle tests use this to assert that every
-    /// teardown path clears them: a dangling non-null pointer silently passes the
-    /// `if (ptr)` guards at the deref sites, so "null after teardown" is the only
-    /// observable invariant that distinguishes safe from use-after-free.
-    int modSourceViewPointerCount() const;
-
-    /// Drive the MainTab teardown hook directly. In a real editor this is invoked
-    /// from setParamNormalized() when the host/UI moves kMainTabTag; tests need it
-    /// without a live control to fake the parameter change through.
-    void notifyTabChangedForTest(int newTab) { onTabChanged(newTab); }
+    /// Every cached view pointer member, by name. The editor-lifecycle tests compare it with the
+    /// live frame tree: a pointer that is non-null but not in the tree passes every `if (ptr)`
+    /// guard at the deref sites, so it is a use-after-free waiting for the next sync.
+    std::vector<std::pair<const char*, VSTGUI::CView*>> cachedViewPointerInventoryForTest() const;
 
 private:
-    /// Null every cached mod-source view pointer. Called from all three teardown
-    /// paths: willClose(), a MainTab switch away from MOD, and a ModSourceViewMode
-    /// switch (each destroys the views but leaves the cached pointers dangling).
-    void resetModSourceViewPointers();
+    /// Cache a view pointer: `member = view`, nulled again when the view is destroyed
+    /// (see CachedViewRegistry). Every view pointer verifyView() caches goes through here.
+    template <typename T, typename V>
+    void cacheView(T*& member, V* view) {
+        viewRegistry_.track<T>(view, &member);
+    }
 
     /// Wire an ADSRDisplay instance based on its control-tag
     void wireAdsrDisplay(Krate::Plugins::ADSRDisplay* display);
@@ -285,10 +281,6 @@ private:
 
     /// Select a modulation route for cross-component communication (FR-027)
     void selectModulationRoute(int sourceIndex, int destIndex);
-
-    /// Null out cached view pointers for the old tab before UIViewSwitchContainer
-    /// destroys them. Called from setParamNormalized() when kMainTabTag changes.
-    void onTabChanged(int newTab);
 
     /// Toggle settings drawer open/closed with animation
     void toggleSettingsDrawer();
@@ -568,6 +560,10 @@ private:
     // Update Checker
     std::unique_ptr<Krate::Plugins::UpdateChecker> updateChecker_;
     Krate::Plugins::UpdateBannerView* updateBannerView_ = nullptr;  // Owned by frame
+
+    /// Nulls the cached view pointers above when their views are destroyed. Declared after
+    /// them so it is destroyed first and can still clear them.
+    CachedViewRegistry viewRegistry_;
 
 protected:
     // ==========================================================================

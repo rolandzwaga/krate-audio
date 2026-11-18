@@ -74,7 +74,7 @@ VSTGUI::CView* Controller::verifyView(
                 menu->addEntry("Ramp Down");
                 menu->addEntry("Random");
                 menu->registerControlListener(this);
-                presetDropdown_ = menu;
+                cacheView(presetDropdown_, menu);
             }
         }
     }
@@ -82,7 +82,7 @@ VSTGUI::CView* Controller::verifyView(
     // Wire StepPatternEditor callbacks
     auto* spe = dynamic_cast<Krate::Plugins::StepPatternEditor*>(view);
     if (spe) {
-        stepPatternEditor_ = spe;
+        cacheView(stepPatternEditor_, spe);
         spe->setStepLevelBaseParamId(kTranceGateStepLevel0Id);
 
         spe->setParameterCallback(
@@ -140,7 +140,7 @@ VSTGUI::CView* Controller::verifyView(
     // Wire ArpLaneContainer and construct arp lanes (079-layout-framework)
     auto* arpContainer = dynamic_cast<Krate::Plugins::ArpLaneContainer*>(view);
     if (arpContainer) {
-        arpLaneContainer_ = arpContainer;
+        cacheView(arpLaneContainer_, arpContainer);
 
         // Helper: wire standard callbacks for a bar-type lane
         auto wireLaneCallbacks = [this](Krate::Plugins::ArpLaneEditor* lane) {
@@ -183,8 +183,8 @@ VSTGUI::CView* Controller::verifyView(
         };
 
         // Construct velocity lane
-        velocityLane_ = new Krate::Plugins::ArpLaneEditor(
-            VSTGUI::CRect(0, 0, 500, 105), nullptr, -1);
+        cacheView(velocityLane_, new Krate::Plugins::ArpLaneEditor(
+            VSTGUI::CRect(0, 0, 500, 105), nullptr, -1));
         velocityLane_->setLaneName("VEL");
         velocityLane_->setLaneType(Krate::Plugins::ArpLaneType::kVelocity);
         velocityLane_->setAccentColor(VSTGUI::CColor{208, 132, 92, 255});
@@ -197,8 +197,8 @@ VSTGUI::CView* Controller::verifyView(
         arpLaneContainer_->addLane(velocityLane_);
 
         // Construct gate lane
-        gateLane_ = new Krate::Plugins::ArpLaneEditor(
-            VSTGUI::CRect(0, 0, 500, 105), nullptr, -1);
+        cacheView(gateLane_, new Krate::Plugins::ArpLaneEditor(
+            VSTGUI::CRect(0, 0, 500, 105), nullptr, -1));
         gateLane_->setLaneName("GATE");
         gateLane_->setLaneType(Krate::Plugins::ArpLaneType::kGate);
         gateLane_->setAccentColor(VSTGUI::CColor{200, 164, 100, 255});
@@ -211,8 +211,8 @@ VSTGUI::CView* Controller::verifyView(
         arpLaneContainer_->addLane(gateLane_);
 
         // Construct pitch lane
-        pitchLane_ = new Krate::Plugins::ArpLaneEditor(
-            VSTGUI::CRect(0, 0, 500, 105), nullptr, -1);
+        cacheView(pitchLane_, new Krate::Plugins::ArpLaneEditor(
+            VSTGUI::CRect(0, 0, 500, 105), nullptr, -1));
         pitchLane_->setLaneName("PITCH");
         pitchLane_->setLaneType(Krate::Plugins::ArpLaneType::kPitch);
         pitchLane_->setAccentColor(VSTGUI::CColor{108, 168, 160, 255});
@@ -238,8 +238,8 @@ VSTGUI::CView* Controller::verifyView(
         arpLaneContainer_->addLane(pitchLane_);
 
         // Construct chord lane (arp-chord-lane) — after pitch, before ratchet
-        chordLane_ = new Krate::Plugins::ArpChordLane(
-            VSTGUI::CRect(0, 0, 500, 63), nullptr, -1);
+        cacheView(chordLane_, new Krate::Plugins::ArpChordLane(
+            VSTGUI::CRect(0, 0, 500, 63), nullptr, -1));
         chordLane_->setLaneName("CHORD");
         chordLane_->setAccentColor(VSTGUI::CColor{168, 136, 200, 255});
         chordLane_->setStepBaseParamId(kArpChordLaneStep0Id);
@@ -287,8 +287,8 @@ VSTGUI::CView* Controller::verifyView(
         arpLaneContainer_->addLane(chordLane_);
 
         // Construct inversion lane (arp-chord-lane) — after chord, before ratchet
-        inversionLane_ = new Krate::Plugins::ArpInversionLane(
-            VSTGUI::CRect(0, 0, 500, 63), nullptr, -1);
+        cacheView(inversionLane_, new Krate::Plugins::ArpInversionLane(
+            VSTGUI::CRect(0, 0, 500, 63), nullptr, -1));
         inversionLane_->setLaneName("INV");
         inversionLane_->setAccentColor(VSTGUI::CColor{136, 168, 200, 255});
         inversionLane_->setStepBaseParamId(kArpInversionLaneStep0Id);
@@ -344,8 +344,8 @@ VSTGUI::CView* Controller::verifyView(
         }
 
         // Construct ratchet lane
-        ratchetLane_ = new Krate::Plugins::ArpLaneEditor(
-            VSTGUI::CRect(0, 0, 500, 105), nullptr, -1);
+        cacheView(ratchetLane_, new Krate::Plugins::ArpLaneEditor(
+            VSTGUI::CRect(0, 0, 500, 105), nullptr, -1));
         ratchetLane_->setLaneName("RATCH");
         ratchetLane_->setLaneType(Krate::Plugins::ArpLaneType::kRatchet);
         ratchetLane_->setAccentColor(VSTGUI::CColor{152, 128, 176, 255});
@@ -358,8 +358,8 @@ VSTGUI::CView* Controller::verifyView(
         arpLaneContainer_->addLane(ratchetLane_);
 
         // Construct modifier lane
-        modifierLane_ = new Krate::Plugins::ArpModifierLane(
-            VSTGUI::CRect(0, 0, 500, 79), nullptr, -1);
+        cacheView(modifierLane_, new Krate::Plugins::ArpModifierLane(
+            VSTGUI::CRect(0, 0, 500, 79), nullptr, -1));
         modifierLane_->setLaneName("MOD");
         modifierLane_->setAccentColor(VSTGUI::CColor{192, 112, 124, 255});
         modifierLane_->setStepFlagBaseParamId(kArpModifierLaneStep0Id);
@@ -404,8 +404,8 @@ VSTGUI::CView* Controller::verifyView(
         arpLaneContainer_->addLane(modifierLane_);
 
         // Construct condition lane
-        conditionLane_ = new Krate::Plugins::ArpConditionLane(
-            VSTGUI::CRect(0, 0, 500, 63), nullptr, -1);
+        cacheView(conditionLane_, new Krate::Plugins::ArpConditionLane(
+            VSTGUI::CRect(0, 0, 500, 63), nullptr, -1));
         conditionLane_->setLaneName("COND");
         conditionLane_->setAccentColor(VSTGUI::CColor{124, 144, 176, 255});
         conditionLane_->setStepConditionBaseParamId(kArpConditionLaneStep0Id);
@@ -571,7 +571,7 @@ VSTGUI::CView* Controller::verifyView(
     // Wire XYMorphPad callbacks
     auto* xyPad = dynamic_cast<Krate::Plugins::XYMorphPad*>(view);
     if (xyPad) {
-        xyMorphPad_ = xyPad;
+        cacheView(xyMorphPad_, xyPad);
         xyPad->setController(this);
         xyPad->setSecondaryParamId(kMixerTiltId);
 
@@ -629,21 +629,21 @@ VSTGUI::CView* Controller::verifyView(
         const auto* viewName = attributes.getAttributeValue("custom-view-name");
         if (viewName) {
             if (*viewName == "OscAPWKnob") {
-                oscAPWKnob_ = view;
+                cacheView(oscAPWKnob_, view);
                 auto* wfParam = getParameterObject(kOscAWaveformId);
                 if (wfParam) {
                     int wf = static_cast<int>(wfParam->getNormalized() * 4.0 + 0.5);
                     view->setAlphaValue(wf == 3 ? 1.0f : 0.3f);
                 }
             } else if (*viewName == "OscBPWKnob") {
-                oscBPWKnob_ = view;
+                cacheView(oscBPWKnob_, view);
                 auto* wfParam = getParameterObject(kOscBWaveformId);
                 if (wfParam) {
                     int wf = static_cast<int>(wfParam->getNormalized() * 4.0 + 0.5);
                     view->setAlphaValue(wf == 3 ? 1.0f : 0.3f);
                 }
             } else if (*viewName == "SpectralCurveDropdown") {
-                spectralCurveDropdown_ = view;
+                cacheView(spectralCurveDropdown_, view);
                 auto* modeParam = getParameterObject(kDistortionSpectralModeId);
                 int mode = 0;
                 if (modeParam) {
@@ -704,14 +704,14 @@ VSTGUI::CView* Controller::verifyView(
                 };
 
                 if (*viewName == "LFO1WaveformDisplay") {
-                    lfo1WaveformDisplay_ = lfoDisplay;
+                    cacheView(lfo1WaveformDisplay_, lfoDisplay);
                     syncLfoDisplay(lfoDisplay,
                                    kLFO1ShapeId, kLFO1SymmetryId, kLFO1QuantizeId,
                                    kLFO1UnipolarId, kLFO1PhaseOffsetId,
                                    kLFO1RateId, kLFO1SyncId, kLFO1NoteValueId,
                                    kLFO1DepthId, kLFO1FadeInId);
                 } else if (*viewName == "LFO2WaveformDisplay") {
-                    lfo2WaveformDisplay_ = lfoDisplay;
+                    cacheView(lfo2WaveformDisplay_, lfoDisplay);
                     syncLfoDisplay(lfoDisplay,
                                    kLFO2ShapeId, kLFO2SymmetryId, kLFO2QuantizeId,
                                    kLFO2UnipolarId, kLFO2PhaseOffsetId,
@@ -723,7 +723,7 @@ VSTGUI::CView* Controller::verifyView(
             // Chaos Mod Display
             auto* chaosDisplay = dynamic_cast<Krate::Plugins::ChaosModDisplay*>(view);
             if (chaosDisplay && viewName && *viewName == "ChaosModDisplay") {
-                chaosModDisplay_ = chaosDisplay;
+                cacheView(chaosModDisplay_, chaosDisplay);
                 // Sync current parameter state
                 auto* typeParam = getParameterObject(kChaosModTypeId);
                 if (typeParam)
@@ -755,7 +755,7 @@ VSTGUI::CView* Controller::verifyView(
             // Rungler Display
             auto* runglerDisp = dynamic_cast<Krate::Plugins::RunglerDisplay*>(view);
             if (runglerDisp && viewName && *viewName == "RunglerDisplay") {
-                runglerDisplay_ = runglerDisp;
+                cacheView(runglerDisplay_, runglerDisp);
                 // Sync current parameter state
                 auto* osc1Param = getParameterObject(kRunglerOsc1FreqId);
                 if (osc1Param)
@@ -780,7 +780,7 @@ VSTGUI::CView* Controller::verifyView(
             // Sample & Hold Display
             auto* shDisp = dynamic_cast<Krate::Plugins::SampleHoldDisplay*>(view);
             if (shDisp && viewName && *viewName == "SampleHoldDisplay") {
-                sampleHoldDisplay_ = shDisp;
+                cacheView(sampleHoldDisplay_, shDisp);
                 // Compute effective rate from sync state
                 {
                     auto* syncParam = getParameterObject(kSampleHoldSyncId);
@@ -807,7 +807,7 @@ VSTGUI::CView* Controller::verifyView(
             // Random Mod Display
             auto* rndDisp = dynamic_cast<Krate::Plugins::RandomModDisplay*>(view);
             if (rndDisp && viewName && *viewName == "RandomModDisplay") {
-                randomModDisplay_ = rndDisp;
+                cacheView(randomModDisplay_, rndDisp);
                 // Compute effective rate from sync state
                 {
                     auto* syncParam = getParameterObject(kRandomSyncId);
@@ -840,13 +840,13 @@ VSTGUI::CView* Controller::verifyView(
             const auto* scName = attributes.getAttributeValue("custom-view-name");
             if (scName) {
                 if (*scName == "SidechainIndicatorEnvFollower") {
-                    sidechainIndicatorEnvFollower_ = textLabel;
+                    cacheView(sidechainIndicatorEnvFollower_, textLabel);
                     updateSidechainIndicator(textLabel);
                 } else if (*scName == "SidechainIndicatorPitchFollower") {
-                    sidechainIndicatorPitchFollower_ = textLabel;
+                    cacheView(sidechainIndicatorPitchFollower_, textLabel);
                     updateSidechainIndicator(textLabel);
                 } else if (*scName == "SidechainIndicatorTransient") {
-                    sidechainIndicatorTransient_ = textLabel;
+                    cacheView(sidechainIndicatorTransient_, textLabel);
                     updateSidechainIndicator(textLabel);
                 }
             }
@@ -863,178 +863,178 @@ VSTGUI::CView* Controller::verifyView(
                 // Match "HarmonizerVoice1" through "HarmonizerVoice4"
                 std::string voiceName = "HarmonizerVoice" + std::to_string(vi + 1);
                 if (*name == voiceName) {
-                    harmonizerVoiceRows_[vi] = container;
+                    cacheView(harmonizerVoiceRows_[vi], container);
                     matchedVoiceRow = true;
                     break;
                 }
             }
             if (!matchedVoiceRow) {
             if (*name == "LFO1RateGroup") {
-                lfo1RateGroup_ = container;
+                cacheView(lfo1RateGroup_, container);
                 auto* syncParam = getParameterObject(kLFO1SyncId);
                 bool syncOn = (syncParam != nullptr) && syncParam->getNormalized() >= 0.5;
                 container->setVisible(!syncOn);
             } else if (*name == "LFO2RateGroup") {
-                lfo2RateGroup_ = container;
+                cacheView(lfo2RateGroup_, container);
                 auto* syncParam = getParameterObject(kLFO2SyncId);
                 bool syncOn = (syncParam != nullptr) && syncParam->getNormalized() >= 0.5;
                 container->setVisible(!syncOn);
             } else if (*name == "LFO1NoteValueGroup") {
-                lfo1NoteValueGroup_ = container;
+                cacheView(lfo1NoteValueGroup_, container);
                 auto* syncParam = getParameterObject(kLFO1SyncId);
                 bool syncOn = (syncParam != nullptr) && syncParam->getNormalized() >= 0.5;
                 container->setVisible(syncOn);
             } else if (*name == "LFO2NoteValueGroup") {
-                lfo2NoteValueGroup_ = container;
+                cacheView(lfo2NoteValueGroup_, container);
                 auto* syncParam = getParameterObject(kLFO2SyncId);
                 bool syncOn = (syncParam != nullptr) && syncParam->getNormalized() >= 0.5;
                 container->setVisible(syncOn);
             } else if (*name == "ChaosRateGroup") {
-                chaosRateGroup_ = container;
+                cacheView(chaosRateGroup_, container);
                 auto* syncParam = getParameterObject(kChaosModSyncId);
                 bool syncOn = (syncParam != nullptr) && syncParam->getNormalized() >= 0.5;
                 container->setVisible(!syncOn);
             } else if (*name == "ChaosNoteValueGroup") {
-                chaosNoteValueGroup_ = container;
+                cacheView(chaosNoteValueGroup_, container);
                 auto* syncParam = getParameterObject(kChaosModSyncId);
                 bool syncOn = (syncParam != nullptr) && syncParam->getNormalized() >= 0.5;
                 container->setVisible(syncOn);
             } else if (*name == "SHRateGroup") {
-                shRateGroup_ = container;
+                cacheView(shRateGroup_, container);
                 auto* syncParam = getParameterObject(kSampleHoldSyncId);
                 bool syncOn = (syncParam != nullptr) && syncParam->getNormalized() >= 0.5;
                 container->setVisible(!syncOn);
             } else if (*name == "SHNoteValueGroup") {
-                shNoteValueGroup_ = container;
+                cacheView(shNoteValueGroup_, container);
                 auto* syncParam = getParameterObject(kSampleHoldSyncId);
                 bool syncOn = (syncParam != nullptr) && syncParam->getNormalized() >= 0.5;
                 container->setVisible(syncOn);
             } else if (*name == "RandomRateGroup") {
-                randomRateGroup_ = container;
+                cacheView(randomRateGroup_, container);
                 auto* syncParam = getParameterObject(kRandomSyncId);
                 bool syncOn = (syncParam != nullptr) && syncParam->getNormalized() >= 0.5;
                 container->setVisible(!syncOn);
             } else if (*name == "RandomNoteValueGroup") {
-                randomNoteValueGroup_ = container;
+                cacheView(randomNoteValueGroup_, container);
                 auto* syncParam = getParameterObject(kRandomSyncId);
                 bool syncOn = (syncParam != nullptr) && syncParam->getNormalized() >= 0.5;
                 container->setVisible(syncOn);
             } else if (*name == "DelayTimeGroup") {
-                delayTimeGroup_ = container;
+                cacheView(delayTimeGroup_, container);
                 auto* syncParam = getParameterObject(kDelaySyncId);
                 bool syncOn = (syncParam != nullptr) && syncParam->getNormalized() >= 0.5;
                 container->setVisible(!syncOn);
             } else if (*name == "DelayNoteValueGroup") {
-                delayNoteValueGroup_ = container;
+                cacheView(delayNoteValueGroup_, container);
                 auto* syncParam = getParameterObject(kDelaySyncId);
                 bool syncOn = (syncParam != nullptr) && syncParam->getNormalized() >= 0.5;
                 container->setVisible(syncOn);
             } else if (*name == "PhaserRateGroup") {
-                phaserRateGroup_ = container;
+                cacheView(phaserRateGroup_, container);
                 auto* syncParam = getParameterObject(kPhaserSyncId);
                 bool syncOn = (syncParam != nullptr) && syncParam->getNormalized() >= 0.5;
                 container->setVisible(!syncOn);
             } else if (*name == "PhaserNoteValueGroup") {
-                phaserNoteValueGroup_ = container;
+                cacheView(phaserNoteValueGroup_, container);
                 auto* syncParam = getParameterObject(kPhaserSyncId);
                 bool syncOn = (syncParam != nullptr) && syncParam->getNormalized() >= 0.5;
                 container->setVisible(syncOn);
             } else if (*name == "NoModulationGroup") {
-                noModulationGroup_ = container;
+                cacheView(noModulationGroup_, container);
                 auto* modParam = getParameterObject(kModulationTypeId);
                 int modType = modParam ? static_cast<int>(modParam->getNormalized() * 3.0 + 0.5) : 0;
                 container->setVisible(modType == 0);
             } else if (*name == "PhaserControlsGroup") {
-                phaserControlsGroup_ = container;
+                cacheView(phaserControlsGroup_, container);
                 auto* modParam = getParameterObject(kModulationTypeId);
                 int modType = modParam ? static_cast<int>(modParam->getNormalized() * 3.0 + 0.5) : 0;
                 container->setVisible(modType == 1);
             } else if (*name == "FlangerControlsGroup") {
-                flangerControlsGroup_ = container;
+                cacheView(flangerControlsGroup_, container);
                 auto* modParam = getParameterObject(kModulationTypeId);
                 int modType = modParam ? static_cast<int>(modParam->getNormalized() * 3.0 + 0.5) : 0;
                 container->setVisible(modType == 2);
             } else if (*name == "ChorusControlsGroup") {
-                chorusControlsGroup_ = container;
+                cacheView(chorusControlsGroup_, container);
                 auto* modParam = getParameterObject(kModulationTypeId);
                 int modType = modParam ? static_cast<int>(modParam->getNormalized() * 3.0 + 0.5) : 0;
                 container->setVisible(modType == 3);
             } else if (*name == "ChorusRateGroup") {
-                chorusRateGroup_ = container;
+                cacheView(chorusRateGroup_, container);
                 auto* syncParam = getParameterObject(kChorusSyncId);
                 bool syncOn = (syncParam != nullptr) && syncParam->getNormalized() >= 0.5;
                 container->setVisible(!syncOn);
             } else if (*name == "ChorusNoteValueGroup") {
-                chorusNoteValueGroup_ = container;
+                cacheView(chorusNoteValueGroup_, container);
                 auto* syncParam = getParameterObject(kChorusSyncId);
                 bool syncOn = (syncParam != nullptr) && syncParam->getNormalized() >= 0.5;
                 container->setVisible(syncOn);
             } else if (*name == "FlangerRateGroup") {
-                flangerRateGroup_ = container;
+                cacheView(flangerRateGroup_, container);
                 auto* syncParam = getParameterObject(kFlangerSyncId);
                 bool syncOn = (syncParam != nullptr) && syncParam->getNormalized() >= 0.5;
                 container->setVisible(!syncOn);
             } else if (*name == "FlangerNoteValueGroup") {
-                flangerNoteValueGroup_ = container;
+                cacheView(flangerNoteValueGroup_, container);
                 auto* syncParam = getParameterObject(kFlangerSyncId);
                 bool syncOn = (syncParam != nullptr) && syncParam->getNormalized() >= 0.5;
                 container->setVisible(syncOn);
             } else if (*name == "TranceGateRateGroup") {
-                tranceGateRateGroup_ = container;
+                cacheView(tranceGateRateGroup_, container);
                 auto* syncParam = getParameterObject(kTranceGateTempoSyncId);
                 bool syncOn = (syncParam != nullptr) && syncParam->getNormalized() >= 0.5;
                 container->setVisible(!syncOn);
             } else if (*name == "TranceGateNoteValueGroup") {
-                tranceGateNoteValueGroup_ = container;
+                cacheView(tranceGateNoteValueGroup_, container);
                 auto* syncParam = getParameterObject(kTranceGateTempoSyncId);
                 bool syncOn = (syncParam != nullptr) && syncParam->getNormalized() >= 0.5;
                 container->setVisible(syncOn);
             } else if (*name == "ArpRateGroup") {
-                arpRateGroup_ = container;
+                cacheView(arpRateGroup_, container);
                 auto* syncParam = getParameterObject(kArpTempoSyncId);
                 bool syncOn = (syncParam != nullptr) && syncParam->getNormalized() >= 0.5;
                 container->setVisible(!syncOn);
             } else if (*name == "ArpNoteValueGroup") {
-                arpNoteValueGroup_ = container;
+                cacheView(arpNoteValueGroup_, container);
                 auto* syncParam = getParameterObject(kArpTempoSyncId);
                 bool syncOn = (syncParam != nullptr) && syncParam->getNormalized() >= 0.5;
                 container->setVisible(syncOn);
             } else if (*name == "EuclideanControlsGroup") {
-                euclideanControlsGroup_ = container;
+                cacheView(euclideanControlsGroup_, container);
                 auto* param = getParameterObject(kTranceGateEuclideanEnabledId);
                 bool enabled = (param != nullptr) && param->getNormalized() >= 0.5;
                 container->setVisible(enabled);
             } else if (*name == "PolyGroup") {
-                polyGroup_ = container;
+                cacheView(polyGroup_, container);
                 auto* voiceModeParam = getParameterObject(kVoiceModeId);
                 bool isMono = (voiceModeParam != nullptr) && voiceModeParam->getNormalized() >= 0.5;
                 container->setVisible(!isMono);
             } else if (*name == "MonoGroup") {
-                monoGroup_ = container;
+                cacheView(monoGroup_, container);
                 auto* voiceModeParam = getParameterObject(kVoiceModeId);
                 bool isMono = (voiceModeParam != nullptr) && voiceModeParam->getNormalized() >= 0.5;
                 container->setVisible(isMono);
             } else if (*name == "SettingsDrawer") {
-                settingsDrawer_ = container;
+                cacheView(settingsDrawer_, container);
             } else if (*name == "ArpEuclideanGroup") {
-                arpEuclideanGroup_ = container;
+                cacheView(arpEuclideanGroup_, container);
                 auto* param = getParameterObject(kArpEuclideanEnabledId);
                 bool enabled = (param != nullptr) && param->getNormalized() >= 0.5;
                 container->setVisible(enabled);
             } else if (*name == "ArpRootNoteGroup") {
-                arpRootNoteGroup_ = container;
+                cacheView(arpRootNoteGroup_, container);
                 auto* scaleParam = getParameterObject(kArpScaleTypeId);
                 bool isChromaticInit = (scaleParam == nullptr) || scaleParam->getNormalized() < 0.01;
                 container->setAlphaValue(isChromaticInit ? 0.35f : 1.0f);
                 container->setMouseEnabled(!isChromaticInit);
             } else if (*name == "ArpQuantizeInputGroup") {
-                arpQuantizeInputGroup_ = container;
+                cacheView(arpQuantizeInputGroup_, container);
                 auto* scaleParam = getParameterObject(kArpScaleTypeId);
                 bool isChromaticInit = (scaleParam == nullptr) || scaleParam->getNormalized() < 0.01;
                 container->setAlphaValue(isChromaticInit ? 0.35f : 1.0f);
                 container->setMouseEnabled(!isChromaticInit);
             } else if (*name == "SpectralBitsGroup") {
-                spectralBitsGroup_ = container;
+                cacheView(spectralBitsGroup_, container);
                 auto* modeParam = getParameterObject(kDistortionSpectralModeId);
                 int mode = 0;
                 if (modeParam) {
@@ -1055,16 +1055,16 @@ VSTGUI::CView* Controller::verifyView(
     if (ctrl) {
         auto tag = ctrl->getTag();
         if (tag == static_cast<int32_t>(kActionSettingsToggleTag)) {
-            gearButton_ = ctrl;
+            cacheView(gearButton_, ctrl);
             ctrl->registerControlListener(this);
         }
         if (tag == static_cast<int32_t>(kActionSettingsOverlayTag)) {
-            settingsOverlay_ = view;
+            cacheView(settingsOverlay_, view);
             view->setVisible(false);
             ctrl->registerControlListener(this);
         }
         if (tag == static_cast<int32_t>(kArpDiceTriggerId)) {
-            diceButton_ = ctrl;
+            cacheView(diceButton_, ctrl);
             ctrl->registerControlListener(this);
         }
     }
@@ -1072,7 +1072,7 @@ VSTGUI::CView* Controller::verifyView(
     // Wire EuclideanDotDisplay
     auto* eucDotDisplay = dynamic_cast<Krate::Plugins::EuclideanDotDisplay*>(view);
     if (eucDotDisplay) {
-        euclideanDotDisplay_ = eucDotDisplay;
+        cacheView(euclideanDotDisplay_, eucDotDisplay);
 
         auto* hitsParam = getParameterObject(kArpEuclideanHitsId);
         if (hitsParam) {

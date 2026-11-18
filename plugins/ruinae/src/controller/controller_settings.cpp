@@ -1,8 +1,7 @@
 // ==============================================================================
-// Controller: Settings Drawer & Tab Changed
+// Controller: Settings Drawer
 // ==============================================================================
-// Extracted from controller.cpp - handles toggleSettingsDrawer() and
-// onTabChanged() which null cached view pointers on tab switch.
+// Extracted from controller.cpp - handles toggleSettingsDrawer().
 // ==============================================================================
 
 #include "controller.h"
@@ -10,75 +9,6 @@
 #include "vstgui/lib/cvstguitimer.h"
 
 namespace Ruinae {
-
-void Controller::onTabChanged([[maybe_unused]] int newTab) {
-    // UIViewSwitchContainer destroys views from the old template before
-    // instantiating the new one. All cached pointers to views that live
-    // inside tab templates become dangling. Null them here; verifyView()
-    // will re-populate when the new template is created.
-
-    // SOUND tab residents
-    oscAPWKnob_ = nullptr;
-    oscBPWKnob_ = nullptr;
-    xyMorphPad_ = nullptr;
-    polyGroup_ = nullptr;
-    monoGroup_ = nullptr;
-    ampEnvDisplay_ = nullptr;
-    filterEnvDisplay_ = nullptr;
-    modEnvDisplay_ = nullptr;
-
-    // MOD tab residents
-    modMatrixGrid_ = nullptr;
-    ringIndicators_.fill(nullptr);
-    lfo1RateGroup_ = nullptr;
-    lfo2RateGroup_ = nullptr;
-    lfo1NoteValueGroup_ = nullptr;
-    lfo2NoteValueGroup_ = nullptr;
-    // Clears the LFO/chaos displays plus the rungler, S&H, random and sidechain
-    // views. Those last six were previously left dangling here even though the
-    // MOD template that owns them is destroyed on a tab switch -- and the
-    // sidechain indicators are touched by the kSidechainActiveId branch in
-    // setParamNormalized, which fires regardless of which tab is showing.
-    resetModSourceViewPointers();
-    chaosRateGroup_ = nullptr;
-    chaosNoteValueGroup_ = nullptr;
-    shRateGroup_ = nullptr;
-    shNoteValueGroup_ = nullptr;
-    randomRateGroup_ = nullptr;
-    randomNoteValueGroup_ = nullptr;
-
-    // FX tab residents
-    harmonizerVoiceRows_.fill(nullptr);
-    delayTimeGroup_ = nullptr;
-    delayNoteValueGroup_ = nullptr;
-    phaserRateGroup_ = nullptr;
-    phaserNoteValueGroup_ = nullptr;
-    spectralCurveDropdown_ = nullptr;
-    spectralBitsGroup_ = nullptr;
-
-    // SEQ tab residents
-    stepPatternEditor_ = nullptr;
-    arpLaneContainer_ = nullptr;
-    velocityLane_ = nullptr;
-    gateLane_ = nullptr;
-    pitchLane_ = nullptr;
-    chordLane_ = nullptr;
-    inversionLane_ = nullptr;
-    ratchetLane_ = nullptr;
-    modifierLane_ = nullptr;
-    conditionLane_ = nullptr;
-    euclideanControlsGroup_ = nullptr;
-    euclideanDotDisplay_ = nullptr;
-    arpEuclideanGroup_ = nullptr;
-    diceButton_ = nullptr;
-    tranceGateRateGroup_ = nullptr;
-    tranceGateNoteValueGroup_ = nullptr;
-    arpRateGroup_ = nullptr;
-    arpNoteValueGroup_ = nullptr;
-    arpRootNoteGroup_ = nullptr;
-    arpQuantizeInputGroup_ = nullptr;
-    presetDropdown_ = nullptr;
-}
 
 void Controller::toggleSettingsDrawer() {
     settingsDrawerTargetOpen_ = !settingsDrawerTargetOpen_;

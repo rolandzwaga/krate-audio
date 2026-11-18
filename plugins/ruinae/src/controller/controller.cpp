@@ -262,6 +262,8 @@ Steinberg::tresult PLUGIN_API Controller::terminate() {
     modEnvOutputPtr_ = nullptr;
     modEnvStagePtr_ = nullptr;
     envVoiceActivePtr_ = nullptr;
+    // An editor the host has not closed yet keeps its views; stop caching them.
+    viewRegistry_.clear();
     // updateChecker_ and presetManager_ stay until the destructor: an editor a host has not
     // closed yet still polls the checker (update banner, Check for Updates button) and its
     // preset browsers and save dialog hold the manager, and that editor holds a reference
@@ -633,103 +635,97 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
     }
 }
 
-int Controller::modSourceViewPointerCount() const {
-    int count = 0;
-    if (lfo1WaveformDisplay_) ++count;
-    if (lfo2WaveformDisplay_) ++count;
-    if (chaosModDisplay_) ++count;
-    if (runglerDisplay_) ++count;
-    if (sampleHoldDisplay_) ++count;
-    if (randomModDisplay_) ++count;
-    if (sidechainIndicatorEnvFollower_) ++count;
-    if (sidechainIndicatorPitchFollower_) ++count;
-    if (sidechainIndicatorTransient_) ++count;
-    return count;
-}
-
-void Controller::resetModSourceViewPointers() {
-    // Individual assignments: the members are heterogeneous pointer types, so a
-    // chained `a_ = b_ = nullptr` does not compile.
-    lfo1WaveformDisplay_ = nullptr;
-    lfo2WaveformDisplay_ = nullptr;
-    chaosModDisplay_ = nullptr;
-    runglerDisplay_ = nullptr;
-    sampleHoldDisplay_ = nullptr;
-    randomModDisplay_ = nullptr;
-    sidechainIndicatorEnvFollower_ = nullptr;
-    sidechainIndicatorPitchFollower_ = nullptr;
-    sidechainIndicatorTransient_ = nullptr;
+std::vector<std::pair<const char*, VSTGUI::CView*>> Controller::cachedViewPointerInventoryForTest() const {
+    std::vector<std::pair<const char*, VSTGUI::CView*>> out;
+    auto add = [&out](const char* name, VSTGUI::CView* view) { out.emplace_back(name, view); };
+    add("stepPatternEditor_", stepPatternEditor_);
+    add("presetDropdown_", presetDropdown_);
+    add("xyMorphPad_", xyMorphPad_);
+    add("modMatrixGrid_", modMatrixGrid_);
+    static constexpr std::array<const char*, 7> kRingNames{
+        "ringIndicators_[0]", "ringIndicators_[1]", "ringIndicators_[2]", "ringIndicators_[3]",
+        "ringIndicators_[4]", "ringIndicators_[5]", "ringIndicators_[6]"};
+    for (size_t i = 0; i < ringIndicators_.size(); ++i) add(kRingNames[i], ringIndicators_[i]);
+    add("ampEnvDisplay_", ampEnvDisplay_);
+    add("filterEnvDisplay_", filterEnvDisplay_);
+    add("modEnvDisplay_", modEnvDisplay_);
+    add("euclideanControlsGroup_", euclideanControlsGroup_);
+    add("euclideanDotDisplay_", euclideanDotDisplay_);
+    add("lfo1RateGroup_", lfo1RateGroup_);
+    add("lfo2RateGroup_", lfo2RateGroup_);
+    add("lfo1NoteValueGroup_", lfo1NoteValueGroup_);
+    add("lfo2NoteValueGroup_", lfo2NoteValueGroup_);
+    add("lfo1WaveformDisplay_", lfo1WaveformDisplay_);
+    add("lfo2WaveformDisplay_", lfo2WaveformDisplay_);
+    add("chaosModDisplay_", chaosModDisplay_);
+    add("runglerDisplay_", runglerDisplay_);
+    add("sampleHoldDisplay_", sampleHoldDisplay_);
+    add("randomModDisplay_", randomModDisplay_);
+    add("sidechainIndicatorEnvFollower_", sidechainIndicatorEnvFollower_);
+    add("sidechainIndicatorPitchFollower_", sidechainIndicatorPitchFollower_);
+    add("sidechainIndicatorTransient_", sidechainIndicatorTransient_);
+    add("chaosRateGroup_", chaosRateGroup_);
+    add("chaosNoteValueGroup_", chaosNoteValueGroup_);
+    add("shRateGroup_", shRateGroup_);
+    add("shNoteValueGroup_", shNoteValueGroup_);
+    add("randomRateGroup_", randomRateGroup_);
+    add("randomNoteValueGroup_", randomNoteValueGroup_);
+    add("delayTimeGroup_", delayTimeGroup_);
+    add("delayNoteValueGroup_", delayNoteValueGroup_);
+    add("phaserRateGroup_", phaserRateGroup_);
+    add("phaserNoteValueGroup_", phaserNoteValueGroup_);
+    add("noModulationGroup_", noModulationGroup_);
+    add("phaserControlsGroup_", phaserControlsGroup_);
+    add("flangerControlsGroup_", flangerControlsGroup_);
+    add("chorusControlsGroup_", chorusControlsGroup_);
+    add("flangerRateGroup_", flangerRateGroup_);
+    add("flangerNoteValueGroup_", flangerNoteValueGroup_);
+    add("chorusRateGroup_", chorusRateGroup_);
+    add("chorusNoteValueGroup_", chorusNoteValueGroup_);
+    add("tranceGateRateGroup_", tranceGateRateGroup_);
+    add("tranceGateNoteValueGroup_", tranceGateNoteValueGroup_);
+    add("arpRateGroup_", arpRateGroup_);
+    add("arpNoteValueGroup_", arpNoteValueGroup_);
+    add("arpLaneContainer_", arpLaneContainer_);
+    add("velocityLane_", velocityLane_);
+    add("gateLane_", gateLane_);
+    add("pitchLane_", pitchLane_);
+    add("ratchetLane_", ratchetLane_);
+    add("modifierLane_", modifierLane_);
+    add("conditionLane_", conditionLane_);
+    add("chordLane_", chordLane_);
+    add("inversionLane_", inversionLane_);
+    add("polyGroup_", polyGroup_);
+    add("monoGroup_", monoGroup_);
+    static constexpr std::array<const char*, 4> kHarmonizerRowNames{
+        "harmonizerVoiceRows_[0]", "harmonizerVoiceRows_[1]", "harmonizerVoiceRows_[2]",
+        "harmonizerVoiceRows_[3]"};
+    for (size_t i = 0; i < harmonizerVoiceRows_.size(); ++i)
+        add(kHarmonizerRowNames[i], harmonizerVoiceRows_[i]);
+    add("oscAPWKnob_", oscAPWKnob_);
+    add("oscBPWKnob_", oscBPWKnob_);
+    add("spectralCurveDropdown_", spectralCurveDropdown_);
+    add("spectralBitsGroup_", spectralBitsGroup_);
+    add("settingsDrawer_", settingsDrawer_);
+    add("settingsOverlay_", settingsOverlay_);
+    add("gearButton_", gearButton_);
+    add("arpEuclideanGroup_", arpEuclideanGroup_);
+    add("diceButton_", diceButton_);
+    add("arpRootNoteGroup_", arpRootNoteGroup_);
+    add("arpQuantizeInputGroup_", arpQuantizeInputGroup_);
+    add("adsrExpandedOverlay_", adsrExpandedOverlay_);
+    add("presetBrowserView_", presetBrowserView_);
+    add("arpPresetBrowserView_", arpPresetBrowserView_);
+    add("savePresetDialogView_", savePresetDialogView_);
+    add("updateBannerView_", updateBannerView_);
+    return out;
 }
 
 void Controller::willClose(VSTGUI::VST3Editor* editor) {
     if (activeEditor_ == editor) {
-        stepPatternEditor_ = nullptr;
-        arpLaneContainer_ = nullptr;
-        velocityLane_ = nullptr;
-        gateLane_ = nullptr;
-        pitchLane_ = nullptr;
-        ratchetLane_ = nullptr;
-        modifierLane_ = nullptr;
-        conditionLane_ = nullptr;
-        chordLane_ = nullptr;
-        inversionLane_ = nullptr;
-        presetDropdown_ = nullptr;
-        xyMorphPad_ = nullptr;
-        modMatrixGrid_ = nullptr;
-        ringIndicators_.fill(nullptr);
-        ampEnvDisplay_ = nullptr;
-        filterEnvDisplay_ = nullptr;
-        modEnvDisplay_ = nullptr;
-        euclideanControlsGroup_ = nullptr;
-        euclideanDotDisplay_ = nullptr;
-        arpEuclideanGroup_ = nullptr;
-        diceButton_ = nullptr;
-        lfo1RateGroup_ = nullptr;
-        lfo2RateGroup_ = nullptr;
-        lfo1NoteValueGroup_ = nullptr;
-        lfo2NoteValueGroup_ = nullptr;
-        chaosRateGroup_ = nullptr;
-        chaosNoteValueGroup_ = nullptr;
-        shRateGroup_ = nullptr;
-        shNoteValueGroup_ = nullptr;
-        randomRateGroup_ = nullptr;
-        randomNoteValueGroup_ = nullptr;
-        delayTimeGroup_ = nullptr;
-        delayNoteValueGroup_ = nullptr;
-        phaserRateGroup_ = nullptr;
-        phaserNoteValueGroup_ = nullptr;
-        noModulationGroup_ = nullptr;
-        phaserControlsGroup_ = nullptr;
-        flangerControlsGroup_ = nullptr;
-        chorusControlsGroup_ = nullptr;
-        flangerRateGroup_ = nullptr;
-        flangerNoteValueGroup_ = nullptr;
-        chorusRateGroup_ = nullptr;
-        chorusNoteValueGroup_ = nullptr;
-        tranceGateRateGroup_ = nullptr;
-        tranceGateNoteValueGroup_ = nullptr;
-        arpRateGroup_ = nullptr;
-        arpNoteValueGroup_ = nullptr;
-        polyGroup_ = nullptr;
-        monoGroup_ = nullptr;
+        // Every view pointer verifyView() cached: the frame and its views are about to go.
+        viewRegistry_.clear();
 
-        harmonizerVoiceRows_.fill(nullptr);
-        oscAPWKnob_ = nullptr;
-        oscBPWKnob_ = nullptr;
-        arpRootNoteGroup_ = nullptr;
-        arpQuantizeInputGroup_ = nullptr;
-        spectralCurveDropdown_ = nullptr;
-        spectralBitsGroup_ = nullptr;
-
-        // Mod-source visualizers and sidechain indicator labels. Omitting these
-        // left them dangling after the frame was destroyed; setComponentState() ->
-        // syncAllViews() then dereferenced freed memory, since a dangling pointer
-        // is non-null and passes the `if (ptr)` guards at every deref site.
-        resetModSourceViewPointers();
-
-        settingsDrawer_ = nullptr;
-        settingsOverlay_ = nullptr;
-        gearButton_ = nullptr;
         settingsAnimTimer_ = nullptr;
         settingsDrawerOpen_ = false;
         settingsDrawerProgress_ = 0.0f;

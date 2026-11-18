@@ -48,7 +48,7 @@ static_assert(kGlobalDestParamIds.size() == Krate::Plugins::kGlobalDestNames.siz
 void Controller::wireModMatrixGrid(Krate::Plugins::ModMatrixGrid* grid) {
     if (!grid) return;
 
-    modMatrixGrid_ = grid;
+    cacheView(modMatrixGrid_, grid);
 
     // T048: Set ParameterCallback for direct parameter changes (T039-T041)
     // Suppress sync: the grid is the source of truth during user interaction
@@ -327,17 +327,11 @@ void Controller::wireModRingIndicator(Krate::Plugins::ModRingIndicator* indicato
     int destIdx = indicator->getDestinationIndex();
     if (destIdx < 0 || destIdx >= kMaxRingIndicators) return;
 
-    ringIndicators_[static_cast<size_t>(destIdx)] = indicator;
+    // Nulled when the indicator is destroyed (CachedViewRegistry), like every cached view.
+    cacheView(ringIndicators_[static_cast<size_t>(destIdx)], indicator);
 
     // Wire controller for cross-component communication
     indicator->setController(this);
-
-    // Wire removed callback so UIViewSwitchContainer template teardown
-    // nulls the cached pointer (prevents dangling pointer crashes)
-    indicator->setRemovedCallback(
-        [this, destIdx]() {
-            ringIndicators_[static_cast<size_t>(destIdx)] = nullptr;
-        });
 
     // Wire click-to-select callback (FR-027, T070)
     indicator->setSelectCallback(

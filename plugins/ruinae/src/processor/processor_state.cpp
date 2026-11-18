@@ -363,6 +363,9 @@ void Processor::applyPresetSnapshot(const PresetSnapshot& snapshot) {
     // Reset DSP state to prevent stale voices/state from the old preset
     engine_.reset();
     arpCore_.reset();
+    engineDirectOpen_.fill(0);
+    arpCoreKeysOpen_.fill(0);
+    arpEngineOpen_.fill(0);
 
     // Restore reverb type from loaded state (125-dual-reverb)
     // Use setReverbTypeDirect to avoid triggering a crossfade on state load.

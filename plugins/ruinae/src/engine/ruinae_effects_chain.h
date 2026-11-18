@@ -42,6 +42,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstring>
+#include <utility>
 #include <vector>
 #include <cstdint>
 
@@ -240,11 +241,14 @@ public:
         }
         activeCompIdx_ = 0;
 
-        // Reset slot enable/disable fades
-        delayFadeState_ = SlotFadeState::Off;
-        reverbFadeState_ = SlotFadeState::Off;
-        delayFadeAlpha_ = 0.0f;
-        reverbFadeAlpha_ = 0.0f;
+        // Rebuild the slot fades from the enable flags. setDelayEnabled() and
+        // setReverbEnabled() ignore a flag that did not change, so forcing Off
+        // here left an enabled slot silent after setActive(true) or a preset
+        // load. The lines were just cleared, so no fade-in is needed.
+        delayFadeState_ = delayEnabled_ ? SlotFadeState::On : SlotFadeState::Off;
+        reverbFadeState_ = reverbEnabled_ ? SlotFadeState::On : SlotFadeState::Off;
+        delayFadeAlpha_ = delayEnabled_ ? 1.0f : 0.0f;
+        reverbFadeAlpha_ = reverbEnabled_ ? 1.0f : 0.0f;
 
         // Reset pre-warm state
         preWarming_ = false;
@@ -683,11 +687,28 @@ public:
 
     /// @brief Initiate a 30ms equal-power crossfade to the new reverb type (FR-025).
     ///
-    /// No-op if type == activeReverbType_ and not crossfading.
+    /// No-op if type == activeReverbType_ and not crossfading, or if a
+    /// crossfade to `type` is already running: the processor re-sends the type
+    /// every block, and re-arming would restart the fade before it completes.
+    /// A request for the outgoing type mid-fade reverses the running fade.
     /// If freeze is active, applies freeze to the incoming reverb before
     /// crossfade begins (FR-029).
     void setReverbType(int type) noexcept {
+        type = std::clamp(type, 0, 1);
         if (type == activeReverbType_ && !reverbCrossfading_) return;
+
+        // Already transitioning to this type: let it continue.
+        if (reverbCrossfading_ && type == incomingReverbType_) return;
+
+        // Back to the outgoing type mid-fade: reverse the fade from where it
+        // is. With equal-power gains, swapping the roles and mirroring alpha
+        // keeps both gains continuous. completeReverbCrossfade() then resets
+        // the reverb that ends up inactive.
+        if (reverbCrossfading_ && type == activeReverbType_) {
+            std::swap(activeReverbType_, incomingReverbType_);
+            reverbCrossfadeAlpha_ = 1.0f - std::min(reverbCrossfadeAlpha_, 1.0f);
+            return;
+        }
 
         // FR-029: If freeze is active, ensure the incoming reverb has freeze
         // applied via setParams BEFORE the crossfade begins.
@@ -710,6 +731,11 @@ public:
         reverbCrossfadeAlpha_ = 0.0f;
         reverbCrossfadeIncrement_ = 0.0f;
     }
+
+    /// @brief Reverb type currently fully active (0=Plate, 1=Hall). Test hook.
+    [[nodiscard]] int activeReverbTypeForTest() const noexcept { return activeReverbType_; }
+    /// @brief True while a reverb type crossfade is running. Test hook.
+    [[nodiscard]] bool isReverbCrossfadingForTest() const noexcept { return reverbCrossfading_; }
 
     // =========================================================================
     // Phaser Control

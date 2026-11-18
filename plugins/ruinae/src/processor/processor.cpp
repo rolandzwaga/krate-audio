@@ -33,6 +33,39 @@
 
 namespace Ruinae {
 
+namespace {
+
+void addMidiOutNoteOff(Steinberg::Vst::IEventList& out, uint8_t pitch,
+                       Steinberg::int32 sampleOffset) {
+    Steinberg::Vst::Event e{};
+    e.busIndex = 0;
+    e.sampleOffset = sampleOffset;
+    e.type = Steinberg::Vst::Event::kNoteOffEvent;
+    e.noteOff.channel = 0;
+    e.noteOff.pitch = pitch;
+    e.noteOff.velocity = 0.0f;
+    e.noteOff.noteId = -1;
+    e.noteOff.tuning = 0.0f;
+    out.addEvent(e);
+}
+
+void addMidiOutNoteOn(Steinberg::Vst::IEventList& out, uint8_t pitch, uint8_t velocity,
+                      Steinberg::int32 sampleOffset) {
+    Steinberg::Vst::Event e{};
+    e.busIndex = 0;
+    e.sampleOffset = sampleOffset;
+    e.type = Steinberg::Vst::Event::kNoteOnEvent;
+    e.noteOn.channel = 0;
+    e.noteOn.pitch = pitch;
+    e.noteOn.velocity = velocity / 127.0f;
+    e.noteOn.tuning = 0.0f;
+    e.noteOn.length = 0;
+    e.noteOn.noteId = -1;
+    out.addEvent(e);
+}
+
+} // namespace
+
 // ==============================================================================
 // Constructor
 // ==============================================================================
@@ -205,6 +238,10 @@ Steinberg::tresult PLUGIN_API Processor::setActive(Steinberg::TBool state) {
         // Activating: reset DSP state
         engine_.reset();
         arpCore_.reset();
+        // Both resets dropped every note these ledgers point at.
+        engineDirectOpen_.fill(0);
+        arpCoreKeysOpen_.fill(0);
+        arpEngineOpen_.fill(0);
         std::fill(mixBufferL_.begin(), mixBufferL_.end(), 0.0f);
         std::fill(mixBufferR_.begin(), mixBufferR_.end(), 0.0f);
 
@@ -216,6 +253,69 @@ Steinberg::tresult PLUGIN_API Processor::setActive(Steinberg::TBool state) {
     }
 
     return AudioEffect::setActive(state);
+}
+
+void Processor::flushArpLedger(Steinberg::Vst::IEventList* out, Steinberg::int32 offset) noexcept {
+    const auto engineOffset = static_cast<uint32_t>(std::max<Steinberg::int32>(offset, 0));
+    for (size_t p = 0; p < arpEngineOpen_.size(); ++p) {
+        const auto pitch = static_cast<uint8_t>(p);
+        for (; arpEngineOpen_[p] > 0; --arpEngineOpen_[p]) {
+            queueTimedEvent({.offset = engineOffset, .kind = TimedEventKind::ArpNoteOff, .pitch = pitch});
+        }
+        // Without an output list this block the MIDI-out notes stay open for
+        // a later NoteOff or flush.
+        if (out == nullptr) continue;
+        for (; arpMidiOutOpen_[p] > 0; --arpMidiOutOpen_[p]) {
+            addMidiOutNoteOff(*out, pitch, offset);
+        }
+    }
+}
+
+void Processor::routeArpSlideBatch(Steinberg::Vst::ProcessData& data, size_t begin, size_t end,
+                                   bool midiOut) noexcept {
+    std::array<bool, 128> inBatch{};
+    uint32_t engineOffset = 0;      // the batch's last NoteOn, engine side
+    Steinberg::int32 midiOffset = 0;  // and on the MIDI output
+    const Steinberg::int32 lastSample = std::max<Steinberg::int32>(data.numSamples - 1, 0);
+
+    for (size_t k = begin; k < end; ++k) {
+        const auto& evt = arpEvents_[k];
+        if (evt.note >= 128) continue;
+        inBatch[evt.note] = true;
+        const auto offset = static_cast<uint32_t>(std::clamp<Steinberg::int32>(evt.sampleOffset, 0, lastSample));
+        engineOffset = std::max(engineOffset, offset);
+        midiOffset = std::max(midiOffset, evt.sampleOffset);
+        // Every note of the batch takes its own voice, also when a strum put a
+        // segment boundary between them.
+        queueTimedEvent({.offset = offset, .kind = TimedEventKind::ArpNoteOn, .pitch = evt.note,
+                         .velocity = evt.velocity, .legato = true, .legatoContinues = (k > begin)});
+        // A pitch already sounding keeps its voice: still one note-off owed.
+        if (arpEngineOpen_[evt.note] == 0) arpEngineOpen_[evt.note] = 1;
+        if (midiOut && data.outputEvents) {
+            // MIDI has no legato: a pitch already sounding is struck again.
+            for (; arpMidiOutOpen_[evt.note] > 0; --arpMidiOutOpen_[evt.note]) {
+                addMidiOutNoteOff(*data.outputEvents, evt.note, evt.sampleOffset);
+            }
+            addMidiOutNoteOn(*data.outputEvents, evt.note, evt.velocity, evt.sampleOffset);
+            arpMidiOutOpen_[evt.note] = 1;
+        }
+    }
+
+    // The notes the slide replaced: the core sends them no NoteOff and forgets
+    // them, so they end here, after the new notes (the engine glides the old
+    // voices first; a receiver sees the overlap). A later core NoteOff for one
+    // of them finds its count at 0 and is dropped.
+    for (size_t p = 0; p < inBatch.size(); ++p) {
+        if (inBatch[p]) continue;
+        const auto pitch = static_cast<uint8_t>(p);
+        for (; arpEngineOpen_[p] > 0; --arpEngineOpen_[p]) {
+            queueTimedEvent({.offset = engineOffset, .kind = TimedEventKind::ArpNoteOff, .pitch = pitch});
+        }
+        if (data.outputEvents == nullptr) continue;
+        for (; arpMidiOutOpen_[p] > 0; --arpMidiOutOpen_[p]) {
+            addMidiOutNoteOff(*data.outputEvents, pitch, midiOffset);
+        }
+    }
 }
 
 Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& data) {
@@ -279,6 +379,32 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
         engine_.setTempo(blockCtx.tempoBPM);
     }
 
+    const int arpOpMode = arpParams_.operatingMode.load(std::memory_order_relaxed);
+    const bool isArpRunning = (arpOpMode != kArpOff);
+    const bool isArpDispatchingNotes = (arpOpMode == kArpMIDI || arpOpMode == kArpMIDIMod);
+    const bool isArpModSource = (arpOpMode == kArpMod || arpOpMode == kArpMIDIMod);
+
+    // Operating-mode change (R-029, R-064). Leaving a mode that dispatched
+    // notes (MIDI, MIDI+Mod) for one that does not (Off, Mod) releases every
+    // arp note the old mode put on the engine and the MIDI output, before this
+    // block's key events so a key pressed now is not cut.
+    if (arpOpMode != prevArpOpMode_) {
+        const bool wasDispatching = (prevArpOpMode_ == kArpMIDI || prevArpOpMode_ == kArpMIDIMod);
+        if (wasDispatching && !isArpDispatchingNotes) {
+            flushArpLedger(data.outputEvents, 0);
+        }
+        if (!isArpRunning) {
+            // setEnabled(false) only queued the core's cleanup note-offs, and
+            // the Off branch below never calls processBlock(): drain them here
+            // so the core starts clean when it is enabled again. The ledger
+            // flush above already released those notes, so the events go.
+            Krate::DSP::BlockContext drainCtx = blockCtx;
+            drainCtx.blockSize = std::max<size_t>(drainCtx.blockSize, 1);
+            (void)arpCore_.processBlock(drainCtx, arpEvents_);
+        }
+        prevArpOpMode_ = arpOpMode;
+    }
+
     // Process MIDI events (FR-006: branches on arp enabled state)
     if (data.inputEvents) {
         processEvents(data.inputEvents, data.numSamples);
@@ -286,15 +412,7 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
 
     // Arp block processing (FR-007, FR-017, FR-018)
     // Must run after processEvents() and before engine_.processBlock()
-    const int arpOpMode = arpParams_.operatingMode.load(std::memory_order_relaxed);
-    const bool isArpRunning = (arpOpMode != kArpOff);
-    const bool isArpDispatchingNotes = (arpOpMode == kArpMIDI || arpOpMode == kArpMIDIMod);
-    const bool isArpModSource = (arpOpMode == kArpMod || arpOpMode == kArpMIDIMod);
     if (isArpRunning) {
-        // FR-017: setEnabled(false) queues cleanup note-offs internally.
-        // The processBlock() call below drains them through the standard
-        // routing loop, ensuring every note-on has a matching note-off.
-
         // Track whether the host ever reports kPlaying — if so, it supports
         // transport and we should respect its stop state.
         if (blockCtx.isPlaying) {
@@ -334,47 +452,50 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
         for (size_t i = 0; i < numArpEvents; ++i) {
             const auto& evt = arpEvents_[i];
             if (evt.type == Krate::DSP::ArpEvent::Type::NoteOn) {
+                if (evt.legato && isArpDispatchingNotes) {
+                    // A Slide step: the run of legato NoteOns is one batch.
+                    size_t end = i + 1;
+                    while (end < numArpEvents
+                           && arpEvents_[end].type == Krate::DSP::ArpEvent::Type::NoteOn
+                           && arpEvents_[end].legato) {
+                        ++end;
+                    }
+                    if (isArpModSource) {
+                        lastArpPitch_ = static_cast<float>(arpEvents_[end - 1].note) / 127.0f;
+                    }
+                    routeArpSlideBatch(data, i, end, midiOutEnabled);
+                    i = end - 1;
+                    continue;
+                }
                 // Capture pitch for mod source (normalized 0-1)
                 if (isArpModSource) {
                     lastArpPitch_ = static_cast<float>(evt.note) / 127.0f;
                 }
                 // Only dispatch note events to engine in MIDI/MIDI+Mod modes
-                if (isArpDispatchingNotes) {
+                if (isArpDispatchingNotes && evt.note < 128) {
                     queueTimedEvent({.offset = static_cast<uint32_t>(std::clamp<Steinberg::int32>(
                                          evt.sampleOffset, 0, std::max<Steinberg::int32>(data.numSamples - 1, 0))),
                                      .kind = TimedEventKind::ArpNoteOn, .pitch = evt.note,
                                      .velocity = evt.velocity, .legato = evt.legato});
+                    if (arpEngineOpen_[evt.note] < UINT8_MAX) ++arpEngineOpen_[evt.note];
                     if (midiOutEnabled && data.outputEvents) {
-                        Steinberg::Vst::Event e{};
-                        e.busIndex = 0;
-                        e.sampleOffset = evt.sampleOffset;
-                        e.type = Steinberg::Vst::Event::kNoteOnEvent;
-                        e.noteOn.channel = 0;
-                        e.noteOn.pitch = evt.note;
-                        e.noteOn.velocity = evt.velocity / 127.0f;
-                        e.noteOn.tuning = 0.0f;
-                        e.noteOn.length = 0;
-                        e.noteOn.noteId = -1;
-                        data.outputEvents->addEvent(e);
+                        addMidiOutNoteOn(*data.outputEvents, evt.note, evt.velocity, evt.sampleOffset);
+                        if (arpMidiOutOpen_[evt.note] < UINT8_MAX) ++arpMidiOutOpen_[evt.note];
                     }
                 }
             } else if (evt.type == Krate::DSP::ArpEvent::Type::NoteOff) {
-                if (isArpDispatchingNotes) {
+                // A NoteOff reaches only the sinks that still hold its note
+                // (the ledgers): one already released by a mode-change flush,
+                // or never sent there, is dropped.
+                if (evt.note < 128 && arpEngineOpen_[evt.note] > 0) {
+                    --arpEngineOpen_[evt.note];
                     queueTimedEvent({.offset = static_cast<uint32_t>(std::clamp<Steinberg::int32>(
                                          evt.sampleOffset, 0, std::max<Steinberg::int32>(data.numSamples - 1, 0))),
                                      .kind = TimedEventKind::ArpNoteOff, .pitch = evt.note});
-                    if (midiOutEnabled && data.outputEvents) {
-                        Steinberg::Vst::Event e{};
-                        e.busIndex = 0;
-                        e.sampleOffset = evt.sampleOffset;
-                        e.type = Steinberg::Vst::Event::kNoteOffEvent;
-                        e.noteOff.channel = 0;
-                        e.noteOff.pitch = evt.note;
-                        e.noteOff.velocity = 0.0f;
-                        e.noteOff.noteId = -1;
-                        e.noteOff.tuning = 0.0f;
-                        data.outputEvents->addEvent(e);
-                    }
+                }
+                if (evt.note < 128 && arpMidiOutOpen_[evt.note] > 0 && data.outputEvents) {
+                    --arpMidiOutOpen_[evt.note];
+                    addMidiOutNoteOff(*data.outputEvents, evt.note, evt.sampleOffset);
                 }
             } else if (evt.type == Krate::DSP::ArpEvent::Type::kSkip) {
                 // 081-interaction-polish: send skip event to controller (FR-007, FR-008)

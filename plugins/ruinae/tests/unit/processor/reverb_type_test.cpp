@@ -27,9 +27,11 @@
 #include <algorithm>
 #include <cmath>
 #include <cstring>
+#include <string>
 #include <vector>
 #include "vst_param_changes.h"
 #include "vst_event_list.h"
+#include <artifact_detection.h>
 
 using Catch::Approx;
 
@@ -53,6 +55,7 @@ using ParamChangeBatch = Krate::Test::ParameterChanges;
 class TestableProcessor : public Ruinae::Processor {
 public:
     using Ruinae::Processor::processParameterChanges;
+    using Ruinae::Processor::engine;
 };
 
 // =============================================================================
@@ -627,4 +630,234 @@ TEST_CASE("Freeze is applied to incoming reverb before crossfade", "[reverb_type
 
     proc->setActive(false);
     proc->terminate();
+}
+
+// =============================================================================
+// R-134 / R-056: the processor re-sends the reverb type on every block
+// =============================================================================
+// applyParamsToEngine() calls setReverbType() every block. The tests above
+// switch inside one 2048-sample block, longer than the 30 ms fade, so they
+// never see a request repeated mid-fade. These render at host block sizes.
+
+namespace {
+
+constexpr Steinberg::int16 kA3Note = 57; // 220 Hz
+constexpr size_t kSamplesPer100Ms = 4410;  // at 44.1 kHz
+constexpr size_t kSamplesPerSecond = 44100;
+
+/// Whole blocks needed to cover at least numSamples.
+size_t blocksFor(size_t numSamples, size_t blockSize) {
+    return (numSamples + blockSize - 1) / blockSize;
+}
+
+/// Render numBlocks blocks of blockSize, appending the output to accL/accR.
+/// firstParams / firstEvents go with the first block only.
+void renderBlocks(Ruinae::Processor* proc, size_t blockSize, size_t numBlocks,
+                  std::vector<float>& accL, std::vector<float>& accR,
+                  Steinberg::Vst::IParameterChanges* firstParams = nullptr,
+                  Steinberg::Vst::IEventList* firstEvents = nullptr) {
+    std::vector<float> blockL;
+    std::vector<float> blockR;
+    MockEventList noEvents;
+    for (size_t b = 0; b < numBlocks; ++b) {
+        const bool first = (b == 0);
+        processBlockWithEvents(proc, blockSize, blockL, blockR,
+                               first ? firstParams : nullptr,
+                               (first && firstEvents != nullptr) ? firstEvents : &noEvents);
+        accL.insert(accL.end(), blockL.begin(), blockL.end());
+        accR.insert(accR.end(), blockR.begin(), blockR.end());
+    }
+}
+
+/// Load into proc a state saved from a fresh processor whose only change is
+/// the reverb type (normalized 0 = Plate, 1 = Hall). Restores the type
+/// without a crossfade (setReverbTypeDirect on the load path).
+void loadStateWithReverbType(Ruinae::Processor* proc, double reverbTypeNorm) {
+    auto source = makeTestableProcessor();
+    ParamChangeBatch batch;
+    batch.add(Ruinae::kReverbTypeId, reverbTypeNorm);
+    std::vector<float> outL;
+    std::vector<float> outR;
+    processBlock(source.get(), 512, outL, outR, &batch);
+
+    Steinberg::MemoryStream stream;
+    REQUIRE(source->getState(&stream) == Steinberg::kResultTrue);
+    stream.seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
+    REQUIRE(proc->setState(&stream) == Steinberg::kResultTrue);
+    drainPresetTransfer(proc);
+
+    source->setActive(false);
+    source->terminate();
+}
+
+/// sqrt(sum (a-b)^2 / sum b^2) over the last `count` samples of both channels.
+double relativeRmsDifference(const std::vector<float>& aL, const std::vector<float>& aR,
+                             const std::vector<float>& bL, const std::vector<float>& bR,
+                             size_t count) {
+    double diff = 0.0;
+    double ref = 0.0;
+    const size_t start = aL.size() - count;
+    for (size_t i = start; i < aL.size(); ++i) {
+        const double dL = static_cast<double>(aL[i]) - bL[i];
+        const double dR = static_cast<double>(aR[i]) - bR[i];
+        diff += dL * dL + dR * dR;
+        ref += static_cast<double>(bL[i]) * bL[i] + static_cast<double>(bR[i]) * bR[i];
+    }
+    return ref > 0.0 ? std::sqrt(diff / ref) : 1.0;
+}
+
+/// Clicks the detector finds in `signal` that it does not also find, within
+/// the merge gap, in `reference`. The wet output of a held sawtooth carries
+/// per-period edges the detector flags in any render; only a detection the
+/// untoggled reference lacks is a click caused by the type switch.
+std::vector<Krate::DSP::TestUtils::ClickDetection> clicksNotInReference(
+    const std::vector<float>& signal, const std::vector<float>& reference) {
+    Krate::DSP::TestUtils::ClickDetectorConfig cfg;
+    cfg.sampleRate = 44100.0f;
+    Krate::DSP::TestUtils::ClickDetector detector(cfg);
+    detector.prepare();
+    const auto refClicks = detector.detect(reference.data(), reference.size());
+    const auto clicks = detector.detect(signal.data(), signal.size());
+    std::vector<Krate::DSP::TestUtils::ClickDetection> extra;
+    for (const auto& c : clicks) {
+        const bool inReference = std::any_of(
+            refClicks.begin(), refClicks.end(),
+            [&](const auto& r) { return c.isAdjacentTo(r, cfg.mergeGap); });
+        if (!inReference) extra.push_back(c);
+    }
+    return extra;
+}
+
+std::string describeClicks(const std::vector<Krate::DSP::TestUtils::ClickDetection>& clicks) {
+    std::string s;
+    for (const auto& c : clicks)
+        s += std::to_string(c.sampleIndex) + "(" + std::to_string(c.amplitude) + ") ";
+    return s;
+}
+
+void checkReverbTypeSwitchCompletes(size_t blockSize) {
+    auto proc = makeTestableProcessor();
+    auto ref = makeTestableProcessor();
+    loadStateWithReverbType(proc.get(), 0.0);
+    loadStateWithReverbType(ref.get(), 1.0);
+    REQUIRE(proc->engine().activeReverbTypeForTest() == 0);
+    REQUIRE(ref->engine().activeReverbTypeForTest() == 1);
+
+    ParamChangeBatch procInit;
+    procInit.add(Ruinae::kReverbEnabledId, 1.0);
+    procInit.add(Ruinae::kReverbMixId, 1.0);
+    procInit.add(Ruinae::kReverbTypeId, 1.0); // Hall, sent once
+    ParamChangeBatch refInit;
+    refInit.add(Ruinae::kReverbEnabledId, 1.0);
+    refInit.add(Ruinae::kReverbMixId, 1.0);
+    MockEventList procNote;
+    procNote.addNoteOn(kA3Note, 0.8f);
+    MockEventList refNote;
+    refNote.addNoteOn(kA3Note, 0.8f);
+
+    std::vector<float> procL;
+    std::vector<float> procR;
+    std::vector<float> refL;
+    std::vector<float> refR;
+
+    // (a) 100 ms after the single request the switch is complete.
+    const size_t blocks100Ms = blocksFor(kSamplesPer100Ms, blockSize);
+    renderBlocks(proc.get(), blockSize, blocks100Ms, procL, procR, &procInit, &procNote);
+    renderBlocks(ref.get(), blockSize, blocks100Ms, refL, refR, &refInit, &refNote);
+    CHECK(proc->engine().activeReverbTypeForTest() == 1);
+    CHECK_FALSE(proc->engine().isReverbCrossfadingForTest());
+
+    // (b) Over the last second of a 3 s render, the output matches a processor
+    // that was on Hall from the start.
+    const size_t totalBlocks = blocksFor(3 * kSamplesPerSecond, blockSize);
+    renderBlocks(proc.get(), blockSize, totalBlocks - blocks100Ms, procL, procR);
+    renderBlocks(ref.get(), blockSize, totalBlocks - blocks100Ms, refL, refR);
+    REQUIRE(procL.size() == refL.size());
+    REQUIRE(rms(refL.data() + refL.size() - kSamplesPerSecond, kSamplesPerSecond) > 1e-4f);
+
+    const double relDiff = relativeRmsDifference(procL, procR, refL, refR, kSamplesPerSecond);
+    INFO("block " << blockSize << ": relative RMS difference " << relDiff);
+    CHECK(relDiff < 0.01);
+    CHECK(proc->engine().activeReverbTypeForTest() == 1);
+    CHECK_FALSE(proc->engine().isReverbCrossfadingForTest());
+
+    proc->setActive(false);
+    proc->terminate();
+    ref->setActive(false);
+    ref->terminate();
+}
+
+void checkReverbToggleBackKeepsTail(size_t blockSize) {
+    auto proc = makeTestableProcessor();
+    auto ref = makeTestableProcessor();
+
+    std::vector<float> procL;
+    std::vector<float> procR;
+    std::vector<float> refL;
+    std::vector<float> refR;
+
+    // Build a Plate tail: 400 ms of a held 220 Hz note, 100 % wet.
+    for (auto* p : {proc.get(), ref.get()}) {
+        ParamChangeBatch init;
+        init.add(Ruinae::kReverbEnabledId, 1.0);
+        init.add(Ruinae::kReverbMixId, 1.0);
+        init.add(Ruinae::kReverbSizeId, 0.8);
+        MockEventList noteOn;
+        noteOn.addNoteOn(kA3Note, 0.8f);
+        std::vector<float> scratchL;
+        std::vector<float> scratchR;
+        renderBlocks(p, blockSize, blocksFor(4 * kSamplesPer100Ms, blockSize),
+                     scratchL, scratchR, &init, &noteOn);
+    }
+    REQUIRE(proc->engine().activeReverbTypeForTest() == 0);
+
+    // Request Hall, and one block later request Plate again. The processor
+    // keeps re-sending Plate on every block after that.
+    ParamChangeBatch toHall;
+    toHall.add(Ruinae::kReverbTypeId, 1.0);
+    ParamChangeBatch toPlate;
+    toPlate.add(Ruinae::kReverbTypeId, 0.0);
+    renderBlocks(proc.get(), blockSize, 1, procL, procR, &toHall);
+    renderBlocks(proc.get(), blockSize, 1, procL, procR, &toPlate);
+    renderBlocks(ref.get(), blockSize, 2, refL, refR);
+
+    const size_t tailBlocks = blocksFor(5 * kSamplesPer100Ms, blockSize);
+    renderBlocks(proc.get(), blockSize, tailBlocks - 2, procL, procR);
+    renderBlocks(ref.get(), blockSize, tailBlocks - 2, refL, refR);
+
+    const float procTail = rms(procL.data(), procL.size());
+    const float refTail = rms(refL.data(), refL.size());
+    INFO("block " << blockSize << ": toggled tail RMS " << procTail
+                  << ", reference tail RMS " << refTail);
+    REQUIRE(refTail > 1e-4f);
+    CHECK(procTail >= 0.5f * refTail);
+
+    const auto clicksL = clicksNotInReference(procL, refL);
+    const auto clicksR = clicksNotInReference(procR, refR);
+    INFO("clicks not in the reference: L " << describeClicks(clicksL)
+                                            << "| R " << describeClicks(clicksR));
+    CHECK(clicksL.empty());
+    CHECK(clicksR.empty());
+
+    CHECK(proc->engine().activeReverbTypeForTest() == 0);
+    CHECK_FALSE(proc->engine().isReverbCrossfadingForTest());
+
+    proc->setActive(false);
+    proc->terminate();
+    ref->setActive(false);
+    ref->terminate();
+}
+
+} // anonymous namespace
+
+TEST_CASE("Reverb type switch completes at small block sizes", "[processor][reverb][fx]") {
+    SECTION("block 64") { checkReverbTypeSwitchCompletes(64); }
+    SECTION("block 256") { checkReverbTypeSwitchCompletes(256); }
+    SECTION("block 512") { checkReverbTypeSwitchCompletes(512); }
+}
+
+TEST_CASE("Reverb type toggle back mid-fade keeps the active tail", "[processor][reverb][fx]") {
+    SECTION("block 64") { checkReverbToggleBackKeepsTail(64); }
+    SECTION("block 256") { checkReverbToggleBackKeepsTail(256); }
+    SECTION("block 512") { checkReverbToggleBackKeepsTail(512); }
 }

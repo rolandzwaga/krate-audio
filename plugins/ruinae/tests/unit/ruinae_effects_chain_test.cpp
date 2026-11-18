@@ -10,6 +10,7 @@
 
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/catch_approx.hpp>
+#include <catch2/generators/catch_generators.hpp>
 
 #include "engine/ruinae_effects_chain.h"
 #include "ruinae_types.h"
@@ -1438,9 +1439,7 @@ TEST_CASE("RuinaeEffectsChain phaser modifies signal after prepare+reset",
     chain.prepare(kSampleRate, kBlockSize);
     chain.reset();  // simulates setActive(true)
 
-    // Disable delay and reverb so we only test phaser
-    chain.setDelayEnabled(false);
-    chain.setReverbEnabled(false);
+    // Delay and reverb are off by default, so only the phaser is in the path.
 
     // Use DEFAULT phaser settings to test real-world scenario
     chain.setPhaserEnabled(true);
@@ -1488,6 +1487,71 @@ TEST_CASE("RuinaeEffectsChain phaser modifies signal after prepare+reset",
     INFO("Max difference between phased and original: " << maxDiff);
     // With aggressive settings and rich signal, phaser should clearly modify audio
     REQUIRE(maxDiff > 0.05f);
+}
+
+// =============================================================================
+// R-054: delay and reverb survive reset()
+// =============================================================================
+// reset() runs on setActive(true) and on every host preset load. The processor
+// then re-applies the enable flags every block, but setDelayEnabled() and
+// setReverbEnabled() return early when the flag did not change. reset() used to
+// force both slots to Off without clearing the flags, so an enabled delay or
+// reverb stayed silent until the user toggled it off and on.
+
+TEST_CASE("RuinaeEffectsChain: enabled delay and reverb still process after reset",
+          "[ruinae-fx][reset]") {
+    constexpr size_t kBlock = 512;
+    constexpr float kDelayMs = 100.0f;
+    constexpr size_t kLen = 16384;
+
+    const bool measureDelay = GENERATE(true, false);
+    CAPTURE(measureDelay);
+
+    RuinaeEffectsChain chain;
+    prepareChain(chain, kSampleRate, kBlock);
+    chain.setDelayType(RuinaeDelayType::Digital);
+    chain.setModulationType(ModulationType::None);
+    chain.setHarmonizerEnabled(false);
+    chain.setDelayTime(kDelayMs);
+    chain.setDelayFeedback(0.0f);
+    // Delay pass: 100 % wet delay, light reverb. Reverb pass: dry delay,
+    // 100 % wet reverb, so each measurement isolates one slot.
+    chain.setDelayMix(measureDelay ? 1.0f : 0.0f);
+    ReverbParams reverbParams;
+    reverbParams.roomSize = 0.8f;
+    reverbParams.damping = 0.3f;
+    reverbParams.mix = measureDelay ? 0.3f : 1.0f;
+    chain.setReverbParams(reverbParams);
+    chain.setDelayEnabled(true);
+    chain.setReverbEnabled(true);
+
+    settleChain(chain, 16, kSampleRate, kBlock);
+
+    chain.reset();
+    // What the processor does every block after a reset.
+    chain.setDelayEnabled(true);
+    chain.setReverbEnabled(true);
+
+    std::vector<float> left(kLen, 0.0f);
+    std::vector<float> right(kLen, 0.0f);
+    left[0] = 1.0f;
+    right[0] = 1.0f;
+    chain.processBlock(left.data(), right.data(), kLen);
+
+    if (measureDelay) {
+        const size_t echoAt = chain.getLatencySamples()
+            + static_cast<size_t>(kDelayMs * kSampleRate / 1000.0);
+        REQUIRE(echoAt + 256 < kLen);
+        const float wetPeak = peakAbsolute(left.data() + echoAt - 256, 512);
+        INFO("delay echo peak near sample " << echoAt << " after reset: " << wetPeak);
+        CHECK(wetPeak > 0.1f);
+    } else {
+        constexpr size_t kTailStart = 256;
+        constexpr size_t kTailLen = 8192;
+        const float tailRms = calculateRMS(left.data() + kTailStart, kTailLen);
+        INFO("reverb tail RMS after reset: " << tailRms);
+        CHECK(tailRms > 0.001f);
+    }
 }
 
 // =============================================================================

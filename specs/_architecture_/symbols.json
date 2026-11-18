@@ -2369,7 +2369,7 @@
       "scope": "Krate::DSP",
       "layer": "core",
       "header": "dsp/include/krate/dsp/core/phase_utils.h",
-      "line": 154
+      "line": 167
     },
     {
       "name": "PhaseDistortionOscillator",

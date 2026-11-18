@@ -33,6 +33,7 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include <algorithm>
+#include <array>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -413,6 +414,32 @@ void verifyPreset(const std::filesystem::path& presetPath,
     proc->terminate();
 
     auto actual = formatCaptured(captured);
+
+    // Independent of the golden (R-113), and checked in regen mode too so an
+    // unbalanced golden can never be written: every pitch gets as many
+    // NoteOffs as NoteOns, and its last event (after the 45 s key release) is
+    // a NoteOff -- nothing stays held on the downstream instrument.
+    {
+        std::array<int, 128> onCount{};
+        std::array<int, 128> offCount{};
+        std::array<bool, 128> lastIsOn{};
+        for (const auto& c : captured) {
+            const auto p = static_cast<size_t>(c.pitch & 0x7F);
+            if (c.isNoteOn) ++onCount[p]; else ++offCount[p];
+            lastIsOn[p] = c.isNoteOn;
+        }
+        std::string unbalanced;
+        for (size_t p = 0; p < 128; ++p) {
+            if (onCount[p] != offCount[p] || lastIsOn[p]) {
+                unbalanced += " " + std::to_string(p) + "(on " + std::to_string(onCount[p])
+                            + " off " + std::to_string(offCount[p])
+                            + (lastIsOn[p] ? ", ends on noteOn)" : ")");
+            }
+        }
+        INFO("preset: " << stem);
+        INFO("unbalanced pitches:" << unbalanced);
+        REQUIRE(unbalanced.empty());
+    }
 
     if (regen) {
         writeFile(goldenPath, actual);

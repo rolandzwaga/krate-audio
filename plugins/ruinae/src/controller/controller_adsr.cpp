@@ -50,7 +50,7 @@ void Controller::wireAdsrDisplay(Krate::Plugins::ADSRDisplay* display) {
         return; // Unknown tag - not an envelope display
     }
 
-    *displayPtr = display;
+    cacheView(*displayPtr, display);
 
     // Configure parameter IDs
     display->setAdsrBaseParamId(adsrBaseId);

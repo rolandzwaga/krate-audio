@@ -223,13 +223,18 @@ public:
     /// In Mono mode, routes through MonoHandler.
     /// @param note MIDI note number (0-127)
     /// @param velocity MIDI velocity (0-127, 0 treated as noteOff)
-    void noteOn(uint8_t note, uint8_t velocity, bool legato = false) noexcept {
+    /// @param legato Glide a sounding voice instead of starting one (arp Slide)
+    /// @param continuesLegatoBatch In Poly mode, this legato note belongs to the
+    ///        same Slide step as the previous legato note although a processBlock
+    ///        ran in between (a strummed chord); see dispatchPolyLegatoNoteOn.
+    void noteOn(uint8_t note, uint8_t velocity, bool legato = false,
+                bool continuesLegatoBatch = false) noexcept {
         if (!prepared_) return;
 
         if (legato) {
             // Legato noteOn: suppress envelope retrigger, apply portamento
             if (mode_ == VoiceMode::Poly) {
-                dispatchPolyLegatoNoteOn(note, velocity);
+                dispatchPolyLegatoNoteOn(note, velocity, continuesLegatoBatch);
             } else {
                 // Mono mode: route through MonoHandler with legato behavior.
                 // Temporarily enable legato on the MonoHandler, dispatch, restore.
@@ -353,7 +358,8 @@ public:
     // =========================================================================
 
     /// @brief Set the number of available voices (FR-010).
-    /// Clamped to [1, kMaxPolyphony]. Releases excess voices.
+    /// Clamped to [1, kMaxPolyphony]. Releases excess voices; they keep
+    /// rendering until their release ends.
     /// Recalculates gain compensation to 1/sqrt(count).
     /// @param count Number of voices to use
     void setPolyphony(size_t count) noexcept {
@@ -379,8 +385,11 @@ public:
     // =========================================================================
 
     /// @brief Switch between Poly and Mono modes (FR-011).
-    /// When switching Poly->Mono: most recent voice survives at index 0.
-    /// When switching Mono->Poly: voice 0 continues, MonoHandler reset.
+    /// When switching Poly->Mono: the newest voice whose key is still held
+    /// survives at index 0 and every held key enters the mono note stack; a
+    /// released voice is never re-gated. When switching Mono->Poly: voice 0
+    /// continues under its held key, which the allocator then tracks.
+    /// Released voices finish their tails in either mode.
     /// @param mode Target voice mode
     void setMode(VoiceMode mode) noexcept {
         if (mode == mode_) return; // No-op if same mode
@@ -692,6 +701,8 @@ public:
     void setReverbParams(const ReverbParams& params) noexcept { effectsChain_.setReverbParams(params); }
     void setReverbType(int type) noexcept { effectsChain_.setReverbType(type); }
     void setReverbTypeDirect(int type) noexcept { effectsChain_.setReverbTypeDirect(type); }
+    [[nodiscard]] int activeReverbTypeForTest() const noexcept { return effectsChain_.activeReverbTypeForTest(); }
+    [[nodiscard]] bool isReverbCrossfadingForTest() const noexcept { return effectsChain_.isReverbCrossfadingForTest(); }
 
     // Phaser
     void setPhaserEnabled(bool enabled) noexcept { effectsChain_.setPhaserEnabled(enabled); }
@@ -781,6 +792,9 @@ public:
     /// @param right Pointer to right channel output buffer
     /// @param numSamples Number of samples to process
     void processBlock(float* left, float* right, size_t numSamples) noexcept {
+        // Legato noteOns after this block start a new batch (R-028).
+        ++legatoSerial_;
+
         // Early-out: not prepared or zero samples
         if (!prepared_ || numSamples == 0) {
             if (left != nullptr) {
@@ -1661,6 +1675,12 @@ public:
         return voices_[0].isActive() ? 1 : 0;
     }
 
+    /// @brief Allocator note of a poly voice whose gate is on (key down), or -1.
+    [[nodiscard]] int gatedVoiceNoteForTest(size_t voiceIndex) const noexcept {
+        if (allocator_.getVoiceState(voiceIndex) != VoiceState::Active) return -1;
+        return allocator_.getVoiceNote(voiceIndex);
+    }
+
     /// @brief Get the current voice mode (FR-040).
     [[nodiscard]] VoiceMode getMode() const noexcept {
         return mode_;
@@ -1754,28 +1774,55 @@ private:
         }
     }
 
-    /// @brief Poly legato noteOn: find the most recently active voice and
-    /// glide its pitch to the new note without retriggering envelopes (FR-033).
-    /// Falls back to normal dispatchPolyNoteOn if no active voice is found.
-    void dispatchPolyLegatoNoteOn(uint8_t note, uint8_t velocity) noexcept {
-        // Primary: find active voice by note-on timestamp (most recent)
+    /// @brief Poly legato noteOn: glide one gated voice to the new note without
+    /// retriggering envelopes (FR-033, R-028).
+    ///
+    /// An arp Slide on a chord sends one legato noteOn per new chord note. Each
+    /// must take its own voice, so a voice taken in this batch (stamped with the
+    /// batch serial) is not taken again: N old voices glide to N new notes. A
+    /// voice already holding `note` is kept as it is (no glide); otherwise the
+    /// most recent gated voice glides. With no candidate left (more new notes
+    /// than old voices) the note gets a fresh voice. Old voices left over are
+    /// released by the caller's note-offs.
+    void dispatchPolyLegatoNoteOn(uint8_t note, uint8_t velocity,
+                                  bool continuesBatch) noexcept {
+        const uint32_t batch = continuesBatch ? legatoBatchSerial_ : legatoSerial_;
+        legatoBatchSerial_ = batch;
+
         int bestVoice = -1;
+        int sameNoteVoice = -1;
         uint64_t bestTimestamp = 0;
         for (size_t i = 0; i < polyphonyCount_; ++i) {
-            if (voices_[i].isActive() && noteOnTimestamps_[i] > bestTimestamp) {
+            if (allocator_.getVoiceState(i) != VoiceState::Active || legatoStamp_[i] == batch) {
+                continue;
+            }
+            if (sameNoteVoice < 0 && allocator_.getVoiceNote(i) == static_cast<int>(note)) {
+                sameNoteVoice = static_cast<int>(i);
+            }
+            if (noteOnTimestamps_[i] > bestTimestamp) {
                 bestTimestamp = noteOnTimestamps_[i];
                 bestVoice = static_cast<int>(i);
             }
         }
 
-        if (bestVoice >= 0) {
-            float freq = noteProcessor_.getFrequency(note);
-            voices_[static_cast<size_t>(bestVoice)].glideToFrequency(freq);
-            allocator_.setVoiceNote(static_cast<size_t>(bestVoice), note);
-            noteOnTimestamps_[static_cast<size_t>(bestVoice)] = ++timestampCounter_;
+        if (sameNoteVoice >= 0) {
+            legatoStamp_[static_cast<size_t>(sameNoteVoice)] = batch;
+        } else if (bestVoice >= 0) {
+            const auto v = static_cast<size_t>(bestVoice);
+            voices_[v].glideToFrequency(noteProcessor_.getFrequency(note));
+            allocator_.setVoiceNote(v, note);
+            noteOnTimestamps_[v] = ++timestampCounter_;
+            legatoStamp_[v] = batch;
         } else {
-            // No active voice found, fall back to normal noteOn
+            // The fresh voice belongs to this batch too: a later note of the
+            // same batch must not glide it away.
+            const uint64_t before = timestampCounter_;
             dispatchPolyNoteOn(note, velocity);
+            if (timestampCounter_ != before) {
+                for (size_t i = 0; i < kMaxPolyphony; ++i) {
+                    if (noteOnTimestamps_[i] == timestampCounter_) legatoStamp_[i] = batch;
+                }
+            }
         }
     }
 
@@ -1808,7 +1855,7 @@ private:
                 // Legato: update frequency without retriggering envelopes
                 voices_[0].setFrequency(freq);
             }
-            monoVoiceNote_ = static_cast<int8_t>(note);
+            monoVoiceNote_ = monoWinnerNote(monoEvent);
         }
     }
 
@@ -1823,7 +1870,16 @@ private:
             // Returning to a held note
             float freq = monoHandler_.processPortamento();
             voices_[0].setFrequency(freq);
+            monoVoiceNote_ = monoWinnerNote(monoEvent);
         }
+    }
+
+    /// The held key the MonoHandler sounds after @p event (its priority winner),
+    /// recovered from the event's 12-TET A4 = 440 Hz frequency. Kept current so
+    /// a Mono->Poly switch hands voice 0 to the key whose release ends it (R-032).
+    [[nodiscard]] static int8_t monoWinnerNote(const MonoNoteEvent& event) noexcept {
+        const long note = std::lround(frequencyToMidiNote(event.frequency));
+        return static_cast<int8_t>(std::clamp(note, 0L, 127L));
     }
 
     // =========================================================================
@@ -1831,57 +1887,61 @@ private:
     // =========================================================================
 
     void switchPolyToMono() noexcept {
-        // Find the most recently triggered voice
-        size_t mostRecentVoice = 0;
-        uint64_t maxTimestamp = 0;
-        bool foundActive = false;
-
+        // Keys still down are the allocator's Active slots; a voice in its
+        // release (key up) must never become a held mono note (R-027).
+        // Collected oldest first.
+        std::array<size_t, kMaxPolyphony> held{};
+        size_t heldCount = 0;
         for (size_t i = 0; i < polyphonyCount_; ++i) {
-            if (voices_[i].isActive() && noteOnTimestamps_[i] > maxTimestamp) {
-                maxTimestamp = noteOnTimestamps_[i];
-                mostRecentVoice = i;
-                foundActive = true;
+            if (allocator_.getVoiceState(i) != VoiceState::Active ||
+                allocator_.getVoiceNote(i) < 0) {
+                continue;
             }
+            size_t pos = heldCount++;
+            while (pos > 0 && noteOnTimestamps_[held[pos - 1]] > noteOnTimestamps_[i]) {
+                held[pos] = held[pos - 1];
+                --pos;
+            }
+            held[pos] = i;
         }
 
-        if (!foundActive) {
-            monoHandler_.reset();
-            monoVoiceNote_ = -1;
-            allocator_.reset();
-            [[maybe_unused]] auto ev1 = allocator_.setVoiceCount(polyphonyCount_);
-            return;
-        }
+        monoHandler_.reset();
+        monoVoiceNote_ = -1;
 
-        // Get the note from the allocator
-        int voiceNote = allocator_.getVoiceNote(mostRecentVoice);
-
-        if (mostRecentVoice == 0) {
-            // Voice 0 continues seamlessly, release all others
-            for (size_t i = 1; i < polyphonyCount_; ++i) {
+        if (heldCount > 0) {
+            // The newest held voice survives at index 0. Every other voice is
+            // released and finishes its tail in processBlockMono.
+            const size_t survivor = held[heldCount - 1];
+            const auto survivorNote = static_cast<uint8_t>(allocator_.getVoiceNote(survivor));
+            for (size_t i = (survivor == 0) ? 1 : 0; i < kMaxPolyphony; ++i) {
                 if (voices_[i].isActive()) {
                     voices_[i].noteOff();
                 }
             }
-        } else {
-            // Transfer to voice 0
-            for (size_t i = 0; i < polyphonyCount_; ++i) {
-                if (voices_[i].isActive()) {
-                    voices_[i].noteOff();
-                }
+            if (survivor != 0) {
+                voices_[0].noteOn(noteProcessor_.getFrequency(survivorNote), 0.8f);
             }
-            if (voiceNote >= 0) {
-                float freq = noteProcessor_.getFrequency(
-                    static_cast<uint8_t>(voiceNote));
-                voices_[0].noteOn(freq, 0.8f);
-            }
-        }
 
-        // Initialize MonoHandler with the surviving note
-        if (voiceNote >= 0) {
-            monoHandler_.reset();
-            [[maybe_unused]] auto monoInitEvent =
-                monoHandler_.noteOn(voiceNote, 100);
-            monoVoiceNote_ = static_cast<int8_t>(voiceNote);
+            // Every held key enters the mono note stack, so releasing the
+            // newest returns to the others. The survivor goes in first (the
+            // glide starts on its pitch) and again last (it is the newest
+            // key); the others go in between, oldest first.
+            MonoNoteEvent event = monoHandler_.noteOn(survivorNote, 100);
+            for (size_t k = 0; k + 1 < heldCount; ++k) {
+                (void)monoHandler_.noteOn(allocator_.getVoiceNote(held[k]), 100);
+            }
+            if (heldCount > 1) {
+                event = monoHandler_.noteOn(survivorNote, 100);
+            }
+            monoVoiceNote_ = monoWinnerNote(event);
+        } else if (voices_[0].isActive() && allocator_.getVoiceNote(0) >= 0) {
+            // No key down: nothing is re-gated and the releasing voices finish.
+            // processBlockMono sets voice 0's pitch from the MonoHandler's
+            // glide, so seed that with voice 0's note (pressed and released:
+            // the stack stays empty) or its tail would jump pitch.
+            const int tailNote = allocator_.getVoiceNote(0);
+            (void)monoHandler_.noteOn(tailNote, 100);
+            (void)monoHandler_.noteOff(tailNote);
         }
 
         allocator_.reset();
@@ -1889,11 +1949,32 @@ private:
     }
 
     void switchMonoToPoly() noexcept {
+        const int8_t heldNote = monoVoiceNote_;
         monoHandler_.reset();
         monoVoiceNote_ = -1;
-        // Voice 0 continues if it was active
         allocator_.reset();
         [[maybe_unused]] auto ev3 = allocator_.setVoiceCount(polyphonyCount_);
+
+        // Voice 0 continues with its key held: the allocator must know it, or
+        // that key's noteOff finds no slot and voice 0 never releases (R-032).
+        // Right after reset() every slot is Idle with timestamp 0, so each
+        // allocation mode picks slot 0; the NoteOn event is not dispatched
+        // (voice 0 is already sounding). Should another slot be picked, the
+        // allocator is cleared again and voice 0 is released instead of left
+        // without a note-off.
+        if (heldNote >= 0 && voices_[0].isActive()) {
+            const auto events = allocator_.noteOn(static_cast<uint8_t>(heldNote), 100);
+            const bool adopted = !events.empty() &&
+                                 events.front().type == VoiceEvent::Type::NoteOn &&
+                                 events.front().voiceIndex == 0;
+            if (adopted) {
+                noteOnTimestamps_[0] = ++timestampCounter_;
+            } else {
+                allocator_.reset();
+                [[maybe_unused]] auto ev4 = allocator_.setVoiceCount(polyphonyCount_);
+                voices_[0].noteOff();
+            }
+        }
     }
 
     // =========================================================================
@@ -1937,7 +2018,7 @@ private:
                           float allVoiceFilterEnvAmtOffset) noexcept {
         // Track which voices were active before processing (for deferred finish)
         std::array<bool, kMaxPolyphony> wasActive{};
-        for (size_t i = 0; i < polyphonyCount_; ++i) {
+        for (size_t i = 0; i < kMaxPolyphony; ++i) {
             wasActive[i] = voices_[i].isActive();
         }
 
@@ -1958,14 +2039,14 @@ private:
                 voiceFilterCutoffHz_ * semitonesToRatio(
                     allVoiceFilterCutoffOffset * kFilterModSemitones),
                 20.0f, 20000.0f);
-            for (size_t i = 0; i < polyphonyCount_; ++i) {
+            for (size_t i = 0; i < kMaxPolyphony; ++i) {
                 if (voices_[i].isActive()) voices_[i].setFilterCutoff(modCutoff);
             }
         }
         {
             float modMorph = std::clamp(
                 voiceMixPosition_ + allVoiceMorphOffset, 0.0f, 1.0f);
-            for (size_t i = 0; i < polyphonyCount_; ++i) {
+            for (size_t i = 0; i < kMaxPolyphony; ++i) {
                 if (voices_[i].isActive()) voices_[i].setMixPosition(modMorph);
             }
         }
@@ -1973,7 +2054,7 @@ private:
             float modRate = std::clamp(
                 baseTranceGateRateHz_ + allVoiceTranceGateOffset * 50.0f,
                 0.1f, 100.0f);
-            for (size_t i = 0; i < polyphonyCount_; ++i) {
+            for (size_t i = 0; i < kMaxPolyphony; ++i) {
                 if (voices_[i].isActive()) voices_[i].setTranceGateRate(modRate);
             }
         }
@@ -1981,7 +2062,7 @@ private:
             float modTilt = std::clamp(
                 voiceMixTilt_ + allVoiceTiltOffset * 24.0f,
                 -12.0f, 12.0f);
-            for (size_t i = 0; i < polyphonyCount_; ++i) {
+            for (size_t i = 0; i < kMaxPolyphony; ++i) {
                 if (voices_[i].isActive()) voices_[i].setMixTilt(modTilt);
             }
         }
@@ -1989,7 +2070,7 @@ private:
             float modReso = std::clamp(
                 voiceFilterResonance_ + allVoiceResonanceOffset * 10.0f,
                 0.1f, 30.0f);
-            for (size_t i = 0; i < polyphonyCount_; ++i) {
+            for (size_t i = 0; i < kMaxPolyphony; ++i) {
                 if (voices_[i].isActive()) voices_[i].setFilterResonance(modReso);
             }
         }
@@ -1997,13 +2078,16 @@ private:
             float modEnvAmt = std::clamp(
                 voiceFilterEnvAmount_ + allVoiceFilterEnvAmtOffset * 48.0f,
                 -96.0f, 96.0f);
-            for (size_t i = 0; i < polyphonyCount_; ++i) {
+            for (size_t i = 0; i < kMaxPolyphony; ++i) {
                 if (voices_[i].isActive()) voices_[i].setFilterEnvAmount(modEnvAmt);
             }
         }
 
-        // Step 7: Process each active voice
-        for (size_t i = 0; i < polyphonyCount_; ++i) {
+        // Step 7: Process each active voice. Every slot renders, not just the
+        // first polyphonyCount_: lowering polyphony releases the excess voices,
+        // and they must finish their release rather than freeze (R-033).
+        // Allocation stays limited by the allocator's voice count.
+        for (size_t i = 0; i < kMaxPolyphony; ++i) {
             if (!voices_[i].isActive()) continue;
 
             // Step 7a: Update frequency with pitch bend
@@ -2029,7 +2113,7 @@ private:
         }
 
         // Step 16: Deferred voiceFinished notifications (FR-033, FR-034)
-        for (size_t i = 0; i < polyphonyCount_; ++i) {
+        for (size_t i = 0; i < kMaxPolyphony; ++i) {
             if (wasActive[i] && !voices_[i].isActive()) {
                 allocator_.voiceFinished(i);
             }
@@ -2125,6 +2209,21 @@ private:
             }
         }
 
+        // Voices 1..15 still sounding were released by a Poly->Mono switch:
+        // they finish their release tails at their own pitch and pan instead
+        // of freezing until the next switch back to Poly (R-027).
+        for (size_t i = 1; i < kMaxPolyphony; ++i) {
+            if (!voices_[i].isActive()) continue;
+            voices_[i].processBlock(voiceScratchBuffer_.data(), numSamples);
+            const float panPosition = voicePanPositions_[i];
+            const float leftGain = std::cos(panPosition * kPi * 0.5f);
+            const float rightGain = std::sin(panPosition * kPi * 0.5f);
+            for (size_t s = 0; s < numSamples; ++s) {
+                mixBufferL_[blockStart + s] += voiceScratchBuffer_[s] * leftGain;
+                mixBufferR_[blockStart + s] += voiceScratchBuffer_[s] * rightGain;
+            }
+        }
+
         // Deferred voiceFinished for voice 0
         if (wasActive && !voices_[0].isActive()) {
             allocator_.voiceFinished(0);
@@ -2196,6 +2295,13 @@ private:
     bool prepared_{false};
     uint64_t timestampCounter_{0};
     std::array<uint64_t, kMaxPolyphony> noteOnTimestamps_{};
+    // Poly legato batches (R-028): legatoSerial_ advances once per processBlock,
+    // so the legato noteOns of one arp Slide step share it; a voice taken in a
+    // batch carries the batch's serial in legatoStamp_. Starts at 1 so no voice
+    // counts as taken before the first block.
+    uint32_t legatoSerial_{1};
+    uint32_t legatoBatchSerial_{1};  ///< serial of the last batch, for strummed notes
+    std::array<uint32_t, kMaxPolyphony> legatoStamp_{};
     std::array<float, kMaxPolyphony> voicePanPositions_{};
     int8_t monoVoiceNote_{-1};
     bool userLegato_{false};    ///< Cached user legato setting for save/restore during arp slide

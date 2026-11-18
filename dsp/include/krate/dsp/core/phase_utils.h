@@ -10,15 +10,16 @@
 //   lightweight composition into any oscillator class.
 // - Phase and increment use double precision to prevent accumulated rounding
 //   error over long playback durations (matching existing codebase patterns).
-// - Phase wrapping uses subtraction (not std::fmod) for performance and
-//   compatibility with existing oscillator implementations.
+// - Phase wrapping subtracts the integer part (not std::fmod) for performance
+//   and compatibility with existing oscillator implementations; its cost does
+//   not depend on the input's magnitude.
 // - wrapPhase(double) wraps to [0, 1) for oscillator use. This is distinct
 //   from spectral_utils.h::wrapPhase(float) which wraps to [-pi, pi].
 //
 // Constitution Compliance:
 // - Principle II: Real-Time Safety (noexcept, no allocations)
 // - Principle III: Modern C++ (constexpr, [[nodiscard]], C++20)
-// - Principle IX: Layer 0 (depends only on stdlib)
+// - Principle IX: Layer 0 (depends on stdlib and core/db_utils.h)
 // - Principle XII: Test-First Development
 //
 // Reference: specs/014-phase-accumulation-utils/spec.md
@@ -26,6 +27,7 @@
 
 #pragma once
 
+#include <krate/dsp/core/db_utils.h>  // detail::isFinite
 
 namespace Krate::DSP {
 
@@ -54,15 +56,21 @@ namespace Krate::DSP {
     return static_cast<double>(frequency) / static_cast<double>(sampleRate);
 }
 
-/// @brief Wrap phase to [0, 1) range using subtraction.
+/// @brief Wrap phase to [0, 1) range in constant time.
 ///
-/// Handles both positive overflow (phase >= 1.0) and negative values
-/// (phase < 0.0) by iterative addition/subtraction of 1.0.
+/// Subtracts the integer part, so the cost does not depend on the input's
+/// magnitude: an iterative subtraction never terminates above 2^53, where
+/// `phase - 1.0 == phase` (R-147). For inputs in [-1, 2) the result is
+/// bit-identical to subtracting or adding 1.0 once. Non-finite input, input
+/// whose magnitude has no fractional part (>= 2^52) and the `-ulp + 1.0`
+/// rounding case return 0.0.
 ///
 /// @note This function wraps to [0, 1) for oscillator phase accumulation.
 ///       For spectral phase wrapping to [-pi, pi], use spectral_utils.h.
+///       std::floor is not constexpr in C++20, so the integer part comes from a
+///       truncating cast, which is in range once |phase| < 2^52.
 ///
-/// @param phase Phase value to wrap (any finite double value)
+/// @param phase Phase value to wrap (any double value)
 /// @return Phase wrapped to [0, 1)
 ///
 /// @example
@@ -72,13 +80,18 @@ namespace Krate::DSP {
 /// double c = wrapPhase(0.5);   // returns 0.5 (no change)
 /// @endcode
 [[nodiscard]] constexpr double wrapPhase(double phase) noexcept {
-    while (phase >= 1.0) {
-        phase -= 1.0;
+    if (phase >= 0.0 && phase < 1.0) {
+        return phase;
     }
-    while (phase < 0.0) {
-        phase += 1.0;
+    constexpr double kNoFraction = 4503599627370496.0;  // 2^52
+    if (!detail::isFinite(phase) || phase >= kNoFraction || phase <= -kNoFraction) {
+        return 0.0;
     }
-    return phase;
+    double wrapped = phase - static_cast<double>(static_cast<long long>(phase));
+    if (wrapped < 0.0) {
+        wrapped += 1.0;
+    }
+    return (wrapped < 1.0) ? wrapped : 0.0;
 }
 
 /// @brief Detect whether a phase wrap occurred between two phase values.

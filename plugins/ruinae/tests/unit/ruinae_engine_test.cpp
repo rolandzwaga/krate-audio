@@ -22,6 +22,7 @@
 #include <chrono>
 #include <cmath>
 #include <limits>
+#include <memory>
 #include <numeric>
 #include <vector>
 
@@ -88,51 +89,55 @@ TEST_CASE("RuinaeEngine construction and constants", "[ruinae-engine][lifecycle]
         REQUIRE(RuinaeEngine::kMaxMasterGain == 2.0f);
     }
 
+    // Heap-allocated: the engine is large enough to overflow the stack in the
+    // AddressSanitizer Debug build, which runs every [lifecycle] case.
     SECTION("default mode is Poly (FR-001)") {
-        RuinaeEngine engine;
-        REQUIRE(engine.getMode() == VoiceMode::Poly);
+        auto engine = std::make_unique<RuinaeEngine>();
+        REQUIRE(engine->getMode() == VoiceMode::Poly);
     }
 
     SECTION("default active voice count is 0") {
-        RuinaeEngine engine;
-        engine.prepare(44100.0, 512);
-        REQUIRE(engine.getActiveVoiceCount() == 0);
+        auto engine = std::make_unique<RuinaeEngine>();
+        engine->prepare(44100.0, 512);
+        REQUIRE(engine->getActiveVoiceCount() == 0);
     }
 
     SECTION("default polyphony is 8") {
-        RuinaeEngine engine;
-        engine.prepare(44100.0, 512);
+        auto engine = std::make_unique<RuinaeEngine>();
+        engine->prepare(44100.0, 512);
         // Fill 8 voices and verify they all activate
         for (uint8_t i = 0; i < 8; ++i) {
-            engine.noteOn(60 + i, 100);
+            engine->noteOn(60 + i, 100);
         }
-        REQUIRE(engine.getActiveVoiceCount() == 8);
+        REQUIRE(engine->getActiveVoiceCount() == 8);
     }
 }
 
 TEST_CASE("RuinaeEngine prepare lifecycle", "[ruinae-engine][lifecycle]") {
+    // Heap-allocated: the engine is large enough to overflow the stack in the
+    // AddressSanitizer Debug build, which runs every [lifecycle] case.
     SECTION("prepare initializes engine (FR-003)") {
-        RuinaeEngine engine;
-        engine.prepare(44100.0, 512);
+        auto engine = std::make_unique<RuinaeEngine>();
+        engine->prepare(44100.0, 512);
 
         // After prepare, engine should accept noteOn
-        engine.noteOn(60, 100);
-        REQUIRE(engine.getActiveVoiceCount() == 1);
+        engine->noteOn(60, 100);
+        REQUIRE(engine->getActiveVoiceCount() == 1);
     }
 
     SECTION("processBlock produces silence when not prepared") {
-        RuinaeEngine engine;
+        auto engine = std::make_unique<RuinaeEngine>();
         std::vector<float> left(512, 1.0f), right(512, 1.0f);
-        engine.processBlock(left.data(), right.data(), 512);
+        engine->processBlock(left.data(), right.data(), 512);
         REQUIRE(isAllZeros(left.data(), 512));
         REQUIRE(isAllZeros(right.data(), 512));
     }
 
     SECTION("processBlock with numSamples=0 is no-op") {
-        RuinaeEngine engine;
-        engine.prepare(44100.0, 512);
+        auto engine = std::make_unique<RuinaeEngine>();
+        engine->prepare(44100.0, 512);
         float left = 1.0f, right = 1.0f;
-        engine.processBlock(&left, &right, 0);
+        engine->processBlock(&left, &right, 0);
         // Should not crash, values untouched (0-size fill does nothing)
     }
 }
@@ -228,7 +233,11 @@ TEST_CASE("RuinaeEngine polyphony configuration", "[ruinae-engine][poly][US1]") 
         REQUIRE(engine.getActiveVoiceCount() <= 1);
 
         engine.setPolyphony(100);
-        // Clamped to 16
+        // Clamped to 16: 17 notes hold 16 voices (the 17th steals one)
+        for (uint8_t n = 0; n < 17; ++n) {
+            engine.noteOn(static_cast<uint8_t>(40 + n), 100);
+        }
+        REQUIRE(engine.getActiveVoiceCount() == 16);
     }
 
     SECTION("gain compensation based on active voices not polyphony setting") {
@@ -530,28 +539,191 @@ TEST_CASE("RuinaeEngine mode switching", "[ruinae-engine][mode][US3]") {
         REQUIRE(engine.getMode() == VoiceMode::Poly);
     }
 
-    SECTION("poly->mono preserves most recent voice (FR-011)") {
-        engine.noteOn(60, 100);
-        engine.noteOn(64, 100);
-        engine.noteOn(67, 100);
-        REQUIRE(engine.getActiveVoiceCount() == 3);
+}
 
-        engine.setMode(VoiceMode::Mono);
-        REQUIRE(engine.getMode() == VoiceMode::Mono);
-        // Should have at most 1 active voice
-        REQUIRE(engine.getActiveVoiceCount() <= 1);
+// =============================================================================
+// Voice-mode switches and polyphony changes never strand or freeze a voice
+// (R-027, R-032, R-033, R-119)
+// =============================================================================
+
+namespace {
+
+constexpr double kSwitchSampleRate = 48000.0;
+constexpr size_t kSwitchBlock = 512;
+
+/// Engine with a 100 ms amp release and no effects, so silence is exact.
+void prepareSwitchEngine(RuinaeEngine& engine) {
+    engine.prepare(kSwitchSampleRate, kSwitchBlock);
+    engine.setAmpRelease(100.0f);
+    engine.setSoftLimitEnabled(false);
+}
+
+/// Render @p seconds and append the mono sum (L + R) to @p out.
+void renderSeconds(RuinaeEngine& engine, double seconds, std::vector<float>& out) {
+    const auto total = static_cast<size_t>(seconds * kSwitchSampleRate);
+    std::array<float, kSwitchBlock> left{};
+    std::array<float, kSwitchBlock> right{};
+    for (size_t done = 0; done < total; done += kSwitchBlock) {
+        const size_t n = std::min(kSwitchBlock, total - done);
+        engine.processBlock(left.data(), right.data(), n);
+        for (size_t s = 0; s < n; ++s) out.push_back(left[s] + right[s]);
+    }
+}
+
+/// RMS of the mono sum over @p seconds of fresh render.
+float renderRms(RuinaeEngine& engine, double seconds) {
+    std::vector<float> out;
+    renderSeconds(engine, seconds, out);
+    return computeRMS(out.data(), out.size());
+}
+
+/// Discontinuity at sample @p ev: max |dx| in +-win around ev against the
+/// steady max |dx| over refLen before and after the window (the audit probe's
+/// "jump ratio", specs/ruinae-audit/probes/audit_probes.cpp.txt clickAt).
+double jumpRatioAt(const std::vector<float>& x, size_t ev, size_t win, size_t refLen) {
+    auto maxD = [&](size_t a, size_t b) {
+        double m = 0.0;
+        b = std::min(b, x.size());
+        for (size_t i = std::max<size_t>(a, 1); i < b; ++i)
+            m = std::max(m, static_cast<double>(std::fabs(x[i] - x[i - 1])));
+        return m;
+    };
+    const size_t a = ev > win ? ev - win : 0;
+    const size_t b = std::min(ev + win, x.size());
+    const double refB = a > refLen ? maxD(a - refLen, a) : maxD(0, a);
+    const double refA = maxD(b, b + refLen);
+    const double ref = std::max({refB, refA, 1e-9});
+    return maxD(a, b) / ref;
+}
+
+} // namespace
+
+TEST_CASE("RuinaeEngine_PolyToMono_ReleasedNotesNotPromoted",
+          "[ruinae-engine][voice-mode][stuck-notes]") {
+    auto engine = std::make_unique<RuinaeEngine>();
+    prepareSwitchEngine(*engine);
+
+    SECTION("chord released, switch during the tails: silence after the release") {
+        engine->noteOn(60, 100);
+        engine->noteOn(64, 100);
+        (void)renderRms(*engine, 0.1);
+        engine->noteOff(64);
+        engine->noteOff(60);
+        (void)renderRms(*engine, 0.01);  // release tails ringing
+        engine->setMode(VoiceMode::Mono);
+        (void)renderRms(*engine, 1.0);   // well past the 100 ms release
+        const float rms = renderRms(*engine, 1.0);
+        INFO("RMS 1-2 s after the switch: " << rms);
+        REQUIRE(rms < 1e-4f);
     }
 
-    SECTION("mono->poly: voice 0 continues (FR-011)") {
-        engine.setMode(VoiceMode::Mono);
-        engine.noteOn(60, 100);
-        REQUIRE(engine.getActiveVoiceCount() == 1);
-
-        engine.setMode(VoiceMode::Poly);
-        REQUIRE(engine.getMode() == VoiceMode::Poly);
-        // Voice 0 should still be active
-        // (exact behavior depends on whether MonoHandler reset kills it)
+    SECTION("60 held, 64 played and released, switch, release 60: silence") {
+        engine->noteOn(60, 100);
+        (void)renderRms(*engine, 0.1);
+        engine->noteOn(64, 100);
+        (void)renderRms(*engine, 0.1);
+        engine->noteOff(64);
+        (void)renderRms(*engine, 0.01);
+        engine->setMode(VoiceMode::Mono);
+        (void)renderRms(*engine, 0.1);
+        engine->noteOff(60);
+        (void)renderRms(*engine, 1.0);
+        const float rms = renderRms(*engine, 1.0);
+        INFO("RMS 1-2 s after releasing 60: " << rms);
+        REQUIRE(rms < 1e-4f);
     }
+
+    SECTION("held chord survives the switch: releasing the newest key keeps sounding") {
+        engine->noteOn(60, 100);
+        engine->noteOn(64, 100);
+        engine->noteOn(67, 100);
+        (void)renderRms(*engine, 0.1);
+        engine->setMode(VoiceMode::Mono);
+        (void)renderRms(*engine, 0.1);
+        engine->noteOff(67);  // 60 and 64 are still down
+        (void)renderRms(*engine, 0.5);
+        const float held = renderRms(*engine, 0.2);
+        INFO("RMS with 60 and 64 still held: " << held);
+        REQUIRE(held > 1e-3f);
+        engine->noteOff(64);
+        engine->noteOff(60);
+        (void)renderRms(*engine, 1.0);
+        const float rms = renderRms(*engine, 1.0);
+        INFO("RMS after releasing every key: " << rms);
+        REQUIRE(rms < 1e-4f);
+    }
+}
+
+TEST_CASE("RuinaeEngine_MonoToPoly_HeldKeyReleases",
+          "[ruinae-engine][voice-mode][stuck-notes]") {
+    auto engine = std::make_unique<RuinaeEngine>();
+    prepareSwitchEngine(*engine);
+    engine->setMode(VoiceMode::Mono);
+
+    SECTION("held key released after the switch: silence") {
+        engine->noteOn(60, 100);
+        (void)renderRms(*engine, 0.1);
+        engine->setMode(VoiceMode::Poly);
+        const float sounding = renderRms(*engine, 0.05);
+        INFO("RMS with 60 held across the switch: " << sounding);
+        REQUIRE(sounding > 1e-3f);  // the held note keeps sounding
+        engine->noteOff(60);
+        (void)renderRms(*engine, 1.0);
+        const float rms = renderRms(*engine, 1.0);
+        INFO("RMS 1-2 s after releasing 60: " << rms);
+        REQUIRE(rms < 1e-5f);
+    }
+
+    SECTION("60 held, 64 tapped (back to 60), switch, release 60: silence") {
+        engine->noteOn(60, 100);
+        (void)renderRms(*engine, 0.1);
+        engine->noteOn(64, 100);
+        (void)renderRms(*engine, 0.1);
+        engine->noteOff(64);  // mono returns to the held 60
+        (void)renderRms(*engine, 0.1);
+        engine->setMode(VoiceMode::Poly);
+        const float sounding = renderRms(*engine, 0.05);
+        INFO("RMS with 60 held across the switch: " << sounding);
+        REQUIRE(sounding > 1e-3f);
+        engine->noteOff(60);
+        (void)renderRms(*engine, 1.0);
+        const float rms = renderRms(*engine, 1.0);
+        INFO("RMS 1-2 s after releasing 60: " << rms);
+        REQUIRE(rms < 1e-5f);
+    }
+}
+
+TEST_CASE("RuinaeEngine_PolyphonyReduction_ExcessVoicesReleaseSmoothly",
+          "[ruinae-engine][voice-mode][stuck-notes]") {
+    auto engine = std::make_unique<RuinaeEngine>();
+    prepareSwitchEngine(*engine);
+    engine->setPolyphony(8);
+
+    const std::array<uint8_t, 8> chord{48, 52, 55, 59, 60, 64, 67, 71};
+    for (auto n : chord) engine->noteOn(n, 100);
+
+    std::vector<float> out;
+    renderSeconds(*engine, 47.0 * kSwitchBlock / kSwitchSampleRate, out);  // 47 blocks
+    const size_t changeAt = out.size();
+    engine->setPolyphony(2);
+    renderSeconds(*engine, 0.3, out);
+
+    const double ratio = jumpRatioAt(out, changeAt,
+                                     static_cast<size_t>(0.01 * kSwitchSampleRate),
+                                     static_cast<size_t>(0.05 * kSwitchSampleRate));
+    INFO("jump ratio at the polyphony change: " << ratio);
+    REQUIRE(ratio <= 1.5);
+
+    for (auto n : chord) engine->noteOff(n);
+    (void)renderRms(*engine, 1.0);
+    const float released = renderRms(*engine, 1.0);
+    INFO("RMS after every key and the release: " << released);
+    REQUIRE(released < 1e-5f);
+
+    engine->setPolyphony(8);  // no new notes: nothing may come back
+    const float ghost = renderRms(*engine, 0.1);
+    INFO("RMS 100 ms after raising polyphony with no notes: " << ghost);
+    REQUIRE(ghost < 1e-5f);
 }
 
 TEST_CASE("RuinaeEngine mono mode configuration", "[ruinae-engine][mono][US3]") {
@@ -1700,4 +1872,45 @@ TEST_CASE("RuinaeEngine modulation reaches the voices in sub-steps inside large 
          << " at 2048 against " << stepSmall << " at 64");
     CHECK(maxDiff <= 1e-5f);
     CHECK(std::abs(stepLarge - stepSmall) <= 1e-5f);
+}
+
+// R-028: an arp Slide step on a chord sends one legato NoteOn per new chord
+// note, with no processBlock between them and no NoteOff for the old chord.
+// Each must glide its own voice: N old voices -> N new notes.
+TEST_CASE("RuinaeEngine: legato chord glides N voices", "[ruinae-engine][legato]") {
+    auto engine = std::make_unique<RuinaeEngine>();
+    engine->prepare(44100.0, 512);
+    engine->setMode(VoiceMode::Poly);
+    std::vector<float> left(512), right(512);
+
+    engine->noteOn(60, 100);
+    engine->noteOn(64, 100);
+    engine->noteOn(67, 100);
+    engine->processBlock(left.data(), right.data(), 512);
+
+    engine->noteOn(62, 100, true);
+    engine->noteOn(65, 100, true);
+    engine->noteOn(69, 100, true);
+    engine->processBlock(left.data(), right.data(), 512);
+
+    std::vector<int> gatedNotes;
+    for (size_t i = 0; i < RuinaeEngine::kMaxPolyphony; ++i) {
+        const int note = engine->gatedVoiceNoteForTest(i);
+        if (note >= 0) gatedNotes.push_back(note);
+    }
+    std::sort(gatedNotes.begin(), gatedNotes.end());
+    REQUIRE(gatedNotes == std::vector<int>{62, 65, 69});
+
+    engine->noteOff(62);
+    engine->noteOff(65);
+    engine->noteOff(69);
+
+    // 3 s (259 blocks); the last block must be silent.
+    for (int i = 0; i < 259; ++i) {
+        engine->processBlock(left.data(), right.data(), 512);
+    }
+    const float rms = std::max(computeRMS(left.data(), 512), computeRMS(right.data(), 512));
+    INFO("RMS of the last block, 3 s after the release: " << rms);
+    REQUIRE(rms < 1e-4f);
+    REQUIRE(engine->getActiveVoiceCount() == 0);
 }
