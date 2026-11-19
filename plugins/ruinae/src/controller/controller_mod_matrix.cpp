@@ -155,7 +155,7 @@ void Controller::wireModMatrixGrid(Krate::Plugins::ModMatrixGrid* grid) {
                 suppressModMatrixSync_ = true;
                 pushAllGlobalRouteParams();
                 suppressModMatrixSync_ = false;
-            } else {
+            } else if (modMatrixGrid_) {  // null after terminate with the editor open
                 // Voice routes: send full re-sync via IMessage.
                 // Suppress re-entrant VoiceModRouteState responses — VST3's
                 // synchronous sendMessage→notify would overwrite the grid

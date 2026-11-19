@@ -214,10 +214,20 @@ public:
     void setFrequency(float hz) noexcept {
         // A NaN rate would make the phase accumulator NaN for good.
         if (!detail::isFinite(hz)) return;
-        frequency_ = std::clamp(hz, kMinFrequency, kMaxFrequency);
+        frequency_ = std::clamp(hz, kMinFrequency, maxFrequency_);
         if (!tempoSync_) {
             updatePhaseIncrement();
         }
+    }
+
+    /// @brief Set the upper frequency clamp for free and tempo-synced rates (default kMaxFrequency).
+    /// A rate set before a raise stays at the old clamp until it is set again.
+    void setMaxFrequency(float hz) noexcept {
+        if (!detail::isFinite(hz)) return;
+        maxFrequency_ = std::max(hz, kMinFrequency);
+        frequency_ = std::min(frequency_, maxFrequency_);
+        updateTempoSyncFrequency();
+        updatePhaseIncrement();
     }
 
     /// @brief Set the phase offset.
@@ -518,7 +528,7 @@ private:
         tempoSyncFrequency_ = beatsPerSecond / beatsPerNote;
 
         // Clamp to valid range
-        tempoSyncFrequency_ = std::clamp(tempoSyncFrequency_, kMinFrequency, kMaxFrequency);
+        tempoSyncFrequency_ = std::clamp(tempoSyncFrequency_, kMinFrequency, maxFrequency_);
     }
 
     void updatePhaseIncrement() noexcept {
@@ -568,6 +578,7 @@ private:
     // Frequency
     float frequency_ = 1.0f;       // Free-running frequency (Hz)
     float tempoSyncFrequency_ = 2.0f; // Tempo-synced frequency (Hz)
+    float maxFrequency_ = kMaxFrequency; // Upper rate clamp (setMaxFrequency)
     float bpm_ = 120.0f;           // Tempo (BPM)
 
     // Waveform

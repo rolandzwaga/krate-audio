@@ -33,6 +33,7 @@
 #include <krate/dsp/core/note_value.h>
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstddef>
 
@@ -93,24 +94,18 @@ public:
         delayL_.prepare(sampleRate_, kMaxDelayBufferMs * 0.001f);
         delayR_.prepare(sampleRate_, kMaxDelayBufferMs * 0.001f);
 
-        // Prepare LFOs
-        lfoL_.prepare(sampleRate_);
-        lfoR_.prepare(sampleRate_);
-
-        lfoL_.setWaveform(waveform_);
-        lfoR_.setWaveform(waveform_);
-        lfoL_.setFrequency(rate_);
-        lfoR_.setFrequency(rate_);
-        lfoR_.setPhaseOffset(stereoSpread_);
-
-        if (tempoSync_) {
-            lfoL_.setTempoSync(true);
-            lfoR_.setTempoSync(true);
-            lfoL_.setTempo(static_cast<float>(tempo_));
-            lfoR_.setTempo(static_cast<float>(tempo_));
-            lfoL_.setNoteValue(noteValue_, noteModifier_);
-            lfoR_.setNoteValue(noteValue_, noteModifier_);
-        }
+        // Prepare LFOs (one per voice per channel)
+        forEachLfo([this](LFO& lfo) {
+            lfo.prepare(sampleRate_);
+            lfo.setWaveform(waveform_);
+            lfo.setFrequency(rate_);
+            if (tempoSync_) {
+                lfo.setTempoSync(true);
+                lfo.setTempo(static_cast<float>(tempo_));
+                lfo.setNoteValue(noteValue_, noteModifier_);
+            }
+        });
+        updateVoicePhaseOffsets();
 
         // Configure smoothers
         const float sampleRateF = static_cast<float>(sampleRate_);
@@ -130,10 +125,9 @@ public:
     void reset() noexcept {
         delayL_.reset();
         delayR_.reset();
-        lfoL_.reset();
-        lfoR_.reset();
+        forEachLfo([](LFO& lfo) { lfo.reset(); });
 
-        lfoR_.setPhaseOffset(stereoSpread_);
+        updateVoicePhaseOffsets();
 
         feedbackStateL_ = 0.0f;
         feedbackStateR_ = 0.0f;
@@ -156,8 +150,7 @@ public:
         rate_ = std::clamp(rateHz, kMinRate, kMaxRate);
         rateSmoother_.setTarget(rate_);
         if (!tempoSync_) {
-            lfoL_.setFrequency(rate_);
-            lfoR_.setFrequency(rate_);
+            forEachLfo([this](LFO& lfo) { lfo.setFrequency(rate_); });
         }
     }
 
@@ -197,7 +190,7 @@ public:
         if (stereoSpread_ < 0.0f) {
             stereoSpread_ += 360.0f;
         }
-        lfoR_.setPhaseOffset(stereoSpread_);
+        updateVoicePhaseOffsets();
     }
 
     [[nodiscard]] float getStereoSpread() const noexcept {
@@ -206,6 +199,7 @@ public:
 
     void setVoices(int voices) noexcept {
         voices_ = std::clamp(voices, kMinVoices, kMaxVoices);
+        updateVoicePhaseOffsets();
     }
 
     [[nodiscard]] int getVoices() const noexcept {
@@ -214,8 +208,7 @@ public:
 
     void setWaveform(Waveform wf) noexcept {
         waveform_ = wf;
-        lfoL_.setWaveform(wf);
-        lfoR_.setWaveform(wf);
+        forEachLfo([wf](LFO& lfo) { lfo.setWaveform(wf); });
     }
 
     [[nodiscard]] Waveform getWaveform() const noexcept {
@@ -228,12 +221,12 @@ public:
 
     void setTempoSync(bool enabled) noexcept {
         tempoSync_ = enabled;
-        lfoL_.setTempoSync(enabled);
-        lfoR_.setTempoSync(enabled);
-        if (!enabled) {
-            lfoL_.setFrequency(rate_);
-            lfoR_.setFrequency(rate_);
-        }
+        forEachLfo([this, enabled](LFO& lfo) {
+            lfo.setTempoSync(enabled);
+            if (!enabled) {
+                lfo.setFrequency(rate_);
+            }
+        });
     }
 
     [[nodiscard]] bool isTempoSyncEnabled() const noexcept {
@@ -243,15 +236,13 @@ public:
     void setNoteValue(NoteValue nv, NoteModifier nm = NoteModifier::None) noexcept {
         noteValue_ = nv;
         noteModifier_ = nm;
-        lfoL_.setNoteValue(nv, nm);
-        lfoR_.setNoteValue(nv, nm);
+        forEachLfo([nv, nm](LFO& lfo) { lfo.setNoteValue(nv, nm); });
     }
 
     void setTempo(double bpm) noexcept {
         tempo_ = bpm;
         const float bpmF = static_cast<float>(std::clamp(bpm, 1.0, 999.0));
-        lfoL_.setTempo(bpmF);
-        lfoR_.setTempo(bpmF);
+        forEachLfo([bpmF](LFO& lfo) { lfo.setTempo(bpmF); });
     }
 
     // =========================================================================
@@ -278,8 +269,16 @@ public:
             const float smoothedMix = mixSmoother_.process();
 
             if (!tempoSync_) {
-                lfoL_.setFrequency(smoothedRate);
-                lfoR_.setFrequency(smoothedRate);
+                forEachLfo([smoothedRate](LFO& lfo) { lfo.setFrequency(smoothedRate); });
+            }
+
+            // Advance every voice's LFO (inactive ones too, so all stay phase-locked
+            // when the voice count changes). Bipolar [-1, +1].
+            std::array<float, kMaxVoices> lfoValuesL{};
+            std::array<float, kMaxVoices> lfoValuesR{};
+            for (int v = 0; v < kMaxVoices; ++v) {
+                lfoValuesL[static_cast<size_t>(v)] = lfoL_[static_cast<size_t>(v)].process();
+                lfoValuesR[static_cast<size_t>(v)] = lfoR_[static_cast<size_t>(v)].process();
             }
 
             const float clampedFeedback = std::clamp(smoothedFeedback,
@@ -298,22 +297,15 @@ public:
                 feedbackStateL_ = 0.0f;
             }
 
-            // Advance left LFO (bipolar [-1, +1])
-            const float lfoValueL = lfoL_.process();
-
             // Write input + feedback to delay line
             const float feedbackSignalL = FastMath::fastTanh(clampedFeedback * feedbackStateL_);
             delayL_.write(dryL + feedbackSignalL);
 
-            // Multi-voice tap reading: offset in unipolar [0,1] domain, then wrap
-            const float unipolarL = lfoValueL * 0.5f + 0.5f;
+            // Multi-voice tap reading: each voice's LFO runs at its own phase
+            // offset, so every tap position moves continuously.
             float wetSumL = 0.0f;
             for (int v = 0; v < voices_; ++v) {
-                const float voiceOffset = static_cast<float>(v) / static_cast<float>(voices_);
-                float shifted = unipolarL + voiceOffset;
-                if (shifted >= 1.0f) shifted -= 1.0f;
-                const float modValue = shifted * 2.0f - 1.0f;  // back to bipolar
-
+                const float modValue = lfoValuesL[static_cast<size_t>(v)];
                 const float delaySamples = centerDelaySamples + modValue * sweepRangeSamples;
                 const float safeDelay = std::max(delaySamples, 1.0f);
                 wetSumL += delayL_.readCubic(safeDelay);
@@ -330,19 +322,12 @@ public:
                 feedbackStateR_ = 0.0f;
             }
 
-            const float lfoValueR = lfoR_.process();
-
             const float feedbackSignalR = FastMath::fastTanh(clampedFeedback * feedbackStateR_);
             delayR_.write(dryR + feedbackSignalR);
 
-            const float unipolarR = lfoValueR * 0.5f + 0.5f;
             float wetSumR = 0.0f;
             for (int v = 0; v < voices_; ++v) {
-                const float voiceOffset = static_cast<float>(v) / static_cast<float>(voices_);
-                float shifted = unipolarR + voiceOffset;
-                if (shifted >= 1.0f) shifted -= 1.0f;
-                const float modValue = shifted * 2.0f - 1.0f;
-
+                const float modValue = lfoValuesR[static_cast<size_t>(v)];
                 const float delaySamples = centerDelaySamples + modValue * sweepRangeSamples;
                 const float safeDelay = std::max(delaySamples, 1.0f);
                 wetSumR += delayR_.readCubic(safeDelay);
@@ -356,6 +341,23 @@ public:
 
 private:
 
+    template <typename F>
+    void forEachLfo(const F& f) noexcept {
+        for (auto& lfo : lfoL_) f(lfo);
+        for (auto& lfo : lfoR_) f(lfo);
+    }
+
+    /// Voice v is offset by v/voices of a cycle; the right channel adds the
+    /// stereo spread on top.
+    void updateVoicePhaseOffsets() noexcept {
+        const float voiceStepDeg = 360.0f / static_cast<float>(voices_);
+        for (int v = 0; v < kMaxVoices; ++v) {
+            const float voiceDeg = static_cast<float>(v) * voiceStepDeg;
+            lfoL_[static_cast<size_t>(v)].setPhaseOffset(voiceDeg);
+            lfoR_[static_cast<size_t>(v)].setPhaseOffset(stereoSpread_ + voiceDeg);
+        }
+    }
+
     // =========================================================================
     // State Variables
     // =========================================================================
@@ -363,8 +365,9 @@ private:
     DelayLine delayL_;
     DelayLine delayR_;
 
-    LFO lfoL_;
-    LFO lfoR_;
+    // One LFO per voice per channel; voice v runs at phase offset v/voices.
+    std::array<LFO, kMaxVoices> lfoL_;
+    std::array<LFO, kMaxVoices> lfoR_;
 
     OnePoleSmoother rateSmoother_;
     OnePoleSmoother depthSmoother_;

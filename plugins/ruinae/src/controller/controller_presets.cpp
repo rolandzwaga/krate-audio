@@ -51,6 +51,7 @@
 #include "parameters/random_params.h"
 #include "parameters/pitch_follower_params.h"
 #include "parameters/transient_params.h"
+#include "parameters/voice_lfo_params.h"
 #include "parameters/arpeggiator_params.h"
 
 #include "base/source/fstreamer.h"
@@ -410,7 +411,7 @@ bool Controller::loadStateCore(Steinberg::IBStreamer& streamer,
     loadLFO1ParamsToController(streamer, synthSetter);
     loadLFO2ParamsToController(streamer, synthSetter);
     loadChaosModParamsToController(streamer, synthSetter);
-    loadModMatrixParamsToController(streamer, synthSetter);
+    loadModMatrixParamsToController(streamer, synthSetter, version);
     loadGlobalFilterParamsToController(streamer, synthSetter);
     loadDelayParamsToController(streamer, synthSetter);
     loadReverbParamsToController(streamer, synthSetter);
@@ -447,7 +448,8 @@ bool Controller::loadStateCore(Steinberg::IBStreamer& streamer,
             Krate::Plugins::ModRoute route;
             route.source = static_cast<uint8_t>(src);
             route.destination = static_cast<Krate::Plugins::ModDestination>(dst);
-            route.amount = amount;
+            // Before v9: Scale saturated the amount and Filter Resonance spanned 1 Q
+            route.amount = (version < 9) ? preV9VoiceRouteAmount(amount, dst, scale) : amount;
             route.curve = static_cast<uint8_t>(curve);
             route.smoothMs = smoothMs;
             route.scale = static_cast<uint8_t>(scale);
@@ -519,6 +521,9 @@ bool Controller::loadStateCore(Steinberg::IBStreamer& streamer,
 
     // Arp params (includes all lane step data) - ALWAYS applied
     loadArpParamsToController(streamer, setParam, version);
+
+    // Voice LFO (version 9+); older states load 1 Hz Sine, as Processor::setState does
+    loadVoiceLfoParamsToController(streamer, synthSetter, version);
 
     return true;
 }

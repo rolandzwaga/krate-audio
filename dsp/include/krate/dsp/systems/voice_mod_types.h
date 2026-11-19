@@ -5,10 +5,12 @@
 // used by VoiceModRouter and related systems.
 //
 // Layer: 3 (Systems)
-// Dependencies: None (pure enums and POD struct)
+// Dependencies: core/modulation_types.h (ModCurve)
 // ==============================================================================
 
 #pragma once
+
+#include <krate/dsp/core/modulation_types.h>
 
 #include <cstdint>
 
@@ -67,13 +69,17 @@ enum class VoiceModDest : uint8_t {
 
 /// @brief A single modulation route connecting a source to a destination.
 ///
-/// Amount is bipolar [-1, +1] and is multiplied by the source value.
+/// Amount is bipolar [-1, +1] and is multiplied by the curve-shaped source value
+/// (the curve shapes |source| and keeps its sign), then by scale.
 /// For semitone destinations, the result is in semitones.
 /// For linear destinations, the result is in normalized units.
 struct VoiceModRoute {
     VoiceModSource source{VoiceModSource::Env1};
     VoiceModDest destination{VoiceModDest::FilterCutoff};
-    float amount{0.0f};  ///< Bipolar: [-1.0, +1.0]
+    float amount{0.0f};             ///< Bipolar: [-1.0, +1.0]
+    ModCurve curve{ModCurve::Linear}; ///< Response curve applied to |source|
+    float smoothMs{0.0f};           ///< One-pole smoothing, 10-90 % rise time in ms (0 = off)
+    float scale{1.0f};              ///< Multiplier after the amount clamp (Scale x0.25 ... x4)
 };
 
 } // namespace Krate::DSP

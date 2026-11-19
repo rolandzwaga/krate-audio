@@ -367,7 +367,9 @@ public:
         setDirty();
     }
 
-    /// Set pointers to atomic playback state from processor (for timer-based polling)
+    /// Set pointers to atomic playback state from processor (for timer-based polling).
+    /// Any null pointer stops polling: the owner revokes the pointers this way when
+    /// the processor that owns the atomics may go away.
     void setPlaybackStatePointers(std::atomic<float>* outputPtr,
                                    std::atomic<int>* stagePtr,
                                    std::atomic<bool>* activePtr) {
@@ -375,14 +377,31 @@ public:
         playbackStagePtr_ = stagePtr;
         playbackActivePtr_ = activePtr;
 
+        if (!outputPtr || !stagePtr || !activePtr) {
+            if (playbackTimer_) {
+                playbackTimer_->stop();
+                playbackTimer_ = nullptr;
+            }
+            return;
+        }
+
         // Start playback poll timer if we have valid pointers
-        if (outputPtr && stagePtr && activePtr && !playbackTimer_) {
+        if (!playbackTimer_) {
             playbackTimer_ = VSTGUI::makeOwned<VSTGUI::CVSTGUITimer>(
                 [this](VSTGUI::CVSTGUITimer*) {
                     pollPlaybackState();
                 }, 33); // ~30fps
         }
     }
+
+    /// True while any processor playback pointer is held.
+    [[nodiscard]] bool hasPlaybackStatePointers() const {
+        return playbackOutputPtr_ != nullptr || playbackStagePtr_ != nullptr ||
+               playbackActivePtr_ != nullptr;
+    }
+
+    /// True while the playback poll timer exists.
+    [[nodiscard]] bool isPlaybackPollTimerRunning() const { return playbackTimer_ != nullptr; }
 
     /// Check if the playback dot should be visible
     [[nodiscard]] bool isPlaybackDotVisible() const {

@@ -29,11 +29,22 @@
 #include "parameters/arpeggiator_params.h"
 
 #include <algorithm>
+#include <cmath>
 #include <cstdint>
 
 namespace Ruinae {
 
 namespace {
+
+/// One output-parameter point at sample 0 (the controller polls it at ~30 fps).
+void writePlayhead(Steinberg::Vst::IParameterChanges& out, Steinberg::Vst::ParamID id,
+                   double normalized) {
+    Steinberg::int32 queueIndex = 0;
+    if (auto* queue = out.addParameterData(id, queueIndex)) {
+        Steinberg::int32 pointIndex = 0;
+        queue->addPoint(0, normalized, pointIndex);
+    }
+}
 
 void addMidiOutNoteOff(Steinberg::Vst::IEventList& out, uint8_t pitch,
                        Steinberg::int32 sampleOffset) {
@@ -62,6 +73,14 @@ void addMidiOutNoteOn(Steinberg::Vst::IEventList& out, uint8_t pitch, uint8_t ve
     e.noteOn.length = 0;
     e.noteOn.noteId = -1;
     out.addEvent(e);
+}
+
+/// Flag every channel of output bus 0 silent: nothing was rendered into it.
+void markOutputSilent(Steinberg::Vst::ProcessData& data) noexcept {
+    if (data.numOutputs <= 0 || data.outputs == nullptr) return;
+    auto& bus = data.outputs[0];
+    const auto channels = std::clamp<Steinberg::int32>(bus.numChannels, 0, 63);
+    bus.silenceFlags = (Steinberg::uint64{1} << channels) - 1;
 }
 
 } // namespace
@@ -96,6 +115,11 @@ Steinberg::tresult PLUGIN_API Processor::initialize(FUnknown* context) {
     addEventInput(STR16("Event Input"));
     addEventOutput(STR16("MIDI Output"));
     addAudioOutput(STR16("Audio Output"), Steinberg::Vst::SpeakerArr::kStereo);
+
+    // [mandatory] since VST 3.7: the ProcessContext fields process() reads.
+    // A host that honours the mask leaves out every field not named here.
+    processContextRequirements.needTempo().needTimeSignature()
+        .needProjectTimeMusic().needTransportState();
 
     // Pre-allocate skip event IMessages (Phase 11c, FR-012)
     for (int i = 0; i < 6; ++i) {
@@ -344,8 +368,11 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
     // Cache host tempo for sync computations in applyParamsToEngine()
     if (data.processContext &&
         (data.processContext->state & Steinberg::Vst::ProcessContext::kTempoValid)) {
-        tempoBPM_ = data.processContext->tempo;
+        tempoBPM_.store(data.processContext->tempo, std::memory_order_relaxed);
     }
+    // One tempo for the whole block: a block without kTempoValid keeps the
+    // last valid host tempo on every path (R-137).
+    const double blockTempoBPM = tempoBPM_.load(std::memory_order_relaxed);
 
     // Apply all parameter values to the engine
     applyParamsToEngine();
@@ -355,12 +382,10 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
     {
         blockCtx.sampleRate = sampleRate_;
         blockCtx.blockSize = (data.numSamples > 0) ? static_cast<size_t>(data.numSamples) : 0;
+        blockCtx.tempoBPM = blockTempoBPM;
 
         if (data.processContext) {
             auto* pc = data.processContext;
-            if (pc->state & Steinberg::Vst::ProcessContext::kTempoValid) {
-                blockCtx.tempoBPM = pc->tempo;
-            }
             if (pc->state & Steinberg::Vst::ProcessContext::kTimeSigValid) {
                 blockCtx.timeSignatureNumerator = static_cast<uint8_t>(pc->timeSigNumerator);
                 blockCtx.timeSignatureDenominator = static_cast<uint8_t>(pc->timeSigDenominator);
@@ -512,57 +537,45 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
         // Encoding: stepIndex / 32.0 (kMaxSteps as denominator, consistent
         // regardless of actual lane length).
         if (data.outputParameterChanges) {
-            constexpr float kMaxStepsF = static_cast<float>(kMaxArpSteps);
-            const auto velStep = static_cast<float>(
-                arpCore_.velocityLane().currentStep());
-            const auto gateStep = static_cast<float>(
-                arpCore_.gateLane().currentStep());
-
-            Steinberg::int32 queueIndex = 0;
-            auto* velQueue = data.outputParameterChanges->addParameterData(
-                kArpVelocityPlayheadId, queueIndex);
-            if (velQueue) {
-                Steinberg::int32 pointIndex = 0;
-                velQueue->addPoint(0, static_cast<double>(velStep / kMaxStepsF),
-                                   pointIndex);
-            }
-            auto* gateQueue = data.outputParameterChanges->addParameterData(
-                kArpGatePlayheadId, queueIndex);
-            if (gateQueue) {
-                Steinberg::int32 pointIndex = 0;
-                gateQueue->addPoint(0, static_cast<double>(gateStep / kMaxStepsF),
-                                    pointIndex);
-            }
+            // All eight lanes advance independently (own length, speed, jitter), so each
+            // publishes its own step (R-085).
+            const std::pair<Steinberg::Vst::ParamID, size_t> playheads[] = {
+                {kArpVelocityPlayheadId,  arpCore_.velocityLane().currentStep()},
+                {kArpGatePlayheadId,      arpCore_.gateLane().currentStep()},
+                {kArpPitchPlayheadId,     arpCore_.pitchLane().currentStep()},
+                {kArpRatchetPlayheadId,   arpCore_.ratchetLane().currentStep()},
+                {kArpModifierPlayheadId,  arpCore_.modifierLane().currentStep()},
+                {kArpConditionPlayheadId, arpCore_.conditionLane().currentStep()},
+                {kArpChordPlayheadId,     arpCore_.chordLane().currentStep()},
+                {kArpInversionPlayheadId, arpCore_.inversionLane().currentStep()},
+            };
+            constexpr double kMaxStepsD = static_cast<double>(kMaxArpSteps);
+            for (const auto& [id, step] : playheads)
+                writePlayhead(*data.outputParameterChanges, id, static_cast<double>(step) / kMaxStepsD);
         }
     } else {
-        // 079-layout-framework US5: Arp disabled -- write sentinel (1.0f) to
+        // 079-layout-framework US5: Arp disabled -- write sentinel (1.0) to
         // indicate no playback. Decoded as stepIndex=32 >= kMaxSteps -> -1.
         if (data.outputParameterChanges) {
-            Steinberg::int32 queueIndex = 0;
-            auto* velQueue = data.outputParameterChanges->addParameterData(
-                kArpVelocityPlayheadId, queueIndex);
-            if (velQueue) {
-                Steinberg::int32 pointIndex = 0;
-                velQueue->addPoint(0, 1.0, pointIndex);
-            }
-            auto* gateQueue = data.outputParameterChanges->addParameterData(
-                kArpGatePlayheadId, queueIndex);
-            if (gateQueue) {
-                Steinberg::int32 pointIndex = 0;
-                gateQueue->addPoint(0, 1.0, pointIndex);
-            }
+            for (const auto id : {kArpVelocityPlayheadId, kArpGatePlayheadId, kArpPitchPlayheadId,
+                                  kArpRatchetPlayheadId, kArpModifierPlayheadId,
+                                  kArpConditionPlayheadId, kArpChordPlayheadId,
+                                  kArpInversionPlayheadId})
+                writePlayhead(*data.outputParameterChanges, id, 1.0);
         }
     }
 
     // Check if we have audio to process (queued notes still take effect)
     if (data.numSamples == 0) {
         flushTimedEvents();
+        markOutputSilent(data);
         return Steinberg::kResultTrue;
     }
 
     // Verify we have valid output
     if (data.numOutputs == 0 || data.outputs[0].numChannels < 2) {
         flushTimedEvents();
+        markOutputSilent(data);
         return Steinberg::kResultTrue;
     }
 
@@ -571,6 +584,7 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
 
     if (!outputL || !outputR) {
         flushTimedEvents();
+        markOutputSilent(data);
         return Steinberg::kResultTrue;
     }
 
@@ -593,7 +607,10 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
     const float* sidechainL = nullptr;
     const float* sidechainR = nullptr;
     bool sidechainActive = false;
-    if (data.numInputs > 0 && data.inputs) {
+    // Hosts may pass buffers for a deactivated bus: only an activated aux bus
+    // overrides self-analysis (bus state changes never overlap process()).
+    const auto* scBusInfo = getAudioInput(0);
+    if (scBusInfo && scBusInfo->isActive() && data.numInputs > 0 && data.inputs) {
         const auto& scBus = data.inputs[0];
         if (scBus.numChannels >= 2 &&
             scBus.channelBuffers32 &&
@@ -628,6 +645,16 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
     // events so each note starts and stops at its own sample. The sidechain
     // (which overrides self-analysis when connected) follows each segment.
     renderEngineSegments(outputL, outputR, numSamples, blockCtx, sidechainL, sidechainR);
+
+    // Output silence flags (R-105): replace whatever bits the host passed in.
+    // A channel is flagged silent only when no voice sounds and every sample
+    // of the block is zero (so no effect tail reached the output either).
+    data.outputs[0].silenceFlags = 0;
+    if (engine_.getActiveVoiceCount() == 0) {
+        const auto isZero = [](float s) { return s == 0.0f; };
+        if (std::all_of(outputL, outputL + numSamples, isZero)) data.outputs[0].silenceFlags |= 1u;
+        if (std::all_of(outputR, outputR + numSamples, isZero)) data.outputs[0].silenceFlags |= 2u;
+    }
 
     // Update morph pad modulated position for UI animation
     {
@@ -706,18 +733,55 @@ Steinberg::tresult PLUGIN_API Processor::setBusArrangements(
     Steinberg::Vst::SpeakerArrangement* inputs, Steinberg::int32 numIns,
     Steinberg::Vst::SpeakerArrangement* outputs, Steinberg::int32 numOuts) {
 
-    // Ruinae is an instrument with optional sidechain input:
-    // Accept either no inputs (instrument-only) or 1 stereo input (sidechain)
+    // Ruinae is an instrument with optional sidechain input: accept either no
+    // inputs (instrument-only) or 1 mono or stereo sidechain (R-192; process()
+    // feeds a mono sidechain to both analysis channels), with 1 stereo output.
+    // The accepted arrangement goes to the buses so getBusArrangement reports it.
     if (numOuts == 1 && outputs[0] == Steinberg::Vst::SpeakerArr::kStereo) {
         if (numIns == 0) {
-            return Steinberg::kResultTrue;
+            return AudioEffect::setBusArrangements(inputs, numIns, outputs, numOuts);
         }
-        if (numIns == 1 && inputs[0] == Steinberg::Vst::SpeakerArr::kStereo) {
-            return Steinberg::kResultTrue;
+        if (numIns == 1 && (inputs[0] == Steinberg::Vst::SpeakerArr::kStereo
+                            || inputs[0] == Steinberg::Vst::SpeakerArr::kMono)) {
+            return AudioEffect::setBusArrangements(inputs, numIns, outputs, numOuts);
         }
     }
 
     return Steinberg::kResultFalse;
+}
+
+// R-190: kInfiniteTail while a tail can sustain itself (reverb Freeze, or the
+// delay on at feedback >= 1); otherwise amp release + delay decay to -60 dB +
+// reverb decay. Relaxed atomics only, so any host thread may call it.
+Steinberg::uint32 PLUGIN_API Processor::getTailSamples() {
+    constexpr auto kRelaxed = std::memory_order_relaxed;
+    const bool delayOn = delayEnabled_.load(kRelaxed);
+    const bool reverbOn = reverbEnabled_.load(kRelaxed);
+    const float feedback = delayParams_.feedback.load(kRelaxed);
+    if (reverbParams_.freeze.load(kRelaxed) || (delayOn && feedback >= 1.0f)) {
+        return Steinberg::Vst::kInfiniteTail;
+    }
+
+    double seconds = static_cast<double>(ampEnvParams_.releaseMs.load(kRelaxed)) * 0.001;
+    if (delayOn) {
+        const double delayMs = delayParams_.sync.load(kRelaxed)
+            ? static_cast<double>(Krate::DSP::dropdownToDelayMs(
+                  delayParams_.noteValue.load(kRelaxed), tempoBPM_.load(kRelaxed)))
+            : static_cast<double>(delayParams_.timeMs.load(kRelaxed));
+        // Repeats until -60 dB; at least the first echo.
+        const double repeats = (feedback > 0.001f)
+            ? std::max(1.0, std::log(1.0e-3) / std::log(static_cast<double>(feedback)))
+            : 1.0;
+        seconds += delayMs * 0.001 * repeats;
+    }
+    if (reverbOn) {
+        // Plate RT60 runs ~2 s at size 0 to ~12 s at size 1 (reverb.h roomSize
+        // map); the Hall's 0.5-10 s (fdn_reverb.h) stays below it. Plus pre-delay.
+        const double size = static_cast<double>(reverbParams_.size.load(kRelaxed));
+        seconds += 2.0 + 10.0 * size
+                 + static_cast<double>(reverbParams_.preDelayMs.load(kRelaxed)) * 0.001;
+    }
+    return static_cast<Steinberg::uint32>(std::llround(seconds * processSetup.sampleRate));
 }
 
 } // namespace Ruinae

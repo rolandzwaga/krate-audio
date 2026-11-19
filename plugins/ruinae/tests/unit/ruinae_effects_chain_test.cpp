@@ -23,6 +23,7 @@
 #include <cmath>
 #include <cstring>
 #include <numeric>
+#include <utility>
 #include <vector>
 
 using Catch::Approx;
@@ -2240,4 +2241,310 @@ TEST_CASE("Disabling the reverb ramps the wet tail out",
     INFO("tail RMS " << tailLevel << ", first " << kEarlyWindow
          << " samples after disable RMS " << earlyLevel);
     CHECK(earlyLevel > tailLevel * 0.4f);
+}
+
+// =============================================================================
+// R-059 / R-061 / R-063: effects-chain crossfades can be re-targeted (T2.10)
+// =============================================================================
+
+// R-059: a Modulation Type change that arrives while a type crossfade is still
+// running restarted the fade from alpha 0. Returning to the outgoing type made
+// it the incoming type as well, so one Phaser instance was processed twice per
+// block and was then reset while it stayed active; a third type cut the
+// half-faded-in effect out in one sample. Even a plain switch into a reset
+// chorus stepped once its 15 ms read position reached written audio, halfway
+// through the fade; the incoming effect is now pre-warmed first.
+TEST_CASE("ModSlot_RetargetMidFade_NoClick", "[ruinae-fx][modulation]") {
+    constexpr size_t kBlock = 512;
+    constexpr size_t kBlocks = 32;
+    constexpr size_t kSwitchBlock = 10;
+    constexpr size_t kSkipBlocks = 4;  // phaser start-up
+    constexpr float kAmp = 0.3f;
+    constexpr float kFreq = 110.0f;
+
+    RuinaeEffectsChain chain;
+    prepareChain(chain, kSampleRate, kBlock);
+    chain.setPhaserMix(0.5f);
+    chain.setPhaserDepth(0.5f);
+    chain.setPhaserRate(0.5f);
+    chain.setPhaserFeedback(0.0f);
+    chain.setPhaserStages(4);
+    chain.setPhaserCenterFrequency(1000.0f);
+    chain.flanger().setFeedback(0.0f);
+    chain.chorus().setVoices(1);  // multi-voice chorus steps on its own (R-060)
+    chain.setModulationType(ModulationType::Phaser);
+
+    ModulationType second = ModulationType::Phaser;
+    SECTION("A->B->A: back to the outgoing type mid-fade") {
+        second = ModulationType::Phaser;
+    }
+    SECTION("A->B->C: a third type mid-fade") {
+        second = ModulationType::Flanger;
+    }
+    SECTION("A->B: a plain switch into a cold chorus") {
+        second = ModulationType::Chorus;
+    }
+
+    constexpr size_t kTotal = kBlocks * kBlock;
+    std::vector<float> input(kTotal);
+    fillSine(input.data(), kTotal, kFreq, kSampleRate, kAmp);
+    std::vector<float> outL(input);
+    std::vector<float> outR(input);
+    // The switch pre-warms the incoming effect first; the re-target lands one
+    // 512 block after the crossfade itself has started.
+    size_t fadeStartBlock = 0;
+    bool retargeted = false;
+    for (size_t b = 0; b < kBlocks; ++b) {
+        if (b == kSwitchBlock) chain.startModCrossfade(ModulationType::Chorus);
+        if (fadeStartBlock != 0 && b == fadeStartBlock + 1) {
+            chain.startModCrossfade(second);
+            retargeted = true;
+        }
+        const bool fadeRunning = chain.isModCrossfadingForTest();
+        chain.processBlock(outL.data() + b * kBlock, outR.data() + b * kBlock, kBlock);
+        if (fadeStartBlock == 0 && fadeRunning) fadeStartBlock = b;
+    }
+    REQUIRE(retargeted);
+
+    const float dryStep = maxStepSize(input.data(), kTotal);
+    const float steadyStep = maxStepSize(outL.data() + kSkipBlocks * kBlock,
+                                         (kSwitchBlock - kSkipBlocks) * kBlock);
+    const float stepL = maxStepSize(outL.data() + kSkipBlocks * kBlock,
+                                    (kBlocks - kSkipBlocks) * kBlock);
+    const float stepR = maxStepSize(outR.data() + kSkipBlocks * kBlock,
+                                    (kBlocks - kSkipBlocks) * kBlock);
+    INFO("dry step " << dryStep << ", steady phaser step " << steadyStep
+         << ", max step L " << stepL << ", R " << stepR);
+    REQUIRE(stepL < 2.0f * dryStep);
+    REQUIRE(stepR < 2.0f * dryStep);
+    REQUIRE(chain.getActiveModulationType() == second);
+}
+
+// R-061: with Freeze on, both reverbs have their input muted, so a type switch
+// crossfaded the frozen tank into an empty one and then reset the frozen one.
+// The switch is now deferred until Freeze is released.
+TEST_CASE("ReverbFreeze_TypeSwitch_KeepsFrozenTail", "[ruinae-fx][reverb]") {
+    constexpr size_t kBlock = 2048;
+
+    RuinaeEffectsChain chain;
+    prepareChain(chain, kSampleRate, kBlock);
+
+    ReverbParams params;
+    params.mix = 1.0f;
+    params.roomSize = 0.8f;
+    chain.setReverbEnabled(true);
+    chain.setReverbParams(params);
+    chain.setReverbTypeDirect(0);
+
+    std::vector<float> left(kBlock);
+    std::vector<float> right(kBlock);
+    for (int b = 0; b < 10; ++b) {
+        fillSine(left.data(), kBlock, 220.0f, kSampleRate, 0.5f);
+        fillSine(right.data(), kBlock, 220.0f, kSampleRate, 0.5f);
+        chain.setReverbParams(params);
+        chain.setReverbType(0);
+        chain.processBlock(left.data(), right.data(), kBlock);
+    }
+
+    // The processor re-sends the params and the type before every block.
+    auto processSilence = [&](int type) {
+        std::fill(left.begin(), left.end(), 0.0f);
+        std::fill(right.begin(), right.end(), 0.0f);
+        chain.setReverbParams(params);
+        chain.setReverbType(type);
+        chain.processBlock(left.data(), right.data(), kBlock);
+        return calculateRMS(left.data(), kBlock);
+    };
+
+    params.freeze = true;
+    float frozenRms = 0.0f;
+    for (int b = 0; b < 4; ++b) frozenRms = processSilence(0);
+    REQUIRE(frozenRms > 1e-3f);
+
+    // 0.5 s after the switch to Hall, still frozen.
+    constexpr int kBlocksHalfSecond = static_cast<int>(0.5 * kSampleRate / kBlock) + 1;
+    float rmsAfter = 0.0f;
+    for (int b = 0; b < kBlocksHalfSecond; ++b) rmsAfter = processSilence(1);
+    INFO("frozen RMS " << frozenRms << ", RMS 0.5 s after the type switch " << rmsAfter);
+    REQUIRE(rmsAfter >= 0.5f * frozenRms);
+
+    SECTION("the deferred type is applied once Freeze is released") {
+        params.freeze = false;
+        for (int b = 0; b < 4; ++b) processSilence(1);
+        REQUIRE(chain.activeReverbTypeForTest() == 1);
+        REQUIRE_FALSE(chain.isReverbCrossfadingForTest());
+    }
+}
+
+// R-063: a disable that arrived during the harmonizer's fade-in jumped the fade
+// alpha to 1, a gain step. The processor sends the enable flag every block, and
+// each disable call re-armed the fade-out at alpha 1, so with blocks shorter
+// than the 10 ms fade the harmonizer never switched off.
+TEST_CASE("Harmonizer_ToggleDuringFade_NoStep", "[ruinae-fx][harmonizer]") {
+    constexpr size_t kBlock = 88;  // 2 ms at 44.1 kHz
+    constexpr size_t kBlocks = 200;
+    constexpr size_t kEnableBlock = 100;
+    constexpr size_t kTotal = kBlocks * kBlock;
+    constexpr float kAmp = 0.3f;
+    constexpr float kFreq = 220.0f;
+
+    RuinaeEffectsChain chain;
+    prepareChain(chain);
+    chain.setHarmonizerHarmonyMode(0);    // Chromatic
+    chain.setHarmonizerPitchShiftMode(0); // Simple
+    // Dry -6 dB: 2 ms into the fade the pitched voice is still silent, so at a
+    // 0 dB dry level the harmonizer's output equals its input and an alpha
+    // jump is inaudible. A dry level below unity makes the jump a gain step.
+    chain.setHarmonizerDryLevel(-6.0f);
+    chain.setHarmonizerWetLevel(-6.0f);
+    chain.setHarmonizerNumVoices(1);
+    chain.setHarmonizerVoiceInterval(0, 7);
+    chain.setHarmonizerVoiceLevel(0, 0.0f);
+
+    std::vector<float> input(kTotal);
+    fillSine(input.data(), kTotal, kFreq, kSampleRate, kAmp);
+    std::vector<float> outL(input);
+    std::vector<float> outR(input);
+
+    bool reEnable = false;
+    SECTION("enable, then disable 2 ms later") { reEnable = false; }
+    SECTION("enable, disable 2 ms later, re-enable 2 ms after that") { reEnable = true; }
+
+    for (size_t b = 0; b < kBlocks; ++b) {
+        bool enabled = (b == kEnableBlock);
+        if (reEnable && b >= kEnableBlock + 2) enabled = true;
+        chain.setHarmonizerEnabled(enabled);
+        chain.processBlock(outL.data() + b * kBlock, outR.data() + b * kBlock, kBlock);
+    }
+
+    // Steady: the dry sine's own step. The window ends 16 ms after the enable,
+    // before the harmonized voice's 100 ms fade-in makes it audible on its own.
+    const float steadyStep = maxStepSize(input.data(), kTotal);
+    const size_t windowStart = (kEnableBlock - 10) * kBlock;
+    const size_t windowLen = 18 * kBlock;
+    const float stepL = maxStepSize(outL.data() + windowStart, windowLen);
+    const float stepR = maxStepSize(outR.data() + windowStart, windowLen);
+    INFO("steady step " << steadyStep << ", max step L " << stepL << ", R " << stepR);
+    REQUIRE(stepL <= 1.5f * steadyStep);
+    REQUIRE(stepR <= 1.5f * steadyStep);
+
+    // The last 100 ms: switched off, the chain passes the input untouched;
+    // switched back on, the harmonized voice is there.
+    const size_t tailStart = (kBlocks - 50) * kBlock;
+    float maxDiff = 0.0f;
+    for (size_t i = tailStart; i < kTotal; ++i) {
+        maxDiff = std::max(maxDiff, std::abs(outL[i] - input[i]));
+    }
+    INFO("max |out - in| over the last 100 ms " << maxDiff);
+    if (reEnable) {
+        CHECK(maxDiff > 0.01f);
+    } else {
+        CHECK(maxDiff < 1e-6f);
+    }
+}
+
+namespace {
+
+/// Renders a 200 ms noise burst through `type` at `timeMs` (mix 1, feedback 0, nothing else in
+/// the chain) and returns the sample index, counted from the burst start, of the first LEFT
+/// output sample above -20 dB re the burst, together with the chain's reported latency.
+/// Left only: CharacterProcessor's Tape mode runs both channels through one set of filter
+/// states, so the right channel shows the left channel's echo at the start of the block that
+/// holds it, up to a block early. That bleed is not an echo time.
+std::pair<size_t, size_t> firstEchoSample(RuinaeDelayType type, float timeMs) {
+    RuinaeEffectsChain chain;
+    prepareChain(chain);
+    chain.setDelayEnabled(true);
+    chain.setDelayMix(1.0f);
+    chain.setDelayFeedback(0.0f);
+    chain.setDelayTime(timeMs);
+    // 100 ms grains overlap 10x at 100/s: no gap between grains for the burst onset to fall in.
+    chain.setDelayGranularDensity(100.0f);
+    chain.setDelayGranularJitter(0.0f);
+    chain.setModulationType(ModulationType::None);
+    chain.setHarmonizerEnabled(false);
+    ReverbParams reverbParams;
+    reverbParams.mix = 0.0f;
+    chain.setReverbParams(reverbParams);
+    chain.setReverbEnabled(false);
+    // Start from the stored time, as a preset load or setActive does, so Digital (active from
+    // prepare) does not ramp to it.
+    chain.reset();
+    chain.setDelayType(type);
+
+    // Silence until the type switch (pre-warm = time + comp latency, then a 30 ms crossfade)
+    // and every smoother have finished.
+    const auto settleSamples = static_cast<size_t>((timeMs / 1000.0f + 1.0f) * kSampleRate);
+    std::vector<float> silenceL(kBlockSize, 0.0f);
+    std::vector<float> silenceR(kBlockSize, 0.0f);
+    for (size_t done = 0; done < settleSamples; done += kBlockSize) {
+        std::fill(silenceL.begin(), silenceL.end(), 0.0f);
+        std::fill(silenceR.begin(), silenceR.end(), 0.0f);
+        chain.processBlock(silenceL.data(), silenceR.data(), kBlockSize);
+    }
+    REQUIRE(chain.getActiveDelayType() == type);
+
+    // A 200 ms noise burst (a lone impulse can fall between two grains), then silence.
+    const auto burstLen = static_cast<size_t>(0.2 * kSampleRate);
+    const auto totalLen = static_cast<size_t>((timeMs / 1000.0f + 0.6f) * kSampleRate);
+    std::vector<float> left(totalLen, 0.0f);
+    std::vector<float> right(totalLen, 0.0f);
+    uint32_t seed = 0x1234567u;
+    for (size_t i = 0; i < burstLen; ++i) {
+        seed = seed * 1664525u + 1013904223u;
+        const float v = 0.5f * (static_cast<float>(seed >> 8) / 8388608.0f - 1.0f);
+        left[i] = v;
+        right[i] = v;
+    }
+    for (size_t pos = 0; pos < totalLen; pos += kBlockSize) {
+        const size_t n = std::min(kBlockSize, totalLen - pos);
+        chain.processBlock(left.data() + pos, right.data() + pos, n);
+    }
+
+    constexpr float kThreshold = 0.05f;
+    size_t onset = totalLen;
+    for (size_t i = 0; i < totalLen; ++i) {
+        if (std::abs(left[i]) > kThreshold) {
+            onset = i;
+            break;
+        }
+    }
+    return {onset, chain.getLatencySamples()};
+}
+
+} // anonymous namespace
+
+// R-094: the Delay Time parameter runs to 5000 ms and the chain sends one value to all five
+// types. Tape, Granular and Spectral used to stop at 2000 ms, so a 3 s echo landed at 2 s on
+// those three and a type switch changed the echo time.
+TEST_CASE("Delay time 3000 ms is honoured by every delay type", "[ruinae-fx][delay][timing]") {
+    constexpr float kTimeMs = 3000.0f;
+    const int typeIdx = GENERATE(0, 1, 2, 3, 4);
+    STATIC_REQUIRE(static_cast<int>(RuinaeDelayType::NumTypes) == 5);
+    const auto type = static_cast<RuinaeDelayType>(typeIdx);
+    const auto timeSamples = static_cast<double>(kTimeMs) * kSampleRate / 1000.0;
+
+    const auto [onset, latency] = firstEchoSample(type, kTimeMs);
+    REQUIRE(onset < static_cast<size_t>((kTimeMs / 1000.0f + 0.6f) * kSampleRate));
+
+    if (type != RuinaeDelayType::Spectral) {
+        // First echo at the comp latency + 3000 ms, +/- 2 ms.
+        const double expected = static_cast<double>(latency) + timeSamples;
+        INFO("type " << typeIdx << ": first echo at sample " << onset << " ("
+                     << (static_cast<double>(onset) - static_cast<double>(latency)) * 1000.0 / kSampleRate
+                     << " ms after the comp latency), expected " << expected << " +/- 2 ms");
+        REQUIRE(std::abs(static_cast<double>(onset) - expected) <= 2.0 * kSampleRate / 1000.0);
+    } else {
+        // Spectral, +/- 1 hop. The chain does not route the Spectral wet through the comp delay
+        // (its echo sits at its own FFT latency, not at getLatencySamples(): R-055, T1.18), so
+        // the time is measured against a 1000 ms echo, inside the range that always worked:
+        // the two echoes must be 2000 ms apart.
+        const auto [onset1000, latency1000] = firstEchoSample(type, 1000.0f);
+        (void)latency1000;
+        const double spacing = static_cast<double>(onset) - static_cast<double>(onset1000);
+        const double expected = timeSamples - 1000.0 * kSampleRate / 1000.0;
+        INFO("Spectral: echo at 3000 ms set at sample " << onset << ", at 1000 ms set at sample "
+             << onset1000 << ": " << spacing * 1000.0 / kSampleRate << " ms apart, expected 2000 ms +/- 1 hop");
+        REQUIRE(std::abs(spacing - expected) <= static_cast<double>(SpectralDelay::kDefaultFFTSize / 2));
+    }
 }

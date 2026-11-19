@@ -237,9 +237,10 @@ inline void registerDistortionParams(Steinberg::Vst::ParameterContainer& paramet
     parameters.addParameter(STR16("Ring Stereo Spread"), STR16("%"), 0, 0.0,
         ParameterInfo::kCanAutomate, kDistortionRingStereoSpreadId);
 
-    // UI-only: Distortion view mode tab (General/Type), ephemeral, not persisted
+    // UI-only: Distortion view mode tab (General/Type), ephemeral, not persisted; hidden, not automatable
     auto* viewModeParam = new StringListParameter(
-        STR16("Distortion View"), kDistortionViewModeTag);
+        STR16("Distortion View"), kDistortionViewModeTag, nullptr,
+        ParameterInfo::kIsList | ParameterInfo::kIsHidden);
     viewModeParam->appendString(STR16("General"));
     viewModeParam->appendString(STR16("Type"));
     parameters.addParameter(viewModeParam);

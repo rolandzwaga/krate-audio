@@ -561,7 +561,7 @@
       "scope": "Krate::DSP",
       "layer": "processors",
       "header": "dsp/include/krate/dsp/processors/chorus.h",
-      "line": 46
+      "line": 47
     },
     {
       "name": "ClockEvent",
@@ -721,7 +721,7 @@
       "scope": "Krate::DSP::SpectralDelay",
       "layer": "effects",
       "header": "dsp/include/krate/dsp/effects/spectral_delay.h",
-      "line": 675
+      "line": 754
     },
     {
       "name": "DelayEngine",
@@ -1401,7 +1401,7 @@
       "scope": "Krate::DSP",
       "layer": "processors",
       "header": "dsp/include/krate/dsp/processors/pitch_shift_processor.h",
-      "line": 509
+      "line": 516
     },
     {
       "name": "GrowthEnvelope",
@@ -2345,7 +2345,7 @@
       "scope": "Krate::DSP::ArpeggiatorCore",
       "layer": "processors",
       "header": "dsp/include/krate/dsp/processors/arpeggiator_core.h",
-      "line": 1082
+      "line": 1120
     },
     {
       "name": "PeriodPeakDetector",
@@ -2409,7 +2409,7 @@
       "scope": "Krate::DSP",
       "layer": "processors",
       "header": "dsp/include/krate/dsp/processors/pitch_shift_processor.h",
-      "line": 832
+      "line": 839
     },
     {
       "name": "Piece",
@@ -2465,7 +2465,7 @@
       "scope": "Krate::DSP",
       "layer": "processors",
       "header": "dsp/include/krate/dsp/processors/pitch_shift_processor.h",
-      "line": 1150
+      "line": 1157
     },
     {
       "name": "PitchSyncGranularShifter",
@@ -2473,7 +2473,7 @@
       "scope": "Krate::DSP",
       "layer": "processors",
       "header": "dsp/include/krate/dsp/processors/pitch_shift_processor.h",
-      "line": 614
+      "line": 621
     },
     {
       "name": "PitchTracker",
@@ -3281,7 +3281,7 @@
       "scope": "Krate::DSP",
       "layer": "processors",
       "header": "dsp/include/krate/dsp/processors/pitch_shift_processor.h",
-      "line": 417
+      "line": 424
     },
     {
       "name": "Skewed4",
@@ -3865,7 +3865,7 @@
       "scope": "Krate::DSP::HarmonizerEngine",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/harmonizer_engine.h",
-      "line": 757
+      "line": 706
     },
     {
       "name": "VoiceAllocator",
@@ -3897,7 +3897,7 @@
       "scope": "Krate::DSP",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/voice_mod_types.h",
-      "line": 73
+      "line": 76
     },
     {
       "name": "VoiceModRouter",
@@ -3905,7 +3905,7 @@
       "scope": "Krate::DSP",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/voice_mod_router.h",
-      "line": 58
+      "line": 69
     },
     {
       "name": "VoiceSlot",

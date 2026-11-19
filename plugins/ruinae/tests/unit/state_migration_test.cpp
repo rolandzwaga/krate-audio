@@ -8,6 +8,7 @@
 // ==============================================================================
 
 #include <catch2/catch_test_macros.hpp>
+#include <catch2/catch_approx.hpp>
 
 #include "processor/processor.h"
 #include "controller/controller.h"
@@ -20,6 +21,7 @@
 #include "vst_param_changes.h"
 
 #include "public.sdk/source/common/memorystream.h"
+#include "public.sdk/source/vst/hosting/hostclasses.h"
 #include "base/source/fstreamer.h"
 #include "pluginterfaces/vst/ivstaudioprocessor.h"
 
@@ -699,6 +701,198 @@ TEST_CASE("State v8 loads formant vowel as A and keeps morph", "[state][migratio
             CHECK(std::abs(values[1] - kMorph22) < 1e-6);
             CHECK(values[2] == kVowelO);
             CHECK(std::abs(values[3] - kMorph22) < 1e-6);
+        }
+    }
+}
+
+// =============================================================================
+// R-044 / R-053: since state v9 a voice route to Filter Resonance spans 10 Q
+// (was 1 Q), and a route's Scale multiplies the routed contribution instead of
+// an amount clamped to +/-1. Older states load the amounts that reproduce the
+// depth they were saved with.
+// =============================================================================
+
+namespace {
+
+void sendVoiceRoute(Ruinae::Processor& proc, int slot, int source, int destination,
+                    double amount, int scale) {
+    auto msg = Steinberg::owned(new Steinberg::Vst::HostMessage());
+    msg->setMessageID("VoiceModRouteUpdate");
+    auto* attrs = msg->getAttributes();
+    attrs->setInt("slotIndex", slot);
+    attrs->setInt("source", source);
+    attrs->setInt("destination", destination);
+    attrs->setFloat("amount", amount);
+    attrs->setInt("curve", 0);
+    attrs->setFloat("smoothMs", 0.0);
+    attrs->setInt("scale", scale);
+    attrs->setInt("bypass", 0);
+    attrs->setInt("active", 1);
+    REQUIRE(proc.notify(msg) == Steinberg::kResultOk);
+}
+
+/// The one offset at which `bytes` holds `value` (within float rounding).
+size_t uniqueFloatOffset(const std::vector<uint8_t>& bytes, float value) {
+    size_t offset = 0;
+    int matches = 0;
+    for (size_t i = 4; i + sizeof(float) <= bytes.size(); ++i) {
+        if (std::abs(floatAt(bytes, i) - value) < 1e-6f) {
+            offset = i;
+            ++matches;
+        }
+    }
+    INFO("value " << value);
+    REQUIRE(matches == 1);
+    return offset;
+}
+
+}  // namespace
+
+TEST_CASE("State v8 loads voice-route and mod-slot amounts at their old depth",
+          "[state][migration]") {
+    using namespace Ruinae;
+    using Catch::Approx;
+    constexpr int kVelocity = 5;
+    constexpr int kCutoff = 0;
+    constexpr int kResonance = 1;
+    constexpr int kX1 = 2;
+    constexpr int kX4 = 4;
+
+    // Mod slot 0: amount 0.8125 at x4 (saturated before v9: depth 1.0 -> amount 0.25).
+    // Mod slot 1: amount 0.3125 at x2 (0.625, not saturated: unchanged).
+    // Voice routes: 0 Velocity->Res 0.734375 x1 (1 Q scale -> 0.0734375), 1 Velocity->Cutoff 0.609375 x4
+    // (-> 0.25), 2 Velocity->Res 0.671875 x4 (-> 0.25 then 0.025), 3 Velocity->Cutoff 0.359375 x1 (kept).
+    auto proc = makeProcessor();
+    Krate::Test::ParameterChanges pc;
+    pc.addChange(kModMatrixSlot0AmountId, (0.8125 + 1.0) / 2.0);
+    pc.addChange(kModMatrixSlot0ScaleId, 1.0);
+    pc.addChange(kModMatrixSlot1AmountId, (0.3125 + 1.0) / 2.0);
+    pc.addChange(kModMatrixSlot1ScaleId, 0.75);
+    Steinberg::Vst::ProcessData data{};
+    data.numSamples = 0;
+    data.inputParameterChanges = &pc;
+    proc->process(data);
+    sendVoiceRoute(*proc, 0, kVelocity, kResonance, 0.734375, kX1);
+    sendVoiceRoute(*proc, 1, kVelocity, kCutoff, 0.609375, kX4);
+    sendVoiceRoute(*proc, 2, kVelocity, kResonance, 0.671875, kX4);
+    sendVoiceRoute(*proc, 3, kVelocity, kCutoff, 0.359375, kX1);
+    Steinberg::MemoryStream out;
+    REQUIRE(proc->getState(&out) == Steinberg::kResultTrue);
+    const auto saved = streamBytes(out);
+    proc->terminate();
+
+    const size_t slot0 = uniqueFloatOffset(saved, 0.8125f);
+    const size_t slot1 = uniqueFloatOffset(saved, 0.3125f);
+    const size_t route0 = uniqueFloatOffset(saved, 0.734375f);
+    const size_t route1 = uniqueFloatOffset(saved, 0.609375f);
+    const size_t route2 = uniqueFloatOffset(saved, 0.671875f);
+    const size_t route3 = uniqueFloatOffset(saved, 0.359375f);
+
+    auto checkLoaded = [&](const std::vector<uint8_t>& blob, bool migrated) {
+        // The processor's loaded values, read back through a current-version save.
+        const auto fromProcessor = processorStateAfterLoad(blob);
+        CHECK(floatAt(fromProcessor, slot0) == Approx(migrated ? 0.25f : 0.8125f).margin(1e-6));
+        CHECK(floatAt(fromProcessor, slot1) == Approx(0.3125f).margin(1e-6));
+        CHECK(floatAt(fromProcessor, route0) == Approx(migrated ? 0.0734375f : 0.734375f).margin(1e-6));
+        CHECK(floatAt(fromProcessor, route1) == Approx(migrated ? 0.25f : 0.609375f).margin(1e-6));
+        CHECK(floatAt(fromProcessor, route2) == Approx(migrated ? 0.025f : 0.671875f).margin(1e-6));
+        CHECK(floatAt(fromProcessor, route3) == Approx(0.359375f).margin(1e-6));
+
+        // The controller's parameters and voice-route cache after setComponentState(blob).
+        auto* ctrl = new Controller();
+        REQUIRE(ctrl->initialize(nullptr) == Steinberg::kResultTrue);
+        Steinberg::MemoryStream in;
+        Steinberg::int32 written = 0;
+        in.write(const_cast<uint8_t*>(blob.data()), static_cast<Steinberg::int32>(blob.size()), &written);
+        in.seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
+        REQUIRE(ctrl->setComponentState(&in) == Steinberg::kResultTrue);
+        CHECK(ctrl->getParamNormalized(kModMatrixSlot0AmountId)
+              == Approx(((migrated ? 0.25 : 0.8125) + 1.0) / 2.0).margin(1e-6));
+        CHECK(ctrl->getParamNormalized(kModMatrixSlot1AmountId) == Approx(0.65625).margin(1e-6));
+        CHECK(ctrl->cachedVoiceRouteForTest(0).amount == Approx(migrated ? 0.0734375f : 0.734375f).margin(1e-6));
+        CHECK(ctrl->cachedVoiceRouteForTest(1).amount == Approx(migrated ? 0.25f : 0.609375f).margin(1e-6));
+        CHECK(ctrl->cachedVoiceRouteForTest(2).amount == Approx(migrated ? 0.025f : 0.671875f).margin(1e-6));
+        CHECK(ctrl->cachedVoiceRouteForTest(3).amount == Approx(0.359375f).margin(1e-6));
+        ctrl->terminate();
+        ctrl->release();
+    };
+
+    SECTION("version 8 loads the amounts that keep the old depth") {
+        auto v8 = saved;
+        const Steinberg::int32 version8 = 8;
+        std::memcpy(v8.data(), &version8, sizeof(version8));
+        checkLoaded(v8, true);
+    }
+
+    SECTION("the current version keeps the stored amounts") {
+        checkLoaded(saved, false);
+    }
+}
+
+// =============================================================================
+// R-093: since state v9 the Voice LFO has a Rate and a Shape, appended after the
+// arp pack. Older states load the 1 Hz sine the source always played.
+// =============================================================================
+
+TEST_CASE("State v8 loads the voice LFO as 1 Hz sine", "[state][migration]") {
+    using namespace Ruinae;
+    using Catch::Approx;
+    const std::vector<Steinberg::Vst::ParamID> ids = {kVoiceLfoRateId, kVoiceLfoShapeId};
+    constexpr double kRateNorm = 0.7;
+    constexpr double kSquare = 3.0 / 5.0;
+    const auto saved = stateWithChanges({{kVoiceLfoRateId, kRateNorm}, {kVoiceLfoShapeId, kSquare}});
+    const double defaultRateNorm = lfoRateToNormalized(1.0f);
+
+    // The v9 tail is float rate + int32 shape.
+    REQUIRE(saved.size() > 8);
+    const size_t tail = saved.size() - 8;
+    Steinberg::int32 savedShape = 0;
+    std::memcpy(&savedShape, saved.data() + tail + 4, sizeof(savedShape));
+    CHECK(floatAt(saved, tail) == Approx(lfoRateFromNormalized(kRateNorm)).margin(1e-6));
+    CHECK(savedShape == 3);
+
+    SECTION("version 8: 1 Hz sine on the processor and the controller, whatever played before") {
+        auto v8 = saved;
+        v8.resize(tail);
+        const Steinberg::int32 version8 = 8;
+        std::memcpy(v8.data(), &version8, sizeof(version8));
+
+        auto proc = makeProcessor();
+        loadBlob(*proc, saved);
+        loadBlob(*proc, v8);
+        Steinberg::MemoryStream out;
+        REQUIRE(proc->getState(&out) == Steinberg::kResultTrue);
+        const auto fromProcessor = streamBytes(out);
+        proc->terminate();
+        REQUIRE(fromProcessor.size() == saved.size());
+        Steinberg::int32 shape = -1;
+        std::memcpy(&shape, fromProcessor.data() + tail + 4, sizeof(shape));
+        CHECK(floatAt(fromProcessor, tail) == 1.0f);
+        CHECK(shape == 0);
+
+        auto* ctrl = new Controller();
+        REQUIRE(ctrl->initialize(nullptr) == Steinberg::kResultTrue);
+        const std::vector<uint8_t>* blobs[] = {&saved, &v8};
+        for (const auto* blob : blobs) {
+            Steinberg::MemoryStream in;
+            Steinberg::int32 written = 0;
+            in.write(const_cast<uint8_t*>(blob->data()), static_cast<Steinberg::int32>(blob->size()),
+                     &written);
+            in.seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
+            REQUIRE(ctrl->setComponentState(&in) == Steinberg::kResultTrue);
+        }
+        CHECK(ctrl->getParamNormalized(kVoiceLfoRateId) == Approx(defaultRateNorm).margin(1e-6));
+        CHECK(ctrl->getParamNormalized(kVoiceLfoShapeId) == 0.0);
+        ctrl->terminate();
+        ctrl->release();
+    }
+
+    SECTION("the current version keeps the stored rate and shape") {
+        const auto fromProcessor = controllerParamsAfterLoad(processorStateAfterLoad(saved), ids);
+        const auto fromController = controllerParamsAfterLoad(saved, ids);
+        for (const auto& values : {fromProcessor, fromController}) {
+            CHECK(values[0] == Approx(kRateNorm).margin(1e-5));
+            CHECK(values[1] == Approx(kSquare).margin(1e-9));
         }
     }
 }

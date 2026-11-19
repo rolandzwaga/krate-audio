@@ -18,7 +18,8 @@ namespace Ruinae {
 // State version for serialization (bump when format changes post-release)
 // Shared between Processor and Controller — lives here to avoid cross-includes.
 // v9: same layout as v8; Spectral Shift reaches the audio, so older states load it at 0.5 (no shift);
-//     Formant Morph is an offset from the Formant Vowel, so older states load Vowel A (their sound).
+//     Formant Morph is an offset from the Formant Vowel, so older states load Vowel A (their sound);
+//     Voice LFO Rate and Shape are appended after the arp pack, older states load 1 Hz Sine (their sound).
 constexpr Steinberg::int32 kCurrentStateVersion = 9;
 
 // Processor Component ID
@@ -69,6 +70,7 @@ static const Steinberg::FUID kControllerUID(0xD6C5B4A3, 0x8B6A4F2E, 0x2F1E0D9C, 
 //   2800-2899: Harmonizer (HarmonyMode, Key, Scale, PitchShiftMode,
 //              FormantPreserve, NumVoices, DryLevel, WetLevel,
 //              Voice1-4 Interval/Level/Pan/Delay/Detune)
+//   2900-2999: Voice LFO (Rate, Shape)
 //   3000-3099: Arpeggiator (Enabled, Mode, OctaveRange, OctaveMode,
 //              TempoSync, NoteValue, FreeRate, GateLength, Swing,
 //              LatchMode, Retrigger)
@@ -110,6 +112,7 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     //   2600-2699: Pitch Follower
     //   2700-2799: Transient Detector
     //   2800-2899: Harmonizer
+    //   2900-2999: Voice LFO
     //   3000-3099: Arpeggiator
     // ==========================================================================
 
@@ -849,6 +852,14 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     kHarmonizerVoice4DetuneId = 2844,
 
     kHarmonizerEndId = 2899,
+
+    // ==========================================================================
+    // Voice LFO Parameters (2900-2999): the per-voice "Voice LFO" mod source
+    // ==========================================================================
+    kVoiceLfoBaseId = 2900,
+    kVoiceLfoRateId = 2900,        // 0.01-50 Hz (default 1 Hz)
+    kVoiceLfoShapeId = 2901,       // Sine/Tri/Saw/Sq/S&H/SmoothRandom (default Sine)
+    kVoiceLfoEndId = 2999,
 
     // ==========================================================================
     // Arpeggiator Parameters (3000-3099)

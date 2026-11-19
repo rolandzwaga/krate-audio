@@ -271,9 +271,10 @@ inline void registerFilterParams(Steinberg::Vst::ParameterContainer& parameters)
         ParameterInfo::kCanAutomate, kFilterSelfOscShapeId);
     parameters.addParameter(STR16("Self-Osc Release"), STR16("ms"), 0, 0.47,
         ParameterInfo::kCanAutomate, kFilterSelfOscReleaseId);
-    // UI-only: Filter view mode tab (General/Type), ephemeral, not persisted
+    // UI-only: Filter view mode tab (General/Type), ephemeral, not persisted; hidden, not automatable
     auto* viewModeParam = new StringListParameter(
-        STR16("Filter View"), kFilterViewModeTag);
+        STR16("Filter View"), kFilterViewModeTag, nullptr,
+        ParameterInfo::kIsList | ParameterInfo::kIsHidden);
     viewModeParam->appendString(STR16("General"));
     viewModeParam->appendString(STR16("Type"));
     parameters.addParameter(viewModeParam);

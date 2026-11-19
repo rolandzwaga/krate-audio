@@ -526,6 +526,99 @@ TEST_CASE("Routing with amount=0% has no effect", "[systems][modulation_engine][
     REQUIRE(engine.getModulationOffset(100) == Approx(0.0f).margin(0.001f));
 }
 
+// R-046: a slot whose source, destination or curve changed is a new route. It
+// must not start from the old route's smoothed amount or smoothed signal, or the
+// new destination briefly receives the old amount (a loud burst when the new
+// destination is Master Volume).
+TEST_CASE("setRouting snaps the amount when source or destination changes",
+          "[systems][modulation]") {
+    auto engine = createEngine(44100.0);
+    engine.setMacroValue(0, 1.0f);
+    engine.setMacroValue(1, 1.0f);
+
+    BlockContext ctx;
+    ctx.sampleRate = 44100.0;
+    ctx.blockSize = 512;
+    std::array<float, 512> silenceL = {};
+    std::array<float, 512> silenceR = {};
+    constexpr uint32_t kDestA = 100;
+    constexpr uint32_t kDestB = 101;
+
+    ModRouting newRoute;
+    newRoute.source = ModSource::Macro2;
+    newRoute.destParamId = kDestB;
+    newRoute.amount = 0.1f;
+    newRoute.curve = ModCurve::Linear;
+    newRoute.active = true;
+
+    SECTION("amount smoother: LFO -> dest A at 1, then Macro -> dest B at 0.1") {
+        engine.setLFO1Rate(1.0f);
+        engine.setLFO1Waveform(Waveform::Sine);
+        ModRouting oldRoute;
+        oldRoute.source = ModSource::LFO1;
+        oldRoute.destParamId = kDestA;
+        oldRoute.amount = 1.0f;
+        oldRoute.curve = ModCurve::Linear;
+        oldRoute.active = true;
+        engine.setRouting(0, oldRoute);
+        engine.process(ctx, silenceL.data(), silenceR.data(), 512);
+
+        engine.setRouting(0, newRoute);
+        engine.process(ctx, silenceL.data(), silenceR.data(), 512);
+
+        float start = 0.0f;
+        float end = 0.0f;
+        engine.getModulationOffsetInterp(kDestB, start, end);
+        INFO("dest B first-block offsets: start " << start << ", end " << end);
+        REQUIRE(start <= 0.1f + 1e-5f);
+        REQUIRE(end <= 0.1f + 1e-5f);
+        REQUIRE(end == Approx(0.1f).margin(1e-4f));
+    }
+
+    SECTION("signal smoother: smoothed Macro1 -> dest A at 1, then smoothed Macro2 -> dest B at 0.1") {
+        ModRouting oldRoute;
+        oldRoute.source = ModSource::Macro1;
+        oldRoute.destParamId = kDestA;
+        oldRoute.amount = 1.0f;
+        oldRoute.curve = ModCurve::Linear;
+        oldRoute.smoothMs = 20.0f;
+        oldRoute.active = true;
+        engine.setRouting(0, oldRoute);
+        for (int b = 0; b < 40; ++b) {
+            engine.process(ctx, silenceL.data(), silenceR.data(), 512);
+        }
+        REQUIRE(engine.getModulationOffset(kDestA) > 0.99f);  // old route settled at 1
+
+        newRoute.smoothMs = 20.0f;
+        engine.setRouting(0, newRoute);
+        engine.process(ctx, silenceL.data(), silenceR.data(), 512);
+
+        float start = 0.0f;
+        float end = 0.0f;
+        engine.getModulationOffsetInterp(kDestB, start, end);
+        INFO("dest B first-block offsets: start " << start << ", end " << end);
+        REQUIRE(start <= 0.1f + 1e-5f);
+        REQUIRE(end <= 0.1f + 1e-5f);
+    }
+
+    SECTION("an amount change on the same route still glides") {
+        ModRouting route = newRoute;
+        route.amount = 1.0f;
+        engine.setRouting(0, route);
+        engine.process(ctx, silenceL.data(), silenceR.data(), 512);
+
+        route.amount = 0.1f;
+        engine.setRouting(0, route);
+        engine.process(ctx, silenceL.data(), silenceR.data(), 512);
+
+        float start = 0.0f;
+        float end = 0.0f;
+        engine.getModulationOffsetInterp(kDestB, start, end);
+        REQUIRE(start == Approx(1.0f).margin(1e-4f));
+        REQUIRE(end > 0.5f);
+    }
+}
+
 TEST_CASE("getModulatedValue clamps to [0, 1]", "[systems][modulation_engine][us2]") {
     auto engine = createEngine(44100.0);
     engine.setLFO1Rate(10.0f);

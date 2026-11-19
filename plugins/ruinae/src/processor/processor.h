@@ -50,6 +50,7 @@
 #include "parameters/random_params.h"
 #include "parameters/pitch_follower_params.h"
 #include "parameters/transient_params.h"
+#include "parameters/voice_lfo_params.h"
 #include "parameters/arpeggiator_params.h"
 
 #include <krate/dsp/processors/arpeggiator_core.h>
@@ -149,6 +150,10 @@ public:
         Steinberg::Vst::SpeakerArrangement* inputs, Steinberg::int32 numIns,
         Steinberg::Vst::SpeakerArrangement* outputs, Steinberg::int32 numOuts) override;
 
+    /// kInfiniteTail with reverb Freeze or a delay at feedback >= 1; otherwise
+    /// release + delay + reverb decay, in samples (R-190).
+    Steinberg::uint32 PLUGIN_API getTailSamples() override;
+
     // ===========================================================================
     // IComponent
     // ===========================================================================
@@ -192,6 +197,9 @@ public:
     [[nodiscard]] uint32_t engineActiveVoiceCountForTest() const noexcept {
         return engine_.getActiveVoiceCount();
     }
+
+    /// Test hook: engine processBlock calls so far (one per render segment).
+    [[nodiscard]] uint64_t engineRenderCallsForTest() const noexcept { return engineRenderCalls_; }
 
 protected:
     // ==========================================================================
@@ -270,7 +278,8 @@ private:
     // ==========================================================================
 
     double sampleRate_ = 44100.0;
-    double tempoBPM_ = 120.0;
+    /// Last valid host tempo. Atomic because getTailSamples() may run on any thread.
+    std::atomic<double> tempoBPM_{120.0};
     Steinberg::int32 maxBlockSize_ = 0;
 
     // ==========================================================================
@@ -313,6 +322,7 @@ private:
     RandomParams randomParams_;
     PitchFollowerParams pitchFollowerParams_;
     TransientParams transientParams_;
+    VoiceLfoParams voiceLfoParams_;
     ArpeggiatorParams arpParams_;
 
     // ==========================================================================
@@ -326,6 +336,7 @@ private:
     // Timed note queue for the current buffer, sorted by offset (stable)
     std::array<TimedEvent, kMaxTimedEvents> timedEvents_{};
     size_t timedEventCount_ = 0;
+    uint64_t engineRenderCalls_ = 0;    ///< engine_.processBlock calls (test hook)
     uint32_t currentEventOffset_ = 0;   ///< sampleOffset of the event being dispatched
     uint32_t currentBlockSamples_ = 0;  ///< numSamples of the buffer being processed
     float lastSidechainActive_ = -1.0f;  ///< Tracks sidechain state for output param changes

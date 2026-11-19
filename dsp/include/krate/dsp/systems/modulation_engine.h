@@ -346,9 +346,11 @@ public:
 
     /// @brief Set a routing slot.
     ///
-    /// For NEW routes (slot was inactive), snaps the smoother to the initial
-    /// amount for immediate response. For EXISTING routes (slot was active),
-    /// uses setTarget so the smoother provides a zipper-free transition
+    /// For NEW routes (slot was inactive, or its source, destination or curve
+    /// changed), snaps the amount smoother to the new amount and restarts the
+    /// signal smoother from 0, so the new destination never receives the old
+    /// route's amount or signal (R-046). For an amount change on the SAME
+    /// route, uses setTarget so the smoother provides a zipper-free transition
     /// (SC-003: step sizes below -60 dBFS).
     ///
     /// @param index Routing index (0 to kMaxModRoutings-1)
@@ -357,14 +359,19 @@ public:
         if (index >= kMaxModRoutings) {
             return;
         }
-        const bool wasActive = routings_[index].active;
+        const ModRouting& old = routings_[index];
+        const bool sameRoute = old.active && routing.active
+                               && old.source == routing.source
+                               && old.destParamId == routing.destParamId
+                               && old.curve == routing.curve;
         routings_[index] = routing;
-        if (wasActive && routing.active) {
+        if (sameRoute) {
             // Amount change on existing route: smooth transition
             amountSmoothers_[index].setTarget(routing.amount);
         } else {
-            // New route activation (or deactivation+reactivation): snap
+            // New route (activation, or a changed source/destination/curve): snap
             amountSmoothers_[index].snapTo(routing.amount);
+            signalSmoothers_[index].snapTo(0.0f);
         }
 
         // Configure signal smoother if smoothMs changed
@@ -409,6 +416,12 @@ public:
             }
         }
         return count;
+    }
+
+    /// @brief Upper rate clamp of LFO 1 and LFO 2 (LFO default: kMaxFrequency, 20 Hz).
+    void setLFOMaxFrequency(float hz) noexcept {
+        lfo1_.setMaxFrequency(hz);
+        lfo2_.setMaxFrequency(hz);
     }
 
     // =========================================================================

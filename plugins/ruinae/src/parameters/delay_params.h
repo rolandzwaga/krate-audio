@@ -464,8 +464,8 @@ inline void registerDelayParams(Steinberg::Vst::ParameterContainer& parameters) 
         ParameterInfo::kCanAutomate, kDelayGranularFreezeId);
 
     // --- Spectral ---
-    parameters.addParameter(createDropdownParameter(
-        STR16("Delay FFT Size"), kDelaySpectralFFTSizeId,
+    parameters.addParameter(createDropdownParameterWithDefault(
+        STR16("Delay FFT Size"), kDelaySpectralFFTSizeId, 1,  // 1024, the processor default
         {STR16("512"), STR16("1024"), STR16("2048"), STR16("4096")}));
     parameters.addParameter(STR16("Delay Spread"), STR16("ms"), 0, 0.0,
         ParameterInfo::kCanAutomate, kDelaySpectralSpreadId);

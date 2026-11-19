@@ -620,13 +620,12 @@ TEST_CASE("Freeze is applied to incoming reverb before crossfade", "[reverb_type
     }
     float rmsLater = rms(outL.data(), outL.size());
 
-    // In freeze mode, the FDN reverb should sustain. The later RMS should be
-    // at least 30% of the earlier RMS (not decaying away to nothing).
-    // We use a generous threshold because the crossfade introduces some
-    // transition effects and the FDN freeze behavior may differ slightly.
-    if (rmsAfterCrossfade > 1e-6f) {
-        CHECK(rmsLater > rmsAfterCrossfade * 0.3f);
-    }
+    // The frozen tail must still be there: the switch is deferred while
+    // Freeze is on (R-061), so the frozen tank is neither faded into an empty
+    // one nor reset. The later RMS should be at least 30% of the earlier RMS
+    // (not decaying away to nothing).
+    CHECK(rmsAfterCrossfade > 1e-6f);
+    CHECK(rmsLater > rmsAfterCrossfade * 0.3f);
 
     proc->setActive(false);
     proc->terminate();

@@ -17,6 +17,8 @@
 
 #include <set>
 #include "parameters/osc_params.h"
+#include "parameters/delay_params.h"
+#include "parameters/voice_lfo_params.h"
 #include <string>
 
 using namespace Steinberg;
@@ -512,6 +514,94 @@ TEST_CASE("OSC dropdowns are registered from the canonical label tables",
                                   kFormantVowelStrings, kFormantVowelCount);
         checkDropdownMatchesTable(ctrl, base + kOscNoiseColorOffset,
                                   kNoiseColorStrings, kNoiseColorCount);
+    }
+
+    ctrl->terminate();
+    ctrl->release();
+}
+
+// =============================================================================
+// Delay FFT Size: registered default matches the processor (Ruinae audit R-187)
+// =============================================================================
+// The parameter was registered with the plain createDropdownParameter, so its
+// default was index 0 ("512") while the processor atomic and the uidesc default
+// are index 1 (1024). A host "reset to default" switched the delay to 512.
+
+TEST_CASE("Delay FFT Size registered default denormalises to the processor default",
+          "[controller][params][defaults]") {
+    auto* ctrl = makeControllerRaw();
+
+    auto* param = ctrl->getParameterObject(Ruinae::kDelaySpectralFFTSizeId);
+    REQUIRE(param != nullptr);
+    const ParamValue registeredDefault = param->getInfo().defaultNormalizedValue;
+
+    Ruinae::RuinaeDelayParams processorDefaults;
+    const int processorDefault = processorDefaults.spectralFFTSize.load();
+
+    Ruinae::RuinaeDelayParams decoded;
+    decoded.spectralFFTSize.store(-1);
+    Ruinae::handleDelayParamChange(decoded, Ruinae::kDelaySpectralFFTSizeId, registeredDefault);
+
+    INFO("registered default " << registeredDefault);
+    CHECK(processorDefault == 1);
+    CHECK(decoded.spectralFFTSize.load() == processorDefault);
+
+    ctrl->terminate();
+    ctrl->release();
+}
+
+// =============================================================================
+// Voice LFO rate and shape (Ruinae audit R-093)
+// =============================================================================
+
+TEST_CASE("Voice LFO rate and shape are registered and automatable with 1 Hz sine defaults",
+          "[controller][params][defaults]") {
+    auto* ctrl = makeControllerRaw();
+
+    Ruinae::VoiceLfoParams decoded;
+    decoded.rateHz.store(-1.0f);
+    decoded.shape.store(-1);
+    for (const auto id : {Ruinae::kVoiceLfoRateId, Ruinae::kVoiceLfoShapeId}) {
+        auto* param = ctrl->getParameterObject(id);
+        REQUIRE(param != nullptr);
+        const auto& info = param->getInfo();
+        CHECK((info.flags & ParameterInfo::kCanAutomate) != 0);
+        CHECK((info.flags & ParameterInfo::kIsHidden) == 0);
+        Ruinae::handleVoiceLfoParamChange(decoded, id, info.defaultNormalizedValue);
+    }
+    CHECK(ctrl->getParameterObject(Ruinae::kVoiceLfoShapeId)->getInfo().stepCount == 5);
+    CHECK(decoded.rateHz.load() == Catch::Approx(1.0f).margin(1e-5f));
+    CHECK(decoded.shape.load() == 0);
+
+    String128 text{};
+    REQUIRE(ctrl->getParamStringByValue(Ruinae::kVoiceLfoRateId, Ruinae::lfoRateToNormalized(5.0f), text)
+            == kResultOk);
+    CHECK(to_string(text) == "5.00 Hz");
+
+    ctrl->terminate();
+    ctrl->release();
+}
+
+// =============================================================================
+// UI-only view switches (Ruinae audit R-086)
+// =============================================================================
+
+// The tab and view-mode switches are ephemeral editor state: a host must neither list them nor record
+// automation for them, or its playback drives a template switch from outside the control.
+TEST_CASE("UI-only view parameters are hidden and not automatable", "[controller][params]") {
+    auto* ctrl = makeControllerRaw();
+
+    for (const auto id : {static_cast<ParamID>(Ruinae::kMainTabTag),
+                          static_cast<ParamID>(Ruinae::kModSourceViewModeTag),
+                          static_cast<ParamID>(Ruinae::kFilterViewModeTag),
+                          static_cast<ParamID>(Ruinae::kDistortionViewModeTag)}) {
+        INFO("param id " << id);
+        auto* param = ctrl->getParameterObject(id);
+        REQUIRE(param != nullptr);
+        const auto& info = param->getInfo();
+        CHECK((info.flags & ParameterInfo::kIsHidden) != 0);
+        CHECK((info.flags & ParameterInfo::kCanAutomate) == 0);
+        CHECK((info.flags & ParameterInfo::kIsList) != 0);
     }
 
     ctrl->terminate();

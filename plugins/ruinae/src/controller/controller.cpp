@@ -78,6 +78,7 @@
 #include "parameters/random_params.h"
 #include "parameters/pitch_follower_params.h"
 #include "parameters/transient_params.h"
+#include "parameters/voice_lfo_params.h"
 #include "parameters/arpeggiator_params.h"
 
 #include "base/source/fstreamer.h"
@@ -163,10 +164,12 @@ Steinberg::tresult PLUGIN_API Controller::initialize(FUnknown* context) {
     registerLFO2Params(parameters);
     registerChaosModParams(parameters);
 
-    // UI-only: Mod source view mode dropdown (10 entries), ephemeral, not persisted
+    // UI-only: Mod source view mode dropdown (10 entries), ephemeral, not persisted.
+    // Hidden and not automatable: host automation would switch templates from outside the control.
     {
         auto* modViewParam = new Steinberg::Vst::StringListParameter(
-            STR16("Mod Source View"), kModSourceViewModeTag);
+            STR16("Mod Source View"), kModSourceViewModeTag, nullptr,
+            Steinberg::Vst::ParameterInfo::kIsList | Steinberg::Vst::ParameterInfo::kIsHidden);
         modViewParam->appendString(STR16("LFO 1"));
         modViewParam->appendString(STR16("LFO 2"));
         modViewParam->appendString(STR16("Chaos"));
@@ -180,10 +183,11 @@ Steinberg::tresult PLUGIN_API Controller::initialize(FUnknown* context) {
         parameters.addParameter(modViewParam);
     }
 
-    // UI-only: Main tab selector (4 entries), ephemeral, not persisted
+    // UI-only: Main tab selector (4 entries), ephemeral, not persisted; hidden, not automatable
     {
         auto* tabParam = new Steinberg::Vst::StringListParameter(
-            STR16("Main Tab"), kMainTabTag);
+            STR16("Main Tab"), kMainTabTag, nullptr,
+            Steinberg::Vst::ParameterInfo::kIsList | Steinberg::Vst::ParameterInfo::kIsHidden);
         tabParam->appendString(STR16("SOUND"));
         tabParam->appendString(STR16("MOD"));
         tabParam->appendString(STR16("FX"));
@@ -209,6 +213,7 @@ Steinberg::tresult PLUGIN_API Controller::initialize(FUnknown* context) {
     registerRandomParams(parameters);
     registerPitchFollowerParams(parameters);
     registerTransientParams(parameters);
+    registerVoiceLfoParams(parameters);
     registerArpParams(parameters);
 
     // Sidechain active status (hidden, read-only output parameter)
@@ -262,6 +267,12 @@ Steinberg::tresult PLUGIN_API Controller::terminate() {
     modEnvOutputPtr_ = nullptr;
     modEnvStagePtr_ = nullptr;
     envVoiceActivePtr_ = nullptr;
+    // The ADSR displays of an editor the host has not closed yet hold copies of the processor's
+    // envelope-display pointers and poll them; revoke those copies (this also stops their timers).
+    for (auto* display : {ampEnvDisplay_, filterEnvDisplay_, modEnvDisplay_}) {
+        if (display)
+            display->setPlaybackStatePointers(nullptr, nullptr, nullptr);
+    }
     // An editor the host has not closed yet keeps its views; stop caching them.
     viewRegistry_.clear();
     // updateChecker_ and presetManager_ stay until the destructor: an editor a host has not
@@ -517,45 +528,7 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
                     wasTransportPlaying_ = playing;
                 }
 
-                // Poll arp lane playhead parameters
-                auto pollLanePlayhead = [&](Krate::Plugins::IArpLane* lane,
-                                            Steinberg::Vst::ParamID playheadParamId,
-                                            int laneIdx) {
-                    if (!lane) return;
-                    auto* param = getParameterObject(playheadParamId);
-                    if (!param) return;
-
-                    constexpr long kMaxArpStepsL = static_cast<long>(kMaxArpSteps);
-                    double normalized = param->getNormalized();
-                    long rawStep = std::lround(normalized * kMaxArpStepsL);
-                    int32_t step = rawStep >= kMaxArpStepsL ? -1 : static_cast<int32_t>(rawStep);
-
-                    if (step != lastPolledSteps_[static_cast<size_t>(laneIdx)]) {
-                        lastPolledSteps_[static_cast<size_t>(laneIdx)] = step;
-                        if (step >= 0) {
-                            laneTrailStates_[static_cast<size_t>(laneIdx)].advance(step);
-                        }
-                    }
-
-                    laneTrailStates_[static_cast<size_t>(laneIdx)].clearPassedSkips();
-
-                    auto& ts = laneTrailStates_[static_cast<size_t>(laneIdx)];
-                    lane->setTrailSteps(ts.steps, Krate::Plugins::PlayheadTrailState::kTrailAlphas);
-                    lane->setPlayheadStep(step);
-                };
-
-                bool transportPlaying = isTransportPlayingPtr_ &&
-                    isTransportPlayingPtr_->load(std::memory_order_relaxed);
-                if (transportPlaying) {
-                    pollLanePlayhead(velocityLane_, kArpVelocityPlayheadId, 0);
-                    pollLanePlayhead(gateLane_, kArpGatePlayheadId, 1);
-                    pollLanePlayhead(pitchLane_, kArpPitchPlayheadId, 2);
-                    pollLanePlayhead(ratchetLane_, kArpRatchetPlayheadId, 3);
-                    pollLanePlayhead(modifierLane_, kArpModifierPlayheadId, 4);
-                    pollLanePlayhead(conditionLane_, kArpConditionPlayheadId, 5);
-                    pollLanePlayhead(chordLane_, kArpChordPlayheadId, 6);
-                    pollLanePlayhead(inversionLane_, kArpInversionPlayheadId, 7);
-                }
+                pollArpLanePlayheads();
             }, 33); // ~30fps
 
         trailTimer_ = playbackPollTimer_;
@@ -633,6 +606,47 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
     if (updateBannerView_) {
         updateBannerView_->startPolling();
     }
+}
+
+void Controller::pollArpLanePlayheads() {
+    // The processor writes the playhead parameters (a step index, or the 1.0 sentinel when the
+    // arp is off), so the lanes follow the parameters, not the host's transport flag: a host
+    // without transport still runs the arp, and a stopped transport leaves the sentinel or the
+    // last step as published (R-085, R-144).
+    auto pollLanePlayhead = [&](Krate::Plugins::IArpLane* lane,
+                                Steinberg::Vst::ParamID playheadParamId,
+                                int laneIdx) {
+        if (!lane) return;
+        auto* param = getParameterObject(playheadParamId);
+        if (!param) return;
+
+        constexpr long kMaxArpStepsL = static_cast<long>(kMaxArpSteps);
+        double normalized = param->getNormalized();
+        long rawStep = std::lround(normalized * kMaxArpStepsL);
+        int32_t step = rawStep >= kMaxArpStepsL ? -1 : static_cast<int32_t>(rawStep);
+
+        if (step != lastPolledSteps_[static_cast<size_t>(laneIdx)]) {
+            lastPolledSteps_[static_cast<size_t>(laneIdx)] = step;
+            if (step >= 0) {
+                laneTrailStates_[static_cast<size_t>(laneIdx)].advance(step);
+            }
+        }
+
+        laneTrailStates_[static_cast<size_t>(laneIdx)].clearPassedSkips();
+
+        auto& ts = laneTrailStates_[static_cast<size_t>(laneIdx)];
+        lane->setTrailSteps(ts.steps, Krate::Plugins::PlayheadTrailState::kTrailAlphas);
+        lane->setPlayheadStep(step);
+    };
+
+    pollLanePlayhead(velocityLane_, kArpVelocityPlayheadId, 0);
+    pollLanePlayhead(gateLane_, kArpGatePlayheadId, 1);
+    pollLanePlayhead(pitchLane_, kArpPitchPlayheadId, 2);
+    pollLanePlayhead(ratchetLane_, kArpRatchetPlayheadId, 3);
+    pollLanePlayhead(modifierLane_, kArpModifierPlayheadId, 4);
+    pollLanePlayhead(conditionLane_, kArpConditionPlayheadId, 5);
+    pollLanePlayhead(chordLane_, kArpChordPlayheadId, 6);
+    pollLanePlayhead(inversionLane_, kArpInversionPlayheadId, 7);
 }
 
 std::vector<std::pair<const char*, VSTGUI::CView*>> Controller::cachedViewPointerInventoryForTest() const {

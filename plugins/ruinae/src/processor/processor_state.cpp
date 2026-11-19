@@ -103,6 +103,9 @@ Steinberg::tresult PLUGIN_API Processor::getState(Steinberg::IBStream* state) {
     // Arpeggiator params (FR-011)
     saveArpParams(arpParams_, streamer);
 
+    // Voice LFO rate + shape (version 9+), appended after the arp pack
+    saveVoiceLfoParams(voiceLfoParams_, streamer);
+
     return Steinberg::kResultTrue;
 }
 
@@ -166,6 +169,8 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
         if (!loadLFO2Params(lfo2Params_, streamer)) return Steinberg::kResultTrue;
         if (!loadChaosModParams(chaosModParams_, streamer)) return Steinberg::kResultTrue;
         if (!loadModMatrixParams(modMatrixParams_, streamer)) return Steinberg::kResultTrue;
+        // Before v9 the Scale saturated the amount (R-053): keep the saved depth
+        if (version < 9) migratePreV9ModMatrixAmounts(modMatrixParams_);
         if (!loadGlobalFilterParams(globalFilterParams_, streamer)) return Steinberg::kResultTrue;
         if (!loadDelayParams(delayParams_, streamer)) return Steinberg::kResultTrue;
         if (!loadReverbParams(reverbParams_, streamer)) return Steinberg::kResultTrue;
@@ -207,6 +212,8 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
             r.bypass = static_cast<uint8_t>(i8);
             if (!streamer.readInt8(i8)) break;
             r.active = static_cast<uint8_t>(i8);
+            // Before v9: Scale saturated the amount and Filter Resonance spanned 1 Q
+            if (version < 9) r.amount = preV9VoiceRouteAmount(r.amount, r.destination, r.scale);
             ar.store(r);
         }
 
@@ -269,6 +276,9 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
 
         // Arpeggiator params
         loadArpParams(arpParams_, streamer, version);
+
+        // Voice LFO (version 9+); older states load 1 Hz Sine, their sound
+        loadVoiceLfoParams(voiceLfoParams_, streamer, version);
     }
 
     // --- Phase 2: Defer voiceRoutes + engine/arp reset to audio thread ---
@@ -318,6 +328,7 @@ void Processor::applyPresetSnapshot(const PresetSnapshot& snapshot) {
     if (!loadLFO2Params(lfo2Params_, streamer)) return;
     if (!loadChaosModParams(chaosModParams_, streamer)) return;
     if (!loadModMatrixParams(modMatrixParams_, streamer)) return;
+    if (version < 9) migratePreV9ModMatrixAmounts(modMatrixParams_);
     if (!loadGlobalFilterParams(globalFilterParams_, streamer)) return;
     if (!loadDelayParams(delayParams_, streamer)) return;
     if (!loadReverbParams(reverbParams_, streamer)) return;

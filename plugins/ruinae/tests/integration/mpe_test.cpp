@@ -85,10 +85,11 @@ public:
         events_.push_back(e);
     }
 
-    void addNoteExpression(int32_t noteId, uint32_t typeId, double value) {
+    void addNoteExpression(int32_t noteId, uint32_t typeId, double value,
+                           int32 sampleOffset = 0) {
         Event e{};
         e.type = Event::kNoteExpressionValueEvent;
-        e.sampleOffset = 0;
+        e.sampleOffset = sampleOffset;
         e.noteExpressionValue.noteId = noteId;
         e.noteExpressionValue.typeId = typeId;
         e.noteExpressionValue.value = value;
@@ -101,8 +102,16 @@ private:
     std::vector<Event> events_;
 };
 
+namespace {
+// Exposes the read-only engine accessor for tests that assert on voice state.
+class MpeTestProcessor : public Ruinae::Processor {
+public:
+    using Ruinae::Processor::engine;
+};
+} // namespace
+
 struct TestProcessor {
-    Ruinae::Processor proc;
+    MpeTestProcessor proc;
     std::vector<float> outL = std::vector<float>(static_cast<size_t>(kBlockSize), 0.0f);
     std::vector<float> outR = std::vector<float>(static_cast<size_t>(kBlockSize), 0.0f);
     float* channels[2];
@@ -388,4 +397,116 @@ TEST_CASE("MPE: pitch bend + expression tuning combine", "[mpe][integration]") {
     // Should still produce audio (both applied without crashing)
     REQUIRE(t.hasAudio());
     REQUIRE(t.rmsMono() > 0.001f);
+}
+
+// =============================================================================
+// Phase 4: noteId bookkeeping addresses the sounding note (R-035, R-168, R-167, R-036)
+// =============================================================================
+
+namespace {
+
+constexpr int kBlocksPer500Ms = static_cast<int>(0.5 * 44100.0 / kBlockSize) + 1;
+
+/// Voice 0's sounding pitch in Hz: its note frequency times its MPE tuning offset.
+double monoVoicePitchHz(const TestProcessor& t) {
+    const auto& voice = t.proc.engine().getVoice(0);
+    return static_cast<double>(voice.getNoteFrequency()) *
+           std::pow(2.0, static_cast<double>(voice.expressionTuning()) / 12.0);
+}
+
+double centsBetween(double a, double b) { return 1200.0 * std::log2(a / b); }
+
+} // namespace
+
+TEST_CASE("NoteId_SupersededNoteOff_DoesNotCutTheNewNote", "[integration][mpe][noteid]") {
+    TestProcessor t;
+
+    t.eventList.addNoteOn(60, 0.8f, 1);
+    t.processBlocks(10);
+    t.eventList.addNoteOn(60, 0.8f, 2);  // same pitch, new noteId, while id 1 is held
+    t.processBlocks(10);
+    const float sustainRms = t.rmsMono();
+    REQUIRE(sustainRms > 0.001f);
+
+    // Note 1 ends: it no longer owns a voice, so note 2 must keep sounding.
+    t.eventList.addNoteOff(60, 1);
+    t.processBlocks(kBlocksPer500Ms);
+
+    INFO("sustain RMS " << sustainRms << ", RMS 500 ms after the stale note-off " << t.rmsMono());
+    REQUIRE(t.rmsMono() >= 0.5f * sustainRms);
+}
+
+TEST_CASE("NoteId_MonoLegato_ExpressionFollowsTheSoundingNote", "[integration][mpe][noteid]") {
+    TestProcessor t;
+    t.paramChanges.addChange(Ruinae::kVoiceModeId, 1.0);   // Mono
+    t.paramChanges.addChange(Ruinae::kMonoLegatoId, 1.0);  // Legato on
+    t.processBlocks(2);
+    t.paramChanges.clear();
+
+    const double c3 = 440.0 * std::pow(2.0, (48.0 - 69.0) / 12.0);
+
+    t.eventList.addNoteOn(48, 0.8f, 1);
+    t.processBlocks(5);
+    t.eventList.addNoteOn(52, 0.8f, 2);
+    t.processBlocks(5);
+    t.eventList.addNoteExpression(2, NoteExpressionTypeIDs::kTuningTypeID, 0.5 + 1.0 / 240.0);
+    t.processBlocks(5);
+    t.eventList.addNoteOff(52, 2);  // back to the held C3
+    t.processBlocks(kBlocksPer500Ms);  // past any glide back to C3
+
+    const double pitchAfterReturn = monoVoicePitchHz(t);
+    INFO("pitch after returning to C3: " << pitchAfterReturn << " Hz, C3 = " << c3 << " Hz");
+    REQUIRE(std::abs(centsBetween(pitchAfterReturn, c3)) <= 1.0);
+
+    // The held note's own finger still bends it.
+    t.eventList.addNoteExpression(1, NoteExpressionTypeIDs::kTuningTypeID, 0.5 + 2.0 / 240.0);
+    t.processBlocks(5);
+    const double pitchAfterBend = monoVoicePitchHz(t);
+    INFO("pitch after a +2 st tuning expression on id 1: " << pitchAfterBend << " Hz");
+    REQUIRE(std::abs(centsBetween(pitchAfterBend, c3) - 200.0) <= 1.0);
+}
+
+TEST_CASE("NoteId_TinyVelocity_IsANoteOn", "[integration][mpe][noteid]") {
+    TestProcessor t;
+
+    t.eventList.addNoteOn(60, 0.8f, 1);
+    t.processBlocks(10);
+    t.eventList.addNoteOn(64, 0.003f, 2);  // positive VST3 velocity: a note-on
+    t.processBlocks(5);
+    t.eventList.addNoteOff(64, 2);
+    t.processBlocks(5);
+
+    // The held 60 keeps its gate and its envelope is not in release.
+    const auto& engine = t.proc.engine();
+    int voice60 = -1;
+    for (size_t i = 0; i < Krate::DSP::RuinaeEngine::kMaxPolyphony; ++i) {
+        if (engine.gatedVoiceNoteForTest(i) == 60) voice60 = static_cast<int>(i);
+    }
+    REQUIRE(voice60 >= 0);
+    CHECK(engine.getVoiceAmpEnvelope(static_cast<size_t>(voice60)).getStage() !=
+          Krate::DSP::ADSRStage::Release);
+    CHECK(engine.isVoiceActive(static_cast<size_t>(voice60)));
+
+    // Releasing 60 frees every allocator slot once the release (200 ms) has run.
+    t.eventList.addNoteOff(60, 1);
+    t.processBlocks(4 * kBlocksPer500Ms);
+    REQUIRE(t.proc.engineActiveVoiceCountForTest() == 0);
+}
+
+TEST_CASE("NoteExpression_IgnoredTypes_DoNotSplitSegments", "[integration][mpe][noteid]") {
+    TestProcessor t;
+
+    t.eventList.addNoteOn(60, 0.8f, 1);
+    t.processBlocks(5);
+
+    // 500 pan expressions, each at its own sample: pan is not applied by the
+    // engine, so none of them may split the render.
+    for (int32 i = 0; i < 500; ++i) {
+        t.eventList.addNoteExpression(1, NoteExpressionTypeIDs::kPanTypeID, 0.25, i);
+    }
+    const uint64_t before = t.proc.engineRenderCallsForTest();
+    t.processBlocks(1);
+    const uint64_t calls = t.proc.engineRenderCallsForTest() - before;
+    INFO("engine processBlock calls for the buffer: " << calls);
+    REQUIRE(calls == 1);
 }

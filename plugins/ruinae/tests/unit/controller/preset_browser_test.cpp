@@ -32,7 +32,13 @@
 
 #include "vstgui/uidescription/uiattributes.h"
 
+#include "test_helpers/uidesc_reachability.h"
+
 #include <algorithm>
+#include <filesystem>
+#include <fstream>
+#include <iterator>
+#include <string>
 #include <vector>
 
 using Catch::Approx;
@@ -575,3 +581,45 @@ TEST_CASE("createCustomView handles both PresetBrowserButton and SavePresetButto
 // =============================================================================
 // (Already covered by T013 test: "openPresetBrowser is no-op when
 // presetBrowserView_ is null" at line ~375 -- no additional test needed)
+
+// =============================================================================
+// R-087: every factory preset folder maps to a browser tab
+// =============================================================================
+TEST_CASE("Every factory preset folder maps to a browser tab", "[controller][presets]") {
+    const auto cfg = Ruinae::makeRuinaePresetConfig();
+    const auto mainTabs = Ruinae::getRuinaeTabLabels();
+    const auto arpTabs = Ruinae::getRuinaeArpTabLabels();
+
+    const std::filesystem::path presetsDir =
+        std::filesystem::path(RUINAE_RESOURCES_DIR) / "presets";
+    REQUIRE(std::filesystem::is_directory(presetsDir));
+
+    int folders = 0;
+    for (const auto& entry : std::filesystem::directory_iterator(presetsDir)) {
+        if (!entry.is_directory()) continue;
+        ++folders;
+        const std::string name = entry.path().filename().string();
+        INFO("preset folder: " << name);
+        CHECK(std::find(cfg.subcategoryNames.begin(), cfg.subcategoryNames.end(), name) !=
+              cfg.subcategoryNames.end());
+        const bool inMain = std::find(mainTabs.begin(), mainTabs.end(), name) != mainTabs.end();
+        const bool inArp = std::find(arpTabs.begin(), arpTabs.end(), name) != arpTabs.end();
+        CHECK((inMain || inArp));
+    }
+    CHECK(folders > 0);
+}
+
+// =============================================================================
+// R-088: Arp Accent Velocity / Slide Time / Voicing have a control in the editor
+// =============================================================================
+TEST_CASE("Arp accent velocity, slide time and voicing are bound in the editor",
+          "[controller][arp][uidesc]") {
+    std::ifstream in(std::string(RUINAE_RESOURCES_DIR) + "/editor.uidesc", std::ios::binary);
+    REQUIRE(in.good());
+    const std::string xml((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+
+    const std::vector<int> ids = {Ruinae::kArpAccentVelocityId, Ruinae::kArpSlideTimeId,
+                                  Ruinae::kArpVoicingModeId};
+    const auto missing = Krate::Test::unreachableParams(xml, ids);
+    CHECK(missing.empty());
+}

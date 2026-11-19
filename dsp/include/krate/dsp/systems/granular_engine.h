@@ -39,6 +39,7 @@ public:
     /// @param maxDelaySeconds Maximum delay buffer length in seconds
     void prepare(double sampleRate, float maxDelaySeconds = kDefaultMaxDelaySeconds) noexcept {
         sampleRate_ = sampleRate;
+        maxPositionMs_ = maxDelaySeconds * 1000.0f;
 
         // Prepare delay buffers
         delayL_.prepare(sampleRate, maxDelaySeconds);
@@ -109,9 +110,9 @@ public:
         pitchSpray_ = std::clamp(amount, 0.0f, 1.0f);
     }
 
-    /// Set base delay position in milliseconds (0-2000ms)
+    /// Set base delay position in milliseconds (0 to the maxDelaySeconds given to prepare())
     void setPosition(float ms) noexcept {
-        positionMs_ = std::clamp(ms, 0.0f, 2000.0f);
+        positionMs_ = std::clamp(ms, 0.0f, maxPositionMs_);
         positionSmoother_.setTarget(positionMs_);
     }
 
@@ -336,6 +337,7 @@ private:
     float pitchSemitones_ = 0.0f;
     float pitchSpray_ = 0.0f;
     float positionMs_ = 500.0f;
+    float maxPositionMs_ = kDefaultMaxDelaySeconds * 1000.0f;
     float positionSpray_ = 0.0f;
     float reverseProbability_ = 0.0f;
     float panSpray_ = 0.0f;

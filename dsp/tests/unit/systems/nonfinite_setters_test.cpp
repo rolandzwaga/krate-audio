@@ -286,6 +286,32 @@ TEST_CASE("DSP setters ignore non-finite input", "[ieee][robustness]") {
             CHECK(noteOffs <= 11);
         }
 
+        DYNAMIC_SECTION(name << ": ArpeggiatorCore::setRateScale keeps the previous scale") {
+            ArpeggiatorCore arp;
+            arp.prepare(kNfsRate, kNfsBlock);
+            arp.setEnabled(true);
+            arp.setMode(ArpMode::Up);
+            arp.setTempoSync(true);
+            arp.setNoteValue(NoteValue::Eighth, NoteModifier::None);
+            arp.setGateLength(50.0f);
+            arp.setRateScale(2.0f);
+            arp.setRateScale(bad);
+            arp.noteOn(48, 100);
+
+            // One second of 1/8 at 120 BPM (4 steps) at scale 2: eight steps.
+            const BlockContext ctx = nfsContext();
+            std::array<ArpEvent, ArpeggiatorCore::kMaxEvents> events{};
+            int noteOns = 0;
+            for (size_t done = 0; done < static_cast<size_t>(kNfsRate); done += kNfsBlock) {
+                const size_t n = arp.processBlock(ctx, events);
+                for (size_t i = 0; i < n; ++i) {
+                    if (events[i].type == ArpEvent::Type::NoteOn) ++noteOns;
+                }
+            }
+            CHECK(noteOns >= 7);
+            CHECK(noteOns <= 9);
+        }
+
         DYNAMIC_SECTION(name << ": ArpeggiatorCore::setLaneSpeed keeps the previous speed") {
             ArpeggiatorCore arp;
             arp.prepare(kNfsRate, kNfsBlock);

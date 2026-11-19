@@ -14,6 +14,9 @@
 
 #include <krate/dsp/effects/spectral_delay.h>
 #include <krate/dsp/core/block_context.h>
+#include <krate/dsp/primitives/fft.h>
+
+#include <allocation_detector.h>
 
 #include <algorithm>
 #include <array>
@@ -2932,5 +2935,213 @@ TEST_CASE("SpectralDelay dry/wet smoother reaches its designed time constant in 
             CHECK(minRatio >= 0.5);
             CHECK(maxRatio <= 2.0);
         }
+    }
+}
+
+// =============================================================================
+// FFT size changes on a prepared delay (Ruinae audit R-058)
+// =============================================================================
+// setFFTSize() on a prepared delay used to rewrite fftSize_ only: the STFT, the
+// spectra, the per-bin delay lines and hopSize_ kept the prepare-time size, while
+// readDelayedSpectrum's expected phase advance and getLatencySamples() read the
+// new one. A live FFT Size control therefore never changed the resolution and
+// mis-projected the phase of every fractional-frame read.
+
+namespace {
+
+constexpr double kFftSwitchSampleRate = 44100.0;
+constexpr std::size_t kFftSwitchBlock = 512;
+
+/// A delay with uniform 300 ms delay, no feedback, 100 % wet. 300 ms is a
+/// fractional number of frames at every FFT size (5.46 frames at 4096).
+void configureFftSwitchDelay(SpectralDelay& d, std::size_t fftSize) {
+    d.setFFTSize(fftSize);
+    d.prepare(kFftSwitchSampleRate, kFftSwitchBlock);
+    d.seedRng(1);
+    d.setBaseDelayMs(300.0f);
+    d.setSpreadMs(0.0f);
+    d.setFeedback(0.0f);
+    d.setDryWetMix(1.0f);
+    d.snapParameters();
+}
+
+std::vector<float> makeFftSwitchTone(std::size_t numSamples) {
+    std::vector<float> tone(numSamples);
+    generateSine(tone.data(), numSamples, 1000.0f, static_cast<float>(kFftSwitchSampleRate), 0.5f);
+    return tone;
+}
+
+/// Bins within 6 dB of the peak of an 8192-point Hann-windowed spectrum
+int peakWidthBins(const float* signal) {
+    constexpr std::size_t kN = 8192;
+    std::vector<float> windowed(kN);
+    for (std::size_t i = 0; i < kN; ++i) {
+        const double w = 0.5 - 0.5 * std::cos(6.283185307179586 * static_cast<double>(i)
+                                              / static_cast<double>(kN - 1));
+        windowed[i] = signal[i] * static_cast<float>(w);
+    }
+    FFT fft;
+    fft.prepare(kN);
+    std::vector<Complex> spectrum(kN / 2 + 1);
+    fft.forward(windowed.data(), spectrum.data());
+    float peak = 0.0f;
+    for (const auto& c : spectrum) peak = std::max(peak, c.magnitude());
+    int width = 0;
+    for (const auto& c : spectrum) {
+        if (c.magnitude() >= 0.5f * peak) ++width;
+    }
+    return width;
+}
+
+float maxStep(const std::vector<float>& x, std::size_t begin, std::size_t end) {
+    float m = 0.0f;
+    for (std::size_t i = begin + 1; i < end; ++i) m = std::max(m, std::abs(x[i] - x[i - 1]));
+    return m;
+}
+
+}  // namespace
+
+TEST_CASE("SpectralDelay FFT size change is applied consistently", "[effects][spectral-delay]") {
+    constexpr std::size_t kTotal = static_cast<std::size_t>(4.0 * kFftSwitchSampleRate);
+    constexpr std::size_t kRequestBlock = static_cast<std::size_t>(1.0 * kFftSwitchSampleRate) / kFftSwitchBlock;
+    constexpr std::size_t kCompare = static_cast<std::size_t>(2.5 * kFftSwitchSampleRate);
+    const std::vector<float> tone = makeFftSwitchTone(kTotal);
+
+    // A: prepared at 1024, asked for 4096 while running
+    SpectralDelay a;
+    configureFftSwitchDelay(a, 1024);
+    std::vector<float> outA(kTotal, 0.0f);
+    std::vector<float> l(kFftSwitchBlock);
+    std::vector<float> r(kFftSwitchBlock);
+    const std::size_t numBlocks = kTotal / kFftSwitchBlock;
+    std::size_t switchBlock = numBlocks;
+    std::size_t allocations = 0;
+    std::size_t probe = 0;
+    const BlockContext ctx = makeTestContext(kFftSwitchSampleRate);
+    {
+        TestHelpers::AllocationScope scope;
+        TestHelpers::allocateObservably();  // non-vacuity: the detector counts in this binary
+        probe = TestHelpers::AllocationDetector::instance().getAllocationCount();
+        for (std::size_t b = 0; b < numBlocks; ++b) {
+            if (b == kRequestBlock) a.setFFTSize(4096);
+            const std::size_t sizeBefore = a.getFFTSize();
+            std::copy_n(tone.begin() + static_cast<std::ptrdiff_t>(b * kFftSwitchBlock), kFftSwitchBlock, l.begin());
+            std::copy_n(l.begin(), kFftSwitchBlock, r.begin());
+            a.process(l.data(), r.data(), kFftSwitchBlock, ctx);
+            std::copy_n(l.begin(), kFftSwitchBlock, outA.begin() + static_cast<std::ptrdiff_t>(b * kFftSwitchBlock));
+            if (switchBlock == numBlocks && b >= kRequestBlock && a.getFFTSize() == 4096) {
+                // a size applied at the start of block b; one that shows up
+                // before any process() call counts from the request block
+                switchBlock = (sizeBefore == 4096) ? kRequestBlock : b;
+            }
+        }
+        allocations = TestHelpers::AllocationDetector::instance().getAllocationCount() - probe;
+    }
+    REQUIRE(probe >= 1);
+    REQUIRE(switchBlock < numBlocks);
+    REQUIRE(a.getFFTSize() == 4096);
+    REQUIRE(a.getLatencySamples() == 4096);
+    CHECK(allocations == 0);
+
+    const std::size_t switchStart = switchBlock * kFftSwitchBlock;
+    REQUIRE(switchStart + kCompare <= kTotal);
+
+    // B: prepared at 4096, fed the same input from the moment A switched
+    SpectralDelay bDelay;
+    configureFftSwitchDelay(bDelay, 4096);
+    const std::size_t compared = (kCompare / kFftSwitchBlock) * kFftSwitchBlock;
+    std::vector<float> outB(compared, 0.0f);
+    for (std::size_t b = 0; b < compared / kFftSwitchBlock; ++b) {
+        std::copy_n(tone.begin() + static_cast<std::ptrdiff_t>(switchStart + b * kFftSwitchBlock),
+                    kFftSwitchBlock, l.begin());
+        std::copy_n(l.begin(), kFftSwitchBlock, r.begin());
+        bDelay.process(l.data(), r.data(), kFftSwitchBlock, ctx);
+        std::copy_n(l.begin(), kFftSwitchBlock, outB.begin() + static_cast<std::ptrdiff_t>(b * kFftSwitchBlock));
+    }
+
+    // After the switch A is a 4096-point delay: same echo, same level, same resolution
+    float maxDiff = 0.0f;
+    for (std::size_t i = 0; i < compared; ++i) {
+        maxDiff = std::max(maxDiff, std::abs(outA[switchStart + i] - outB[i]));
+    }
+    const std::size_t tail = compared - static_cast<std::size_t>(1.0 * kFftSwitchSampleRate);
+    const float rmsA = calculateRMS(outA.data() + switchStart + tail, compared - tail);
+    const float rmsB = calculateRMS(outB.data() + tail, compared - tail);
+    INFO("switch at block " << switchBlock << ", max |A - B| " << maxDiff
+         << ", RMS A " << rmsA << " B " << rmsB);
+    REQUIRE(rmsB > 0.1f);
+    CHECK(maxDiff <= 1.0e-4f);
+    CHECK(std::abs(20.0f * std::log10(rmsA / rmsB)) <= 1.0f);
+    CHECK(peakWidthBins(outA.data() + switchStart + tail) == peakWidthBins(outB.data() + tail));
+}
+
+TEST_CASE("SpectralDelay FFT size change fades the wet path instead of clicking",
+          "[effects][spectral-delay]") {
+    constexpr std::size_t kTotal = static_cast<std::size_t>(2.0 * kFftSwitchSampleRate);
+    constexpr std::size_t kEarliestRequestBlock =
+        static_cast<std::size_t>(1.0 * kFftSwitchSampleRate) / kFftSwitchBlock;
+    const std::vector<float> tone = makeFftSwitchTone(kTotal);
+    const BlockContext ctx = makeTestContext(kFftSwitchSampleRate);
+
+    const auto run = [&](std::size_t from, std::size_t to) {
+        SpectralDelay d;
+        configureFftSwitchDelay(d, from);
+        std::vector<float> out(kTotal, 0.0f);
+        std::vector<float> l(kFftSwitchBlock);
+        std::vector<float> r(kFftSwitchBlock);
+        const std::size_t steadyBegin = kEarliestRequestBlock * kFftSwitchBlock / 2;
+        float steadyPeak = 0.0f;
+        std::size_t request = 0;
+        for (std::size_t b = 0; b < kTotal / kFftSwitchBlock; ++b) {
+            const std::size_t start = b * kFftSwitchBlock;
+            // Request the switch where the wet output is near its peak, the worst
+            // place to cut it: a switch that does not fade jumps by ~the peak.
+            if (request == 0 && b >= kEarliestRequestBlock
+                && std::abs(out[start - 1]) >= 0.8f * steadyPeak) {
+                d.setFFTSize(to);
+                request = start;
+            }
+            std::copy_n(tone.begin() + static_cast<std::ptrdiff_t>(start), kFftSwitchBlock, l.begin());
+            std::copy_n(l.begin(), kFftSwitchBlock, r.begin());
+            d.process(l.data(), r.data(), kFftSwitchBlock, ctx);
+            std::copy_n(l.begin(), kFftSwitchBlock, out.begin() + static_cast<std::ptrdiff_t>(start));
+            if (request == 0 && start >= steadyBegin) {
+                for (std::size_t i = 0; i < kFftSwitchBlock; ++i) {
+                    steadyPeak = std::max(steadyPeak, std::abs(l[i]));
+                }
+            }
+        }
+        REQUIRE(request > 0);
+        REQUIRE(request + kTotal / 4 <= kTotal);  // at least 0.5 s rendered after the request
+        const std::size_t end = (kTotal / kFftSwitchBlock) * kFftSwitchBlock;
+        const float steady = maxStep(out, steadyBegin, request);
+        const float across = maxStep(out, request - 1, end);
+        INFO(from << " -> " << to << ": request at sample " << request << ", steady peak " << steadyPeak
+             << ", steady max step " << steady << ", across switch " << across);
+        REQUIRE(steady > 0.01f);
+        CHECK(d.getFFTSize() == to);
+        CHECK(across <= 1.5f * steady);
+    };
+
+    SECTION("1024 -> 4096") { run(1024, 4096); }
+    SECTION("4096 -> 512") { run(4096, 512); }
+}
+
+// R-094 (Ruinae audit): the base delay range follows prepare()'s maxDelayMs; the default keeps
+// the 2000 ms limit.
+TEST_CASE("SpectralDelay base delay range follows the prepared maximum", "[spectral-delay][FR-006]") {
+    SECTION("prepared for 5000 ms, a 3000 ms base delay is kept") {
+        SpectralDelay delay;
+        delay.prepare(44100.0, 512, 5000.0f);
+        delay.setBaseDelayMs(3000.0f);
+        REQUIRE(delay.getBaseDelayMs() == Approx(3000.0f));
+        delay.setBaseDelayMs(9000.0f);
+        REQUIRE(delay.getBaseDelayMs() == Approx(5000.0f));
+    }
+    SECTION("default prepare stops a 3000 ms base delay at 2000 ms") {
+        SpectralDelay delay;
+        delay.prepare(44100.0, 512);
+        delay.setBaseDelayMs(3000.0f);
+        REQUIRE(delay.getBaseDelayMs() == Approx(SpectralDelay::kMaxDelayMs));
     }
 }

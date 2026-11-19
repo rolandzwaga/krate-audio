@@ -17,11 +17,19 @@
 #include "view_lifecycle_rig.h"
 
 #include "ui/arp_lane_editor.h"
+#include "ui/arp_lane_header.h"
+#include "ui/mod_matrix_grid.h"
+
+#include "pluginterfaces/vst/ivsteditcontroller.h"
 
 #include <catch2/catch_test_macros.hpp>
 
 #include <cmath>
 #include <initializer_list>
+#include <set>
+#include <string>
+#include <utility>
+#include <vector>
 
 using namespace RuinaeViewLifecycleTest;
 
@@ -158,4 +166,103 @@ TEST_CASE("Host-driven MainTab change keeps the incoming tab's pointers", "[cont
     CHECK(std::abs(static_cast<double>(velocity->getStepLevel(0)) - next) < 1e-3);
 
     checkMatchesFreshOpen(rig, {{Ruinae::kMainTabTag, kTabSeq}});
+}
+
+namespace {
+
+/// Records the parameter ids the controller reports through performEdit.
+class PerformEditRecorder final : public Steinberg::Vst::IComponentHandler {
+public:
+    std::set<Steinberg::Vst::ParamID> performed;
+
+    Steinberg::tresult PLUGIN_API beginEdit(Steinberg::Vst::ParamID /*id*/) override { return Steinberg::kResultOk; }
+    Steinberg::tresult PLUGIN_API performEdit(Steinberg::Vst::ParamID id,
+                                              Steinberg::Vst::ParamValue /*value*/) override {
+        performed.insert(id);
+        return Steinberg::kResultOk;
+    }
+    Steinberg::tresult PLUGIN_API endEdit(Steinberg::Vst::ParamID /*id*/) override { return Steinberg::kResultOk; }
+    Steinberg::tresult PLUGIN_API restartComponent(Steinberg::int32 /*flags*/) override {
+        return Steinberg::kResultOk;
+    }
+    Steinberg::tresult PLUGIN_API queryInterface(const Steinberg::TUID /*iid*/, void** obj) override {
+        *obj = nullptr;
+        return Steinberg::kNoInterface;
+    }
+    // Owned by the test case's stack frame.
+    Steinberg::uint32 PLUGIN_API addRef() override { return 1; }
+    Steinberg::uint32 PLUGIN_API release() override { return 1; }
+};
+
+/// A left click on the ShiftLeft transform button of a lane's header, the way the lane receives it.
+/// ArpLaneHeader lays the four buttons out from the right: [Invert][ShiftLeft][ShiftRight][Randomize].
+void clickShiftLeft(VSTGUI::CView* lane) {
+    using Header = Krate::Plugins::ArpLaneHeader;
+    const VSTGUI::CRect vs = lane->getViewSize();
+    const double pitch = static_cast<double>(Header::kButtonSize + Header::kButtonGap);
+    VSTGUI::CPoint where(vs.right - static_cast<double>(Header::kButtonsRightMargin) - 2.0 * pitch -
+                             static_cast<double>(Header::kButtonSize) / 2.0,
+                         vs.top + static_cast<double>(Header::kHeight) / 2.0);
+    lane->onMouseDown(where, VSTGUI::CButtonState(VSTGUI::kLButton));
+}
+
+const std::vector<std::pair<const char*, Steinberg::Vst::ParamID>>& laneStepBases() {
+    static const std::vector<std::pair<const char*, Steinberg::Vst::ParamID>> lanes{
+        {"velocityLane_", Ruinae::kArpVelocityLaneStep0Id},   {"gateLane_", Ruinae::kArpGateLaneStep0Id},
+        {"pitchLane_", Ruinae::kArpPitchLaneStep0Id},         {"ratchetLane_", Ruinae::kArpRatchetLaneStep0Id},
+        {"modifierLane_", Ruinae::kArpModifierLaneStep0Id},   {"conditionLane_", Ruinae::kArpConditionLaneStep0Id},
+        {"chordLane_", Ruinae::kArpChordLaneStep0Id},         {"inversionLane_", Ruinae::kArpInversionLaneStep0Id}};
+    return lanes;
+}
+
+}  // namespace
+
+// R-086: the lane transform buttons and the voice route-removed callback belong to live views. They must work
+// through the view that owns them, never through a controller member another path nulls while the view lives
+// (terminate() with the editor still open clears every cached pointer; a null deref there is a crash).
+TEST_CASE("Lane transform and voice route-removed callbacks work through their own views",
+          "[controller][lifecycle]") {
+    SECTION("arp lane transform buttons") {
+        PerformEditRecorder handler;
+        ViewLifecycleRig rig;  // Tab_Sound
+        rig.ctl.setComponentHandler(&handler);
+        rig.ctl.setParamNormalized(Ruinae::kMainTabTag, kTabSeq);  // host-driven tab change
+
+        std::vector<std::pair<VSTGUI::CView*, Steinberg::Vst::ParamID>> lanes;
+        for (const auto& [name, stepBase] : laneStepBases()) {
+            INFO(name);
+            VSTGUI::CView* lane = rig.pointer(name);
+            REQUIRE(rig.isLive(lane));
+            lanes.emplace_back(lane, stepBase);
+        }
+
+        for (const auto& [lane, stepBase] : lanes) {
+            INFO("lane step base " << stepBase);
+            clickShiftLeft(lane);
+            CHECK(handler.performed.count(stepBase) == 1);  // the click reached the transform callback
+        }
+
+        // A host may terminate the controller before it closes the editor: the lanes stay alive and clickable.
+        REQUIRE(rig.ctl.terminate() == Steinberg::kResultOk);
+        for (const auto& [lane, stepBase] : lanes) {
+            INFO("lane step base " << stepBase);
+            REQUIRE(rig.isLive(lane));
+            clickShiftLeft(lane);
+        }
+    }
+
+    SECTION("voice route removed") {
+        ViewLifecycleRig rig;  // Tab_Sound
+        rig.ctl.setParamNormalized(Ruinae::kMainTabTag, kTabMod);  // host-driven tab change
+
+        auto* grid = dynamic_cast<Krate::Plugins::ModMatrixGrid*>(rig.pointer("modMatrixGrid_"));
+        REQUIRE(grid != nullptr);
+        REQUIRE(rig.isLive(grid));
+        grid->setActiveTab(1);  // Voice routes
+        grid->removeRoute(0);
+
+        REQUIRE(rig.ctl.terminate() == Steinberg::kResultOk);
+        REQUIRE(rig.isLive(grid));
+        grid->removeRoute(0);
+    }
 }

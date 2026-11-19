@@ -718,3 +718,52 @@ TEST_CASE("GranularDelay passes a centred, overlapped grain stream at unity",
     }
 }
 
+namespace {
+
+/// Feeds a 200 ms burst at 0.5 into a wet-only delay set to `delayMs` and returns the time in ms
+/// of the first output sample above 0.05.
+double firstEchoMs(float maxDelaySeconds, float delayMs) {
+    constexpr size_t kBlock = 512;
+    constexpr double kSampleRate = 48000.0;
+    GranularDelay delay;
+    delay.prepare(kSampleRate, maxDelaySeconds);
+    delay.seed(7);
+    delay.setDensity(100.0f);  // 100 ms grains overlap 10x: no gap the burst onset can fall into
+    delay.setJitter(0.0f);
+    delay.setFeedback(0.0f);
+    delay.setDryWet(1.0f);
+    delay.setDelayTime(delayMs);
+    delay.reset();
+
+    std::array<float, kBlock> inL{}, inR{}, outL{}, outR{};
+    const auto burstEnd = static_cast<size_t>(0.2 * kSampleRate);
+    for (size_t start = 0; start < static_cast<size_t>(kSampleRate * 6.0); start += kBlock) {
+        for (size_t i = 0; i < kBlock; ++i) {
+            const float v = (start + i < burstEnd) ? 0.5f : 0.0f;
+            inL[i] = v;
+            inR[i] = v;
+        }
+        delay.process(inL.data(), inR.data(), outL.data(), outR.data(), kBlock);
+        for (size_t i = 0; i < kBlock; ++i) {
+            if (std::abs(outL[i]) > 0.05f) {
+                return static_cast<double>(start + i) * 1000.0 / kSampleRate;
+            }
+        }
+    }
+    return -1.0;
+}
+
+} // namespace
+
+// R-094 (Ruinae audit): the delay time range follows prepare()'s buffer length; the default
+// buffer keeps the 2000 ms limit.
+TEST_CASE("GranularDelay delay time range follows the prepared buffer",
+          "[features][granular-delay][layer4]") {
+    SECTION("a 5 s buffer gives a 3000 ms echo") {
+        REQUIRE(firstEchoMs(5.0f, 3000.0f) == Approx(3000.0).margin(2.0));
+    }
+    SECTION("the default 2 s buffer stops a 3000 ms time at 2000 ms") {
+        REQUIRE(firstEchoMs(GranularDelay::kMaxDelaySeconds, 3000.0f) == Approx(2000.0).margin(2.0));
+    }
+}
+

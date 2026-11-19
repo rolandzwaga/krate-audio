@@ -611,6 +611,15 @@ Detects transient attacks in the signal and generates a trigger/envelope in resp
 | **Attack** | Rise time of the generated envelope |
 | **Decay** | Fall time of the generated envelope |
 
+#### Voice LFO
+
+The Voice LFO is a separate LFO inside every voice, available as the **Voice LFO** source of the per-voice routes. It restarts at each note, so each voice gets its own vibrato or wobble. Its two controls sit at the top of the Modulation Sources panel, to the right of the source selector.
+
+| Control | Description |
+|---------|-------------|
+| **Rate** | 0.01–50 Hz (default 1 Hz) |
+| **Shape** | Sine, Triangle, Sawtooth, Square, Sample & Hold or Smooth Random (default Sine) |
+
 ---
 
 ### Modulation Matrix
@@ -912,7 +921,7 @@ A stereo reverb with two algorithm types for spatial processing.
 | **Mix** | Dry/wet blend |
 | **Pre-Delay** | Time before the first reflections arrive. Separates the dry signal from the reverb tail for clarity. |
 | **Diffusion** | Density of early reflections. Higher values create a smoother, more blended reverb. |
-| **Freeze** | Freeze the reverb tail — the current decay sustains indefinitely while new input is muted. Great for ambient textures. |
+| **Freeze** | Freeze the reverb tail — the current decay sustains indefinitely while new input is muted. Great for ambient textures. A **Type** change made while Freeze is on waits until Freeze is released, so the frozen sound is kept; the new type then fades in. |
 | **Mod Rate** | Internal modulation speed — subtle pitch modulation within the reverb to reduce metallic artifacts |
 | **Mod Depth** | Intensity of internal modulation |
 
@@ -1094,7 +1103,7 @@ Access the settings drawer by clicking the gear icon in the top bar. These setti
 | **Velocity Curve** | How MIDI velocity maps to internal velocity (linear, soft, hard, etc.) |
 | **Tuning Reference** | Concert pitch reference frequency (default: 440 Hz) |
 | **Voice Allocation** | How new voices are assigned: Round Robin, Oldest, Lowest Velocity, or Highest Note |
-| **Voice Steal Mode** | Which voice is stolen when polyphony is exceeded |
+| **Voice Steal Mode** | What happens to the stolen voice when polyphony is exceeded (Voice Allocation picks which one). **Hard**: the old note fades out over 2 ms and the new note starts from silence with its full attack. **Soft**: the new note takes the voice over from the old note's current level, without a gap |
 | **Gain Compensation** | Automatic volume compensation based on active voice count |
 
 ---

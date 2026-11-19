@@ -32,6 +32,7 @@ add_executable(ruinae_tests
 
     # Plugin Shell Tests (045-plugin-shell)
     unit/processor_bus_test.cpp
+    unit/processor_host_contract_test.cpp
     unit/param_denorm_test.cpp
     unit/state_roundtrip_test.cpp
     unit/state_migration_test.cpp

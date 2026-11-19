@@ -175,7 +175,9 @@ public:
 
     static constexpr size_t kNumHeads = 3;           ///< Number of playback heads
     static constexpr float kMinDelayMs = 20.0f;      ///< Minimum delay (FR-002)
-    static constexpr float kMaxDelayMs = 2000.0f;    ///< Maximum delay (FR-002)
+    /// Upper bound for prepare()'s maxDelayMs (FR-002). Was 2000; raised so a host that prepares
+    /// for 5 s (Ruinae, R-094) gets it. A caller preparing for 2000 ms is unchanged.
+    static constexpr float kMaxDelayMs = 5000.0f;
     static constexpr float kHeadRatio1 = 1.0f;       ///< Head 1 timing ratio
     static constexpr float kHeadRatio2 = 1.5f;       ///< Head 2 timing ratio
     static constexpr float kHeadRatio3 = 2.0f;       ///< Head 3 timing ratio
@@ -278,7 +280,7 @@ public:
     // =========================================================================
 
     /// @brief Set delay time (Motor Speed control)
-    /// @param ms Delay time in milliseconds [20, 2000]
+    /// @param ms Delay time in milliseconds [20, the maxDelayMs given to prepare()]
     /// @note Changes smoothly with motor inertia (200-500ms transition)
     /// @note FR-007: Also updates wow rate (inversely proportional to delay)
     void setMotorSpeed(float ms) noexcept {

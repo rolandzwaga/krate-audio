@@ -1969,3 +1969,283 @@ TEST_CASE("RuinaeEngine: legato chord glides N voices", "[ruinae-engine][legato]
     REQUIRE(rms < 1e-4f);
     REQUIRE(engine->getActiveVoiceCount() == 0);
 }
+
+// =============================================================================
+// R-047: engine-level modulation must not step on the 64-sample sub-block grid
+// =============================================================================
+// The engine reads one modulation value per 64-sample sub-block. Master gain was
+// applied as a constant per sub-block and the global SVFs took a new cutoff and
+// resonance at each sub-block boundary, so a continuous source (LFO, envelope)
+// made a staircase whose 44100 / 64 = 689 Hz component shows up as sidebands at
+// f0 +- 689 Hz on a sustained tone.
+
+namespace {
+
+constexpr double kZipperRate = 44100.0;
+constexpr float kSubBlockHz = 44100.0f / 64.0f;  // 689.06 Hz
+
+/// Amplitude of the component at `hz` (Hann window, coherent-gain corrected).
+float zipperToneAmplitude(const std::vector<float>& x, double hz) {
+    double re = 0.0;
+    double im = 0.0;
+    double wSum = 0.0;
+    const double n = static_cast<double>(x.size());
+    const double w0 = 2.0 * kPi * hz / kZipperRate;
+    for (size_t i = 0; i < x.size(); ++i) {
+        const double w = 0.5 - 0.5 * std::cos(2.0 * kPi * static_cast<double>(i) / (n - 1.0));
+        re += w * x[i] * std::cos(w0 * static_cast<double>(i));
+        im -= w * x[i] * std::sin(w0 * static_cast<double>(i));
+        wSum += w;
+    }
+    return static_cast<float>(2.0 * std::sqrt(re * re + im * im) / wSum);
+}
+
+/// Largest component within +-`halfWidthHz` of `centreHz`, in 0.5 Hz steps.
+float zipperPeakNear(const std::vector<float>& x, double centreHz, double halfWidthHz) {
+    float peak = 0.0f;
+    for (double f = centreHz - halfWidthHz; f <= centreHz + halfWidthHz; f += 0.5) {
+        peak = std::max(peak, zipperToneAmplitude(x, f));
+    }
+    return peak;
+}
+
+/// Sustained sine note (Osc A only, voice filter open), the global LFO1 at
+/// 10 Hz routed to `dest`; renders 1.5 s and returns the last 1 s of the left channel.
+std::vector<float> renderZipperProbe(RuinaeModDest dest, float amount, bool globalFilter) {
+    constexpr size_t kBlock = 512;
+    constexpr size_t kTotal = 66048;     // 1.5 s, a multiple of the block
+    constexpr size_t kAnalysed = 44100;  // last 1 s: 1 Hz resolution
+    auto engine = std::make_unique<RuinaeEngine>();
+    engine->prepare(kZipperRate, kBlock);
+    engine->setOscAParam(OscParam::Waveform, 0.0f);  // sine
+    engine->setOscBLevel(0.0f);
+    engine->setMixMode(MixMode::CrossfadeMix);
+    engine->setMixPosition(0.0f);
+    engine->setFilterCutoff(20000.0f);
+    engine->setAmpAttack(1.0f);
+    engine->setAmpSustain(1.0f);
+    engine->setSoftLimitEnabled(false);  // keep the gain law linear
+    if (globalFilter) {
+        engine->setGlobalFilterEnabled(true);
+        engine->setGlobalFilterType(SVFMode::Lowpass);
+        engine->setGlobalFilterCutoff(1500.0f);
+        engine->setGlobalFilterResonance(8.0f);
+    }
+    engine->setGlobalLFO1Rate(10.0f);
+    engine->setGlobalLFO1Waveform(Waveform::Sine);
+    engine->setGlobalModRoute(0, ModSource::LFO1, dest, amount);
+    engine->noteOn(83, 100);  // 987.8 Hz
+
+    std::vector<float> left(kTotal, 0.0f);
+    std::vector<float> right(kTotal, 0.0f);
+    for (size_t pos = 0; pos < kTotal; pos += kBlock) {
+        engine->processBlock(left.data() + pos, right.data() + pos, kBlock);
+    }
+    return {left.end() - static_cast<std::ptrdiff_t>(kAnalysed), left.end()};
+}
+
+/// Worst f0 +- 689 Hz sideband (+-20 Hz window) relative to the fundamental, in dB.
+float worstSubBlockSidebandDb(const std::vector<float>& x, float& fundamental) {
+    const double f0 = static_cast<double>(midiNoteToFrequency(83));
+    fundamental = zipperPeakNear(x, f0, 2.0);
+    const float lower = zipperPeakNear(x, f0 - kSubBlockHz, 20.0);
+    const float upper = zipperPeakNear(x, f0 + kSubBlockHz, 20.0);
+    return 20.0f * std::log10(std::max(lower, upper) / fundamental);
+}
+
+} // namespace
+
+TEST_CASE("RuinaeEngine: global gain modulation has no sub-block zipper",
+          "[ruinae-engine][modulation]") {
+    const auto x = renderZipperProbe(RuinaeModDest::MasterVolume, 0.5f, false);
+    float fundamental = 0.0f;
+    const float db = worstSubBlockSidebandDb(x, fundamental);
+    INFO("fundamental " << fundamental << ", worst f0 +- 689 Hz sideband " << db << " dB");
+    REQUIRE(fundamental > 0.01f);  // not vacuous
+    REQUIRE(db < -60.0f);
+}
+
+TEST_CASE("RuinaeEngine: global filter modulation has no sub-block zipper",
+          "[ruinae-engine][modulation][filter]") {
+    const auto x = renderZipperProbe(RuinaeModDest::GlobalFilterCutoff, 0.25f, true);
+    float fundamental = 0.0f;
+    const float db = worstSubBlockSidebandDb(x, fundamental);
+    INFO("fundamental " << fundamental << ", worst f0 +- 689 Hz sideband " << db << " dB");
+    REQUIRE(fundamental > 0.01f);  // not vacuous
+    REQUIRE(db < -60.0f);
+}
+
+// =============================================================================
+// Voice Steal Mode and mono return-to-held-note retrigger (R-034, R-037)
+// =============================================================================
+// Hard and Soft used to be the same: both released the victim and re-gated it
+// at once with the new pitch. Hard now fades the victim out over 2 ms and
+// starts the new note on a reset voice; Soft re-gates from the current level.
+
+namespace {
+
+constexpr double kStealSampleRate = 44100.0;
+constexpr size_t kStealBlock = 64;
+constexpr size_t kStealWarmupBlocks = 70;  // ~100 ms of note A
+constexpr size_t kStealAfterBlocks = 14;   // ~20 ms after note B
+
+void configureStealProbe(RuinaeEngine& engine) {
+    engine.prepare(kStealSampleRate, kStealBlock);
+    engine.setDelayMix(0.0f);
+    engine.setReverbParams({.roomSize = 0.5f, .damping = 0.5f, .width = 1.0f, .mix = 0.0f});
+    engine.setSoftLimitEnabled(false);
+    engine.setFilterCutoff(18000.0f);
+    engine.setFilterResonance(0.707f);
+    engine.setAmpAttack(20.0f);
+    engine.setAmpDecay(50.0f);
+    engine.setAmpSustain(1.0f);
+    engine.setAmpRelease(50.0f);
+    engine.setPolyphony(1);
+}
+
+/// Note A held for ~100 ms, then note B steals its voice; left channel.
+std::vector<float> renderSteal(StealMode mode) {
+    auto engine = std::make_unique<RuinaeEngine>();
+    configureStealProbe(*engine);
+    engine->setStealMode(mode);
+    engine->noteOn(84, 100);
+    std::vector<float> left((kStealWarmupBlocks + kStealAfterBlocks) * kStealBlock, 0.0f);
+    std::vector<float> right(left.size(), 0.0f);
+    for (size_t b = 0; b < kStealWarmupBlocks + kStealAfterBlocks; ++b) {
+        if (b == kStealWarmupBlocks) engine->noteOn(91, 100);
+        engine->processBlock(left.data() + b * kStealBlock, right.data() + b * kStealBlock,
+                             kStealBlock);
+    }
+    return left;
+}
+
+/// Smallest +-2-sample local peak in [from, to): a near-silent stretch shows as a dip.
+float smallestLocalPeak(const std::vector<float>& x, size_t from, size_t to) {
+    float smallest = std::numeric_limits<float>::max();
+    for (size_t n = from; n < to; ++n) {
+        float local = 0.0f;
+        for (size_t k = n - 2; k <= n + 2; ++k) local = std::max(local, std::abs(x[k]));
+        smallest = std::min(smallest, local);
+    }
+    return smallest;
+}
+
+} // namespace
+
+TEST_CASE("RuinaeEngine_StealModes_Differ", "[ruinae-engine][steal]") {
+    const auto hard = renderSteal(StealMode::Hard);
+    const auto soft = renderSteal(StealMode::Soft);
+
+    const size_t steal = kStealWarmupBlocks * kStealBlock;
+    const size_t threeMs = static_cast<size_t>(0.003 * kStealSampleRate);
+    const float levelA = findPeak(hard.data() + steal - 441, 441);  // last 10 ms of A
+    REQUIRE(levelA > 0.05f);  // not vacuous
+
+    const float hardDip = smallestLocalPeak(hard, steal, steal + threeMs);
+    const float softDip = smallestLocalPeak(soft, steal, steal + threeMs);
+    INFO("A level " << levelA << ", Hard dip " << hardDip << ", Soft dip " << softDip);
+    // Hard: the victim is silenced before the new note's attack
+    CHECK(hardDip < 0.05f * levelA);
+    // Soft: no dip, the new note re-gates from the current level
+    CHECK(softDip >= 0.05f * levelA);
+
+    // The two modes render differently after the steal
+    float maxDiff = 0.0f;
+    for (size_t n = steal; n < hard.size(); ++n) {
+        maxDiff = std::max(maxDiff, std::abs(hard[n] - soft[n]));
+    }
+    INFO("max |Hard - Soft| after the steal " << maxDiff);
+    CHECK(maxDiff > 0.1f * levelA);
+
+    // Hard: note B does sound once the fade is over
+    const float hardB = findPeak(hard.data() + steal + 441, hard.size() - steal - 441);
+    INFO("Hard: B peak 10-20 ms after the steal " << hardB);
+    CHECK(hardB > 0.3f * levelA);
+}
+
+TEST_CASE("RuinaeEngine: a note released during a Hard steal fade does not hang",
+          "[ruinae-engine][steal]") {
+    RuinaeEngine engine;
+    configureStealProbe(engine);
+    engine.setStealMode(StealMode::Hard);
+    std::vector<float> left(kStealBlock, 0.0f);
+    std::vector<float> right(kStealBlock, 0.0f);
+
+    engine.noteOn(84, 100);
+    for (int b = 0; b < 20; ++b) engine.processBlock(left.data(), right.data(), kStealBlock);
+    engine.noteOn(91, 100);
+    engine.processBlock(left.data(), right.data(), 16);  // inside the 2 ms fade
+    engine.noteOff(91);
+    for (int b = 0; b < 200; ++b) engine.processBlock(left.data(), right.data(), kStealBlock);
+
+    REQUIRE(engine.getActiveVoiceCount() == 0);
+}
+
+TEST_CASE("RuinaeEngine_MonoReturnRetriggersWhenLegatoOff", "[ruinae-engine][mono]") {
+    RuinaeEngine engine;
+    engine.prepare(kStealSampleRate, kStealBlock);
+    engine.setDelayMix(0.0f);
+    engine.setReverbParams({.roomSize = 0.5f, .damping = 0.5f, .width = 1.0f, .mix = 0.0f});
+    engine.setSoftLimitEnabled(false);
+    engine.setMode(VoiceMode::Mono);
+    engine.setLegato(false);
+    engine.setAmpAttack(1.0f);
+    engine.setAmpDecay(50.0f);
+    engine.setAmpSustain(0.0f);
+    engine.setAmpRelease(50.0f);
+
+    std::vector<float> left(kStealBlock, 0.0f);
+    std::vector<float> right(kStealBlock, 0.0f);
+    auto renderRms = [&](size_t blocks) {
+        double sumSq = 0.0;
+        for (size_t b = 0; b < blocks; ++b) {
+            engine.processBlock(left.data(), right.data(), kStealBlock);
+            for (float s : left) sumSq += static_cast<double>(s) * static_cast<double>(s);
+        }
+        return static_cast<float>(std::sqrt(sumSq / static_cast<double>(blocks * kStealBlock)));
+    };
+
+    engine.noteOn(60, 100);
+    (void)renderRms(140);  // ~200 ms: decayed to sustain 0
+    engine.noteOn(64, 100);
+    const float pressed = renderRms(14);  // the press re-attacks
+    (void)renderRms(126);
+    const float beforeRelease = renderRms(7);  // last ~10 ms on 64, decayed
+    engine.noteOff(64);                         // returns to the held 60
+    const float afterRelease = renderRms(14);   // first ~20 ms back on 60
+
+    INFO("pressed " << pressed << ", before release " << beforeRelease
+         << ", after release " << afterRelease);
+    REQUIRE(pressed > 0.01f);  // not vacuous: the press itself re-attacks
+    CHECK(afterRelease > 0.25f * pressed);
+    CHECK(afterRelease > 10.0f * beforeRelease);
+}
+
+TEST_CASE("RuinaeEngine: mono voice is centred at any stereo spread", "[ruinae-engine][mono][pan]") {
+    RuinaeEngine engine;
+    engine.prepare(kStealSampleRate, kStealBlock);
+    engine.setDelayMix(0.0f);
+    engine.setReverbParams({.roomSize = 0.5f, .damping = 0.5f, .width = 1.0f, .mix = 0.0f});
+    engine.setSoftLimitEnabled(false);
+    engine.setMode(VoiceMode::Mono);
+    engine.setStereoSpread(1.0f);
+    engine.setAmpSustain(1.0f);
+
+    std::vector<float> left(kStealBlock, 0.0f);
+    std::vector<float> right(kStealBlock, 0.0f);
+    engine.noteOn(60, 100);
+    double sumL = 0.0, sumR = 0.0;
+    for (int b = 0; b < 60; ++b) {
+        engine.processBlock(left.data(), right.data(), kStealBlock);
+        if (b < 10) continue;
+        for (size_t i = 0; i < kStealBlock; ++i) {
+            sumL += static_cast<double>(left[i]) * static_cast<double>(left[i]);
+            sumR += static_cast<double>(right[i]) * static_cast<double>(right[i]);
+        }
+    }
+    REQUIRE(sumL > 0.0);
+    REQUIRE(sumR > 0.0);
+    const double diffDb = 10.0 * std::log10(sumL / sumR);
+    INFO("L-R = " << diffDb << " dB");
+    REQUIRE(std::abs(diffDb) < 0.01);
+}

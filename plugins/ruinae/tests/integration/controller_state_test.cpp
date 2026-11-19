@@ -289,9 +289,11 @@ LegacyStateLayout layoutOf(std::vector<char>& v8) {
 
 /// Arp pack tail of a current state: chord lane (length + 32), inversion lane
 /// (length + 32) and voicing mode are int32s written from version 4; the eight
-/// lane speeds are floats written from version 8. The arp pack ends the state.
+/// lane speeds are floats written from version 8. After the arp pack, the
+/// Voice LFO rate (float) and shape (int32) written from version 9 end the state.
 constexpr Steinberg::int64 kArpLaneSpeedBytes = 8 * 4;
 constexpr Steinberg::int64 kArpChordBlockBytes = (1 + 32 + 1 + 32 + 1) * 4;
+constexpr Steinberg::int64 kVoiceLfoBytes = 4 + 4;
 
 /// A genuine older state: the current bytes minus every field `version` never
 /// wrote, with the version patched. v5 also carries a marker-2 trance-gate pack
@@ -299,7 +301,9 @@ constexpr Steinberg::int64 kArpChordBlockBytes = (1 + 32 + 1 + 32 + 1) * 4;
 std::vector<char> legacyStateFrom(std::vector<char> v8, Steinberg::int32 version) {
     const LegacyStateLayout l = layoutOf(v8);
     std::vector<std::pair<Steinberg::int64, Steinberg::int64>> cut;  // [begin, end)
-    cut.emplace_back(l.total - kArpLaneSpeedBytes, l.total);         // lane speeds (v8)
+    const Steinberg::int64 arpEnd = l.total - kVoiceLfoBytes;
+    cut.emplace_back(arpEnd, l.total);                               // voice LFO (v9)
+    cut.emplace_back(arpEnd - kArpLaneSpeedBytes, arpEnd);           // lane speeds (v8)
     if (version < 7)
         cut.emplace_back(l.flangerStart, l.chorusEnd);               // flanger (v6), chorus (v7)
     if (version < 6) {
@@ -310,8 +314,8 @@ std::vector<char> legacyStateFrom(std::vector<char> v8, Steinberg::int32 version
     if (version < 5)
         cut.emplace_back(l.reverbTypeStart, l.reverbTypeStart + 4);  // reverb type (v5)
     if (version < 4)
-        cut.emplace_back(l.total - kArpLaneSpeedBytes - kArpChordBlockBytes,
-                         l.total - kArpLaneSpeedBytes);              // chord/inversion/voicing (v4)
+        cut.emplace_back(arpEnd - kArpLaneSpeedBytes - kArpChordBlockBytes,
+                         arpEnd - kArpLaneSpeedBytes);               // chord/inversion/voicing (v4)
 
     std::vector<char> out;
     for (Steinberg::int64 i = 0; i < l.total; ++i) {
@@ -395,6 +399,8 @@ std::vector<Steinberg::Vst::ParamID> legacyGatedParamIds() {
         ids.push_back(Ruinae::kArpInversionLaneStep0Id + i);
     }
     ids.push_back(Ruinae::kTranceGateRetriggerDepthId);
+    ids.push_back(Ruinae::kVoiceLfoRateId);
+    ids.push_back(Ruinae::kVoiceLfoShapeId);
     return ids;
 }
 
@@ -412,11 +418,14 @@ TEST_CASE("Legacy state loads identical values via setState and via the browser 
     REQUIRE(legacy.size() < defaultBytes.size());
 
     // The previously loaded preset: non-default flanger, chorus, trance-gate
-    // retrigger depth, lane speeds 2x and chord/inversion lane data.
+    // retrigger depth, lane speeds 2x, chord/inversion lane data and a ~21 Hz
+    // square Voice LFO.
     std::vector<char> previous;
     {
         auto p = makeTestableProcessor();
         Krate::Test::ParameterChanges c;
+        c.addChange(Ruinae::kVoiceLfoRateId, 0.9);
+        c.addChange(Ruinae::kVoiceLfoShapeId, 3.0 / 5.0);
         for (Steinberg::Vst::ParamID id = Ruinae::kFlangerRateId; id <= Ruinae::kFlangerNoteValueId; ++id)
             c.addChange(id, 0.9);
         for (Steinberg::Vst::ParamID id = Ruinae::kChorusRateId; id <= Ruinae::kChorusNoteValueId; ++id)
@@ -494,12 +503,13 @@ TEST_CASE("Legacy state loads identical values via setState and via the browser 
     REQUIRE(bytesA.size() == defaultBytes.size());
     REQUIRE(bytesB.size() == defaultBytes.size());
 
-    // Processor lane speeds: the eight floats that end the state are all 1.0x.
+    // Processor lane speeds: the eight floats that end the arp pack are all 1.0x.
     for (const auto& [name, bytes] : {std::pair{"host path", &bytesA}, std::pair{"browser path", &bytesB}}) {
         INFO(name << " processor");
         for (size_t i = 0; i < 8; ++i) {
             float speed = 0.0f;
-            std::memcpy(&speed, bytes->data() + bytes->size() - kArpLaneSpeedBytes + 4 * i, sizeof(speed));
+            std::memcpy(&speed, bytes->data() + bytes->size() - kVoiceLfoBytes - kArpLaneSpeedBytes + 4 * i,
+                        sizeof(speed));
             CHECK(speed == 1.0f);
         }
     }

@@ -2,11 +2,11 @@
 // Unit Test: Processor Bus Configuration
 // ==============================================================================
 // Verifies that Ruinae Processor configures bus layout correctly:
-// - No audio input bus
+// - One optional sidechain (aux) audio input bus: mono or stereo
 // - One stereo audio output bus
 // - setBusArrangements rejects invalid configurations
 //
-// Reference: specs/045-plugin-shell/spec.md FR-003
+// Reference: specs/045-plugin-shell/spec.md FR-003; T2.26 (R-192)
 // ==============================================================================
 
 #include <catch2/catch_test_macros.hpp>
@@ -46,6 +46,25 @@ TEST_CASE("Processor bus configuration", "[processor][bus]") {
             &stereo, 1   // one stereo output
         );
         REQUIRE(result == Steinberg::kResultTrue);
+    }
+
+    SECTION("Accepts mono sidechain + stereo output") {
+        Steinberg::Vst::SpeakerArrangement mono = Steinberg::Vst::SpeakerArr::kMono;
+        Steinberg::Vst::SpeakerArrangement stereo = Steinberg::Vst::SpeakerArr::kStereo;
+        auto result = processor.setBusArrangements(&mono, 1, &stereo, 1);
+        REQUIRE(result == Steinberg::kResultTrue);
+
+        // The accepted arrangement is what the bus now reports
+        Steinberg::Vst::SpeakerArrangement arr = 0;
+        REQUIRE(processor.getBusArrangement(Steinberg::Vst::kInput, 0, arr) == Steinberg::kResultTrue);
+        CHECK(arr == Steinberg::Vst::SpeakerArr::kMono);
+    }
+
+    SECTION("Rejects mono output with a sidechain") {
+        Steinberg::Vst::SpeakerArrangement mono = Steinberg::Vst::SpeakerArr::kMono;
+        Steinberg::Vst::SpeakerArrangement stereo = Steinberg::Vst::SpeakerArr::kStereo;
+        auto result = processor.setBusArrangements(&stereo, 1, &mono, 1);
+        REQUIRE(result == Steinberg::kResultFalse);
     }
 
     SECTION("Rejects two outputs") {

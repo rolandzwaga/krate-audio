@@ -92,6 +92,9 @@ public:
     /// @brief Minimum pre-warm duration in milliseconds (smoother settling)
     static constexpr float kMinPreWarmMs = 20.0f;
 
+    /// @brief Modulation-slot pre-warm: the longest chorus/flanger read delay.
+    static constexpr float kModPreWarmMs = std::max(Chorus::kMaxDelayMs, Flanger::kMaxDelayMs);
+
     // =========================================================================
     // Lifecycle (FR-002, FR-003)
     // =========================================================================
@@ -121,8 +124,9 @@ public:
         digitalDelay_.prepare(sampleRate, maxBlockSize, kMaxDelayMs);
         tapeDelay_.prepare(sampleRate, maxBlockSize, kMaxDelayMs);
         pingPongDelay_.prepare(sampleRate, maxBlockSize, kMaxDelayMs);
-        granularDelay_.prepare(sampleRate);  // Only sampleRate!
-        spectralDelay_.prepare(sampleRate, maxBlockSize);
+        // All five get the full Delay Time range (R-094: Granular and Spectral used to stop at 2 s)
+        granularDelay_.prepare(sampleRate, kMaxDelayMs / 1000.0f);
+        spectralDelay_.prepare(sampleRate, maxBlockSize, kMaxDelayMs);
 
         // Prepare phaser, flanger, and chorus
         phaser_.prepare(sampleRate);
@@ -210,6 +214,9 @@ public:
         modCrossfading_ = false;
         modCrossfadeAlpha_ = 0.0f;
         modCrossfadeIncrement_ = 0.0f;
+        modTypePending_ = false;
+        modPreWarming_ = false;
+        modPreWarmRemaining_ = 0;
         digitalDelay_.reset();
         tapeDelay_.reset();
         pingPongDelay_.reset();
@@ -336,26 +343,54 @@ public:
     /// @brief Set the modulation type directly (no crossfade).
     /// Used during applyParamsToEngine() per-block updates.
     void setModulationType(ModulationType type) noexcept {
-        if (!modCrossfading_) {
+        if (!modCrossfading_ && !modPreWarming_) {
             activeModType_ = type;
         }
     }
 
-    /// @brief Start a 30ms linear crossfade to a new modulation type.
-    /// If the incoming type matches the active type and no crossfade is in
-    /// progress, this is a no-op.
+    /// @brief Switch to a new modulation type: pre-warm it, then crossfade
+    /// linearly over 30 ms. A no-op if the type is already active and no
+    /// switch is in progress.
+    ///
+    /// The incoming effect first runs on the slot input for kModPreWarmMs with
+    /// its output discarded, so the chorus and flanger delay lines hold real
+    /// input when the fade starts; a cold chorus otherwise steps in when its
+    /// read position (15 ms) first reaches written audio.
+    ///
+    /// A request that arrives mid-fade continues from the current mix: back to
+    /// the outgoing type reverses the running fade, and a third type is queued
+    /// and switched to once the running fade completes. Restarting at alpha 0
+    /// cut the half-faded-in effect out in one sample, and re-targeting the
+    /// outgoing type processed one instance twice per block (R-059).
     void startModCrossfade(ModulationType incoming) noexcept {
-        if (!modCrossfading_ && incoming == activeModType_) {
+        if (modPreWarming_) {
+            if (incoming == incomingModType_) return;
+            // Nothing of the warming effect has been heard yet: drop it.
+            resetModEffect(incomingModType_);
+            modPreWarming_ = false;
+            if (incoming != activeModType_) beginModPreWarm(incoming);
             return;
         }
-        if (modCrossfading_ && incoming == incomingModType_) {
-            return; // Already fading to this type
+        if (modCrossfading_) {
+            if (incoming == incomingModType_) {
+                modTypePending_ = false;  // Already fading to this type
+            } else if (incoming == activeModType_) {
+                // Linear blend: swapping the roles and mirroring alpha keeps
+                // out * (1 - alpha) + in * alpha unchanged at the swap.
+                std::swap(activeModType_, incomingModType_);
+                modCrossfadeAlpha_ = 1.0f - std::min(modCrossfadeAlpha_, 1.0f);
+                modTypePending_ = false;
+            } else {
+                pendingModType_ = incoming;
+                modTypePending_ = true;
+            }
+            return;
         }
-        incomingModType_ = incoming;
-        modCrossfadeAlpha_ = 0.0f;
-        modCrossfadeIncrement_ = 1.0f / (0.030f * static_cast<float>(sampleRate_));
-        modCrossfading_ = true;
+        if (incoming != activeModType_) beginModPreWarm(incoming);
     }
+
+    /// @brief True while a modulation type crossfade (not its pre-warm) runs. Test hook.
+    [[nodiscard]] bool isModCrossfadingForTest() const noexcept { return modCrossfading_; }
 
     /// @brief Get the currently active modulation type.
     [[nodiscard]] ModulationType getActiveModulationType() const noexcept {
@@ -683,6 +718,13 @@ public:
         userReverbMixSmoother_.setTarget(userReverbMix_);
 
         lastReverbParams_ = params;
+
+        // FR-029: a type change deferred while frozen takes effect on release.
+        if (!params.freeze && pendingReverbType_ >= 0) {
+            const int pending = pendingReverbType_;
+            pendingReverbType_ = -1;
+            setReverbType(pending);
+        }
     }
 
     /// @brief Initiate a 30ms equal-power crossfade to the new reverb type (FR-025).
@@ -691,10 +733,17 @@ public:
     /// crossfade to `type` is already running: the processor re-sends the type
     /// every block, and re-arming would restart the fade before it completes.
     /// A request for the outgoing type mid-fade reverses the running fade.
-    /// If freeze is active, applies freeze to the incoming reverb before
-    /// crossfade begins (FR-029).
+    ///
+    /// FR-029: while Freeze is on, a new type is deferred until Freeze is
+    /// released (setReverbParams applies it). Freeze mutes the input of both
+    /// reverbs, so the incoming tank could never fill: the fade went to an empty
+    /// tank and completion reset the frozen one, losing the sound (R-061).
     void setReverbType(int type) noexcept {
         type = std::clamp(type, 0, 1);
+        if (lastReverbParams_.freeze && !reverbCrossfading_) {
+            pendingReverbType_ = (type == activeReverbType_) ? -1 : type;
+            return;
+        }
         if (type == activeReverbType_ && !reverbCrossfading_) return;
 
         // Already transitioning to this type: let it continue.
@@ -710,11 +759,6 @@ public:
             return;
         }
 
-        // FR-029: If freeze is active, ensure the incoming reverb has freeze
-        // applied via setParams BEFORE the crossfade begins.
-        // (Both reverbs already receive params via setReverbParams/FR-027,
-        //  but we call setParams again here for safety with current params.)
-
         incomingReverbType_ = type;
         reverbCrossfading_ = true;
         reverbCrossfadeAlpha_ = 0.0f;
@@ -727,6 +771,7 @@ public:
     /// without triggering an audible transition.
     void setReverbTypeDirect(int type) noexcept {
         activeReverbType_ = type;
+        pendingReverbType_ = -1;
         reverbCrossfading_ = false;
         reverbCrossfadeAlpha_ = 0.0f;
         reverbCrossfadeIncrement_ = 0.0f;
@@ -761,7 +806,15 @@ public:
     // Harmonizer Control (spec 067)
     // =========================================================================
 
+    /// Called every block by the processor. A toggle during a fade continues
+    /// from the current alpha in the other direction; jumping to alpha 1 on a
+    /// disable mid-fade-in was a gain step, and re-arming at 1 on every block
+    /// kept a fade-out from ever finishing with blocks under 10 ms (R-063).
     void setHarmonizerEnabled(bool enabled) noexcept {
+        if (harmonizerFadeState_ == HarmonizerFadeState::FadingOut) {
+            if (enabled) harmonizerFadeState_ = HarmonizerFadeState::FadingIn;
+            return;
+        }
         if (enabled && !harmonizerEnabled_) {
             harmonizer_.snapParameters();
             harmonizerNeedsPrime_ = true; // Apply voice fade-in on first process
@@ -771,9 +824,9 @@ public:
             harmonizerFadeIncrement_ = 1000.0f /
                 (kHarmonizerCrossfadeMs * static_cast<float>(sampleRate_));
         } else if (!enabled && harmonizerEnabled_) {
-            // Keep harmonizer enabled during fade-out so it still processes
+            // Keep harmonizer enabled during fade-out so it still processes.
+            // The fade starts from the current alpha (1 when On).
             harmonizerFadeState_ = HarmonizerFadeState::FadingOut;
-            harmonizerFadeAlpha_ = 1.0f;
             harmonizerFadeIncrement_ = 1000.0f /
                 (kHarmonizerCrossfadeMs * static_cast<float>(sampleRate_));
         }
@@ -1079,6 +1132,11 @@ private:
                         harmonizerEnabled_ = false;
                     }
                 }
+                // Clear the pitch shifters and delay lines once silent, so the
+                // next enable does not replay stale audio.
+                if (harmonizerFadeState_ == HarmonizerFadeState::Off) {
+                    harmonizer_.reset();
+                }
             }
         }
 
@@ -1328,7 +1386,24 @@ private:
     /// @brief Process the modulation effect in the stereo audio buffers.
     /// Handles crossfade between modulation types (None/Phaser/Flanger).
     void processModulationSlot(float* left, float* right, size_t numSamples) noexcept {
-        if (modCrossfading_) {
+        if (modPreWarming_) {
+            // Feed the incoming effect (output discarded) while the active one
+            // is heard alone; the crossfade starts once its lines are filled.
+            std::memcpy(tempL_.data(), left, numSamples * sizeof(float));
+            std::memcpy(tempR_.data(), right, numSamples * sizeof(float));
+            processModEffect(incomingModType_, tempL_.data(), tempR_.data(), numSamples);
+            processModEffect(activeModType_, left, right, numSamples);
+
+            if (numSamples >= modPreWarmRemaining_) {
+                modPreWarming_ = false;
+                modPreWarmRemaining_ = 0;
+                modCrossfadeAlpha_ = 0.0f;
+                modCrossfadeIncrement_ = 1.0f / (0.030f * static_cast<float>(sampleRate_));
+                modCrossfading_ = true;
+            } else {
+                modPreWarmRemaining_ -= numSamples;
+            }
+        } else if (modCrossfading_) {
             // Process both outgoing and incoming effects, blend with alpha
             // Save the input for the outgoing effect
             std::memcpy(tempL_.data(), left, numSamples * sizeof(float));
@@ -1383,20 +1458,40 @@ private:
         }
     }
 
+    /// @brief Clear one modulation effect's state.
+    void resetModEffect(ModulationType type) noexcept {
+        if (type == ModulationType::Phaser) {
+            phaser_.reset();
+        } else if (type == ModulationType::Flanger) {
+            flanger_.reset();
+        } else if (type == ModulationType::Chorus) {
+            chorus_.reset();
+        }
+    }
+
+    /// @brief Start pre-warming `incoming` ahead of its crossfade.
+    void beginModPreWarm(ModulationType incoming) noexcept {
+        incomingModType_ = incoming;
+        modPreWarming_ = true;
+        modPreWarmRemaining_ = static_cast<size_t>(
+            kModPreWarmMs * 0.001f * static_cast<float>(sampleRate_));
+    }
+
     /// @brief Complete a modulation type crossfade.
     void completeModCrossfade() noexcept {
         // Reset the outgoing effect
-        if (activeModType_ == ModulationType::Phaser) {
-            phaser_.reset();
-        } else if (activeModType_ == ModulationType::Flanger) {
-            flanger_.reset();
-        } else if (activeModType_ == ModulationType::Chorus) {
-            chorus_.reset();
-        }
+        resetModEffect(activeModType_);
         activeModType_ = incomingModType_;
         modCrossfading_ = false;
         modCrossfadeAlpha_ = 0.0f;
         modCrossfadeIncrement_ = 0.0f;
+
+        // Start the switch queued mid-fade now, before the next block's
+        // setModulationType() could switch to it without a fade.
+        if (modTypePending_) {
+            modTypePending_ = false;
+            startModCrossfade(pendingModType_);
+        }
     }
 
     // =========================================================================
@@ -1424,6 +1519,12 @@ private:
     bool modCrossfading_ = false;
     float modCrossfadeAlpha_ = 0.0f;
     float modCrossfadeIncrement_ = 0.0f;
+    // A third type requested mid-fade; its switch starts when the running one ends.
+    ModulationType pendingModType_ = ModulationType::None;
+    bool modTypePending_ = false;
+    // Incoming effect being fed before its crossfade starts.
+    bool modPreWarming_ = false;
+    size_t modPreWarmRemaining_ = 0;
 
     // Delay slot (5 types)
     DigitalDelay digitalDelay_;
@@ -1510,6 +1611,8 @@ private:
     // Reverb type crossfade state (125-dual-reverb)
     int activeReverbType_ = 0;        // 0=Plate, 1=Hall
     int incomingReverbType_ = 0;
+    // A type requested while Freeze is on, applied when Freeze is released (-1: none).
+    int pendingReverbType_ = -1;
     bool reverbCrossfading_ = false;
     float reverbCrossfadeAlpha_ = 0.0f;
     float reverbCrossfadeIncrement_ = 0.0f;

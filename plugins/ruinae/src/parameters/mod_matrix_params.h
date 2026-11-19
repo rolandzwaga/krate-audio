@@ -6,9 +6,11 @@
 #include "public.sdk/source/vst/vstparameters.h"
 #include "public.sdk/source/vst/vsteditcontroller.h"
 #include "base/source/fstreamer.h"
+#include <krate/dsp/systems/voice_mod_types.h>
 #include <algorithm>
 #include <array>
 #include <atomic>
+#include <cmath>
 #include <cstdio>
 
 namespace Ruinae {
@@ -54,6 +56,45 @@ inline const Steinberg::Vst::TChar* const kModScaleStrings[] = {
     STR16("x2"),
     STR16("x4"),
 };
+
+/// Multiplier of each Scale entry. It multiplies a route's contribution after the
+/// amount (global and voice routes), so x2 / x4 extend the depth (R-053).
+inline constexpr std::array<float, kModScaleCount> kModScaleMultipliers = {
+    0.25f, 0.5f, 1.0f, 2.0f, 4.0f};
+
+[[nodiscard]] inline float modScaleMultiplier(int scaleIdx) {
+    return kModScaleMultipliers[static_cast<size_t>(std::clamp(scaleIdx, 0, kModScaleCount - 1))];
+}
+
+/// Full scale of a voice route to Filter Resonance, in Q. The All-Voice Resonance
+/// global route uses the same 10 Q (R-044); before state v9 the voice route used 1 Q.
+inline constexpr float kVoiceRouteResonanceQ = 10.0f;
+
+/// Before state v9 a route's amount was multiplied by its Scale and the product
+/// clamped to +/-1, so x2 / x4 saturated. Returns the amount that gives an older
+/// route the depth it was saved with now that the Scale multiplies after the amount.
+[[nodiscard]] inline float preV9RouteAmount(float amount, int scaleIdx) {
+    const float mul = modScaleMultiplier(scaleIdx);
+    if (std::abs(amount * mul) <= 1.0f) return amount;
+    return std::clamp(amount * mul, -1.0f, 1.0f) / mul;
+}
+
+/// preV9RouteAmount for a voice route; a route to Filter Resonance (destination 1)
+/// also keeps its old 1 Q full scale.
+[[nodiscard]] inline float preV9VoiceRouteAmount(float amount, int destination, int scaleIdx) {
+    const float a = preV9RouteAmount(amount, scaleIdx);
+    return destination == static_cast<int>(Krate::DSP::VoiceModDest::FilterResonance)
+        ? a / kVoiceRouteResonanceQ : a;
+}
+
+/// Applies preV9RouteAmount to every slot (a state older than v9 was just loaded).
+inline void migratePreV9ModMatrixAmounts(ModMatrixParams& params) {
+    for (auto& slot : params.slots) {
+        slot.amount.store(preV9RouteAmount(slot.amount.load(std::memory_order_relaxed),
+                                           slot.scale.load(std::memory_order_relaxed)),
+                          std::memory_order_relaxed);
+    }
+}
 
 // ==============================================================================
 // handleModMatrixParamChange - Process base + detail param changes
@@ -340,7 +381,7 @@ inline bool loadModMatrixParams(ModMatrixParams& params, Steinberg::IBStreamer& 
 
 template<typename SetParamFunc>
 inline void loadModMatrixParamsToController(
-    Steinberg::IBStreamer& streamer, const SetParamFunc& setParam) {
+    Steinberg::IBStreamer& streamer, const SetParamFunc& setParam, Steinberg::int32 version) {
     Steinberg::int32 iv = 0; float fv = 0.0f;
     const Steinberg::Vst::ParamID srcIds[] = {
         kModMatrixSlot0SourceId, kModMatrixSlot1SourceId, kModMatrixSlot2SourceId,
@@ -384,15 +425,20 @@ inline void loadModMatrixParamsToController(
             setParam(srcIds[i], static_cast<double>(iv) / (kModSourceCount - 1));
         if (streamer.readInt32(iv))
             setParam(dstIds[i], static_cast<double>(iv) / (kModDestCount - 1));
-        if (streamer.readFloat(fv))
-            setParam(amtIds[i], static_cast<double>((fv + 1.0f) / 2.0f));
+        // The amount is set after the scale is known: states older than v9 migrate it.
+        float amount = 0.0f;
+        const bool hasAmount = streamer.readFloat(amount);
         // Detail
         if (streamer.readInt32(iv))
             setParam(curveIds[i], static_cast<double>(iv) / (kModCurveCount - 1));
         if (streamer.readFloat(fv))
             setParam(smoothIds[i], static_cast<double>(fv / 100.0f));
-        if (streamer.readInt32(iv))
+        if (streamer.readInt32(iv)) {
             setParam(scaleIds[i], static_cast<double>(iv) / (kModScaleCount - 1));
+            if (version < 9) amount = preV9RouteAmount(amount, iv);
+        }
+        if (hasAmount)
+            setParam(amtIds[i], static_cast<double>((amount + 1.0f) / 2.0f));
         if (streamer.readInt32(iv))
             setParam(bypassIds[i], static_cast<double>(iv));
     }

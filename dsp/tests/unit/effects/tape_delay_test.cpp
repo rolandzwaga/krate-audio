@@ -162,7 +162,7 @@ TEST_CASE("TapeDelay construction", "[features][tape-delay][lifecycle]") {
     SECTION("constants are correct") {
         REQUIRE(TapeDelay::kNumHeads == 3);
         REQUIRE(TapeDelay::kMinDelayMs == Approx(20.0f));
-        REQUIRE(TapeDelay::kMaxDelayMs == Approx(2000.0f));
+        REQUIRE(TapeDelay::kMaxDelayMs == Approx(5000.0f));
         REQUIRE(TapeDelay::kHeadRatio1 == Approx(1.0f));
         REQUIRE(TapeDelay::kHeadRatio2 == Approx(1.5f));
         REQUIRE(TapeDelay::kHeadRatio3 == Approx(2.0f));
@@ -216,6 +216,26 @@ TEST_CASE("TapeDelay motor speed control", "[features][tape-delay][motor-speed]"
 
         delay.setMotorSpeed(5000.0f);  // Above maximum
         REQUIRE(delay.getTargetDelayMs() <= TapeDelay::kMaxDelayMs);
+    }
+}
+
+// R-094 (Ruinae audit): the motor speed range follows prepare()'s maxDelayMs up to 5000 ms.
+TEST_CASE("TapeDelay motor speed range follows the prepared maximum",
+          "[features][tape-delay][motor-speed]") {
+    TapeDelay delay;
+
+    SECTION("prepared for 5000 ms, a 3000 ms time is kept") {
+        delay.prepare(44100.0, 512, 5000.0f);
+        delay.setMotorSpeed(3000.0f);
+        REQUIRE(delay.getTargetDelayMs() == Approx(3000.0f));
+        delay.setMotorSpeed(9000.0f);
+        REQUIRE(delay.getTargetDelayMs() == Approx(5000.0f));
+    }
+
+    SECTION("prepared for 2000 ms, the time still stops at 2000 ms") {
+        delay.prepare(44100.0, 512, 2000.0f);
+        delay.setMotorSpeed(3000.0f);
+        REQUIRE(delay.getTargetDelayMs() == Approx(2000.0f));
     }
 }
 

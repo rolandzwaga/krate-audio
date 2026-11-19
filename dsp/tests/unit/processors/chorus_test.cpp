@@ -760,3 +760,55 @@ TEST_CASE("Chorus performance: <1.0% CPU at 44.1kHz stereo, 4 voices", "[chorus]
     INFO("CPU usage: " << cpuPercent << "% (" << elapsedMs << "ms for " << audioTimeMs << "ms of audio)");
     CHECK(cpuPercent < 1.0);
 }
+
+// =============================================================================
+// R-060: each extra voice is offset in LFO PHASE. Offsetting the LFO's output
+// amplitude and wrapping it made the delay tap jump by the full sweep range twice
+// per LFO cycle (a click), so the multi-voice output step was ~11x the 1-voice one.
+// =============================================================================
+
+TEST_CASE("Chorus multi-voice delay modulation is continuous", "[processors][chorus]") {
+    // Max per-sample output step (both channels) of a 440 Hz 0.3 sine through
+    // the chorus, rate 1 Hz, depth 0.5, mix 1, over two LFO cycles.
+    auto maxStepWithVoices = [](int voices) {
+        constexpr double kSampleRate = 44100.0;
+        Chorus chorus;
+        chorus.prepare(kSampleRate);
+        chorus.setRate(1.0f);
+        chorus.setDepth(0.5f);
+        chorus.setMix(1.0f);
+        chorus.setFeedback(0.0f);
+        chorus.setVoices(voices);
+
+        constexpr size_t kTotal = 2 * 44100;
+        constexpr size_t kSkip = 2205;  // 50 ms: delay line fills
+        std::vector<float> left(kTotal), right(kTotal);
+        for (size_t i = 0; i < kTotal; ++i) {
+            const double t = static_cast<double>(i) / kSampleRate;
+            left[i] = static_cast<float>(0.3 * std::sin(2.0 * 3.14159265358979 * 440.0 * t));
+            right[i] = left[i];
+        }
+        constexpr size_t kBlock = 512;
+        for (size_t pos = 0; pos < kTotal; pos += kBlock) {
+            const size_t n = std::min(kBlock, kTotal - pos);
+            chorus.processStereo(left.data() + pos, right.data() + pos, n);
+        }
+
+        float maxStep = 0.0f;
+        for (size_t i = kSkip + 1; i < kTotal; ++i) {
+            maxStep = std::max(maxStep, std::abs(left[i] - left[i - 1]));
+            maxStep = std::max(maxStep, std::abs(right[i] - right[i - 1]));
+        }
+        return maxStep;
+    };
+
+    const float singleVoiceStep = maxStepWithVoices(1);
+    INFO("voices=1 max step " << singleVoiceStep);
+    REQUIRE(singleVoiceStep > 0.0f);
+
+    for (int voices : {2, 3}) {
+        const float step = maxStepWithVoices(voices);
+        INFO("voices=" << voices << " max step " << step);
+        CHECK(step <= 1.5f * singleVoiceStep);
+    }
+}

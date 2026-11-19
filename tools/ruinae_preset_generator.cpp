@@ -269,11 +269,14 @@ void setModSlot(RuinaePresetState& s, int slot, int source, int dest,
     s.modMatrix.slots[slot].smoothMs = smoothMs;
 }
 
+// Amounts are authored on the pre-v9 scales. Since state v9 a voice route to Filter
+// Resonance spans 10 Q instead of 1 Q (R-044), so its amount is divided by 10 here:
+// the factory presets keep the depth they were voiced with.
 void setVoiceRoute(RuinaePresetState& s, int slot, int source, int dest,
                    float amount) {
     s.voiceRoutes[slot].source = static_cast<int8_t>(source);
     s.voiceRoutes[slot].destination = static_cast<int8_t>(dest);
-    s.voiceRoutes[slot].amount = amount;
+    s.voiceRoutes[slot].amount = (dest == kVDstFltRes) ? amount / 10.0f : amount;
     s.voiceRoutes[slot].active = 1;
 }
 
@@ -3136,7 +3139,9 @@ std::vector<PresetDef> createAllPresets() {
         setModSlot(s, 0, kSrcLFO1, kDstAllMorphPos, 0.5f, kCurveSCurve, 90.0f); // big smoothMs
         // --- Motion 2: Envelope Follower opens the allpass with dynamics, scaled x4 ---
         s.envFollower.sensitivity = 0.7f; s.envFollower.attackMs = 60.0f; s.envFollower.releaseMs = 400.0f;
-        setModSlot(s, 1, kSrcEnvFollower, kDstAllFltCut, 0.3f, kCurveExp, 40.0f);
+        // 0.25 x4 = full depth: the depth 0.3 x4 played while the Scale saturated the
+        // amount (before state v9, R-053); 0.3 would now reach 1.2.
+        setModSlot(s, 1, kSrcEnvFollower, kDstAllFltCut, 0.25f, kCurveExp, 40.0f);
         s.modMatrix.slots[1].scale = 4;   // x4 -> dramatic breathing sweep (owns scale x4)
         // --- Amp env: very slow fog roll-in ---
         s.ampEnv.attackMs = 1400.0f;

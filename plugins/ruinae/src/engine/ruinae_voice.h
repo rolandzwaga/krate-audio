@@ -137,6 +137,9 @@ public:
 
         // Initialize ALL filter types (pre-allocation for RT safety)
         prepareAllFilters();
+        filterFadeLength_ = static_cast<size_t>(
+            std::lround(sampleRate * static_cast<double>(kFilterFadeMs) * 0.001));
+        filterFadeRemaining_ = 0;
 
         // Initialize ALL distortion types (pre-allocation for RT safety)
         prepareAllDistortions();
@@ -177,6 +180,9 @@ public:
         // Initialize per-voice LFO
         voiceLfo_.prepare(sampleRate);
 
+        // Route smoothers run per sample (computeOffsets in processBlock)
+        modRouter_.prepare(sampleRate);
+
         // Reset all state
         ampEnv_.reset();
         filterEnv_.reset();
@@ -208,6 +214,7 @@ public:
         filterEnv_.reset();
         modEnv_.reset();
         voiceLfo_.reset();
+        modRouter_.resetSmoothing();
         noteFrequency_ = 0.0f;
         velocity_ = 0.0f;
         noteId_ = -1;
@@ -603,14 +610,31 @@ public:
 
         // Step 5: Distortion (FR-013 through FR-015)
         if (distortionType_ != RuinaeDistortionType::Clean && distortionMix_ > 0.0f) {
-            if (distortionMix_ >= 1.0f) {
+            const bool spectral = distortionType_ == RuinaeDistortionType::SpectralDistortion;
+            // Below kDistortionFadeInDrive the drive also fades the type in from the dry
+            // signal, so drive 0 passes the voice unchanged for every type (R-019); from
+            // there up each type's own drive law applies unchanged.
+            const float fadeIn = activeDistortionDrive_ >= kDistortionFadeInDrive
+                ? 1.0f
+                : activeDistortionDrive_ / kDistortionFadeInDrive;
+            const float wet = distortionMix_ * fadeIn;
+            if (wet >= 1.0f) {
+                if (spectral) {
+                    // Keep the dry delay line in step with the STFT's own history.
+                    delaySpectralDry(mixBuffer_.data(), nullptr, numSamples);
+                }
                 processActiveDistortionBlock(mixBuffer_.data(), numSamples);
             } else {
                 // Wet/dry blend: save dry, process wet, mix
-                std::copy(mixBuffer_.data(), mixBuffer_.data() + numSamples,
-                          distortionBuffer_.data());
+                if (spectral) {
+                    // SpectralDistortion's output is latency() samples late (R-024):
+                    // delay the dry copy by the same amount so the blend is time-aligned.
+                    delaySpectralDry(mixBuffer_.data(), distortionBuffer_.data(), numSamples);
+                } else {
+                    std::copy(mixBuffer_.data(), mixBuffer_.data() + numSamples,
+                              distortionBuffer_.data());
+                }
                 processActiveDistortionBlock(mixBuffer_.data(), numSamples);
-                const float wet = distortionMix_;
                 const float dry = 1.0f - wet;
                 for (size_t s = 0; s < numSamples; ++s) {
                     mixBuffer_[s] = mixBuffer_[s] * wet + distortionBuffer_[s] * dry;
@@ -761,8 +785,13 @@ public:
 
     /// @brief Set the filter type (FR-010, SC-004: zero allocations).
     ///
-    /// Switches between pre-allocated filter instances. All 4 filter types
-    /// are alive simultaneously; only the active one is processed.
+    /// Switches between pre-allocated filter instances. All filter types are
+    /// alive simultaneously; only the active one is processed, except during
+    /// the kFilterFadeMs crossfade that follows a type change on a sounding
+    /// voice (R-152): the incoming filter is reset, then both run and the
+    /// output blends linearly from the old filter to the new one. The SVF
+    /// types share one instance, so a switch between two of them stays a mode
+    /// change on the running filter. An idle voice switches at once.
     void setFilterType(RuinaeFilterType type) noexcept {
         if (type == filterType_) {
             // Same type — for SVF modes we still need to update the mode
@@ -770,14 +799,42 @@ public:
             return;
         }
 
+        const RuinaeFilterType previous = filterType_;
+        const bool fading = filterFadeRemaining_ > 0;
         filterType_ = type;
 
         // Update SVF mode if switching between SVF variants
         updateSvfMode(type);
 
-        // Apply current cutoff/resonance to the newly active filter
+        if (sharesFilterInstance(type, previous)) {
+            // SVF -> SVF: same instance, mode change only. A running fade
+            // continues against its outgoing filter.
+            setActiveFilterCutoff(filterCutoffHz_);
+            setActiveFilterResonance(filterResonance_);
+            return;
+        }
+
+        if (fading && sharesFilterInstance(type, prevFilterType_)) {
+            // Back to the filter that is still fading out: reverse the fade.
+            prevFilterType_ = previous;
+            filterFadeRemaining_ = filterFadeLength_ - filterFadeRemaining_;
+            setActiveFilterCutoff(filterCutoffHz_);
+            setActiveFilterResonance(filterResonance_);
+            return;
+        }
+
+        // A third type during a fade: keep the filter that carries more of the
+        // output as the outgoing one and drop the other.
+        const bool keepFadingOut = fading && filterFadeRemaining_ * 2 > filterFadeLength_;
+        prevFilterType_ = keepFadingOut ? prevFilterType_ : previous;
+        filterFadeRemaining_ = ampEnv_.isActive() ? filterFadeLength_ : 0;
+
+        // Apply current cutoff/resonance to the incoming filter, then clear its
+        // state left from the last time it ran (reset also snaps smoothers to
+        // the targets just set).
         setActiveFilterCutoff(filterCutoffHz_);
         setActiveFilterResonance(filterResonance_);
+        resetFilter(type);
     }
 
     /// @brief Set the base filter cutoff frequency in Hz.
@@ -1186,6 +1243,16 @@ public:
         expressionTuning_ = semitones;
         updateOscFrequencies();
     }
+    [[nodiscard]] float expressionTuning() const noexcept { return expressionTuning_; }
+
+    /// @brief Return the per-note expressions to neutral, for a voice that
+    ///        takes another note without a retrigger (mono legato).
+    void resetExpression() noexcept {
+        expressionTuning_ = 0.0f;
+        expressionVolume_ = 1.0f;
+        expressionBrightness_ = 0.5f;
+        updateOscFrequencies();
+    }
 
     /// @brief Set per-note volume multiplier (0 = silent, 1 = unity, 4 = max).
     void setExpressionVolume(float gain) noexcept {
@@ -1220,6 +1287,7 @@ public:
     ADSREnvelope& getFilterEnvelope() noexcept { return filterEnv_; }
     ADSREnvelope& getModEnvelope() noexcept { return modEnv_; }
     LFO& getVoiceLFO() noexcept { return voiceLfo_; }
+    [[nodiscard]] const LFO& getVoiceLFO() const noexcept { return voiceLfo_; }
 
     /// @brief The voice's current note frequency in Hz, after any portamento
     /// glide has been applied.
@@ -1231,6 +1299,19 @@ public:
 
     /// @brief Current oscillator mix / morph position [0,1].
     [[nodiscard]] float getMixPosition() const noexcept { return mixPosition_; }
+
+    /// @brief Current filter resonance (Q), including any engine-level
+    /// modulation the engine has pushed down.
+    [[nodiscard]] float getFilterResonance() const noexcept { return filterResonance_; }
+
+    /// @brief The per-voice route offset for `dest` after the last processed
+    /// sample, in the destination's units (semitones, Q, ...): the router's
+    /// summed offset times the destination scale.
+    [[nodiscard]] float getModRouteOffset(VoiceModDest dest) const noexcept {
+        const auto idx = static_cast<size_t>(dest);
+        if (idx >= static_cast<size_t>(VoiceModDest::NumDestinations)) return 0.0f;
+        return modRouter_.getOffset(dest) * modDestScales_[idx];
+    }
 
     [[nodiscard]] const ADSREnvelope& getAmpEnvelope() const noexcept { return ampEnv_; }
     [[nodiscard]] const ADSREnvelope& getFilterEnvelope() const noexcept { return filterEnv_; }
@@ -1268,7 +1349,7 @@ private:
         filterComb_ = std::make_unique<FeedbackComb>();
         filterComb_->prepare(sampleRate_, 0.05f);
         updateCombDelay(*filterComb_, filterCutoffHz_);
-        updateCombFeedback(*filterComb_, filterResonance_);
+        combMakeup_ = updateCombFeedback(*filterComb_, filterResonance_);
 
         filterEnvFilter_ = std::make_unique<EnvelopeFilter>();
         filterEnvFilter_->prepare(sampleRate_);
@@ -1324,12 +1405,41 @@ private:
         }
     }
 
-    /// @brief Reset the currently active filter (zeros state).
+    /// @brief True when two filter types run on the same instance (the SVF types).
+    [[nodiscard]] static bool sharesFilterInstance(RuinaeFilterType a,
+                                                   RuinaeFilterType b) noexcept {
+        return a == b || (isSvfType(a) && isSvfType(b));
+    }
+
+    [[nodiscard]] static bool isSvfType(RuinaeFilterType t) noexcept {
+        switch (t) {
+            case RuinaeFilterType::SVF_LP:
+            case RuinaeFilterType::SVF_HP:
+            case RuinaeFilterType::SVF_BP:
+            case RuinaeFilterType::SVF_Notch:
+            case RuinaeFilterType::SVF_Allpass:
+            case RuinaeFilterType::SVF_Peak:
+            case RuinaeFilterType::SVF_LowShelf:
+            case RuinaeFilterType::SVF_HighShelf:
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    /// @brief Reset the currently active filter (zeros state) and drop any
+    /// type crossfade in progress.
     ///
     /// Use only for full voice reset (e.g., stolen voice). For note retrigger,
     /// use snapActiveFilterToTarget() to avoid output discontinuity.
     void resetActiveFilter() noexcept {
-        switch (filterType_) {
+        filterFadeRemaining_ = 0;
+        resetFilter(filterType_);
+    }
+
+    /// @brief Reset the filter instance that serves @p type (zeros state).
+    void resetFilter(RuinaeFilterType type) noexcept {
+        switch (type) {
             case RuinaeFilterType::SVF_LP:
             case RuinaeFilterType::SVF_HP:
             case RuinaeFilterType::SVF_BP:
@@ -1385,9 +1495,16 @@ private:
         }
     }
 
-    /// @brief Set cutoff on the active filter.
+    /// @brief Set cutoff on the active filter (and on the outgoing one while a
+    /// type crossfade runs).
     void setActiveFilterCutoff(float hz) noexcept {
-        switch (filterType_) {
+        setFilterCutoffFor(filterType_, hz);
+        if (filterFadeRemaining_ > 0) setFilterCutoffFor(prevFilterType_, hz);
+    }
+
+    /// @brief Set cutoff on the filter instance that serves @p type.
+    void setFilterCutoffFor(RuinaeFilterType type, float hz) noexcept {
+        switch (type) {
             case RuinaeFilterType::SVF_LP:
             case RuinaeFilterType::SVF_HP:
             case RuinaeFilterType::SVF_BP:
@@ -1430,9 +1547,16 @@ private:
         }
     }
 
-    /// @brief Set resonance on the active filter.
+    /// @brief Set resonance on the active filter (and on the outgoing one while
+    /// a type crossfade runs).
     void setActiveFilterResonance(float q) noexcept {
-        switch (filterType_) {
+        setFilterResonanceFor(filterType_, q);
+        if (filterFadeRemaining_ > 0) setFilterResonanceFor(prevFilterType_, q);
+    }
+
+    /// @brief Set resonance on the filter instance that serves @p type.
+    void setFilterResonanceFor(RuinaeFilterType type, float q) noexcept {
+        switch (type) {
             case RuinaeFilterType::SVF_LP:
             case RuinaeFilterType::SVF_HP:
             case RuinaeFilterType::SVF_BP:
@@ -1451,7 +1575,7 @@ private:
                 // FormantFilter doesn't have a direct resonance parameter
                 break;
             case RuinaeFilterType::Comb:
-                if (filterComb_) updateCombFeedback(*filterComb_, q);
+                if (filterComb_) combMakeup_ = updateCombFeedback(*filterComb_, q);
                 break;
             case RuinaeFilterType::EnvelopeFilter:
                 if (filterEnvFilter_) filterEnvFilter_->setResonance(std::clamp(q, 0.5f, 20.0f));
@@ -1463,9 +1587,21 @@ private:
         }
     }
 
-    /// @brief Process a single sample through the active filter.
+    /// @brief Process a single sample through the active filter, blended with
+    /// the outgoing filter while a type crossfade runs (R-152).
     [[nodiscard]] float processActiveFilter(float input) noexcept {
-        switch (filterType_) {
+        const float current = processFilter(filterType_, input);
+        if (filterFadeRemaining_ == 0) return current;
+        const float outgoing = processFilter(prevFilterType_, input);
+        const float outgoingWeight = static_cast<float>(filterFadeRemaining_)
+                                   / static_cast<float>(filterFadeLength_);
+        --filterFadeRemaining_;
+        return current + (outgoing - current) * outgoingWeight;
+    }
+
+    /// @brief Process a single sample through the filter instance for @p type.
+    [[nodiscard]] float processFilter(RuinaeFilterType type, float input) noexcept {
+        switch (type) {
             case RuinaeFilterType::SVF_LP:
             case RuinaeFilterType::SVF_HP:
             case RuinaeFilterType::SVF_BP:
@@ -1477,8 +1613,18 @@ private:
                 float out = filterSvf_.process(input);
                 if (svfSlopeStages_ >= 2)
                     out = filterSvf2_.process(out);
-                if (svfDriveDb_ > 0.0f)
-                    out = std::tanh(out * dbToGain(svfDriveDb_));
+                if (svfDriveDb_ > 0.0f) {
+                    // Drive fades the saturator in from the linear path over its
+                    // first kSvfDriveBlendDb, so drive 0+ sounds like drive 0
+                    // (R-014). From there up the law is the plain tanh.
+                    const float shaped = std::tanh(out * dbToGain(svfDriveDb_));
+                    if (svfDriveDb_ >= kSvfDriveBlendDb) {
+                        out = shaped;
+                    } else {
+                        const float mix = svfDriveDb_ / kSvfDriveBlendDb;
+                        out = out * (1.0f - mix) + shaped * mix;
+                    }
+                }
                 return out;
             }
             case RuinaeFilterType::Ladder:
@@ -1486,7 +1632,7 @@ private:
             case RuinaeFilterType::Formant:
                 return filterFormant_ ? filterFormant_->process(input) : input;
             case RuinaeFilterType::Comb:
-                return filterComb_ ? filterComb_->process(input) : input;
+                return filterComb_ ? filterComb_->process(input) * combMakeup_ : input;
             case RuinaeFilterType::EnvelopeFilter:
                 return filterEnvFilter_ ? filterEnvFilter_->process(input) : input;
             case RuinaeFilterType::SelfOscillating:
@@ -1508,6 +1654,8 @@ private:
 
         distSpectral_ = std::make_unique<SpectralDistortion>();
         distSpectral_->prepare(sampleRate_, 512);
+        spectralDryDelay_.assign(distSpectral_->latency(), 0.0f);
+        spectralDryPos_ = 0;
         distSpectral_->setDrive(distortionDrive_ * 10.0f);
 
         distGranular_ = std::make_unique<GranularDistortion>();
@@ -1525,6 +1673,22 @@ private:
         ringMod_.setAmplitude(distortionDrive_);
     }
 
+    /// @brief Push `in` through the spectral dry delay line (length = SpectralDistortion
+    /// latency). Writes the delayed samples to `out` when it is not null.
+    void delaySpectralDry(const float* in, float* out, size_t numSamples) noexcept {
+        const size_t len = spectralDryDelay_.size();
+        if (len == 0) {
+            if (out) std::copy(in, in + numSamples, out);
+            return;
+        }
+        for (size_t s = 0; s < numSamples; ++s) {
+            const float delayed = spectralDryDelay_[spectralDryPos_];
+            spectralDryDelay_[spectralDryPos_] = in[s];
+            if (++spectralDryPos_ >= len) spectralDryPos_ = 0;
+            if (out) out[s] = delayed;
+        }
+    }
+
     /// @brief Reset the currently active distortion.
     void resetActiveDistortion() noexcept {
         switch (distortionType_) {
@@ -1533,6 +1697,8 @@ private:
                 break;
             case RuinaeDistortionType::SpectralDistortion:
                 if (distSpectral_) (*distSpectral_).reset();
+                std::fill(spectralDryDelay_.begin(), spectralDryDelay_.end(), 0.0f);
+                spectralDryPos_ = 0;
                 break;
             case RuinaeDistortionType::GranularDistortion:
                 if (distGranular_) (*distGranular_).reset();
@@ -1549,6 +1715,7 @@ private:
 
     /// @brief Set drive on the active distortion.
     void setActiveDistortionDrive(float drive) noexcept {
+        activeDistortionDrive_ = drive;
         switch (distortionType_) {
             case RuinaeDistortionType::ChaosWaveshaper:
                 if (distChaos_) distChaos_->setChaosAmount(drive);
@@ -1682,11 +1849,22 @@ private:
         comb.setDelayMs(delayMs);
     }
 
-    static void updateCombFeedback(FeedbackComb& comb, float q) noexcept {
+    /// @brief Map Q [0.1, 30] to comb feedback [0, 0.98]; returns the output
+    /// level compensation for that feedback (R-156).
+    ///
+    /// A feedback comb's tooth gain is 1 / (1 - g): +34 dB at g = 0.98, which
+    /// put a single voice at +22 dBFS at full resonance. Above g = 0.5 the
+    /// output is scaled by 1 - (g - 0.5) * kCombMakeupSlope, falling linearly
+    /// from unity to 0.1 (-20 dB) at g = 0.98; below g = 0.5 it is unchanged.
+    [[nodiscard]] static float updateCombFeedback(FeedbackComb& comb, float q) noexcept {
         const float normalizedQ = std::clamp((q - 0.1f) / 29.9f, 0.0f, 1.0f);
         const float feedback = normalizedQ * 0.98f;
         comb.setFeedback(feedback);
+        return 1.0f - std::max(0.0f, feedback - 0.5f) * kCombMakeupSlope;
     }
+
+    /// (1 - 0.1) / (0.98 - 0.5): -20 dB of makeup at the top of the range.
+    static constexpr float kCombMakeupSlope = 1.875f;
 
     // =========================================================================
     // Sub-components
@@ -1714,7 +1892,9 @@ private:
     std::vector<float> oscABuffer_;
     std::vector<float> oscBBuffer_;
     std::vector<float> mixBuffer_;
-    std::vector<float> distortionBuffer_;       // For SpectralDistortion (non-in-place)
+    std::vector<float> spectralDryDelay_;       // Dry delay for SpectralDistortion latency (R-024)
+    size_t spectralDryPos_ = 0;
+    std::vector<float> distortionBuffer_;     // For SpectralDistortion (non-in-place)
     std::vector<float> spectralMorphBuffer_;    // For SpectralMorphFilter output
 
     // Mixer
@@ -1729,13 +1909,21 @@ private:
     SVF filterSvf2_;                    // Second SVF stage for 24dB cascade
     int svfSlopeStages_{1};             // 1=12dB (single), 2=24dB (cascaded)
     float svfDriveDb_{0.0f};            // 0-24 dB post-filter saturation
+    /// Drive over which the SVF saturator fades in from the linear path (R-014)
+    static constexpr float kSvfDriveBlendDb = 3.0f;
     float svfGainDb_{0.0f};             // -24 to +24 dB (Peak/LowShelf/HighShelf)
     std::unique_ptr<LadderFilter> filterLadder_;
     std::unique_ptr<FormantFilter> filterFormant_;
     std::unique_ptr<FeedbackComb> filterComb_;
+    float combMakeup_{1.0f};            // Comb output level compensation (R-156)
     std::unique_ptr<EnvelopeFilter> filterEnvFilter_;
     std::unique_ptr<SelfOscillatingFilter> filterSelfOsc_;
     RuinaeFilterType filterType_{RuinaeFilterType::SVF_LP};
+    /// Filter type crossfade (R-152): the outgoing type and the samples left
+    static constexpr float kFilterFadeMs = 10.0f;
+    RuinaeFilterType prevFilterType_{RuinaeFilterType::SVF_LP};
+    size_t filterFadeLength_{0};
+    size_t filterFadeRemaining_{0};
     float filterCutoffHz_{1000.0f};
     float filterResonance_{0.707f};
     float filterEnvAmount_{0.0f};
@@ -1750,6 +1938,9 @@ private:
     RingModulator ringMod_;               // Value type (all sub-components are value types)
     RuinaeDistortionType distortionType_{RuinaeDistortionType::Clean};
     float distortionDrive_{0.0f};
+    float activeDistortionDrive_{0.0f};  ///< Drive last applied (base + modulation)
+    /// Drive below which the active type fades in from dry (R-019); laws above it unchanged
+    static constexpr float kDistortionFadeInDrive = 0.1f;
     float distortionCharacter_{0.5f};
     float distortionMix_{1.0f};
 

@@ -90,7 +90,7 @@ public:
     static constexpr std::size_t kDefaultFFTSize = 1024;
 
     static constexpr float kMinDelayMs = 0.0f;
-    static constexpr float kMaxDelayMs = 2000.0f;
+    static constexpr float kMaxDelayMs = 2000.0f;  ///< Default maximum (prepare()'s maxDelayMs)
     static constexpr float kDefaultDelayMs = 250.0f;
 
     static constexpr float kMinSpreadMs = 0.0f;
@@ -129,75 +129,78 @@ public:
     /// @brief Prepare for processing at given sample rate
     /// @param sampleRate Sample rate in Hz
     /// @param maxBlockSize Maximum samples per process() call
-    void prepare(double sampleRate, std::size_t maxBlockSize) noexcept {
+    /// @param maxDelayMs Longest per-bin delay the lines hold; setBaseDelayMs() and the synced
+    ///        time stop there (default kMaxDelayMs)
+    void prepare(double sampleRate, std::size_t maxBlockSize,
+                 float maxDelayMs = kMaxDelayMs) noexcept {
         sampleRate_ = sampleRate;
         maxBlockSize_ = maxBlockSize;
-        hopSize_ = fftSize_ / 2;  // 50% overlap
+        maxDelayMs_ = maxDelayMs;
 
-        // Prepare STFT analysis (stereo)
-        stftL_.prepare(fftSize_, hopSize_, WindowType::Hann);
-        stftR_.prepare(fftSize_, hopSize_, WindowType::Hann);
+        // Storage is allocated ONCE for every supported FFT size, so a size
+        // requested while running (setFFTSize) is switched to inside process()
+        // without allocating: the STFT / overlap-add hold the largest size plus
+        // a transform for each smaller one, the spectra hold the largest bin
+        // count, and each per-bin delay line holds the frames of the smallest
+        // FFT size that has that bin (the highest frame rate it can run at).
+        stftL_.prepare(kMaxFFTSize, kMaxFFTSize / 2, WindowType::Hann);
+        stftR_.prepare(kMaxFFTSize, kMaxFFTSize / 2, WindowType::Hann);
+        stftL_.prepareActiveSizes(kMinFFTSize);
+        stftR_.prepareActiveSizes(kMinFFTSize);
+        overlapAddL_.prepare(kMaxFFTSize, kMaxFFTSize / 2, WindowType::Hann);
+        overlapAddR_.prepare(kMaxFFTSize, kMaxFFTSize / 2, WindowType::Hann);
+        overlapAddL_.prepareActiveSizes(kMinFFTSize);
+        overlapAddR_.prepareActiveSizes(kMinFFTSize);
 
-        // Prepare overlap-add synthesis (stereo)
-        overlapAddL_.prepare(fftSize_, hopSize_, WindowType::Hann);
-        overlapAddR_.prepare(fftSize_, hopSize_, WindowType::Hann);
+        for (SpectralBuffer* s : {&inputSpectrumL_, &inputSpectrumR_, &outputSpectrumL_,
+                                  &outputSpectrumR_, &frozenSpectrumL_, &frozenSpectrumR_}) {
+            s->prepare(kMaxFFTSize);
+        }
 
-        // Prepare spectral buffers
-        const std::size_t numBins = fftSize_ / 2 + 1;
-        inputSpectrumL_.prepare(fftSize_);
-        inputSpectrumR_.prepare(fftSize_);
-        outputSpectrumL_.prepare(fftSize_);
-        outputSpectrumR_.prepare(fftSize_);
-        frozenSpectrumL_.prepare(fftSize_);
-        frozenSpectrumR_.prepare(fftSize_);
-
-        // Calculate max delay in seconds for delay lines
-        const float maxDelaySeconds = kMaxDelayMs / 1000.0f;
-
-        // Prepare per-bin delay lines (stereo)
-        // Delay lines work at spectral frame rate (sampleRate / hopSize)
-        const double frameRate = sampleRate / static_cast<double>(hopSize_);
-
-        // Prepare complex delay lines (real + imaginary parts)
+        // Prepare complex delay lines (real + imaginary parts) at capacity
+        constexpr std::size_t kMaxBins = kMaxFFTSize / 2 + 1;
         binRealDelaysL_.clear();
         binRealDelaysR_.clear();
         binImagDelaysL_.clear();
         binImagDelaysR_.clear();
-        binRealDelaysL_.reserve(numBins);
-        binRealDelaysR_.reserve(numBins);
-        binImagDelaysL_.reserve(numBins);
-        binImagDelaysR_.reserve(numBins);
+        binRealDelaysL_.reserve(kMaxBins);
+        binRealDelaysR_.reserve(kMaxBins);
+        binImagDelaysL_.reserve(kMaxBins);
+        binImagDelaysR_.reserve(kMaxBins);
 
-        for (std::size_t i = 0; i < numBins; ++i) {
-            // Real part delay lines
-            binRealDelaysL_.emplace_back();
-            binRealDelaysR_.emplace_back();
-            binRealDelaysL_.back().prepare(frameRate, maxDelaySeconds);
-            binRealDelaysR_.back().prepare(frameRate, maxDelaySeconds);
-
-            // Imaginary part delay lines
-            binImagDelaysL_.emplace_back();
-            binImagDelaysR_.emplace_back();
-            binImagDelaysL_.back().prepare(frameRate, maxDelaySeconds);
-            binImagDelaysR_.back().prepare(frameRate, maxDelaySeconds);
+        for (std::size_t i = 0; i < kMaxBins; ++i) {
+            std::size_t smallestSize = kMinFFTSize;
+            while (smallestSize / 2 + 1 <= i) smallestSize <<= 1;
+            const std::size_t smallestHop = smallestSize / 2;
+            const double capacityFrameRate = sampleRate / static_cast<double>(smallestHop);
+            for (auto* lines : {&binRealDelaysL_, &binRealDelaysR_, &binImagDelaysL_, &binImagDelaysR_}) {
+                lines->emplace_back();
+                lines->back().prepare(capacityFrameRate, maxDelayMs_ / 1000.0f);
+            }
         }
 
-        // Configure parameter smoothers (50ms smoothing time for spectral processing)
-        // Increased from 10ms to reduce artifacts during parameter changes.
-        // Each smoother is configured at the rate it is ADVANCED at, so 50 ms is
-        // 50 ms of real time: the spectral-parameter smoothers step once per frame
-        // in processSpectralFrame() (frame rate = sampleRate / hop), dry/wet once
-        // per sample in process(). Configured per sample but stepped per frame,
-        // they took 'hop' times longer (~26 s at the 1024-point default).
-        const float smoothTimeMs = 50.0f;
-        const auto frameRateF = static_cast<float>(frameRate);
-        baseDelaySmoother_.configure(smoothTimeMs, frameRateF);
-        spreadSmoother_.configure(smoothTimeMs, frameRateF);
-        feedbackSmoother_.configure(smoothTimeMs, frameRateF);
-        tiltSmoother_.configure(smoothTimeMs, frameRateF);
-        diffusionSmoother_.configure(smoothTimeMs, frameRateF);
-        stereoWidthSmoother_.configure(smoothTimeMs, frameRateF);
-        dryWetSmoother_.configure(smoothTimeMs, static_cast<float>(sampleRate));
+        // Allocate temp buffers
+        tempBufferL_.resize(maxBlockSize, 0.0f);
+        tempBufferR_.resize(maxBlockSize, 0.0f);
+        dryBufferL_.resize(maxBlockSize, 0.0f);
+        dryBufferR_.resize(maxBlockSize, 0.0f);
+        blurredMag_.assign(kMaxBins, 0.0f);
+        binDelayFrames_.assign(kMaxBins, 0.0f);
+        peaks_.assign(kMaxBins, 0);
+        for (DelayedSpectrum* s : {&delayedL_, &delayedR_}) {
+            s->magNew.assign(kMaxBins, 0.0f);
+            s->advance.assign(kMaxBins, 0.0f);
+            s->mag.assign(kMaxBins, 0.0f);
+            s->phase.assign(kMaxBins, 0.0f);
+        }
+        stereoPhaseL_.assign(kMaxBins, 0.0f);
+        stereoPhaseR_.assign(kMaxBins, 0.0f);
+
+        // Activate the requested size inside that storage
+        applyFFTSize(requestedFFTSize_);
+        wetSwitchGain_ = 1.0f;
+        wetSwitchStep_ = 1.0f / std::max(1.0f, kFFTSwitchFadeMs * 0.001f
+                                                   * static_cast<float>(sampleRate));
 
         // Initialize smoothers to current values
         baseDelaySmoother_.setTarget(baseDelayMs_);
@@ -211,39 +214,16 @@ public:
         // Snap smoothers to initial values
         snapParameters();
 
-        // Calculate freeze crossfade increment (per frame, not per sample)
-        // Freeze operates at spectral frame rate
-        freezeCrossfadeIncrement_ = static_cast<float>(hopSize_) /
-                                    (kFreezeCrossfadeTimeMs * 0.001f *
-                                     static_cast<float>(sampleRate));
-
-        // Allocate temp buffers
-        tempBufferL_.resize(maxBlockSize, 0.0f);
-        tempBufferR_.resize(maxBlockSize, 0.0f);
-        dryBufferL_.resize(maxBlockSize, 0.0f);
-        dryBufferR_.resize(maxBlockSize, 0.0f);
-        blurredMag_.resize(numBins, 0.0f);
-        binDelayFrames_.assign(numBins, 0.0f);
-        peaks_.assign(numBins, 0);
-        for (DelayedSpectrum* s : {&delayedL_, &delayedR_}) {
-            s->magNew.assign(numBins, 0.0f);
-            s->advance.assign(numBins, 0.0f);
-            s->mag.assign(numBins, 0.0f);
-            s->phase.assign(numBins, 0.0f);
-        }
-
         // Seed RNG with unique value per instance (address + sample rate)
         // This ensures different instances produce different random sequences
         rng_.seed(static_cast<uint32_t>(reinterpret_cast<uintptr_t>(this) ^
                                         static_cast<uintptr_t>(sampleRate)));
 
-        // Allocate phase buffers for stereo decorrelation (random walk approach)
-        // These provide smooth phase modulation without frame-boundary clicks
-        // Initialize with random values so each instance starts with unique phase offsets
-        stereoPhaseL_.resize(numBins);
-        stereoPhaseR_.resize(numBins);
-
-        for (std::size_t i = 0; i < numBins; ++i) {
+        // Phase buffers for stereo decorrelation (random walk approach) provide
+        // smooth phase modulation without frame-boundary clicks. Initialize the
+        // active bins with random values so each instance starts with unique
+        // phase offsets.
+        for (std::size_t i = 0; i < activeNumBins(); ++i) {
             // Start with random phase offsets in ±π/2. nextUnipolar() is [0, 1]; nextFloat() is
             // [-1, 1], which made this [-3π/2, π/2] and the walk below drift both channels together.
             stereoPhaseL_[i] = (rng_.nextUnipolar() - 0.5f) * kPi;
@@ -254,7 +234,14 @@ public:
     }
 
     /// @brief Reset all internal state (delay lines, STFT buffers)
+    /// @note Applies a pending setFFTSize() request at once: everything it would
+    ///       clear is cleared here anyway, so no fade is needed.
     void reset() noexcept {
+        if (prepared_ && requestedFFTSize_ != fftSize_) {
+            applyFFTSize(requestedFFTSize_);
+        }
+        wetSwitchGain_ = 1.0f;
+
         // Reset STFT
         stftL_.reset();
         stftR_.reset();
@@ -271,20 +258,15 @@ public:
         frozenSpectrumL_.reset();
         frozenSpectrumR_.reset();
 
-        // Reset all per-bin complex delay lines (real parts)
-        for (auto& delay : binRealDelaysL_) {
-            delay.reset();
-        }
-        for (auto& delay : binRealDelaysR_) {
-            delay.reset();
-        }
-
-        // Reset all per-bin complex delay lines (imaginary parts)
-        for (auto& delay : binImagDelaysL_) {
-            delay.reset();
-        }
-        for (auto& delay : binImagDelaysR_) {
-            delay.reset();
+        // Reset the active bins' complex delay lines (real + imaginary parts).
+        // The lines above the active bin count are not read, and applyFFTSize()
+        // clears each one it activates.
+        const std::size_t numBins = std::min(activeNumBins(), binRealDelaysL_.size());
+        for (std::size_t i = 0; i < numBins; ++i) {
+            binRealDelaysL_[i].reset();
+            binRealDelaysR_[i].reset();
+            binImagDelaysL_[i].reset();
+            binImagDelaysR_[i].reset();
         }
 
         // Reset freeze state
@@ -293,7 +275,7 @@ public:
 
         // Re-randomize stereo phase state (random walk values)
         // This ensures each reset produces new random starting phases
-        for (std::size_t i = 0; i < stereoPhaseL_.size(); ++i) {
+        for (std::size_t i = 0; i < std::min(activeNumBins(), stereoPhaseL_.size()); ++i) {
             stereoPhaseL_[i] = (rng_.nextUnipolar() - 0.5f) * kPi;
             stereoPhaseR_[i] = (rng_.nextUnipolar() - 0.5f) * kPi;
         }
@@ -312,7 +294,7 @@ public:
     void seedRng(uint32_t seed) noexcept {
         rng_.seed(seed);
         // Reinitialize stereo phase buffers with deterministic values
-        for (std::size_t i = 0; i < stereoPhaseL_.size(); ++i) {
+        for (std::size_t i = 0; i < std::min(activeNumBins(), stereoPhaseL_.size()); ++i) {
             stereoPhaseL_[i] = (rng_.nextUnipolar() - 0.5f) * kPi;
             stereoPhaseR_[i] = (rng_.nextUnipolar() - 0.5f) * kPi;
         }
@@ -333,6 +315,14 @@ public:
             return;
         }
 
+        // A requested FFT size is switched to once the wet output has faded out
+        // (see applyWetSwitchFade). The switch clears every frame and delay line,
+        // so the new size's output starts from silence and rises with its first
+        // windowed frame.
+        if (requestedFFTSize_ != fftSize_ && wetSwitchGain_ <= 0.0f) {
+            reset();
+        }
+
         // Update base delay from tempo if in synced mode (spec 041, FR-003)
         if (timeMode_ == TimeMode::Synced) {
             // Get tempo with fallback to 120 BPM if unavailable (FR-007)
@@ -345,7 +335,7 @@ public:
             float syncedMs = dropdownToDelayMs(noteValueIndex_, tempo);
 
             // Clamp to max delay buffer (FR-006)
-            syncedMs = std::clamp(syncedMs, kMinDelayMs, kMaxDelayMs);
+            syncedMs = std::clamp(syncedMs, kMinDelayMs, maxDelayMs_);
 
             // Update smoother target for smooth transitions - unless a snap is
             // pending: snapParameters() cannot know the host tempo, so a snap
@@ -432,6 +422,10 @@ public:
             }
         }
 
+        if (requestedFFTSize_ != fftSize_ || wetSwitchGain_ < 1.0f) {
+            applyWetSwitchFade(produced, numSamples);
+        }
+
         const std::size_t toPull = produced;
 
         if (toPull > 0) {
@@ -465,18 +459,27 @@ public:
     // FFT Configuration
     // =========================================================================
 
-    /// @brief Set FFT size (must call prepare() after changing)
-    /// @param fftSize FFT size (512, 1024, 2048, or 4096)
+    /// @brief Request an FFT size (512, 1024, 2048 or 4096; others round up to a
+    ///        power of two within that range)
+    /// @note Real-time safe. Before prepare() the size takes effect at once. On a
+    ///       prepared delay, process() fades the wet output out over
+    ///       kFFTSwitchFadeMs, then switches to the new size inside the storage
+    ///       prepare() allocated and clears the spectral state (the echoes
+    ///       restart); reset() switches at once. Until then getFFTSize() and
+    ///       getLatencySamples() report the size in use.
     void setFFTSize(std::size_t fftSize) noexcept {
-        fftSize_ = std::clamp(fftSize, kMinFFTSize, kMaxFFTSize);
+        const std::size_t clamped = std::clamp(fftSize, kMinFFTSize, kMaxFFTSize);
         // Round to nearest power of 2
         std::size_t pow2 = 1;
-        while (pow2 < fftSize_) pow2 <<= 1;
-        fftSize_ = pow2;
-        // Caller must call prepare() after this
+        while (pow2 < clamped) pow2 <<= 1;
+        requestedFFTSize_ = pow2;
+        if (!prepared_) {
+            fftSize_ = pow2;
+            hopSize_ = pow2 / 2;
+        }
     }
 
-    /// @brief Get current FFT size
+    /// @brief Get the FFT size in use
     [[nodiscard]] std::size_t getFFTSize() const noexcept { return fftSize_; }
 
     // =========================================================================
@@ -485,7 +488,7 @@ public:
 
     /// @brief Set base delay time in milliseconds
     void setBaseDelayMs(float ms) noexcept {
-        baseDelayMs_ = std::clamp(ms, kMinDelayMs, kMaxDelayMs);
+        baseDelayMs_ = std::clamp(ms, kMinDelayMs, maxDelayMs_);
         baseDelaySmoother_.setTarget(baseDelayMs_);
     }
     [[nodiscard]] float getBaseDelayMs() const noexcept { return baseDelayMs_; }
@@ -600,7 +603,7 @@ public:
     // Query
     // =========================================================================
 
-    /// @brief Get latency in samples (equals FFT size)
+    /// @brief Get latency in samples (equals the FFT size in use)
     [[nodiscard]] std::size_t getLatencySamples() const noexcept {
         return fftSize_;
     }
@@ -633,6 +636,82 @@ private:
     // =========================================================================
     // Internal Helpers
     // =========================================================================
+
+    /// Bins of the FFT size in use
+    [[nodiscard]] std::size_t activeNumBins() const noexcept { return fftSize_ / 2 + 1; }
+
+    /// @brief Make @p fftSize the size in use, inside the storage prepare()
+    ///        allocated for every supported size
+    /// @note Real-time safe (no allocation): every transform is reserved and
+    ///       every per-bin delay line was sized for its highest frame rate, so
+    ///       re-preparing it at this size's frame rate only shrinks or regrows
+    ///       it within its capacity. Clears the frames, spectra and the active
+    ///       delay lines; the caller clears the rest (reset()).
+    void applyFFTSize(std::size_t fftSize) noexcept {
+        fftSize_ = fftSize;
+        hopSize_ = fftSize / 2;  // 50% overlap
+
+        // Every size in [kMinFFTSize, kMaxFFTSize] is reserved, so none of
+        // these can fail for a size setFFTSize() produced.
+        (void)stftL_.setActiveSize(fftSize_, hopSize_);
+        (void)stftR_.setActiveSize(fftSize_, hopSize_);
+        (void)overlapAddL_.setActiveSize(fftSize_, hopSize_);
+        (void)overlapAddR_.setActiveSize(fftSize_, hopSize_);
+        for (SpectralBuffer* s : {&inputSpectrumL_, &inputSpectrumR_, &outputSpectrumL_,
+                                  &outputSpectrumR_, &frozenSpectrumL_, &frozenSpectrumR_}) {
+            s->setActiveSize(fftSize_);
+        }
+
+        // Per-bin delay lines work at spectral frame rate (sampleRate / hopSize)
+        const double frameRate = sampleRate_ / static_cast<double>(hopSize_);
+        const float maxDelaySeconds = maxDelayMs_ / 1000.0f;
+        const std::size_t numBins = std::min(activeNumBins(), binRealDelaysL_.size());
+        for (std::size_t i = 0; i < numBins; ++i) {
+            binRealDelaysL_[i].prepare(frameRate, maxDelaySeconds);
+            binRealDelaysR_[i].prepare(frameRate, maxDelaySeconds);
+            binImagDelaysL_[i].prepare(frameRate, maxDelaySeconds);
+            binImagDelaysR_[i].prepare(frameRate, maxDelaySeconds);
+        }
+
+        // Configure parameter smoothers (50ms smoothing time for spectral processing)
+        // Increased from 10ms to reduce artifacts during parameter changes.
+        // Each smoother is configured at the rate it is ADVANCED at, so 50 ms is
+        // 50 ms of real time: the spectral-parameter smoothers step once per frame
+        // in processSpectralFrame() (frame rate = sampleRate / hop), dry/wet once
+        // per sample in process(). Configured per sample but stepped per frame,
+        // they took 'hop' times longer (~26 s at the 1024-point default).
+        // configure() keeps each smoother's current value.
+        const float smoothTimeMs = 50.0f;
+        const auto frameRateF = static_cast<float>(frameRate);
+        baseDelaySmoother_.configure(smoothTimeMs, frameRateF);
+        spreadSmoother_.configure(smoothTimeMs, frameRateF);
+        feedbackSmoother_.configure(smoothTimeMs, frameRateF);
+        tiltSmoother_.configure(smoothTimeMs, frameRateF);
+        diffusionSmoother_.configure(smoothTimeMs, frameRateF);
+        stereoWidthSmoother_.configure(smoothTimeMs, frameRateF);
+        dryWetSmoother_.configure(smoothTimeMs, static_cast<float>(sampleRate_));
+
+        // Freeze crossfade increment (per frame, not per sample)
+        freezeCrossfadeIncrement_ = static_cast<float>(hopSize_) /
+                                    (kFreezeCrossfadeTimeMs * 0.001f *
+                                     static_cast<float>(sampleRate_));
+    }
+
+    /// @brief Ramp the wet output (tempBuffer) toward silence while an FFT size
+    ///        request is pending, and back up if the request is withdrawn
+    /// @param produced Wet samples in tempBuffer this block
+    /// @param numSamples Block length (the gain advances once per sample)
+    void applyWetSwitchFade(std::size_t produced, std::size_t numSamples) noexcept {
+        const bool fadingOut = requestedFFTSize_ != fftSize_;
+        for (std::size_t i = 0; i < numSamples; ++i) {
+            wetSwitchGain_ = fadingOut ? std::max(0.0f, wetSwitchGain_ - wetSwitchStep_)
+                                       : std::min(1.0f, wetSwitchGain_ + wetSwitchStep_);
+            if (i < produced) {
+                tempBufferL_[i] *= wetSwitchGain_;
+                tempBufferR_[i] *= wetSwitchGain_;
+            }
+        }
+    }
 
     /// @brief Calculate delay time for a specific bin based on spread settings
     [[nodiscard]] float calculateBinDelayMs(std::size_t bin,
@@ -1027,8 +1106,14 @@ private:
     Xorshift32 rng_{1};
 
     // FFT Configuration
-    std::size_t fftSize_ = kDefaultFFTSize;
-    std::size_t hopSize_ = kDefaultFFTSize / 2;  // 50% overlap
+    std::size_t fftSize_ = kDefaultFFTSize;           ///< size in use
+    std::size_t hopSize_ = kDefaultFFTSize / 2;       // 50% overlap
+    std::size_t requestedFFTSize_ = kDefaultFFTSize;  ///< last setFFTSize(), applied by process()
+
+    // Wet fade-out before a live FFT size switch (applyWetSwitchFade)
+    static constexpr float kFFTSwitchFadeMs = 10.0f;
+    float wetSwitchGain_ = 1.0f;
+    float wetSwitchStep_ = 1.0f;
 
     // STFT Analysis (stereo)
     STFT stftL_;
@@ -1058,6 +1143,7 @@ private:
     std::vector<DelayLine> binImagDelaysR_;
 
     // Parameters
+    float maxDelayMs_ = kMaxDelayMs;  ///< prepare()'s maxDelayMs
     float baseDelayMs_ = kDefaultDelayMs;
     float spreadMs_ = 0.0f;
     SpreadDirection spreadDirection_ = SpreadDirection::LowToHigh;

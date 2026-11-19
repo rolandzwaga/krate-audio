@@ -235,6 +235,15 @@ public:
     /// guard at the deref sites, so it is a use-after-free waiting for the next sync.
     std::vector<std::pair<const char*, VSTGUI::CView*>> cachedViewPointerInventoryForTest() const;
 
+    /// One ~30 fps poll of the eight arp lane playhead parameters (the UI timer calls it;
+    /// public so a test can drive it without a run loop).
+    void pollArpLanePlayheads();
+
+    /// The voice route the controller last loaded from a state or received from the processor.
+    [[nodiscard]] const Krate::Plugins::ModRoute& cachedVoiceRouteForTest(int index) const {
+        return cachedVoiceRoutes_.at(static_cast<size_t>(index));
+    }
+
 private:
     /// Cache a view pointer: `member = view`, nulled again when the view is destroyed
     /// (see CachedViewRegistry). Every view pointer verifyView() caches goes through here.

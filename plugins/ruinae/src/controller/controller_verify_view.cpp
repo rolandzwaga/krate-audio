@@ -479,10 +479,10 @@ VSTGUI::CView* Controller::verifyView(
 
         if (modifierLane_) {
             modifierLane_->setTransformCallback(
-                [this](int transformType) {
+                [this, lane = modifierLane_](int transformType) {
                     auto type = static_cast<Krate::Plugins::TransformType>(transformType);
-                    auto newValues = modifierLane_->computeTransform(type);
-                    int32_t len = modifierLane_->getActiveLength();
+                    auto newValues = lane->computeTransform(type);
+                    int32_t len = lane->getActiveLength();
                     for (int32_t i = 0; i < len; ++i) {
                         uint32_t paramId = kArpModifierLaneStep0Id +
                             static_cast<uint32_t>(i);
@@ -492,19 +492,19 @@ VSTGUI::CView* Controller::verifyView(
                         endEdit(paramId);
                     }
                     for (int32_t i = 0; i < len; ++i) {
-                        modifierLane_->setNormalizedStepValue(i,
+                        lane->setNormalizedStepValue(i,
                             newValues[static_cast<size_t>(i)]);
                     }
-                    modifierLane_->setDirty(true);
+                    lane->setDirty(true);
                 });
         }
 
         if (conditionLane_) {
             conditionLane_->setTransformCallback(
-                [this](int transformType) {
+                [this, lane = conditionLane_](int transformType) {
                     auto type = static_cast<Krate::Plugins::TransformType>(transformType);
-                    auto newValues = conditionLane_->computeTransform(type);
-                    int32_t len = conditionLane_->getActiveLength();
+                    auto newValues = lane->computeTransform(type);
+                    int32_t len = lane->getActiveLength();
                     for (int32_t i = 0; i < len; ++i) {
                         uint32_t paramId = kArpConditionLaneStep0Id +
                             static_cast<uint32_t>(i);
@@ -514,19 +514,19 @@ VSTGUI::CView* Controller::verifyView(
                         endEdit(paramId);
                     }
                     for (int32_t i = 0; i < len; ++i) {
-                        conditionLane_->setNormalizedStepValue(i,
+                        lane->setNormalizedStepValue(i,
                             newValues[static_cast<size_t>(i)]);
                     }
-                    conditionLane_->setDirty(true);
+                    lane->setDirty(true);
                 });
         }
 
         if (chordLane_) {
             chordLane_->setTransformCallback(
-                [this](int transformType) {
+                [this, lane = chordLane_](int transformType) {
                     auto type = static_cast<Krate::Plugins::TransformType>(transformType);
-                    auto newValues = chordLane_->computeTransform(type);
-                    int32_t len = chordLane_->getActiveLength();
+                    auto newValues = lane->computeTransform(type);
+                    int32_t len = lane->getActiveLength();
                     for (int32_t i = 0; i < len; ++i) {
                         uint32_t paramId = kArpChordLaneStep0Id +
                             static_cast<uint32_t>(i);
@@ -536,19 +536,19 @@ VSTGUI::CView* Controller::verifyView(
                         endEdit(paramId);
                     }
                     for (int32_t i = 0; i < len; ++i) {
-                        chordLane_->setNormalizedStepValue(i,
+                        lane->setNormalizedStepValue(i,
                             newValues[static_cast<size_t>(i)]);
                     }
-                    chordLane_->setDirty(true);
+                    lane->setDirty(true);
                 });
         }
 
         if (inversionLane_) {
             inversionLane_->setTransformCallback(
-                [this](int transformType) {
+                [this, lane = inversionLane_](int transformType) {
                     auto type = static_cast<Krate::Plugins::TransformType>(transformType);
-                    auto newValues = inversionLane_->computeTransform(type);
-                    int32_t len = inversionLane_->getActiveLength();
+                    auto newValues = lane->computeTransform(type);
+                    int32_t len = lane->getActiveLength();
                     for (int32_t i = 0; i < len; ++i) {
                         uint32_t paramId = kArpInversionLaneStep0Id +
                             static_cast<uint32_t>(i);
@@ -558,10 +558,10 @@ VSTGUI::CView* Controller::verifyView(
                         endEdit(paramId);
                     }
                     for (int32_t i = 0; i < len; ++i) {
-                        inversionLane_->setNormalizedStepValue(i,
+                        lane->setNormalizedStepValue(i,
                             newValues[static_cast<size_t>(i)]);
                     }
-                    inversionLane_->setDirty(true);
+                    lane->setDirty(true);
                 });
         }
 

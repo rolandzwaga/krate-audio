@@ -43,6 +43,32 @@ TEST_CASE("HarmonizerEngine reset() preserves prepared state",
     REQUIRE(engine.isPrepared() == true);
 }
 
+// reset() clears the audio state only. It used to zero the level smoothers'
+// targets as well, so a host that set the levels once heard silence after a
+// reset, and Ruinae's effects chain (which resets the harmonizer when its
+// fade-out ends, R-063) would re-enable it with the dry level at 0.
+TEST_CASE("HarmonizerEngine reset() keeps the configured dry level",
+          "[systems][harmonizer][lifecycle]") {
+    Krate::DSP::HarmonizerEngine engine;
+    engine.prepare(44100.0, 512);
+    engine.setHarmonyMode(Krate::DSP::HarmonyMode::Chromatic);
+    engine.setNumVoices(0);
+    engine.setDryLevel(-6.0f);
+    engine.snapParameters();
+
+    engine.reset();
+
+    constexpr std::size_t numSamples = 64;
+    std::vector<float> input(numSamples, 1.0f);
+    std::vector<float> outputL(numSamples, 0.0f);
+    std::vector<float> outputR(numSamples, 0.0f);
+    engine.process(input.data(), outputL.data(), outputR.data(), numSamples);
+
+    const float expected = Krate::DSP::dbToGain(-6.0f);
+    REQUIRE(outputL[0] == Catch::Approx(expected).margin(1e-4));
+    REQUIRE(outputR[numSamples - 1] == Catch::Approx(expected).margin(1e-4));
+}
+
 TEST_CASE("HarmonizerEngine process() before prepare() zero-fills outputs (FR-015)",
           "[systems][harmonizer][lifecycle]") {
     Krate::DSP::HarmonizerEngine engine;
@@ -4770,8 +4796,10 @@ TEST_CASE("Harmonizer artifact: interval change during PV playback is smooth",
 // ---------------------------------------------------------------------------
 // Test 3: Pitch shift mode change at runtime
 // ---------------------------------------------------------------------------
-// setPitchShiftMode() calls voice.pitchShifter.reset() which clears all
-// internal state. If audio is flowing, this causes a discontinuity.
+// setPitchShiftMode() resets the voices' pitch shifters. If audio is flowing,
+// the harmony must fade out and back in rather than step. The input stays
+// phase-continuous across the switch and the measured window includes the
+// boundary sample, so the step from the last pre-switch sample counts too.
 TEST_CASE("Harmonizer artifact: pitch shift mode change is click-free",
           "[systems][harmonizer][artifact][mode-switch]") {
     constexpr double sampleRate = 44100.0;
@@ -4790,48 +4818,48 @@ TEST_CASE("Harmonizer artifact: pitch shift mode change is click-free",
     engine.setVoiceLevel(0, 0.0f);
     engine.setVoicePan(0, 0.0f);
 
-    // Warm up in Simple mode
+    // One phase-continuous sine for the whole render
     constexpr std::size_t warmupSamples = 30 * blockSize;
-    std::vector<float> warmInput(warmupSamples);
-    fillSine(warmInput.data(), warmupSamples, inputFreq, sampleRateF);
+    constexpr std::size_t postSwitchSamples = 80 * blockSize;
+    std::vector<float> input(warmupSamples + postSwitchSamples);
+    fillSine(input.data(), input.size(), inputFreq, sampleRateF);
 
-    std::vector<float> dummyL(warmupSamples), dummyR(warmupSamples);
-    processAndCollect(engine, warmInput.data(), warmupSamples, blockSize,
-                      dummyL, dummyR);
+    // Warm up in Simple mode
+    std::vector<float> warmL, warmR;
+    processAndCollect(engine, input.data(), warmupSamples, blockSize,
+                      warmL, warmR);
 
     // Switch mode from Simple to PhaseVocoder mid-stream
     engine.setPitchShiftMode(Krate::DSP::PitchMode::PhaseVocoder);
 
-    // Process several blocks after the switch
-    constexpr std::size_t postSwitchSamples = 80 * blockSize;
-    std::vector<float> postInput(postSwitchSamples);
-    fillSine(postInput.data(), postSwitchSamples, inputFreq, sampleRateF);
-
     std::vector<float> postL, postR;
-    processAndCollect(engine, postInput.data(), postSwitchSamples, blockSize,
-                      postL, postR);
+    processAndCollect(engine, input.data() + warmupSamples, postSwitchSamples,
+                      blockSize, postL, postR);
 
-    // Use max-delta check for the first few blocks after switch.
-    // A hard reset of the pitch shifter while audio is flowing will cause
-    // an abrupt transition from the old mode's output to silence or a
-    // completely different signal.
-    constexpr std::size_t checkWindow = 4 * blockSize; // first 4 blocks
-    float maxDelta = 0.0f;
+    // Max delta from the last warm-up sample through the PV start-up
+    // (latency + fade-in), boundary pair included.
+    constexpr std::size_t checkWindow = 40 * blockSize;
+    float maxDelta = std::abs(postL[0] - warmL[warmupSamples - 1]);
     for (std::size_t i = 1; i < checkWindow; ++i) {
         float delta = std::abs(postL[i] - postL[i - 1]);
         if (delta > maxDelta) maxDelta = delta;
     }
 
-    // Measure steady-state delta for comparison (later in the buffer)
+    // Steady state of both modes: the end of the warm-up (Simple) and the
+    // end of the render (PhaseVocoder).
     float steadyMaxDelta = 0.0f;
-    std::size_t steadyStart = postSwitchSamples - 4 * blockSize;
+    for (std::size_t i = warmupSamples - 8 * blockSize; i < warmupSamples; ++i) {
+        steadyMaxDelta = std::max(steadyMaxDelta, std::abs(warmL[i] - warmL[i - 1]));
+    }
+    std::size_t steadyStart = postSwitchSamples - 8 * blockSize;
     for (std::size_t i = steadyStart + 1; i < postSwitchSamples; ++i) {
         float delta = std::abs(postL[i] - postL[i - 1]);
         if (delta > steadyMaxDelta) steadyMaxDelta = delta;
     }
 
-    INFO("Mode switch: max delta in first 4 blocks = " << maxDelta);
+    INFO("Mode switch: max delta across the switch = " << maxDelta);
     INFO("Steady-state max delta = " << steadyMaxDelta);
+    REQUIRE(steadyMaxDelta > 0.01f);
 
     // The transition delta should not exceed 4x steady state.
     // A hard click would produce deltas approaching full-scale (1.0+).
@@ -5442,5 +5470,391 @@ TEST_CASE("Unmuting a harmonizer voice ramps rather than jumping",
         INFO("mode " << static_cast<int>(mode)
              << " settled " << settled << " first block " << firstBlock);
         CHECK(firstBlock < settled);
+    }
+}
+
+// =============================================================================
+// Harmonizer transitions are ramped (R-176, R-178, R-179, R-180)
+// =============================================================================
+// Every user-facing change on a sounding harmonizer -- Pitch Shift Mode, a
+// voice muted at -60 dB, the voice count, a voice's onset delay -- must ramp.
+// Each test measures the largest sample-to-sample step ACROSS the change
+// (boundary pair included) against the steady state of the same render.
+
+namespace {
+
+constexpr double kTransSampleRate = 44100.0;
+constexpr std::size_t kTransBlock = 256;
+
+/// Phase-continuous sine source, so the input itself never steps.
+struct TransitionSine {
+    double frequency = 440.0;
+    float amplitude = 0.5f;
+    double phase = 0.0;
+
+    void fill(float* out, std::size_t numSamples) {
+        const double inc = 2.0 * 3.14159265358979323846 * frequency / kTransSampleRate;
+        for (std::size_t i = 0; i < numSamples; ++i) {
+            out[i] = amplitude * static_cast<float>(std::sin(phase));
+            phase += inc;
+        }
+    }
+};
+
+/// Render numSamples through each engine in kTransBlock blocks (same input
+/// for all), appending to outL[e] / outR[e]. source == nullptr is silence.
+void renderTransition(std::initializer_list<Krate::DSP::HarmonizerEngine*> engines,
+                      TransitionSine* source, std::size_t numSamples,
+                      std::vector<std::vector<float>*> outL,
+                      std::vector<std::vector<float>*> outR) {
+    std::vector<float> in(kTransBlock, 0.0f);
+    std::vector<float> l(kTransBlock), r(kTransBlock);
+    for (std::size_t done = 0; done < numSamples; done += kTransBlock) {
+        const std::size_t n = std::min(kTransBlock, numSamples - done);
+        if (source != nullptr) {
+            source->fill(in.data(), n);
+        } else {
+            std::fill(in.begin(), in.end(), 0.0f);
+        }
+        std::size_t e = 0;
+        for (auto* engine : engines) {
+            engine->process(in.data(), l.data(), r.data(), n);
+            outL[e]->insert(outL[e]->end(), l.begin(), l.begin() + static_cast<std::ptrdiff_t>(n));
+            outR[e]->insert(outR[e]->end(), r.begin(), r.begin() + static_cast<std::ptrdiff_t>(n));
+            ++e;
+        }
+    }
+}
+
+void renderOne(Krate::DSP::HarmonizerEngine& engine, TransitionSine* source,
+               std::size_t numSamples, std::vector<float>& outL,
+               std::vector<float>& outR) {
+    renderTransition({&engine}, source, numSamples, {&outL}, {&outR});
+}
+
+/// Largest |y[n] - y[n-1]| for n in (begin, end).
+float maxAbsStep(const std::vector<float>& y, std::size_t begin, std::size_t end) {
+    float m = 0.0f;
+    for (std::size_t n = begin + 1; n < end; ++n) {
+        m = std::max(m, std::abs(y[n] - y[n - 1]));
+    }
+    return m;
+}
+
+float peakAbs(const std::vector<float>& y, std::size_t begin, std::size_t end) {
+    float m = 0.0f;
+    for (std::size_t n = begin; n < end; ++n) m = std::max(m, std::abs(y[n]));
+    return m;
+}
+
+/// Least-squares gain g minimising |a - g b|^2 over [begin, begin + len).
+double lsGain(const std::vector<float>& a, const std::vector<float>& b,
+              std::size_t begin, std::size_t len) {
+    double ab = 0.0;
+    double bb = 0.0;
+    for (std::size_t n = begin; n < begin + len; ++n) {
+        ab += static_cast<double>(a[n]) * b[n];
+        bb += static_cast<double>(b[n]) * b[n];
+    }
+    return (bb > 0.0) ? ab / bb : 0.0;
+}
+
+/// Frequency of the strongest tone in [loHz, hiHz]: Hann-windowed DFT
+/// magnitude, scanned at 0.5 Hz and refined at 0.01 Hz. For a tone under a
+/// non-negative envelope (a level ramp) the magnitude peak sits on the tone.
+double toneFrequencyHz(const float* x, std::size_t n, double loHz, double hiHz) {
+    std::vector<double> w(n);
+    for (std::size_t i = 0; i < n; ++i) {
+        w[i] = 0.5 * (1.0 - std::cos(2.0 * 3.14159265358979323846 *
+                                     static_cast<double>(i) / static_cast<double>(n - 1)));
+        w[i] *= x[i];
+    }
+    auto magnitude = [&](double f) {
+        const double inc = 2.0 * 3.14159265358979323846 * f / kTransSampleRate;
+        double re = 0.0;
+        double im = 0.0;
+        for (std::size_t i = 0; i < n; ++i) {
+            re += w[i] * std::cos(inc * static_cast<double>(i));
+            im -= w[i] * std::sin(inc * static_cast<double>(i));
+        }
+        return re * re + im * im;
+    };
+    double best = loHz;
+    double bestMag = -1.0;
+    for (double f = loHz; f <= hiHz; f += 0.5) {
+        const double m = magnitude(f);
+        if (m > bestMag) { bestMag = m; best = f; }
+    }
+    const double centre = best;
+    for (double f = centre - 0.5; f <= centre + 0.5; f += 0.01) {
+        const double m = magnitude(f);
+        if (m > bestMag) { bestMag = m; best = f; }
+    }
+    return best;
+}
+
+void setupTransitionEngine(Krate::DSP::HarmonizerEngine& engine,
+                           Krate::DSP::PitchMode mode, int numVoices) {
+    engine.prepare(kTransSampleRate, kTransBlock);
+    engine.setHarmonyMode(Krate::DSP::HarmonyMode::Chromatic);
+    engine.setPitchShiftMode(mode);
+    engine.setDryLevel(-120.0f);
+    engine.setWetLevel(0.0f);
+    engine.setNumVoices(numVoices);
+    for (int v = 0; v < numVoices; ++v) {
+        engine.setVoiceInterval(v, 7);
+        engine.setVoiceLevel(v, 0.0f);
+        engine.setVoicePan(v, 0.0f);
+        engine.setVoiceDelay(v, 0.0f);
+        engine.setVoiceDetune(v, 0.0f);
+    }
+    engine.snapParameters();
+}
+
+constexpr std::size_t blocks(std::size_t n) { return n * kTransBlock; }
+
+} // namespace
+
+TEST_CASE("ModeSwitch_NoClick_NoStaleAudio", "[systems][harmonizer][click]") {
+    using namespace Krate::DSP;
+    const PitchMode modes[] = {PitchMode::Simple, PitchMode::Granular,
+                               PitchMode::PhaseVocoder, PitchMode::PitchSync};
+
+    SECTION("every mode pair switches without a step") {
+        constexpr std::size_t pre = blocks(104);     // ~0.6 s
+        constexpr std::size_t post = blocks(140);    // ~0.81 s
+        constexpr std::size_t steady = blocks(40);   // ~0.23 s
+        constexpr std::size_t transition = blocks(90);
+
+        for (const auto from : modes) {
+            for (const auto to : modes) {
+                if (from == to) continue;
+                HarmonizerEngine engine;
+                setupTransitionEngine(engine, from, 1);
+                TransitionSine src;
+                std::vector<float> outL, outR;
+                renderOne(engine, &src, pre, outL, outR);
+                engine.setPitchShiftMode(to);
+                renderOne(engine, &src, post, outL, outR);
+
+                const float steadyOld = maxAbsStep(outL, pre - steady, pre);
+                const float steadyNew = maxAbsStep(outL, pre + post - steady, pre + post);
+                const float across = maxAbsStep(outL, pre - 2, pre + transition);
+
+                INFO("from " << static_cast<int>(from) << " to " << static_cast<int>(to)
+                     << ": steady old " << steadyOld << ", steady new " << steadyNew
+                     << ", across the switch " << across);
+                CHECK(steadyOld > 0.01f);
+                CHECK(steadyNew > 0.01f);
+                CHECK(across <= 1.5f * std::max(steadyOld, steadyNew));
+            }
+        }
+    }
+
+    SECTION("PV -> Simple -> PV carries no audio from before the round trip") {
+        HarmonizerEngine engine;
+        setupTransitionEngine(engine, PitchMode::PhaseVocoder, 1);
+        TransitionSine segmentA;
+        segmentA.frequency = 300.0;
+
+        std::vector<float> outL, outR;
+        renderOne(engine, &segmentA, blocks(86), outL, outR);       // ~0.5 s
+        const float peakA = peakAbs(outL, blocks(66), blocks(86));
+        REQUIRE(peakA > 0.05f);
+
+        engine.setPitchShiftMode(PitchMode::Simple);
+        renderOne(engine, nullptr, blocks(70), outL, outR);         // ~0.4 s silence
+        engine.setPitchShiftMode(PitchMode::PhaseVocoder);
+        const std::size_t reentry = outL.size();
+        renderOne(engine, nullptr, blocks(86), outL, outR);         // ~0.5 s silence
+
+        // Every input since segment A was silence: any PV output after the
+        // re-entry is segment A replayed from a stale analysis buffer.
+        const float peakAfter = peakAbs(outL, reentry, outL.size());
+        INFO("segment A peak " << peakA << ", PV output after re-entry " << peakAfter);
+        CHECK(peakAfter <= 1e-3f * peakA);
+    }
+}
+
+TEST_CASE("VoiceMute_And_CountChange_AreRamped", "[systems][harmonizer][click]") {
+    using namespace Krate::DSP;
+    // Engine A takes the change, engine B is an identical reference that does
+    // not. The remaining voices sit hard left and the departing voice hard
+    // right, so L(A) / L(B) is exactly the gain applied to the voices that
+    // stay, and R carries the departing voice alone.
+    struct Case {
+        const char* name;
+        int voices;
+        int departing;          // voice panned right
+        bool byLevel;           // true: level -> -60 dB, false: count -> voices-1
+    };
+    const Case cases[] = {
+        {"level 0 -> -60 dB (2 voices)", 2, 1, true},
+        {"voices 4 -> 3", 4, 3, false},
+        {"voices 2 -> 1", 2, 1, false},
+    };
+    const int intervals[] = {3, 5, 7, 12};
+
+    for (const auto& c : cases) {
+        INFO(c.name);
+        HarmonizerEngine a;
+        HarmonizerEngine b;
+        for (auto* e : {&a, &b}) {
+            setupTransitionEngine(*e, PitchMode::Simple, c.voices);
+            for (int v = 0; v < c.voices; ++v) {
+                e->setVoiceInterval(v, intervals[v]);
+                e->setVoicePan(v, (v == c.departing) ? 1.0f : -1.0f);
+            }
+            e->snapParameters();
+        }
+
+        TransitionSine src;
+        std::vector<float> aL, aR, bL, bR;
+        constexpr std::size_t pre = blocks(80);
+        constexpr std::size_t post = blocks(80);
+        renderTransition({&a, &b}, &src, pre, {&aL, &bL}, {&aR, &bR});
+        if (c.byLevel) {
+            a.setVoiceLevel(c.departing, -60.0f);
+        } else {
+            a.setNumVoices(c.voices - 1);
+        }
+        renderTransition({&a, &b}, &src, post, {&aL, &bL}, {&aR, &bR});
+
+        // Steps across the change
+        const std::size_t win = blocks(30);
+        const float steadyR = maxAbsStep(aR, pre - win, pre);
+        const float acrossR = maxAbsStep(aR, pre - 2, pre + blocks(20));
+        const float steadyL = std::max(maxAbsStep(aL, pre - win, pre),
+                                       maxAbsStep(aL, pre + post - win, pre + post));
+        const float acrossL = maxAbsStep(aL, pre - 2, pre + blocks(20));
+        INFO("R steady " << steadyR << " across " << acrossR
+             << "; L steady " << steadyL << " across " << acrossL);
+        CHECK(steadyR > 0.01f);
+        CHECK(acrossR <= 1.5f * steadyR);
+        CHECK(acrossL <= 1.5f * steadyL);
+
+        // The remaining voices' gain glides: >= 5 ms to cover 95 % of it.
+        const double before = lsGain(aL, bL, pre - win, win);
+        const double after = lsGain(aL, bL, pre + post - win, win);
+        REQUIRE(before == Catch::Approx(1.0).margin(1e-4));
+        REQUIRE(std::abs(after - before) > 0.1);
+        constexpr std::size_t hop = 32;
+        std::size_t settle = post;
+        for (std::size_t k = 0; k + hop <= post - win; k += hop) {
+            const double g = lsGain(aL, bL, pre + k, hop);
+            if (std::abs(g - after) <= 0.05 * std::abs(after - before)) {
+                settle = k + hop;
+                break;
+            }
+        }
+        const double settleMs = 1000.0 * static_cast<double>(settle) / kTransSampleRate;
+        INFO("gain " << before << " -> " << after << ", 95 % reached after "
+             << settleMs << " ms");
+        CHECK(settleMs >= 5.0);
+    }
+}
+
+TEST_CASE("Unmute_StartsAtTheInterval", "[systems][harmonizer][click]") {
+    using namespace Krate::DSP;
+    const double expectedHz = 440.0 * std::pow(2.0, 7.0 / 12.0);
+
+    for (const auto mode : {PitchMode::Simple, PitchMode::Granular, PitchMode::PitchSync}) {
+        INFO("mode " << static_cast<int>(mode));
+        HarmonizerEngine engine;
+        HarmonizerEngine twin;   // never muted
+        setupTransitionEngine(engine, mode, 1);
+        setupTransitionEngine(twin, mode, 1);
+        TransitionSine src;
+        std::vector<float> outL, outR, twinL, twinR;
+        renderTransition({&engine, &twin}, &src, blocks(86), {&outL, &twinL}, {&outR, &twinR});
+        engine.setVoiceLevel(0, -60.0f);
+        renderTransition({&engine, &twin}, &src, blocks(86), {&outL, &twinL}, {&outR, &twinR});
+        engine.setVoiceLevel(0, 0.0f);
+        const std::size_t unmute = outL.size();
+        renderTransition({&engine, &twin}, &src, blocks(16), {&outL, &twinL}, {&outR, &twinR});
+
+        constexpr std::size_t first20ms = 882;
+        const float rms = computeRMS(outL.data() + unmute, first20ms);
+        REQUIRE(rms > 1e-3f);
+        const double hz = toneFrequencyHz(outL.data() + unmute, first20ms,
+                                          expectedHz - 150.0, expectedHz + 150.0);
+        const double cents = 1200.0 * std::log2(hz / expectedHz);
+        const double steadyHz = toneFrequencyHz(outL.data() + blocks(86) - first20ms, first20ms,
+                                                expectedHz - 150.0, expectedHz + 150.0);
+        const double twinHz = toneFrequencyHz(twinL.data() + unmute, first20ms,
+                                              expectedHz - 150.0, expectedHz + 150.0);
+        INFO("last 20 ms before the mute: " << steadyHz << " Hz; never-muted twin over the same 20 ms: "
+             << twinHz << " Hz");
+        const double centsFromTwin = 1200.0 * std::log2(hz / twinHz);
+        INFO("first 20 ms after unmute: " << hz << " Hz, " << cents
+             << " cents from +7 st (" << expectedHz << " Hz), " << centsFromTwin
+             << " cents from the twin");
+        // The unmuted voice plays what a voice that was never muted plays.
+        CHECK(std::abs(centsFromTwin) <= 10.0);
+        // And that is the interval. Granular is held to the twin only: its
+        // tap crossfade bends a 20 ms estimate on its own, so even the
+        // never-muted twin reads +48.6 cents over this window (measured).
+        if (mode != PitchMode::Granular) {
+            CHECK(std::abs(cents) <= 10.0);
+        }
+    }
+}
+
+TEST_CASE("VoiceDelay_Sweep_NoZipper", "[systems][harmonizer][click]") {
+    using namespace Krate::DSP;
+    const PitchMode modes[] = {PitchMode::Simple, PitchMode::Granular,
+                               PitchMode::PhaseVocoder, PitchMode::PitchSync};
+
+    SECTION("0 -> 50 ms in one block does not step") {
+        for (const auto mode : modes) {
+            INFO("mode " << static_cast<int>(mode));
+            HarmonizerEngine engine;
+            setupTransitionEngine(engine, mode, 1);
+            TransitionSine src;
+            std::vector<float> outL, outR;
+            constexpr std::size_t pre = blocks(104);
+            constexpr std::size_t post = blocks(104);
+            renderOne(engine, &src, pre, outL, outR);
+            engine.setVoiceDelay(0, 50.0f);
+            renderOne(engine, &src, post, outL, outR);
+
+            const std::size_t win = blocks(30);
+            const float steady = std::max(maxAbsStep(outL, pre - win, pre),
+                                          maxAbsStep(outL, pre + post - win, pre + post));
+            const float across = maxAbsStep(outL, pre - 2, pre + blocks(60));
+            INFO("steady " << steady << ", across the delay change " << across);
+            CHECK(steady > 0.01f);
+            CHECK(across <= 1.5f * steady);
+        }
+    }
+
+    SECTION("0 -> 20 ms never plays audio older than 20 ms") {
+        for (const auto mode : modes) {
+            INFO("mode " << static_cast<int>(mode));
+            HarmonizerEngine engine;
+            setupTransitionEngine(engine, mode, 1);
+            engine.setVoiceDelay(0, 10.0f);
+            engine.snapParameters();
+            TransitionSine src;
+            src.frequency = 300.0;
+            std::vector<float> outL, outR;
+            renderOne(engine, &src, blocks(52), outL, outR);   // ~0.3 s at 10 ms
+            const float peakSignal = peakAbs(outL, blocks(30), blocks(52));
+            REQUIRE(peakSignal > 0.05f);
+
+            engine.setVoiceDelay(0, 0.0f);
+            renderOne(engine, &src, blocks(52), outL, outR);   // ~0.3 s at 0 ms
+            renderOne(engine, nullptr, blocks(52), outL, outR); // ~0.3 s silence
+
+            engine.setVoiceDelay(0, 20.0f);
+            const std::size_t change = outL.size();
+            renderOne(engine, nullptr, blocks(35), outL, outR); // ~0.2 s silence
+
+            // The input has been silent for 300 ms: anything audible now is
+            // older than the 20 ms delay asked for.
+            const float peakAfter = peakAbs(outL, change, outL.size());
+            INFO("signal peak " << peakSignal << ", after 0 -> 20 ms " << peakAfter);
+            CHECK(peakAfter <= 1e-4f * peakSignal);
+        }
     }
 }

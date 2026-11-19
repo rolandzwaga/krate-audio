@@ -178,6 +178,10 @@
         <control-tag name="TransientAttack" tag="2701"/>
         <control-tag name="TransientDecay" tag="2702"/>
 
+        <!-- Voice LFO (per-voice mod source) -->
+        <control-tag name="VoiceLfoRate" tag="2900"/>
+        <control-tag name="VoiceLfoShape" tag="2901"/>
+
         <!-- Main Tab Selector (SOUND=0, MOD=1, FX=2, SEQ=3) -->
         <control-tag name="MainTab" tag="10023"/>
 
@@ -354,6 +358,9 @@
         <control-tag name="ArpDiceTrigger" tag="3291"/>
         <control-tag name="ArpHumanize" tag="3292"/>
         <control-tag name="ArpRatchetSwing" tag="3293"/>
+        <control-tag name="ArpAccentVelocity" tag="3180"/>
+        <control-tag name="ArpSlideTime" tag="3181"/>
+        <control-tag name="ArpVoicing" tag="3370"/>
 
         <!-- Arp Scale Mode (084-arp-scale-mode) -->
         <control-tag name="ArpScaleType" tag="3300"/>
@@ -2476,6 +2483,11 @@
                   font="~ NormalFontSmaller" font-color="text-menu"
                   back-color="bg-dropdown" frame-color="frame-dropdown"/>
 
+            <!-- Voice LFO: rate and shape of the per-voice "Voice LFO" route source -->
+            <view class="CTextLabel" origin="232, 22" size="64, 14" title="Voice LFO" font="~ NormalFontSmaller" font-color="text-secondary" text-alignment="right" transparent="true"/>
+            <view class="ArcKnob" origin="300, 15" size="28, 28" control-tag="VoiceLfoRate" default-value="0.5407" tooltip="Voice LFO rate" arc-color="modulation" guide-color="knob-guide"/>
+            <view class="COptionMenu" origin="336, 18" size="112, 22" control-tag="VoiceLfoShape" default-value="0" tooltip="Voice LFO shape" font="~ NormalFontSmaller" font-color="text-menu" back-color="bg-dropdown" frame-color="frame-dropdown"/>
+
             <!-- Mod Source View (switched by dropdown) -->
             <view class="UIViewSwitchContainer"
                   origin="0, 46" size="540, 400"
@@ -3726,6 +3738,34 @@
                 <view class="CTextLabel" origin="478, 38" size="32, 10"
                       font="~ NormalFontSmaller" font-color="text-secondary"
                       text-alignment="center" transparent="true" title="Fill"/>
+
+                <!-- Accent Velocity knob -->
+                <view class="ArcKnob" origin="540, 8" size="32, 32"
+                      control-tag="ArpAccentVelocity" default-value="0.236"
+                      arc-color="#606068" guide-color="knob-guide"
+                      tooltip="Accent velocity"/>
+                <view class="CTextLabel" origin="534, 40" size="44, 10"
+                      font="~ NormalFontSmaller" font-color="text-secondary"
+                      text-alignment="center" transparent="true" title="AccVel"/>
+
+                <!-- Slide Time knob -->
+                <view class="ArcKnob" origin="592, 8" size="32, 32"
+                      control-tag="ArpSlideTime" default-value="0.12"
+                      arc-color="#606068" guide-color="knob-guide"
+                      tooltip="Slide time"/>
+                <view class="CTextLabel" origin="586, 40" size="44, 10"
+                      font="~ NormalFontSmaller" font-color="text-secondary"
+                      text-alignment="center" transparent="true" title="Slide"/>
+
+                <!-- Chord Voicing dropdown -->
+                <view class="COptionMenu" origin="644, 14" size="80, 18"
+                      control-tag="ArpVoicing" default-value="0"
+                      font="~ NormalFontSmaller" font-color="text-menu"
+                      back-color="bg-dropdown" frame-color="frame-dropdown"
+                      tooltip="Chord voicing"/>
+                <view class="CTextLabel" origin="644, 40" size="80, 10"
+                      font="~ NormalFontSmaller" font-color="text-secondary"
+                      text-alignment="center" transparent="true" title="Voicing"/>
             </view>
         </view>
 

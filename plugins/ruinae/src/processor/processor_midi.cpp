@@ -7,7 +7,10 @@
 
 #include "midi/midi_event_dispatcher.h"
 
+#include "pluginterfaces/vst/ivstnoteexpression.h"
+
 #include <algorithm>
+#include <cmath>
 #include <cstdint>
 
 
@@ -144,6 +147,7 @@ void Processor::renderEngineSegments(float* left, float* right, size_t numSample
         engine_.setSidechainInput(sidechainL ? sidechainL + pos : nullptr,
                                   sidechainR ? sidechainR + pos : nullptr);
         engine_.processBlock(left + pos, right + pos, end - pos);
+        ++engineRenderCalls_;
         pos = end;
     }
     // Events past the buffer (none after clamping) apply now.
@@ -172,7 +176,11 @@ void Processor::onNoteOff(int16_t pitch) {
 void Processor::onNoteOn(int16_t pitch, float velocity, int32_t noteId) {
     if (pitch < 0 || pitch > 127) return;
     auto midiPitch = static_cast<uint8_t>(pitch);
-    auto midiVelocity = static_cast<uint8_t>(velocity * 127.0f + 0.5f);
+    // A positive VST3 velocity is a note-on: it maps to MIDI 1-127, never 0 (R-167)
+    const auto midiVelocity = static_cast<uint8_t>(
+        velocity > 0.0f
+            ? std::clamp(static_cast<int>(std::lround(std::min(velocity, 1.0f) * 127.0f)), 1, 127)
+            : 0);
 
     const int opMode = arpParams_.operatingMode.load(std::memory_order_relaxed);
 
@@ -215,6 +223,14 @@ void Processor::onNoteOff(int16_t pitch, int32_t noteId) {
 
 // NOLINTNEXTLINE(readability-convert-member-functions-to-static)
 void Processor::onNoteExpression(int32_t noteId, uint32_t typeId, double value) {
+    // Only the types RuinaeEngine::setNoteExpression applies are queued: any
+    // other type would split the render for nothing (R-036).
+    using Steinberg::Vst::NoteExpressionTypeIDs;
+    if (typeId != NoteExpressionTypeIDs::kVolumeTypeID &&
+        typeId != NoteExpressionTypeIDs::kTuningTypeID &&
+        typeId != NoteExpressionTypeIDs::kBrightnessTypeID) {
+        return;
+    }
     // Queued like the notes, so an expression lands after a note-on it follows.
     queueTimedEvent({.offset = currentEventOffset_, .kind = TimedEventKind::Expression,
                      .noteId = noteId, .typeId = typeId, .value = value});

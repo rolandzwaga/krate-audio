@@ -11,11 +11,19 @@
 #include <registered_defaults_probe.h>
 #include <terminate_with_editor_open_probe.h>
 
-#include "controller/controller.h"
+#include "view_lifecycle_rig.h"
 
+#include "controller/controller.h"
+#include "ui/adsr_display.h"
+
+#include "public.sdk/source/vst/hosting/hostclasses.h"
+
+#include <atomic>
+#include <cstdint>
 #include <filesystem>
 #include <string>
 #include <system_error>
+#include <vector>
 
 #ifdef _WIN32
 #include <process.h>  // _getpid: the temp preset directory names
@@ -83,6 +91,60 @@ TEST_CASE("Ruinae: terminating the controller before the editor closes leaves th
     REQUIRE(controller.initialize(nullptr) == Steinberg::kResultOk);
     Krate::TestSupport::terminateControllerWithEditorOpen(
         controller, "editor", std::string(RUINAE_RESOURCES_DIR) + "/editor.uidesc");
+}
+
+// R-089: the processor hands the controller raw addresses of its envelope-display atomics, which the controller
+// passes on to the three ADSR displays; each display polls them every 33 ms. Once the controller terminates the
+// processor may be gone, so terminate() must revoke the pointers the displays hold and stop their timers.
+TEST_CASE("terminate with editor open revokes ADSR playback pointers", "[controller][lifecycle]")
+{
+    // Stand-ins for the processor's atomics; they outlive the editor, so a poll after terminate reads valid memory.
+    std::atomic<float> ampOut{0.0f};
+    std::atomic<float> filterOut{0.0f};
+    std::atomic<float> modOut{0.0f};
+    std::atomic<int> ampStage{0};
+    std::atomic<int> filterStage{0};
+    std::atomic<int> modStage{0};
+    std::atomic<bool> voiceActive{false};
+
+    // The view-lifecycle rig builds the Tab_Sound template that holds the three displays (a bare headless open
+    // leaves the main tab switch empty); its destructor closes the editor after the terminate below.
+    RuinaeViewLifecycleTest::ViewLifecycleRig rig;
+
+    std::vector<Krate::Plugins::ADSRDisplay*> displays;
+    for (const char* name : {"ampEnvDisplay_", "filterEnvDisplay_", "modEnvDisplay_"}) {
+        INFO(name);
+        auto* display = dynamic_cast<Krate::Plugins::ADSRDisplay*>(rig.pointer(name));
+        REQUIRE(display != nullptr);
+        REQUIRE(rig.isLive(display));
+        displays.push_back(display);
+    }
+
+    auto msg = Steinberg::owned(new Steinberg::Vst::HostMessage());
+    msg->setMessageID("EnvelopeDisplayState");
+    auto* attrs = msg->getAttributes();
+    REQUIRE(attrs != nullptr);
+    const auto addr = [](const void* p) { return static_cast<Steinberg::int64>(reinterpret_cast<intptr_t>(p)); };
+    attrs->setInt("ampOutputPtr", addr(&ampOut));
+    attrs->setInt("ampStagePtr", addr(&ampStage));
+    attrs->setInt("filterOutputPtr", addr(&filterOut));
+    attrs->setInt("filterStagePtr", addr(&filterStage));
+    attrs->setInt("modOutputPtr", addr(&modOut));
+    attrs->setInt("modStagePtr", addr(&modStage));
+    attrs->setInt("voiceActivePtr", addr(&voiceActive));
+    REQUIRE(rig.ctl.notify(msg) == Steinberg::kResultOk);
+    for (auto* d : displays) {
+        REQUIRE(d->hasPlaybackStatePointers());  // wired, so the checks below are not vacuous
+        REQUIRE(d->isPlaybackPollTimerRunning());
+    }
+
+    REQUIRE(rig.ctl.terminate() == Steinberg::kResultOk);  // the editor is still open
+    Krate::TestSupport::dispatchThreadMessagesFor(100);     // a poll still scheduled fires (Windows)
+    for (auto* d : displays) {
+        REQUIRE(rig.isLive(d));
+        CHECK_FALSE(d->hasPlaybackStatePointers());
+        CHECK_FALSE(d->isPlaybackPollTimerRunning());
+    }
 }
 
 namespace {

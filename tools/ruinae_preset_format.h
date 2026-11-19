@@ -879,6 +879,16 @@ struct TransientState {
     }
 };
 
+// Voice LFO (version 9+, appended after the arp pack)
+struct VoiceLfoState {
+    float rateHz = 1.0f;  // 0.01-50 Hz
+    int32_t shape = 0;    // Waveform: 0=Sine
+    void serialize(BinaryWriter& w) const {
+        w.writeFloat(rateHz);
+        w.writeInt32(shape);
+    }
+};
+
 struct HarmonizerState {
     int32_t harmonyMode = 0;
     int32_t key = 0;
@@ -1174,6 +1184,9 @@ struct RuinaePresetState {
     // Arpeggiator
     ArpState arp;
 
+    // Voice LFO (v9+)
+    VoiceLfoState voiceLfo;
+
     std::vector<uint8_t> serialize() const {
         BinaryWriter w;
 
@@ -1243,6 +1256,9 @@ struct RuinaePresetState {
 
         // 34. Arpeggiator
         arp.serialize(w);
+
+        // 35. Voice LFO rate + shape (v9+)
+        voiceLfo.serialize(w);
 
         return w.data;
     }

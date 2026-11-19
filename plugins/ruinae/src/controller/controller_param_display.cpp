@@ -39,6 +39,7 @@
 #include "parameters/random_params.h"
 #include "parameters/pitch_follower_params.h"
 #include "parameters/transient_params.h"
+#include "parameters/voice_lfo_params.h"
 #include "parameters/arpeggiator_params.h"
 
 namespace Ruinae {
@@ -112,6 +113,8 @@ Steinberg::tresult PLUGIN_API Controller::getParamStringByValue(
         result = formatPitchFollowerParam(id, valueNormalized, string);
     } else if (id >= kTransientBaseId && id <= kTransientEndId) {
         result = formatTransientParam(id, valueNormalized, string);
+    } else if (id >= kVoiceLfoBaseId && id <= kVoiceLfoEndId) {
+        result = formatVoiceLfoParam(id, valueNormalized, string);
     } else if (id >= kArpBaseId && id <= kArpEndId) {
         result = formatArpParam(id, valueNormalized, string);
     }

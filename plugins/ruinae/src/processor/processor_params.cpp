@@ -228,6 +228,8 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
             handleTransientParamChange(transientParams_, paramId, value);
         } else if (paramId >= kHarmonizerBaseId && paramId <= kHarmonizerEndId) {
             handleHarmonizerParamChange(harmonizerParams_, paramId, value);
+        } else if (paramId >= kVoiceLfoBaseId && paramId <= kVoiceLfoEndId) {
+            handleVoiceLfoParamChange(voiceLfoParams_, paramId, value);
         } else if (paramId >= kArpBaseId && paramId <= kArpEndId) {
             handleArpParamChange(arpParams_, paramId, value);
         }
@@ -461,6 +463,11 @@ void Processor::applyModSourceParams() {
     engine_.setGlobalLFO2Symmetry(lfo2Params_.symmetry.load(std::memory_order_relaxed));
     engine_.setGlobalLFO2Quantize(lfo2Params_.quantizeSteps.load(std::memory_order_relaxed));
 
+    // --- Voice LFO (per voice) ---
+    engine_.setVoiceLfoRate(voiceLfoParams_.rateHz.load(std::memory_order_relaxed));
+    engine_.setVoiceLfoWaveform(static_cast<Waveform>(
+        voiceLfoParams_.shape.load(std::memory_order_relaxed)));
+
     // --- Chaos Mod ---
     engine_.setChaosSpeed(chaosModParams_.rateHz.load(std::memory_order_relaxed));
     engine_.setChaosModel(static_cast<ChaosModel>(
@@ -478,7 +485,6 @@ void Processor::applyModRoutingParams() {
     using namespace Krate::DSP;
 
     // --- Mod Matrix (8 slots) ---
-    static constexpr float kScaleMultipliers[] = {0.25f, 0.5f, 1.0f, 2.0f, 4.0f};
     for (int i = 0; i < 8; ++i) {
         const auto& slot = modMatrixParams_.slots[static_cast<size_t>(i)];
         int srcInt = slot.source.load(std::memory_order_relaxed);
@@ -491,7 +497,7 @@ void Processor::applyModRoutingParams() {
         bool bypass = slot.bypass.load(std::memory_order_relaxed) != 0;
         float smoothMs = slot.smoothMs.load(std::memory_order_relaxed);
         auto curve = static_cast<ModCurve>(curveIdx);
-        float scaleMul = kScaleMultipliers[scaleIdx];
+        float scaleMul = modScaleMultiplier(scaleIdx);
         engine_.setGlobalModRoute(i, src, dst, amt, curve, scaleMul, bypass, smoothMs);
 
     }
@@ -504,7 +510,7 @@ void Processor::applyModRoutingParams() {
         // Fixed per-destination scales: convert raw offset to physical units
         // These match the scales used throughout the engine and tests.
         engine_.setVoiceModRouteScale(VoiceModDest::FilterCutoff, 48.0f);      // semitones
-        engine_.setVoiceModRouteScale(VoiceModDest::FilterResonance, 1.0f);    // linear
+        engine_.setVoiceModRouteScale(VoiceModDest::FilterResonance, kVoiceRouteResonanceQ); // Q
         engine_.setVoiceModRouteScale(VoiceModDest::MorphPosition, 1.0f);      // linear
         engine_.setVoiceModRouteScale(VoiceModDest::DistortionDrive, 1.0f);    // linear
         engine_.setVoiceModRouteScale(VoiceModDest::TranceGateDepth, 1.0f);    // linear
@@ -521,10 +527,11 @@ void Processor::applyModRoutingParams() {
             dspRoute.source = static_cast<VoiceModSource>(r.source);
             dspRoute.destination = static_cast<VoiceModDest>(r.destination);
 
-            // Apply scale multiplier to route amount
-            float scaleMul = kScaleMultipliers[std::clamp(
-                static_cast<int>(r.scale), 0, 4)];
-            dspRoute.amount = r.amount * scaleMul;
+            dspRoute.amount = r.amount;
+            dspRoute.curve = static_cast<ModCurve>(std::clamp(static_cast<int>(r.curve), 0, 3));
+            dspRoute.smoothMs = r.smoothMs;
+            // The Scale multiplies the contribution after the amount clamp (R-053)
+            dspRoute.scale = modScaleMultiplier(static_cast<int>(r.scale));
 
             // Only activate if the route is active and not bypassed
             if (r.active != 0 && r.bypass == 0) {
@@ -571,7 +578,7 @@ void Processor::applyDelayParams() {
     engine_.setDelayTime(
         delayParams_.sync.load(std::memory_order_relaxed)
             ? dropdownToDelayMs(
-                  delayParams_.noteValue.load(std::memory_order_relaxed), tempoBPM_)
+                  delayParams_.noteValue.load(std::memory_order_relaxed), tempoBPM_.load(std::memory_order_relaxed))
             : delayParams_.timeMs.load(std::memory_order_relaxed));
     engine_.setDelayFeedback(delayParams_.feedback.load(std::memory_order_relaxed));
     engine_.setDelayMix(delayParams_.mix.load(std::memory_order_relaxed));
@@ -791,7 +798,7 @@ void Processor::applyAuxModSourceParams() {
     if (sampleHoldParams_.sync.load(std::memory_order_relaxed)) {
         // When synced, convert NoteValue + tempo to rate in Hz
         int noteIdx = sampleHoldParams_.noteValue.load(std::memory_order_relaxed);
-        float delayMs = Krate::DSP::dropdownToDelayMs(noteIdx, static_cast<float>(tempoBPM_));
+        float delayMs = Krate::DSP::dropdownToDelayMs(noteIdx, static_cast<float>(tempoBPM_.load(std::memory_order_relaxed)));
         // Fallback to 4 Hz if tempo invalid or delayMs <= 0
         float rateHz = (delayMs > 0.0f) ? (1000.0f / delayMs) : 4.0f;
         engine_.setSampleHoldRate(rateHz);
@@ -807,7 +814,7 @@ void Processor::applyAuxModSourceParams() {
     if (randomParams_.sync.load(std::memory_order_relaxed)) {
         // When synced, convert NoteValue + tempo to rate in Hz
         int noteIdx = randomParams_.noteValue.load(std::memory_order_relaxed);
-        float delayMs = Krate::DSP::dropdownToDelayMs(noteIdx, static_cast<float>(tempoBPM_));
+        float delayMs = Krate::DSP::dropdownToDelayMs(noteIdx, static_cast<float>(tempoBPM_.load(std::memory_order_relaxed)));
         // Fallback to 4 Hz if tempo invalid or delayMs <= 0
         float rateHz = (delayMs > 0.0f) ? (1000.0f / delayMs) : 4.0f;
         engine_.setRandomRate(rateHz);
@@ -883,26 +890,14 @@ void Processor::applyArpParams() {
         const bool tempoSync = arpParams_.tempoSync.load(std::memory_order_relaxed);
         const float baseRate = arpParams_.freeRate.load(std::memory_order_relaxed);
 
-        if (rateOffset != 0.0f && tempoSync) {
-            // Tempo-sync override: compute equivalent free rate from modulated duration
-            const int noteIdx = arpParams_.noteValue.load(std::memory_order_relaxed);
-            const float baseDurationMs = Krate::DSP::dropdownToDelayMs(
-                noteIdx, static_cast<float>(tempoBPM_));
-            if (baseDurationMs > 0.0f) {
-                const float scaleFactor = 1.0f + 0.5f * rateOffset;
-                const float effectiveDurationMs = (scaleFactor > 0.001f)
-                    ? baseDurationMs / scaleFactor
-                    : baseDurationMs / 0.001f;
-                const float effectiveHz = 1000.0f / effectiveDurationMs;
-                arpCore_.setTempoSync(false);
-                arpCore_.setFreeRate(std::clamp(effectiveHz, 0.5f, 50.0f));
-            } else {
-                arpCore_.setTempoSync(true);
-                arpCore_.setFreeRate(baseRate);
-            }
+        arpCore_.setTempoSync(tempoSync);
+        if (tempoSync) {
+            // Tempo sync: the offset scales the synced step and the arp stays
+            // on the host grid (R-049).
+            arpCore_.setFreeRate(baseRate);
+            arpCore_.setRateScale(1.0f + 0.5f * rateOffset);
         } else {
-            // Free-rate mode or zero offset in tempo-sync (no override needed)
-            arpCore_.setTempoSync(tempoSync);
+            arpCore_.setRateScale(1.0f);
             const float effectiveRate = std::clamp(
                 baseRate * (1.0f + 0.5f * rateOffset), 0.5f, 50.0f);
             arpCore_.setFreeRate(effectiveRate);
@@ -952,6 +947,7 @@ void Processor::applyArpParams() {
         // Arp disabled: use raw params, no mod reads (FR-015)
         arpCore_.setTempoSync(arpParams_.tempoSync.load(std::memory_order_relaxed));
         arpCore_.setFreeRate(arpParams_.freeRate.load(std::memory_order_relaxed));
+        arpCore_.setRateScale(1.0f);
         arpCore_.setGateLength(arpParams_.gateLength.load(std::memory_order_relaxed));
         {
             const auto octaveRange = arpParams_.octaveRange.load(std::memory_order_relaxed);

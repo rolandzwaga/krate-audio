@@ -11,6 +11,8 @@
 #include "parameters/arpeggiator_params.h"
 #include "plugin_ids.h"
 #include "controller/controller.h"
+#include "ui/arp_lane_editor.h"
+#include "view_lifecycle_rig.h"
 
 #include "pluginterfaces/vst/vsttypes.h"
 #include "public.sdk/source/vst/vstparameters.h"
@@ -399,4 +401,29 @@ TEST_CASE("PlayheadPolling_ParameterRoundTrip", "[arp][controller][playhead]") {
     }
 
     controller.terminate();
+}
+
+// R-085 / R-144: the lanes show what the playhead parameter says, whether or not the host
+// reports a running transport (isTransportPlayingPtr_ is null here: a host without transport).
+TEST_CASE("Lane playheads follow the parameter, not the host transport", "[controller][arp]") {
+    RuinaeViewLifecycleTest::ViewLifecycleRig rig;
+    rig.clickControl(Ruinae::kMainTabTag, RuinaeViewLifecycleTest::kTabSeq);
+
+    auto* velocity = dynamic_cast<Krate::Plugins::ArpLaneEditor*>(rig.pointer("velocityLane_"));
+    auto* pitch = dynamic_cast<Krate::Plugins::ArpLaneEditor*>(rig.pointer("pitchLane_"));
+    REQUIRE(velocity != nullptr);
+    REQUIRE(pitch != nullptr);
+
+    rig.ctl.setParamNormalized(Ruinae::kArpVelocityPlayheadId, 5.0 / 32.0);
+    rig.ctl.setParamNormalized(Ruinae::kArpPitchPlayheadId, 9.0 / 32.0);
+    rig.ctl.pollArpLanePlayheads();
+    CHECK(velocity->getPlaybackStep() == 5);
+    CHECK(pitch->getPlaybackStep() == 9);
+
+    // The sentinel clears the playhead.
+    rig.ctl.setParamNormalized(Ruinae::kArpVelocityPlayheadId, 1.0);
+    rig.ctl.setParamNormalized(Ruinae::kArpPitchPlayheadId, 1.0);
+    rig.ctl.pollArpLanePlayheads();
+    CHECK(velocity->getPlaybackStep() == -1);
+    CHECK(pitch->getPlaybackStep() == -1);
 }

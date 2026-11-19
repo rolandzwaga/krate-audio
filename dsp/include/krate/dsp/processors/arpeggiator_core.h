@@ -174,6 +174,8 @@ public:
     static constexpr double kMinSampleRate = 1000.0;
     static constexpr float kMinFreeRate = 0.5f;
     static constexpr float kMaxFreeRate = 50.0f;
+    static constexpr float kMinRateScale = 0.25f;
+    static constexpr float kMaxRateScale = 4.0f;
     static constexpr float kMinGateLength = 1.0f;
     static constexpr float kMaxGateLength = 200.0f;
     static constexpr float kMinSwing = 0.0f;
@@ -441,6 +443,15 @@ public:
     void setFreeRate(float hz) noexcept {
         if (!detail::isFinite(hz)) return;
         freeRateHz_ = std::clamp(hz, kMinFreeRate, kMaxFreeRate);
+    }
+
+    /// @brief Speed factor for the tempo-synced step, clamped 0.25-4 (default 1).
+    /// The synced step lasts (note value) / scale and stays on the host grid:
+    /// syncToMusicalPosition locks it to scaled PPQ. Free-rate mode ignores it.
+    /// A non-finite scale keeps the previous one (it feeds a size_t cast).
+    void setRateScale(float scale) noexcept {
+        if (!detail::isFinite(scale)) return;
+        rateScale_ = std::clamp(scale, kMinRateScale, kMaxRateScale);
     }
 
     /// @brief Set gate length as percentage 1-200% (FR-015).
@@ -1034,14 +1045,41 @@ public:
     /// @note When at a step boundary (stepFraction == 0), sets
     /// sampleCounter_ = currentStepDuration_ so the step fires immediately,
     /// consistent with the firstStepPending_ approach.
+    ///
+    /// With a rate scale s (setRateScale) the step grid runs on scaled PPQ:
+    /// PPQ * s from the transport start or loop, so a constant scale keeps
+    /// the steps on the host grid. A scale change re-anchors the mapping at
+    /// the current PPQ, so the scaled position stays continuous: PPQ * s
+    /// itself would jump by PPQ * (change) and scatter the steps whenever a
+    /// route moves the scale.
     void syncToMusicalPosition(double projectTimeMusic) noexcept {
+        if (!wasPlaying_ || transportLoopPending_) {
+            rateAnchorPpq_ = 0.0;
+            rateAnchorScaledPpq_ = 0.0;
+            syncedRateScale_ = rateScale_;
+        } else if (rateScale_ != syncedRateScale_) {
+            rateAnchorScaledPpq_ +=
+                (projectTimeMusic - rateAnchorPpq_) * static_cast<double>(syncedRateScale_);
+            rateAnchorPpq_ = projectTimeMusic;
+            // The running step was sized for the old scale; resize it so the
+            // counter below maps the step fraction onto the new length.
+            if (tempoSync_ && currentStepDuration_ > 0) {
+                currentStepDuration_ = std::max<size_t>(1, static_cast<size_t>(std::llround(
+                    static_cast<double>(currentStepDuration_) * static_cast<double>(syncedRateScale_)
+                    / static_cast<double>(rateScale_))));
+            }
+            syncedRateScale_ = rateScale_;
+        }
         if (!tempoSync_ || currentStepDuration_ == 0) return;
 
         // For the arp, we only care about position within a single step
         // (not a multi-step pattern), because the arp doesn't have a fixed
         // pattern length — it advances through held notes via NoteSelector.
+        // At scale 1 with no re-anchor this is PPQ itself, exactly.
+        const double scaledPpq = rateAnchorScaledPpq_
+            + (projectTimeMusic - rateAnchorPpq_) * static_cast<double>(rateScale_);
         const auto pos = calculateMusicalStepPosition(
-            projectTimeMusic, noteValue_, noteModifier_, 1);
+            scaledPpq, noteValue_, noteModifier_, 1);
 
         // pos.stepFraction is the fractional position within one step [0, 1). Rounded, not truncated: the samples
         // into the step are usually an exact integer the product lands an ulp below, and truncating it fired the step
@@ -1099,7 +1137,7 @@ private:
                 getBeatsForNote(noteValue_, noteModifier_));
             double secondsPerBeat = 60.0 / ctx.tempoBPM;
             baseDuration = static_cast<size_t>(
-                secondsPerBeat * beatsPerStep * ctx.sampleRate);
+                secondsPerBeat * beatsPerStep * ctx.sampleRate / static_cast<double>(rateScale_));
         } else {
             baseDuration = static_cast<size_t>(sampleRate_ / static_cast<double>(freeRateHz_));
         }
@@ -1785,6 +1823,10 @@ private:
     NoteValue noteValue_ = NoteValue::Eighth;
     NoteModifier noteModifier_ = NoteModifier::None;
     float freeRateHz_ = 4.0f;
+    float rateScale_ = 1.0f;        ///< Tempo-synced step speed factor (setRateScale)
+    float syncedRateScale_ = 1.0f;  ///< rateScale_ at the last syncToMusicalPosition
+    double rateAnchorPpq_ = 0.0;        ///< Host PPQ where the scaled grid was last re-anchored
+    double rateAnchorScaledPpq_ = 0.0;  ///< Scaled PPQ at rateAnchorPpq_
     float gateLengthPercent_ = 80.0f;
     float swing_ = 0.0f;  ///< Stored as 0.0-0.75 (user-facing 0-75% divided by 100)
 

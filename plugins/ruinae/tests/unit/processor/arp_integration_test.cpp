@@ -3503,6 +3503,73 @@ TEST_CASE("ArpPlayhead_WritesSentinelWhenArpDisabled", "[arp][integration][playh
     }
 }
 
+// R-085: every one of the eight lanes publishes its own playhead, and the 1.0 sentinel
+// on all eight when the arp is off.
+TEST_CASE("ArpPlayhead_AllEightLanesWritten", "[arp][integration][ui]") {
+    ArpIntegrationFixture f;
+    ArpOutputParamChanges outputParams;
+    f.data.outputParameterChanges = &outputParams;
+
+    struct LaneInfo {
+        Steinberg::Vst::ParamID lengthId;
+        Steinberg::Vst::ParamID playheadId;
+        int length;
+        int maxStep = -1;
+        bool written = false;
+    };
+    std::array<LaneInfo, 8> lanes{{
+        {Ruinae::kArpVelocityLaneLengthId, Ruinae::kArpVelocityPlayheadId, 2},
+        {Ruinae::kArpGateLaneLengthId, Ruinae::kArpGatePlayheadId, 3},
+        {Ruinae::kArpPitchLaneLengthId, Ruinae::kArpPitchPlayheadId, 4},
+        {Ruinae::kArpRatchetLaneLengthId, Ruinae::kArpRatchetPlayheadId, 5},
+        {Ruinae::kArpModifierLaneLengthId, Ruinae::kArpModifierPlayheadId, 6},
+        {Ruinae::kArpConditionLaneLengthId, Ruinae::kArpConditionPlayheadId, 7},
+        {Ruinae::kArpChordLaneLengthId, Ruinae::kArpChordPlayheadId, 8},
+        {Ruinae::kArpInversionLaneLengthId, Ruinae::kArpInversionPlayheadId, 9},
+    }};
+
+    {
+        ArpTestParamChanges params;
+        params.addChange(Ruinae::kArpOperatingModeId, 1.0 / 3.0);
+        for (const auto& l : lanes)
+            params.addChange(l.lengthId, static_cast<double>(l.length - 1) / 31.0);
+        f.processBlockWithParams(params);
+    }
+    f.events.addNoteOn(60, 0.8f);
+    f.processBlock();
+    f.clearEvents();
+
+    // 1/8 note at 120 BPM = ~22 blocks per step; 300 blocks cover 13 steps.
+    for (int i = 0; i < 300; ++i) {
+        outputParams.clear();
+        f.processBlock();
+        for (auto& l : lanes) {
+            auto* q = outputParams.findQueue(l.playheadId);
+            if (!q || !q->hasPoints()) continue;
+            l.written = true;
+            const int step = static_cast<int>(std::lround(q->getLastValue() * 32.0));
+            l.maxStep = std::max(l.maxStep, step);
+        }
+    }
+
+    for (const auto& l : lanes) {
+        INFO("playhead id " << l.playheadId);
+        CHECK(l.written);
+        CHECK(l.maxStep == l.length - 1);
+    }
+
+    // Arp off: sentinel 1.0 on all eight.
+    f.disableArp();
+    outputParams.clear();
+    f.processBlock();
+    for (const auto& l : lanes) {
+        INFO("sentinel for playhead id " << l.playheadId);
+        auto* q = outputParams.findQueue(l.playheadId);
+        REQUIRE(q != nullptr);
+        CHECK(q->getLastValue() == Approx(1.0).margin(1e-6));
+    }
+}
+
 // =============================================================================
 // Phase 7 (US5): Transport Integration Verification Tests (T076-T078)
 // =============================================================================

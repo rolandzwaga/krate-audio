@@ -1027,16 +1027,20 @@ TEST_CASE("RuinaeEngine integration: reverb tail duration",
 
 #include <artifact_detection.h>
 
-TEST_CASE("RuinaeEngine integration: fast note retrigger produces no clicks",
-          "[ruinae-engine-integration][regression][artifacts]") {
-    // Full engine-level test: play notes rapidly via MIDI noteOn,
-    // capturing the continuous stereo output and checking for clicks.
-    // Effects are disabled to isolate the voice signal chain.
-    constexpr double sampleRate = 44100.0;
+namespace {
+
+constexpr double kRetriggerSampleRate = 44100.0;
+
+/// Twelve fast notes at polyphony 1 after a sustained C4: every noteOn steals
+/// the previous voice. Effects are disabled to isolate the voice signal chain.
+void renderFastRetriggers(StealMode stealMode, std::vector<float>& outputL,
+                          std::vector<float>& outputR) {
+    constexpr double sampleRate = kRetriggerSampleRate;
     constexpr size_t blockSize = 128;  // Small blocks = more boundaries
 
     RuinaeEngine engine;
     engine.prepare(sampleRate, blockSize);
+    engine.setStealMode(stealMode);
 
     // Configure voice signal chain
     engine.setFilterType(RuinaeFilterType::SVF_LP);
@@ -1079,8 +1083,8 @@ TEST_CASE("RuinaeEngine integration: fast note retrigger produces no clicks",
 
     const size_t totalBlocks = kNumRetriggers * kBlocksPerNote;
     const size_t totalSamples = totalBlocks * blockSize;
-    std::vector<float> outputL(totalSamples);
-    std::vector<float> outputR(totalSamples);
+    outputL.assign(totalSamples, 0.0f);
+    outputR.assign(totalSamples, 0.0f);
 
     for (size_t note = 0; note < kNumRetriggers; ++note) {
         engine.noteOn(kNotes[note], 100);
@@ -1091,6 +1095,28 @@ TEST_CASE("RuinaeEngine integration: fast note retrigger produces no clicks",
                                 outputR.data() + sampleOffset, blockSize);
         }
     }
+}
+
+float largestSampleStep(const std::vector<float>& x) {
+    float largest = 0.0f;
+    for (size_t i = 1; i < x.size(); ++i) {
+        largest = std::max(largest, std::abs(x[i] - x[i - 1]));
+    }
+    return largest;
+}
+
+} // namespace
+
+// Soft steal re-gates the stolen voice from its current level: the retrigger
+// path this regression was written for (Hard behaved the same before R-034).
+TEST_CASE("RuinaeEngine integration: fast note retrigger produces no clicks",
+          "[ruinae-engine-integration][regression][artifacts]") {
+    constexpr double sampleRate = kRetriggerSampleRate;
+    std::vector<float> outputL;
+    std::vector<float> outputR;
+    renderFastRetriggers(StealMode::Soft, outputL, outputR);
+    const size_t totalSamples = outputL.size();
+    constexpr size_t kNumRetriggers = 12;
 
     // Detect clicks in the continuous left-channel output
     Krate::DSP::TestUtils::ClickDetectorConfig cfg;
@@ -1118,6 +1144,28 @@ TEST_CASE("RuinaeEngine integration: fast note retrigger produces no clicks",
 
     CHECK(clicksL.empty());
     CHECK(clicksR.empty());
+}
+
+// Hard steal fades the victim out over 2 ms and starts the new note from
+// silence with its own attack (R-034). The frame-relative click detector flags
+// that attack after the quiet fade tail, so the Hard check is the waveform
+// itself: neither the fade nor the fresh start may step further between two
+// samples than the same notes do when they take the voice over (Soft). A cut
+// without the fade steps by the victim's level (~0.67 here).
+TEST_CASE("RuinaeEngine integration: Hard steal fade adds no sample step",
+          "[ruinae-engine-integration][regression][artifacts][steal]") {
+    std::vector<float> hardL;
+    std::vector<float> hardR;
+    std::vector<float> softL;
+    std::vector<float> softR;
+    renderFastRetriggers(StealMode::Hard, hardL, hardR);
+    renderFastRetriggers(StealMode::Soft, softL, softR);
+
+    const float hardStep = std::max(largestSampleStep(hardL), largestSampleStep(hardR));
+    const float softStep = std::max(largestSampleStep(softL), largestSampleStep(softR));
+    INFO("largest sample step: Hard " << hardStep << ", Soft " << softStep);
+    REQUIRE(softStep > 0.01f);  // not vacuous
+    CHECK(hardStep <= 1.25f * softStep);
 }
 
 // =============================================================================
