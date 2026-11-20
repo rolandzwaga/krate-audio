@@ -48,29 +48,29 @@
       }
     },
     "Gradus": {
-      "version": "1.10.4",
+      "version": "1.10.5",
       "download_url": "https://krateaudio.com/gradus/",
       "release_notes": "",
-      "tag": "gradus/v1.10.4",
-      "pub_date": "2026-11-15T20:13:45Z",
+      "tag": "gradus/v1.10.5",
+      "pub_date": "2026-11-20T14:31:09Z",
       "channel": "stable",
-      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/gradus/v1.10.4",
+      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/gradus/v1.10.5",
       "description": "Step Arpeggiator",
-      "notes_markdown": "### Fixed\n\n- **The audition monitor depended on the host's denormal setting** — Every other Krate plugin switches off the processor's slow handling of tiny \"denormal\" numbers while it processes; Gradus left it to the host. Gradus now switches it off itself too, and restores the host's setting afterwards. The audition monitor's sound does not change.\n- **A possible crash when a host shut Gradus down with its window still open** — If a host shut down the plugin's controller before closing the editor window, the update banner kept checking for updates, twice a second, through memory that had already been freed, which could crash the host. The update check now stays alive until the window is gone.\n- **A possible crash when opening the preset browser after a host shut Gradus down with its window still open** — In the same situation, clicking Presets read the preset list through memory that had already been freed, which could crash the host. The preset list now stays alive until the window is gone.\n- **On macOS, a note-on with a broken velocity slipped past the check** — A host can send a note-on whose velocity is not a real number (NaN or infinite). Gradus is meant to treat that as a note-off, but on macOS the check that catches it could be optimised away, letting it through as a note-on with a meaningless velocity. It is now treated as a note-off on every platform.\n- **A step could fire twice, one sample apart, or a sample late** — At the start of every buffer the arpeggiator lines its step clock up with the host's beat position. It rounded the position within the step down, and the number, which is usually a whole sample, often came out a hair below it, so the clock could restart one sample behind just after a step had fired and fire the same step again one sample later (a doubled note, which also cut a ratchet short), or fire a step one sample late, depending on the buffer size. It now rounds to the nearest sample, so every step fires once, on its beat. Steps that fall between two samples (a 1/16 at 120 BPM lasts 5512.5 samples) now land on the sample before the half instead of the one after.\n\n### Changed\n\n- **Built with VST3 SDK 3.8.1.**",
+      "notes_markdown": "### Fixed\n\n- **No factory preset loaded, and neither did projects saved with Gradus 1.0-1.5** — Since 1.8.0, Gradus accepted only the two newest versions of its saved-state format. Every factory preset, and every project saved with Gradus 1.0-1.5, uses the oldest version, so picking a factory preset did nothing. Gradus now loads all three versions again; settings that an older file does not contain keep their defaults.",
       "platforms": {
         "darwin-universal": {
-          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/gradus/v1.10.4/Gradus-1.10.4-macOS.pkg",
-          "size": 6652489,
-          "sha256": "a5d70500e84d5290d03f0ddcbf33b3be699d5f833737bd4591c88626cad8c22f",
-          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+Tbrn9P6D3dP2beCgzcTwThKj+8bEjOlPD8VP5mw13LHAFupv+05nhzP/iwGR+LOijZNMpBkWLOSOEKbheEv/H0ekAw=\ntrusted comment: krate:1:Gradus:1.10.4:darwin-universal:Gradus-1.10.4-macOS.pkg\nHGOCIE/Hbfq4rns5JJGsUtcBlMMS6i/K1D2gZep7Vt5mNiuVv11riM+gQ4HMaJzQCDShK4zZArN7v2CNPj7SAQ==\n",
+          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/gradus/v1.10.5/Gradus-1.10.5-macOS.pkg",
+          "size": 6652257,
+          "sha256": "e4b7f6665116bbb4916a930643ee10f00c7480aa7f8ea1d2c1fc0baa01a9a98d",
+          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+Tbrn2bTD3msY21sY6o6/ZfMM8lMbnrAJSOAMHhKLKVixRVdY3cANgZKz6igjbBw9kEAtrBn33Z76N8X/6ee+Q12Kww=\ntrusted comment: krate:1:Gradus:1.10.5:darwin-universal:Gradus-1.10.5-macOS.pkg\n1lr0UFoJ69aOOiC76plznySyMJ3nbbr0Cd05F7jdK1H/Wn8T8IfIShmp598CWh3JUKNNbJftObEdbAJzuKUnBA==\n",
           "format": "pkg",
           "min_os": "26.5"
         },
         "linux-x86_64": {
-          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/gradus/v1.10.4/Gradus-1.10.4-Linux-x64.tar.gz",
-          "size": 1550340,
-          "sha256": "38d1593756fccfef9ad9e84ab4f343f5bd987902eee90c16108fd88f7fec87b8",
-          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+Tbrn3T3vAgkWn9u6fnz2jRHqdoU5f/nzhUIyuy7kujZeZ2I9wZiCvIfPTXVOpLugKop1F3IEAXJAzajlJ05yuAORQw=\ntrusted comment: krate:1:Gradus:1.10.4:linux-x86_64:Gradus-1.10.4-Linux-x64.tar.gz\nrUlWh3EG0PmALd/u9u1uRHMqcyHtQ9dey1603OidZ5eDWk32pJZz/yrgHB/k2n9hZuAGpsQBUhpB0033xT6FDw==\n",
+          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/gradus/v1.10.5/Gradus-1.10.5-Linux-x64.tar.gz",
+          "size": 1548845,
+          "sha256": "309d2e101322dc2211559a85b31d5ab3e896b5baeb484029a0af7d24719b2673",
+          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+TbrnzZVa39khL9gmEShUaG/PJrMK9iMfQVq6eiO+MLf0gpqN1593T4Q0nHh/WBhHdnA9HQpHDe1hxhpLbYV1vXpWwo=\ntrusted comment: krate:1:Gradus:1.10.5:linux-x86_64:Gradus-1.10.5-Linux-x64.tar.gz\nQAQoOodc3Eg3skRgKItAr3tAy9rTbgAZ2P5fhatWlEUsu+Xarhg5hzxxFoc749lfrZvblKk8c68decLjxjd9Bg==\n",
           "format": "tar.gz",
           "min_os": "2.38",
           "payload": {
@@ -79,10 +79,10 @@
           }
         },
         "windows-x86_64": {
-          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/gradus/v1.10.4/Gradus-1.10.4-Windows-x64.exe",
-          "size": 3448278,
-          "sha256": "5323fe12db013a367576fa0dcce53fc5fa35fe0efceab1c7dd49e3bbdb916c63",
-          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+Tbrn2uJr9HBWbg3a5H9Ykv00jXXeRYn6j16LEO8SYx8Wa4Sg8abd5WBBIjokx+nfDUiSLF8lgxgrE0S0yiw6SySPQI=\ntrusted comment: krate:1:Gradus:1.10.4:windows-x86_64:Gradus-1.10.4-Windows-x64.exe\n2SecouIpyCc/SgVBSYjDUs3ZDL24bk0bJRWJw3RnRS8poV456UwIY8WK5QD4+UXOM2aMoVqXyRtoPufjDFPMAA==\n",
+          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/gradus/v1.10.5/Gradus-1.10.5-Windows-x64.exe",
+          "size": 3450434,
+          "sha256": "6b2ecdac4eee6a22af41218a5bedb976d653b49753599a458f3e5329dfe96102",
+          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+TbrnywYyV3q64bGdfeGnWpcVW9r50XREdV0bfvsuIEU0NKYiyWV+EalZD7uc4+zyZaMXxJbQOyNY1SnUIPoBxBfCQ4=\ntrusted comment: krate:1:Gradus:1.10.5:windows-x86_64:Gradus-1.10.5-Windows-x64.exe\nBm+NxcC284wDb7TfIf6dOx7Fh3KALpF8Edi8iEVl9cTovqw82IwFyahnrDNfLn8aHI78PR7HwWe4ZtP+bNTVBw==\n",
           "format": "inno-exe"
         }
       },
