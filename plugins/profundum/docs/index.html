@@ -3,58 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{NAME}} - {{DESCRIPTION}} | Krate Audio</title>
-    <meta name="description" content="Free open-source mass bass instrument VST3 plugin. One bass voice with a separate centred sub anchor, a two-endpoint Bass Morph, a Mass control and four personality macros.">
-    <meta name="robots" content="index, follow">
-    <link rel="canonical" href="https://krateaudio.com/profundum/">
-
-    <!-- Open Graph -->
-    <meta property="og:title" content="{{NAME}} - {{DESCRIPTION}}">
-    <meta property="og:description" content="Free open-source mass bass instrument VST3 plugin. One bass voice with a separate centred sub anchor, a two-endpoint Bass Morph, a Mass control and four personality macros.">
+    <title>Profundum – Free Bass Synthesizer VST3 Plugin | Krate Audio</title>
+    <meta name="description" content="Free open-source bass synthesizer VST3 plugin: one voice over a centred sub anchor, Bass Morph, Mass and four macros. 73 presets. Windows, macOS, Linux.">
+    <link rel="canonical" href="{{URL}}">
+    <meta property="og:title" content="Profundum – Free Bass Synthesizer VST3 Plugin">
+    <meta property="og:description" content="Free open-source bass synthesizer VST3 plugin: one voice over a centred sub anchor, Bass Morph, Mass and four macros. 73 presets. Windows, macOS, Linux.">
     <meta property="og:type" content="website">
-    <meta property="og:url" content="https://krateaudio.com/profundum/">
-    <meta property="og:site_name" content="Krate Audio">
-    <meta property="og:locale" content="en_US">
-
-    <!-- Twitter Card -->
-    <meta name="twitter:card" content="summary">
-    <meta name="twitter:title" content="{{NAME}} - {{DESCRIPTION}}">
-    <meta name="twitter:description" content="Free open-source mass bass instrument VST3. Mass, Anchor, Bass Morph, four personality macros, six preset categories.">
-
-    <!-- JSON-LD Structured Data -->
-    <script type="application/ld+json">
-    {
-        "@context": "https://schema.org",
-        "@type": "SoftwareApplication",
-        "name": "{{NAME}}",
-        "description": "Free open-source mass bass instrument VST3 plugin: one bass voice over a separate centred sub anchor, morphed between two designed endpoints and steered by a Mass control and four personality macros.",
-        "applicationCategory": "MultimediaApplication",
-        "applicationSubCategory": "Audio Plugin",
-        "operatingSystem": "Windows 10+, macOS 12+, Linux",
-        "softwareVersion": "{{VERSION}}",
-        "url": "https://krateaudio.com/profundum/",
-        "downloadUrl": "https://github.com/{{REPO}}/releases",
-        "author": {
-            "@type": "Organization",
-            "name": "Krate Audio",
-            "url": "https://krateaudio.com/"
-        },
-        "offers": {
-            "@type": "Offer",
-            "price": "0",
-            "priceCurrency": "USD"
-        },
-        "license": "https://opensource.org/licenses/MIT"
-    }
-    </script>
-
-    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-    <meta http-equiv="Pragma" content="no-cache">
-    <meta http-equiv="Expires" content="0">
+    <meta property="og:url" content="{{URL}}">
+{{HEAD_COMMON}}
     <link rel="stylesheet" href="assets/style.css">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
     <div class="container">
@@ -64,6 +21,8 @@
             <p class="tagline">{{DESCRIPTION}}</p>
             <p class="version">Version {{VERSION}}</p>
         </header>
+
+{{HERO}}
 
         <section class="downloads">
             <h2>Download</h2>
@@ -123,7 +82,7 @@
                 <li><strong>Mono-safe stereo field</strong> &mdash; Solid, Spread and Wide image modes with a crossover below which the bass stays centred</li>
                 <li><strong>Motion</strong> &mdash; An Env, Cycle or Drift source aimed at Mass, Depth, Body, Edge or Shift</li>
                 <li><strong>Live harmonic display</strong> &mdash; The measured harmonics of the sound you hear, with the Anchor in its own lane</li>
-                <li><strong>58 factory presets</strong> &mdash; Six categories, every preset generated from the plugin&rsquo;s own parameter surface and verified to make its named capability audible</li>
+                <li><strong>73 factory presets</strong> &mdash; Seven categories, every preset generated from the plugin&rsquo;s own parameter surface and verified to make its named capability audible</li>
                 <li><strong>Real-time safe</strong> &mdash; <code>process()</code> allocates nothing, takes no locks, throws nothing, and does no I/O</li>
                 <li><strong>Cross-platform</strong> &mdash; VST3 (Windows, macOS, Linux) + Audio Unit (macOS)</li>
             </ul>
@@ -131,7 +90,7 @@
 
         <section class="features">
             <h2>Factory Presets</h2>
-            <p>58 factory presets ship with the plugin in six categories, five of them stored in POLY for chords. Each one is built around one capability of the instrument and names it in its comment, and each is verified by a render to make that capability audible and to keep its low end intact in a mono sum.</p>
+            <p>73 factory presets ship with the plugin in seven categories; five of them are stored in POLY for chords. Each one is built around one capability of the instrument and names it in its comment, and each is verified by a render to make that capability audible and to keep its low end intact in a mono sum.</p>
             <ul>
                 <li><strong>Sub</strong> &mdash; Plain, heavy floors: the Anchor waveforms, Lock, Mass and long tails</li>
                 <li><strong>Resonant</strong> &mdash; Resonant bodies played as lines: glide, legato, swells and morphs</li>
@@ -139,6 +98,7 @@
                 <li><strong>Driven</strong> &mdash; The six Character types, Harmonic Fold and the Anchor fed into the fold</li>
                 <li><strong>Plucked</strong> &mdash; Pitch drops, punches, ghost thumps and hard attacks</li>
                 <li><strong>Animated</strong> &mdash; Motion sources sweeping Mass, Depth, Body, Edge and Shift, and moving width</li>
+                <li><strong>Kicks</strong> &mdash; Tuned kick drums that decay to silence within a second, each pitch drop landing on the played note</li>
             </ul>
         </section>
 
@@ -181,6 +141,8 @@
                 </div>
             </div>
         </section>
+
+{{OTHER_PLUGINS}}
 
         <footer>
             <p>

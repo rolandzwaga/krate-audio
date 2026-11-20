@@ -66,7 +66,6 @@ jobs:
       tag: ${{ steps.version.outputs.tag }}
       plugin: ${{ steps.version.outputs.plugin }}
       plugin_name: ${{ steps.version.outputs.plugin_name }}
-      has_landing_page: ${{ steps.version.outputs.has_landing_page }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -83,13 +82,6 @@ jobs:
           echo "plugin_name=$PLUGIN_NAME" >> $GITHUB_OUTPUT
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "tag=$TAG" >> $GITHUB_OUTPUT
-
-          # Check if plugin has a landing page template
-          if [ -f "plugins/${PLUGIN}/docs/index.html" ]; then
-            echo "has_landing_page=true" >> $GITHUB_OUTPUT
-          else
-            echo "has_landing_page=false" >> $GITHUB_OUTPUT
-          fi
 
           echo "Release: $PLUGIN_NAME v$VERSION (tag: $TAG)"
 
@@ -728,9 +720,9 @@ jobs:
         if: always()
         run: rm -f "$RUNNER_TEMP/krate.key"
 
-  # Deploy plugin landing page to GitHub Pages (incremental via gh-pages branch)
-  # Each release updates only its plugin subdirectory and regenerates the root index.
-  # Other plugins' pages are preserved via keep_files.
+  # Deploy the plugin pages to GitHub Pages (incremental via gh-pages branch). tools/gen-site.js rebuilds every
+  # released plugin's landing and signal-flow pages from its newest tag (this release's tag included), the root index
+  # and the sitemap, exactly as docs.yml does, and lints them; the manuals docs.yml built are kept by keep_files.
   deploy-pages:
     name: Deploy Landing Page
     needs: [version, release]
@@ -745,62 +737,17 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Generate Plugin Landing Page
-        if: needs.version.outputs.has_landing_page == 'true'
-        env:
-          PLUGIN: ${{ needs.version.outputs.plugin }}
-          PLUGIN_NAME: ${{ needs.version.outputs.plugin_name }}
-          VERSION: ${{ needs.version.outputs.version }}
-          TAG: ${{ needs.version.outputs.tag }}
-          REPO: ${{ github.repository }}
-        run: |
-          # Read metadata
-          DESCRIPTION=$(jq -r '.description' plugins/${PLUGIN}/version.json)
-          PUBLISHER=$(jq -r '.publisher' plugins/${PLUGIN}/version.json)
-
-          # Generate plugin page in its subdirectory
-          mkdir -p _site/${PLUGIN}
-          # Escape sed special characters in replacement strings (& = matched text)
-          DESCRIPTION_ESC=$(printf '%s\n' "$DESCRIPTION" | sed 's/[&/\]/\\&/g')
-          PUBLISHER_ESC=$(printf '%s\n' "$PUBLISHER" | sed 's/[&/\]/\\&/g')
-          sed -e "s|{{VERSION}}|$VERSION|g" \
-              -e "s|{{TAG}}|$TAG|g" \
-              -e "s|{{REPO}}|$REPO|g" \
-              -e "s|{{NAME}}|$PLUGIN_NAME|g" \
-              -e "s|{{DESCRIPTION}}|$DESCRIPTION_ESC|g" \
-              -e "s|{{PUBLISHER}}|$PUBLISHER_ESC|g" \
-              plugins/${PLUGIN}/docs/index.html > _site/${PLUGIN}/index.html
-
-          # Copy plugin-specific assets
-          cp -r plugins/${PLUGIN}/docs/assets _site/${PLUGIN}/ 2>/dev/null || true
-
-      - name: Generate Signal Flow Diagram
-        env:
-          PLUGIN: ${{ needs.version.outputs.plugin }}
-        run: |
-          dot_file="plugins/${PLUGIN}/docs/${PLUGIN}_signal_flow.dot"
-          if [ -f "$dot_file" ]; then
-            mkdir -p "_site/${PLUGIN}"
-            node tools/generate-signal-flow.js \
-              "$dot_file" \
-              "_site/${PLUGIN}/signal-flow.html"
-          fi
-
       - name: Setup Node
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '24'
 
-      - name: Generate Root Index
+      - name: Build Site
         env:
           REPO: ${{ github.repository }}
         run: |
-          mkdir -p _site/assets
-
-          # Copy root page assets
-          cp docs/assets/style.css _site/assets/
-
-          node tools/gen-root-index.js --out _site/index.html
+          npm ci --prefix tools/site
+          node tools/gen-site.js --out _site --no-manuals
 
       - name: Deploy to gh-pages
         uses: peaceiris/actions-gh-pages@84c30a85c19949d7eee79c4ff27748b70285e453 # v4.1.0

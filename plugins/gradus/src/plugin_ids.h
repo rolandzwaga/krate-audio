@@ -28,6 +28,16 @@ static constexpr auto kSubCategories = "Instrument|Synth";
 // State version for serialization
 constexpr Steinberg::int32 kCurrentStateVersion = 3;
 
+// Oldest state version the processor and the controller load. v1 is what Gradus 1.0-1.5 wrote and what every
+// factory preset carries (tools/gradus_preset_format.h); v2 added the speed curves, v3 the Sequencer Note lane. Every
+// later block is EOF-tolerant, so an older stream leaves the newer fields at their defaults. Both components must
+// use this one check: when they disagree, one keeps defaults while the other shows the loaded patch.
+constexpr Steinberg::int32 kOldestStateVersion = 1;
+
+[[nodiscard]] constexpr bool isLoadableStateVersion(Steinberg::int32 version) {
+    return version >= kOldestStateVersion && version <= kCurrentStateVersion;
+}
+
 // ==============================================================================
 // Parameter IDs
 // ==============================================================================

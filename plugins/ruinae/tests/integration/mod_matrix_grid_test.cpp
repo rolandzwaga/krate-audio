@@ -466,7 +466,7 @@ TEST_CASE("ModMatrixGrid: curve cycle fires parameter callback", "[modmatrix][gr
         ModRoute r = grid.getGlobalRoute(0);
         r.curve = static_cast<uint8_t>(expectedCurve);
         grid.setGlobalRoute(0, r);
-        REQUIRE(grid.getGlobalRoute(0).curve == expectedCurve);
+        REQUIRE(grid.getGlobalRoute(0).curve == static_cast<uint8_t>(expectedCurve));
     }
 }
 
@@ -674,6 +674,49 @@ TEST_CASE("ModMatrixGrid: add and remove routes sync heatmap", "[modmatrix][grid
 
     // Heatmap should have been synced after each operation
     // (verified by the fact that syncHeatmap is called in each method)
+}
+
+// The cell grid was sized 12 x 11 while the Global tab draws 14 sources x 15 destinations: a route from Tran or
+// ArpP, or to AGat .. ASpc, was dropped by setCell, and draw() read past the array into garbage (cells lit at
+// random, different in every run).
+TEST_CASE("ModHeatmap: every Global and Voice cell is stored", "[modmatrix][heatmap][unit]") {
+    ModHeatmap heatmap(VSTGUI::CRect(0, 0, 300, 100));
+    for (int s = 0; s < kNumGlobalSources; ++s) {
+        for (int d = 0; d < kNumGlobalDestinations; ++d) {
+            INFO("global source " << s << ", destination " << d);
+            heatmap.setCell(s, d, 0.5f, true);
+            const ModHeatmap::CellData cell = heatmap.cellAt(s, d);
+            CHECK(cell.active);
+            CHECK(cell.amount == 0.5f);
+        }
+    }
+    for (int s = 0; s < kNumVoiceSources; ++s) {
+        for (int d = 0; d < kNumVoiceDestinations; ++d) {
+            INFO("voice source " << s << ", destination " << d);
+            heatmap.setCell(s, d, -0.25f, true);
+            CHECK(heatmap.cellAt(s, d).active);
+        }
+    }
+}
+
+TEST_CASE("ModMatrixGrid: a route from the last Global source to the last destination reaches the heatmap",
+          "[modmatrix][grid][heatmap][integration]") {
+    ModMatrixGrid grid(VSTGUI::CRect(0, 0, 430, 250));
+    ModHeatmap heatmap(VSTGUI::CRect(0, 0, 300, 100));
+    grid.setRouteChangedCallback([](int, int, const ModRoute&) {});
+    grid.setHeatmap(&heatmap);
+    grid.addRoute();
+
+    ModRoute r;
+    r.active = true;
+    r.source = static_cast<uint8_t>(kNumGlobalSources - 1);
+    r.destination = static_cast<ModDestination>(kNumGlobalDestinations - 1);
+    r.amount = 0.6f;
+    grid.setGlobalRoute(0, r);
+
+    const ModHeatmap::CellData cell = heatmap.cellAt(kNumGlobalSources - 1, kNumGlobalDestinations - 1);
+    CHECK(cell.active);
+    CHECK(cell.amount == 0.6f);
 }
 
 TEST_CASE("ModMatrixGrid: tab switch updates heatmap mode", "[modmatrix][grid][heatmap][integration]") {

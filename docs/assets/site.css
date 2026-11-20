@@ -1,0 +1,70 @@
+/* Shared by every krateaudio.com page (linked from the head that tools/site/common.js writes): the self-hosted font
+   and the components the site generator inserts (hero screenshot, "more plugins" links). Colours come from each
+   page's own :root variables, with the root page's values as the fallback. */
+
+/* Inter, self-hosted (SIL Open Font License 1.1: fonts/OFL.txt). One variable-weight file, Latin subset, 400-700.
+   Served from krateaudio.com itself so a page needs no third-party connection before its text renders. */
+@font-face {
+    font-family: 'Inter';
+    font-style: normal;
+    font-weight: 400 700;
+    font-display: swap;
+    src: url('/assets/fonts/inter-latin.woff2') format('woff2');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+        U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* Plugin page: the editor screenshot under the header */
+.hero {
+    margin: 0 0 3rem;
+}
+
+.hero img {
+    display: block;
+    width: 100%;
+    height: auto;
+    border-radius: 12px;
+    border: 1px solid var(--color-border, #2a2a3a);
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.45);
+}
+
+/* Plugin page: links to the other plugins */
+.related h2 {
+    text-align: center;
+}
+
+.related-list {
+    list-style: none;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 0.75rem;
+    padding: 0;
+    margin: 0;
+}
+
+.related-list a {
+    display: block;
+    height: 100%;
+    padding: 0.9rem 1.1rem;
+    background: var(--color-surface, #12121a);
+    border: 1px solid var(--color-border, #2a2a3a);
+    border-radius: 10px;
+    color: var(--color-text, #e8e8f0);
+    text-decoration: none;
+    transition: border-color 0.2s;
+}
+
+.related-list a:hover {
+    border-color: var(--color-accent, #6366f1);
+}
+
+.related-list strong {
+    display: block;
+    font-weight: 600;
+}
+
+.related-list span {
+    display: block;
+    color: var(--color-text-muted, #8888a0);
+    font-size: 0.875rem;
+}

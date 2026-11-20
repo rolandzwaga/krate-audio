@@ -10,6 +10,7 @@ add_executable(seraphis_tests
     unit/midi_event_test.cpp
     unit/lifecycle_test.cpp
     unit/controller/editor_lifecycle_test.cpp
+    unit/controller/editor_screenshot_test.cpp
     integration/processor_audio_test.cpp
     integration/param_flow_test.cpp
 

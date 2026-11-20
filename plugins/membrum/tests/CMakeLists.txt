@@ -146,6 +146,7 @@ add_executable(membrum_tests
     # ASan stress test above, this one DOES call IPlugView::attached(), building
     # the full view tree and running verifyView/willClose via the shared harness.
     unit/controller/editor_lifecycle_test.cpp
+    unit/controller/editor_screenshot_test.cpp
 
     # The live update check: banner + manual button views and their uidesc placement
     unit/controller/update_check_test.cpp

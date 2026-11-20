@@ -5,10 +5,11 @@ require('./helpers/write-guard.js');
 // TA-12). The landing page's root index, ported from the inline Python of release.yml's "Generate Root Index" step.
 // Every case runs main(argv, io, deps) in process over injected deps: gitTags returns the fixture's tag lists in
 // `git tag -l <pattern> --sort=-v:refname` order, repo() the REPO value, and the file functions read the fixture tree
-// tools/feed-contract/fixtures/landing/ as the repository root (its index-template.html and manager-card.fixture.html
-// stand in for docs/index-template.html and docs/manager-card-template.html, TA-12). writeFile only records.
-// root-index.expected.html is the unchanged Python's output over the same tree and tags
-// (specs/krate-manager-phase12/evidence/root-index-python.txt).
+// tools/feed-contract/fixtures/landing/ as the repository root (its index-template.html, manager-card.fixture.html and
+// site.fixture.json stand in for docs/index-template.html, docs/manager-card-template.html and docs/site.json, TA-12).
+// writeFile only records. root-index.expected.html is the tool's output over the same tree and tags: until the SEO pass
+// (2026-11) it was the Python's (specs/krate-manager-phase12/evidence/root-index-python.txt); the cards are now grouped
+// by docs/site.json, carry a summary and an images/card.png thumbnail, and are HTML-escaped.
 // Nothing here writes a file, spawns a process or opens a network connection.
 // One top-level test (the feed-tools TAP plan counts top-level tests only); every other check is a subtest.
 
@@ -34,10 +35,18 @@ const PLUGIN_TAGS = Object.freeze({
 });
 const MANAGER_TAGS = Object.freeze(['manager/v0.10.0', 'manager/v0.10.0-rc.1', 'manager/v0.9.0']);
 
+// `git log -1 --format=%cI <tag>` per newest plugin tag; beta has none, so its card has no release line.
+const RELEASE_DATES = Object.freeze({
+  'alpha/v1.10.0': '2026-11-15T19:19:29+01:00',
+  'delta/v2.0.0': '2025-01-03T08:00:00-05:00',
+  'delta-x/v0.1.0': '2026-07-22T08:42:28+02:00',
+});
+
 // Repository-relative paths the tool reads -> the fixture file standing in for them.
 const STAND_INS = Object.freeze({
   'docs/index-template.html': 'index-template.html',
   'docs/manager-card-template.html': 'manager-card.fixture.html',
+  'docs/site.json': 'site.fixture.json',
 });
 
 function loadTool() {
@@ -68,6 +77,11 @@ function fixtureDeps(opts = {}) {
       if (pattern === 'manager/v*') return [...managerTags];
       if (!Object.hasOwn(PLUGIN_TAGS, pattern)) throw new Error(`unexpected tag pattern ${pattern}`);
       return [...PLUGIN_TAGS[pattern]];
+    },
+    commitDate(rev, paths) {
+      calls.push(`commitDate ${rev}`);
+      assert.deepEqual(paths, [], 'the release date is the tag commit, not a path');
+      return RELEASE_DATES[rev] ?? '';
     },
     repo() {
       calls.push('repo');
@@ -141,7 +155,7 @@ function assertRefused(r, code) {
 }
 
 test('root index renders the plugin cards and the manager card', async (t) => {
-  await t.test('no manager/v* tag: the bytes equal the Python output', () => {
+  await t.test('no manager/v* tag: the bytes equal the recorded output', () => {
     const r = run(['--out', 'site/index.html']);
     assert.equal(r.code, 0, `exit code; stderr ${JSON.stringify(r.stderr)}`);
     assert.equal(r.writes.length, 1);
@@ -156,16 +170,56 @@ test('root index renders the plugin cards and the manager card', async (t) => {
     const { deps, calls } = fixtureDeps();
     const plugins = loadTool().collectPlugins(deps, LANDING);
     assert.deepEqual(
-      plugins.map((p) => [p.dir, p.version, p.hasPage]),
+      plugins.map((p) => [p.dir, p.version, p.hasPage, p.hasCard, p.group]),
       [
-        ['alpha', '1.10.0', true],
-        ['beta', '0.3.0', false],
-        ['delta-x', '0.1.0', false],
-        ['delta', '2.0.0', false],
+        ['alpha', '1.10.0', true, true, 'Instruments'],
+        ['beta', '0.3.0', false, false, 'Effects'],
+        ['delta-x', '0.1.0', false, false, 'Effects'],
+        ['delta', '2.0.0', false, false, 'Effects'],
       ],
     );
     assert.equal(calls.includes('readFile plugins/gamma/version.json'), false, 'an untagged version.json was read');
-    assert.ok(EXPECTED.indexOf('<h2>Delta X</h2>') < EXPECTED.indexOf('<h2>Delta</h2>'), 'the fixture pins the order');
+    assert.ok(EXPECTED.indexOf('<h3>Delta X</h3>') < EXPECTED.indexOf('<h3>Delta</h3>'), 'the fixture pins the order');
+  });
+
+  await t.test('cards are grouped in docs/site.json order, every text escaped, a card image when there is one', () => {
+    const at = (s) => EXPECTED.indexOf(s);
+    assert.ok(at('<h2 class="group-heading">Instruments</h2>') < at('<h3>Alpha</h3>'));
+    assert.ok(at('<h3>Alpha</h3>') < at('<h2 class="group-heading">Effects</h2>'));
+    assert.ok(at('<h2 class="group-heading">Effects</h2>') < at('<h3>Beta</h3>'));
+    assert.ok(EXPECTED.includes('<img src="alpha/images/card.png" width="600" height="315" alt="Alpha plugin editor"'));
+    assert.equal(EXPECTED.match(/<img src="[^"]*\/images\/card\.png"/gu).length, 1, 'only alpha has images/card.png');
+    assert.ok(EXPECTED.includes('<img src="/assets/favicon.svg" width="56" height="56" alt="Krate Audio logo">'), 'the logo');
+    assert.ok(EXPECTED.includes('escapes &amp; and &lt;b&gt;'));
+    assert.ok(EXPECTED.includes("Alpha's summary escapes &amp; and &lt;i&gt; too."));
+    assert.equal(/\{\{[A-Z_]+\}\}/.test(EXPECTED), false, 'a placeholder is left');
+    assert.ok(EXPECTED.includes('<link rel="icon" href="/favicon.ico" sizes="32x32">'), 'the shared head is filled');
+  });
+
+  await t.test('each card shows its newest tag commit date, quietly; no date, no line', () => {
+    const released = [...EXPECTED.matchAll(/<span class="released">Released <time datetime="([^"]+)">([^<]+)<\/time><\/span>/gu)];
+    assert.deepEqual(
+      released.map((m) => [m[1], m[2]]),
+      [
+        ['2026-11-15', '15 Nov 2026'],
+        ['2026-07-22', '22 Jul 2026'],
+        ['2025-01-03', '3 Jan 2025'],
+      ],
+    );
+    const beta = EXPECTED.slice(EXPECTED.indexOf('<h3>Beta</h3>'), EXPECTED.indexOf('<h3>Delta X</h3>'));
+    assert.equal(beta.includes('class="released"'), false, 'beta has no release date');
+    assert.ok(
+      EXPECTED.indexOf('<span class="version">v1.10.0</span>') < EXPECTED.indexOf('datetime="2026-11-15"'),
+      'the date follows the version',
+    );
+  });
+
+  await t.test('a tagged plugin docs/site.json does not place is E_ROOT_INDEX_SITE_JSON', () => {
+    const config = JSON.parse(fs.readFileSync(path.join(LANDING, 'site.fixture.json'), 'utf8'));
+    delete config.plugins.beta;
+    for (const text of [JSON.stringify(config), '{"groups":"x","plugins":{}}', '{']) {
+      assertRefused(run(['--out', 'index.html'], { files: { 'docs/site.json': text } }), 'E_ROOT_INDEX_SITE_JSON');
+    }
   });
 
   await t.test('the template is read with universal newlines', () => {
@@ -189,7 +243,7 @@ test('root index renders the plugin cards and the manager card', async (t) => {
     assert.ok(card.length > 0 && !card.endsWith('\n'), 'the rendered card has no trailing newline');
     assert.ok(html.includes(`${card}\n`), 'the card is in the page');
     assert.equal(html.replace(`${card}\n`, ''), EXPECTED);
-    assert.ok(html.indexOf(card) < html.indexOf('<h2>Alpha</h2>'), 'the card is prepended to the plugin cards');
+    assert.ok(html.indexOf(card) < html.indexOf('<h3>Alpha</h3>'), 'the card is prepended to the plugin cards');
   });
 
   await t.test('--manager-version 0.2.0 overrides the tags', () => {

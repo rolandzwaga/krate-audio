@@ -2,6 +2,8 @@
 
 ## Introduction
 
+![The Innexus editor](images/hero.png)
+
 Innexus is a harmonic analysis and resynthesis instrument that deconstructs audio into its fundamental components — pitch, harmonics, and noise — then rebuilds it as a fully playable synthesizer voice. Load a sample or feed live audio through the sidechain, and Innexus extracts up to 96 partials in real time using spectral analysis and pitch tracking. The resulting harmonic model can be frozen, morphed, filtered, modulated, blended across multiple sources, and physically modelled, turning any sound into a rich, evolving instrument.
 
 At its core, Innexus uses a bank of amplitude-stable Gordon-Smith oscillators (48-96 partials) driven by real-time spectral analysis. The analysis pipeline detects fundamental frequencies, tracks individual harmonics, separates tonal content from noise residual, and builds a harmonic model that can be manipulated in ways impossible with conventional sampling or synthesis.
@@ -121,6 +123,8 @@ MIDI input (notes, velocity, pitch bend, MPE expression) controls the oscillator
 
 ## Header
 
+![The header](images/header.png)
+
 The header is always visible at the top of the plugin window.
 
 | Control | Description |
@@ -135,6 +139,8 @@ The header is always visible at the top of the plugin window.
 ---
 
 ## Analysis Display
+
+![The analysis display: harmonic bars and pitch detection](images/analysis.png)
 
 The analysis display section provides real-time visual feedback of what Innexus is hearing and synthesizing.
 
@@ -154,6 +160,8 @@ The right panel shows the fundamental frequency detection status:
 ---
 
 ## Musical Control
+
+![Musical Control](images/musical-control.png)
 
 The Musical Control section provides real-time manipulation of the harmonic model.
 
@@ -178,6 +186,8 @@ The Musical Control section provides real-time manipulation of the harmonic mode
 
 ## Oscillator / Residual
 
+![Oscillator / Residual](images/oscillator-residual.png)
+
 This section controls the synthesis engine's core parameters and the balance between tonal and noise components.
 
 ### Oscillator Controls
@@ -201,6 +211,8 @@ This section controls the synthesis engine's core parameters and the balance bet
 
 ## Memory
 
+![Memory](images/memory.png)
+
 The Memory section lets you capture, store, and recall up to 8 harmonic snapshots. Each snapshot preserves the complete harmonic state (partial amplitudes, frequencies, and ADSR envelope) at the moment of capture.
 
 | Control | Description |
@@ -214,6 +226,8 @@ The Memory section lets you capture, store, and recall up to 8 harmonic snapshot
 
 ## Stereo / Detune
 
+![Stereo / Detune](images/stereo-detune.png)
+
 | Control | Range | Description |
 |---------|-------|-------------|
 | **Stereo Spread** | 0.0-1.0 | Per-partial stereo panning for decorrelation. At 0.0, all partials are center-panned (mono). At 1.0, odd partials pan left and even partials pan right, with the fundamental reduced to 25%. Values of 0.3-0.7 create a lush, widened stereo image without phasing artifacts. Default 0.0. |
@@ -222,6 +236,8 @@ The Memory section lets you capture, store, and recall up to 8 harmonic snapshot
 ---
 
 ## Evolution Engine
+
+![Evolution](images/evolution.png)
 
 The Evolution Engine provides autonomous timbral morphing by smoothly interpolating between occupied memory slots over time. It runs continuously (not synced to MIDI notes), creating slow, evolving textures.
 
@@ -247,6 +263,8 @@ Evolution requires at least 2 occupied memory slots. For best results, capture c
 
 ## Presets
 
+![Presets](images/presets.png)
+
 | Control | Description |
 |---------|-------------|
 | **Preset Browser** | Opens an overlay with factory presets organized by category. Search and filter by name, load with one click. |
@@ -255,6 +273,8 @@ Evolution requires at least 2 occupied memory slots. For best results, capture c
 ---
 
 ## Modulators
+
+![The two modulators](images/modulators.png)
 
 Two independent LFO modulators provide per-partial animation. Each modulator applies its waveform to a selectable range of partials, targeting amplitude, frequency, or pan.
 
@@ -286,6 +306,8 @@ When two modulators overlap the same partial range and target, their effects com
 
 ## Multi-Source Blend
 
+![Multi-Source Blend](images/blend.png)
+
 The Multi-Source Blend section provides a weighted mix of memory slots and live input, allowing hybrid timbres from multiple captured states simultaneously.
 
 | Control | Range | Description |
@@ -297,6 +319,8 @@ The Multi-Source Blend section provides a weighted mix of memory slots and live 
 ---
 
 ## Exciter
+
+![Exciter](images/exciter.png)
 
 The Exciter section controls how energy is injected into the resonator bank. The exciter type determines the character of the attack and sustain for the residual/physical model path.
 
@@ -330,6 +354,8 @@ Available when Exciter Type is set to **Bow**. Simulates a bow continuously exci
 
 ## Resonator Bank
 
+![Resonator Bank](images/resonator-bank.png)
+
 The Resonator Bank processes the exciter output through a physical resonance model. Two resonator algorithms are available, plus a body resonance post-processor.
 
 ### Resonance Type
@@ -358,6 +384,8 @@ Available when Resonance Type is set to **Waveguide**.
 
 ### Body Resonance
 
+![Body Resonance](images/body-resonance.png)
+
 Post-processor applied after either resonator type. Simulates the resonant body (soundboard, cabinet, shell) of an acoustic instrument.
 
 | Control | Range | Description |
@@ -376,6 +404,8 @@ Post-processor applied after either resonator type. Simulates the resonant body 
 
 ## Sympathetic Resonance
 
+![Sympathetic Resonance](images/sympathetic-resonance.png)
+
 The Sympathetic Resonance module adds cross-voice resonance that simulates the way untouched strings vibrate in sympathy with played notes (like an open piano or sitar). It operates post-voice-sum, before the master gain.
 
 | Control | Range | Description |
@@ -386,6 +416,8 @@ The Sympathetic Resonance module adds cross-voice resonance that simulates the w
 ---
 
 ## Harmonic Physics
+
+![Harmonic Physics](images/harmonic-physics.png)
 
 The Harmonic Physics section makes harmonics behave like a coupled physical system rather than independent sine waves. These four parameters add organic, instrument-like character to the resynthesis. They operate on the harmonic model *before* oscillator synthesis.
 
@@ -399,6 +431,8 @@ The Harmonic Physics section makes harmonics behave like a coupled physical syst
 ---
 
 ## Analysis Feedback
+
+![Analysis Feedback (sidechain input)](images/analysis-feedback.png)
 
 The Analysis Feedback loop feeds the synthesizer's output back into its own analysis pipeline, creating emergent, self-evolving harmonic behavior. This is available in sidechain mode only.
 
@@ -414,6 +448,8 @@ The feedback loop includes a multi-layer safety stack: soft limiter, energy budg
 ---
 
 ## ADSR Envelope
+
+![ADSR Envelope](images/adsr.png)
 
 Innexus auto-detects the amplitude envelope of loaded samples and allows real-time editing. The envelope shapes the synthesized output, making it respond dynamically to note events rather than producing a flat sustain.
 

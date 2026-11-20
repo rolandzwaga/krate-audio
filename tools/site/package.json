@@ -1,0 +1,8 @@
+{
+  "name": "krate-site",
+  "private": true,
+  "description": "Build-time dependency of tools/gen-site.js: @viz-js/viz pre-renders the signal-flow diagrams to SVG (docs.yml runs npm ci here).",
+  "dependencies": {
+    "@viz-js/viz": "3.11.0"
+  }
+}

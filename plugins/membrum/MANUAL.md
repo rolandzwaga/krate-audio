@@ -93,6 +93,8 @@ A more detailed graphical version is available as the [Signal Flow Diagram](sign
 
 ## Interface Overview
 
+![The Membrum editor](images/hero.png)
+
 The window is divided into three columns, each scrollable on small displays:
 
 - **Left — Pad Grid** — 4×8 pad grid (32 pads). Click to select; the grid glows per pad to reflect voice activity, level, and category color.
@@ -104,6 +106,8 @@ The top-right of the selected-pad column carries an **Acoustic / Extended** togg
 ---
 
 ## Pad Grid
+
+![The pad grid](images/pad-grid.png)
 
 The pad grid maps the bottom-left pad to MIDI note 36 (C1), row by row, left to right, up to MIDI 67 (top-right). On a hardware controller this matches the standard 4×8 drum-pad layout used by most pad controllers.
 
@@ -127,6 +131,8 @@ The selected-pad column has two layouts driven by the **Acoustic / Extended** to
 
 ### Acoustic Mode
 
+![The selected-pad panel in Acoustic mode](images/selected-pad-acoustic.png)
+
 | Fieldset | Controls |
 |----------|----------|
 | **Macros** | Tightness, Brightness, Body Size, Punch, Complexity |
@@ -138,6 +144,8 @@ The selected-pad column has two layouts driven by the **Acoustic / Extended** to
 This is the recommended starting point for most kit work — the five macros plus the five Body knobs cover ~80% of typical sound design moves.
 
 ### Extended Mode
+
+![The selected-pad panel in Extended mode](images/selected-pad-extended.png)
 
 The Extended layout exposes everything in Acoustic mode plus:
 
@@ -157,6 +165,8 @@ Phase 8 extended physics (per-mode damping, air loading, head/shell coupling, te
 ---
 
 ## Macros
+
+![Macros](images/macros.png)
 
 Five macro knobs per pad collapse multiple underlying DSP parameters into single sweeps. Each macro applies an *incremental delta* relative to the previous macro position, so neutral macros (0.5) produce zero adjustment. This means a freshly loaded preset is left untouched by neutral macros, and macros stay independent of host automation on the underlying parameters.
 
@@ -187,6 +197,8 @@ Each body model is a parallel modal resonator bank tuned to research-backed mode
 
 ### Body Parameters
 
+![Body parameters (Physics)](images/body-physics.png)
+
 | Control | Description |
 |---------|-------------|
 | **Material** | Sweeps the per-mode damping law from woody (high HF damping, fast decay of upper modes) to metallic (uniform damping, sustained ring) |
@@ -198,6 +210,8 @@ Each body model is a parallel modal resonator bank tuned to research-backed mode
 ---
 
 ## Exciters
+
+![Exciter and body selection (Source)](images/exciter.png)
 
 The exciter shapes the energy input to the body. All exciters carry a velocity-controlled spectral response: soft hits are darker, hard hits are brighter with wider-band excitation.
 
@@ -258,6 +272,8 @@ Tension modulation is **orthogonal to the scripted Pitch Envelope** — Pitch En
 
 ## Parallel Layers (Phase 7)
 
+![Parallel Layers](images/parallel-layers.png)
+
 Two always-on layers run alongside the modal body and add together at the per-voice mix bus. Both are essential for realism — the modal body alone sounds *glass tap*; the noise + click layers restore the stochastic residual that real drum recordings carry.
 
 ### Noise Layer
@@ -286,6 +302,8 @@ A 2–5 ms raised-cosine filtered-noise burst that fires at note-on. The attack 
 
 ## Tone Shaper
 
+![Tone Shaper](images/tone-shaper.png)
+
 A per-pad signal-shaping chain that processes the modal body output before the amp envelope. All controls are bypass-identity at their defaults.
 
 ```
@@ -304,6 +322,8 @@ body output -> Drive -> Wavefolder -> DC Blocker -> SVF Filter (with envelope) -
 
 ### Pitch Envelope
 
+![Pitch Envelope](images/pitch-envelope.png)
+
 A separate absolute-Hz envelope (start, end, time, exp/lin curve) drives the body fundamental for 808-style transient pitch sweeps. The XY display lets you drag the start and end points directly.
 
 | Control | Description |
@@ -317,6 +337,8 @@ A separate absolute-Hz envelope (start, end, time, exp/lin curve) drives the bod
 
 ## Unnatural Zone
 
+![Unnatural Zone (Character)](images/unnatural-zone.png)
+
 Per-pad inharmonic distortions of the modal body. All controls are bypass-identity at their defaults.
 
 | Control | Description |
@@ -327,6 +349,8 @@ Per-pad inharmonic distortions of the modal body. All controls are bypass-identi
 | **Nonlinear Coupling** | Energy-limited cross-mode coupling — produces FM-like sidebands that grow and decay with envelope energy |
 
 ### Material Morph
+
+![Material Morph](images/material-morph.png)
 
 A 2-point envelope (10–2000 ms) that morphs the body's material parameter from a *start* state to an *end* state at note-on. Useful for evolving cymbals (dark stick attack → bright shimmer tail) and snare brush sweeps.
 
@@ -341,6 +365,8 @@ A 2-point envelope (10–2000 ms) that morphs the body's material parameter from
 
 ## Routing
 
+![Routing](images/routing.png)
+
 Per-pad routing controls.
 
 | Control | Description |
@@ -352,6 +378,10 @@ Per-pad routing controls.
 ---
 
 ## Kit Browser & Pad Browser
+
+![Kit Browser](images/kit-browser.png)
+
+![Pad Browser](images/pad-browser.png)
 
 The right column carries two preset browsers:
 
@@ -367,6 +397,8 @@ User presets save into the same directory tree alongside the factory presets.
 ---
 
 ## Voices
+
+![Voices](images/voices.png)
 
 Voice management section in the right column.
 
@@ -389,6 +421,8 @@ When a voice is stolen, a 5 ms exponential fast-release envelope cross-fades the
 
 ## Coupling
 
+![Coupling](images/coupling.png)
+
 Cross-pad sympathetic resonance — when one pad is hit, its mono output is mixed into other pads' excitation paths according to a coupling matrix. Models physical phenomena like snare wires buzzing when the kick is hit, or toms ringing in sympathy with each other.
 
 | Control | Range | Description |
@@ -405,6 +439,10 @@ The coupling output passes through an energy limiter that caps it below -20 dBFS
 ---
 
 ## Master & Meter
+
+![Master](images/master.png)
+
+![Meter](images/meter.png)
 
 | Control | Range | Description |
 |---------|-------|-------------|

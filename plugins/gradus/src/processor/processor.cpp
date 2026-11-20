@@ -475,6 +475,8 @@ tresult PLUGIN_API Processor::setState(IBStream* state)
     IBStreamer streamer(state, kLittleEndian);
 
     // 1. Read state version and dispatch.
+    //    v1: Gradus 1.0-1.5 and every factory preset; same arp block as v2,
+    //        newer sections EOF to their defaults.
     //    v2: legacy stream (no Sequencer Note lane appendix); EOF on the new
     //        block leaves defaults in place (FR-039a).
     //    v3: full v2 block + Sequencer Note lane appendix.
@@ -482,7 +484,7 @@ tresult PLUGIN_API Processor::setState(IBStream* state)
     int32 version = 0;
     if (!streamer.readInt32(version))
         return kResultFalse;
-    if (version != 2 && version != 3)
+    if (!isLoadableStateVersion(version))
         return kResultFalse;
 
     // 2. Load arp params (v2 block; identical layout in v2 and v3 streams).

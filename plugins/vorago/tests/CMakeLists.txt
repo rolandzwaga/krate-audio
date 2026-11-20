@@ -47,6 +47,7 @@ add_executable(vorago_tests
     unit/controller/ecosystem_consumer_test.cpp
     unit/controller/ecosystem_view_test.cpp
     unit/controller/editor_layout_test.cpp
+    unit/controller/editor_screenshot_test.cpp
     integration/preset_browser_test.cpp
     # Phase 14 (specs/vorago-phase14-presets-release)
     integration/ecosystem_rule_probe_test.cpp

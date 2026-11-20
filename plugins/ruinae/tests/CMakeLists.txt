@@ -98,6 +98,7 @@ add_executable(ruinae_tests
 
     # Editor open/close lifecycle regression (willClose UAF guard)
     unit/controller/editor_lifecycle_test.cpp
+    unit/controller/editor_screenshot_test.cpp
     unit/controller/mod_source_view_teardown_test.cpp
 
     # Preset Format Compatibility Tests (generator ↔ processor)

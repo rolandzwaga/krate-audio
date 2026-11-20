@@ -1,0 +1,41 @@
+{
+  "groups": ["Instruments", "Effects", "MIDI"],
+  "plugins": {
+    "disrumpo": {
+      "group": "Effects",
+      "summary": "Multiband distortion with 26 algorithms in 7 families, morphed per band on a 2D MorphPad or by the Sweep system."
+    },
+    "gradus": {
+      "group": "MIDI",
+      "summary": "Step arpeggiator with 9 polymetric lanes, Euclidean rhythms, conditional triggers, a Markov Chain mode and MIDI echo delays."
+    },
+    "innexus": {
+      "group": "Instruments",
+      "summary": "Analyses a sample or live sidechain into up to 96 harmonic partials and plays them back as a resynthesized voice."
+    },
+    "iterum": {
+      "group": "Effects",
+      "summary": "Ten delay engines in one plugin: tape, BBD, digital, ping-pong, reverse, multi-tap, granular, spectral, shimmer and freeze."
+    },
+    "membrum": {
+      "group": "Instruments",
+      "summary": "32-pad drum machine that synthesizes every hit by physical modelling: six exciters, six body models, no samples."
+    },
+    "profundum": {
+      "group": "Instruments",
+      "summary": "Bass instrument with one voice over a centred sub anchor, morphed between two designed endpoints by Bass Morph."
+    },
+    "ruinae": {
+      "group": "Instruments",
+      "summary": "Chaos and spectral hybrid synthesizer with 10 oscillator types, 13 filters, an 8-slot mod matrix and a polymetric arpeggiator."
+    },
+    "seraphis": {
+      "group": "Instruments",
+      "summary": "Spectral organism synthesizer: 64-partial harmonic clouds through a modal body, with slow life modulators and five macro rings."
+    },
+    "vorago": {
+      "group": "Instruments",
+      "summary": "Dark-ambient drone instrument: a partial cloud, noise organism, resonant peaks and a living colony, played through twelve macros."
+    }
+  }
+}

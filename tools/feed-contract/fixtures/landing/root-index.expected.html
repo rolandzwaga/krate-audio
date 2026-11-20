@@ -4,78 +4,106 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Krate Audio - Free Open-Source VST3 Plugins</title>
-    <meta name="description" content="Free open-source VST3 audio plugins for music production and sound design. Delay, distortion, synthesizer, harmonic resynthesis, and step arpeggiator. Windows, macOS, Linux.">
-    <meta name="robots" content="index, follow">
+    <title>Krate Audio – Free Open-Source VST3 Plugins</title>
+    <meta name="description" content="Free open-source VST3 and AU plugins for Windows, macOS and Linux: synthesizers, a drum machine, a bass instrument, delay, distortion and an arpeggiator.">
     <meta name="google-site-verification" content="y2hCGu8k5yBDwKfwArKwYesnPr75Nrk4NxbPV1hi_u0" />
     <link rel="canonical" href="https://krateaudio.com/">
-    <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
-
-    <!-- Open Graph -->
-    <meta property="og:title" content="Krate Audio - Free Open-Source VST3 Plugins">
-    <meta property="og:description" content="Free open-source VST3 audio plugins for music production and sound design. Delay, distortion, synthesizer, harmonic resynthesis, and arpeggiator.">
+    <meta property="og:title" content="Krate Audio – Free Open-Source VST3 Plugins">
+    <meta property="og:description" content="Free open-source VST3 and AU plugins for Windows, macOS and Linux: synthesizers, a drum machine, a bass instrument, delay, distortion and an arpeggiator.">
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://krateaudio.com/">
+    <meta name="robots" content="index, follow, max-image-preview:large">
+    <meta name="theme-color" content="#0a0a0f">
+    <link rel="icon" href="/favicon.ico" sizes="32x32">
+    <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+    <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+    <link rel="preload" href="/assets/fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="stylesheet" href="/assets/site.css">
     <meta property="og:site_name" content="Krate Audio">
     <meta property="og:locale" content="en_US">
-
-    <!-- Twitter Card -->
-    <meta name="twitter:card" content="summary">
-    <meta name="twitter:title" content="Krate Audio - Free Open-Source VST3 Plugins">
-    <meta name="twitter:description" content="Free open-source VST3 plugins: delay, distortion, synth, resynthesis, arpeggiator. Windows, macOS, Linux.">
-
-    <!-- JSON-LD Structured Data -->
+    <meta property="og:image" content="https://krateaudio.com/assets/og-image.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="Krate Audio: free open-source VST3 plugins">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content="https://krateaudio.com/assets/og-image.png">
     <script type="application/ld+json">
     {
-        "@context": "https://schema.org",
-        "@type": "Organization",
-        "name": "Krate Audio",
-        "url": "https://krateaudio.com/",
-        "description": "Free open-source VST3 audio plugins for music production and sound design.",
-        "sameAs": [
-            "https://github.com/o/r"
-        ]
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "Organization",
+          "@id": "https://krateaudio.com/#organization",
+          "name": "Krate Audio",
+          "url": "https://krateaudio.com/",
+          "logo": {
+            "@type": "ImageObject",
+            "url": "https://krateaudio.com/assets/logo-512.png",
+            "width": 512,
+            "height": 512
+          },
+          "sameAs": [
+            "https://github.com/rolandzwaga"
+          ]
+        },
+        {
+          "@type": "WebSite",
+          "@id": "https://krateaudio.com/#website",
+          "name": "Krate Audio",
+          "url": "https://krateaudio.com/",
+          "inLanguage": "en",
+          "publisher": {
+            "@id": "https://krateaudio.com/#organization"
+          }
+        }
+      ]
     }
     </script>
-
-    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-    <meta http-equiv="Pragma" content="no-cache">
-    <meta http-equiv="Expires" content="0">
     <link rel="stylesheet" href="assets/style.css">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 
 <body>
     <div class="container">
         <header>
-            <h1>Krate Audio</h1>
+            <div class="brand">
+                <img src="/assets/favicon.svg" width="56" height="56" alt="Krate Audio logo">
+                <h1>Krate Audio</h1>
+            </div>
             <p class="tagline">Weird and noisy open-source VST3 plugins for music production and sound design</p>
+            <p class="intro">Every Krate Audio plugin is free and open source under the MIT licence: a VST3 for Windows, macOS and Linux, plus an Audio Unit on macOS. The full source of each one is on <a href="https://github.com/o/r">GitHub</a>, and Krate Manager installs and updates them for you.</p>
         </header>
 
-        <section class="plugins">
-            <h2>Plugins</h2>
+        <section class="plugins" aria-label="Plugins">
             <div class="plugin-grid">
-                                <a href="alpha/" class="plugin-card">
-                    <h2>Alpha</h2>
-                    <p class="description">Alpha keeps $& and $1 literal, &amp; stays escaped, o/r is filled</p>
+                                <h2 class="group-heading">Instruments</h2>
+                <a href="alpha/" class="plugin-card">
+                    <img src="alpha/images/card.png" width="600" height="315" alt="Alpha plugin editor" loading="lazy" decoding="async">
+                    <h3>Alpha</h3>
+                    <p class="tagline">Alpha keeps $&amp; and $1 literal, escapes &amp; and &lt;b&gt;, o/r is filled</p>
+                    <p class="description">Alpha's summary escapes &amp; and &lt;i&gt; too.</p>
                     <span class="version">v1.10.0</span>
+                    <span class="released">Released <time datetime="2026-11-15">15 Nov 2026</time></span>
                 </a>
+                <h2 class="group-heading">Effects</h2>
                 <div class="plugin-card">
-                    <h2>Beta</h2>
-                    <p class="description">Beta has a tag and no page</p>
+                    <h3>Beta</h3>
+                    <p class="tagline">Beta has a tag and no page</p>
+                    <p class="description">Beta is grouped after Alpha.</p>
                     <span class="version">v0.3.0</span>
                 </div>
                 <div class="plugin-card">
-                    <h2>Delta X</h2>
-                    <p class="description">Delta X sorts before delta by path</p>
+                    <h3>Delta X</h3>
+                    <p class="tagline">Delta X sorts before delta by path</p>
+                    <p class="description">Delta X leads Delta in its group.</p>
                     <span class="version">v0.1.0</span>
+                    <span class="released">Released <time datetime="2026-07-22">22 Jul 2026</time></span>
                 </div>
                 <div class="plugin-card">
-                    <h2>Delta</h2>
-                    <p class="description">Delta sorts after delta-x by path (café)</p>
+                    <h3>Delta</h3>
+                    <p class="tagline">Delta sorts after delta-x by path (café)</p>
+                    <p class="description">Delta follows Delta X in its group.</p>
                     <span class="version">v2.0.0</span>
+                    <span class="released">Released <time datetime="2025-01-03">3 Jan 2025</time></span>
                 </div>
             </div>
         </section>

@@ -5,6 +5,12 @@ All notable changes to Gradus will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.10.5] - 2026-11-20
+
+### Fixed
+
+- **No factory preset loaded, and neither did projects saved with Gradus 1.0-1.5** — Since 1.8.0, Gradus accepted only the two newest versions of its saved-state format. Every factory preset, and every project saved with Gradus 1.0-1.5, uses the oldest version, so picking a factory preset did nothing. Gradus now loads all three versions again; settings that an older file does not contain keep their defaults.
+
 ## [1.10.4] - 2026-11-10
 
 ### Fixed

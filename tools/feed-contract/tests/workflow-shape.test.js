@@ -730,14 +730,8 @@ const RELEASE_FEED_JOB = [
   '    with:',
   '      dry_run: ${{ inputs.dry_run }}',
 ].join('\n');
-const DEPLOY_PAGES_STEPS = [
-  'Checkout',
-  'Generate Plugin Landing Page',
-  'Generate Signal Flow Diagram',
-  'Setup Node',
-  'Generate Root Index',
-  'Deploy to gh-pages',
-];
+// SEO pass (2026-11): the three page steps became one tools/gen-site.js call (see 'landing pages render' below).
+const DEPLOY_PAGES_STEPS = ['Checkout', 'Setup Node', 'Build Site', 'Deploy to gh-pages'];
 const SNAPSHOT_PLUGINS = path.join(
   REPO_ROOT, 'tools', 'feed-contract', 'fixtures', 'gen-feed', 'snapshot-2026-10-29', 'plugins',
 );
@@ -991,38 +985,26 @@ test('feed.yml and release.yml keep the Phase 3 shape', async (t) => {
 });
 
 // --- Krate Manager Phase 12 SC-029 (workflow half), FR-081, FR-086 (spec specs/krate-manager-phase12/spec.md; plan
-// PD-22 to PD-24, §4.9, SI-1, SI-5, SI-13, SI-16). release.yml and docs.yml equal their base-commit snapshots
-// (tools/feed-contract/fixtures/landing/*.pre-phase12, `git show 7c4b6837:<path>`, LF) with exactly one edit each: the
-// inline root-index Python replaced by the Node call at the same indentation, and a Setup Node step inserted.
+// PD-22 to PD-24, §4.9, SI-1, SI-5, SI-13, SI-16). Phase 12 replaced the inline root-index Python of release.yml and
+// docs.yml by tools/gen-root-index.js after a Setup Node step. The SEO pass (2026-11) then folded every page step of
+// both workflows (the landing-page sed blocks, the signal-flow and root-index steps) into one tools/gen-site.js call,
+// which renders the root index through gen-root-index.js; its own tests are tools/site/tests/gen-site.test.js. The
+// snapshot comparison against the pre-Phase-12 workflows (fixtures *.pre-phase12) went with it: these subtests pin
+// the Build Site steps instead.
 
-const LANDING_FIXTURES = path.join(REPO_ROOT, 'tools', 'feed-contract', 'fixtures', 'landing');
-const ROOT_INDEX_CALL = 'node tools/gen-root-index.js --out _site/index.html';
-const SETUP_NODE_STEP = [
-  '      - name: Setup Node',
-  '        uses: actions/setup-node@pinned',
-  '        with:',
-  "          node-version: '24'",
-  '',
-];
-// PD-23 / PD-24: the first replaced line (trimmed) and the step the Setup Node step goes directly before.
-const LANDING_EDITS = {
+// The Build Site step of each workflow: its run lines, exactly.
+const SITE_STEPS = {
   'release.yml': {
-    first: '# Generate plugin cards from all version.json files and fill root template',
-    before: '      - name: Generate Root Index',
+    job: 'deploy-pages',
+    steps: DEPLOY_PAGES_STEPS,
+    run: ['npm ci --prefix tools/site', 'node tools/gen-site.js --out _site --no-manuals'],
   },
   'docs.yml': {
-    first: "python3 << 'PYEOF'",
-    before: '      - name: Build Manuals and Landing Pages',
+    job: 'build-and-deploy',
+    steps: ['Checkout', 'Install Pandoc', 'Setup Node', 'Build Site', 'Verify download links', 'Deploy to gh-pages'],
+    run: ['npm ci --prefix tools/site', 'node tools/gen-site.js --out _site', 'find _site -type f | sort'],
   },
 };
-const DOCS_STEPS = [
-  'Checkout',
-  'Install Pandoc',
-  'Setup Node',
-  'Build Manuals and Landing Pages',
-  'Verify download links',
-  'Deploy to gh-pages',
-];
 // FR-086, plan §4.9, SI-16: the entries both feed-tools.yml paths lists gain.
 const FEED_TOOLS_PHASE12_PATHS = [
   'docs/manager-card-template.html',
@@ -1034,29 +1016,6 @@ const FEED_TOOLS_PHASE12_PATHS = [
   '.github/workflows/docs.yml',
   'specs/krate-manager-phase12/user-checks.md',
 ];
-
-// The snapshots predate the SHA pins: their `uses: owner/repo@vN` refs read as `@pinned`, like the live files.
-function readSnapshot(name) {
-  return fs
-    .readFileSync(path.join(LANDING_FIXTURES, `${name}.pre-phase12`), 'utf8')
-    .replace(/\r\n/g, '\n')
-    .replace(/^(\s*(?:- )?uses: [^\s@]+)@\S+$/gm, '$1@pinned');
-}
-
-/** The snapshot with exactly the PD-23 / PD-24 edit applied. */
-function landingEdit(snapshot, { first, before }) {
-  const lines = snapshot.split('\n');
-  const starts = lines.flatMap((l, i) => (l.trim() === first ? [i] : []));
-  assert.equal(starts.length, 1, `the snapshot holds "${first}" ${starts.length} time(s)`);
-  const start = starts[0];
-  const end = lines.findIndex((l, i) => i > start && l.trim() === 'PYEOF');
-  assert.ok(end > start, `no PYEOF after "${first}"`);
-  lines.splice(start, end - start + 1, ' '.repeat(indentOf(lines[start])) + ROOT_INDEX_CALL);
-  const at = lines.flatMap((l, i) => (l === before ? [i] : []));
-  assert.equal(at.length, 1, `the snapshot holds "${before}" ${at.length} time(s)`);
-  lines.splice(at[0], 0, ...SETUP_NODE_STEP);
-  return lines.join('\n');
-}
 
 /** The `- '<path>'` entries of on.<trigger>.paths in feed-tools.yml. */
 function triggerPaths(text, trigger) {
@@ -1070,39 +1029,23 @@ function triggerPaths(text, trigger) {
 }
 
 test('landing pages render with gen-root-index.js', async (t) => {
-  for (const name of Object.keys(LANDING_EDITS)) {
-    await t.test(`${name} equals its pre-Phase-12 snapshot with exactly the root-index edit (PD-22 to PD-24)`, () => {
-      assert.equal(readWorkflow(name), landingEdit(readSnapshot(name), LANDING_EDITS[name]));
+  for (const [name, want] of Object.entries(SITE_STEPS)) {
+    await t.test(`${name}: Build Site runs tools/gen-site.js after Setup Node, no python3, no sed, REPO kept (FR-081)`, () => {
+      const text = readWorkflow(name);
+      const steps = stepBlocks(jobBlock(text, want.job));
+      assert.deepEqual(steps.map((s) => s.name), want.steps);
+      const build = stepByName(steps, 'Build Site', want.job);
+      const node = steps[build.index - 1];
+      assert.equal(node.name, 'Setup Node');
+      assert.equal(field(node.text, 8, 'uses'), 'actions/setup-node@pinned');
+      assert.equal(field(node.text, 10, 'node-version'), "'24'");
+      assert.deepEqual(scriptLines(build), want.run);
+      assert.deepEqual(trimmed(nested(build.text, 8, 'env')), ['REPO: ${{ github.repository }}']);
+      assert.equal(text.includes('python3'), false, `${name} holds python3`);
+      assert.equal(/\{\{[A-Z_]+\}\}/.test(text), false, `${name} fills a page placeholder itself`);
+      assert.equal(text.includes('node tools/generate-signal-flow.js'), false, `${name} renders a signal-flow page itself`);
     });
   }
-
-  await t.test('release.yml: Generate Root Index runs the Node call after Setup Node, no python3, REPO kept (FR-081)', () => {
-    const rel = readWorkflow('release.yml');
-    const steps = stepBlocks(jobBlock(rel, 'deploy-pages'));
-    const root = stepByName(steps, 'Generate Root Index', 'deploy-pages');
-    const node = steps[root.index - 1];
-    assert.equal(node.name, 'Setup Node');
-    assert.equal(field(node.text, 8, 'uses'), 'actions/setup-node@pinned');
-    assert.equal(field(node.text, 10, 'node-version'), "'24'");
-    assert.equal(root.text.includes('python3'), false, 'Generate Root Index holds python3');
-    assert.equal(scriptLines(root).filter((l) => l === ROOT_INDEX_CALL).length, 1);
-    assert.deepEqual(trimmed(nested(root.text, 8, 'env')), ['REPO: ${{ github.repository }}']);
-    assert.equal(rel.includes('python3'), false, 'release.yml holds python3');
-  });
-
-  await t.test('docs.yml: the landing step runs the Node call after Setup Node, no python3, REPO kept (FR-081, SI-1)', () => {
-    const docs = readWorkflow('docs.yml');
-    const steps = stepBlocks(jobBlock(docs, 'build-and-deploy'));
-    assert.deepEqual(steps.map((s) => s.name), DOCS_STEPS);
-    const node = stepByName(steps, 'Setup Node', 'build-and-deploy');
-    assert.equal(field(node.text, 8, 'uses'), 'actions/setup-node@pinned');
-    assert.equal(field(node.text, 10, 'node-version'), "'24'");
-    const build = stepByName(steps, 'Build Manuals and Landing Pages', 'build-and-deploy');
-    assert.equal(build.text.includes('python3'), false, 'the landing step holds python3');
-    assert.equal(scriptLines(build).filter((l) => l === ROOT_INDEX_CALL).length, 1);
-    assert.deepEqual(trimmed(nested(build.text, 8, 'env')), ['REPO: ${{ github.repository }}']);
-    assert.equal(docs.includes('python3'), false, 'docs.yml holds python3');
-  });
 
   await t.test('feed-tools.yml: both paths lists hold the Phase 12 entries (FR-086, SI-16)', () => {
     const text = readWorkflow('feed-tools.yml');

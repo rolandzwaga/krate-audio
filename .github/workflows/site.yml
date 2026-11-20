@@ -1,0 +1,60 @@
+name: Site checks
+
+# The krateaudio.com generator and its SEO lint, on every change to a page source. docs.yml and release.yml run the
+# same lint over the real build before they deploy; this catches a bad template or generator change before the merge.
+on:
+  # push runs on main only: a branch commit is already tested by its pull_request run (tools/lint-workflow-triggers.js).
+  push:
+    branches: [main]
+    paths:
+      - 'plugins/*/MANUAL.md'
+      - 'plugins/*/images/**'
+      - 'plugins/*/docs/**'
+      - 'plugins/*/version.json'
+      - 'docs/**'
+      - 'tools/gen-site.js'
+      - 'tools/gen-root-index.js'
+      - 'tools/generate-signal-flow.js'
+      - 'tools/lint-site-seo.js'
+      - 'tools/site/**'
+      - '.github/workflows/site.yml'
+  pull_request:
+    paths:
+      - 'plugins/*/MANUAL.md'
+      - 'plugins/*/images/**'
+      - 'plugins/*/docs/**'
+      - 'plugins/*/version.json'
+      - 'docs/**'
+      - 'tools/gen-site.js'
+      - 'tools/gen-root-index.js'
+      - 'tools/generate-signal-flow.js'
+      - 'tools/lint-site-seo.js'
+      - 'tools/site/**'
+      - '.github/workflows/site.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: site-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  site:
+    name: Site generator and SEO lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+
+      - name: SEO lint
+        run: |
+          node tools/lint-site-seo.js --self-test
+          node tools/lint-site-seo.js
+
+      - name: Generator tests
+        run: node --test --test-reporter=spec "tools/site/tests/*.test.js"

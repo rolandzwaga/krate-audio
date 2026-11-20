@@ -111,15 +111,16 @@ bool Controller::loadComponentStateWithNotify(Steinberg::IBStream* state) {
 
     Steinberg::IBStreamer streamer(state, kLittleEndian);
 
-    // Accept the same versions the processor does (v2 legacy, v3 current); the
-    // v3 appendix is EOF-tolerant, so a v2 stream simply leaves the newer
-    // fields at their defaults. Anything else must be refused here too --
-    // otherwise the processor keeps defaults while the controller parses the
-    // payload into its parameter cache and the two components disagree.
+    // Accept the same versions the processor does (isLoadableStateVersion:
+    // v1 and v2 legacy, v3 current); the newer blocks are EOF-tolerant, so an
+    // older stream simply leaves those fields at their defaults. Anything else
+    // must be refused here too -- otherwise the processor keeps defaults while
+    // the controller parses the payload into its parameter cache and the two
+    // components disagree.
     Steinberg::int32 version = 0;
     if (!streamer.readInt32(version))
         return false;
-    if (version != 2 && version != 3)
+    if (!isLoadableStateVersion(version))
         return false;
 
     // Single path for all state loading (arp params + speed curves + delay)
