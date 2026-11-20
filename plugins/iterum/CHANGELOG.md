@@ -5,6 +5,24 @@ All notable changes to Iterum will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.3] - 2026-11-20
+
+### Added
+
+- **User manual and signal-flow diagram** — Iterum's page on krateaudio.com now links a full user manual, covering all ten delay modes with every control, and a diagram of the signal flow through each mode.
+
+### Fixed
+
+- **MultiTap's Feedback did not repeat the pattern** — The feedback loop ran with no delay in it, so Feedback only softened the taps slightly and the pattern played once. Feedback now repeats the whole pattern, one pattern length later each time (the Custom pattern's length, or the time of its last tap), each repeat at the Feedback level of the one before.
+- **MultiTap's HP Cutoff did nothing, and LP Cutoff kept filtering at its maximum** — HP Cutoff was never connected to the feedback filter; it now thins the repeats. LP Cutoff, once turned down, kept filtering after it was turned back to its maximum; at its maximum it now leaves the repeats unfiltered.
+- **Digital's feedback above 100 % grew without limit** — Nothing inside Pristine Digital's feedback loop held it back, so above 100 % the repeats grew louder inside the delay line on every pass and only the output limiter hid it. The loop now saturates above 100 %, so self-oscillation stays bounded. Below 100 % Digital stays clean.
+- **Digital's limiter let one channel duck the other** — One limiter ran over the left channel and then the right, so a loud left channel turned the right channel down too. Each channel now has its own limiter.
+- **Tape's two channels ran through one shared transport** — The left and right channels shared one set of wow and flutter oscillators, oversampler and roll-off filter, so the wow and flutter ran twice as fast as set and the right channel started from the left channel's filter state. Both channels now share one tape transport and keep their own filters, so identical input gives identical output.
+- **Tape and MultiTap mixed only part of a very large block** — In host blocks longer than 4096 samples, Tape left everything after the first 4096 samples 100 % wet whatever the Mix. MultiTap read the wrong dry signal in blocks longer than 8192 samples. Every sample is now mixed correctly.
+- **Changing Spectral's FFT Size did nothing until the plugin was reloaded** — The new size was stored and only applied the next time the host re-prepared the plugin. It now takes effect while playing, with a short crossfade.
+- **Switching modes could sound wrong in hosts that process in place** — During the 50 ms crossfade between modes, a host that uses the same buffer for input and output fed the old mode the new mode's output instead of the input. Both modes now hear the input.
+- **Tape's head Level and Reverse's Filter Cutoff showed the wrong default** — Each head's Level showed +3.9 dB and Reverse's Filter Cutoff showed 401 Hz, while the sound started at 0 dB and 4 kHz. A host's "reset to default" therefore changed the sound. Both now default to what the processor starts with: 0 dB and 4 kHz.
+
 ## [1.0.2] - 2026-11-10
 
 ### Fixed

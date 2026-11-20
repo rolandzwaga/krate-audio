@@ -19,6 +19,7 @@
 #include <numbers>
 #include <sstream>
 #include <iomanip>
+#include <utility>
 
 namespace Disrumpo {
 
@@ -111,6 +112,18 @@ MorphPad::~MorphPad() {
         morphYParam_->release();
         morphYParam_ = nullptr;
     }
+    if (morphModeParam_) {
+        morphModeParam_->release();
+        morphModeParam_ = nullptr;
+    }
+    for (auto* params : {&nodePosXParams_, &nodePosYParams_, &nodeLineParams_}) {
+        for (auto*& param : *params) {
+            if (param) {
+                param->release();
+                param = nullptr;
+            }
+        }
+    }
 }
 
 void MorphPad::bindMorphParams(Steinberg::Vst::ParamID morphXId, Steinberg::Vst::ParamID morphYId) {
@@ -125,6 +138,52 @@ void MorphPad::bindMorphParams(Steinberg::Vst::ParamID morphXId, Steinberg::Vst:
             param->addDependent(this);
         }
     }
+}
+
+void MorphPad::bindBandParams(Steinberg::Vst::ParamID morphModeId, Steinberg::Vst::ParamID selectedNodeId) {
+    selectedNodeParamId_ = selectedNodeId;
+    if (!controller_ || morphModeParam_) return;
+
+    morphModeParam_ = controller_->getParameterObject(morphModeId);
+    if (morphModeParam_) {
+        morphModeParam_->addRef();
+        morphModeParam_->addDependent(this);
+        setMorphMode(morphModeFromParam());
+    }
+}
+
+void MorphPad::bindNodePositionParams(const std::array<Steinberg::Vst::ParamID, kMaxMorphNodes>& xIds,
+                                      const std::array<Steinberg::Vst::ParamID, kMaxMorphNodes>& yIds,
+                                      const std::array<Steinberg::Vst::ParamID, kMaxMorphNodes>& lineIds) {
+    if (!controller_ || nodePosXParams_[0]) return;
+
+    for (size_t n = 0; n < kMaxMorphNodes; ++n) {
+        nodePosXParams_[n] = controller_->getParameterObject(xIds[n]);
+        nodePosYParams_[n] = controller_->getParameterObject(yIds[n]);
+        nodeLineParams_[n] = controller_->getParameterObject(lineIds[n]);
+        for (auto* param : {nodePosXParams_[n], nodePosYParams_[n], nodeLineParams_[n]}) {
+            if (param) {
+                param->addRef();
+                param->addDependent(this);
+            }
+        }
+        if (nodePosXParams_[n] && nodePosYParams_[n]) {
+            setNodePosition(static_cast<int>(n), static_cast<float>(nodePosXParams_[n]->getNormalized()),
+                            static_cast<float>(nodePosYParams_[n]->getNormalized()));
+        }
+        if (nodeLineParams_[n]) {
+            setNodeLinePos(static_cast<int>(n), static_cast<float>(nodeLineParams_[n]->getNormalized()));
+        }
+    }
+}
+
+MorphMode MorphPad::morphModeFromParam() const {
+    if (!morphModeParam_) {
+        return MorphMode::Planar2D;
+    }
+    // 1D Linear, 2D Planar, 2D Radial at 0, 0.5, 1
+    const int index = std::clamp(static_cast<int>(std::lround(morphModeParam_->getNormalized() * 2.0)), 0, 2);
+    return static_cast<MorphMode>(index);
 }
 
 // =============================================================================
@@ -143,9 +202,16 @@ void MorphPad::setHighContrastMode(bool enabled,
 void MorphPad::deactivate() {
     // Use exchange to ensure we only do this once (idempotent)
     if (isActive_.exchange(false, std::memory_order_acq_rel)) {
-        for (auto* param : {activeNodesParam_, morphXParam_, morphYParam_}) {
+        for (auto* param : {activeNodesParam_, morphXParam_, morphYParam_, morphModeParam_}) {
             if (param) {
                 param->removeDependent(this);
+            }
+        }
+        for (size_t n = 0; n < kMaxMorphNodes; ++n) {
+            for (auto* param : {nodePosXParams_[n], nodePosYParams_[n], nodeLineParams_[n]}) {
+                if (param) {
+                    param->removeDependent(this);
+                }
             }
         }
     }
@@ -181,6 +247,30 @@ void PLUGIN_API MorphPad::update(Steinberg::FUnknown* changedUnknown,
             setMorphPosition(value, morphY_);
         } else {
             setMorphPosition(morphX_, value);
+        }
+        return;
+    }
+
+    if (changedParam == morphModeParam_) {
+        setMorphMode(morphModeFromParam());
+        return;
+    }
+
+    // A node moved by automation, a preset or a state load (the node being dragged follows the mouse)
+    for (size_t n = 0; n < kMaxMorphNodes; ++n) {
+        const bool beingDragged = isDraggingNode_ && std::cmp_equal(draggingNodeIndex_, n);
+        if (changedParam == nodeLineParams_[n]) {
+            if (!beingDragged) {
+                setNodeLinePos(static_cast<int>(n), static_cast<float>(changedParam->getNormalized()));
+            }
+            return;
+        }
+        if (changedParam != nodePosXParams_[n] && changedParam != nodePosYParams_[n]) {
+            continue;
+        }
+        if (!beingDragged && nodePosXParams_[n] && nodePosYParams_[n]) {
+            setNodePosition(static_cast<int>(n), static_cast<float>(nodePosXParams_[n]->getNormalized()),
+                            static_cast<float>(nodePosYParams_[n]->getNormalized()));
         }
         return;
     }
@@ -265,6 +355,21 @@ void MorphPad::getNodePosition(int nodeIndex, float& outX, float& outY) const {
     }
 }
 
+void MorphPad::setNodeLinePos(int nodeIndex, float pos) {
+    if (nodeIndex >= 0 && nodeIndex < kMaxNodes) {
+        nodes_[nodeIndex].linePos = clampPosition(pos);
+        recalculateWeights();
+        invalid();
+    }
+}
+
+float MorphPad::getNodeLinePos(int nodeIndex) const {
+    if (nodeIndex >= 0 && nodeIndex < kMaxNodes) {
+        return nodes_[nodeIndex].linePos;
+    }
+    return -1.0f;
+}
+
 void MorphPad::setNodeType(int nodeIndex, DistortionType type) {
     if (nodeIndex >= 0 && nodeIndex < kMaxNodes) {
         nodes_[nodeIndex].type = type;
@@ -337,11 +442,28 @@ void MorphPad::pixelToPosition(float pixelX, float pixelY, float& outNormX, floa
 // Hit Testing
 // =============================================================================
 
+void MorphPad::nodeDisplayPosition(int i, float& outX, float& outY) const {
+    const auto& node = nodes_[static_cast<size_t>(i)];
+    if (morphMode_ != MorphMode::Linear1D) {
+        outX = node.posX;
+        outY = node.posY;
+        return;
+    }
+    // On the line (the cursor's row), as MorphEngine::computeWeights places it
+    const float even = activeNodeCount_ > 1
+        ? static_cast<float>(i) / static_cast<float>(activeNodeCount_ - 1) : 0.0f;
+    outX = node.linePos >= 0.0f ? node.linePos : even;
+    outY = 0.5f;
+}
+
 int MorphPad::hitTestNode(float pixelX, float pixelY) const {
     for (int i = 0; i < activeNodeCount_; ++i) {
         float nodePixelX = 0.0f;
         float nodePixelY = 0.0f;
-        positionToPixel(nodes_[i].posX, nodes_[i].posY, nodePixelX, nodePixelY);
+        float nodeX = 0.0f;
+        float nodeY = 0.0f;
+        nodeDisplayPosition(i, nodeX, nodeY);
+        positionToPixel(nodeX, nodeY, nodePixelX, nodePixelY);
 
         float dx = pixelX - nodePixelX;
         float dy = pixelY - nodePixelY;
@@ -405,8 +527,11 @@ void MorphPad::drawBackground(VSTGUI::CDrawContext* context) {
             std::array<float, kMaxNodes> weights{};
 
             for (int i = 0; i < activeNodeCount_; ++i) {
-                float dx = cellCenterX - nodes_[i].posX;
-                float dy = cellCenterY - nodes_[i].posY;
+                float nodeX = 0.0f;
+                float nodeY = 0.0f;
+                nodeDisplayPosition(i, nodeX, nodeY);
+                float dx = cellCenterX - nodeX;
+                float dy = cellCenterY - nodeY;
                 float distance = std::sqrt(dx * dx + dy * dy);
 
                 if (distance < kMinDistance) {
@@ -525,7 +650,10 @@ void MorphPad::drawConnectionLines(VSTGUI::CDrawContext* context) {
     for (int i = 0; i < activeNodeCount_; ++i) {
         float nodePixelX = 0.0f;
         float nodePixelY = 0.0f;
-        positionToPixel(nodes_[i].posX, nodes_[i].posY, nodePixelX, nodePixelY);
+        float nodeX = 0.0f;
+        float nodeY = 0.0f;
+        nodeDisplayPosition(i, nodeX, nodeY);
+        positionToPixel(nodeX, nodeY, nodePixelX, nodePixelY);
 
         // Get fixed node color (A=coral, B=teal, C=purple, D=yellow)
         VSTGUI::CColor nodeColor = getNodeColor(i);
@@ -556,7 +684,10 @@ void MorphPad::drawNodes(VSTGUI::CDrawContext* context) {
     for (int i = 0; i < activeNodeCount_; ++i) {
         float pixelX = 0.0f;
         float pixelY = 0.0f;
-        positionToPixel(nodes_[i].posX, nodes_[i].posY, pixelX, pixelY);
+        float nodeX = 0.0f;
+        float nodeY = 0.0f;
+        nodeDisplayPosition(i, nodeX, nodeY);
+        positionToPixel(nodeX, nodeY, pixelX, pixelY);
 
         // Get fixed node color (A=coral, B=teal, C=purple, D=yellow)
         VSTGUI::CColor fillColor = getNodeColor(i);
@@ -663,14 +794,30 @@ void MorphPad::onMouseDownEvent(VSTGUI::MouseDownEvent& event) {
         // Check for node click - selects and starts dragging (FR-007, FR-025, FR-027)
         int hitNode = hitTestNode(pixelX, pixelY);
         if (hitNode >= 0) {
-            // Select the node
+            // Select the node (also as the band's Selected Node, which the node controls edit)
             setSelectedNode(hitNode);
             if (listener_) {
                 listener_->onNodeSelected(hitNode);
             }
-            // Start dragging it
+            if (controller_ && selectedNodeParamId_ != 0) {
+                const double norm = static_cast<double>(hitNode) / static_cast<double>(kMaxNodes - 1);
+                controller_->beginEdit(selectedNodeParamId_);
+                controller_->setParamNormalized(selectedNodeParamId_, norm);
+                controller_->performEdit(selectedNodeParamId_, norm);
+                controller_->endEdit(selectedNodeParamId_);
+            }
+            // Start dragging it (the drag writes the node's position parameters, which the engine follows):
+            // along the line in 1D Linear (its Line Pos), anywhere in the 2-D modes (its Pos X / Pos Y)
             isDraggingNode_ = true;
             draggingNodeIndex_ = hitNode;
+            dragNodeOnLine_ = morphMode_ == MorphMode::Linear1D;
+            const auto hit = static_cast<size_t>(hitNode);
+            if (controller_ && dragNodeOnLine_ && nodeLineParams_[hit]) {
+                controller_->beginEdit(nodeLineParams_[hit]->getInfo().id);
+            } else if (controller_ && !dragNodeOnLine_ && nodePosXParams_[hit] && nodePosYParams_[hit]) {
+                controller_->beginEdit(nodePosXParams_[hit]->getInfo().id);
+                controller_->beginEdit(nodePosYParams_[hit]->getInfo().id);
+            }
             isDragging_ = false;
             event.consumed = true;
             return;
@@ -805,11 +952,40 @@ void MorphPad::onMouseMoveEvent(VSTGUI::MouseMoveEvent& event) {
         float newX = 0.0f;
         float newY = 0.0f;
         pixelToPosition(pixelX, pixelY, newX, newY);
+        const auto n = static_cast<size_t>(draggingNodeIndex_);
+
+        if (dragNodeOnLine_) {
+            // 1D Linear: the node slides along the line; only its line position moves
+            setNodeLinePos(draggingNodeIndex_, newX);
+            if (listener_) {
+                listener_->onNodePositionChanged(draggingNodeIndex_, nodes_[n].linePos, 0.5f);
+            }
+            if (controller_ && nodeLineParams_[n]) {
+                const Steinberg::Vst::ParamID lineId = nodeLineParams_[n]->getInfo().id;
+                const auto line = static_cast<double>(nodes_[n].linePos);
+                controller_->setParamNormalized(lineId, line);
+                controller_->performEdit(lineId, line);
+            }
+            event.consumed = true;
+            return;
+        }
 
         setNodePosition(draggingNodeIndex_, newX, newY);
 
         if (listener_) {
             listener_->onNodePositionChanged(draggingNodeIndex_, newX, newY);
+        }
+
+        // The node's position parameters: the engine weighs the nodes by where they sit
+        if (controller_ && nodePosXParams_[n] && nodePosYParams_[n]) {
+            const Steinberg::Vst::ParamID xId = nodePosXParams_[n]->getInfo().id;
+            const Steinberg::Vst::ParamID yId = nodePosYParams_[n]->getInfo().id;
+            const auto x = static_cast<double>(nodes_[n].posX);
+            const auto y = static_cast<double>(nodes_[n].posY);
+            controller_->setParamNormalized(xId, x);
+            controller_->performEdit(xId, x);
+            controller_->setParamNormalized(yId, y);
+            controller_->performEdit(yId, y);
         }
 
         event.consumed = true;
@@ -824,6 +1000,16 @@ void MorphPad::onMouseUpEvent(VSTGUI::MouseUpEvent& event) {
         // End Y parameter editing (paired with beginEdit in onMouseDownEvent)
         if (isDragging_ && controller_ && morphYParamId_ != 0) {
             controller_->endEdit(morphYParamId_);
+        }
+        // End the dragged node's position edits (paired with onMouseDownEvent)
+        if (isDraggingNode_ && controller_ && draggingNodeIndex_ >= 0) {
+            const auto n = static_cast<size_t>(draggingNodeIndex_);
+            if (dragNodeOnLine_ && nodeLineParams_[n]) {
+                controller_->endEdit(nodeLineParams_[n]->getInfo().id);
+            } else if (!dragNodeOnLine_ && nodePosXParams_[n] && nodePosYParams_[n]) {
+                controller_->endEdit(nodePosXParams_[n]->getInfo().id);
+                controller_->endEdit(nodePosYParams_[n]->getInfo().id);
+            }
         }
 
         isDragging_ = false;
@@ -887,6 +1073,7 @@ void MorphPad::recalculateWeights() {
     for (int i = 0; i < kMaxNodes; ++i) {
         positions[static_cast<size_t>(i)].posX = nodes_[static_cast<size_t>(i)].posX;
         positions[static_cast<size_t>(i)].posY = nodes_[static_cast<size_t>(i)].posY;
+        positions[static_cast<size_t>(i)].linePos = nodes_[static_cast<size_t>(i)].linePos;
     }
     const auto weights = MorphEngine::computeWeights(morphMode_, positions, activeNodeCount_, morphX_, morphY_);
     for (int i = 0; i < kMaxNodes; ++i) {

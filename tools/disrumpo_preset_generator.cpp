@@ -58,6 +58,19 @@ constexpr size_t kMaxMacros = 4;
 constexpr size_t kMaxModRoutings = 32;
 constexpr int kShapeSlotCount = 10;
 constexpr int kDistortionTypeCount = 26;
+// MorphPad node positions (dsp/morph_node.h kDefaultNodePosX / Y, kDefaultNodeLinePos, legacyNodeLinePos;
+// processor.h kNodePositionsMarker, "NPOS")
+constexpr int32_t kNodePositionsMarker = 0x4E504F53;
+constexpr float kDefaultNodePosX[4] = {0.0f, 1.0f, 0.0f, 1.0f};
+constexpr float kDefaultNodePosY[4] = {0.0f, 0.0f, 1.0f, 1.0f};
+constexpr float kDefaultNodeLinePos[4] = {0.0f, 1.0f, 0.5f, 0.75f};
+
+// The 1D line spot the plugin gives a node of a preset without positions: the band's active nodes evenly at
+// i / (N - 1) (where 1D Linear put them before line positions), an inactive node at its default
+constexpr float legacyNodeLinePos(int node, int activeCount) {
+    if (node >= activeCount) return kDefaultNodeLinePos[node];
+    return activeCount > 1 ? static_cast<float>(node) / static_cast<float>(activeCount - 1) : 0.0f;
+}
 
 // Distortion types (from distortion_types.h)
 enum class DistortionType : uint8_t {
@@ -128,6 +141,16 @@ struct MorphNodeState {
     // Semantics depend on distortion type (see mapShapeSlotsToParams in processor.cpp)
     float shapeSlots[kShapeSlotCount] = {0.5f, 0.5f, 0.5f, 0.5f, 0.5f,
                                           0.5f, 0.5f, 0.5f, 0.5f, 0.5f};
+
+    // MorphPad position (setNodePosition): unset keeps the node at its corner, A (0, 0), B (1, 0), C (0, 1),
+    // D (1, 1), and a preset that moves no node writes no position block
+    bool hasPosition = false;
+    float posX = 0.0f;
+    float posY = 0.0f;
+
+    // 1D Linear line position (setNodeLinePos): unset keeps the even spacing over the band's active nodes
+    bool hasLinePos = false;
+    float linePos = 0.0f;
 };
 
 struct BandMorphState {
@@ -426,6 +449,24 @@ struct DisrumpoPresetState {
             }
         }
 
+        // MorphPad node positions (Processor::getState's trailer block, tagged "NPOS"): only when the preset moves a
+        // node, so every preset that keeps the corners stays byte-identical
+        bool anyPosition = false;
+        for (const auto& bm : bandMorph) {
+            for (const auto& mn : bm.nodes) anyPosition = anyPosition || mn.hasPosition || mn.hasLinePos;
+        }
+        if (anyPosition) {
+            w.writeInt32(kNodePositionsMarker);
+            for (const auto& bm : bandMorph) {
+                for (int n = 0; n < kMaxMorphNodes; ++n) {
+                    const auto& mn = bm.nodes[static_cast<size_t>(n)];
+                    w.writeFloat(mn.hasPosition ? mn.posX : kDefaultNodePosX[n]);
+                    w.writeFloat(mn.hasPosition ? mn.posY : kDefaultNodePosY[n]);
+                    w.writeFloat(mn.hasLinePos ? mn.linePos : legacyNodeLinePos(n, bm.activeNodeCount));
+                }
+            }
+        }
+
         return w.data;
     }
 };
@@ -558,6 +599,23 @@ void setNode(MorphNodeState& node, DistortionType type, float drive,
     node.drive = drive;
     node.toneHz = toneHz;
     node.mix = mix;
+}
+
+// Place a node on the MorphPad (x, y in [0, 1]); unplaced nodes keep their corners (for preset definitions; no
+// factory preset moves a node yet)
+[[maybe_unused]] void setNodePosition(BandMorphState& bm, int node, float x, float y) {
+    auto& mn = bm.nodes[static_cast<size_t>(node)];
+    mn.hasPosition = true;
+    mn.posX = std::clamp(x, 0.0f, 1.0f);
+    mn.posY = std::clamp(y, 0.0f, 1.0f);
+}
+
+// Place a node on the 1D Linear line ([0, 1]); unplaced nodes keep the even spacing (for preset definitions; no
+// factory preset moves a node yet)
+[[maybe_unused]] void setNodeLinePos(BandMorphState& bm, int node, float pos) {
+    auto& mn = bm.nodes[static_cast<size_t>(node)];
+    mn.hasLinePos = true;
+    mn.linePos = std::clamp(pos, 0.0f, 1.0f);
 }
 
 // Set all nodes on a band to the same type (for non-morphing bands)

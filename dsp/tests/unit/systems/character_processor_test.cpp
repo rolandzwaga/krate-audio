@@ -1553,3 +1553,38 @@ TEST_CASE("CharacterProcessor tape mode uses 2x oversampling for anti-aliasing",
     // With oversampling, aliased content should be well suppressed
     REQUIRE(aliasRejection > 30.0f);
 }
+
+// Tape mode ran the left block and then the right block through ONE set of wow / flutter LFOs, oversampler and roll-off
+// filter (until 2026-11): the LFOs advanced twice per block and the right channel started from the left channel's
+// filter state. One tape transport moves both channels, so identical input must give identical output (the hiss,
+// independent per channel by design, is turned down below the comparison margin).
+// The saturation stays at its starting value: its smoother keeps its original pace, one step per channel pass, so
+// while a saturation change ramps the right pass runs one step ahead of the left (|L - R| 0.0019 during a 0.5 -> 0.6
+// ramp). That pace is left as it was: advancing it by the block length changed the tape drive's calibrated THD.
+TEST_CASE("CharacterProcessor Tape mode treats left and right alike", "[systems][character][tape][stereo]") {
+    CharacterProcessor character;
+    character.prepare(44100.0, 512);
+    character.setMode(CharacterMode::Tape);
+    character.setTapeWowDepth(1.0f);
+    character.setTapeHissLevel(-120.0f);
+
+    std::array<float, 512> left{};
+    std::array<float, 512> right{};
+    float worst = 0.0f;
+    float phase = 0.0f;
+    for (int block = 0; block < 60; ++block) {
+        for (size_t i = 0; i < left.size(); ++i) {
+            left[i] = 0.5f * std::sin(phase);
+            right[i] = left[i];
+            phase += 2.0f * 3.14159265f * 440.0f / 44100.0f;
+        }
+        character.processStereo(left.data(), right.data(), left.size());
+        if (block >= 10) {  // past the 50 ms mode crossfade
+            for (size_t i = 0; i < left.size(); ++i) {
+                worst = std::max(worst, std::abs(left[i] - right[i]));
+            }
+        }
+    }
+    INFO("largest |L - R| " << worst);
+    CHECK(worst < 1e-3f);
+}

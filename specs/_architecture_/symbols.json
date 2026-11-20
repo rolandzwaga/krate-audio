@@ -129,7 +129,7 @@
       "scope": "Krate::DSP",
       "layer": "processors",
       "header": "dsp/include/krate/dsp/processors/arpeggiator_core.h",
-      "line": 153
+      "line": 154
     },
     {
       "name": "ArpEvent",
@@ -521,7 +521,7 @@
       "scope": "Krate::DSP",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/character_processor.h",
-      "line": 85
+      "line": 86
     },
     {
       "name": "ChebyshevShaper",
@@ -761,7 +761,7 @@
       "scope": "Krate::DSP",
       "layer": "effects",
       "header": "dsp/include/krate/dsp/effects/digital_delay.h",
-      "line": 120
+      "line": 121
     },
     {
       "name": "DiodeAdaaLaw",
@@ -2329,7 +2329,7 @@
       "scope": "Krate::DSP::ArpeggiatorCore",
       "layer": "processors",
       "header": "dsp/include/krate/dsp/processors/arpeggiator_core.h",
-      "line": 1074
+      "line": 1075
     },
     {
       "name": "PeriodPeakDetector",

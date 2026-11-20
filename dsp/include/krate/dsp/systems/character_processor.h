@@ -34,6 +34,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <array>
 #include <vector>
 
 
@@ -125,11 +126,13 @@ public:
 
         // Prepare sub-components
         // Tape mode components - saturation runs at 2x sample rate for anti-aliasing
-        tapeOversampler_.prepare(sampleRate, maxBlockSize,
-                                  OversamplingQuality::Economy, OversamplingMode::ZeroLatency);
-        tapeSaturation_.prepare(sampleRate * 2.0, maxBlockSize * 2);  // 2x oversampled rate
-        tapeSaturation_.setType(SaturationType::Tape);
-        tapeSaturation_.setMix(1.0f);
+        for (size_t ch = 0; ch < 2; ++ch) {
+            tapeOversampler_[ch].prepare(sampleRate, maxBlockSize,
+                                         OversamplingQuality::Economy, OversamplingMode::ZeroLatency);
+            tapeSaturation_[ch].prepare(sampleRate * 2.0, maxBlockSize * 2);  // 2x oversampled rate
+            tapeSaturation_[ch].setType(SaturationType::Tape);
+            tapeSaturation_[ch].setMix(1.0f);
+        }
 
         tapeHiss_.prepare(static_cast<float>(sampleRate), maxBlockSize);
         tapeHiss_.setNoiseEnabled(NoiseType::TapeHiss, true);
@@ -138,10 +141,12 @@ public:
         // Real tape hiss is present even during silence
         tapeHiss_.setTapeHissParams(0.0f, 0.0f);
 
-        tapeRolloff_.prepare(sampleRate, maxBlockSize);
-        tapeRolloff_.setType(FilterType::Lowpass);
-        tapeRolloff_.setCutoff(kDefaultTapeRolloff);
-        tapeRolloff_.setResonance(0.707f);
+        for (auto& rolloff : tapeRolloff_) {
+            rolloff.prepare(sampleRate, maxBlockSize);
+            rolloff.setType(FilterType::Lowpass);
+            rolloff.setCutoff(kDefaultTapeRolloff);
+            rolloff.setResonance(0.707f);
+        }
 
         wowLfo_.prepare(sampleRate);
         wowLfo_.setWaveform(Waveform::Sine);
@@ -208,6 +213,7 @@ public:
         workBufferR_.resize(maxBlockSize);
         previousModeBufferL_.resize(maxBlockSize);
         previousModeBufferR_.resize(maxBlockSize);
+        tapeModulation_.resize(maxBlockSize);
         noiseBuffer_.resize(maxBlockSize);
         noiseBufferR_.resize(maxBlockSize);
 
@@ -219,10 +225,12 @@ public:
         crossfadePosition_ = 1.0f; // Not crossfading
         previousMode_ = currentMode_;
 
-        tapeSaturation_.reset();
-        tapeOversampler_.reset();
+        for (size_t ch = 0; ch < 2; ++ch) {
+            tapeSaturation_[ch].reset();
+            tapeOversampler_[ch].reset();
+            tapeRolloff_[ch].reset();
+        }
         tapeHiss_.reset();
-        tapeRolloff_.reset();
         wowLfo_.reset();
         flutterLfo_.reset();
 
@@ -312,12 +320,23 @@ public:
     /// @param right Right channel buffer (modified in-place)
     /// @param numSamples Number of samples per channel
     void processStereo(float* left, float* right, size_t numSamples) noexcept {
-        // Process each channel with independent noise generators
-        // This ensures balanced stereo noise from the first sample
-        isRightChannel_ = false;
-        process(left, numSamples);
-        isRightChannel_ = true;
-        process(right, numSamples);
+        // Chunk by chunk, left then right, so both channels see the same chunk of every shared clock: the mode
+        // crossfade position is rewound for the right pass, and the per-frame values (the tape wow / flutter and the
+        // saturation smoothers) are advanced on the left pass and reused on the right. The noise generators stay
+        // independent per channel.
+        size_t offset = 0;
+        while (offset < numSamples) {
+            const size_t chunkSize = std::min(numSamples - offset, maxBlockSize_);
+            const float crossfadeStart = crossfadePosition_;
+            isRightChannel_ = false;
+            processChunk(left + offset, chunkSize);
+            const float crossfadeEnd = crossfadePosition_;
+            crossfadePosition_ = crossfadeStart;
+            isRightChannel_ = true;
+            processChunk(right + offset, chunkSize);
+            crossfadePosition_ = crossfadeEnd;
+            offset += chunkSize;
+        }
         isRightChannel_ = false;  // Reset to default
     }
 
@@ -367,7 +386,9 @@ public:
 
     /// @brief Set tape high-frequency rolloff frequency
     void setTapeRolloffFreq(float freqHz) noexcept {
-        tapeRolloff_.setCutoff(freqHz);
+        for (auto& rolloff : tapeRolloff_) {
+            rolloff.setCutoff(freqHz);
+        }
     }
 
     /// @brief Set wow modulation rate (Hz)
@@ -466,12 +487,19 @@ private:
 
     /// @brief Process Tape mode
     void processTape(float* buffer, size_t numSamples) noexcept {
+        // One tape transport moves both channels: the wow / flutter curve and the saturation amount are computed on
+        // the left pass and reused on the right (processStereo runs left then right per chunk), as BBD does
+        const size_t ch = isRightChannel_ ? 1 : 0;
+        if (!isRightChannel_) {
+            for (size_t i = 0; i < numSamples; ++i) {
+                const float wow = wowLfo_.process() * wowDepth_ * 0.02f;          // Max 2% variation
+                const float flutter = flutterLfo_.process() * flutterDepth_ * 0.01f;  // Max 1% variation
+                tapeModulation_[i] = 1.0f + wow + flutter;
+            }
+        }
         // Apply wow/flutter modulation to amplitude (simplified)
         for (size_t i = 0; i < numSamples; ++i) {
-            float wow = wowLfo_.process() * wowDepth_ * 0.02f;      // Max 2% variation
-            float flutter = flutterLfo_.process() * flutterDepth_ * 0.01f; // Max 1% variation
-            float modulation = 1.0f + wow + flutter;
-            buffer[i] *= modulation;
+            buffer[i] *= tapeModulation_[i];
         }
 
         // Update saturation drive from smoother
@@ -487,23 +515,23 @@ private:
         // Note: THD growth slows at high drive due to tanh compression and
         // the saturation processor's DC blocker attenuating harmonics.
         float driveDb = -17.0f + satAmount * 41.0f;  // -17dB to +24dB (41dB span)
-        tapeSaturation_.setInputGain(driveDb);
+        tapeSaturation_[ch].setInputGain(driveDb);
 
         // Apply makeup gain to maintain roughly unity output level
         // At low saturation: need full compensation for attenuation
         // At high saturation: tanh compresses heavily, need less makeup
         float makeupDb = -driveDb * (1.0f - satAmount * 0.75f);
         makeupDb = std::clamp(makeupDb, -10.0f, 18.0f);
-        tapeSaturation_.setOutputGain(makeupDb);
+        tapeSaturation_[ch].setOutputGain(makeupDb);
 
         // Apply saturation with 2x oversampling for anti-aliasing
         // The oversampler upsamples, calls the callback at 2x rate, then downsamples
-        tapeOversampler_.process(buffer, numSamples, [this](float* upsampled, size_t n) {
-            tapeSaturation_.process(upsampled, n);
+        tapeOversampler_[ch].process(buffer, numSamples, [this, ch](float* upsampled, size_t n) {
+            tapeSaturation_[ch].process(upsampled, n);
         });
 
         // Apply high-frequency rolloff
-        tapeRolloff_.process(buffer, numSamples);
+        tapeRolloff_[ch].process(buffer, numSamples);
 
         // Generate and add hiss
         tapeHiss_.process(noiseBuffer_.data(), numSamples);
@@ -587,11 +615,12 @@ private:
     float crossfadeIncrement_ = 0.0f;
     size_t crossfadeSamples_ = 2205; // 50ms at 44.1kHz
 
-    // Tape mode components
-    SaturationProcessor tapeSaturation_;
-    Oversampler<2, 1> tapeOversampler_;  ///< 2x oversampler for tape saturation anti-aliasing
+    // Tape mode components ([0] left, [1] right: independent filter and oversampler state per channel)
+    std::array<SaturationProcessor, 2> tapeSaturation_;
+    std::array<Oversampler<2, 1>, 2> tapeOversampler_;  ///< 2x oversamplers for tape saturation anti-aliasing
     NoiseGenerator tapeHiss_;
-    MultimodeFilter tapeRolloff_;
+    std::array<MultimodeFilter, 2> tapeRolloff_;
+    std::vector<float> tapeModulation_;  ///< wow / flutter gain per frame, computed on the left pass
     LFO wowLfo_;
     LFO flutterLfo_;
     float wowDepth_ = kDefaultWowDepth;

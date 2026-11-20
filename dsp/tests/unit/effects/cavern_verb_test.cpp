@@ -5305,7 +5305,7 @@ TEST_CASE("CavernVerb_NonFiniteSentinel", "[effects][cavern]") {
     // The introspection surface survives it too - a latched tap state would
     // leave the published cutoff or the state energy non-finite even when the
     // output happened to have decayed away.
-    for (std::size_t i = 0; i < cav.getEarlyTapCount(); ++i) {
+    for (std::size_t i = 0; i < CavernVerb::getEarlyTapCount(); ++i) {
         INFO("tap " << i << " absorption cutoff " << cav.getEarlyTapAbsorptionCutoffHz(i));
         REQUIRE(cavernBitFinite(cav.getEarlyTapAbsorptionCutoffHz(i)));
     }

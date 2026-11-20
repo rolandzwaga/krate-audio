@@ -9,6 +9,7 @@
 #include <krate/dsp/core/db_utils.h>
 #include <krate/dsp/core/note_value.h>
 #include <krate/dsp/core/scoped_denormal_mode.h>
+#include <krate/dsp/core/transport_sync.h>
 
 #include "midi/midi_event_dispatcher.h"
 
@@ -279,25 +280,40 @@ tresult PLUGIN_API Processor::process(ProcessData& data)
             ? data.processContext->tempo : 120.0;
         // Sequencer follows the host transport; Live free-runs.
         blockCtx.isPlaying = isSequencer ? transportPlaying : true;
+        // The bar line Retrigger Beat restarts on: the host's musical position while its transport plays. Without
+        // one, -1 tells the arp there is no bar line (left at 0 it found one at the start of every block)
+        const auto& pc = *data.processContext;
+        if ((pc.state & ProcessContext::kTimeSigValid) != 0 && pc.timeSigNumerator > 0 && pc.timeSigDenominator > 0) {
+            blockCtx.timeSignatureNumerator = static_cast<uint8_t>(pc.timeSigNumerator);
+            blockCtx.timeSignatureDenominator = static_cast<uint8_t>(pc.timeSigDenominator);
+        }
+        if (transportPlaying && (pc.state & ProcessContext::kProjectTimeMusicValid) != 0) {
+            blockCtx.projectTimeMusic = pc.projectTimeMusic;
+            blockCtx.projectTimeMusicValid = true;
+            blockCtx.transportPositionSamples =
+                Krate::DSP::ppqToSamples(pc.projectTimeMusic, blockCtx.tempoBPM, blockCtx.sampleRate);
+        } else {
+            blockCtx.transportPositionSamples = -1;
+        }
     } else {
         // No host transport context (e.g. offline/standalone): Sequencer has no
         // transport to follow, so keep it running; Live free-runs as always.
         blockCtx.tempoBPM = 120.0;
         blockCtx.isPlaying = true;
+        blockCtx.transportPositionSamples = -1;  // no bar line without a host
     }
 
     size_t numArpEvents = arpCore_.processBlock(
         blockCtx, std::span<ArpEvent>(arpEvents_.data(), arpEvents_.size()));
 
     // --- 5b. MIDI delay post-processing ---
-    // The delay lane is now inside arpCore_ and advances with the other 8 lanes.
-    size_t currentDelayStep = arpCore_.midiDelayLane().currentStep();
+    // The delay lane is inside arpCore_ and advances with the other lanes; each NoteOn carries the delay step it was
+    // generated on (ArpEvent::delayStep), which picks its echo settings.
     size_t numCombinedEvents = midiDelay_.process(
         blockCtx,
         std::span<const ArpEvent>(arpEvents_.data(), numArpEvents),
         numArpEvents,
-        std::span<ArpEvent>(combinedEvents_.data(), combinedEvents_.size()),
-        currentDelayStep);
+        std::span<ArpEvent>(combinedEvents_.data(), combinedEvents_.size()));
 
     // --- 6. Route combined events → MIDI output ---
     if (data.outputEvents) {

@@ -2164,3 +2164,79 @@ TEST_CASE("DigitalDelay wavefold rapid model changes produce no clicks",
     // Even rapid changes should not produce severe clicks
     REQUIRE(clickRatio < 50.0f);
 }
+
+// Pristine Digital had nothing inside its feedback loop that bounds it (until 2026-11): above 100 % the delay line grew
+// by the feedback factor on every repeat, and only the output limiter (after the loop) hid it until the line overflowed.
+TEST_CASE("DigitalDelay above 100% feedback stays bounded inside the loop", "[features][digital-delay][feedback]") {
+    DigitalDelay delay;
+    delay.prepare(44100.0, 512, 10000.0f);
+    delay.setEra(DigitalEra::Pristine);
+    delay.setTime(10.0f);
+    delay.setFeedback(1.2f);
+    delay.setMix(1.0f);
+    delay.snapParameters();
+
+    std::array<float, 512> left{};
+    std::array<float, 512> right{};
+    BlockContext ctx;
+    ctx.sampleRate = 44100.0;
+    ctx.blockSize = 512;
+    float peak = 0.0f;
+    bool finite = true;
+    // 20 s at 10 ms per repeat: 2000 repeats, 1.2^2000 without a bound
+    for (int block = 0; block < 1723; ++block) {
+        left.fill(0.0f);
+        right.fill(0.0f);
+        if (block == 0) {
+            left[0] = 0.5f;
+            right[0] = 0.5f;
+        }
+        delay.process(left.data(), right.data(), 512, ctx);
+        for (size_t i = 0; i < 512; ++i) {
+            finite = finite && detail::isFinite(left[i]) && detail::isFinite(right[i]);
+            peak = std::max({peak, std::abs(left[i]), std::abs(right[i])});
+        }
+    }
+    REQUIRE(finite);
+    CHECK(peak < 2.0f);
+    CHECK(peak > 0.1f);  // it does self-oscillate
+}
+
+// The output limiter was one instance run over the left block and then the right block (until 2026-11), so a loud
+// left channel's gain reduction carried into the right channel. The channels must not affect each other.
+TEST_CASE("DigitalDelay limits the left and right channels independently", "[features][digital-delay][limiter]") {
+    const auto renderRight = [](float leftAmplitude) {
+        DigitalDelay delay;
+        delay.prepare(44100.0, 512, 10000.0f);
+        delay.setEra(DigitalEra::Pristine);
+        delay.setTime(1.0f);
+        delay.setFeedback(0.0f);
+        delay.setMix(1.0f);
+        delay.snapParameters();
+        std::array<float, 512> left{};
+        std::array<float, 512> right{};
+        BlockContext ctx;
+        ctx.sampleRate = 44100.0;
+        ctx.blockSize = 512;
+        std::vector<float> out;
+        float phase = 0.0f;
+        for (int block = 0; block < 40; ++block) {
+            for (size_t i = 0; i < 512; ++i) {
+                left[i] = leftAmplitude * std::sin(phase);
+                right[i] = 0.2f * std::sin(phase * 1.5f);
+                phase += 2.0f * 3.14159265f * 220.0f / 44100.0f;
+            }
+            delay.process(left.data(), right.data(), 512, ctx);
+            out.insert(out.end(), right.begin(), right.end());
+        }
+        return out;
+    };
+    const std::vector<float> alone = renderRight(0.0f);
+    const std::vector<float> beside = renderRight(1.8f);  // far over the -0.5 dB threshold
+    float worst = 0.0f;
+    for (size_t i = 0; i < alone.size(); ++i) {
+        worst = std::max(worst, std::abs(alone[i] - beside[i]));
+    }
+    INFO("largest change of the right channel " << worst);
+    CHECK(worst < 1e-5f);
+}

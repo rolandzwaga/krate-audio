@@ -588,7 +588,7 @@ struct Arm {
     out.shimmerActive = a.r->isShimmerActive();
     out.latencySamples = a.r->getLatencySamples();
     out.recoveries = a.r->getNonFiniteRecoveryCount();
-    out.earlyTapCount = a.r->getEarlyTapCount();
+    out.earlyTapCount = CavernVerb::getEarlyTapCount();
     out.lastTapDelaySamples = a.r->getEarlyTapDelaySamples(CavernVerb::kEarlyTapCount - 1u);
 
     const std::size_t lines = a.spec.prepare.numChannels;

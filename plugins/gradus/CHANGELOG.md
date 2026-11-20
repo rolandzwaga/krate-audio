@@ -5,6 +5,17 @@ All notable changes to Gradus will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.10.6] - 2026-11-20
+
+### Added
+
+- **Signal-flow diagram** — Gradus's page on krateaudio.com now links a diagram of the MIDI flow, from note input through the arpeggiator and MIDI Delay to the MIDI output and the audition voice.
+
+### Fixed
+
+- **Retrigger Beat restarted the pattern on every block** — Gradus never passed the host's playback position to the arpeggiator, so it found a bar line at the start of every audio block and restarted the pattern there. Retrigger Beat now restarts the pattern on the host's bar lines.
+- **MIDI Delay echoed each note with the next step's delay settings** — The DELAY lane's step was read once per audio block, after the arpeggiator had already moved past the notes it played. Every note in the block was echoed with the next step's settings. Each echo now uses the delay step of the note it echoes.
+
 ## [1.10.5] - 2026-11-20
 
 ### Fixed

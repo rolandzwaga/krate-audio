@@ -118,6 +118,10 @@ inline void handleReverseParamChange(
 // Parameter Registration (for Controller)
 // ==============================================================================
 
+/// 4000 Hz on the cutoff mapping 20 * 1000^n Hz: log(200) / log(1000) (the processor's starting cutoff; 0.434 read
+/// 401 Hz)
+inline const double kReverseFilterCutoffDefaultNorm = std::log(200.0) / std::log(1000.0);
+
 inline void registerReverseParams(Steinberg::Vst::ParameterContainer& parameters) {
     using namespace Steinberg;
     using namespace Steinberg::Vst;
@@ -184,7 +188,7 @@ inline void registerReverseParams(Steinberg::Vst::ParameterContainer& parameters
         STR16("Reverse Filter Cutoff"),
         STR16("Hz"),
         0,
-        0.434,  // default: ~4000Hz (log scale)  NOLINT(modernize-use-std-numbers): a normalized default, not log10(e)
+        kReverseFilterCutoffDefaultNorm,  // 4000 Hz (log scale)
         ParameterInfo::kCanAutomate,
         kReverseFilterCutoffId);
 

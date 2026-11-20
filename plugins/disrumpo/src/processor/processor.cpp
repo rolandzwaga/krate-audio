@@ -64,6 +64,9 @@ Processor::Processor() {
         cache.nodes[2].commonParams = kDefaultCommon;
         cache.nodes[3] = MorphNode(3, 1.0f, 1.0f, DistortionType::SoftClip);
         cache.nodes[3].commonParams = kDefaultCommon;
+        for (int n = 0; n < kMaxMorphNodes; ++n) {
+            cache.nodes[static_cast<size_t>(n)].linePos = kDefaultNodeLinePos[n];  // the Line Pos defaults
+        }
         cache.activeNodeCount = kDefaultActiveNodes;
     }
 }
@@ -87,6 +90,9 @@ Steinberg::tresult PLUGIN_API Processor::initialize(FUnknown* context) {
     // MIDI CC reaches the plugin only through an event input: the host maps it to
     // a parameter with the controller's IMidiMapping and reports it to IMidiLearn (D-096)
     addEventInput(STR16("MIDI In"), 16);
+
+    // The custom curve's host parameters start from the curve itself
+    syncCurvePointsFromCurve();
 
     // Register in SharedDisplayBridge (Tier 3 fallback)
     Krate::Plugins::SharedDisplayBridge::instance().registerInstance(
@@ -1037,5 +1043,32 @@ Steinberg::uint32 PLUGIN_API Processor::getLatencySamples() {
 
 Steinberg::uint32 PLUGIN_API Processor::getTailSamples() {
     return tailSamples_.load(std::memory_order_relaxed);
+}
+
+// ==============================================================================
+// Custom sweep curve <-> its host parameters
+// ==============================================================================
+
+void Processor::syncCurvePointsFromCurve() noexcept {
+    curvePointCount_ = std::clamp(customCurve_.getBreakpointCount(), 2, 8);
+    for (int i = 0; i < curvePointCount_; ++i) {
+        const Breakpoint bp = customCurve_.getBreakpoint(i);
+        curvePoints_[static_cast<size_t>(i)] = {bp.x, bp.y};
+    }
+}
+
+void Processor::rebuildCustomCurve() noexcept {
+    // The same order a state load builds the curve in (processor_state.cpp): the endpoints are fixed at x = 0 and
+    // x = 1, the points between are inserted by x
+    CustomCurve curve;
+    curve.reset();
+    const int count = std::clamp(curvePointCount_, 2, 8);
+    curve.setBreakpoint(0, 0.0f, curvePoints_[0].second);
+    for (int i = 1; i < count - 1; ++i) {
+        const auto& p = curvePoints_[static_cast<size_t>(i)];
+        curve.addBreakpoint(p.first, p.second);
+    }
+    curve.setBreakpoint(curve.getBreakpointCount() - 1, 1.0f, curvePoints_[static_cast<size_t>(count - 1)].second);
+    customCurve_ = curve;  // fixed-size value type; sweepProcessor_ keeps its pointer to customCurve_
 }
 } // namespace Disrumpo

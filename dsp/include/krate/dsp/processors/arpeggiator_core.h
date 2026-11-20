@@ -120,6 +120,7 @@ struct ArpEvent {
     uint8_t velocity{0};      ///< MIDI velocity (0-127)
     int32_t sampleOffset{0};  ///< Sample position within block [0, blockSize-1]
     bool legato{false};       ///< When true: suppress envelope retrigger, apply portamento
+    uint8_t delayStep{0};     ///< NoteOn: the MIDI Delay lane step the note was generated on (its echo settings)
 };
 
 // =============================================================================
@@ -1695,6 +1696,7 @@ private:
     std::array<uint8_t, 32> ratchetNotes_{};   ///< Chord mode note numbers
     std::array<uint8_t, 32> ratchetVelocities_{}; ///< Chord mode velocities
     size_t ratchetNoteCount_{0};               ///< Chord mode note count
+    uint8_t stepDelayStep_{0};                 ///< MIDI Delay lane step of the step being fired (ArpEvent::delayStep)
     float ratchetSwing_{0.50f};                ///< Ratchet swing ratio 0.50-0.75
     float ratchetDecay_{0.0f};                 ///< Ratchet velocity decay 0.0-1.0 (v1.5)
 

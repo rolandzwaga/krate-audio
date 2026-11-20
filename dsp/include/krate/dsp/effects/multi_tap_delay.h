@@ -231,18 +231,26 @@ public:
         tapManager_.prepare(static_cast<float>(sampleRate), maxBlockSize, maxDelayMs_);
         feedbackNetwork_.prepare(sampleRate, maxBlockSize, maxDelayMs_);
 
-        // Configure feedback network defaults
-        feedbackNetwork_.setFeedbackAmount(0.5f);
-        feedbackNetwork_.setFilterEnabled(false);
+        // Configure the feedback network: a comb over the tap sum, one pattern period long (process()), whose output
+        // is the loop's filtered signal, so every repeat of the pattern is filtered once more than the one before
+        feedbackNetwork_.setFeedbackAmount(feedbackAmount_);
+        feedbackNetwork_.setOutputProcessed(true);
+        feedbackNetwork_.setFilterType(FilterType::Lowpass);
+        feedbackNetwork_.setFilterCutoff(feedbackLPCutoff_);
+        feedbackNetwork_.setFilterEnabled(feedbackLPCutoff_ < kMaxFilterCutoff);
+        feedbackNetwork_.setHighpassCutoff(feedbackHPCutoff_);
+        feedbackNetwork_.setHighpassEnabled(feedbackHPCutoff_ > kMinFilterCutoff);
         feedbackNetwork_.setSaturationEnabled(true);  // Required for >100% feedback safety
 
         // Configure smoothers
         morphSmoother_.configure(kSmoothingTimeMs, static_cast<float>(sampleRate));
         dryWetSmoother_.configure(kSmoothingTimeMs, static_cast<float>(sampleRate));
+        feedbackSendSmoother_.configure(kSmoothingTimeMs, static_cast<float>(sampleRate));
 
         // Initialize smoothers
         dryWetSmoother_.snapTo(dryWetMix_ * 0.01f);
         morphSmoother_.snapTo(0.0f);
+        feedbackSendSmoother_.snapTo(feedbackAmount_);
 
         prepared_ = true;
     }
@@ -256,12 +264,14 @@ public:
         // Snap smoothers
         dryWetSmoother_.snapTo(dryWetMix_ * 0.01f);
         morphSmoother_.snapTo(0.0f);
+        feedbackSendSmoother_.snapTo(feedbackAmount_);
         morphing_ = false;
     }
 
     /// @brief Snap all smoothers for immediate parameter application
     void snapParameters() noexcept {
         dryWetSmoother_.snapTo(dryWetMix_ * 0.01f);
+        feedbackSendSmoother_.snapTo(feedbackAmount_);
 
         // Snap TapManager internal smoothers via reset
         // Note: We don't want to clear delay lines, just snap smoothers
@@ -515,6 +525,7 @@ public:
     void setFeedbackAmount(float amount) noexcept {
         feedbackAmount_ = std::clamp(amount, kMinFeedback, kMaxFeedback);
         feedbackNetwork_.setFeedbackAmount(feedbackAmount_);
+        feedbackSendSmoother_.setTarget(feedbackAmount_);
     }
 
     /// @brief Get master feedback amount
@@ -526,11 +537,9 @@ public:
     /// @param cutoffHz Cutoff [20, 20000]
     void setFeedbackLPCutoff(float cutoffHz) noexcept {
         feedbackLPCutoff_ = std::clamp(cutoffHz, kMinFilterCutoff, kMaxFilterCutoff);
+        feedbackNetwork_.setFilterType(FilterType::Lowpass);
         feedbackNetwork_.setFilterCutoff(feedbackLPCutoff_);
-        if (feedbackLPCutoff_ < kMaxFilterCutoff) {
-            feedbackNetwork_.setFilterEnabled(true);
-            feedbackNetwork_.setFilterType(FilterType::Lowpass);
-        }
+        feedbackNetwork_.setFilterEnabled(feedbackLPCutoff_ < kMaxFilterCutoff);  // fully open = off
     }
 
     /// @brief Get feedback lowpass cutoff
@@ -542,8 +551,8 @@ public:
     /// @param cutoffHz Cutoff [20, 20000]
     void setFeedbackHPCutoff(float cutoffHz) noexcept {
         feedbackHPCutoff_ = std::clamp(cutoffHz, kMinFilterCutoff, kMaxFilterCutoff);
-        // Note: FeedbackNetwork currently only supports one filter type
-        // For full HP+LP, would need to chain or extend FeedbackNetwork
+        feedbackNetwork_.setHighpassCutoff(feedbackHPCutoff_);
+        feedbackNetwork_.setHighpassEnabled(feedbackHPCutoff_ > kMinFilterCutoff);  // fully open = off
     }
 
     /// @brief Get feedback highpass cutoff
@@ -688,30 +697,61 @@ public:
             applyModulation();
         }
 
-        // Store dry signal
-        for (size_t i = 0; i < numSamples && i < kMaxDryBufferSize; ++i) {
-            dryBufferL_[i] = left[i];
-            dryBufferR_[i] = right[i];
+        // In chunks no longer than the dry buffer (a longer block used to read its dry signal modulo 8192) or the
+        // prepared block size
+        const size_t chunk = std::max<size_t>(1, std::min(kMaxDryBufferSize, maxBlockSize_));
+        for (size_t offset = 0; offset < numSamples; offset += chunk) {
+            processChunk(left + offset, right + offset, std::min(chunk, numSamples - offset), ctx);
         }
+    }
 
-        // Process through TapManager (generates wet signal)
+private:
+    /// @brief One chunk of process(): taps, feedback, dry/wet mix (@p numSamples <= the dry buffer and block size)
+    void processChunk(float* left, float* right, size_t numSamples, const BlockContext& ctx) noexcept {
+        // Store dry signal
+        std::copy_n(left, numSamples, dryBufferL_.begin());
+        std::copy_n(right, numSamples, dryBufferR_.begin());
+
+        // Process through TapManager (generates wet signal: the tap sum)
         tapManager_.process(left, right, left, right, numSamples);
 
-        // Process through FeedbackNetwork
-        feedbackNetwork_.process(left, right, numSamples, ctx);
+        // Feedback (spec 028 US3.1, FR-020): the tap sum re-enters a comb one pattern period long, so the whole
+        // pattern repeats, each generation at the Feedback level of the one before and filtered once more (LP / HP
+        // Cutoff, saturation above 100 %). The network's output is its filtered loop signal; the send carries the
+        // Feedback level so the first repeat sits at Feedback x the taps.
+        feedbackNetwork_.setDelayTimeMs(repeatPeriodMs());
+        for (size_t i = 0; i < numSamples; ++i) {
+            const float send = feedbackSendSmoother_.process();
+            feedbackBufferL_[i] = left[i] * send;
+            feedbackBufferR_[i] = right[i] * send;
+        }
+        feedbackNetwork_.process(feedbackBufferL_.data(), feedbackBufferR_.data(), numSamples, ctx);
+        for (size_t i = 0; i < numSamples; ++i) {
+            left[i] += feedbackBufferL_[i];
+            right[i] += feedbackBufferR_[i];
+        }
 
         // Mix dry/wet
         for (size_t i = 0; i < numSamples; ++i) {
             const float wetMix = dryWetSmoother_.process();
             const float dryMix = 1.0f - wetMix;
-
-            const size_t bufIdx = i % kMaxDryBufferSize;
-            left[i] = dryBufferL_[bufIdx] * dryMix + left[i] * wetMix;
-            right[i] = dryBufferR_[bufIdx] * dryMix + right[i] * wetMix;
+            left[i] = dryBufferL_[i] * dryMix + left[i] * wetMix;
+            right[i] = dryBufferR_[i] * dryMix + right[i] * wetMix;
         }
     }
 
-private:
+    /// @brief How long the pattern takes before it repeats: the Custom pattern's span, else its latest tap
+    [[nodiscard]] float repeatPeriodMs() const noexcept {
+        float period = 0.0f;
+        if (currentTimingPattern_ == TimingPattern::Custom) {
+            period = customSpanMs();
+        } else {
+            for (size_t i = 0; i < activeTapCount_; ++i) {
+                period = std::max(period, tapManager_.getTapTimeMs(i));
+            }
+        }
+        return std::clamp(period, kMinDelayMs, maxDelayMs_);
+    }
     // =========================================================================
     // Internal Helpers
     // =========================================================================
@@ -1204,6 +1244,7 @@ private:
     float feedbackAmount_ = 0.5f;
     float feedbackLPCutoff_ = kMaxAudioFreqHz;
     float feedbackHPCutoff_ = 20.0f;
+    OnePoleSmoother feedbackSendSmoother_;  ///< The level the tap sum enters the feedback comb at
 
     // Output parameters
     float dryWetMix_ = 50.0f;
@@ -1213,6 +1254,8 @@ private:
     static constexpr size_t kMaxDryBufferSize = 8192;
     std::array<float, kMaxDryBufferSize> dryBufferL_ = {};
     std::array<float, kMaxDryBufferSize> dryBufferR_ = {};
+    std::array<float, kMaxDryBufferSize> feedbackBufferL_ = {};  ///< The send into the feedback comb
+    std::array<float, kMaxDryBufferSize> feedbackBufferR_ = {};
 };
 
 } // namespace Krate::DSP

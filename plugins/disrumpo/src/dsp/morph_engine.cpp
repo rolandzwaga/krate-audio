@@ -366,22 +366,27 @@ std::array<float, kMaxMorphNodes> MorphEngine::computeWeights(
     // Mode-specific weight calculation
     switch (mode) {
         case MorphMode::Linear1D: {
-            // 1D Linear: Use only X position along the node axis. The active nodes sit
-            // evenly on the axis in order A, B, C, D (i / (N - 1)), not at their 2-D posX:
-            // the corner layout gives C the X of A and D the X of B (D-029, D-100).
+            // 1D Linear: the cursor's X against each node's place on the line, its linePos, never its 2-D posX
+            // (the corner layout gives C the X of A and D the X of B, D-029, D-100). An unplaced node
+            // (linePos < 0) sits evenly on the line in order A, B, C, D (i / (N - 1)).
             std::array<float, kMaxMorphNodes> distances{};
             const float lastIndex = static_cast<float>(count - 1);
 
+            int onNode = 0;
             for (int i = 0; i < count; ++i) {
-                const float nodeX = count > 1 ? static_cast<float>(i) / lastIndex : 0.0f;
+                const float evenX = count > 1 ? static_cast<float>(i) / lastIndex : 0.0f;
+                const float nodeX = nodes[i].linePos >= 0.0f ? nodes[i].linePos : evenX;
                 distances[i] = std::abs(x - nodeX);
+                if (distances[i] < kOnNodeThreshold) ++onNode;
+            }
 
-                // Check for "cursor on node" special case (100% weight)
-                if (distances[i] < kOnNodeThreshold) {
-                    weights.fill(0.0f);
-                    weights[i] = 1.0f;
-                    return weights;
+            // "Cursor on node" (100% weight), shared by every node on that spot
+            if (onNode > 0) {
+                const float share = 1.0f / static_cast<float>(onNode);
+                for (int i = 0; i < count; ++i) {
+                    weights[i] = distances[i] < kOnNodeThreshold ? share : 0.0f;
                 }
+                return weights;
             }
 
             // Calculate inverse distance weights (p=2)

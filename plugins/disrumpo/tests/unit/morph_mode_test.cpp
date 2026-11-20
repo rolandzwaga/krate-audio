@@ -215,6 +215,39 @@ TEST_CASE("Linear1D with 4 corner nodes sweeps A->B->C->D with no weight jump",
     }
 }
 
+// A node's place on the 1D line is its own (MorphNode::linePos, the "Line Pos" parameter), apart from its 2-D
+// corner: Linear1D weighs each node at its line position. A node without one (linePos < 0) keeps the even spacing
+// above.
+TEST_CASE("Linear1D weighs each node at its line position", "[disrumpo][morph][mode][linear][line]") {
+    using Disrumpo::MorphMode;
+    using Disrumpo::MorphNode;
+    std::array<MorphNode, Disrumpo::kMaxMorphNodes> nodes{};
+    nodes[0] = MorphNode(0, 0.0f, 0.0f, Disrumpo::DistortionType::SoftClip);
+    nodes[1] = MorphNode(1, 1.0f, 0.0f, Disrumpo::DistortionType::Tube);
+    nodes[0].linePos = 0.0f;
+    nodes[1].linePos = 0.25f;
+
+    // B sits at 0.25, not at the end of the line
+    const auto atB = Disrumpo::MorphEngine::computeWeights(MorphMode::Linear1D, nodes, 2, 0.25f, 0.5f);
+    CHECK(atB[1] == 1.0f);
+    const auto atEnd = Disrumpo::MorphEngine::computeWeights(MorphMode::Linear1D, nodes, 2, 1.0f, 0.5f);
+    CHECK(atEnd[1] < 0.7f);  // 0.64: B is 0.75 away, A 1.0
+    CHECK(atEnd[0] > 0.3f);
+
+    // Two nodes on the same spot share it
+    nodes[2] = MorphNode(2, 0.0f, 1.0f, Disrumpo::DistortionType::Fuzz);
+    nodes[1].linePos = 1.0f;
+    nodes[2].linePos = 0.0f;
+    const auto shared = Disrumpo::MorphEngine::computeWeights(MorphMode::Linear1D, nodes, 3, 0.0f, 0.5f);
+    CHECK(shared[0] == Approx(0.5f).margin(1e-6f));
+    CHECK(shared[2] == Approx(0.5f).margin(1e-6f));
+    CHECK(shared[1] == 0.0f);
+
+    // The 2-D modes ignore the line position
+    const auto planar = Disrumpo::MorphEngine::computeWeights(MorphMode::Planar2D, nodes, 3, 1.0f, 0.0f);
+    CHECK(planar[1] == 1.0f);  // B's corner (1, 0)
+}
+
 // =============================================================================
 // FR-004: 2D Planar Mode Tests
 // =============================================================================

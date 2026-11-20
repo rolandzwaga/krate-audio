@@ -275,7 +275,9 @@ enum class NodeParamType : uint8_t {
     kNodeBias     = 0x04,  ///< Bias offset [-1, +1]
     kNodeFolds    = 0x05,  ///< Fold count [1, 12] (for wavefolders)
     kNodeBitDepth = 0x06,  ///< Bit depth [4, 24] (for bitcrushers)
-    // 0x07-0x08 reserved for future MorphPad node positioning (deferred to spec 005)
+    kNodePosX     = 0x07,  ///< MorphPad node position X [0, 1] (A, C at 0; B, D at 1)
+    kNodePosY     = 0x08,  ///< MorphPad node position Y [0, 1] (A, B at 0; C, D at 1)
+    kNodeLinePos  = 0x09,  ///< MorphPad node position on the 1D Linear line [0, 1] (A 0, B 1, C 1/2, D 3/4)
 
     // Generic shape parameter slots (0x10-0x19)
     // Each distortion type maps its type-specific UI controls to these 10 slots.

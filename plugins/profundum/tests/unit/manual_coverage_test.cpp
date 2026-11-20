@@ -128,10 +128,12 @@ TEST_CASE("Profundum_ManualCoversSurface", "[profundum][docs]") {
         CHECK(missing.empty());
     }
 
-    // ---- docs/index.html exists and links the manual ----
+    // ---- docs/index.html exists and links the manual: through {{DOC_LINKS}}, which tools/gen-site.js fills with the
+    // Manual and Signal Flow buttons (it refuses a page without it, or with a hand-written manual link) ----
     const std::string index = manualReadFile(std::string(PROFUNDUM_RESOURCES_DIR) + "/../docs/index.html");
     REQUIRE_FALSE(index.empty());
-    CHECK(index.find("MANUAL") != std::string::npos);
+    CHECK(index.find("{{DOC_LINKS}}") != std::string::npos);
+    CHECK(index.find("MANUAL.md") == std::string::npos);
 
     // ---- non-vacuity: the same predicate on a copy with one title removed reports exactly that title ----
     const std::string removed = "Excitation Asymmetry";

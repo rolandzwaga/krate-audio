@@ -139,14 +139,14 @@ public:
     /// @param inputEvents      ArpEvent span from ArpeggiatorCore output
     /// @param inputCount       Number of valid events in inputEvents
     /// @param outputEvents     Output span for combined events (pass-through + echoes)
-    /// @param currentDelayStep Which delay lane step is active for new NoteOn echoes
     /// @return Number of events written to outputEvents
+    /// @note A NoteOn is echoed with the settings of its own delay lane step, ArpEvent::delayStep (the arp stamps it
+    ///       when it fires the step; one step for the whole block echoed every note with the lane's LAST position)
     size_t process(
         const BlockContext& ctx,
         std::span<const ArpEvent> inputEvents,
         size_t inputCount,
-        std::span<ArpEvent> outputEvents,
-        size_t currentDelayStep) noexcept
+        std::span<ArpEvent> outputEvents) noexcept
     {
         const size_t maxOutput = outputEvents.size();
         size_t outCount = 0;
@@ -156,7 +156,7 @@ public:
             outputEvents[outCount++] = inputEvents[i];
 
             if (inputEvents[i].type == ArpEvent::Type::NoteOn) {
-                scheduleEchoes(ctx, inputEvents[i], currentDelayStep);
+                scheduleEchoes(ctx, inputEvents[i], inputEvents[i].delayStep);
             }
         }
 

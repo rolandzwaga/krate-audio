@@ -192,7 +192,7 @@ TEST_CASE("Phase Locking - Spectral Quality: 440 Hz sine +3 semitones",
 
         auto output = processWithShifter(shifter, input, pitchRatio, blockSize);
 
-        std::size_t latency = shifter.getLatencySamples();
+        std::size_t latency = PhaseVocoderPitchShifter::getLatencySamples();
         std::size_t startSample = latency + analysisWindowSize * 4;
         std::size_t analysisSamples = totalSamples - startSample;
         REQUIRE(analysisSamples >= analysisWindowSize * 4);
@@ -219,7 +219,7 @@ TEST_CASE("Phase Locking - Spectral Quality: 440 Hz sine +3 semitones",
 
         auto output = processWithShifter(shifter, input, pitchRatio, blockSize);
 
-        std::size_t latency = shifter.getLatencySamples();
+        std::size_t latency = PhaseVocoderPitchShifter::getLatencySamples();
         std::size_t startSample = latency + analysisWindowSize * 4;
         std::size_t analysisSamples = totalSamples - startSample;
         REQUIRE(analysisSamples >= analysisWindowSize * 4);
@@ -264,7 +264,7 @@ TEST_CASE("Phase Locking - Multi-Harmonic Quality: sawtooth harmonics preserved"
 
     // Analyze steady-state output using averaged spectrum
     constexpr std::size_t analysisWindowSize = 4096;
-    std::size_t latency = shifter.getLatencySamples();
+    std::size_t latency = PhaseVocoderPitchShifter::getLatencySamples();
     std::size_t startSample = latency + analysisWindowSize * 4;
     std::size_t analysisSamples = totalSamples - startSample;
     REQUIRE(analysisSamples >= analysisWindowSize * 4);
@@ -595,7 +595,7 @@ TEST_CASE("Phase Locking - Formant Compatibility: both features enabled, no arti
     REQUIRE_FALSE(hasInf);
 
     // Verify output has non-trivial energy (not all zeros past latency)
-    std::size_t latency = shifter.getLatencySamples();
+    std::size_t latency = PhaseVocoderPitchShifter::getLatencySamples();
     float postLatencyEnergy = 0.0f;
     for (std::size_t i = latency + blockSize * 4; i < output.size(); ++i) {
         postLatencyEnergy += output[i] * output[i];
@@ -724,7 +724,7 @@ TEST_CASE("Phase Locking - Peak Detection: single sinusoid 440 Hz",
 
     // Analyze output spectrum for peak near expected bin
     constexpr std::size_t analysisWindowSize = 4096;
-    std::size_t latency = shifter.getLatencySamples();
+    std::size_t latency = PhaseVocoderPitchShifter::getLatencySamples();
     std::size_t startSample = latency + analysisWindowSize * 4;
     std::size_t analysisSamples = totalSamples - startSample;
     REQUIRE(analysisSamples >= analysisWindowSize * 4);
@@ -796,7 +796,7 @@ TEST_CASE("Phase Locking - Peak Detection: multi-harmonic 100 Hz sawtooth",
 
     // Analyze the output spectrum to count harmonic peaks
     constexpr std::size_t analysisWindowSize = 4096;
-    std::size_t latency = shifter.getLatencySamples();
+    std::size_t latency = PhaseVocoderPitchShifter::getLatencySamples();
     std::size_t startSample = latency + analysisWindowSize * 8;
     std::size_t analysisSamples = totalSamples - startSample;
     REQUIRE(analysisSamples >= analysisWindowSize * 4);
@@ -1010,7 +1010,7 @@ TEST_CASE("Phase Locking - Peak Detection: equal-magnitude plateau not detected 
     // 1. There is at most 1 significant peak near bins 50-51
     // 2. The strict > inequality prevents both bins from being flagged
     constexpr std::size_t analysisWindowSize = 4096;
-    std::size_t latency = shifter.getLatencySamples();
+    std::size_t latency = PhaseVocoderPitchShifter::getLatencySamples();
     std::size_t startSample = latency + analysisWindowSize * 4;
     std::size_t analysisSamples = totalSamples - startSample;
     REQUIRE(analysisSamples >= analysisWindowSize * 4);
@@ -1586,7 +1586,7 @@ TEST_CASE("Phase Locking - Disabled Path Accumulation: independent per-bin phase
 
         // The outputs should differ for a multi-harmonic signal processed
         // with pitch shifting. Count the number of differing samples past latency.
-        std::size_t latency = lockedShifter.getLatencySamples();
+        std::size_t latency = PhaseVocoderPitchShifter::getLatencySamples();
         std::size_t differingSamples = 0;
         float maxDiff = 0.0f;
         for (std::size_t i = latency + blockSize * 4; i < lockedOutput.size(); ++i) {
@@ -1627,7 +1627,7 @@ TEST_CASE("Phase Locking - Disabled Path Accumulation: independent per-bin phase
 
         // Analyze output spectrum
         constexpr std::size_t analysisWindowSize = 4096;
-        std::size_t latency = shifter.getLatencySamples();
+        std::size_t latency = PhaseVocoderPitchShifter::getLatencySamples();
         std::size_t startSample = latency + analysisWindowSize * 4;
         std::size_t analysisSamples = totalSamples - startSample;
         REQUIRE(analysisSamples >= analysisWindowSize * 4);

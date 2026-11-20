@@ -14,7 +14,10 @@
 //
 // What a page is built from:
 //   landing      plugins/<dir>/docs/index.html with {{VERSION}} {{TAG}} {{REPO}} {{NAME}} {{DESCRIPTION}}
-//                {{PUBLISHER}} {{URL}} {{HEAD_COMMON}} {{HERO}} {{OTHER_PLUGINS}}; version from the newest <dir>/v* tag
+//                {{PUBLISHER}} {{URL}} {{HEAD_COMMON}} {{HERO}} {{DOC_LINKS}} {{OTHER_PLUGINS}}; version from the newest
+//                <dir>/v* tag. {{DOC_LINKS}} is the User Manual / Signal Flow Diagram buttons: a page that hand-links
+//                either page, or whose docs/assets/style.css has no .signal-flow-link rule, is refused (Gradus shipped
+//                its manual link as bare text because its stylesheet had no button rule)
 //   manual       plugins/<dir>/MANUAL.md (first H1 dropped) through pandoc with plugins/<dir>/docs/manual-template.html,
 //                then {{HEAD_COMMON}} filled and width / height / lazy loading added to every image
 //   signal flow  plugins/<dir>/docs/<dir>_signal_flow.dot via tools/generate-signal-flow.js (pre-rendered to SVG when
@@ -22,7 +25,8 @@
 //   root         tools/gen-root-index.js (docs/index-template.html, docs/site.json, the manager card)
 //   404          docs/404.html with {{HEAD_COMMON}} and {{PLUGIN_LINKS}}
 //   sitemap      every page above, lastmod = the newest commit date of the page's sources (and its release tag)
-// A plugin is released when it has a <dir>/v* tag; untagged plugins get no pages.
+// A plugin is released when it has a <dir>/v* tag; untagged plugins get no pages. A released plugin without MANUAL.md,
+// docs/manual-template.html or docs/<dir>_signal_flow.dot is refused (E_SITE_DOCS).
 //
 // Usage:
 //   node tools/gen-site.js --out <dir> [--no-manuals]
@@ -135,6 +139,15 @@ function discoverPlugins(deps) {
     if (!site || !config.groups?.includes(site.group) || typeof site.summary !== 'string') {
       throw new SiteError('E_SITE_CONFIG', `docs/site.json: no valid entry for plugins/${dir} (group, summary)`);
     }
+    // Every released plugin has both documentation pages (Iterum and Disrumpo shipped without either until 2026-11).
+    const missingDocs = [
+      [path.join(base, 'MANUAL.md'), 'MANUAL.md'],
+      [path.join(base, 'docs', 'manual-template.html'), 'docs/manual-template.html'],
+      [path.join(base, 'docs', `${dir}_signal_flow.dot`), `docs/${dir}_signal_flow.dot`],
+    ].filter(([file]) => !deps.isFile(file));
+    if (missingDocs.length > 0) {
+      throw new SiteError('E_SITE_DOCS', `plugins/${dir} is released without ${missingDocs.map(([, name]) => name).join(', ')}`);
+    }
     const imagesDir = path.join(base, 'images');
     const images = deps.isDir(imagesDir) ? deps.readDir(imagesDir).filter((f) => f.endsWith('.png')).sort() : [];
     plugins.push({
@@ -216,8 +229,29 @@ function heroHtml(hero) {
   ].join('\n');
 }
 
+/** The documentation buttons: one per doc page the plugin has, manual first, all the same button class. */
+function docLinksHtml(plugin) {
+  const links = [];
+  if (plugin.hasManual) links.push('            <a href="manual.html" class="signal-flow-link">User Manual &rarr;</a>');
+  if (plugin.hasSignalFlow) links.push('            <a href="signal-flow.html" class="signal-flow-link">Signal Flow Diagram &rarr;</a>');
+  return links.join('\n');
+}
+
+/** Refuses a landing page whose doc buttons would not come from {{DOC_LINKS}} or would not render as buttons. */
+function checkDocLinks(deps, plugin, template) {
+  const where = `plugins/${plugin.dir}/docs/index.html`;
+  if (!template.includes('{{DOC_LINKS}}')) throw new SiteError('E_SITE_DOCS', `${where}: no {{DOC_LINKS}}`);
+  const hand = /href\s*=\s*["'](manual|signal-flow)\.html["']/.exec(template);
+  if (hand) throw new SiteError('E_SITE_DOCS', `${where}: hand-written link to ${hand[1]}.html; {{DOC_LINKS}} writes it`);
+  const css = rel(deps.root, 'plugins', plugin.dir, 'docs', 'assets', 'style.css');
+  if (!deps.isFile(css) || !/\.signal-flow-link\s*\{/.test(deps.readFile(css))) {
+    throw new SiteError('E_SITE_DOCS', `plugins/${plugin.dir}/docs/assets/style.css: no .signal-flow-link rule, the doc links would render as bare text`);
+  }
+}
+
 function renderLanding(deps, ctx, plugin) {
   const template = deps.readFile(rel(deps.root, 'plugins', plugin.dir, 'docs', 'index.html'));
+  checkDocLinks(deps, plugin, template);
   const heroFile = pluginImage(deps, plugin, 'hero.png', `${plugin.name} plugin editor`);
   const hero = heroFile && { ...heroFile, width: heroFile.width / SHOT_SCALE, height: heroFile.height / SHOT_SCALE };
   const og = ogImageOf(deps, plugin);
@@ -230,6 +264,7 @@ function renderLanding(deps, ctx, plugin) {
     PUBLISHER: common.escapeHtml(plugin.publisher),
     URL: plugin.url,
     HERO: heroHtml(hero),
+    DOC_LINKS: docLinksHtml(plugin),
     OTHER_PLUGINS: otherPluginsHtml(ctx.plugins, ctx.config, plugin),
   };
   // The page's own description feeds its structured data, so it is read after the other values are filled.

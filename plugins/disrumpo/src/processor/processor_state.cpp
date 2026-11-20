@@ -446,7 +446,19 @@ Steinberg::tresult Processor::writeState(const PendingState& s, Steinberg::IBStr
         }
     }
 
-    // SharedDisplayBridge: append instance ID for Tier 3 fallback
+    // MorphPad node positions (a tagged trailer block after every earlier layout, so an older plugin
+    // ignores it): marker, then band x node x (posX, posY, linePos)
+    if (!streamer.writeInt32(kNodePositionsMarker)) return Steinberg::kResultFalse;
+    for (int b = 0; b < kMaxBands; ++b) {
+        for (int n = 0; n < kMaxMorphNodes; ++n) {
+            const auto& mn = s.morph[static_cast<size_t>(b)].nodes[static_cast<size_t>(n)];
+            if (!streamer.writeFloat(mn.posX)) return Steinberg::kResultFalse;
+            if (!streamer.writeFloat(mn.posY)) return Steinberg::kResultFalse;
+            if (!streamer.writeFloat(mn.linePos)) return Steinberg::kResultFalse;
+        }
+    }
+
+    // SharedDisplayBridge: the instance ID stays the stream's last 12 bytes (Tier 3 fallback)
     streamer.writeInt32(kInstanceIdMarker);
     streamer.writeInt64(static_cast<Steinberg::int64>(instanceId_));
 
@@ -499,6 +511,8 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
     // Parse into pendingState_, seeded from the newest state: an unapplied load
     // (its section flags still owed) or the live one (D-003)
     bool complete = false;
+    bool hasTrailerId = false;
+    Steinberg::int64 trailerId = 0;
     {
         const bool deferred = active_.load(std::memory_order_acquire);
         PendingState& s = pendingState_;
@@ -516,6 +530,35 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
         s.globalMix = globalMix;
         complete = parseStateSections(streamer, version, s);
 
+        // The trailer: tagged blocks, the instance ID ("KRAT") and the MorphPad node positions ("NPOS"),
+        // in either order (getState writes both, a factory preset only the positions). Read before the state
+        // is applied, since the positions belong to it; without them the morph section left the corners.
+        if (complete) {
+            for (int block = 0; block < 2; ++block) {
+                Steinberg::int32 marker = 0;
+                if (!streamer.readInt32(marker)) break;
+                if (marker == kInstanceIdMarker) {
+                    if (!streamer.readInt64(trailerId)) break;
+                    hasTrailerId = true;
+                } else if (marker == kNodePositionsMarker) {
+                    for (int b = 0; b < kMaxBands; ++b) {
+                        for (int n = 0; n < kMaxMorphNodes; ++n) {
+                            float x = 0.0f;
+                            float y = 0.0f;
+                            float line = 0.0f;
+                            if (!streamer.readFloat(x) || !streamer.readFloat(y) || !streamer.readFloat(line)) break;
+                            auto& mn = s.morph[static_cast<size_t>(b)].nodes[static_cast<size_t>(n)];
+                            mn.posX = std::clamp(x, 0.0f, 1.0f);
+                            mn.posY = std::clamp(y, 0.0f, 1.0f);
+                            mn.linePos = std::clamp(line, 0.0f, 1.0f);
+                        }
+                    }
+                } else {
+                    break;
+                }
+            }
+        }
+
         if (deferred) {
             // process() applies it at the top of its next call
             pendingSlot_.store(kSlotReady, std::memory_order_release);
@@ -531,12 +574,10 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
         return Steinberg::kResultOk;
     }
 
-    // SharedDisplayBridge: try to read instance ID from state trailer
+    // SharedDisplayBridge: the instance ID read from the state trailer above
     {
-        Steinberg::int32 marker = 0;
-        Steinberg::int64 storedId = 0;
-        if (streamer.readInt32(marker) && marker == kInstanceIdMarker
-            && streamer.readInt64(storedId))
+        const Steinberg::int64 storedId = trailerId;
+        if (hasTrailerId)
         {
             // Re-register with the stored ID (supports state restore), unless another
             // live processor holds it (duplicated track, copied settings): then keep
@@ -971,6 +1012,11 @@ bool Processor::parseStateSections(Steinberg::IBStreamer& streamer, int32_t vers
 
                 if (b < kMaxBands) {
                     auto& mn = s.morph[band].nodes[static_cast<size_t>(n)];
+                    // The corners, and the line spot 1D Linear gave this node before line positions, until the
+                    // node-position trailer block says otherwise
+                    mn.posX = kDefaultNodePosX[n];
+                    mn.posY = kDefaultNodePosY[n];
+                    mn.linePos = legacyNodeLinePos(n, s.morph[band].activeNodeCount);
                     mn.type = static_cast<DistortionType>(
                         std::clamp(static_cast<int>(nodeType), 0, 25));
                     mn.commonParams.drive = drive;
@@ -1112,6 +1158,7 @@ void Processor::applyPendingState() noexcept {
         sweepEnvelope_.setSensitivity(s.sweepEnvSensitivity);
 
         customCurve_ = s.customCurve;  // fixed-size value type; sweepProcessor_ keeps its pointer
+        syncCurvePointsFromCurve();
     }
 
     if (s.hasModulation) {

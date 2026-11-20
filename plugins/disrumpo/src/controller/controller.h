@@ -371,6 +371,8 @@ private:
 
     /// Magic marker for instanceId in state stream (must match processor)
     static constexpr Steinberg::int32 kInstanceIdMarker = 0x4B524154;
+    /// Tags the MorphPad node positions that follow the instance ID in the processor state
+    static constexpr Steinberg::int32 kNodePositionsMarker = 0x4E504F53;  // "NPOS"
 
     // ==========================================================================
     // Modulation Offset Visualization
@@ -564,6 +566,12 @@ private:
 
     template <typename ParamSetter>
     bool parseComponentState(Steinberg::IBStreamer& streamer, int32_t version, ParamSetter&& setter);
+
+    /// After parseComponentState: the state trailer's tagged blocks in either order, the MorphPad node positions
+    /// (passed to @p setter; the corners for a state without them) and the instance ID (adopted when
+    /// @p adoptInstanceId)
+    template <typename ParamSetter>
+    void parseStateTrailer(Steinberg::IBStreamer& streamer, const ParamSetter& setter, bool adoptInstanceId);
 };
 
 } // namespace Disrumpo

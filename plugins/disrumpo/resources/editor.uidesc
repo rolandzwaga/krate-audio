@@ -674,7 +674,7 @@
         <view class="CTextLabel" origin="276, 20" size="16, 16" title="U" font="small-font" font-color="text-secondary"/>
         <view class="ToggleButton" origin="292, 20" size="16, 16" on-color="accent-primary" off-color="text-secondary" control-tag="ModLFO1Unipolar" default-value="0" tooltip="LFO 1 unipolar mode"/>
         <view class="CTextLabel" origin="312, 20" size="16, 16" title="R" font="small-font" font-color="text-secondary"/>
-        <view class="ToggleButton" origin="328, 20" size="16, 16" on-color="accent-primary" off-color="text-secondary" control-tag="ModLFO1Retrigger" default-value="0" tooltip="Retrigger LFO 1 on note"/>
+        <view class="ToggleButton" origin="328, 20" size="16, 16" on-color="accent-primary" off-color="text-secondary" control-tag="ModLFO1Retrigger" default-value="1" tooltip="Restart LFO 1 when the host transport starts"/>
         <view class="CTextLabel" origin="10, 40" size="30, 16" title="LFO2" font="small-font" font-color="text-primary"/>
         <view class="CSlider" origin="42, 40" size="55, 16" orientation="horizontal" control-tag="ModLFO2Rate" default-value="0.5" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="accent-secondary" draw-frame="true" draw-frame-color="border"/>
         <view class="COptionMenu" origin="100, 40" size="55, 16" control-tag="ModLFO2Shape" font="small-font" font-color="text-primary" back-color="background-secondary" frame-color="border"/>
@@ -684,7 +684,7 @@
         <view class="CTextLabel" origin="276, 40" size="16, 16" title="U" font="small-font" font-color="text-secondary"/>
         <view class="ToggleButton" origin="292, 40" size="16, 16" on-color="accent-primary" off-color="text-secondary" control-tag="ModLFO2Unipolar" default-value="0" tooltip="LFO 2 unipolar mode"/>
         <view class="CTextLabel" origin="312, 40" size="16, 16" title="R" font="small-font" font-color="text-secondary"/>
-        <view class="ToggleButton" origin="328, 40" size="16, 16" on-color="accent-primary" off-color="text-secondary" control-tag="ModLFO2Retrigger" default-value="0" tooltip="Retrigger LFO 2 on note"/>
+        <view class="ToggleButton" origin="328, 40" size="16, 16" on-color="accent-primary" off-color="text-secondary" control-tag="ModLFO2Retrigger" default-value="1" tooltip="Restart LFO 2 when the host transport starts"/>
         <view class="CTextLabel" origin="10, 62" size="25, 16" title="Env" font="small-font" font-color="text-primary"/>
         <view class="CTextLabel" origin="36, 62" size="18, 16" title="Atk" font="small-font" font-color="text-secondary"/>
         <view class="CSlider" origin="54, 62" size="50, 16" orientation="horizontal" control-tag="ModEnvAttack" default-value="0.0" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="accent-secondary" draw-frame="true" draw-frame-color="border"/>

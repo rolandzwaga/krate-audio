@@ -239,11 +239,9 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
                         // Custom Curve Parameters (FR-039a, FR-039b, FR-039c)
                         // ========================================================
                         case SweepParamType::kSweepCustomCurvePointCount: {
-                            // Rebuild curve when point count changes
                             int pointCount = static_cast<int>(2.0f + static_cast<float>(value) * 6.0f + 0.5f);
-                            pointCount = std::clamp(pointCount, 2, 8);
-                            // Curve will be rebuilt next time a point param changes
-                            (void)pointCount;
+                            curvePointCount_ = std::clamp(pointCount, 2, 8);
+                            rebuildCustomCurve();
                             break;
                         }
 
@@ -262,9 +260,15 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
                         case SweepParamType::kSweepCustomCurveP6X:
                         case SweepParamType::kSweepCustomCurveP6Y:
                         case SweepParamType::kSweepCustomCurveP7X:
-                        case SweepParamType::kSweepCustomCurveP7Y:
-                            // Curve point changed - defer rebuild to process loop
-                            // (handled below after all params processed)
+                        case SweepParamType::kSweepCustomCurveP7Y: {
+                            // Point i of the count is P<i> (X then Y); the curve is rebuilt from all of them
+                            const int rel = static_cast<int>(sweepType) -
+                                            static_cast<int>(SweepParamType::kSweepCustomCurveP0X);
+                            auto& p = curvePoints_[static_cast<size_t>(rel / 2)];
+                            (rel % 2 == 0 ? p.first : p.second) = std::clamp(static_cast<float>(value), 0.0f, 1.0f);
+                            rebuildCustomCurve();
+                            break;
+                        }
                         default:
                             break;
                     }
@@ -608,6 +612,17 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
                                 // RangeParameter [4, 24] (integer steps)
                                 mn.params.bitDepth = 4.0f + std::round(static_cast<float>(value) * 20.0f);
                                 mapShapeSlotsToParams(mn.type, mn.shapeSlots, mn.params);
+                                break;
+                            case NodeParamType::kNodePosX:
+                                // MorphPad node position [0, 1]: the engine weighs the nodes by where they sit
+                                mn.posX = std::clamp(static_cast<float>(value), 0.0f, 1.0f);
+                                break;
+                            case NodeParamType::kNodePosY:
+                                mn.posY = std::clamp(static_cast<float>(value), 0.0f, 1.0f);
+                                break;
+                            case NodeParamType::kNodeLinePos:
+                                // The node's place on the 1D Linear line [0, 1]
+                                mn.linePos = std::clamp(static_cast<float>(value), 0.0f, 1.0f);
                                 break;
                             default: {
                                 // Generic shape slots (kNodeShape0 through kNodeShape9)
