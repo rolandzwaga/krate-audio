@@ -3,31 +3,91 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Profundum User Manual - Mass Bass Instrument | Krate Audio</title>
-    <meta name="description" content="Complete user manual for Profundum, a free open-source mass bass instrument VST3 plugin. Covers the Mass and the Anchor, the four personality macros, Bass Morph between two endpoints, the Advanced page sections, Motion, and the factory presets.">
-    <meta name="robots" content="index, follow">
+    <title>Profundum User Manual – Bass Synthesizer | Krate Audio</title>
+    <meta name="description" content="User manual for Profundum, the free bass synthesizer VST3 plugin: the Mass and the Anchor, macros, Bass Morph, Motion and the factory presets.">
     <link rel="canonical" href="https://krateaudio.com/profundum/manual.html">
-
-    <!-- Open Graph -->
-    <meta property="og:title" content="Profundum User Manual - Mass Bass Instrument">
-    <meta property="og:description" content="Complete user manual for Profundum, a free open-source mass bass instrument VST3 plugin.">
+    <meta property="og:title" content="Profundum User Manual – Bass Synthesizer">
+    <meta property="og:description" content="User manual for Profundum, the free bass synthesizer VST3 plugin: the Mass and the Anchor, macros, Bass Morph, Motion and the factory presets.">
     <meta property="og:type" content="article">
     <meta property="og:url" content="https://krateaudio.com/profundum/manual.html">
+    <meta name="robots" content="index, follow, max-image-preview:large">
+    <meta name="theme-color" content="#0a0a0f">
+    <link rel="icon" href="/favicon.ico" sizes="32x32">
+    <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+    <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+    <link rel="preload" href="/assets/fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="stylesheet" href="/assets/site.css">
     <meta property="og:site_name" content="Krate Audio">
     <meta property="og:locale" content="en_US">
-
-    <!-- Twitter Card -->
-    <meta name="twitter:card" content="summary">
-    <meta name="twitter:title" content="Profundum User Manual">
-    <meta name="twitter:description" content="Complete user manual for Profundum, a free open-source mass bass instrument VST3 plugin.">
-
-    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-    <meta http-equiv="Pragma" content="no-cache">
-    <meta http-equiv="Expires" content="0">
-    <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <meta property="og:image" content="https://krateaudio.com/profundum/images/og-image.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="Profundum plugin editor">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content="https://krateaudio.com/profundum/images/og-image.png">
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "Organization",
+          "@id": "https://krateaudio.com/#organization",
+          "name": "Krate Audio",
+          "url": "https://krateaudio.com/",
+          "logo": {
+            "@type": "ImageObject",
+            "url": "https://krateaudio.com/assets/logo-512.png",
+            "width": 512,
+            "height": 512
+          },
+          "sameAs": [
+            "https://github.com/rolandzwaga"
+          ]
+        },
+        {
+          "@type": "TechArticle",
+          "headline": "Profundum User Manual – Bass Synthesizer",
+          "description": "User manual for Profundum, the free bass synthesizer VST3 plugin: the Mass and the Anchor, macros, Bass Morph, Motion and the factory presets.",
+          "url": "https://krateaudio.com/profundum/manual.html",
+          "inLanguage": "en",
+          "image": "https://krateaudio.com/profundum/images/og-image.png",
+          "about": {
+            "@id": "https://krateaudio.com/profundum/#software"
+          },
+          "author": {
+            "@id": "https://krateaudio.com/#organization"
+          },
+          "publisher": {
+            "@id": "https://krateaudio.com/#organization"
+          },
+          "dateModified": "2026-11-20T15:01:23+01:00"
+        },
+        {
+          "@type": "BreadcrumbList",
+          "itemListElement": [
+            {
+              "@type": "ListItem",
+              "position": 1,
+              "name": "Krate Audio",
+              "item": "https://krateaudio.com/"
+            },
+            {
+              "@type": "ListItem",
+              "position": 2,
+              "name": "Profundum",
+              "item": "https://krateaudio.com/profundum/"
+            },
+            {
+              "@type": "ListItem",
+              "position": 3,
+              "name": "User Manual",
+              "item": "https://krateaudio.com/profundum/manual.html"
+            }
+          ]
+        }
+      ]
+    }
+    </script>
     <style>
         /* Base — matches Profundum landing page */
         :root {
@@ -283,62 +343,58 @@
             <p class="subtitle">Mass Bass Instrument</p>
         </div>
 
-        <ul>
-        <li><a href="#introduction"
-        id="toc-introduction">Introduction</a></li>
-        <li><a href="#signal-flow" id="toc-signal-flow">Signal
-        Flow</a></li>
-        <li><a href="#interface-overview"
-        id="toc-interface-overview">Interface Overview</a></li>
-        <li><a href="#macros" id="toc-macros">Macros</a></li>
-        <li><a href="#header-controls" id="toc-header-controls">Header
-        Controls</a></li>
-        <li><a href="#the-main-page" id="toc-the-main-page">The Main
-        Page</a>
-        <ul>
-        <li><a href="#the-mass" id="toc-the-mass">The Mass</a></li>
-        <li><a href="#the-anchor" id="toc-the-anchor">The
-        Anchor</a></li>
-        <li><a href="#bass-morph" id="toc-bass-morph">Bass
-        Morph</a></li>
-        </ul></li>
-        <li><a href="#the-advanced-page" id="toc-the-advanced-page">The
-        Advanced Page</a>
-        <ul>
-        <li><a href="#core-spectrum" id="toc-core-spectrum">Core
-        Spectrum</a></li>
-        <li><a href="#excitation-fold"
-        id="toc-excitation-fold">Excitation &amp; Fold</a></li>
-        <li><a href="#shape-character" id="toc-shape-character">Shape
-        &amp; Character</a></li>
-        <li><a href="#mass" id="toc-mass">Mass</a></li>
-        <li><a href="#sub-anchor" id="toc-sub-anchor">Sub
-        Anchor</a></li>
-        <li><a href="#stereo-output" id="toc-stereo-output">Stereo &amp;
-        Output</a></li>
-        <li><a href="#pitch-envelopes" id="toc-pitch-envelopes">Pitch
-        &amp; Envelopes</a></li>
-        <li><a href="#morph-behaviour" id="toc-morph-behaviour">Morph
-        Behaviour</a></li>
-        <li><a href="#the-modulation-tab"
-        id="toc-the-modulation-tab">The MODULATION Tab</a></li>
-        <li><a href="#morph-modulation" id="toc-morph-modulation">Morph
-        Modulation</a></li>
-        <li><a href="#the-settings-tab" id="toc-the-settings-tab">The
-        SETTINGS Tab</a></li>
-        </ul></li>
-        <li><a href="#presets" id="toc-presets">Presets</a>
-        <ul>
-        <li><a href="#factory-library" id="toc-factory-library">Factory
-        Library</a></li>
-        </ul></li>
-        <li><a href="#performance-notes"
-        id="toc-performance-notes">Performance Notes</a></li>
-        <li><a href="#cross-platform"
-        id="toc-cross-platform">Cross-Platform</a></li>
-        <li><a href="#tips-tricks" id="toc-tips-tricks">Tips &amp;
-        Tricks</a></li>
-        </ul>
+        <nav id="TOC" aria-label="Contents">
+<ul>
+<li><a href="#introduction" id="toc-introduction">Introduction</a></li>
+<li><a href="#signal-flow" id="toc-signal-flow">Signal Flow</a></li>
+<li><a href="#interface-overview" id="toc-interface-overview">Interface
+Overview</a></li>
+<li><a href="#macros" id="toc-macros">Macros</a></li>
+<li><a href="#header-controls" id="toc-header-controls">Header
+Controls</a></li>
+<li><a href="#the-main-page" id="toc-the-main-page">The Main Page</a>
+<ul>
+<li><a href="#the-mass" id="toc-the-mass">The Mass</a></li>
+<li><a href="#the-anchor" id="toc-the-anchor">The Anchor</a></li>
+<li><a href="#bass-morph" id="toc-bass-morph">Bass Morph</a></li>
+</ul></li>
+<li><a href="#the-advanced-page" id="toc-the-advanced-page">The Advanced
+Page</a>
+<ul>
+<li><a href="#core-spectrum" id="toc-core-spectrum">Core
+Spectrum</a></li>
+<li><a href="#excitation-fold" id="toc-excitation-fold">Excitation &amp;
+Fold</a></li>
+<li><a href="#shape-character" id="toc-shape-character">Shape &amp;
+Character</a></li>
+<li><a href="#mass" id="toc-mass">Mass</a></li>
+<li><a href="#sub-anchor" id="toc-sub-anchor">Sub Anchor</a></li>
+<li><a href="#stereo-output" id="toc-stereo-output">Stereo &amp;
+Output</a></li>
+<li><a href="#pitch-envelopes" id="toc-pitch-envelopes">Pitch &amp;
+Envelopes</a></li>
+<li><a href="#morph-behaviour" id="toc-morph-behaviour">Morph
+Behaviour</a></li>
+<li><a href="#the-modulation-tab" id="toc-the-modulation-tab">The
+MODULATION Tab</a></li>
+<li><a href="#morph-modulation" id="toc-morph-modulation">Morph
+Modulation</a></li>
+<li><a href="#the-settings-tab" id="toc-the-settings-tab">The SETTINGS
+Tab</a></li>
+</ul></li>
+<li><a href="#presets" id="toc-presets">Presets</a>
+<ul>
+<li><a href="#factory-library" id="toc-factory-library">Factory
+Library</a></li>
+</ul></li>
+<li><a href="#performance-notes" id="toc-performance-notes">Performance
+Notes</a></li>
+<li><a href="#cross-platform"
+id="toc-cross-platform">Cross-Platform</a></li>
+<li><a href="#tips-tricks" id="toc-tips-tricks">Tips &amp;
+Tricks</a></li>
+</ul>
+        </nav>
         <h2 id="introduction">Introduction</h2>
         <p>Profundum is a <strong>mass bass instrument</strong>. It does
         not stack layers to build a bass; it plays one bass voice and
@@ -404,7 +460,7 @@ Output ───────────── DC blocking → true-peak limiter
         you set yourself.</p>
         <h2 id="interface-overview">Interface Overview</h2>
         <figure>
-        <img src="images/editor-main.png" alt="The Main page" />
+        <img src="images/editor-main.png" alt="The Main page" width="960" height="600" loading="lazy" decoding="async">
         <figcaption aria-hidden="true">The Main page</figcaption>
         </figure>
         <p>The editor is a fixed 960 × 600 window with four zoom steps
@@ -568,7 +624,7 @@ Output ───────────── DC blocking → true-peak limiter
         take away. The Tight half acts at every Mass.</p>
         <h2 id="header-controls">Header Controls</h2>
         <figure>
-        <img src="images/header.png" alt="The header" />
+        <img src="images/header.png" alt="The header" width="960" height="56" loading="lazy" decoding="async">
         <figcaption aria-hidden="true">The header</figcaption>
         </figure>
         <table>
@@ -626,7 +682,7 @@ Output ───────────── DC blocking → true-peak limiter
         <h2 id="the-main-page">The Main Page</h2>
         <h3 id="the-mass">The Mass</h3>
         <figure>
-        <img src="images/main-mass.png" alt="The Mass" />
+        <img src="images/main-mass.png" alt="The Mass" width="944" height="316" loading="lazy" decoding="async">
         <figcaption aria-hidden="true">The Mass</figcaption>
         </figure>
         <p>The upper half of the Main page is THE MASS: the live
@@ -715,7 +771,7 @@ Output ───────────── DC blocking → true-peak limiter
         MODULATION tab.</p>
         <h3 id="the-anchor">The Anchor</h3>
         <figure>
-        <img src="images/main-anchor.png" alt="The Anchor" />
+        <img src="images/main-anchor.png" alt="The Anchor" width="300" height="204" loading="lazy" decoding="async">
         <figcaption aria-hidden="true">The Anchor</figcaption>
         </figure>
         <table>
@@ -778,7 +834,7 @@ Output ───────────── DC blocking → true-peak limiter
         them.</p>
         <h3 id="bass-morph">Bass Morph</h3>
         <figure>
-        <img src="images/main-bass-morph.png" alt="Bass Morph" />
+        <img src="images/main-bass-morph.png" alt="Bass Morph" width="636" height="204" loading="lazy" decoding="async">
         <figcaption aria-hidden="true">Bass Morph</figcaption>
         </figure>
         <table>
@@ -890,7 +946,7 @@ Output ───────────── DC blocking → true-peak limiter
         <h2 id="the-advanced-page">The Advanced Page</h2>
         <figure>
         <img src="images/editor-advanced.png"
-        alt="The Advanced page, SECTIONS tab" />
+        alt="The Advanced page, SECTIONS tab" width="960" height="600" loading="lazy" decoding="async">
         <figcaption aria-hidden="true">The Advanced page, SECTIONS
         tab</figcaption>
         </figure>
@@ -901,7 +957,7 @@ Output ───────────── DC blocking → true-peak limiter
         parameter.</p>
         <h3 id="core-spectrum">Core Spectrum</h3>
         <figure>
-        <img src="images/adv-core-spectrum.png" alt="Core Spectrum" />
+        <img src="images/adv-core-spectrum.png" alt="Core Spectrum" width="304" height="246" loading="lazy" decoding="async">
         <figcaption aria-hidden="true">Core Spectrum</figcaption>
         </figure>
         <p>The core is the harmonic recipe of the Mass.</p>
@@ -1003,7 +1059,7 @@ Output ───────────── DC blocking → true-peak limiter
         <h3 id="excitation-fold">Excitation &amp; Fold</h3>
         <figure>
         <img src="images/adv-excitation-fold.png"
-        alt="Excitation &amp; Fold" />
+        alt="Excitation &amp; Fold" width="304" height="76" loading="lazy" decoding="async">
         <figcaption aria-hidden="true">Excitation &amp;
         Fold</figcaption>
         </figure>
@@ -1053,7 +1109,7 @@ Output ───────────── DC blocking → true-peak limiter
         <h3 id="shape-character">Shape &amp; Character</h3>
         <figure>
         <img src="images/adv-shape-character.png"
-        alt="Shape &amp; Character" />
+        alt="Shape &amp; Character" width="304" height="76" loading="lazy" decoding="async">
         <figcaption aria-hidden="true">Shape &amp;
         Character</figcaption>
         </figure>
@@ -1104,7 +1160,7 @@ Output ───────────── DC blocking → true-peak limiter
         correlation of the sub band depends on that offset pair.</p>
         <h3 id="mass">Mass</h3>
         <figure>
-        <img src="images/adv-mass.png" alt="Mass" />
+        <img src="images/adv-mass.png" alt="Mass" width="304" height="50" loading="lazy" decoding="async">
         <figcaption aria-hidden="true">Mass</figcaption>
         </figure>
         <table>
@@ -1141,7 +1197,7 @@ Output ───────────── DC blocking → true-peak limiter
         these two shape the dynamics stage that Mass also drives.</p>
         <h3 id="sub-anchor">Sub Anchor</h3>
         <figure>
-        <img src="images/adv-sub-anchor.png" alt="Sub Anchor" />
+        <img src="images/adv-sub-anchor.png" alt="Sub Anchor" width="304" height="180" loading="lazy" decoding="async">
         <figcaption aria-hidden="true">Sub Anchor</figcaption>
         </figure>
         <table>
@@ -1225,7 +1281,7 @@ Output ───────────── DC blocking → true-peak limiter
         <h3 id="stereo-output">Stereo &amp; Output</h3>
         <figure>
         <img src="images/adv-stereo-output.png"
-        alt="Stereo &amp; Output" />
+        alt="Stereo &amp; Output" width="304" height="302" loading="lazy" decoding="async">
         <figcaption aria-hidden="true">Stereo &amp; Output</figcaption>
         </figure>
         <table>
@@ -1340,7 +1396,7 @@ Output ───────────── DC blocking → true-peak limiter
         <h3 id="pitch-envelopes">Pitch &amp; Envelopes</h3>
         <figure>
         <img src="images/adv-pitch-envelopes.png"
-        alt="Pitch &amp; Envelopes" />
+        alt="Pitch &amp; Envelopes" width="304" height="402" loading="lazy" decoding="async">
         <figcaption aria-hidden="true">Pitch &amp;
         Envelopes</figcaption>
         </figure>
@@ -1531,7 +1587,7 @@ Output ───────────── DC blocking → true-peak limiter
         <h3 id="morph-behaviour">Morph Behaviour</h3>
         <figure>
         <img src="images/adv-morph-behaviour.png"
-        alt="Morph Behaviour" />
+        alt="Morph Behaviour" width="304" height="102" loading="lazy" decoding="async">
         <figcaption aria-hidden="true">Morph Behaviour</figcaption>
         </figure>
         <table>
@@ -1569,7 +1625,7 @@ Output ───────────── DC blocking → true-peak limiter
         Main page’s Bass Morph band.</p>
         <h3 id="the-modulation-tab">The MODULATION Tab</h3>
         <figure>
-        <img src="images/adv-modulation.png" alt="The MODULATION tab" />
+        <img src="images/adv-modulation.png" alt="The MODULATION tab" width="960" height="516" loading="lazy" decoding="async">
         <figcaption aria-hidden="true">The MODULATION tab</figcaption>
         </figure>
         <p><strong>Motion</strong> is one modulation source per voice,
@@ -1861,7 +1917,7 @@ Output ───────────── DC blocking → true-peak limiter
         affected.</p>
         <h3 id="the-settings-tab">The SETTINGS Tab</h3>
         <figure>
-        <img src="images/adv-settings.png" alt="The SETTINGS tab" />
+        <img src="images/adv-settings.png" alt="The SETTINGS tab" width="960" height="516" loading="lazy" decoding="async">
         <figcaption aria-hidden="true">The SETTINGS tab</figcaption>
         </figure>
         <p>The SETTINGS tab holds the second zoom selector and a note

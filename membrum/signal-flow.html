@@ -3,10 +3,73 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Membrum - Signal Flow Diagram</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <title>Membrum Signal Flow Diagram | Krate Audio</title>
+    <meta name="description" content="Interactive signal flow diagram of Membrum, the free Synthesized Drum Machine VST3 plugin by Krate Audio, every stage from input to output.">
+    <link rel="canonical" href="https://krateaudio.com/membrum/signal-flow.html">
+    <meta property="og:title" content="Membrum Signal Flow Diagram">
+    <meta property="og:description" content="Interactive signal flow diagram of Membrum, the free Synthesized Drum Machine VST3 plugin by Krate Audio, every stage from input to output.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https://krateaudio.com/membrum/signal-flow.html">
+    <meta name="robots" content="index, follow, max-image-preview:large">
+    <meta name="theme-color" content="#0a0a0f">
+    <link rel="icon" href="/favicon.ico" sizes="32x32">
+    <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+    <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+    <link rel="preload" href="/assets/fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="stylesheet" href="/assets/site.css">
+    <meta property="og:site_name" content="Krate Audio">
+    <meta property="og:locale" content="en_US">
+    <meta property="og:image" content="https://krateaudio.com/membrum/images/og-image.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="Membrum plugin editor">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content="https://krateaudio.com/membrum/images/og-image.png">
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "Organization",
+          "@id": "https://krateaudio.com/#organization",
+          "name": "Krate Audio",
+          "url": "https://krateaudio.com/",
+          "logo": {
+            "@type": "ImageObject",
+            "url": "https://krateaudio.com/assets/logo-512.png",
+            "width": 512,
+            "height": 512
+          },
+          "sameAs": [
+            "https://github.com/rolandzwaga"
+          ]
+        },
+        {
+          "@type": "BreadcrumbList",
+          "itemListElement": [
+            {
+              "@type": "ListItem",
+              "position": 1,
+              "name": "Krate Audio",
+              "item": "https://krateaudio.com/"
+            },
+            {
+              "@type": "ListItem",
+              "position": 2,
+              "name": "Membrum",
+              "item": "https://krateaudio.com/membrum/"
+            },
+            {
+              "@type": "ListItem",
+              "position": 3,
+              "name": "Signal Flow",
+              "item": "https://krateaudio.com/membrum/signal-flow.html"
+            }
+          ]
+        }
+      ]
+    }
+    </script>
     <style>
         :root {
             --color-bg: #0a0a0f;
@@ -31,16 +94,14 @@
         }
 
         .header {
-            padding: 1.5rem 2rem;
+            padding: 1.25rem 2rem;
             border-bottom: 1px solid var(--color-border);
-            display: flex;
-            align-items: center;
-            gap: 1.5rem;
             flex-shrink: 0;
         }
 
         .breadcrumb {
             font-size: 0.875rem;
+            margin-bottom: 0.25rem;
         }
 
         .breadcrumb a {
@@ -65,6 +126,16 @@
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
+        }
+
+        .intro {
+            color: var(--color-text-muted);
+            font-size: 0.9rem;
+            max-width: 70ch;
+        }
+
+        .intro a {
+            color: var(--color-accent-hover);
         }
 
         .toolbar {
@@ -102,6 +173,7 @@
 
         #diagram-container {
             flex: 1;
+            min-height: 60vh;
             overflow: hidden;
             position: relative;
             cursor: grab;
@@ -137,7 +209,7 @@
         }
 
         @media (max-width: 640px) {
-            .header { padding: 1rem; gap: 1rem; }
+            .header { padding: 1rem; }
             .toolbar { padding: 0.5rem 1rem; }
             h1 { font-size: 1.25rem; }
         }
@@ -146,10 +218,13 @@
 <body>
     <div class="header">
         <nav class="breadcrumb">
+            <a href="/">Krate Audio</a>
+            <span class="separator">/</span>
             <a href="./">Membrum</a>
             <span class="separator">/</span>
         </nav>
-        <h1>Signal Flow Diagram</h1>
+        <h1>Membrum Signal Flow</h1>
+        <p class="intro">Interactive signal flow diagram of Membrum, the free Synthesized Drum Machine VST3 plugin by Krate Audio, every stage from input to output. Drag to pan, scroll to zoom. The <a href="manual.html">user manual</a> explains each stage.</p>
     </div>
 
     <div class="toolbar">
@@ -163,387 +238,1021 @@
     <div id="diagram-container">
         <div id="loading">Loading diagram&hellip;</div>
         <div id="error"></div>
-        <div id="diagram"></div>
+        <div id="diagram"><?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN"
+ "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<!-- Generated by graphviz version 12.2.0 (20241103.1931)
+ -->
+<!-- Title: MembrumSignalFlow Pages: 1 -->
+<svg width="3839pt" height="2897pt"
+ viewBox="0.00 0.00 3839.00 2897.31" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+<g id="graph0" class="graph" transform="scale(1 1) rotate(0) translate(4 2893.31)">
+<title>MembrumSignalFlow</title>
+<polygon fill="white" stroke="none" points="-4,4 -4,-2893.31 3835,-2893.31 3835,4 -4,4"/>
+<g id="clust1" class="cluster">
+<title>cluster_legend</title>
+<path fill="#fafafa" stroke="#888888" d="M1341,-2612.11C1341,-2612.11 1539,-2612.11 1539,-2612.11 1545,-2612.11 1551,-2618.11 1551,-2624.11 1551,-2624.11 1551,-2810.51 1551,-2810.51 1551,-2816.51 1545,-2822.51 1539,-2822.51 1539,-2822.51 1341,-2822.51 1341,-2822.51 1335,-2822.51 1329,-2816.51 1329,-2810.51 1329,-2810.51 1329,-2624.11 1329,-2624.11 1329,-2618.11 1335,-2612.11 1341,-2612.11"/>
+<text text-anchor="middle" x="1440" y="-2807.71" font-family="Helvetica,sans-Serif" font-size="12.00" fill="#444444">Legend</text>
+</g>
+<g id="clust2" class="cluster">
+<title>cluster_input</title>
+<path fill="#f0f0f0" stroke="#666666" d="M2883,-2649.17C2883,-2649.17 3341,-2649.17 3341,-2649.17 3347,-2649.17 3353,-2655.17 3353,-2661.17 3353,-2661.17 3353,-2772.26 3353,-2772.26 3353,-2778.26 3347,-2784.26 3341,-2784.26 3341,-2784.26 2883,-2784.26 2883,-2784.26 2877,-2784.26 2871,-2778.26 2871,-2772.26 2871,-2772.26 2871,-2661.17 2871,-2661.17 2871,-2655.17 2877,-2649.17 2883,-2649.17"/>
+<text text-anchor="middle" x="3112" y="-2770.36" font-family="Helvetica,sans-Serif" font-size="11.00">Input</text>
+</g>
+<g id="clust3" class="cluster">
+<title>cluster_params</title>
+<path fill="#e5f5e5" stroke="#6bbf6b" stroke-width="2" d="M2851,-2054.91C2851,-2054.91 3075,-2054.91 3075,-2054.91 3081,-2054.91 3087,-2060.91 3087,-2066.91 3087,-2066.91 3087,-2502.91 3087,-2502.91 3087,-2508.91 3081,-2514.91 3075,-2514.91 3075,-2514.91 2851,-2514.91 2851,-2514.91 2845,-2514.91 2839,-2508.91 2839,-2502.91 2839,-2502.91 2839,-2066.91 2839,-2066.91 2839,-2060.91 2845,-2054.91 2851,-2054.91"/>
+<text text-anchor="middle" x="2963" y="-2499.21" font-family="Helvetica,sans-Serif" font-size="13.00" fill="#2a6030">Parameter &amp; Macro Pipeline</text>
+</g>
+<g id="clust4" class="cluster">
+<title>cluster_voices</title>
+<path fill="#fdf3e8" stroke="#e8a838" stroke-width="2" d="M3111,-1861.71C3111,-1861.71 3373,-1861.71 3373,-1861.71 3379,-1861.71 3385,-1867.71 3385,-1873.71 3385,-1873.71 3385,-2502.91 3385,-2502.91 3385,-2508.91 3379,-2514.91 3373,-2514.91 3373,-2514.91 3111,-2514.91 3111,-2514.91 3105,-2514.91 3099,-2508.91 3099,-2502.91 3099,-2502.91 3099,-1873.71 3099,-1873.71 3099,-1867.71 3105,-1861.71 3111,-1861.71"/>
+<text text-anchor="middle" x="3242" y="-2499.21" font-family="Helvetica,sans-Serif" font-size="13.00" fill="#804010">VoicePool &#160;— &#160;16 Pre&#45;Allocated DrumVoices</text>
+</g>
+<g id="clust5" class="cluster">
+<title>cluster_voice_dsp</title>
+<path fill="#edf4fc" stroke="#4a90d9" stroke-width="2" d="M441,-657.31C441,-657.31 3319,-657.31 3319,-657.31 3325,-657.31 3331,-663.31 3331,-669.31 3331,-669.31 3331,-1722.11 3331,-1722.11 3331,-1728.11 3325,-1734.11 3319,-1734.11 3319,-1734.11 441,-1734.11 441,-1734.11 435,-1734.11 429,-1728.11 429,-1722.11 429,-1722.11 429,-669.31 429,-669.31 429,-663.31 435,-657.31 441,-657.31"/>
+<text text-anchor="middle" x="1880" y="-1718.41" font-family="Helvetica,sans-Serif" font-size="13.00" fill="#2a5080">Per&#45;Voice DSP (DrumVoice) &#160;— &#160;Per&#45;Sample Audio Generation</text>
+</g>
+<g id="clust6" class="cluster">
+<title>cluster_exciter</title>
+<polygon fill="#fff8e0" stroke="#b8860b" stroke-width="2" stroke-dasharray="5,2" points="437,-1349.71 437,-1702.51 1178,-1702.51 1178,-1349.71 437,-1349.71"/>
+<text text-anchor="middle" x="807.5" y="-1686.81" font-family="Helvetica,sans-Serif" font-size="13.00" fill="#2a5080">ExciterBank (Spec 127)</text>
+</g>
+<g id="clust7" class="cluster">
+<title>cluster_body</title>
+<polygon fill="#fff8e0" stroke="#b8860b" stroke-width="2" stroke-dasharray="5,2" points="1186,-1162.11 1186,-1443.31 1960,-1443.31 1960,-1162.11 1186,-1162.11"/>
+<text text-anchor="middle" x="1573" y="-1427.61" font-family="Helvetica,sans-Serif" font-size="13.00" fill="#2a5080">BodyBank &#160;— &#160;Modal Resonator (Primary)</text>
+</g>
+<g id="clust8" class="cluster">
+<title>cluster_phase8</title>
+<polygon fill="#fff8e0" stroke="#b8860b" stroke-width="2" stroke-dasharray="5,2" points="1968,-1150.11 1968,-1257.71 2607,-1257.71 2607,-1150.11 1968,-1150.11"/>
+<text text-anchor="middle" x="2287.5" y="-1242.01" font-family="Helvetica,sans-Serif" font-size="13.00" fill="#2a5080">Phase 8 Modal Augmentations</text>
+</g>
+<g id="clust9" class="cluster">
+<title>cluster_layers</title>
+<polygon fill="#f3ecf9" stroke="#9b6bbf" stroke-width="2" stroke-dasharray="5,2" points="3162,-1265.71 3162,-1550.91 3323,-1550.91 3323,-1265.71 3162,-1265.71"/>
+<text text-anchor="middle" x="3242.5" y="-1535.21" font-family="Helvetica,sans-Serif" font-size="13.00" fill="#2a5080">Parallel Layers (Phase 7)</text>
+</g>
+<g id="clust10" class="cluster">
+<title>cluster_unnatural</title>
+<polygon fill="#dce8f4" stroke="#4a90d9" stroke-width="2" stroke-dasharray="5,2" points="2615,-1077.11 2615,-1668.51 2996,-1668.51 2996,-1077.11 2615,-1077.11"/>
+<text text-anchor="middle" x="2805.5" y="-1652.81" font-family="Helvetica,sans-Serif" font-size="13.00" fill="#2a5080">Unnatural Zone</text>
+</g>
+<g id="clust11" class="cluster">
+<title>cluster_tone</title>
+<polygon fill="#dce8f4" stroke="#4a90d9" stroke-width="2" stroke-dasharray="5,2" points="3004,-750.31 3004,-1674.51 3154,-1674.51 3154,-750.31 3004,-750.31"/>
+<text text-anchor="middle" x="3079" y="-1658.81" font-family="Helvetica,sans-Serif" font-size="13.00" fill="#2a5080">Tone Shaper</text>
+</g>
+<g id="clust12" class="cluster">
+<title>cluster_routing</title>
+<path fill="#f0f0f0" stroke="#666666" d="M2719,-369.31C2719,-369.31 2979,-369.31 2979,-369.31 2985,-369.31 2991,-375.31 2991,-381.31 2991,-381.31 2991,-608.11 2991,-608.11 2991,-614.11 2985,-620.11 2979,-620.11 2979,-620.11 2719,-620.11 2719,-620.11 2713,-620.11 2707,-614.11 2707,-608.11 2707,-608.11 2707,-381.31 2707,-381.31 2707,-375.31 2713,-369.31 2719,-369.31"/>
+<text text-anchor="middle" x="2849" y="-606.21" font-family="Helvetica,sans-Serif" font-size="11.00">Output Bus Routing &#160;— &#160;Per&#45;Pad Bus Assignment</text>
+</g>
+<g id="clust13" class="cluster">
+<title>cluster_coupling</title>
+<path fill="#fcedf2" stroke="#d94a7a" stroke-width="2" d="M20,-101C20,-101 409,-101 409,-101 415,-101 421,-107 421,-113 421,-113 421,-1841.71 421,-1841.71 421,-1847.71 415,-1853.71 409,-1853.71 409,-1853.71 20,-1853.71 20,-1853.71 14,-1853.71 8,-1847.71 8,-1841.71 8,-1841.71 8,-113 8,-113 8,-107 14,-101 20,-101"/>
+<text text-anchor="middle" x="214.5" y="-1838.01" font-family="Helvetica,sans-Serif" font-size="13.00" fill="#a02050">Sympathetic Resonance (Coupling) &#160;— &#160;Cross&#45;Pad Energy Exchange</text>
+</g>
+<g id="clust14" class="cluster">
+<title>cluster_output</title>
+<path fill="#f0f0f0" stroke="#666666" stroke-width="2" d="M2711,-8.03C2711,-8.03 2992,-8.03 2992,-8.03 2998,-8.03 3004,-14.03 3004,-20.03 3004,-20.03 3004,-310.51 3004,-310.51 3004,-316.51 2998,-322.51 2992,-322.51 2992,-322.51 2711,-322.51 2711,-322.51 2705,-322.51 2699,-316.51 2699,-310.51 2699,-310.51 2699,-20.03 2699,-20.03 2699,-14.03 2705,-8.03 2711,-8.03"/>
+<text text-anchor="middle" x="2851.5" y="-306.81" font-family="Helvetica,sans-Serif" font-size="13.00" fill="#444444">Output Chain</text>
+</g>
+<g id="clust15" class="cluster">
+<title>cluster_ui</title>
+<path fill="#fafafa" stroke="#888888" d="M3024,-8C3024,-8 3166,-8 3166,-8 3172,-8 3178,-14 3178,-20 3178,-20 3178,-580.11 3178,-580.11 3178,-586.11 3172,-592.11 3166,-592.11 3166,-592.11 3024,-592.11 3024,-592.11 3018,-592.11 3012,-586.11 3012,-580.11 3012,-580.11 3012,-20 3012,-20 3012,-14 3018,-8 3024,-8"/>
+<text text-anchor="middle" x="3095" y="-578.21" font-family="Helvetica,sans-Serif" font-size="11.00">UI Data (lock&#45;free, audio &#45;&gt; UI)</text>
+</g>
+<g id="clust16" class="cluster">
+<title>cluster_rates</title>
+<path fill="#fafafa" stroke="#888888" d="M3373,-2552.11C3373,-2552.11 3811,-2552.11 3811,-2552.11 3817,-2552.11 3823,-2558.11 3823,-2564.11 3823,-2564.11 3823,-2869.31 3823,-2869.31 3823,-2875.31 3817,-2881.31 3811,-2881.31 3811,-2881.31 3373,-2881.31 3373,-2881.31 3367,-2881.31 3361,-2875.31 3361,-2869.31 3361,-2869.31 3361,-2564.11 3361,-2564.11 3361,-2558.11 3367,-2552.11 3373,-2552.11"/>
+<text text-anchor="middle" x="3592" y="-2867.41" font-family="Helvetica,sans-Serif" font-size="11.00">Processing Rates</text>
+</g>
+<!-- leg -->
+<g id="node1" class="node">
+<title>leg</title>
+<polygon fill="#fafafa" stroke="none" points="1543.32,-2792.11 1336.68,-2792.11 1336.68,-2620.11 1543.32,-2620.11 1543.32,-2792.11"/>
+<polygon fill="#4a90d9" stroke="none" points="1348.68,-2768.11 1348.68,-2784.11 1373.23,-2784.11 1373.23,-2768.11 1348.68,-2768.11"/>
+<text text-anchor="start" x="1359.57" y="-2773.11" font-family="Helvetica,sans-Serif" font-size="10.00"> </text>
+<text text-anchor="start" x="1379.23" y="-2773.11" font-family="Helvetica,sans-Serif" font-size="10.00">Audio signal path</text>
+<polygon fill="#b8860b" stroke="none" points="1348.68,-2748.11 1348.68,-2764.11 1373.23,-2764.11 1373.23,-2748.11 1348.68,-2748.11"/>
+<text text-anchor="start" x="1359.57" y="-2753.11" font-family="Helvetica,sans-Serif" font-size="10.00"> </text>
+<text text-anchor="start" x="1379.23" y="-2753.11" font-family="Helvetica,sans-Serif" font-size="10.00">Modal / physical resonators</text>
+<polygon fill="#9b6bbf" stroke="none" points="1348.68,-2728.11 1348.68,-2744.11 1373.23,-2744.11 1373.23,-2728.11 1348.68,-2728.11"/>
+<text text-anchor="start" x="1359.57" y="-2733.11" font-family="Helvetica,sans-Serif" font-size="10.00"> </text>
+<text text-anchor="start" x="1379.23" y="-2733.11" font-family="Helvetica,sans-Serif" font-size="10.00">Parallel layers (noise / click)</text>
+<polygon fill="#6bbf6b" stroke="none" points="1348.68,-2708.11 1348.68,-2724.11 1373.23,-2724.11 1373.23,-2708.11 1348.68,-2708.11"/>
+<text text-anchor="start" x="1359.57" y="-2713.11" font-family="Helvetica,sans-Serif" font-size="10.00"> </text>
+<text text-anchor="start" x="1379.23" y="-2713.11" font-family="Helvetica,sans-Serif" font-size="10.00">Per&#45;pad config &amp; macros</text>
+<polygon fill="#d94a7a" stroke="none" points="1348.68,-2688.11 1348.68,-2704.11 1373.23,-2704.11 1373.23,-2688.11 1348.68,-2688.11"/>
+<text text-anchor="start" x="1359.57" y="-2693.11" font-family="Helvetica,sans-Serif" font-size="10.00"> </text>
+<text text-anchor="start" x="1379.23" y="-2693.11" font-family="Helvetica,sans-Serif" font-size="10.00">Sympathetic resonance / coupling</text>
+<polygon fill="#e8a838" stroke="none" points="1348.68,-2668.11 1348.68,-2684.11 1373.23,-2684.11 1373.23,-2668.11 1348.68,-2668.11"/>
+<text text-anchor="start" x="1359.57" y="-2673.11" font-family="Helvetica,sans-Serif" font-size="10.00"> </text>
+<text text-anchor="start" x="1379.23" y="-2673.11" font-family="Helvetica,sans-Serif" font-size="10.00">Voice management / dispatch</text>
+<text text-anchor="start" x="1352.62" y="-2653.11" font-family="Helvetica,sans-Serif" font-size="10.00">━▶</text>
+<text text-anchor="start" x="1379.23" y="-2653.11" font-family="Helvetica,sans-Serif" font-size="10.00">Audio flow</text>
+<text text-anchor="start" x="1350.68" y="-2633.11" font-family="Helvetica,sans-Serif" font-size="10.00">&#45; &#45; ▶</text>
+<text text-anchor="start" x="1379.23" y="-2633.11" font-family="Helvetica,sans-Serif" font-size="10.00">Control / parameter data</text>
+</g>
+<!-- midi_in -->
+<g id="node2" class="node">
+<title>midi_in</title>
+<polygon fill="#ccddee" stroke="black" points="3344.88,-2718 3242,-2744.57 3139.12,-2718 3139.21,-2675 3344.79,-2675 3344.88,-2718"/>
+<text text-anchor="middle" x="3242" y="-2715.11" font-family="Helvetica,sans-Serif" font-size="10.00">MIDI Input</text>
+<text text-anchor="middle" x="3242" y="-2703.11" font-family="Helvetica,sans-Serif" font-size="10.00">(Notes 36&#45;67, Velocity)</text>
+<text text-anchor="middle" x="3242" y="-2691.11" font-family="Helvetica,sans-Serif" font-size="10.00">Maps to 4x8 pad grid</text>
+</g>
+<!-- note_dispatch -->
+<g id="node7" class="node">
+<title>note_dispatch</title>
+<polygon fill="#f5d090" stroke="black" points="3304.47,-2483.31 3179.53,-2483.31 3179.53,-2427.31 3304.47,-2427.31 3304.47,-2483.31"/>
+<text text-anchor="middle" x="3242" y="-2470.31" font-family="Helvetica,sans-Serif" font-size="10.00">Note Dispatch</text>
+<text text-anchor="middle" x="3242" y="-2458.31" font-family="Helvetica,sans-Serif" font-size="10.00">MIDI 36&#45;67 &#45;&gt; pad index</text>
+<text text-anchor="middle" x="3242" y="-2446.31" font-family="Helvetica,sans-Serif" font-size="10.00">Early&#45;exit if pad disabled</text>
+<text text-anchor="middle" x="3242" y="-2434.31" font-family="Helvetica,sans-Serif" font-size="10.00">(Phase 8F short&#45;circuit)</text>
+</g>
+<!-- midi_in&#45;&gt;note_dispatch -->
+<g id="edge8" class="edge">
+<title>midi_in&#45;&gt;note_dispatch</title>
+<path fill="none" stroke="black" stroke-width="2" d="M3242,-2674.61C3242,-2629.8 3242,-2546.13 3242,-2496.4"/>
+<polygon fill="black" stroke="black" stroke-width="2" points="3245.5,-2496.66 3242,-2486.66 3238.5,-2496.66 3245.5,-2496.66"/>
+<text text-anchor="middle" x="3260.9" y="-2534.91" font-family="Helvetica,sans-Serif" font-size="8.00">note on/off</text>
+<text text-anchor="middle" x="3260.9" y="-2525.31" font-family="Helvetica,sans-Serif" font-size="8.00">velocity</text>
+</g>
+<!-- host_params -->
+<g id="node3" class="node">
+<title>host_params</title>
+<polygon fill="#ccddee" stroke="black" points="3121.11,-2721.24 3000,-2755.06 2878.89,-2721.24 2879,-2666.52 3121,-2666.52 3121.11,-2721.24"/>
+<text text-anchor="middle" x="3000" y="-2721.11" font-family="Helvetica,sans-Serif" font-size="10.00">Host Parameters</text>
+<text text-anchor="middle" x="3000" y="-2709.11" font-family="Helvetica,sans-Serif" font-size="10.00">Globals + 32 x per&#45;pad sets</text>
+<text text-anchor="middle" x="3000" y="-2697.11" font-family="Helvetica,sans-Serif" font-size="10.00">+ 5 x per&#45;pad macros</text>
+<text text-anchor="middle" x="3000" y="-2685.11" font-family="Helvetica,sans-Serif" font-size="10.00">Lock&#45;free atomic store</text>
+</g>
+<!-- param_changes -->
+<g id="node4" class="node">
+<title>param_changes</title>
+<polygon fill="#a8dca8" stroke="black" points="3068.86,-2483.31 2931.14,-2483.31 2931.14,-2427.31 3068.86,-2427.31 3068.86,-2483.31"/>
+<text text-anchor="middle" x="3000" y="-2470.31" font-family="Helvetica,sans-Serif" font-size="10.00">processParameterChanges</text>
+<text text-anchor="middle" x="3000" y="-2458.31" font-family="Helvetica,sans-Serif" font-size="10.00">Denormalise &amp; dispatch</text>
+<text text-anchor="middle" x="3000" y="-2446.31" font-family="Helvetica,sans-Serif" font-size="10.00">Global proxies fan out</text>
+<text text-anchor="middle" x="3000" y="-2434.31" font-family="Helvetica,sans-Serif" font-size="10.00">to all 32 pads</text>
+</g>
+<!-- host_params&#45;&gt;param_changes -->
+<g id="edge4" class="edge">
+<title>host_params&#45;&gt;param_changes</title>
+<path fill="none" stroke="black" stroke-dasharray="5,2" d="M3000,-2666.24C3000,-2619.6 3000,-2541.86 3000,-2495.21"/>
+<polygon fill="black" stroke="black" points="3003.5,-2495.29 3000,-2485.29 2996.5,-2495.29 3003.5,-2495.29"/>
+<text text-anchor="middle" x="3011.78" y="-2534.91" font-family="Helvetica,sans-Serif" font-size="8.00">atomic</text>
+<text text-anchor="middle" x="3011.78" y="-2525.31" font-family="Helvetica,sans-Serif" font-size="8.00">reads</text>
+</g>
+<!-- macro_mapper -->
+<g id="node5" class="node">
+<title>macro_mapper</title>
+<polygon fill="#a8dca8" stroke="black" points="3078.98,-2372.11 2929.02,-2372.11 2929.02,-2256.11 3078.98,-2256.11 3078.98,-2372.11"/>
+<text text-anchor="middle" x="3004" y="-2359.11" font-family="Helvetica,sans-Serif" font-size="10.00">MacroMapper</text>
+<text text-anchor="middle" x="3004" y="-2347.11" font-family="Helvetica,sans-Serif" font-size="10.00">5 macros per pad:</text>
+<text text-anchor="middle" x="3004" y="-2335.11" font-family="Helvetica,sans-Serif" font-size="10.00">Tightness, Brightness,</text>
+<text text-anchor="middle" x="3004" y="-2323.11" font-family="Helvetica,sans-Serif" font-size="10.00">Body Size, Punch, Complexity</text>
+<text text-anchor="middle" x="3004" y="-2299.11" font-family="Helvetica,sans-Serif" font-size="10.00">Incremental delta application:</text>
+<text text-anchor="middle" x="3004" y="-2287.11" font-family="Helvetica,sans-Serif" font-size="10.00">(linDelta(new) &#45; linDelta(old))</text>
+<text text-anchor="middle" x="3004" y="-2275.11" font-family="Helvetica,sans-Serif" font-size="10.00">onto cfg.field directly</text>
+<text text-anchor="middle" x="3004" y="-2263.11" font-family="Helvetica,sans-Serif" font-size="10.00">(neutral macros = no&#45;op)</text>
+</g>
+<!-- param_changes&#45;&gt;macro_mapper -->
+<g id="edge1" class="edge">
+<title>param_changes&#45;&gt;macro_mapper</title>
+<path fill="none" stroke="#2a6030" stroke-dasharray="5,2" d="M3000.78,-2427.15C3001.14,-2414.6 3001.59,-2399.09 3002.03,-2383.64"/>
+<polygon fill="#2a6030" stroke="#2a6030" points="3005.52,-2384.06 3002.31,-2373.97 2998.52,-2383.86 3005.52,-2384.06"/>
+<text text-anchor="middle" x="3016.88" y="-2402.11" font-family="Helvetica,sans-Serif" font-size="8.00">macro</text>
+<text text-anchor="middle" x="3016.88" y="-2392.51" font-family="Helvetica,sans-Serif" font-size="8.00">changes</text>
+</g>
+<!-- pad_configs -->
+<g id="node6" class="node">
+<title>pad_configs</title>
+<polygon fill="#a8dca8" stroke="black" points="3023.68,-2130.91 2892.32,-2130.91 2892.32,-2062.91 3023.68,-2062.91 3023.68,-2130.91"/>
+<text text-anchor="middle" x="2958" y="-2117.91" font-family="Helvetica,sans-Serif" font-size="10.00">32 PadConfig snapshots</text>
+<text text-anchor="middle" x="2958" y="-2105.91" font-family="Helvetica,sans-Serif" font-size="10.00">+ enabled flag (Phase 8F)</text>
+<text text-anchor="middle" x="2958" y="-2093.91" font-family="Helvetica,sans-Serif" font-size="10.00">+ chokeGroup (0&#45;8)</text>
+<text text-anchor="middle" x="2958" y="-2081.91" font-family="Helvetica,sans-Serif" font-size="10.00">+ outputBus (0&#45;15)</text>
+<text text-anchor="middle" x="2958" y="-2069.91" font-family="Helvetica,sans-Serif" font-size="10.00">+ couplingAmount (0&#45;1)</text>
+</g>
+<!-- param_changes&#45;&gt;pad_configs -->
+<g id="edge2" class="edge">
+<title>param_changes&#45;&gt;pad_configs</title>
+<path fill="none" stroke="#2a6030" stroke-dasharray="5,2" d="M2932.95,-2426.84C2910.08,-2413.84 2887.06,-2395.86 2874.21,-2372.11 2832.89,-2295.76 2886.77,-2196.17 2925.3,-2140.45"/>
+<polygon fill="#2a6030" stroke="#2a6030" points="2928.03,-2142.66 2930.94,-2132.47 2922.31,-2138.62 2928.03,-2142.66"/>
+<text text-anchor="middle" x="2897.11" y="-2316.51" font-family="Helvetica,sans-Serif" font-size="8.00">direct</text>
+<text text-anchor="middle" x="2897.11" y="-2306.91" font-family="Helvetica,sans-Serif" font-size="8.00">param writes</text>
+</g>
+<!-- macro_mapper&#45;&gt;pad_configs -->
+<g id="edge3" class="edge">
+<title>macro_mapper&#45;&gt;pad_configs</title>
+<path fill="none" stroke="#2a6030" stroke-dasharray="5,2" d="M2991.73,-2255.73C2984.14,-2220.2 2974.53,-2175.25 2967.51,-2142.42"/>
+<polygon fill="#2a6030" stroke="#2a6030" points="2970.98,-2141.88 2965.46,-2132.83 2964.13,-2143.34 2970.98,-2141.88"/>
+<text text-anchor="middle" x="3008.48" y="-2230.91" font-family="Helvetica,sans-Serif" font-size="8.00">incremental</text>
+<text text-anchor="middle" x="3008.48" y="-2221.31" font-family="Helvetica,sans-Serif" font-size="8.00">delta</text>
+</g>
+<!-- slot_alloc -->
+<g id="node10" class="node">
+<title>slot_alloc</title>
+<polygon fill="#f5d090" stroke="black" points="3312.82,-1937.71 3171.18,-1937.71 3171.18,-1869.71 3312.82,-1869.71 3312.82,-1937.71"/>
+<text text-anchor="middle" x="3242" y="-1924.71" font-family="Helvetica,sans-Serif" font-size="10.00">Slot Allocator</text>
+<text text-anchor="middle" x="3242" y="-1912.71" font-family="Helvetica,sans-Serif" font-size="10.00">Up to maxPolyphony (4&#45;16)</text>
+<text text-anchor="middle" x="3242" y="-1900.71" font-family="Helvetica,sans-Serif" font-size="10.00">Idle slots = zero CPU</text>
+<text text-anchor="middle" x="3242" y="-1888.71" font-family="Helvetica,sans-Serif" font-size="10.00">Applies PadConfig snapshot</text>
+<text text-anchor="middle" x="3242" y="-1876.71" font-family="Helvetica,sans-Serif" font-size="10.00">to voice on note&#45;on</text>
+</g>
+<!-- pad_configs&#45;&gt;slot_alloc -->
+<g id="edge9" class="edge">
+<title>pad_configs&#45;&gt;slot_alloc</title>
+<path fill="none" stroke="#2a6030" stroke-dasharray="5,2" d="M3000.05,-2062.5C3026.74,-2041.75 3062.29,-2014.93 3095,-1992.91 3120.06,-1976.04 3148.37,-1958.68 3173.4,-1943.87"/>
+<polygon fill="#2a6030" stroke="#2a6030" points="3175.03,-1946.97 3181.88,-1938.88 3171.48,-1940.94 3175.03,-1946.97"/>
+<text text-anchor="middle" x="3169.77" y="-1967.71" font-family="Helvetica,sans-Serif" font-size="8.00">snapshot</text>
+<text text-anchor="middle" x="3169.77" y="-1958.11" font-family="Helvetica,sans-Serif" font-size="8.00">on note&#45;on</text>
+</g>
+<!-- coupling_matrix -->
+<g id="node45" class="node">
+<title>coupling_matrix</title>
+<polygon fill="#e88aaa" stroke="black" points="392.97,-1822.11 233.03,-1822.11 233.03,-1742.11 392.97,-1742.11 392.97,-1822.11"/>
+<text text-anchor="middle" x="313" y="-1809.11" font-family="Helvetica,sans-Serif" font-size="10.00">CouplingMatrix</text>
+<text text-anchor="middle" x="313" y="-1797.11" font-family="Helvetica,sans-Serif" font-size="10.00">Global coupling amount</text>
+<text text-anchor="middle" x="313" y="-1785.11" font-family="Helvetica,sans-Serif" font-size="10.00">+ Snare Buzz (kicks&#45;&gt;snare)</text>
+<text text-anchor="middle" x="313" y="-1773.11" font-family="Helvetica,sans-Serif" font-size="10.00">+ Tom Resonance (toms&#45;&gt;toms)</text>
+<text text-anchor="middle" x="313" y="-1761.11" font-family="Helvetica,sans-Serif" font-size="10.00">+ per&#45;pad couplingAmount</text>
+<text text-anchor="middle" x="313" y="-1749.11" font-family="Helvetica,sans-Serif" font-size="10.00">&#45;&gt; effectiveGain[src][dst]</text>
+</g>
+<!-- pad_configs&#45;&gt;coupling_matrix -->
+<g id="edge51" class="edge">
+<title>pad_configs&#45;&gt;coupling_matrix</title>
+<path fill="none" stroke="#2a6030" stroke-dasharray="5,2" d="M2891.96,-2088.1C2533.46,-2045.71 821.9,-1843.3 404.8,-1793.97"/>
+<polygon fill="#2a6030" stroke="#2a6030" points="405.27,-1790.5 394.93,-1792.8 404.45,-1797.45 405.27,-1790.5"/>
+<text text-anchor="middle" x="1945.65" y="-1967.71" font-family="Helvetica,sans-Serif" font-size="8.00">couplingAmount</text>
+<text text-anchor="middle" x="1945.65" y="-1958.11" font-family="Helvetica,sans-Serif" font-size="8.00">per pad</text>
+</g>
+<!-- choke -->
+<g id="node8" class="node">
+<title>choke</title>
+<polygon fill="#f5d090" stroke="black" points="3312.27,-2348.11 3171.73,-2348.11 3171.73,-2280.11 3312.27,-2280.11 3312.27,-2348.11"/>
+<text text-anchor="middle" x="3242" y="-2335.11" font-family="Helvetica,sans-Serif" font-size="10.00">Choke Group Table</text>
+<text text-anchor="middle" x="3242" y="-2323.11" font-family="Helvetica,sans-Serif" font-size="10.00">8 groups (+ group 0 = none)</text>
+<text text-anchor="middle" x="3242" y="-2311.11" font-family="Helvetica,sans-Serif" font-size="10.00">SoundFont 2.04 Excl Class</text>
+<text text-anchor="middle" x="3242" y="-2299.11" font-family="Helvetica,sans-Serif" font-size="10.00">Fast&#45;release on note&#45;on</text>
+<text text-anchor="middle" x="3242" y="-2287.11" font-family="Helvetica,sans-Serif" font-size="10.00">for same&#45;group voices</text>
+</g>
+<!-- note_dispatch&#45;&gt;choke -->
+<g id="edge5" class="edge">
+<title>note_dispatch&#45;&gt;choke</title>
+<path fill="none" stroke="#804010" stroke-width="2" d="M3242,-2427.15C3242,-2408.54 3242,-2383.39 3242,-2361.63"/>
+<polygon fill="#804010" stroke="#804010" stroke-width="2" points="3245.5,-2361.64 3242,-2351.64 3238.5,-2361.64 3245.5,-2361.64"/>
+</g>
+<!-- steal -->
+<g id="node9" class="node">
+<title>steal</title>
+<polygon fill="#e8b050" stroke="black" points="3242,-2200.91 3106.5,-2096.91 3242,-1992.91 3377.5,-2096.91 3242,-2200.91"/>
+<text text-anchor="middle" x="3242" y="-2135.91" font-family="Helvetica,sans-Serif" font-size="10.00">Voice Stealing</text>
+<text text-anchor="middle" x="3242" y="-2123.91" font-family="Helvetica,sans-Serif" font-size="10.00">3 policies:</text>
+<text text-anchor="middle" x="3242" y="-2111.91" font-family="Helvetica,sans-Serif" font-size="10.00"> &#160;Oldest (allocator&#45;driven)</text>
+<text text-anchor="middle" x="3242" y="-2099.91" font-family="Helvetica,sans-Serif" font-size="10.00"> &#160;Quietest (amplitude scan)</text>
+<text text-anchor="middle" x="3242" y="-2087.91" font-family="Helvetica,sans-Serif" font-size="10.00"> &#160;Priority (highest pitch)</text>
+<text text-anchor="middle" x="3242" y="-2075.91" font-family="Helvetica,sans-Serif" font-size="10.00">5 ms exp fast&#45;release</text>
+<text text-anchor="middle" x="3242" y="-2063.91" font-family="Helvetica,sans-Serif" font-size="10.00">on stolen victim</text>
+<text text-anchor="middle" x="3242" y="-2051.91" font-family="Helvetica,sans-Serif" font-size="10.00">(click peak ≤ &#45;30 dBFS)</text>
+</g>
+<!-- choke&#45;&gt;steal -->
+<g id="edge6" class="edge">
+<title>choke&#45;&gt;steal</title>
+<path fill="none" stroke="#804010" stroke-width="2" d="M3242,-2279.96C3242,-2261.97 3242,-2238.54 3242,-2214.5"/>
+<polygon fill="#804010" stroke="#804010" stroke-width="2" points="3245.5,-2214.54 3242,-2204.54 3238.5,-2214.54 3245.5,-2214.54"/>
+</g>
+<!-- steal&#45;&gt;slot_alloc -->
+<g id="edge7" class="edge">
+<title>steal&#45;&gt;slot_alloc</title>
+<path fill="none" stroke="#804010" stroke-width="2" d="M3242,-1992.48C3242,-1977.85 3242,-1963.47 3242,-1950.72"/>
+<polygon fill="#804010" stroke="#804010" stroke-width="2" points="3245.5,-1951.1 3242,-1941.1 3238.5,-1951.1 3245.5,-1951.1"/>
+</g>
+<!-- exciter_switch -->
+<g id="node11" class="node">
+<title>exciter_switch</title>
+<polygon fill="#e8d080" stroke="black" points="910,-1670.91 780.05,-1614.91 910,-1558.91 1039.95,-1614.91 910,-1670.91"/>
+<text text-anchor="middle" x="910" y="-1629.91" font-family="Helvetica,sans-Serif" font-size="10.00">Exciter Type</text>
+<text text-anchor="middle" x="910" y="-1617.91" font-family="Helvetica,sans-Serif" font-size="10.00">Tagged&#45;union dispatch</text>
+<text text-anchor="middle" x="910" y="-1605.91" font-family="Helvetica,sans-Serif" font-size="10.00">(no virtual calls,</text>
+<text text-anchor="middle" x="910" y="-1593.91" font-family="Helvetica,sans-Serif" font-size="10.00">no per&#45;sample branching)</text>
+</g>
+<!-- slot_alloc&#45;&gt;exciter_switch -->
+<g id="edge42" class="edge">
+<title>slot_alloc&#45;&gt;exciter_switch</title>
+<path fill="none" stroke="#804010" stroke-width="2" d="M3170.93,-1893.97C2838.12,-1853.04 1432.6,-1680.19 1022.66,-1629.77"/>
+<polygon fill="#804010" stroke="#804010" stroke-width="2" points="1023.31,-1626.32 1012.96,-1628.58 1022.46,-1633.27 1023.31,-1626.32"/>
+<text text-anchor="middle" x="2840.58" y="-1784.51" font-family="Helvetica,sans-Serif" font-size="8.00">trigger</text>
+<text text-anchor="middle" x="2840.58" y="-1774.91" font-family="Helvetica,sans-Serif" font-size="8.00">+ velocity</text>
+</g>
+<!-- noise_layer -->
+<g id="node29" class="node">
+<title>noise_layer</title>
+<polygon fill="#c49ee0" stroke="black" points="3305.17,-1519.31 3178.83,-1519.31 3178.83,-1451.31 3305.17,-1451.31 3305.17,-1519.31"/>
+<text text-anchor="middle" x="3242" y="-1506.31" font-family="Helvetica,sans-Serif" font-size="10.00">Noise Layer</text>
+<text text-anchor="middle" x="3242" y="-1494.31" font-family="Helvetica,sans-Serif" font-size="10.00">Always&#45;on filtered noise</text>
+<text text-anchor="middle" x="3242" y="-1482.31" font-family="Helvetica,sans-Serif" font-size="10.00">SVF lowpass + envelope</text>
+<text text-anchor="middle" x="3242" y="-1470.31" font-family="Helvetica,sans-Serif" font-size="10.00">Mix, cutoff, resonance,</text>
+<text text-anchor="middle" x="3242" y="-1458.31" font-family="Helvetica,sans-Serif" font-size="10.00">color, decay</text>
+</g>
+<!-- slot_alloc&#45;&gt;noise_layer -->
+<g id="edge43" class="edge">
+<title>slot_alloc&#45;&gt;noise_layer</title>
+<path fill="none" stroke="#804010" stroke-width="2" d="M3242,-1869.34C3242,-1795.32 3242,-1617.24 3242,-1532.56"/>
+<polygon fill="#804010" stroke="#804010" stroke-width="2" points="3245.5,-1532.58 3242,-1522.58 3238.5,-1532.58 3245.5,-1532.58"/>
+<text text-anchor="middle" x="3253.34" y="-1779.71" font-family="Helvetica,sans-Serif" font-size="8.00">trigger</text>
+</g>
+<!-- click_layer -->
+<g id="node30" class="node">
+<title>click_layer</title>
+<polygon fill="#c49ee0" stroke="black" points="3307.58,-1329.71 3170.42,-1329.71 3170.42,-1273.71 3307.58,-1273.71 3307.58,-1329.71"/>
+<text text-anchor="middle" x="3239" y="-1316.71" font-family="Helvetica,sans-Serif" font-size="10.00">Click Layer</text>
+<text text-anchor="middle" x="3239" y="-1304.71" font-family="Helvetica,sans-Serif" font-size="10.00">2&#45;5 ms raised&#45;cosine</text>
+<text text-anchor="middle" x="3239" y="-1292.71" font-family="Helvetica,sans-Serif" font-size="10.00">filtered&#45;noise burst</text>
+<text text-anchor="middle" x="3239" y="-1280.71" font-family="Helvetica,sans-Serif" font-size="10.00">Mix, contact ms, brightness</text>
+</g>
+<!-- slot_alloc&#45;&gt;click_layer -->
+<g id="edge44" class="edge">
+<title>slot_alloc&#45;&gt;click_layer</title>
+<path fill="none" stroke="#804010" stroke-width="2" d="M3262.49,-1869.47C3265.01,-1864.33 3267.3,-1858.98 3269,-1853.71 3324.23,-1682.82 3343.75,-1626.9 3306,-1451.31 3297.53,-1411.92 3277.76,-1370.38 3261.87,-1341.27"/>
+<polygon fill="#804010" stroke="#804010" stroke-width="2" points="3264.98,-1339.65 3257.04,-1332.62 3258.86,-1343.06 3264.98,-1339.65"/>
+<text text-anchor="middle" x="3336.86" y="-1612.51" font-family="Helvetica,sans-Serif" font-size="8.00">trigger</text>
+</g>
+<!-- amp_env -->
+<g id="node41" class="node">
+<title>amp_env</title>
+<polygon fill="#6aabea" stroke="black" points="3168.58,-721.31 3021.42,-721.31 3021.42,-665.31 3168.58,-665.31 3168.58,-721.31"/>
+<text text-anchor="middle" x="3095" y="-708.31" font-family="Helvetica,sans-Serif" font-size="10.00">Amp Envelope</text>
+<text text-anchor="middle" x="3095" y="-696.31" font-family="Helvetica,sans-Serif" font-size="10.00">ADSR with hold&#45;during&#45;gate</text>
+<text text-anchor="middle" x="3095" y="-684.31" font-family="Helvetica,sans-Serif" font-size="10.00">Decoupled from voice lifetime</text>
+<text text-anchor="middle" x="3095" y="-672.31" font-family="Helvetica,sans-Serif" font-size="10.00">so retrigger doesn&#39;t cut tail</text>
+</g>
+<!-- slot_alloc&#45;&gt;amp_env -->
+<g id="edge45" class="edge">
+<title>slot_alloc&#45;&gt;amp_env</title>
+<path fill="none" stroke="#804010" stroke-width="2" d="M3286,-1869.43C3291.09,-1864.5 3295.91,-1859.21 3300,-1853.71 3365.85,-1765.23 3371,-1726.21 3371,-1615.91 3371,-1615.91 3371,-1615.91 3371,-779.31 3371,-739.1 3262.62,-715.91 3181.69,-704.2"/>
+<polygon fill="#804010" stroke="#804010" stroke-width="2" points="3182.35,-700.75 3171.96,-702.83 3181.38,-707.69 3182.35,-700.75"/>
+<text text-anchor="middle" x="3378.79" y="-1055.11" font-family="Helvetica,sans-Serif" font-size="8.00">gate</text>
+</g>
+<!-- ex_impulse -->
+<g id="node12" class="node">
+<title>ex_impulse</title>
+<polygon fill="#e8d080" stroke="black" points="915.47,-1401.71 800.53,-1401.71 800.53,-1357.71 915.47,-1357.71 915.47,-1401.71"/>
+<text text-anchor="middle" x="858" y="-1388.71" font-family="Helvetica,sans-Serif" font-size="10.00">Impulse</text>
+<text text-anchor="middle" x="858" y="-1376.71" font-family="Helvetica,sans-Serif" font-size="10.00">Velocity&#45;scaled</text>
+<text text-anchor="middle" x="858" y="-1364.71" font-family="Helvetica,sans-Serif" font-size="10.00">single&#45;sample impulse</text>
+</g>
+<!-- exciter_switch&#45;&gt;ex_impulse -->
+<g id="edge10" class="edge">
+<title>exciter_switch&#45;&gt;ex_impulse</title>
+<path fill="none" stroke="black" stroke-dasharray="5,2" d="M898.72,-1563.31C888.57,-1517.79 873.95,-1452.25 865.27,-1413.32"/>
+<polygon fill="black" stroke="black" points="868.7,-1412.63 863.11,-1403.63 861.87,-1414.15 868.7,-1412.63"/>
+</g>
+<!-- ex_mallet -->
+<g id="node13" class="node">
+<title>ex_mallet</title>
+<polygon fill="#e8d080" stroke="black" points="1050.16,-1401.71 933.84,-1401.71 933.84,-1357.71 1050.16,-1357.71 1050.16,-1401.71"/>
+<text text-anchor="middle" x="992" y="-1388.71" font-family="Helvetica,sans-Serif" font-size="10.00">Mallet</text>
+<text text-anchor="middle" x="992" y="-1376.71" font-family="Helvetica,sans-Serif" font-size="10.00">Raised&#45;cosine contact</text>
+<text text-anchor="middle" x="992" y="-1364.71" font-family="Helvetica,sans-Serif" font-size="10.00">Velocity = contact time</text>
+</g>
+<!-- exciter_switch&#45;&gt;ex_mallet -->
+<g id="edge11" class="edge">
+<title>exciter_switch&#45;&gt;ex_mallet</title>
+<path fill="none" stroke="black" stroke-dasharray="5,2" d="M926.89,-1565.88C943.01,-1520.03 966.85,-1452.25 980.76,-1412.67"/>
+<polygon fill="black" stroke="black" points="983.98,-1414.08 983.99,-1403.49 977.37,-1411.76 983.98,-1414.08"/>
+</g>
+<!-- ex_noise -->
+<g id="node14" class="node">
+<title>ex_noise</title>
+<polygon fill="#e8d080" stroke="black" points="1170.08,-1401.71 1067.92,-1401.71 1067.92,-1357.71 1170.08,-1357.71 1170.08,-1401.71"/>
+<text text-anchor="middle" x="1119" y="-1388.71" font-family="Helvetica,sans-Serif" font-size="10.00">Noise Burst</text>
+<text text-anchor="middle" x="1119" y="-1376.71" font-family="Helvetica,sans-Serif" font-size="10.00">Filtered&#45;noise burst</text>
+<text text-anchor="middle" x="1119" y="-1364.71" font-family="Helvetica,sans-Serif" font-size="10.00">Duration parameter</text>
+</g>
+<!-- exciter_switch&#45;&gt;ex_noise -->
+<g id="edge12" class="edge">
+<title>exciter_switch&#45;&gt;ex_noise</title>
+<path fill="none" stroke="black" stroke-dasharray="5,2" d="M945.69,-1574.09C987.27,-1527.7 1055.01,-1452.11 1092.3,-1410.51"/>
+<polygon fill="black" stroke="black" points="1094.69,-1413.08 1098.76,-1403.3 1089.48,-1408.41 1094.69,-1413.08"/>
+</g>
+<!-- ex_friction -->
+<g id="node15" class="node">
+<title>ex_friction</title>
+<polygon fill="#e8d080" stroke="black" points="562.58,-1401.71 445.42,-1401.71 445.42,-1357.71 562.58,-1357.71 562.58,-1401.71"/>
+<text text-anchor="middle" x="504" y="-1388.71" font-family="Helvetica,sans-Serif" font-size="10.00">Friction</text>
+<text text-anchor="middle" x="504" y="-1376.71" font-family="Helvetica,sans-Serif" font-size="10.00">Bowed/scraped exciter</text>
+<text text-anchor="middle" x="504" y="-1364.71" font-family="Helvetica,sans-Serif" font-size="10.00">Pressure parameter</text>
+</g>
+<!-- exciter_switch&#45;&gt;ex_friction -->
+<g id="edge13" class="edge">
+<title>exciter_switch&#45;&gt;ex_friction</title>
+<path fill="none" stroke="black" stroke-dasharray="5,2" d="M817.12,-1598.44C774.94,-1588.82 725.54,-1573.79 685,-1550.91 619.79,-1514.11 559.8,-1448.97 527.93,-1410.83"/>
+<polygon fill="black" stroke="black" points="530.84,-1408.87 521.78,-1403.38 525.44,-1413.32 530.84,-1408.87"/>
+</g>
+<!-- ex_fm -->
+<g id="node16" class="node">
+<title>ex_fm</title>
+<polygon fill="#e8d080" stroke="black" points="671.51,-1401.71 580.49,-1401.71 580.49,-1357.71 671.51,-1357.71 671.51,-1401.71"/>
+<text text-anchor="middle" x="626" y="-1388.71" font-family="Helvetica,sans-Serif" font-size="10.00">FM Impulse</text>
+<text text-anchor="middle" x="626" y="-1376.71" font-family="Helvetica,sans-Serif" font-size="10.00">2&#45;op FM impulse</text>
+<text text-anchor="middle" x="626" y="-1364.71" font-family="Helvetica,sans-Serif" font-size="10.00">Carrier:mod ratio</text>
+</g>
+<!-- exciter_switch&#45;&gt;ex_fm -->
+<g id="edge14" class="edge">
+<title>exciter_switch&#45;&gt;ex_fm</title>
+<path fill="none" stroke="black" stroke-dasharray="5,2" d="M846.67,-1585.91C827.1,-1576.04 805.98,-1564.09 788,-1550.91 733.6,-1511.05 727.06,-1492.58 681,-1443.31 671.2,-1432.83 660.73,-1421.07 651.59,-1410.6"/>
+<polygon fill="black" stroke="black" points="654.46,-1408.56 645.26,-1403.3 649.17,-1413.15 654.46,-1408.56"/>
+</g>
+<!-- ex_feedback -->
+<g id="node17" class="node">
+<title>ex_feedback</title>
+<polygon fill="#e8d080" stroke="black" points="782.08,-1401.71 689.92,-1401.71 689.92,-1357.71 782.08,-1357.71 782.08,-1401.71"/>
+<text text-anchor="middle" x="736" y="-1388.71" font-family="Helvetica,sans-Serif" font-size="10.00">Feedback</text>
+<text text-anchor="middle" x="736" y="-1376.71" font-family="Helvetica,sans-Serif" font-size="10.00">Self&#45;exciting loop</text>
+<text text-anchor="middle" x="736" y="-1364.71" font-family="Helvetica,sans-Serif" font-size="10.00">Energy limiter</text>
+</g>
+<!-- exciter_switch&#45;&gt;ex_feedback -->
+<g id="edge15" class="edge">
+<title>exciter_switch&#45;&gt;ex_feedback</title>
+<path fill="none" stroke="black" stroke-dasharray="5,2" d="M878.69,-1571.95C844.11,-1525.6 789.27,-1452.1 758.62,-1411.03"/>
+<polygon fill="black" stroke="black" points="761.61,-1409.19 752.83,-1403.27 756,-1413.38 761.61,-1409.19"/>
+</g>
+<!-- body_switch -->
+<g id="node18" class="node">
+<title>body_switch</title>
+<polygon fill="#dbc878" stroke="black" points="1834,-1411.71 1716.26,-1379.71 1834,-1347.71 1951.74,-1379.71 1834,-1411.71"/>
+<text text-anchor="middle" x="1834" y="-1382.71" font-family="Helvetica,sans-Serif" font-size="10.00">Body Model</text>
+<text text-anchor="middle" x="1834" y="-1370.71" font-family="Helvetica,sans-Serif" font-size="10.00">Tagged&#45;union dispatch</text>
+</g>
+<!-- exciter_switch&#45;&gt;body_switch -->
+<g id="edge25" class="edge">
+<title>exciter_switch&#45;&gt;body_switch</title>
+<path fill="none" stroke="#8b6914" stroke-width="2" d="M991.19,-1593.42C1169.29,-1548.48 1591.88,-1441.82 1761.6,-1398.99"/>
+<polygon fill="#8b6914" stroke="#8b6914" stroke-width="2" points="1762.32,-1402.41 1771.16,-1396.57 1760.61,-1395.63 1762.32,-1402.41"/>
+<text text-anchor="middle" x="1564.59" y="-1487.71" font-family="Helvetica,sans-Serif" font-size="8.00">excitation</text>
+<text text-anchor="middle" x="1564.59" y="-1478.11" font-family="Helvetica,sans-Serif" font-size="8.00">+ body feedback</text>
+</g>
+<!-- membrane -->
+<g id="node19" class="node">
+<title>membrane</title>
+<polygon fill="#dbc878" stroke="black" points="1702.74,-1214.11 1597.26,-1214.11 1597.26,-1170.11 1702.74,-1170.11 1702.74,-1214.11"/>
+<text text-anchor="middle" x="1650" y="-1201.11" font-family="Helvetica,sans-Serif" font-size="10.00">Membrane</text>
+<text text-anchor="middle" x="1650" y="-1189.11" font-family="Helvetica,sans-Serif" font-size="10.00">48 Bessel modes</text>
+<text text-anchor="middle" x="1650" y="-1177.11" font-family="Helvetica,sans-Serif" font-size="10.00">(circular drum head)</text>
+</g>
+<!-- body_switch&#45;&gt;membrane -->
+<g id="edge16" class="edge">
+<title>body_switch&#45;&gt;membrane</title>
+<path fill="none" stroke="black" stroke-dasharray="5,2" d="M1808.76,-1354.42C1783.71,-1330.17 1744.33,-1291.74 1711,-1257.71 1699.9,-1246.39 1687.88,-1233.74 1677.47,-1222.66"/>
+<polygon fill="black" stroke="black" points="1680.29,-1220.55 1670.9,-1215.65 1675.18,-1225.34 1680.29,-1220.55"/>
+</g>
+<!-- plate -->
+<g id="node20" class="node">
+<title>plate</title>
+<polygon fill="#dbc878" stroke="black" points="1827.58,-1210.11 1720.42,-1210.11 1720.42,-1174.11 1827.58,-1174.11 1827.58,-1210.11"/>
+<text text-anchor="middle" x="1774" y="-1195.11" font-family="Helvetica,sans-Serif" font-size="10.00">Plate</text>
+<text text-anchor="middle" x="1774" y="-1183.11" font-family="Helvetica,sans-Serif" font-size="10.00">48 plate&#45;mode ratios</text>
+</g>
+<!-- body_switch&#45;&gt;plate -->
+<g id="edge17" class="edge">
+<title>body_switch&#45;&gt;plate</title>
+<path fill="none" stroke="black" stroke-dasharray="5,2" d="M1824.76,-1350.12C1813.45,-1315.13 1794.41,-1256.26 1783.15,-1221.41"/>
+<polygon fill="black" stroke="black" points="1786.52,-1220.45 1780.11,-1212.02 1779.86,-1222.61 1786.52,-1220.45"/>
+</g>
+<!-- shell -->
+<g id="node21" class="node">
+<title>shell</title>
+<polygon fill="#dbc878" stroke="black" points="1952.3,-1210.11 1845.7,-1210.11 1845.7,-1174.11 1952.3,-1174.11 1952.3,-1210.11"/>
+<text text-anchor="middle" x="1899" y="-1195.11" font-family="Helvetica,sans-Serif" font-size="10.00">Shell</text>
+<text text-anchor="middle" x="1899" y="-1183.11" font-family="Helvetica,sans-Serif" font-size="10.00">32 cylindrical modes</text>
+</g>
+<!-- body_switch&#45;&gt;shell -->
+<g id="edge18" class="edge">
+<title>body_switch&#45;&gt;shell</title>
+<path fill="none" stroke="black" stroke-dasharray="5,2" d="M1844.01,-1350.12C1856.27,-1315.13 1876.89,-1256.26 1889.09,-1221.41"/>
+<polygon fill="black" stroke="black" points="1892.38,-1222.6 1892.38,-1212 1885.78,-1220.29 1892.38,-1222.6"/>
+</g>
+<!-- string -->
+<g id="node22" class="node">
+<title>string</title>
+<polygon fill="#dbc878" stroke="black" points="1301.71,-1214.11 1194.29,-1214.11 1194.29,-1170.11 1301.71,-1170.11 1301.71,-1214.11"/>
+<text text-anchor="middle" x="1248" y="-1201.11" font-family="Helvetica,sans-Serif" font-size="10.00">String</text>
+<text text-anchor="middle" x="1248" y="-1189.11" font-family="Helvetica,sans-Serif" font-size="10.00">Waveguide model</text>
+<text text-anchor="middle" x="1248" y="-1177.11" font-family="Helvetica,sans-Serif" font-size="10.00">(stiffness + pick pos)</text>
+</g>
+<!-- body_switch&#45;&gt;string -->
+<g id="edge19" class="edge">
+<title>body_switch&#45;&gt;string</title>
+<path fill="none" stroke="black" stroke-dasharray="5,2" d="M1734.56,-1374.34C1658.14,-1368.91 1550.67,-1356.79 1460,-1329.71 1389.53,-1308.67 1370.69,-1300.69 1311,-1257.71 1297.19,-1247.77 1283.76,-1234.63 1272.87,-1222.8"/>
+<polygon fill="black" stroke="black" points="1275.7,-1220.73 1266.43,-1215.61 1270.49,-1225.4 1275.7,-1220.73"/>
+</g>
+<!-- bell -->
+<g id="node23" class="node">
+<title>bell</title>
+<polygon fill="#dbc878" stroke="black" points="1442.5,-1214.11 1319.5,-1214.11 1319.5,-1170.11 1442.5,-1170.11 1442.5,-1214.11"/>
+<text text-anchor="middle" x="1381" y="-1201.11" font-family="Helvetica,sans-Serif" font-size="10.00">Bell</text>
+<text text-anchor="middle" x="1381" y="-1189.11" font-family="Helvetica,sans-Serif" font-size="10.00">16 Chladni modes</text>
+<text text-anchor="middle" x="1381" y="-1177.11" font-family="Helvetica,sans-Serif" font-size="10.00">Metallic damping (b3=0)</text>
+</g>
+<!-- body_switch&#45;&gt;bell -->
+<g id="edge20" class="edge">
+<title>body_switch&#45;&gt;bell</title>
+<path fill="none" stroke="black" stroke-dasharray="5,2" d="M1757.36,-1368.09C1710.04,-1360.28 1648.55,-1347.83 1596,-1329.71 1527.98,-1306.27 1510.26,-1298.53 1451,-1257.71 1436.17,-1247.5 1421.29,-1234.29 1409.09,-1222.48"/>
+<polygon fill="black" stroke="black" points="1411.75,-1220.19 1402.18,-1215.65 1406.83,-1225.17 1411.75,-1220.19"/>
+</g>
+<!-- noise_body -->
+<g id="node24" class="node">
+<title>noise_body</title>
+<polygon fill="#dbc878" stroke="black" points="1579.57,-1214.11 1460.43,-1214.11 1460.43,-1170.11 1579.57,-1170.11 1579.57,-1214.11"/>
+<text text-anchor="middle" x="1520" y="-1201.11" font-family="Helvetica,sans-Serif" font-size="10.00">Noise Body</text>
+<text text-anchor="middle" x="1520" y="-1189.11" font-family="Helvetica,sans-Serif" font-size="10.00">40 modes + broadband</text>
+<text text-anchor="middle" x="1520" y="-1177.11" font-family="Helvetica,sans-Serif" font-size="10.00">(cymbal hash)</text>
+</g>
+<!-- body_switch&#45;&gt;noise_body -->
+<g id="edge21" class="edge">
+<title>body_switch&#45;&gt;noise_body</title>
+<path fill="none" stroke="black" stroke-dasharray="5,2" d="M1784.93,-1360.62C1733.13,-1340.18 1650.48,-1303.7 1588,-1257.71 1573.72,-1247.21 1559.29,-1233.95 1547.41,-1222.19"/>
+<polygon fill="black" stroke="black" points="1550.23,-1220.05 1540.7,-1215.41 1545.25,-1224.98 1550.23,-1220.05"/>
+</g>
+<!-- damping -->
+<g id="node25" class="node">
+<title>damping</title>
+<polygon fill="#e8c868" stroke="black" points="2118.36,-1220.11 1975.64,-1220.11 1975.64,-1164.11 2118.36,-1164.11 2118.36,-1220.11"/>
+<text text-anchor="middle" x="2047" y="-1207.11" font-family="Helvetica,sans-Serif" font-size="10.00">Per&#45;mode Damping (8A)</text>
+<text text-anchor="middle" x="2047" y="-1195.11" font-family="Helvetica,sans-Serif" font-size="10.00">R_k = b1 + b3 · f^2</text>
+<text text-anchor="middle" x="2047" y="-1183.11" font-family="Helvetica,sans-Serif" font-size="10.00">Chaigne&#45;Askenfelt 1993</text>
+<text text-anchor="middle" x="2047" y="-1171.11" font-family="Helvetica,sans-Serif" font-size="10.00">Metallic ring ↔ woody thump</text>
+</g>
+<!-- body_switch&#45;&gt;damping -->
+<g id="edge26" class="edge">
+<title>body_switch&#45;&gt;damping</title>
+<path fill="none" stroke="#8b6914" stroke-width="2" stroke-dasharray="5,2" d="M1861.41,-1354.83C1898.03,-1322.93 1963.21,-1266.12 2005.77,-1229.04"/>
+<polygon fill="#8b6914" stroke="#8b6914" stroke-width="2" points="2008.02,-1231.72 2013.26,-1222.51 2003.42,-1226.45 2008.02,-1231.72"/>
+<text text-anchor="middle" x="1982.03" y="-1304.11" font-family="Helvetica,sans-Serif" font-size="8.00">per&#45;mode</text>
+<text text-anchor="middle" x="1982.03" y="-1294.51" font-family="Helvetica,sans-Serif" font-size="8.00">R_k modifier</text>
+</g>
+<!-- air_load -->
+<g id="node26" class="node">
+<title>air_load</title>
+<polygon fill="#e8c868" stroke="black" points="2279.37,-1220.11 2136.63,-1220.11 2136.63,-1164.11 2279.37,-1164.11 2279.37,-1220.11"/>
+<text text-anchor="middle" x="2208" y="-1207.11" font-family="Helvetica,sans-Serif" font-size="10.00">Air Loading + Scatter (8C)</text>
+<text text-anchor="middle" x="2208" y="-1195.11" font-family="Helvetica,sans-Serif" font-size="10.00">Rossing&#45;tabulated low&#45;mode</text>
+<text text-anchor="middle" x="2208" y="-1183.11" font-family="Helvetica,sans-Serif" font-size="10.00">frequency depression</text>
+<text text-anchor="middle" x="2208" y="-1171.11" font-family="Helvetica,sans-Serif" font-size="10.00">+ sinusoidal mode dither</text>
+</g>
+<!-- body_switch&#45;&gt;air_load -->
+<g id="edge27" class="edge">
+<title>body_switch&#45;&gt;air_load</title>
+<path fill="none" stroke="#8b6914" stroke-width="2" stroke-dasharray="5,2" d="M1898.65,-1364.92C1932.05,-1356.7 1973.02,-1344.89 2008,-1329.71 2064.71,-1305.11 2076.29,-1293.06 2127,-1257.71 2139.91,-1248.72 2153.46,-1238.32 2165.7,-1228.54"/>
+<polygon fill="#8b6914" stroke="#8b6914" stroke-width="2" points="2167.7,-1231.42 2173.28,-1222.41 2163.3,-1225.98 2167.7,-1231.42"/>
+<text text-anchor="middle" x="2129.76" y="-1304.11" font-family="Helvetica,sans-Serif" font-size="8.00">freq</text>
+<text text-anchor="middle" x="2129.76" y="-1294.51" font-family="Helvetica,sans-Serif" font-size="8.00">modifier</text>
+</g>
+<!-- secondary -->
+<g id="node27" class="node">
+<title>secondary</title>
+<polygon fill="#e8c868" stroke="black" points="2598.99,-1226.11 2449.01,-1226.11 2449.01,-1158.11 2598.99,-1158.11 2598.99,-1226.11"/>
+<text text-anchor="middle" x="2524" y="-1213.11" font-family="Helvetica,sans-Serif" font-size="10.00">Secondary Modal Bank (8D)</text>
+<text text-anchor="middle" x="2524" y="-1201.11" font-family="Helvetica,sans-Serif" font-size="10.00">24 shell modes</text>
+<text text-anchor="middle" x="2524" y="-1189.11" font-family="Helvetica,sans-Serif" font-size="10.00">Bidirectional energy exchange</text>
+<text text-anchor="middle" x="2524" y="-1177.11" font-family="Helvetica,sans-Serif" font-size="10.00">with primary at block rate</text>
+<text text-anchor="middle" x="2524" y="-1165.11" font-family="Helvetica,sans-Serif" font-size="10.00">Stability&#45;clamped &lt; 0.25</text>
+</g>
+<!-- body_switch&#45;&gt;secondary -->
+<g id="edge28" class="edge">
+<title>body_switch&#45;&gt;secondary</title>
+<path fill="none" stroke="#8b6914" stroke-width="2" d="M1941.47,-1376.45C2110.98,-1371.98 2425.53,-1359.72 2467,-1329.71 2496.06,-1308.69 2510.37,-1269.99 2517.38,-1239.14"/>
+<polygon fill="#8b6914" stroke="#8b6914" stroke-width="2" points="2520.79,-1239.93 2519.36,-1229.44 2513.93,-1238.54 2520.79,-1239.93"/>
+<text text-anchor="middle" x="2522.13" y="-1304.11" font-family="Helvetica,sans-Serif" font-size="8.00">primary</text>
+<text text-anchor="middle" x="2522.13" y="-1294.51" font-family="Helvetica,sans-Serif" font-size="8.00">output</text>
+</g>
+<!-- tension -->
+<g id="node28" class="node">
+<title>tension</title>
+<polygon fill="#e8c868" stroke="black" points="2431.04,-1226.11 2296.96,-1226.11 2296.96,-1158.11 2431.04,-1158.11 2431.04,-1226.11"/>
+<text text-anchor="middle" x="2364" y="-1213.11" font-family="Helvetica,sans-Serif" font-size="10.00">Tension Modulation (8E)</text>
+<text text-anchor="middle" x="2364" y="-1201.11" font-family="Helvetica,sans-Serif" font-size="10.00">20 ms energy follower</text>
+<text text-anchor="middle" x="2364" y="-1189.11" font-family="Helvetica,sans-Serif" font-size="10.00">drives block&#45;rate</text>
+<text text-anchor="middle" x="2364" y="-1177.11" font-family="Helvetica,sans-Serif" font-size="10.00">frequency scale</text>
+<text text-anchor="middle" x="2364" y="-1165.11" font-family="Helvetica,sans-Serif" font-size="10.00">Depth scaled by velocity^2</text>
+</g>
+<!-- body_switch&#45;&gt;tension -->
+<g id="edge30" class="edge">
+<title>body_switch&#45;&gt;tension</title>
+<path fill="none" stroke="#8b6914" stroke-dasharray="5,2" d="M1925.81,-1372.18C1989.4,-1365.78 2075.34,-1353.38 2148,-1329.71 2214.53,-1308.04 2229.85,-1296.63 2288,-1257.71 2298.69,-1250.56 2309.57,-1242.13 2319.63,-1233.75"/>
+<polygon fill="#8b6914" stroke="#8b6914" points="2321.73,-1236.56 2327.08,-1227.42 2317.2,-1231.23 2321.73,-1236.56"/>
+<text text-anchor="middle" x="2288.6" y="-1304.11" font-family="Helvetica,sans-Serif" font-size="8.00">energy</text>
+<text text-anchor="middle" x="2288.6" y="-1294.51" font-family="Helvetica,sans-Serif" font-size="8.00">follower</text>
+</g>
+<!-- mode_inject -->
+<g id="node33" class="node">
+<title>mode_inject</title>
+<polygon fill="#9ccbea" stroke="black" points="2722.97,-1214.11 2623.03,-1214.11 2623.03,-1170.11 2722.97,-1170.11 2722.97,-1214.11"/>
+<text text-anchor="middle" x="2673" y="-1201.11" font-family="Helvetica,sans-Serif" font-size="10.00">Mode Inject</text>
+<text text-anchor="middle" x="2673" y="-1189.11" font-family="Helvetica,sans-Serif" font-size="10.00">Phase&#45;randomised</text>
+<text text-anchor="middle" x="2673" y="-1177.11" font-family="Helvetica,sans-Serif" font-size="10.00">injection bank</text>
+</g>
+<!-- body_switch&#45;&gt;mode_inject -->
+<g id="edge32" class="edge">
+<title>body_switch&#45;&gt;mode_inject</title>
+<path fill="none" stroke="#2a5080" stroke-width="2" d="M1938.04,-1375.5C2120.92,-1369.26 2485.79,-1353.95 2539,-1329.71 2588.43,-1307.2 2629.39,-1257.72 2652.53,-1224.9"/>
+<polygon fill="#2a5080" stroke="#2a5080" stroke-width="2" points="2655.19,-1227.2 2657.96,-1216.97 2649.42,-1223.24 2655.19,-1227.2"/>
+<text text-anchor="middle" x="2630.72" y="-1304.11" font-family="Helvetica,sans-Serif" font-size="8.00">modal</text>
+<text text-anchor="middle" x="2630.72" y="-1294.51" font-family="Helvetica,sans-Serif" font-size="8.00">output</text>
+</g>
+<!-- secondary&#45;&gt;body_switch -->
+<g id="edge29" class="edge">
+<title>secondary&#45;&gt;body_switch</title>
+<path fill="none" stroke="#8b6914" stroke-dasharray="5,2" d="M2480.38,-1226.49C2458.39,-1243.41 2435.34,-1261.31 2430.53,-1265.71 2401.87,-1291.94 2405.87,-1312.6 2371,-1329.71 2300.75,-1364.19 2093.25,-1374.54 1957.71,-1377.56"/>
+<polygon fill="#8b6914" stroke="#8b6914" points="1957.89,-1374.06 1947.97,-1377.77 1958.04,-1381.06 1957.89,-1374.06"/>
+<text text-anchor="middle" x="2446.77" y="-1304.11" font-family="Helvetica,sans-Serif" font-size="8.00">shell</text>
+<text text-anchor="middle" x="2446.77" y="-1294.51" font-family="Helvetica,sans-Serif" font-size="8.00">feedback</text>
+</g>
+<!-- tension&#45;&gt;body_switch -->
+<g id="edge31" class="edge">
+<title>tension&#45;&gt;body_switch</title>
+<path fill="none" stroke="#8b6914" stroke-dasharray="5,2" d="M2359.52,-1226.6C2353.34,-1258.57 2338.95,-1305.37 2306,-1329.71 2277.45,-1350.81 2073.4,-1365.71 1943.1,-1373.2"/>
+<polygon fill="#8b6914" stroke="#8b6914" points="1943.2,-1369.68 1933.42,-1373.75 1943.6,-1376.67 1943.2,-1369.68"/>
+<text text-anchor="middle" x="2357.34" y="-1304.11" font-family="Helvetica,sans-Serif" font-size="8.00">freq</text>
+<text text-anchor="middle" x="2357.34" y="-1294.51" font-family="Helvetica,sans-Serif" font-size="8.00">scale</text>
+</g>
+<!-- svf -->
+<g id="node40" class="node">
+<title>svf</title>
+<polygon fill="#7bafd4" stroke="black" points="3145.67,-802.31 3044.33,-802.31 3044.33,-758.31 3145.67,-758.31 3145.67,-802.31"/>
+<text text-anchor="middle" x="3095" y="-789.31" font-family="Helvetica,sans-Serif" font-size="10.00">SVF Filter</text>
+<text text-anchor="middle" x="3095" y="-777.31" font-family="Helvetica,sans-Serif" font-size="10.00">LP / HP / BP</text>
+<text text-anchor="middle" x="3095" y="-765.31" font-family="Helvetica,sans-Serif" font-size="10.00">+ 4&#45;stage envelope</text>
+</g>
+<!-- noise_layer&#45;&gt;svf -->
+<g id="edge39" class="edge">
+<title>noise_layer&#45;&gt;svf</title>
+<path fill="none" stroke="#6b3b9f" stroke-width="2" stroke-dasharray="5,2" d="M3280.95,-1451.01C3282.81,-1448.53 3284.52,-1445.96 3286,-1443.31 3311.16,-1398.36 3303.86,-1380.97 3309,-1329.71 3311.84,-1301.41 3309.49,-1294.16 3309,-1265.71 3308.11,-1214.31 3307.39,-1201.47 3305,-1150.11 3303.58,-1119.61 3297,-1043.46 3297,-1012.91 3297,-1012.91 3297,-1012.91 3297,-856.31 3297,-826.34 3217.85,-804.51 3158.65,-792.36"/>
+<polygon fill="#6b3b9f" stroke="#6b3b9f" stroke-width="2" points="3159.43,-788.95 3148.94,-790.44 3158.07,-795.82 3159.43,-788.95"/>
+<text text-anchor="middle" x="3312.37" y="-1059.91" font-family="Helvetica,sans-Serif" font-size="8.00">parallel</text>
+<text text-anchor="middle" x="3312.37" y="-1050.31" font-family="Helvetica,sans-Serif" font-size="8.00">add</text>
+</g>
+<!-- click_layer&#45;&gt;svf -->
+<g id="edge40" class="edge">
+<title>click_layer&#45;&gt;svf</title>
+<path fill="none" stroke="#6b3b9f" stroke-width="2" stroke-dasharray="5,2" d="M3231.27,-1273.4C3222.99,-1241.65 3211,-1187.52 3211,-1140.11 3211,-1140.11 3211,-1140.11 3211,-856.31 3211,-827.38 3185.24,-809.06 3157.99,-797.78"/>
+<polygon fill="#6b3b9f" stroke="#6b3b9f" stroke-width="2" points="3159.3,-794.53 3148.71,-794.29 3156.84,-801.08 3159.3,-794.53"/>
+<text text-anchor="middle" x="3223.9" y="-1014.31" font-family="Helvetica,sans-Serif" font-size="8.00">parallel</text>
+<text text-anchor="middle" x="3223.9" y="-1004.71" font-family="Helvetica,sans-Serif" font-size="8.00">add</text>
+</g>
+<!-- mode_stretch -->
+<g id="node31" class="node">
+<title>mode_stretch</title>
+<polygon fill="#9ccbea" stroke="black" points="2837.31,-1636.91 2730.69,-1636.91 2730.69,-1592.91 2837.31,-1592.91 2837.31,-1636.91"/>
+<text text-anchor="middle" x="2784" y="-1623.91" font-family="Helvetica,sans-Serif" font-size="10.00">Mode Stretch</text>
+<text text-anchor="middle" x="2784" y="-1611.91" font-family="Helvetica,sans-Serif" font-size="10.00">0.5 &#45; 2.0</text>
+<text text-anchor="middle" x="2784" y="-1599.91" font-family="Helvetica,sans-Serif" font-size="10.00">Inharmonic detuning</text>
+</g>
+<!-- mode_stretch&#45;&gt;body_switch -->
+<g id="edge37" class="edge">
+<title>mode_stretch&#45;&gt;body_switch</title>
+<path fill="none" stroke="#888888" stroke-dasharray="5,2" d="M2766.52,-1592.61C2755.2,-1580.45 2739.37,-1566.22 2722,-1558.91 2675.59,-1539.39 2657.46,-1564.57 2609,-1550.91 2516.47,-1524.85 2508.85,-1479.68 2417,-1451.31 2262.11,-1403.48 2074.73,-1387.83 1954.97,-1382.84"/>
+<polygon fill="#888888" stroke="#888888" points="1955.24,-1379.35 1945.11,-1382.45 1954.96,-1386.34 1955.24,-1379.35"/>
+</g>
+<!-- decay_skew -->
+<g id="node32" class="node">
+<title>decay_skew</title>
+<polygon fill="#9ccbea" stroke="black" points="2988.36,-1636.91 2855.64,-1636.91 2855.64,-1592.91 2988.36,-1592.91 2988.36,-1636.91"/>
+<text text-anchor="middle" x="2922" y="-1623.91" font-family="Helvetica,sans-Serif" font-size="10.00">Decay Skew</text>
+<text text-anchor="middle" x="2922" y="-1611.91" font-family="Helvetica,sans-Serif" font-size="10.00">±1.0</text>
+<text text-anchor="middle" x="2922" y="-1599.91" font-family="Helvetica,sans-Serif" font-size="10.00">Hi/lo mode envelope skew</text>
+</g>
+<!-- decay_skew&#45;&gt;body_switch -->
+<g id="edge38" class="edge">
+<title>decay_skew&#45;&gt;body_switch</title>
+<path fill="none" stroke="#888888" stroke-dasharray="5,2" d="M2896.57,-1592.45C2882.38,-1581.28 2863.99,-1568.09 2846,-1558.91 2709.33,-1489.2 2668.05,-1483.28 2518,-1451.31 2319.97,-1409.12 2084.1,-1391.85 1947.46,-1384.99"/>
+<polygon fill="#888888" stroke="#888888" points="1947.84,-1381.51 1937.69,-1384.51 1947.5,-1388.5 1947.84,-1381.51"/>
+</g>
+<!-- nl_coupling -->
+<g id="node34" class="node">
+<title>nl_coupling</title>
+<polygon fill="#9ccbea" stroke="black" points="2855.53,-1121.11 2754.47,-1121.11 2754.47,-1085.11 2855.53,-1085.11 2855.53,-1121.11"/>
+<text text-anchor="middle" x="2805" y="-1106.11" font-family="Helvetica,sans-Serif" font-size="10.00">Nonlinear Coupling</text>
+<text text-anchor="middle" x="2805" y="-1094.11" font-family="Helvetica,sans-Serif" font-size="10.00">With energy limiter</text>
+</g>
+<!-- mode_inject&#45;&gt;nl_coupling -->
+<g id="edge33" class="edge">
+<title>mode_inject&#45;&gt;nl_coupling</title>
+<path fill="none" stroke="#2a5080" stroke-width="2" d="M2705.29,-1169.83C2724.26,-1157.33 2748.32,-1141.47 2768.05,-1128.47"/>
+<polygon fill="#2a5080" stroke="#2a5080" stroke-width="2" points="2769.85,-1131.48 2776.27,-1123.05 2765.99,-1125.63 2769.85,-1131.48"/>
+</g>
+<!-- drive -->
+<g id="node37" class="node">
+<title>drive</title>
+<polygon fill="#7bafd4" stroke="black" points="3137.3,-1029.91 3020.7,-1029.91 3020.7,-993.91 3137.3,-993.91 3137.3,-1029.91"/>
+<text text-anchor="middle" x="3079" y="-1014.91" font-family="Helvetica,sans-Serif" font-size="10.00">Drive</text>
+<text text-anchor="middle" x="3079" y="-1002.91" font-family="Helvetica,sans-Serif" font-size="10.00">Alias&#45;safe waveshaper</text>
+</g>
+<!-- nl_coupling&#45;&gt;drive -->
+<g id="edge34" class="edge">
+<title>nl_coupling&#45;&gt;drive</title>
+<path fill="none" stroke="#2a5080" stroke-width="2" d="M2855.9,-1085.55C2900.31,-1071.09 2965.04,-1050.01 3013.35,-1034.29"/>
+<polygon fill="#2a5080" stroke="#2a5080" stroke-width="2" points="3014.27,-1037.67 3022.69,-1031.25 3012.1,-1031.01 3014.27,-1037.67"/>
+</g>
+<!-- morph -->
+<g id="node35" class="node">
+<title>morph</title>
+<polygon fill="#9ccbea" stroke="black" points="2712.97,-1636.91 2623.03,-1636.91 2623.03,-1592.91 2712.97,-1592.91 2712.97,-1636.91"/>
+<text text-anchor="middle" x="2668" y="-1623.91" font-family="Helvetica,sans-Serif" font-size="10.00">Material Morph</text>
+<text text-anchor="middle" x="2668" y="-1611.91" font-family="Helvetica,sans-Serif" font-size="10.00">2&#45;point envelope</text>
+<text text-anchor="middle" x="2668" y="-1599.91" font-family="Helvetica,sans-Serif" font-size="10.00">10 &#45; 2000 ms</text>
+</g>
+<!-- morph&#45;&gt;body_switch -->
+<g id="edge36" class="edge">
+<title>morph&#45;&gt;body_switch</title>
+<path fill="none" stroke="#888888" stroke-dasharray="5,2" d="M2622.73,-1604.82C2567.25,-1593.41 2470.5,-1572.69 2388.55,-1550.91 2208.24,-1503 1998.5,-1435.3 1896.34,-1401.55"/>
+<polygon fill="#888888" stroke="#888888" points="1897.64,-1398.29 1887.05,-1398.47 1895.44,-1404.94 1897.64,-1398.29"/>
+<text text-anchor="middle" x="2402.77" y="-1487.71" font-family="Helvetica,sans-Serif" font-size="8.00">material</text>
+<text text-anchor="middle" x="2402.77" y="-1478.11" font-family="Helvetica,sans-Serif" font-size="8.00">mix</text>
+</g>
+<!-- pitch_env -->
+<g id="node36" class="node">
+<title>pitch_env</title>
+<polygon fill="#7bafd4" stroke="black" points="3145.64,-1642.91 3012.36,-1642.91 3012.36,-1586.91 3145.64,-1586.91 3145.64,-1642.91"/>
+<text text-anchor="middle" x="3079" y="-1629.91" font-family="Helvetica,sans-Serif" font-size="10.00">Pitch Envelope</text>
+<text text-anchor="middle" x="3079" y="-1617.91" font-family="Helvetica,sans-Serif" font-size="10.00">Absolute Hz start/end/time</text>
+<text text-anchor="middle" x="3079" y="-1605.91" font-family="Helvetica,sans-Serif" font-size="10.00">Exp/lin curve</text>
+<text text-anchor="middle" x="3079" y="-1593.91" font-family="Helvetica,sans-Serif" font-size="10.00">808&#45;style transient sweep</text>
+</g>
+<!-- pitch_env&#45;&gt;body_switch -->
+<g id="edge35" class="edge">
+<title>pitch_env&#45;&gt;body_switch</title>
+<path fill="none" stroke="#888888" stroke-dasharray="5,2" d="M3079.23,-1586.54C3077.9,-1549.31 3069.39,-1483.63 3028,-1451.31 2945.66,-1387.02 2254.89,-1380.18 1963.18,-1380.2"/>
+<polygon fill="#888888" stroke="#888888" points="1963.22,-1376.7 1953.22,-1380.2 1963.22,-1383.7 1963.22,-1376.7"/>
+<text text-anchor="middle" x="3097.9" y="-1487.71" font-family="Helvetica,sans-Serif" font-size="8.00">per&#45;sample</text>
+<text text-anchor="middle" x="3097.9" y="-1478.11" font-family="Helvetica,sans-Serif" font-size="8.00">fundamental</text>
+</g>
+<!-- wavefolder -->
+<g id="node38" class="node">
+<title>wavefolder</title>
+<polygon fill="#7bafd4" stroke="black" points="3115.29,-956.91 3048.71,-956.91 3048.71,-920.91 3115.29,-920.91 3115.29,-956.91"/>
+<text text-anchor="middle" x="3082" y="-935.91" font-family="Helvetica,sans-Serif" font-size="10.00">Wavefolder</text>
+</g>
+<!-- drive&#45;&gt;wavefolder -->
+<g id="edge22" class="edge">
+<title>drive&#45;&gt;wavefolder</title>
+<path fill="none" stroke="#2a5080" stroke-width="2" d="M3079.73,-993.73C3080.03,-986.58 3080.39,-978.06 3080.73,-969.94"/>
+<polygon fill="#2a5080" stroke="#2a5080" stroke-width="2" points="3084.23,-970.11 3081.15,-959.97 3077.23,-969.81 3084.23,-970.11"/>
+</g>
+<!-- dc_block -->
+<g id="node39" class="node">
+<title>dc_block</title>
+<polygon fill="#7bafd4" stroke="black" points="3127.28,-875.31 3060.72,-875.31 3060.72,-839.31 3127.28,-839.31 3127.28,-875.31"/>
+<text text-anchor="middle" x="3094" y="-854.31" font-family="Helvetica,sans-Serif" font-size="10.00">DC Blocker</text>
+</g>
+<!-- wavefolder&#45;&gt;dc_block -->
+<g id="edge23" class="edge">
+<title>wavefolder&#45;&gt;dc_block</title>
+<path fill="none" stroke="#2a5080" stroke-width="2" d="M3084.6,-920.64C3086.03,-911.15 3087.85,-899.11 3089.5,-888.15"/>
+<polygon fill="#2a5080" stroke="#2a5080" stroke-width="2" points="3092.92,-888.96 3090.95,-878.55 3086,-887.91 3092.92,-888.96"/>
+</g>
+<!-- dc_block&#45;&gt;svf -->
+<g id="edge24" class="edge">
+<title>dc_block&#45;&gt;svf</title>
+<path fill="none" stroke="#2a5080" stroke-width="2" d="M3094.23,-838.92C3094.33,-831.9 3094.44,-823.56 3094.55,-815.42"/>
+<polygon fill="#2a5080" stroke="#2a5080" stroke-width="2" points="3098.04,-815.7 3094.68,-805.66 3091.04,-815.61 3098.04,-815.7"/>
+</g>
+<!-- svf&#45;&gt;amp_env -->
+<g id="edge41" class="edge">
+<title>svf&#45;&gt;amp_env</title>
+<path fill="none" stroke="#2a5080" stroke-width="2" d="M3095,-757.87C3095,-750.72 3095,-742.52 3095,-734.43"/>
+<polygon fill="#2a5080" stroke="#2a5080" stroke-width="2" points="3098.5,-734.59 3095,-724.59 3091.5,-734.59 3098.5,-734.59"/>
+</g>
+<!-- bus_select -->
+<g id="node42" class="node">
+<title>bus_select</title>
+<polygon fill="#aaaaaa" stroke="black" points="2879,-590.91 2774.89,-534.91 2879,-478.91 2983.11,-534.91 2879,-590.91"/>
+<text text-anchor="middle" x="2879" y="-549.91" font-family="Helvetica,sans-Serif" font-size="10.00">outputBus selector</text>
+<text text-anchor="middle" x="2879" y="-537.91" font-family="Helvetica,sans-Serif" font-size="10.00">(per pad, 0&#45;15)</text>
+<text text-anchor="middle" x="2879" y="-525.91" font-family="Helvetica,sans-Serif" font-size="10.00">bus 0 = main stereo</text>
+<text text-anchor="middle" x="2879" y="-513.91" font-family="Helvetica,sans-Serif" font-size="10.00">bus 1&#45;15 = aux</text>
+</g>
+<!-- amp_env&#45;&gt;bus_select -->
+<g id="edge48" class="edge">
+<title>amp_env&#45;&gt;bus_select</title>
+<path fill="none" stroke="#2a5080" stroke-width="2" d="M3057.38,-665.07C3022.98,-640.17 2971.72,-603.05 2932.96,-574.99"/>
+<polygon fill="#2a5080" stroke="#2a5080" stroke-width="2" points="2935.49,-572.5 2925.34,-569.47 2931.39,-578.17 2935.49,-572.5"/>
+<text text-anchor="middle" x="3044.07" y="-640.11" font-family="Helvetica,sans-Serif" font-size="8.00">voice</text>
+<text text-anchor="middle" x="3044.07" y="-630.51" font-family="Helvetica,sans-Serif" font-size="8.00">sample</text>
+</g>
+<!-- glow_publisher -->
+<g id="node52" class="node">
+<title>glow_publisher</title>
+<polygon fill="#dddddd" stroke="black" points="3154.69,-562.91 3035.31,-562.91 3035.31,-506.91 3154.69,-506.91 3154.69,-562.91"/>
+<text text-anchor="middle" x="3095" y="-549.91" font-family="Helvetica,sans-Serif" font-size="10.00">PadGlowPublisher</text>
+<text text-anchor="middle" x="3095" y="-537.91" font-family="Helvetica,sans-Serif" font-size="10.00">Per&#45;pad voice activity</text>
+<text text-anchor="middle" x="3095" y="-525.91" font-family="Helvetica,sans-Serif" font-size="10.00">+ level + category color</text>
+<text text-anchor="middle" x="3095" y="-513.91" font-family="Helvetica,sans-Serif" font-size="10.00">(drives 4x8 grid glow)</text>
+</g>
+<!-- amp_env&#45;&gt;glow_publisher -->
+<g id="edge58" class="edge">
+<title>amp_env&#45;&gt;glow_publisher</title>
+<path fill="none" stroke="#888888" stroke-dasharray="5,2" d="M3095,-665.07C3095,-640.11 3095,-602.87 3095,-574.78"/>
+<polygon fill="#888888" stroke="#888888" points="3098.5,-574.88 3095,-564.88 3091.5,-574.88 3098.5,-574.88"/>
+<text text-anchor="middle" x="3111.45" y="-640.11" font-family="Helvetica,sans-Serif" font-size="8.00">per&#45;voice</text>
+<text text-anchor="middle" x="3111.45" y="-630.51" font-family="Helvetica,sans-Serif" font-size="8.00">level</text>
+</g>
+<!-- main_accum -->
+<g id="node43" class="node">
+<title>main_accum</title>
+<polygon fill="#888888" stroke="black" points="2831.02,-423.31 2714.98,-423.31 2714.98,-387.31 2831.02,-387.31 2831.02,-423.31"/>
+<text text-anchor="middle" x="2773" y="-408.31" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">Main Bus Accumulator</text>
+<text text-anchor="middle" x="2773" y="-396.31" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">sum into outL / outR</text>
+</g>
+<!-- bus_select&#45;&gt;main_accum -->
+<g id="edge46" class="edge">
+<title>bus_select&#45;&gt;main_accum</title>
+<path fill="none" stroke="black" stroke-width="2" d="M2847.2,-495.63C2830.58,-475.63 2810.63,-451.61 2795.61,-433.53"/>
+<polygon fill="black" stroke="black" stroke-width="2" points="2798.41,-431.42 2789.32,-425.97 2793.02,-435.89 2798.41,-431.42"/>
+<text text-anchor="middle" x="2829.74" y="-453.71" font-family="Helvetica,sans-Serif" font-size="8.00">bus = 0</text>
+</g>
+<!-- aux_accum -->
+<g id="node44" class="node">
+<title>aux_accum</title>
+<polygon fill="#888888" stroke="black" points="2983.19,-433.31 2848.81,-433.31 2848.81,-377.31 2983.19,-377.31 2983.19,-433.31"/>
+<text text-anchor="middle" x="2916" y="-420.31" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">Aux Bus Accumulators</text>
+<text text-anchor="middle" x="2916" y="-408.31" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">auxL[1..15] / auxR[1..15]</text>
+<text text-anchor="middle" x="2916" y="-396.31" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">(active &amp; non&#45;empty buses</text>
+<text text-anchor="middle" x="2916" y="-384.31" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">only)</text>
+</g>
+<!-- bus_select&#45;&gt;aux_accum -->
+<g id="edge47" class="edge">
+<title>bus_select&#45;&gt;aux_accum</title>
+<path fill="none" stroke="black" stroke-width="2" d="M2892.88,-486.04C2896.73,-472.78 2900.86,-458.54 2904.55,-445.82"/>
+<polygon fill="black" stroke="black" stroke-width="2" points="2907.8,-447.18 2907.22,-436.6 2901.07,-445.23 2907.8,-447.18"/>
+<text text-anchor="middle" x="2915.13" y="-453.71" font-family="Helvetica,sans-Serif" font-size="8.00">bus &gt; 0</text>
+</g>
+<!-- coupling_delay -->
+<g id="node46" class="node">
+<title>coupling_delay</title>
+<polygon fill="#e88aaa" stroke="black" points="413.08,-274.46 310.92,-274.46 310.92,-230.46 413.08,-230.46 413.08,-274.46"/>
+<text text-anchor="middle" x="362" y="-261.46" font-family="Helvetica,sans-Serif" font-size="10.00">Coupling Delay</text>
+<text text-anchor="middle" x="362" y="-249.46" font-family="Helvetica,sans-Serif" font-size="10.00">0.5 &#45; 2.0 ms</text>
+<text text-anchor="middle" x="362" y="-237.46" font-family="Helvetica,sans-Serif" font-size="10.00">(propagation delay)</text>
+</g>
+<!-- main_accum&#45;&gt;coupling_delay -->
+<g id="edge52" class="edge">
+<title>main_accum&#45;&gt;coupling_delay</title>
+<path fill="none" stroke="#a02050" stroke-width="2" d="M2714.6,-402.35C2559.49,-396.98 2124.36,-381.03 1762.65,-359.31 1246.62,-328.33 624.78,-276.07 426.21,-259.02"/>
+<polygon fill="#a02050" stroke="#a02050" stroke-width="2" points="426.75,-255.55 416.49,-258.18 426.15,-262.53 426.75,-255.55"/>
+<text text-anchor="middle" x="1781.33" y="-347.31" font-family="Helvetica,sans-Serif" font-size="8.00">mono sum</text>
+<text text-anchor="middle" x="1781.33" y="-337.71" font-family="Helvetica,sans-Serif" font-size="8.00">of voices</text>
+</g>
+<!-- master_gain -->
+<g id="node48" class="node">
+<title>master_gain</title>
+<polygon fill="#888888" stroke="black" points="2826.68,-280.46 2707.32,-280.46 2707.32,-224.46 2826.68,-224.46 2826.68,-280.46"/>
+<text text-anchor="middle" x="2767" y="-267.46" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">Master Output Gain</text>
+<text text-anchor="middle" x="2767" y="-255.46" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">[&#45;24 .. +12] dB</text>
+<text text-anchor="middle" x="2767" y="-243.46" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">Main bus only</text>
+<text text-anchor="middle" x="2767" y="-231.46" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">(aux buses pre&#45;master)</text>
+</g>
+<!-- main_accum&#45;&gt;master_gain -->
+<g id="edge54" class="edge">
+<title>main_accum&#45;&gt;master_gain</title>
+<path fill="none" stroke="#2a5080" stroke-width="2" d="M2772.31,-387.01C2771.41,-364.36 2769.8,-323.96 2768.59,-293.51"/>
+<polygon fill="#2a5080" stroke="#2a5080" stroke-width="2" points="2772.1,-293.61 2768.21,-283.76 2765.11,-293.89 2772.1,-293.61"/>
+</g>
+<!-- output_aux -->
+<g id="node51" class="node">
+<title>output_aux</title>
+<polygon fill="#ccddee" stroke="black" points="2844.31,-240.57 2920,-214 2995.69,-240.57 2995.62,-283.57 2844.38,-283.57 2844.31,-240.57"/>
+<text text-anchor="middle" x="2920" y="-261.46" font-family="Helvetica,sans-Serif" font-size="10.00">Audio Output</text>
+<text text-anchor="middle" x="2920" y="-249.46" font-family="Helvetica,sans-Serif" font-size="10.00">Aux Buses 1&#45;15</text>
+<text text-anchor="middle" x="2920" y="-237.46" font-family="Helvetica,sans-Serif" font-size="10.00">(stereo pairs)</text>
+</g>
+<!-- aux_accum&#45;&gt;output_aux -->
+<g id="edge57" class="edge">
+<title>aux_accum&#45;&gt;output_aux</title>
+<path fill="none" stroke="#2a5080" stroke-width="2" d="M2916.72,-377C2917.32,-354.65 2918.17,-322.65 2918.85,-296.81"/>
+<polygon fill="#2a5080" stroke="#2a5080" stroke-width="2" points="2922.34,-297.06 2919.11,-286.97 2915.35,-296.87 2922.34,-297.06"/>
+<text text-anchor="middle" x="2940.79" y="-352.11" font-family="Helvetica,sans-Serif" font-size="8.00">pre&#45;master</text>
+<text text-anchor="middle" x="2940.79" y="-342.51" font-family="Helvetica,sans-Serif" font-size="8.00">(no master</text>
+<text text-anchor="middle" x="2940.79" y="-332.91" font-family="Helvetica,sans-Serif" font-size="8.00">gain applied)</text>
+</g>
+<!-- symp_engine -->
+<g id="node47" class="node">
+<title>symp_engine</title>
+<polygon fill="#e88aaa" stroke="black" points="371.81,-177 250.19,-177 250.19,-109 371.81,-109 371.81,-177"/>
+<text text-anchor="middle" x="311" y="-164" font-family="Helvetica,sans-Serif" font-size="10.00">SympatheticResonance</text>
+<text text-anchor="middle" x="311" y="-152" font-family="Helvetica,sans-Serif" font-size="10.00">Mono sum &#45;&gt; matrix</text>
+<text text-anchor="middle" x="311" y="-140" font-family="Helvetica,sans-Serif" font-size="10.00">&#45;&gt; per&#45;pad excitation</text>
+<text text-anchor="middle" x="311" y="-128" font-family="Helvetica,sans-Serif" font-size="10.00">&#45;&gt; energy limiter</text>
+<text text-anchor="middle" x="311" y="-116" font-family="Helvetica,sans-Serif" font-size="10.00">(caps below &#45;20 dBFS)</text>
+</g>
+<!-- coupling_matrix&#45;&gt;symp_engine -->
+<g id="edge49" class="edge">
+<title>coupling_matrix&#45;&gt;symp_engine</title>
+<path fill="none" stroke="#a02050" stroke-dasharray="5,2" d="M308.44,-1742.08C302.27,-1685.7 292,-1578.16 292,-1486.31 292,-1486.31 292,-1486.31 292,-251.46 292,-230.49 295.55,-207.57 299.58,-188.31"/>
+<polygon fill="#a02050" stroke="#a02050" points="302.98,-189.13 301.73,-178.61 296.15,-187.62 302.98,-189.13"/>
+<text text-anchor="middle" x="315.35" y="-895.71" font-family="Helvetica,sans-Serif" font-size="8.00">effectiveGain</text>
+</g>
+<!-- coupling_delay&#45;&gt;symp_engine -->
+<g id="edge50" class="edge">
+<title>coupling_delay&#45;&gt;symp_engine</title>
+<path fill="none" stroke="#a02050" stroke-width="2" d="M351.8,-229.97C346.22,-218.2 339.07,-203.15 332.33,-188.95"/>
+<polygon fill="#a02050" stroke="#a02050" stroke-width="2" points="335.55,-187.57 328.1,-180.04 329.23,-190.57 335.55,-187.57"/>
+</g>
+<!-- symp_engine&#45;&gt;main_accum -->
+<g id="edge53" class="edge">
+<title>symp_engine&#45;&gt;main_accum</title>
+<path fill="none" stroke="#a02050" stroke-width="2" d="M372.19,-150.47C709.49,-186.13 2339.84,-358.52 2701.74,-396.78"/>
+<polygon fill="#a02050" stroke="#a02050" stroke-width="2" points="2701.25,-400.25 2711.56,-397.82 2701.98,-393.29 2701.25,-400.25"/>
+<text text-anchor="middle" x="2010.24" y="-254.86" font-family="Helvetica,sans-Serif" font-size="8.00">add back</text>
+<text text-anchor="middle" x="2010.24" y="-245.26" font-family="Helvetica,sans-Serif" font-size="8.00">to L/R</text>
+</g>
+<!-- meters -->
+<g id="node49" class="node">
+<title>meters</title>
+<polygon fill="#aaaaaa" stroke="black" points="2914.03,-171 2787.97,-171 2787.97,-115 2914.03,-115 2914.03,-171"/>
+<text text-anchor="middle" x="2851" y="-158" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">Meters Block</text>
+<text text-anchor="middle" x="2851" y="-146" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">Peak / RMS publisher</text>
+<text text-anchor="middle" x="2851" y="-134" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">(lock&#45;free DataExchange</text>
+<text text-anchor="middle" x="2851" y="-122" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">for UI)</text>
+</g>
+<!-- master_gain&#45;&gt;meters -->
+<g id="edge55" class="edge">
+<title>master_gain&#45;&gt;meters</title>
+<path fill="none" stroke="#2a5080" stroke-width="2" d="M2788.41,-224.06C2798.58,-211.05 2810.89,-195.31 2821.89,-181.23"/>
+<polygon fill="#2a5080" stroke="#2a5080" stroke-width="2" points="2824.36,-183.76 2827.76,-173.73 2818.84,-179.45 2824.36,-183.76"/>
+</g>
+<!-- output_main -->
+<g id="node50" class="node">
+<title>output_main</title>
+<polygon fill="#ccddee" stroke="black" points="2769,-35.36 2851,-16.03 2933,-35.36 2932.92,-66.63 2769.08,-66.63 2769,-35.36"/>
+<text text-anchor="middle" x="2851" y="-47" font-family="Helvetica,sans-Serif" font-size="10.00">Audio Output</text>
+<text text-anchor="middle" x="2851" y="-35" font-family="Helvetica,sans-Serif" font-size="10.00">Main Stereo L / R</text>
+</g>
+<!-- meters&#45;&gt;output_main -->
+<g id="edge56" class="edge">
+<title>meters&#45;&gt;output_main</title>
+<path fill="none" stroke="#2a5080" stroke-width="2" d="M2851,-114.72C2851,-103.85 2851,-91.2 2851,-79.69"/>
+<polygon fill="#2a5080" stroke="#2a5080" stroke-width="2" points="2854.5,-79.89 2851,-69.89 2847.5,-79.89 2854.5,-79.89"/>
+</g>
+<!-- meter_publisher -->
+<g id="node53" class="node">
+<title>meter_publisher</title>
+<polygon fill="#dddddd" stroke="black" points="3159.7,-72 3020.3,-72 3020.3,-16 3159.7,-16 3159.7,-72"/>
+<text text-anchor="middle" x="3090" y="-59" font-family="Helvetica,sans-Serif" font-size="10.00">MetersBlock DataExchange</text>
+<text text-anchor="middle" x="3090" y="-47" font-family="Helvetica,sans-Serif" font-size="10.00">Peak / RMS,</text>
+<text text-anchor="middle" x="3090" y="-35" font-family="Helvetica,sans-Serif" font-size="10.00">UI&#45;side per&#45;block data</text>
+<text text-anchor="middle" x="3090" y="-23" font-family="Helvetica,sans-Serif" font-size="10.00">piggybacked here</text>
+</g>
+<!-- meters&#45;&gt;meter_publisher -->
+<g id="edge59" class="edge">
+<title>meters&#45;&gt;meter_publisher</title>
+<path fill="none" stroke="#888888" stroke-dasharray="5,2" d="M2914.42,-116.26C2944.36,-104.11 2980.38,-89.49 3011.98,-76.66"/>
+<polygon fill="#888888" stroke="#888888" points="3013.16,-79.96 3021.11,-72.96 3010.53,-73.48 3013.16,-79.96"/>
+</g>
+<!-- rates -->
+<g id="node54" class="node">
+<title>rates</title>
+<polygon fill="#fafafa" stroke="none" points="3814.54,-2852.11 3369.46,-2852.11 3369.46,-2560.11 3814.54,-2560.11 3814.54,-2852.11"/>
+<text text-anchor="start" x="3383.46" y="-2834.11" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="10.00">Parameters:</text>
+<text text-anchor="start" x="3489.78" y="-2833.11" font-family="Helvetica,sans-Serif" font-size="10.00">Per&#45;block (atomic reads, dispatched via processParameterChanges)</text>
+<text text-anchor="start" x="3383.46" y="-2814.11" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="10.00">MacroMapper:</text>
+<text text-anchor="start" x="3489.78" y="-2813.11" font-family="Helvetica,sans-Serif" font-size="10.00">Per&#45;block on macro change (incremental delta into PadConfig)</text>
+<text text-anchor="start" x="3383.46" y="-2794.11" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="10.00">Voice allocation:</text>
+<text text-anchor="start" x="3489.78" y="-2793.11" font-family="Helvetica,sans-Serif" font-size="10.00">Per&#45;event (note&#45;on / note&#45;off) on the audio thread</text>
+<text text-anchor="start" x="3383.46" y="-2774.11" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="10.00">Per&#45;mode damping:</text>
+<text text-anchor="start" x="3489.78" y="-2773.11" font-family="Helvetica,sans-Serif" font-size="10.00">Per&#45;mode (R_k applied at body update; recomputed on b1/b3 change)</text>
+<text text-anchor="start" x="3383.46" y="-2754.11" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="10.00">Air loading:</text>
+<text text-anchor="start" x="3489.78" y="-2753.11" font-family="Helvetica,sans-Serif" font-size="10.00">Per&#45;block (frequency table lookup applied on body update)</text>
+<text text-anchor="start" x="3383.46" y="-2734.11" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="10.00">Head/shell coupling:</text>
+<text text-anchor="start" x="3489.78" y="-2733.11" font-family="Helvetica,sans-Serif" font-size="10.00">Per&#45;block energy exchange between primary and secondary banks</text>
+<text text-anchor="start" x="3383.46" y="-2714.11" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="10.00">Tension modulation:</text>
+<text text-anchor="start" x="3489.78" y="-2713.11" font-family="Helvetica,sans-Serif" font-size="10.00">Per&#45;sample energy follower; per&#45;block frequency scale</text>
+<text text-anchor="start" x="3383.46" y="-2694.11" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="10.00">Modal synthesis:</text>
+<text text-anchor="start" x="3489.78" y="-2693.11" font-family="Helvetica,sans-Serif" font-size="10.00">Per&#45;sample (Gordon&#45;Smith resonator bank, all modes in parallel)</text>
+<text text-anchor="start" x="3383.46" y="-2674.11" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="10.00">Tone Shaper:</text>
+<text text-anchor="start" x="3489.78" y="-2673.11" font-family="Helvetica,sans-Serif" font-size="10.00">Per&#45;sample (drive &#45;&gt; wavefolder &#45;&gt; DC &#45;&gt; SVF + envelope)</text>
+<text text-anchor="start" x="3383.46" y="-2654.11" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="10.00">Coupling:</text>
+<text text-anchor="start" x="3489.78" y="-2653.11" font-family="Helvetica,sans-Serif" font-size="10.00">Per&#45;block global (mono sum &#45;&gt; delay &#45;&gt; matrix &#45;&gt; limiter &#45;&gt; mix back)</text>
+<text text-anchor="start" x="3383.46" y="-2634.11" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="10.00">Master gain:</text>
+<text text-anchor="start" x="3489.78" y="-2633.11" font-family="Helvetica,sans-Serif" font-size="10.00">Per&#45;block (atomic) on main bus only</text>
+<text text-anchor="start" x="3383.46" y="-2614.11" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="10.00">UI publishers:</text>
+<text text-anchor="start" x="3489.78" y="-2613.11" font-family="Helvetica,sans-Serif" font-size="10.00">Lock&#45;free SPSC (audio thread writer, UI thread reader)</text>
+<text text-anchor="start" x="3383.46" y="-2594.11" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="10.00">Voice modes:</text>
+<text text-anchor="start" x="3489.78" y="-2593.11" font-family="Helvetica,sans-Serif" font-size="10.00">4&#45;16 polyphony; 3 stealing policies (Oldest / Quietest / Priority)</text>
+<text text-anchor="start" x="3383.46" y="-2574.11" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="10.00">Choke groups:</text>
+<text text-anchor="start" x="3489.78" y="-2573.11" font-family="Helvetica,sans-Serif" font-size="10.00">8 groups (+ group 0 = none); 5 ms exp fast&#45;release on group conflict</text>
+</g>
+</g>
+</svg>
+</div>
     </div>
 
     <script type="module">
-        import { instance } from "https://cdn.jsdelivr.net/npm/@viz-js/viz@3.11.0/+esm";
-
-        const dotSource = `digraph MembrumSignalFlow {
-    rankdir=TB;
-    fontname="Helvetica";
-    fontsize=11;
-    node [fontname="Helvetica", fontsize=10, style=filled];
-    edge [fontname="Helvetica", fontsize=8];
-    compound=true;
-    newrank=true;
-
-    // =========================================================================
-    // COLOR LEGEND
-    // =========================================================================
-    subgraph cluster_legend {
-        label="Legend";
-        style=rounded;
-        color="#888888";
-        fontsize=12;
-        fontcolor="#444444";
-        bgcolor="#FAFAFA";
-
-        node [shape=plaintext, fillcolor="#FAFAFA"];
-        leg [label=<
-            <TABLE BORDER="0" CELLBORDER="0" CELLSPACING="4">
-            <TR><TD BGCOLOR="#4A90D9" WIDTH="20"> </TD><TD ALIGN="LEFT">Audio signal path</TD></TR>
-            <TR><TD BGCOLOR="#B8860B" WIDTH="20"> </TD><TD ALIGN="LEFT">Modal / physical resonators</TD></TR>
-            <TR><TD BGCOLOR="#9B6BBF" WIDTH="20"> </TD><TD ALIGN="LEFT">Parallel layers (noise / click)</TD></TR>
-            <TR><TD BGCOLOR="#6BBF6B" WIDTH="20"> </TD><TD ALIGN="LEFT">Per-pad config &amp; macros</TD></TR>
-            <TR><TD BGCOLOR="#D94A7A" WIDTH="20"> </TD><TD ALIGN="LEFT">Sympathetic resonance / coupling</TD></TR>
-            <TR><TD BGCOLOR="#E8A838" WIDTH="20"> </TD><TD ALIGN="LEFT">Voice management / dispatch</TD></TR>
-            <TR><TD>&#x2501;&#x25B6;</TD><TD ALIGN="LEFT">Audio flow</TD></TR>
-            <TR><TD>- - &#x25B6;</TD><TD ALIGN="LEFT">Control / parameter data</TD></TR>
-            </TABLE>
-        >];
-    }
-
-    // =========================================================================
-    // INPUT SOURCES
-    // =========================================================================
-    subgraph cluster_input {
-        label="Input";
-        style=rounded;
-        color="#666666";
-        bgcolor="#F0F0F0";
-
-        midi_in [label="MIDI Input\\n(Notes 36-67, Velocity)\\nMaps to 4x8 pad grid", shape=house, fillcolor="#CCDDEE"];
-        host_params [label="Host Parameters\\nGlobals + 32 x per-pad sets\\n+ 5 x per-pad macros\\nLock-free atomic store", shape=house, fillcolor="#CCDDEE"];
-    }
-
-    // =========================================================================
-    // PARAMETER &amp; MACRO PIPELINE
-    // =========================================================================
-    subgraph cluster_params {
-        label="Parameter &amp; Macro Pipeline";
-        style=rounded;
-        color="#6BBF6B";
-        bgcolor="#E5F5E5";
-        fontsize=13;
-        fontcolor="#2A6030";
-        penwidth=2;
-
-        param_changes [label="processParameterChanges\\nDenormalise &amp; dispatch\\nGlobal proxies fan out\\nto all 32 pads", shape=box, fillcolor="#A8DCA8"];
-
-        macro_mapper [label="MacroMapper\\n5 macros per pad:\\nTightness, Brightness,\\nBody Size, Punch, Complexity\\n\\nIncremental delta application:\\n(linDelta(new) - linDelta(old))\\nonto cfg.field directly\\n(neutral macros = no-op)", shape=box, fillcolor="#A8DCA8"];
-
-        pad_configs [label="32 PadConfig snapshots\\n+ enabled flag (Phase 8F)\\n+ chokeGroup (0-8)\\n+ outputBus (0-15)\\n+ couplingAmount (0-1)", shape=box, fillcolor="#A8DCA8"];
-
-        param_changes -> macro_mapper [style=dashed, color="#2A6030", label="macro\\nchanges"];
-        param_changes -> pad_configs [style=dashed, color="#2A6030", label="direct\\nparam writes"];
-        macro_mapper -> pad_configs [style=dashed, color="#2A6030", label="incremental\\ndelta"];
-    }
-
-    host_params -> param_changes [style=dashed, label="atomic\\nreads"];
-
-    // =========================================================================
-    // VOICE ALLOCATION
-    // =========================================================================
-    subgraph cluster_voices {
-        label="VoicePool  &mdash;  16 Pre-Allocated DrumVoices";
-        style=rounded;
-        color="#E8A838";
-        bgcolor="#FDF3E8";
-        fontsize=13;
-        fontcolor="#804010";
-        penwidth=2;
-
-        note_dispatch [label="Note Dispatch\\nMIDI 36-67 -&gt; pad index\\nEarly-exit if pad disabled\\n(Phase 8F short-circuit)", shape=box, fillcolor="#F5D090"];
-
-        choke [label="Choke Group Table\\n8 groups (+ group 0 = none)\\nSoundFont 2.04 Excl Class\\nFast-release on note-on\\nfor same-group voices", shape=box, fillcolor="#F5D090"];
-
-        steal [label="Voice Stealing\\n3 policies:\\n  Oldest (allocator-driven)\\n  Quietest (amplitude scan)\\n  Priority (highest pitch)\\n5 ms exp fast-release\\non stolen victim\\n(click peak &le; -30 dBFS)", shape=diamond, fillcolor="#E8B050"];
-
-        slot_alloc [label="Slot Allocator\\nUp to maxPolyphony (4-16)\\nIdle slots = zero CPU\\nApplies PadConfig snapshot\\nto voice on note-on", shape=box, fillcolor="#F5D090"];
-
-        note_dispatch -> choke [penwidth=2, color="#804010"];
-        choke -> steal [penwidth=2, color="#804010"];
-        steal -> slot_alloc [penwidth=2, color="#804010"];
-    }
-
-    midi_in -> note_dispatch [penwidth=2, label="note on/off\\nvelocity"];
-    pad_configs -> slot_alloc [style=dashed, color="#2A6030", label="snapshot\\non note-on"];
-
-    // =========================================================================
-    // PER-VOICE DSP (DrumVoice) -- the meat
-    // =========================================================================
-    subgraph cluster_voice_dsp {
-        label="Per-Voice DSP (DrumVoice)  &mdash;  Per-Sample Audio Generation";
-        style=rounded;
-        color="#4A90D9";
-        bgcolor="#EDF4FC";
-        fontsize=13;
-        fontcolor="#2A5080";
-        penwidth=2;
-
-        // -------- Exciter --------
-        subgraph cluster_exciter {
-            label="ExciterBank (Spec 127)";
-            style=dashed;
-            color="#B8860B";
-            bgcolor="#FFF8E0";
-
-            exciter_switch [label="Exciter Type\\nTagged-union dispatch\\n(no virtual calls,\\nno per-sample branching)", shape=diamond, fillcolor="#E8D080"];
-
-            ex_impulse [label="Impulse\\nVelocity-scaled\\nsingle-sample impulse", shape=box, fillcolor="#E8D080"];
-            ex_mallet [label="Mallet\\nRaised-cosine contact\\nVelocity = contact time", shape=box, fillcolor="#E8D080"];
-            ex_noise [label="Noise Burst\\nFiltered-noise burst\\nDuration parameter", shape=box, fillcolor="#E8D080"];
-            ex_friction [label="Friction\\nBowed/scraped exciter\\nPressure parameter", shape=box, fillcolor="#E8D080"];
-            ex_fm [label="FM Impulse\\n2-op FM impulse\\nCarrier:mod ratio", shape=box, fillcolor="#E8D080"];
-            ex_feedback [label="Feedback\\nSelf-exciting loop\\nEnergy limiter", shape=box, fillcolor="#E8D080"];
-
-            exciter_switch -> ex_impulse [style=dashed];
-            exciter_switch -> ex_mallet [style=dashed];
-            exciter_switch -> ex_noise [style=dashed];
-            exciter_switch -> ex_friction [style=dashed];
-            exciter_switch -> ex_fm [style=dashed];
-            exciter_switch -> ex_feedback [style=dashed];
-        }
-
-        // -------- Body (modal resonator) --------
-        subgraph cluster_body {
-            label="BodyBank  &mdash;  Modal Resonator (Primary)";
-            style=dashed;
-            color="#B8860B";
-            bgcolor="#FFF8E0";
-
-            body_switch [label="Body Model\\nTagged-union dispatch", shape=diamond, fillcolor="#DBC878"];
-
-            membrane [label="Membrane\\n48 Bessel modes\\n(circular drum head)", shape=box, fillcolor="#DBC878"];
-            plate [label="Plate\\n48 plate-mode ratios", shape=box, fillcolor="#DBC878"];
-            shell [label="Shell\\n32 cylindrical modes", shape=box, fillcolor="#DBC878"];
-            string [label="String\\nWaveguide model\\n(stiffness + pick pos)", shape=box, fillcolor="#DBC878"];
-            bell [label="Bell\\n16 Chladni modes\\nMetallic damping (b3=0)", shape=box, fillcolor="#DBC878"];
-            noise_body [label="Noise Body\\n40 modes + broadband\\n(cymbal hash)", shape=box, fillcolor="#DBC878"];
-
-            body_switch -> membrane [style=dashed];
-            body_switch -> plate [style=dashed];
-            body_switch -> shell [style=dashed];
-            body_switch -> string [style=dashed];
-            body_switch -> bell [style=dashed];
-            body_switch -> noise_body [style=dashed];
-        }
-
-        // -------- Phase 8 modal augmentations --------
-        subgraph cluster_phase8 {
-            label="Phase 8 Modal Augmentations";
-            style=dashed;
-            color="#B8860B";
-            bgcolor="#FFF8E0";
-
-            damping [label="Per-mode Damping (8A)\\nR_k = b1 + b3 &middot; f^2\\nChaigne-Askenfelt 1993\\nMetallic ring &harr; woody thump", shape=box, fillcolor="#E8C868"];
-
-            air_load [label="Air Loading + Scatter (8C)\\nRossing-tabulated low-mode\\nfrequency depression\\n+ sinusoidal mode dither", shape=box, fillcolor="#E8C868"];
-
-            secondary [label="Secondary Modal Bank (8D)\\n24 shell modes\\nBidirectional energy exchange\\nwith primary at block rate\\nStability-clamped &lt; 0.25", shape=box, fillcolor="#E8C868"];
-
-            tension [label="Tension Modulation (8E)\\n20 ms energy follower\\ndrives block-rate\\nfrequency scale\\nDepth scaled by velocity^2", shape=box, fillcolor="#E8C868"];
-        }
-
-        // -------- Parallel layers (Phase 7) --------
-        subgraph cluster_layers {
-            label="Parallel Layers (Phase 7)";
-            style=dashed;
-            color="#9B6BBF";
-            bgcolor="#F3ECF9";
-
-            noise_layer [label="Noise Layer\\nAlways-on filtered noise\\nSVF lowpass + envelope\\nMix, cutoff, resonance,\\ncolor, decay", shape=box, fillcolor="#C49EE0"];
-
-            click_layer [label="Click Layer\\n2-5 ms raised-cosine\\nfiltered-noise burst\\nMix, contact ms, brightness", shape=box, fillcolor="#C49EE0"];
-        }
-
-        // -------- Unnatural Zone --------
-        subgraph cluster_unnatural {
-            label="Unnatural Zone";
-            style=dashed;
-            color="#4A90D9";
-            bgcolor="#DCE8F4";
-
-            mode_stretch [label="Mode Stretch\\n0.5 - 2.0\\nInharmonic detuning", shape=box, fillcolor="#9CCBEA"];
-            decay_skew [label="Decay Skew\\n&plusmn;1.0\\nHi/lo mode envelope skew", shape=box, fillcolor="#9CCBEA"];
-            mode_inject [label="Mode Inject\\nPhase-randomised\\ninjection bank", shape=box, fillcolor="#9CCBEA"];
-            nl_coupling [label="Nonlinear Coupling\\nWith energy limiter", shape=box, fillcolor="#9CCBEA"];
-            morph [label="Material Morph\\n2-point envelope\\n10 - 2000 ms", shape=box, fillcolor="#9CCBEA"];
-        }
-
-        // -------- Tone Shaper --------
-        subgraph cluster_tone {
-            label="Tone Shaper";
-            style=dashed;
-            color="#4A90D9";
-            bgcolor="#DCE8F4";
-
-            pitch_env [label="Pitch Envelope\\nAbsolute Hz start/end/time\\nExp/lin curve\\n808-style transient sweep", shape=box, fillcolor="#7BAFD4"];
-
-            drive [label="Drive\\nAlias-safe waveshaper", shape=box, fillcolor="#7BAFD4"];
-            wavefolder [label="Wavefolder", shape=box, fillcolor="#7BAFD4"];
-            dc_block [label="DC Blocker", shape=box, fillcolor="#7BAFD4"];
-            svf [label="SVF Filter\\nLP / HP / BP\\n+ 4-stage envelope", shape=box, fillcolor="#7BAFD4"];
-
-            drive -> wavefolder [penwidth=2, color="#2A5080"];
-            wavefolder -> dc_block [penwidth=2, color="#2A5080"];
-            dc_block -> svf [penwidth=2, color="#2A5080"];
-        }
-
-        // -------- Amp envelope --------
-        amp_env [label="Amp Envelope\\nADSR with hold-during-gate\\nDecoupled from voice lifetime\\nso retrigger doesn't cut tail", shape=box, fillcolor="#6AABEA"];
-
-        // -------- Internal voice wiring --------
-        exciter_switch -> body_switch [penwidth=2, color="#8B6914", label="excitation\\n+ body feedback"];
-        body_switch -> damping [penwidth=2, color="#8B6914", style=dashed, label="per-mode\\nR_k modifier"];
-        body_switch -> air_load [penwidth=2, color="#8B6914", style=dashed, label="freq\\nmodifier"];
-        body_switch -> secondary [penwidth=2, color="#8B6914", label="primary\\noutput"];
-        secondary -> body_switch [style=dashed, color="#8B6914", label="shell\\nfeedback"];
-        body_switch -> tension [style=dashed, color="#8B6914", label="energy\\nfollower"];
-        tension -> body_switch [style=dashed, color="#8B6914", label="freq\\nscale"];
-
-        body_switch -> mode_inject [penwidth=2, color="#2A5080", label="modal\\noutput"];
-        mode_inject -> nl_coupling [penwidth=2, color="#2A5080"];
-        nl_coupling -> drive [penwidth=2, color="#2A5080"];
-
-        pitch_env -> body_switch [style=dashed, color="#888888", label="per-sample\\nfundamental"];
-        morph -> body_switch [style=dashed, color="#888888", label="material\\nmix"];
-        mode_stretch -> body_switch [style=dashed, color="#888888"];
-        decay_skew -> body_switch [style=dashed, color="#888888"];
-
-        noise_layer -> svf [penwidth=2, color="#6B3B9F", style=dashed, label="parallel\\nadd"];
-        click_layer -> svf [penwidth=2, color="#6B3B9F", style=dashed, label="parallel\\nadd"];
-
-        svf -> amp_env [penwidth=2, color="#2A5080"];
-    }
-
-    slot_alloc -> exciter_switch [penwidth=2, color="#804010", label="trigger\\n+ velocity"];
-    slot_alloc -> noise_layer [penwidth=2, color="#804010", label="trigger"];
-    slot_alloc -> click_layer [penwidth=2, color="#804010", label="trigger"];
-    slot_alloc -> amp_env [penwidth=2, color="#804010", label="gate"];
-
-    // =========================================================================
-    // PER-VOICE OUTPUT &amp; BUS ROUTING
-    // =========================================================================
-    subgraph cluster_routing {
-        label="Output Bus Routing  &mdash;  Per-Pad Bus Assignment";
-        style=rounded;
-        color="#666666";
-        bgcolor="#F0F0F0";
-
-        bus_select [label="outputBus selector\\n(per pad, 0-15)\\nbus 0 = main stereo\\nbus 1-15 = aux", shape=diamond, fillcolor="#AAAAAA"];
-
-        main_accum [label="Main Bus Accumulator\\nsum into outL / outR", shape=box, fillcolor="#888888", fontcolor="white"];
-
-        aux_accum [label="Aux Bus Accumulators\\nauxL[1..15] / auxR[1..15]\\n(active &amp; non-empty buses\\nonly)", shape=box, fillcolor="#888888", fontcolor="white"];
-
-        bus_select -> main_accum [penwidth=2, label="bus = 0"];
-        bus_select -> aux_accum [penwidth=2, label="bus &gt; 0"];
-    }
-
-    amp_env -> bus_select [penwidth=2, color="#2A5080", label="voice\\nsample"];
-
-    // =========================================================================
-    // SYMPATHETIC RESONANCE / COUPLING
-    // =========================================================================
-    subgraph cluster_coupling {
-        label="Sympathetic Resonance (Coupling)  &mdash;  Cross-Pad Energy Exchange";
-        style=rounded;
-        color="#D94A7A";
-        bgcolor="#FCEDF2";
-        fontsize=13;
-        fontcolor="#A02050";
-        penwidth=2;
-
-        coupling_matrix [label="CouplingMatrix\\nGlobal coupling amount\\n+ Snare Buzz (kicks-&gt;snare)\\n+ Tom Resonance (toms-&gt;toms)\\n+ per-pad couplingAmount\\n-&gt; effectiveGain[src][dst]", shape=box, fillcolor="#E88AAA"];
-
-        coupling_delay [label="Coupling Delay\\n0.5 - 2.0 ms\\n(propagation delay)", shape=box, fillcolor="#E88AAA"];
-
-        symp_engine [label="SympatheticResonance\\nMono sum -&gt; matrix\\n-&gt; per-pad excitation\\n-&gt; energy limiter\\n(caps below -20 dBFS)", shape=box, fillcolor="#E88AAA"];
-
-        coupling_matrix -> symp_engine [style=dashed, color="#A02050", label="effectiveGain"];
-        coupling_delay -> symp_engine [penwidth=2, color="#A02050"];
-    }
-
-    pad_configs -> coupling_matrix [style=dashed, color="#2A6030", label="couplingAmount\\nper pad"];
-    main_accum -> coupling_delay [penwidth=2, color="#A02050", label="mono sum\\nof voices"];
-    symp_engine -> main_accum [penwidth=2, color="#A02050", label="add back\\nto L/R", constraint=false];
-
-    // =========================================================================
-    // OUTPUT CHAIN
-    // =========================================================================
-    subgraph cluster_output {
-        label="Output Chain";
-        style=rounded;
-        color="#666666";
-        bgcolor="#F0F0F0";
-        fontsize=13;
-        fontcolor="#444444";
-        penwidth=2;
-
-        master_gain [label="Master Output Gain\\n[-24 .. +12] dB\\nMain bus only\\n(aux buses pre-master)", shape=box, fillcolor="#888888", fontcolor="white"];
-
-        meters [label="Meters Block\\nPeak / RMS publisher\\n(lock-free DataExchange\\nfor UI)", shape=box, fillcolor="#AAAAAA", fontcolor="white"];
-
-        output_main [label="Audio Output\\nMain Stereo L / R", shape=invhouse, fillcolor="#CCDDEE"];
-        output_aux [label="Audio Output\\nAux Buses 1-15\\n(stereo pairs)", shape=invhouse, fillcolor="#CCDDEE"];
-    }
-
-    main_accum -> master_gain [penwidth=2, color="#2A5080"];
-    master_gain -> meters [penwidth=2, color="#2A5080"];
-    meters -> output_main [penwidth=2, color="#2A5080"];
-    aux_accum -> output_aux [penwidth=2, color="#2A5080", label="pre-master\\n(no master\\ngain applied)"];
-
-    // =========================================================================
-    // UI DATA PIPELINE
-    // =========================================================================
-    subgraph cluster_ui {
-        label="UI Data (lock-free, audio -&gt; UI)";
-        style=rounded;
-        color="#888888";
-        bgcolor="#FAFAFA";
-
-        glow_publisher [label="PadGlowPublisher\\nPer-pad voice activity\\n+ level + category color\\n(drives 4x8 grid glow)", shape=box, fillcolor="#DDDDDD"];
-
-        meter_publisher [label="MetersBlock DataExchange\\nPeak / RMS,\\nUI-side per-block data\\npiggybacked here", shape=box, fillcolor="#DDDDDD"];
-    }
-
-    amp_env -> glow_publisher [style=dashed, color="#888888", label="per-voice\\nlevel"];
-    meters -> meter_publisher [style=dashed, color="#888888"];
-
-    // =========================================================================
-    // PROCESSING RATE ANNOTATIONS
-    // =========================================================================
-    subgraph cluster_rates {
-        label="Processing Rates";
-        style=rounded;
-        color="#888888";
-        bgcolor="#FAFAFA";
-        node [shape=plaintext, fillcolor="#FAFAFA"];
-
-        rates [label=<
-            <TABLE BORDER="0" CELLBORDER="0" CELLSPACING="4">
-            <TR><TD ALIGN="LEFT"><B>Parameters:</B></TD><TD ALIGN="LEFT">Per-block (atomic reads, dispatched via processParameterChanges)</TD></TR>
-            <TR><TD ALIGN="LEFT"><B>MacroMapper:</B></TD><TD ALIGN="LEFT">Per-block on macro change (incremental delta into PadConfig)</TD></TR>
-            <TR><TD ALIGN="LEFT"><B>Voice allocation:</B></TD><TD ALIGN="LEFT">Per-event (note-on / note-off) on the audio thread</TD></TR>
-            <TR><TD ALIGN="LEFT"><B>Per-mode damping:</B></TD><TD ALIGN="LEFT">Per-mode (R_k applied at body update; recomputed on b1/b3 change)</TD></TR>
-            <TR><TD ALIGN="LEFT"><B>Air loading:</B></TD><TD ALIGN="LEFT">Per-block (frequency table lookup applied on body update)</TD></TR>
-            <TR><TD ALIGN="LEFT"><B>Head/shell coupling:</B></TD><TD ALIGN="LEFT">Per-block energy exchange between primary and secondary banks</TD></TR>
-            <TR><TD ALIGN="LEFT"><B>Tension modulation:</B></TD><TD ALIGN="LEFT">Per-sample energy follower; per-block frequency scale</TD></TR>
-            <TR><TD ALIGN="LEFT"><B>Modal synthesis:</B></TD><TD ALIGN="LEFT">Per-sample (Gordon-Smith resonator bank, all modes in parallel)</TD></TR>
-            <TR><TD ALIGN="LEFT"><B>Tone Shaper:</B></TD><TD ALIGN="LEFT">Per-sample (drive -&gt; wavefolder -&gt; DC -&gt; SVF + envelope)</TD></TR>
-            <TR><TD ALIGN="LEFT"><B>Coupling:</B></TD><TD ALIGN="LEFT">Per-block global (mono sum -&gt; delay -&gt; matrix -&gt; limiter -&gt; mix back)</TD></TR>
-            <TR><TD ALIGN="LEFT"><B>Master gain:</B></TD><TD ALIGN="LEFT">Per-block (atomic) on main bus only</TD></TR>
-            <TR><TD ALIGN="LEFT"><B>UI publishers:</B></TD><TD ALIGN="LEFT">Lock-free SPSC (audio thread writer, UI thread reader)</TD></TR>
-            <TR><TD ALIGN="LEFT"><B>Voice modes:</B></TD><TD ALIGN="LEFT">4-16 polyphony; 3 stealing policies (Oldest / Quietest / Priority)</TD></TR>
-            <TR><TD ALIGN="LEFT"><B>Choke groups:</B></TD><TD ALIGN="LEFT">8 groups (+ group 0 = none); 5 ms exp fast-release on group conflict</TD></TR>
-            </TABLE>
-        >];
-    }
-}
-`;
-
         const container = document.getElementById("diagram-container");
         const diagramEl = document.getElementById("diagram");
         const loadingEl = document.getElementById("loading");
@@ -642,19 +1351,11 @@
         container.addEventListener("touchend", () => { lastTouch = null; });
 
         // Render
-        try {
-            const viz = await instance();
-            const svg = viz.renderSVGElement(dotSource);
-            svg.style.width = "auto";
-            svg.style.height = "auto";
-            loadingEl.style.display = "none";
-            diagramEl.appendChild(svg);
-            fitToScreen();
-        } catch (err) {
-            loadingEl.style.display = "none";
-            errorEl.style.display = "block";
-            errorEl.textContent = "Failed to render diagram: " + err.message;
-        }
+        const svg = diagramEl.querySelector("svg");
+        svg.style.width = "auto";
+        svg.style.height = "auto";
+        loadingEl.style.display = "none";
+        fitToScreen();
     </script>
 </body>
 </html>

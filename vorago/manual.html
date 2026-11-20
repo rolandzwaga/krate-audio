@@ -3,31 +3,91 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vorago User Manual - Dark-Ambient Drone Instrument | Krate Audio</title>
-    <meta name="description" content="Complete user manual for Vorago, a free open-source dark-ambient drone instrument VST3 plugin. Covers the twelve concept macros, the ecosystem and slow events, the harmonic cloud, noise organism, resonance network, feedback ecology, bodies, subharmonics, spectral smear, the cavern, and presets.">
-    <meta name="robots" content="index, follow">
+    <title>Vorago User Manual – Dark Ambient Drone | Krate Audio</title>
+    <meta name="description" content="User manual for Vorago, the free dark-ambient drone VST3 instrument: the twelve macros, the ecosystem, the seven section pages and the presets.">
     <link rel="canonical" href="https://krateaudio.com/vorago/manual.html">
-
-    <!-- Open Graph -->
-    <meta property="og:title" content="Vorago User Manual - Dark-Ambient Drone Instrument">
-    <meta property="og:description" content="Complete user manual for Vorago, a free open-source dark-ambient drone instrument VST3 plugin.">
+    <meta property="og:title" content="Vorago User Manual – Dark Ambient Drone">
+    <meta property="og:description" content="User manual for Vorago, the free dark-ambient drone VST3 instrument: the twelve macros, the ecosystem, the seven section pages and the presets.">
     <meta property="og:type" content="article">
     <meta property="og:url" content="https://krateaudio.com/vorago/manual.html">
+    <meta name="robots" content="index, follow, max-image-preview:large">
+    <meta name="theme-color" content="#0a0a0f">
+    <link rel="icon" href="/favicon.ico" sizes="32x32">
+    <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+    <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+    <link rel="preload" href="/assets/fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="stylesheet" href="/assets/site.css">
     <meta property="og:site_name" content="Krate Audio">
     <meta property="og:locale" content="en_US">
-
-    <!-- Twitter Card -->
-    <meta name="twitter:card" content="summary">
-    <meta name="twitter:title" content="Vorago User Manual">
-    <meta name="twitter:description" content="Complete user manual for Vorago, a free open-source dark-ambient drone instrument VST3 plugin.">
-
-    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-    <meta http-equiv="Pragma" content="no-cache">
-    <meta http-equiv="Expires" content="0">
-    <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <meta property="og:image" content="https://krateaudio.com/vorago/images/og-image.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="Vorago plugin editor">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content="https://krateaudio.com/vorago/images/og-image.png">
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "Organization",
+          "@id": "https://krateaudio.com/#organization",
+          "name": "Krate Audio",
+          "url": "https://krateaudio.com/",
+          "logo": {
+            "@type": "ImageObject",
+            "url": "https://krateaudio.com/assets/logo-512.png",
+            "width": 512,
+            "height": 512
+          },
+          "sameAs": [
+            "https://github.com/rolandzwaga"
+          ]
+        },
+        {
+          "@type": "TechArticle",
+          "headline": "Vorago User Manual – Dark Ambient Drone",
+          "description": "User manual for Vorago, the free dark-ambient drone VST3 instrument: the twelve macros, the ecosystem, the seven section pages and the presets.",
+          "url": "https://krateaudio.com/vorago/manual.html",
+          "inLanguage": "en",
+          "image": "https://krateaudio.com/vorago/images/og-image.png",
+          "about": {
+            "@id": "https://krateaudio.com/vorago/#software"
+          },
+          "author": {
+            "@id": "https://krateaudio.com/#organization"
+          },
+          "publisher": {
+            "@id": "https://krateaudio.com/#organization"
+          },
+          "dateModified": "2026-11-20T15:01:23+01:00"
+        },
+        {
+          "@type": "BreadcrumbList",
+          "itemListElement": [
+            {
+              "@type": "ListItem",
+              "position": 1,
+              "name": "Krate Audio",
+              "item": "https://krateaudio.com/"
+            },
+            {
+              "@type": "ListItem",
+              "position": 2,
+              "name": "Vorago",
+              "item": "https://krateaudio.com/vorago/"
+            },
+            {
+              "@type": "ListItem",
+              "position": 3,
+              "name": "User Manual",
+              "item": "https://krateaudio.com/vorago/manual.html"
+            }
+          ]
+        }
+      ]
+    }
+    </script>
     <style>
         /* Base — matches Vorago landing page */
         :root {
@@ -283,100 +343,93 @@
             <p class="subtitle">Dark-Ambient Drone Instrument</p>
         </div>
 
-        <ul>
-        <li><a href="#introduction"
-        id="toc-introduction">Introduction</a></li>
-        <li><a href="#signal-flow" id="toc-signal-flow">Signal
-        Flow</a></li>
-        <li><a href="#interface-overview"
-        id="toc-interface-overview">Interface Overview</a></li>
-        <li><a href="#macros" id="toc-macros">Macros</a>
-        <ul>
-        <li><a
-        href="#darkness-darkens-the-cloud-tilt-the-smear-and-the-cavern"
-        id="toc-darkness-darkens-the-cloud-tilt-the-smear-and-the-cavern">Darkness
-        — <em>“Darkens the cloud tilt, the smear and the
-        cavern”</em></a></li>
-        <li><a
-        href="#age-wear-duller-cloud-more-body-damping-a-shorter-cavern-decay"
-        id="toc-age-wear-duller-cloud-more-body-damping-a-shorter-cavern-decay">Age
-        — <em>“Wear: duller cloud, more body damping, a shorter cavern
-        decay”</em></a></li>
-        <li><a
-        href="#density-richer-cloud-louder-and-more-reactive-noise-deeper-bloom"
-        id="toc-density-richer-cloud-louder-and-more-reactive-noise-deeper-bloom">Density
-        — <em>“Richer cloud, louder and more reactive noise, deeper
-        bloom”</em></a></li>
-        <li><a href="#movement-drift-wander-breathing-and-damper-motion"
-        id="toc-movement-drift-wander-breathing-and-damper-motion">Movement
-        — <em>“Drift, wander, breathing and damper motion”</em></a></li>
-        <li><a
-        href="#gravity-pulls-the-resonances-toward-the-harmonic-grid-bipolar"
-        id="toc-gravity-pulls-the-resonances-toward-the-harmonic-grid-bipolar">Gravity
-        — <em>“Pulls the resonances toward the harmonic grid”</em>
-        (bipolar)</a></li>
-        <li><a
-        href="#entropy-mutation-inharmonicity-decoherence-and-irregular-breathing"
-        id="toc-entropy-mutation-inharmonicity-decoherence-and-irregular-breathing">Entropy
-        — <em>“Mutation, inharmonicity, decoherence and irregular
-        breathing”</em></a></li>
-        <li><a
-        href="#pressure-ecology-feedback-output-drive-and-saturation"
-        id="toc-pressure-ecology-feedback-output-drive-and-saturation">Pressure
-        — <em>“Ecology feedback, output drive and
-        saturation”</em></a></li>
-        <li><a
-        href="#weight-sub-level-body-blend-and-damping-a-heavier-spectral-tilt"
-        id="toc-weight-sub-level-body-blend-and-damping-a-heavier-spectral-tilt">Weight
-        — <em>“Sub level, body blend and damping, a heavier spectral
-        tilt”</em></a></li>
-        <li><a
-        href="#fog-smear-ghosts-blur-tides-and-a-foggier-darker-cavern"
-        id="toc-fog-smear-ghosts-blur-tides-and-a-foggier-darker-cavern">Fog
-        — <em>“Smear, ghosts, blur, tides and a foggier, darker
-        cavern”</em></a></li>
-        <li><a
-        href="#life-ecosystem-depth-event-rate-and-bloom-spawning"
-        id="toc-life-ecosystem-depth-event-rate-and-bloom-spawning">Life
-        — <em>“Ecosystem depth, event rate and bloom
-        spawning”</em></a></li>
-        <li><a href="#depth-cavern-mix-size-decay-and-width"
-        id="toc-depth-cavern-mix-size-decay-and-width">Depth —
-        <em>“Cavern mix, size, decay and width”</em></a></li>
-        <li><a
-        href="#mass-body-and-resonator-level-body-resonance-and-sub-tracking"
-        id="toc-mass-body-and-resonator-level-body-resonance-and-sub-tracking">Mass
-        — <em>“Body and resonator level, body resonance and sub
-        tracking”</em></a></li>
-        </ul></li>
-        <li><a href="#header-controls" id="toc-header-controls">Header
-        Controls</a></li>
-        <li><a href="#the-cloud-page" id="toc-the-cloud-page">The Cloud
-        Page</a></li>
-        <li><a href="#the-noise-page" id="toc-the-noise-page">The Noise
-        Page</a></li>
-        <li><a href="#the-resonance-page"
-        id="toc-the-resonance-page">The Resonance Page</a></li>
-        <li><a href="#the-body-page" id="toc-the-body-page">The Body
-        Page</a></li>
-        <li><a href="#the-sub-smear-page"
-        id="toc-the-sub-smear-page">The Sub / Smear Page</a></li>
-        <li><a href="#the-space-page" id="toc-the-space-page">The Space
-        Page</a></li>
-        <li><a href="#the-life-page" id="toc-the-life-page">The Life
-        Page</a></li>
-        <li><a href="#presets" id="toc-presets">Presets</a>
-        <ul>
-        <li><a href="#factory-library" id="toc-factory-library">Factory
-        Library</a></li>
-        </ul></li>
-        <li><a href="#performance-notes"
-        id="toc-performance-notes">Performance Notes</a></li>
-        <li><a href="#cross-platform"
-        id="toc-cross-platform">Cross-Platform</a></li>
-        <li><a href="#tips-tricks" id="toc-tips-tricks">Tips &amp;
-        Tricks</a></li>
-        </ul>
+        <nav id="TOC" aria-label="Contents">
+<ul>
+<li><a href="#introduction" id="toc-introduction">Introduction</a></li>
+<li><a href="#signal-flow" id="toc-signal-flow">Signal Flow</a></li>
+<li><a href="#interface-overview" id="toc-interface-overview">Interface
+Overview</a></li>
+<li><a href="#macros" id="toc-macros">Macros</a>
+<ul>
+<li><a href="#darkness-darkens-the-cloud-tilt-the-smear-and-the-cavern"
+id="toc-darkness-darkens-the-cloud-tilt-the-smear-and-the-cavern">Darkness
+— <em>“Darkens the cloud tilt, the smear and the cavern”</em></a></li>
+<li><a
+href="#age-wear-duller-cloud-more-body-damping-a-shorter-cavern-decay"
+id="toc-age-wear-duller-cloud-more-body-damping-a-shorter-cavern-decay">Age
+— <em>“Wear: duller cloud, more body damping, a shorter cavern
+decay”</em></a></li>
+<li><a
+href="#density-richer-cloud-louder-and-more-reactive-noise-deeper-bloom"
+id="toc-density-richer-cloud-louder-and-more-reactive-noise-deeper-bloom">Density
+— <em>“Richer cloud, louder and more reactive noise, deeper
+bloom”</em></a></li>
+<li><a href="#movement-drift-wander-breathing-and-damper-motion"
+id="toc-movement-drift-wander-breathing-and-damper-motion">Movement —
+<em>“Drift, wander, breathing and damper motion”</em></a></li>
+<li><a
+href="#gravity-pulls-the-resonances-toward-the-harmonic-grid-bipolar"
+id="toc-gravity-pulls-the-resonances-toward-the-harmonic-grid-bipolar">Gravity
+— <em>“Pulls the resonances toward the harmonic grid”</em>
+(bipolar)</a></li>
+<li><a
+href="#entropy-mutation-inharmonicity-decoherence-and-irregular-breathing"
+id="toc-entropy-mutation-inharmonicity-decoherence-and-irregular-breathing">Entropy
+— <em>“Mutation, inharmonicity, decoherence and irregular
+breathing”</em></a></li>
+<li><a href="#pressure-ecology-feedback-output-drive-and-saturation"
+id="toc-pressure-ecology-feedback-output-drive-and-saturation">Pressure
+— <em>“Ecology feedback, output drive and saturation”</em></a></li>
+<li><a
+href="#weight-sub-level-body-blend-and-damping-a-heavier-spectral-tilt"
+id="toc-weight-sub-level-body-blend-and-damping-a-heavier-spectral-tilt">Weight
+— <em>“Sub level, body blend and damping, a heavier spectral
+tilt”</em></a></li>
+<li><a href="#fog-smear-ghosts-blur-tides-and-a-foggier-darker-cavern"
+id="toc-fog-smear-ghosts-blur-tides-and-a-foggier-darker-cavern">Fog —
+<em>“Smear, ghosts, blur, tides and a foggier, darker
+cavern”</em></a></li>
+<li><a href="#life-ecosystem-depth-event-rate-and-bloom-spawning"
+id="toc-life-ecosystem-depth-event-rate-and-bloom-spawning">Life —
+<em>“Ecosystem depth, event rate and bloom spawning”</em></a></li>
+<li><a href="#depth-cavern-mix-size-decay-and-width"
+id="toc-depth-cavern-mix-size-decay-and-width">Depth — <em>“Cavern mix,
+size, decay and width”</em></a></li>
+<li><a
+href="#mass-body-and-resonator-level-body-resonance-and-sub-tracking"
+id="toc-mass-body-and-resonator-level-body-resonance-and-sub-tracking">Mass
+— <em>“Body and resonator level, body resonance and sub
+tracking”</em></a></li>
+</ul></li>
+<li><a href="#header-controls" id="toc-header-controls">Header
+Controls</a></li>
+<li><a href="#the-cloud-page" id="toc-the-cloud-page">The Cloud
+Page</a></li>
+<li><a href="#the-noise-page" id="toc-the-noise-page">The Noise
+Page</a></li>
+<li><a href="#the-resonance-page" id="toc-the-resonance-page">The
+Resonance Page</a></li>
+<li><a href="#the-body-page" id="toc-the-body-page">The Body
+Page</a></li>
+<li><a href="#the-sub-smear-page" id="toc-the-sub-smear-page">The Sub /
+Smear Page</a></li>
+<li><a href="#the-space-page" id="toc-the-space-page">The Space
+Page</a></li>
+<li><a href="#the-life-page" id="toc-the-life-page">The Life
+Page</a></li>
+<li><a href="#presets" id="toc-presets">Presets</a>
+<ul>
+<li><a href="#factory-library" id="toc-factory-library">Factory
+Library</a></li>
+</ul></li>
+<li><a href="#performance-notes" id="toc-performance-notes">Performance
+Notes</a></li>
+<li><a href="#cross-platform"
+id="toc-cross-platform">Cross-Platform</a></li>
+<li><a href="#tips-tricks" id="toc-tips-tricks">Tips &amp;
+Tricks</a></li>
+</ul>
+        </nav>
         <h2 id="introduction">Introduction</h2>
         <p>Vorago is a <strong>dark-ambient drone instrument</strong>.
         Each voice is not an oscillator but a small environment: a
@@ -449,6 +502,16 @@ Output ───────────── master gain → tape saturator �
         their own sections below. The interactive diagram on the landing
         page shows every connection.</p>
         <h2 id="interface-overview">Interface Overview</h2>
+        <figure>
+        <img src="images/hero.png" alt="The Vorago editor" width="1100" height="760" loading="lazy" decoding="async">
+        <figcaption aria-hidden="true">The Vorago editor</figcaption>
+        </figure>
+        <figure>
+        <img src="images/ecosystem.png"
+        alt="The ecosystem view with a living colony" width="400" height="400" loading="lazy" decoding="async">
+        <figcaption aria-hidden="true">The ecosystem view with a living
+        colony</figcaption>
+        </figure>
         <p>The editor is a fixed 1100 × 760 window built around the life
         of the sound.</p>
         <ul>
@@ -477,6 +540,18 @@ Output ───────────── master gain → tape saturator �
         <p>Every control carries a tooltip — hover over anything for a
         one-line description.</p>
         <h2 id="macros">Macros</h2>
+        <figure>
+        <img src="images/macros-left.png"
+        alt="Macros: Darkness, Age, Density, Movement, Gravity, Entropy" width="350" height="400" loading="lazy" decoding="async">
+        <figcaption aria-hidden="true">Macros: Darkness, Age, Density,
+        Movement, Gravity, Entropy</figcaption>
+        </figure>
+        <figure>
+        <img src="images/macros-right.png"
+        alt="Macros: Pressure, Weight, Fog, Life, Depth, Mass" width="350" height="400" loading="lazy" decoding="async">
+        <figcaption aria-hidden="true">Macros: Pressure, Weight, Fog,
+        Life, Depth, Mass</figcaption>
+        </figure>
         <p>The twelve macros are the performance surface of Vorago. Each
         sweeps a curated set of targets across the whole engine — voice,
         global chain and cavern at once. Two things are worth
@@ -872,6 +947,10 @@ Output ───────────── master gain → tape saturator �
         lengthens it. Weight, Pressure and Mass all touch the sub level,
         and their offsets sum.</p>
         <h2 id="header-controls">Header Controls</h2>
+        <figure>
+        <img src="images/header.png" alt="The header" width="1100" height="36" loading="lazy" decoding="async">
+        <figcaption aria-hidden="true">The header</figcaption>
+        </figure>
         <table>
         <colgroup>
         <col style="width: 25%" />
@@ -928,6 +1007,10 @@ Output ───────────── master gain → tape saturator �
         </tbody>
         </table>
         <h2 id="the-cloud-page">The Cloud Page</h2>
+        <figure>
+        <img src="images/page-cloud.png" alt="The Cloud page" width="1100" height="296" loading="lazy" decoding="async">
+        <figcaption aria-hidden="true">The Cloud page</figcaption>
+        </figure>
         <p>The harmonic cloud is the additive core — 64 partials per
         voice — and the bloom engine that grows new partials into
         it.</p>
@@ -1022,6 +1105,10 @@ Output ───────────── master gain → tape saturator �
         reason.</p>
         </blockquote>
         <h2 id="the-noise-page">The Noise Page</h2>
+        <figure>
+        <img src="images/page-noise.png" alt="The Noise page" width="1100" height="296" loading="lazy" decoding="async">
+        <figcaption aria-hidden="true">The Noise page</figcaption>
+        </figure>
         <p>The noise organism is the second sound source: four
         semi-independent noise sources, each feeding its own resonator →
         comb → wandering-filter chain. It is summed into the cloud
@@ -1124,6 +1211,10 @@ Output ───────────── master gain → tape saturator �
         (Filtered Wind), <em>Spore Drift</em> (Granular Dust) and
         <em>Steam Vent</em> (Metallic Hiss).</p>
         <h2 id="the-resonance-page">The Resonance Page</h2>
+        <figure>
+        <img src="images/page-resonance.png" alt="The Resonance page" width="1100" height="296" loading="lazy" decoding="async">
+        <figcaption aria-hidden="true">The Resonance page</figcaption>
+        </figure>
         <p>Two stages share this page: the resonance drift network that
         colours the excitation, and the feedback ecology that sustains
         it.</p>
@@ -1229,6 +1320,10 @@ Output ───────────── master gain → tape saturator �
         each.</p>
         </blockquote>
         <h2 id="the-body-page">The Body Page</h2>
+        <figure>
+        <img src="images/page-body.png" alt="The Body page" width="1100" height="296" loading="lazy" decoding="async">
+        <figcaption aria-hidden="true">The Body page</figcaption>
+        </figure>
         <p>Every voice speaks through <strong>two continuous bodies at
         once</strong> — physical resonators driven by a sustained stream
         rather than struck — blended per sample. Both bodies run at
@@ -1349,6 +1444,11 @@ Output ───────────── master gain → tape saturator �
         engine behind <em>Growth Ring</em>. Velocity scales the whole
         envelope.</p>
         <h2 id="the-sub-smear-page">The Sub / Smear Page</h2>
+        <figure>
+        <img src="images/page-sub-smear.png"
+        alt="The Sub / Smear page" width="1100" height="296" loading="lazy" decoding="async">
+        <figcaption aria-hidden="true">The Sub / Smear page</figcaption>
+        </figure>
         <p>Two global stages, after the voices are summed.</p>
         <p><strong>Subharmonic Engine</strong> — three synchronous
         dividers tracking the lowest sounding voice (÷2 one octave down,
@@ -1450,6 +1550,10 @@ Output ───────────── master gain → tape saturator �
         knob still. The Fog macro is mostly this stage plus the cavern’s
         own fog.</p>
         <h2 id="the-space-page">The Space Page</h2>
+        <figure>
+        <img src="images/page-space.png" alt="The Space page" width="1100" height="296" loading="lazy" decoding="async">
+        <figcaption aria-hidden="true">The Space page</figcaption>
+        </figure>
         <p>The cavern: an enormous underground bunker, in the signal
         path. Sparse stone-flavoured early reflections feed a diffusion
         network and an FDN reverb with spectral damping, whose damping
@@ -1580,6 +1684,10 @@ Output ───────────── master gain → tape saturator �
         the drone has bloomed (<em>Cathedral Void</em> is written for
         it).</p>
         <h2 id="the-life-page">The Life Page</h2>
+        <figure>
+        <img src="images/page-life.png" alt="The Life page" width="1100" height="296" loading="lazy" decoding="async">
+        <figcaption aria-hidden="true">The Life page</figcaption>
+        </figure>
         <p>The identity layer: the ecosystem, the slow events, the
         ghosts and the life modulators.</p>
         <p><strong>Ecosystem</strong> — up to 48 agents of five kinds

@@ -4,58 +4,76 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Krate Audio - Free Open-Source VST3 Plugins</title>
-    <meta name="description" content="Free open-source VST3 audio plugins for music production and sound design. Delay, distortion, synthesizer, harmonic resynthesis, and step arpeggiator. Windows, macOS, Linux.">
-    <meta name="robots" content="index, follow">
+    <title>Krate Audio – Free Open-Source VST3 Plugins</title>
+    <meta name="description" content="Free open-source VST3 and AU plugins for Windows, macOS and Linux: synthesizers, a drum machine, a bass instrument, delay, distortion and an arpeggiator.">
     <meta name="google-site-verification" content="y2hCGu8k5yBDwKfwArKwYesnPr75Nrk4NxbPV1hi_u0" />
     <link rel="canonical" href="https://krateaudio.com/">
-    <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
-
-    <!-- Open Graph -->
-    <meta property="og:title" content="Krate Audio - Free Open-Source VST3 Plugins">
-    <meta property="og:description" content="Free open-source VST3 audio plugins for music production and sound design. Delay, distortion, synthesizer, harmonic resynthesis, and arpeggiator.">
+    <meta property="og:title" content="Krate Audio – Free Open-Source VST3 Plugins">
+    <meta property="og:description" content="Free open-source VST3 and AU plugins for Windows, macOS and Linux: synthesizers, a drum machine, a bass instrument, delay, distortion and an arpeggiator.">
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://krateaudio.com/">
+    <meta name="robots" content="index, follow, max-image-preview:large">
+    <meta name="theme-color" content="#0a0a0f">
+    <link rel="icon" href="/favicon.ico" sizes="32x32">
+    <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+    <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+    <link rel="preload" href="/assets/fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="stylesheet" href="/assets/site.css">
     <meta property="og:site_name" content="Krate Audio">
     <meta property="og:locale" content="en_US">
-
-    <!-- Twitter Card -->
-    <meta name="twitter:card" content="summary">
-    <meta name="twitter:title" content="Krate Audio - Free Open-Source VST3 Plugins">
-    <meta name="twitter:description" content="Free open-source VST3 plugins: delay, distortion, synth, resynthesis, arpeggiator. Windows, macOS, Linux.">
-
-    <!-- JSON-LD Structured Data -->
+    <meta property="og:image" content="https://krateaudio.com/assets/og-image.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="Krate Audio: free open-source VST3 plugins">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content="https://krateaudio.com/assets/og-image.png">
     <script type="application/ld+json">
     {
-        "@context": "https://schema.org",
-        "@type": "Organization",
-        "name": "Krate Audio",
-        "url": "https://krateaudio.com/",
-        "description": "Free open-source VST3 audio plugins for music production and sound design.",
-        "sameAs": [
-            "https://github.com/rolandzwaga/krate-audio"
-        ]
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "Organization",
+          "@id": "https://krateaudio.com/#organization",
+          "name": "Krate Audio",
+          "url": "https://krateaudio.com/",
+          "logo": {
+            "@type": "ImageObject",
+            "url": "https://krateaudio.com/assets/logo-512.png",
+            "width": 512,
+            "height": 512
+          },
+          "sameAs": [
+            "https://github.com/rolandzwaga"
+          ]
+        },
+        {
+          "@type": "WebSite",
+          "@id": "https://krateaudio.com/#website",
+          "name": "Krate Audio",
+          "url": "https://krateaudio.com/",
+          "inLanguage": "en",
+          "publisher": {
+            "@id": "https://krateaudio.com/#organization"
+          }
+        }
+      ]
     }
     </script>
-
-    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-    <meta http-equiv="Pragma" content="no-cache">
-    <meta http-equiv="Expires" content="0">
     <link rel="stylesheet" href="assets/style.css">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 
 <body>
     <div class="container">
         <header>
-            <h1>Krate Audio</h1>
+            <div class="brand">
+                <img src="/assets/favicon.svg" width="56" height="56" alt="Krate Audio logo">
+                <h1>Krate Audio</h1>
+            </div>
             <p class="tagline">Weird and noisy open-source VST3 plugins for music production and sound design</p>
+            <p class="intro">Every Krate Audio plugin is free and open source under the MIT licence: a VST3 for Windows, macOS and Linux, plus an Audio Unit on macOS. The full source of each one is on <a href="https://github.com/rolandzwaga/krate-audio">GitHub</a>, and Krate Manager installs and updates them for you.</p>
         </header>
 
-        <section class="plugins">
-            <h2>Plugins</h2>
+        <section class="plugins" aria-label="Plugins">
             <div class="plugin-grid">
                                 <div class="plugin-card manager-card">
                     <h2>Krate Manager</h2>
@@ -88,50 +106,80 @@
                         <p><a href="https://github.com/rolandzwaga/krate-audio/blob/main/apps/krate-manager/README.md#first-launch">The first-launch notes in the README</a></p>
                     </details>
                 </div>
-                <a href="disrumpo/" class="plugin-card">
-                    <h2>Disrumpo</h2>
-                    <p class="description">Multiband Morphing Distortion</p>
-                    <span class="version">v1.0.0</span>
-                </a>
-                <a href="gradus/" class="plugin-card">
-                    <h2>Gradus</h2>
-                    <p class="description">Step Arpeggiator</p>
-                    <span class="version">v1.10.4</span>
-                </a>
+                <h2 class="group-heading">Instruments</h2>
                 <a href="innexus/" class="plugin-card">
-                    <h2>Innexus</h2>
-                    <p class="description">Harmonic Analysis & Synthesis Engine</p>
+                    <img src="innexus/images/card.png" width="600" height="315" alt="Innexus plugin editor" loading="lazy" decoding="async">
+                    <h3>Innexus</h3>
+                    <p class="tagline">Harmonic Analysis &amp; Synthesis Engine</p>
+                    <p class="description">Analyses a sample or live sidechain into up to 96 harmonic partials and plays them back as a resynthesized voice.</p>
                     <span class="version">v1.0.6</span>
-                </a>
-                <a href="iterum/" class="plugin-card">
-                    <h2>Iterum</h2>
-                    <p class="description">Multi-Mode Delay</p>
-                    <span class="version">v1.0.2</span>
+                    <span class="released">Released <time datetime="2026-11-15">15 Nov 2026</time></span>
                 </a>
                 <a href="membrum/" class="plugin-card">
-                    <h2>Membrum</h2>
-                    <p class="description">Synthesized Drum Machine</p>
+                    <img src="membrum/images/card.png" width="600" height="315" alt="Membrum plugin editor" loading="lazy" decoding="async">
+                    <h3>Membrum</h3>
+                    <p class="tagline">Synthesized Drum Machine</p>
+                    <p class="description">32-pad drum machine that synthesizes every hit by physical modelling: six exciters, six body models, no samples.</p>
                     <span class="version">v0.12.4</span>
+                    <span class="released">Released <time datetime="2026-11-15">15 Nov 2026</time></span>
                 </a>
                 <a href="profundum/" class="plugin-card">
-                    <h2>Profundum</h2>
-                    <p class="description">Mass Bass Instrument</p>
+                    <img src="profundum/images/card.png" width="600" height="315" alt="Profundum plugin editor" loading="lazy" decoding="async">
+                    <h3>Profundum</h3>
+                    <p class="tagline">Mass Bass Instrument</p>
+                    <p class="description">Bass instrument with one voice over a centred sub anchor, morphed between two designed endpoints by Bass Morph.</p>
                     <span class="version">v1.0.2</span>
+                    <span class="released">Released <time datetime="2026-11-15">15 Nov 2026</time></span>
                 </a>
                 <a href="ruinae/" class="plugin-card">
-                    <h2>Ruinae</h2>
-                    <p class="description">Chaos/Spectral Hybrid Synthesizer</p>
+                    <img src="ruinae/images/card.png" width="600" height="315" alt="Ruinae plugin editor" loading="lazy" decoding="async">
+                    <h3>Ruinae</h3>
+                    <p class="tagline">Chaos/Spectral Hybrid Synthesizer</p>
+                    <p class="description">Chaos and spectral hybrid synthesizer with 10 oscillator types, 13 filters, an 8-slot mod matrix and a polymetric arpeggiator.</p>
                     <span class="version">v0.12.5</span>
+                    <span class="released">Released <time datetime="2026-11-15">15 Nov 2026</time></span>
                 </a>
                 <a href="seraphis/" class="plugin-card">
-                    <h2>Seraphis</h2>
-                    <p class="description">Spectral Organism Synthesizer</p>
+                    <img src="seraphis/images/card.png" width="600" height="315" alt="Seraphis plugin editor" loading="lazy" decoding="async">
+                    <h3>Seraphis</h3>
+                    <p class="tagline">Spectral Organism Synthesizer</p>
+                    <p class="description">Spectral organism synthesizer: 64-partial harmonic clouds through a modal body, with slow life modulators and five macro rings.</p>
                     <span class="version">v1.0.5</span>
+                    <span class="released">Released <time datetime="2026-11-15">15 Nov 2026</time></span>
                 </a>
                 <a href="vorago/" class="plugin-card">
-                    <h2>Vorago</h2>
-                    <p class="description">Dark-Ambient Drone Instrument</p>
+                    <img src="vorago/images/card.png" width="600" height="315" alt="Vorago plugin editor" loading="lazy" decoding="async">
+                    <h3>Vorago</h3>
+                    <p class="tagline">Dark-Ambient Drone Instrument</p>
+                    <p class="description">Dark-ambient drone instrument: a partial cloud, noise organism, resonant peaks and a living colony, played through twelve macros.</p>
                     <span class="version">v1.0.4</span>
+                    <span class="released">Released <time datetime="2026-11-15">15 Nov 2026</time></span>
+                </a>
+                <h2 class="group-heading">Effects</h2>
+                <a href="disrumpo/" class="plugin-card">
+                    <img src="disrumpo/images/card.png" width="600" height="315" alt="Disrumpo plugin editor" loading="lazy" decoding="async">
+                    <h3>Disrumpo</h3>
+                    <p class="tagline">Multiband Morphing Distortion</p>
+                    <p class="description">Multiband distortion with 26 algorithms in 7 families, morphed per band on a 2D MorphPad or by the Sweep system.</p>
+                    <span class="version">v1.0.0</span>
+                    <span class="released">Released <time datetime="2026-11-15">15 Nov 2026</time></span>
+                </a>
+                <a href="iterum/" class="plugin-card">
+                    <img src="iterum/images/card.png" width="600" height="315" alt="Iterum plugin editor" loading="lazy" decoding="async">
+                    <h3>Iterum</h3>
+                    <p class="tagline">Multi-Mode Delay</p>
+                    <p class="description">Ten delay engines in one plugin: tape, BBD, digital, ping-pong, reverse, multi-tap, granular, spectral, shimmer and freeze.</p>
+                    <span class="version">v1.0.2</span>
+                    <span class="released">Released <time datetime="2026-11-15">15 Nov 2026</time></span>
+                </a>
+                <h2 class="group-heading">MIDI</h2>
+                <a href="gradus/" class="plugin-card">
+                    <img src="gradus/images/card.png" width="600" height="315" alt="Gradus plugin editor" loading="lazy" decoding="async">
+                    <h3>Gradus</h3>
+                    <p class="tagline">Step Arpeggiator</p>
+                    <p class="description">Step arpeggiator with 9 polymetric lanes, Euclidean rhythms, conditional triggers, a Markov Chain mode and MIDI echo delays.</p>
+                    <span class="version">v1.10.4</span>
+                    <span class="released">Released <time datetime="2026-11-15">15 Nov 2026</time></span>
                 </a>
             </div>
         </section>

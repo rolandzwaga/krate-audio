@@ -47,9 +47,39 @@ header h1 {
     background-clip: text;
 }
 
+/* The logo mark (the Krate Manager icon, also the favicon) beside the title, centred together */
+header .brand {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    margin-bottom: 0.5rem;
+}
+
+header .brand img {
+    flex: none;
+    width: 56px;
+    height: 56px;
+}
+
+header .brand h1 {
+    margin-bottom: 0;
+}
+
 header .tagline {
     font-size: 1.25rem;
     color: var(--color-text-muted);
+}
+
+header .intro {
+    max-width: 640px;
+    margin: 1.5rem auto 0;
+    color: var(--color-text-muted);
+    font-size: 1rem;
+}
+
+header .intro a {
+    color: var(--color-accent-hover);
 }
 
 /* Sections */
@@ -89,11 +119,35 @@ section h2 {
     box-shadow: 0 8px 24px rgba(99, 102, 241, 0.15);
 }
 
-.plugin-card h2 {
+/* A group heading (Instruments, Effects, MIDI) is a grid item that spans every column */
+.plugin-grid .group-heading {
+    grid-column: 1 / -1;
+    margin: 1.5rem 0 0;
+    text-align: left;
+}
+
+.plugin-card h2,
+.plugin-card h3 {
     font-size: 1.75rem;
     font-weight: 700;
-    margin-bottom: 0.75rem;
+    margin-bottom: 0.25rem;
     text-align: left;
+}
+
+.plugin-card img {
+    display: block;
+    width: 100%;
+    height: auto;
+    margin-bottom: 1.25rem;
+    border-radius: 8px;
+    border: 1px solid var(--color-border);
+}
+
+.plugin-card .tagline {
+    color: var(--color-accent-hover);
+    font-size: 0.95rem;
+    font-weight: 500;
+    margin-bottom: 0.75rem;
 }
 
 .plugin-card .description {
@@ -112,6 +166,13 @@ section h2 {
     font-size: 0.8rem;
     color: var(--color-accent);
     font-weight: 500;
+}
+
+/* The latest release's date beside the version: a detail, not a headline */
+.plugin-card .released {
+    margin-left: 0.5rem;
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
 }
 
 /* Krate Manager card: the full grid width, above the plugin cards */
@@ -210,6 +271,11 @@ footer .copyright {
 
     header h1 {
         font-size: 2.5rem;
+    }
+
+    header .brand img {
+        width: 44px;
+        height: 44px;
     }
 
     .plugin-grid {

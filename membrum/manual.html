@@ -3,30 +3,91 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Membrum User Manual - Synthesized Drum Machine | Krate Audio</title>
+    <title>Membrum User Manual – Drum Synthesizer | Krate Audio</title>
     <meta name="description" content="Complete user manual for Membrum, a free open-source synthesized drum machine VST3 plugin with modal synthesis.">
-    <meta name="robots" content="index, follow">
     <link rel="canonical" href="https://krateaudio.com/membrum/manual.html">
-
-    <!-- Open Graph -->
-    <meta property="og:title" content="Membrum User Manual - Synthesized Drum Machine">
-    <meta property="og:description" content="Complete user manual for Membrum, a free open-source synthesized drum machine VST3 plugin.">
+    <meta property="og:title" content="Membrum User Manual – Drum Synthesizer">
+    <meta property="og:description" content="Complete user manual for Membrum, a free open-source synthesized drum machine VST3 plugin with modal synthesis.">
     <meta property="og:type" content="article">
     <meta property="og:url" content="https://krateaudio.com/membrum/manual.html">
+    <meta name="robots" content="index, follow, max-image-preview:large">
+    <meta name="theme-color" content="#0a0a0f">
+    <link rel="icon" href="/favicon.ico" sizes="32x32">
+    <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+    <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+    <link rel="preload" href="/assets/fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="stylesheet" href="/assets/site.css">
     <meta property="og:site_name" content="Krate Audio">
     <meta property="og:locale" content="en_US">
-
-    <!-- Twitter Card -->
-    <meta name="twitter:card" content="summary">
-    <meta name="twitter:title" content="Membrum User Manual">
-    <meta name="twitter:description" content="Complete user manual for Membrum, a free open-source synthesized drum machine VST3 plugin.">
-
-    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-    <meta http-equiv="Pragma" content="no-cache">
-    <meta http-equiv="Expires" content="0">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <meta property="og:image" content="https://krateaudio.com/membrum/images/og-image.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="Membrum plugin editor">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content="https://krateaudio.com/membrum/images/og-image.png">
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "Organization",
+          "@id": "https://krateaudio.com/#organization",
+          "name": "Krate Audio",
+          "url": "https://krateaudio.com/",
+          "logo": {
+            "@type": "ImageObject",
+            "url": "https://krateaudio.com/assets/logo-512.png",
+            "width": 512,
+            "height": 512
+          },
+          "sameAs": [
+            "https://github.com/rolandzwaga"
+          ]
+        },
+        {
+          "@type": "TechArticle",
+          "headline": "Membrum User Manual – Drum Synthesizer",
+          "description": "Complete user manual for Membrum, a free open-source synthesized drum machine VST3 plugin with modal synthesis.",
+          "url": "https://krateaudio.com/membrum/manual.html",
+          "inLanguage": "en",
+          "image": "https://krateaudio.com/membrum/images/og-image.png",
+          "about": {
+            "@id": "https://krateaudio.com/membrum/#software"
+          },
+          "author": {
+            "@id": "https://krateaudio.com/#organization"
+          },
+          "publisher": {
+            "@id": "https://krateaudio.com/#organization"
+          },
+          "dateModified": "2026-11-20T15:01:23+01:00"
+        },
+        {
+          "@type": "BreadcrumbList",
+          "itemListElement": [
+            {
+              "@type": "ListItem",
+              "position": 1,
+              "name": "Krate Audio",
+              "item": "https://krateaudio.com/"
+            },
+            {
+              "@type": "ListItem",
+              "position": 2,
+              "name": "Membrum",
+              "item": "https://krateaudio.com/membrum/"
+            },
+            {
+              "@type": "ListItem",
+              "position": 3,
+              "name": "User Manual",
+              "item": "https://krateaudio.com/membrum/manual.html"
+            }
+          ]
+        }
+      ]
+    }
+    </script>
     <style>
         /* Base -- matches Membrum landing page */
         :root {
@@ -194,104 +255,93 @@
             <p class="subtitle">Synthesized Drum Machine</p>
         </div>
 
-        <ul>
-        <li><a href="#introduction"
-        id="toc-introduction">Introduction</a>
-        <ul>
-        <li><a href="#quick-start" id="toc-quick-start">Quick
-        Start</a></li>
-        </ul></li>
-        <li><a href="#signal-flow" id="toc-signal-flow">Signal
-        Flow</a></li>
-        <li><a href="#interface-overview"
-        id="toc-interface-overview">Interface Overview</a></li>
-        <li><a href="#pad-grid" id="toc-pad-grid">Pad Grid</a>
-        <ul>
-        <li><a href="#pad-glow" id="toc-pad-glow">Pad Glow</a></li>
-        </ul></li>
-        <li><a href="#selected-pad-panel"
-        id="toc-selected-pad-panel">Selected Pad Panel</a>
-        <ul>
-        <li><a href="#acoustic-mode" id="toc-acoustic-mode">Acoustic
-        Mode</a></li>
-        <li><a href="#extended-mode" id="toc-extended-mode">Extended
-        Mode</a></li>
-        </ul></li>
-        <li><a href="#macros" id="toc-macros">Macros</a></li>
-        <li><a href="#body-models" id="toc-body-models">Body Models</a>
-        <ul>
-        <li><a href="#body-parameters" id="toc-body-parameters">Body
-        Parameters</a></li>
-        </ul></li>
-        <li><a href="#exciters" id="toc-exciters">Exciters</a></li>
-        <li><a href="#phase-8-modal-augmentations"
-        id="toc-phase-8-modal-augmentations">Phase 8 Modal
-        Augmentations</a>
-        <ul>
-        <li><a href="#per-mode-damping-phase-8a"
-        id="toc-per-mode-damping-phase-8a">Per-mode Damping (Phase
-        8A)</a></li>
-        <li><a href="#air-loading-mode-scatter-phase-8c"
-        id="toc-air-loading-mode-scatter-phase-8c">Air Loading + Mode
-        Scatter (Phase 8C)</a></li>
-        <li><a href="#head-shell-coupling-phase-8d"
-        id="toc-head-shell-coupling-phase-8d">Head ↔︎ Shell Coupling
-        (Phase 8D)</a></li>
-        <li><a href="#tension-modulation-phase-8e"
-        id="toc-tension-modulation-phase-8e">Tension Modulation (Phase
-        8E)</a></li>
-        </ul></li>
-        <li><a href="#parallel-layers-phase-7"
-        id="toc-parallel-layers-phase-7">Parallel Layers (Phase 7)</a>
-        <ul>
-        <li><a href="#noise-layer" id="toc-noise-layer">Noise
-        Layer</a></li>
-        <li><a href="#click-layer" id="toc-click-layer">Click
-        Layer</a></li>
-        </ul></li>
-        <li><a href="#tone-shaper" id="toc-tone-shaper">Tone Shaper</a>
-        <ul>
-        <li><a href="#pitch-envelope" id="toc-pitch-envelope">Pitch
-        Envelope</a></li>
-        </ul></li>
-        <li><a href="#unnatural-zone" id="toc-unnatural-zone">Unnatural
-        Zone</a>
-        <ul>
-        <li><a href="#material-morph" id="toc-material-morph">Material
-        Morph</a></li>
-        </ul></li>
-        <li><a href="#routing" id="toc-routing">Routing</a></li>
-        <li><a href="#kit-browser-pad-browser"
-        id="toc-kit-browser-pad-browser">Kit Browser &amp; Pad
-        Browser</a></li>
-        <li><a href="#voices" id="toc-voices">Voices</a>
-        <ul>
-        <li><a href="#voice-stealing-policies"
-        id="toc-voice-stealing-policies">Voice-Stealing
-        Policies</a></li>
-        </ul></li>
-        <li><a href="#coupling" id="toc-coupling">Coupling</a></li>
-        <li><a href="#master-meter" id="toc-master-meter">Master &amp;
-        Meter</a></li>
-        <li><a href="#factory-kits" id="toc-factory-kits">Factory
-        Kits</a>
-        <ul>
-        <li><a href="#acoustic-5" id="toc-acoustic-5">Acoustic
-        (5)</a></li>
-        <li><a href="#electronic-5" id="toc-electronic-5">Electronic
-        (5)</a></li>
-        <li><a href="#percussive-5" id="toc-percussive-5">Percussive
-        (5)</a></li>
-        <li><a href="#unnatural-5" id="toc-unnatural-5">Unnatural
-        (5)</a></li>
-        </ul></li>
-        <li><a href="#performance-notes"
-        id="toc-performance-notes">Performance Notes</a></li>
-        <li><a href="#cross-platform"
-        id="toc-cross-platform">Cross-Platform</a></li>
-        <li><a href="#tips-tricks" id="toc-tips-tricks">Tips &amp;
-        Tricks</a></li>
-        </ul>
+        <nav id="TOC" aria-label="Contents">
+<ul>
+<li><a href="#introduction" id="toc-introduction">Introduction</a>
+<ul>
+<li><a href="#quick-start" id="toc-quick-start">Quick Start</a></li>
+</ul></li>
+<li><a href="#signal-flow" id="toc-signal-flow">Signal Flow</a></li>
+<li><a href="#interface-overview" id="toc-interface-overview">Interface
+Overview</a></li>
+<li><a href="#pad-grid" id="toc-pad-grid">Pad Grid</a>
+<ul>
+<li><a href="#pad-glow" id="toc-pad-glow">Pad Glow</a></li>
+</ul></li>
+<li><a href="#selected-pad-panel" id="toc-selected-pad-panel">Selected
+Pad Panel</a>
+<ul>
+<li><a href="#acoustic-mode" id="toc-acoustic-mode">Acoustic
+Mode</a></li>
+<li><a href="#extended-mode" id="toc-extended-mode">Extended
+Mode</a></li>
+</ul></li>
+<li><a href="#macros" id="toc-macros">Macros</a></li>
+<li><a href="#body-models" id="toc-body-models">Body Models</a>
+<ul>
+<li><a href="#body-parameters" id="toc-body-parameters">Body
+Parameters</a></li>
+</ul></li>
+<li><a href="#exciters" id="toc-exciters">Exciters</a></li>
+<li><a href="#phase-8-modal-augmentations"
+id="toc-phase-8-modal-augmentations">Phase 8 Modal Augmentations</a>
+<ul>
+<li><a href="#per-mode-damping-phase-8a"
+id="toc-per-mode-damping-phase-8a">Per-mode Damping (Phase 8A)</a></li>
+<li><a href="#air-loading-mode-scatter-phase-8c"
+id="toc-air-loading-mode-scatter-phase-8c">Air Loading + Mode Scatter
+(Phase 8C)</a></li>
+<li><a href="#head-shell-coupling-phase-8d"
+id="toc-head-shell-coupling-phase-8d">Head ↔︎ Shell Coupling (Phase
+8D)</a></li>
+<li><a href="#tension-modulation-phase-8e"
+id="toc-tension-modulation-phase-8e">Tension Modulation (Phase
+8E)</a></li>
+</ul></li>
+<li><a href="#parallel-layers-phase-7"
+id="toc-parallel-layers-phase-7">Parallel Layers (Phase 7)</a>
+<ul>
+<li><a href="#noise-layer" id="toc-noise-layer">Noise Layer</a></li>
+<li><a href="#click-layer" id="toc-click-layer">Click Layer</a></li>
+</ul></li>
+<li><a href="#tone-shaper" id="toc-tone-shaper">Tone Shaper</a>
+<ul>
+<li><a href="#pitch-envelope" id="toc-pitch-envelope">Pitch
+Envelope</a></li>
+</ul></li>
+<li><a href="#unnatural-zone" id="toc-unnatural-zone">Unnatural Zone</a>
+<ul>
+<li><a href="#material-morph" id="toc-material-morph">Material
+Morph</a></li>
+</ul></li>
+<li><a href="#routing" id="toc-routing">Routing</a></li>
+<li><a href="#kit-browser-pad-browser"
+id="toc-kit-browser-pad-browser">Kit Browser &amp; Pad Browser</a></li>
+<li><a href="#voices" id="toc-voices">Voices</a>
+<ul>
+<li><a href="#voice-stealing-policies"
+id="toc-voice-stealing-policies">Voice-Stealing Policies</a></li>
+</ul></li>
+<li><a href="#coupling" id="toc-coupling">Coupling</a></li>
+<li><a href="#master-meter" id="toc-master-meter">Master &amp;
+Meter</a></li>
+<li><a href="#factory-kits" id="toc-factory-kits">Factory Kits</a>
+<ul>
+<li><a href="#acoustic-5" id="toc-acoustic-5">Acoustic (5)</a></li>
+<li><a href="#electronic-5" id="toc-electronic-5">Electronic
+(5)</a></li>
+<li><a href="#percussive-5" id="toc-percussive-5">Percussive
+(5)</a></li>
+<li><a href="#unnatural-5" id="toc-unnatural-5">Unnatural (5)</a></li>
+</ul></li>
+<li><a href="#performance-notes" id="toc-performance-notes">Performance
+Notes</a></li>
+<li><a href="#cross-platform"
+id="toc-cross-platform">Cross-Platform</a></li>
+<li><a href="#tips-tricks" id="toc-tips-tricks">Tips &amp;
+Tricks</a></li>
+</ul>
+        </nav>
         <h2 id="introduction">Introduction</h2>
         <p>Membrum is a 32-pad drum machine that synthesises every hit
         from first principles — there are no samples. Each pad pairs one
@@ -402,6 +452,10 @@
         href="signal-flow.html">Signal Flow Diagram</a>.</p>
         <hr />
         <h2 id="interface-overview">Interface Overview</h2>
+        <figure>
+        <img src="images/hero.png" alt="The Membrum editor" width="1280" height="800" loading="lazy" decoding="async">
+        <figcaption aria-hidden="true">The Membrum editor</figcaption>
+        </figure>
         <p>The window is divided into three columns, each scrollable on
         small displays:</p>
         <ul>
@@ -425,6 +479,10 @@
         regardless of which mode is active.</p>
         <hr />
         <h2 id="pad-grid">Pad Grid</h2>
+        <figure>
+        <img src="images/pad-grid.png" alt="The pad grid" width="640" height="800" loading="lazy" decoding="async">
+        <figcaption aria-hidden="true">The pad grid</figcaption>
+        </figure>
         <p>The pad grid maps the bottom-left pad to MIDI note 36 (C1),
         row by row, left to right, up to MIDI 67 (top-right). On a
         hardware controller this matches the standard 4×8 drum-pad
@@ -475,6 +533,12 @@
         simply hides the deeper synthesis controls so a natural-drum
         workflow stays uncluttered.</p>
         <h3 id="acoustic-mode">Acoustic Mode</h3>
+        <figure>
+        <img src="images/selected-pad-acoustic.png"
+        alt="The selected-pad panel in Acoustic mode" width="400" height="800" loading="lazy" decoding="async">
+        <figcaption aria-hidden="true">The selected-pad panel in
+        Acoustic mode</figcaption>
+        </figure>
         <table>
         <colgroup>
         <col style="width: 50%" />
@@ -514,6 +578,12 @@
         the five macros plus the five Body knobs cover ~80% of typical
         sound design moves.</p>
         <h3 id="extended-mode">Extended Mode</h3>
+        <figure>
+        <img src="images/selected-pad-extended.png"
+        alt="The selected-pad panel in Extended mode" width="400" height="800" loading="lazy" decoding="async">
+        <figcaption aria-hidden="true">The selected-pad panel in
+        Extended mode</figcaption>
+        </figure>
         <p>The Extended layout exposes everything in Acoustic mode
         plus:</p>
         <table>
@@ -573,6 +643,10 @@
         Augmentations</a>.</p>
         <hr />
         <h2 id="macros">Macros</h2>
+        <figure>
+        <img src="images/macros.png" alt="Macros" width="388" height="104" loading="lazy" decoding="async">
+        <figcaption aria-hidden="true">Macros</figcaption>
+        </figure>
         <p>Five macro knobs per pad collapse multiple underlying DSP
         parameters into single sweeps. Each macro applies an
         <em>incremental delta</em> relative to the previous macro
@@ -682,6 +756,12 @@
         </tbody>
         </table>
         <h3 id="body-parameters">Body Parameters</h3>
+        <figure>
+        <img src="images/body-physics.png"
+        alt="Body parameters (Physics)" width="388" height="138" loading="lazy" decoding="async">
+        <figcaption aria-hidden="true">Body parameters
+        (Physics)</figcaption>
+        </figure>
         <table>
         <colgroup>
         <col style="width: 40%" />
@@ -723,6 +803,12 @@
         </table>
         <hr />
         <h2 id="exciters">Exciters</h2>
+        <figure>
+        <img src="images/exciter.png"
+        alt="Exciter and body selection (Source)" width="388" height="96" loading="lazy" decoding="async">
+        <figcaption aria-hidden="true">Exciter and body selection
+        (Source)</figcaption>
+        </figure>
         <p>The exciter shapes the energy input to the body. All exciters
         carry a velocity-controlled spectral response: soft hits are
         darker, hard hits are brighter with wider-band excitation.</p>
@@ -899,6 +985,10 @@
         Modulation tracks the actual modal energy.</p>
         <hr />
         <h2 id="parallel-layers-phase-7">Parallel Layers (Phase 7)</h2>
+        <figure>
+        <img src="images/parallel-layers.png" alt="Parallel Layers" width="388" height="84" loading="lazy" decoding="async">
+        <figcaption aria-hidden="true">Parallel Layers</figcaption>
+        </figure>
         <p>Two always-on layers run alongside the modal body and add
         together at the per-voice mix bus. Both are essential for
         realism — the modal body alone sounds <em>glass tap</em>; the
@@ -971,6 +1061,10 @@
         </table>
         <hr />
         <h2 id="tone-shaper">Tone Shaper</h2>
+        <figure>
+        <img src="images/tone-shaper.png" alt="Tone Shaper" width="388" height="126" loading="lazy" decoding="async">
+        <figcaption aria-hidden="true">Tone Shaper</figcaption>
+        </figure>
         <p>A per-pad signal-shaping chain that processes the modal body
         output before the amp envelope. All controls are bypass-identity
         at their defaults.</p>
@@ -1020,6 +1114,10 @@
         </tbody>
         </table>
         <h3 id="pitch-envelope">Pitch Envelope</h3>
+        <figure>
+        <img src="images/pitch-envelope.png" alt="Pitch Envelope" width="388" height="86" loading="lazy" decoding="async">
+        <figcaption aria-hidden="true">Pitch Envelope</figcaption>
+        </figure>
         <p>A separate absolute-Hz envelope (start, end, time, exp/lin
         curve) drives the body fundamental for 808-style transient pitch
         sweeps. The XY display lets you drag the start and end points
@@ -1052,6 +1150,12 @@
         </table>
         <hr />
         <h2 id="unnatural-zone">Unnatural Zone</h2>
+        <figure>
+        <img src="images/unnatural-zone.png"
+        alt="Unnatural Zone (Character)" width="200" height="134" loading="lazy" decoding="async">
+        <figcaption aria-hidden="true">Unnatural Zone
+        (Character)</figcaption>
+        </figure>
         <p>Per-pad inharmonic distortions of the modal body. All
         controls are bypass-identity at their defaults.</p>
         <table>
@@ -1090,6 +1194,10 @@
         </tbody>
         </table>
         <h3 id="material-morph">Material Morph</h3>
+        <figure>
+        <img src="images/material-morph.png" alt="Material Morph" width="184" height="134" loading="lazy" decoding="async">
+        <figcaption aria-hidden="true">Material Morph</figcaption>
+        </figure>
         <p>A 2-point envelope (10–2000 ms) that morphs the body’s
         material parameter from a <em>start</em> state to an
         <em>end</em> state at note-on. Useful for evolving cymbals (dark
@@ -1127,6 +1235,10 @@
         </table>
         <hr />
         <h2 id="routing">Routing</h2>
+        <figure>
+        <img src="images/routing.png" alt="Routing" width="388" height="70" loading="lazy" decoding="async">
+        <figcaption aria-hidden="true">Routing</figcaption>
+        </figure>
         <p>Per-pad routing controls.</p>
         <table>
         <colgroup>
@@ -1163,6 +1275,14 @@
         <hr />
         <h2 id="kit-browser-pad-browser">Kit Browser &amp; Pad
         Browser</h2>
+        <figure>
+        <img src="images/kit-browser.png" alt="Kit Browser" width="232" height="104" loading="lazy" decoding="async">
+        <figcaption aria-hidden="true">Kit Browser</figcaption>
+        </figure>
+        <figure>
+        <img src="images/pad-browser.png" alt="Pad Browser" width="232" height="78" loading="lazy" decoding="async">
+        <figcaption aria-hidden="true">Pad Browser</figcaption>
+        </figure>
         <p>The right column carries two preset browsers:</p>
         <table>
         <colgroup>
@@ -1202,6 +1322,10 @@
         factory presets.</p>
         <hr />
         <h2 id="voices">Voices</h2>
+        <figure>
+        <img src="images/voices.png" alt="Voices" width="232" height="120" loading="lazy" decoding="async">
+        <figcaption aria-hidden="true">Voices</figcaption>
+        </figure>
         <p>Voice management section in the right column.</p>
         <table>
         <colgroup>
@@ -1267,6 +1391,10 @@
         below -30 dBFS.</p>
         <hr />
         <h2 id="coupling">Coupling</h2>
+        <figure>
+        <img src="images/coupling.png" alt="Coupling" width="232" height="106" loading="lazy" decoding="async">
+        <figcaption aria-hidden="true">Coupling</figcaption>
+        </figure>
         <p>Cross-pad sympathetic resonance — when one pad is hit, its
         mono output is mixed into other pads’ excitation paths according
         to a coupling matrix. Models physical phenomena like snare wires
@@ -1317,6 +1445,14 @@
         caps it below -20 dBFS to prevent runaway feedback.</p>
         <hr />
         <h2 id="master-meter">Master &amp; Meter</h2>
+        <figure>
+        <img src="images/master.png" alt="Master" width="232" height="76" loading="lazy" decoding="async">
+        <figcaption aria-hidden="true">Master</figcaption>
+        </figure>
+        <figure>
+        <img src="images/meter.png" alt="Meter" width="232" height="98" loading="lazy" decoding="async">
+        <figcaption aria-hidden="true">Meter</figcaption>
+        </figure>
         <table>
         <colgroup>
         <col style="width: 31%" />

@@ -3,10 +3,73 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Innexus - Signal Flow Diagram</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <title>Innexus Signal Flow Diagram | Krate Audio</title>
+    <meta name="description" content="Interactive signal flow diagram of Innexus, the free Harmonic Analysis &amp; Synthesis Engine VST3 plugin by Krate Audio, every stage from input to output.">
+    <link rel="canonical" href="https://krateaudio.com/innexus/signal-flow.html">
+    <meta property="og:title" content="Innexus Signal Flow Diagram">
+    <meta property="og:description" content="Interactive signal flow diagram of Innexus, the free Harmonic Analysis &amp; Synthesis Engine VST3 plugin by Krate Audio, every stage from input to output.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https://krateaudio.com/innexus/signal-flow.html">
+    <meta name="robots" content="index, follow, max-image-preview:large">
+    <meta name="theme-color" content="#0a0a0f">
+    <link rel="icon" href="/favicon.ico" sizes="32x32">
+    <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+    <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+    <link rel="preload" href="/assets/fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="stylesheet" href="/assets/site.css">
+    <meta property="og:site_name" content="Krate Audio">
+    <meta property="og:locale" content="en_US">
+    <meta property="og:image" content="https://krateaudio.com/innexus/images/og-image.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="Innexus plugin editor">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content="https://krateaudio.com/innexus/images/og-image.png">
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "Organization",
+          "@id": "https://krateaudio.com/#organization",
+          "name": "Krate Audio",
+          "url": "https://krateaudio.com/",
+          "logo": {
+            "@type": "ImageObject",
+            "url": "https://krateaudio.com/assets/logo-512.png",
+            "width": 512,
+            "height": 512
+          },
+          "sameAs": [
+            "https://github.com/rolandzwaga"
+          ]
+        },
+        {
+          "@type": "BreadcrumbList",
+          "itemListElement": [
+            {
+              "@type": "ListItem",
+              "position": 1,
+              "name": "Krate Audio",
+              "item": "https://krateaudio.com/"
+            },
+            {
+              "@type": "ListItem",
+              "position": 2,
+              "name": "Innexus",
+              "item": "https://krateaudio.com/innexus/"
+            },
+            {
+              "@type": "ListItem",
+              "position": 3,
+              "name": "Signal Flow",
+              "item": "https://krateaudio.com/innexus/signal-flow.html"
+            }
+          ]
+        }
+      ]
+    }
+    </script>
     <style>
         :root {
             --color-bg: #0a0a0f;
@@ -31,16 +94,14 @@
         }
 
         .header {
-            padding: 1.5rem 2rem;
+            padding: 1.25rem 2rem;
             border-bottom: 1px solid var(--color-border);
-            display: flex;
-            align-items: center;
-            gap: 1.5rem;
             flex-shrink: 0;
         }
 
         .breadcrumb {
             font-size: 0.875rem;
+            margin-bottom: 0.25rem;
         }
 
         .breadcrumb a {
@@ -65,6 +126,16 @@
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
+        }
+
+        .intro {
+            color: var(--color-text-muted);
+            font-size: 0.9rem;
+            max-width: 70ch;
+        }
+
+        .intro a {
+            color: var(--color-accent-hover);
         }
 
         .toolbar {
@@ -102,6 +173,7 @@
 
         #diagram-container {
             flex: 1;
+            min-height: 60vh;
             overflow: hidden;
             position: relative;
             cursor: grab;
@@ -137,7 +209,7 @@
         }
 
         @media (max-width: 640px) {
-            .header { padding: 1rem; gap: 1rem; }
+            .header { padding: 1rem; }
             .toolbar { padding: 0.5rem 1rem; }
             h1 { font-size: 1.25rem; }
         }
@@ -146,10 +218,13 @@
 <body>
     <div class="header">
         <nav class="breadcrumb">
+            <a href="/">Krate Audio</a>
+            <span class="separator">/</span>
             <a href="./">Innexus</a>
             <span class="separator">/</span>
         </nav>
-        <h1>Signal Flow Diagram</h1>
+        <h1>Innexus Signal Flow</h1>
+        <p class="intro">Interactive signal flow diagram of Innexus, the free Harmonic Analysis &amp; Synthesis Engine VST3 plugin by Krate Audio, every stage from input to output. Drag to pan, scroll to zoom. The <a href="manual.html">user manual</a> explains each stage.</p>
     </div>
 
     <div class="toolbar">
@@ -163,473 +238,1262 @@
     <div id="diagram-container">
         <div id="loading">Loading diagram&hellip;</div>
         <div id="error"></div>
-        <div id="diagram"></div>
+        <div id="diagram"><?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN"
+ "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<!-- Generated by graphviz version 12.2.0 (20241103.1931)
+ -->
+<!-- Title: InnexusSignalFlow Pages: 1 -->
+<svg width="2425pt" height="4758pt"
+ viewBox="0.00 0.00 2425.31 4758.03" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+<g id="graph0" class="graph" transform="scale(1 1) rotate(0) translate(4 4754.03)">
+<title>InnexusSignalFlow</title>
+<polygon fill="white" stroke="none" points="-4,4 -4,-4754.03 2421.31,-4754.03 2421.31,4 -4,4"/>
+<g id="clust1" class="cluster">
+<title>cluster_legend</title>
+<path fill="#fafafa" stroke="#888888" d="M20,-4492.83C20,-4492.83 212,-4492.83 212,-4492.83 218,-4492.83 224,-4498.83 224,-4504.83 224,-4504.83 224,-4691.23 224,-4691.23 224,-4697.23 218,-4703.23 212,-4703.23 212,-4703.23 20,-4703.23 20,-4703.23 14,-4703.23 8,-4697.23 8,-4691.23 8,-4691.23 8,-4504.83 8,-4504.83 8,-4498.83 14,-4492.83 20,-4492.83"/>
+<text text-anchor="middle" x="116" y="-4688.43" font-family="Helvetica,sans-Serif" font-size="12.00" fill="#444444">Legend</text>
+</g>
+<g id="clust2" class="cluster">
+<title>cluster_input</title>
+<path fill="#f0f0f0" stroke="#666666" d="M244,-948.54C244,-948.54 721,-948.54 721,-948.54 727,-948.54 733,-954.54 733,-960.54 733,-960.54 733,-4652.98 733,-4652.98 733,-4658.98 727,-4664.98 721,-4664.98 721,-4664.98 244,-4664.98 244,-4664.98 238,-4664.98 232,-4658.98 232,-4652.98 232,-4652.98 232,-960.54 232,-960.54 232,-954.54 238,-948.54 244,-948.54"/>
+<text text-anchor="middle" x="482.5" y="-4651.08" font-family="Helvetica,sans-Serif" font-size="11.00">Input</text>
+</g>
+<g id="clust3" class="cluster">
+<title>cluster_source_select</title>
+<path fill="#e8eef4" stroke="#666666" d="M860,-4290.43C860,-4290.43 1150,-4290.43 1150,-4290.43 1156,-4290.43 1162,-4296.43 1162,-4302.43 1162,-4302.43 1162,-4403.63 1162,-4403.63 1162,-4409.63 1156,-4415.63 1150,-4415.63 1150,-4415.63 860,-4415.63 860,-4415.63 854,-4415.63 848,-4409.63 848,-4403.63 848,-4403.63 848,-4302.43 848,-4302.43 848,-4296.43 854,-4290.43 860,-4290.43"/>
+<text text-anchor="middle" x="1005" y="-4401.73" font-family="Helvetica,sans-Serif" font-size="11.00">Input Source (FR&#45;001)</text>
+</g>
+<g id="clust4" class="cluster">
+<title>cluster_analysis</title>
+<path fill="#fdf3e8" stroke="#e8a838" stroke-width="2" d="M1340,-3458.23C1340,-3458.23 1706,-3458.23 1706,-3458.23 1712,-3458.23 1718,-3464.23 1718,-3470.23 1718,-3470.23 1718,-4050.03 1718,-4050.03 1718,-4056.03 1712,-4062.03 1706,-4062.03 1706,-4062.03 1340,-4062.03 1340,-4062.03 1334,-4062.03 1328,-4056.03 1328,-4050.03 1328,-4050.03 1328,-3470.23 1328,-3470.23 1328,-3464.23 1334,-3458.23 1340,-3458.23"/>
+<text text-anchor="middle" x="1523" y="-4046.33" font-family="Helvetica,sans-Serif" font-size="13.00" fill="#804010">LiveAnalysisPipeline &#160;— &#160;Real&#45;Time Spectral Analysis</text>
+</g>
+<g id="clust5" class="cluster">
+<title>cluster_stft</title>
+<polygon fill="#f5e8d0" stroke="#e8a838" stroke-width="2" stroke-dasharray="5,2" points="1504,-3822.23 1504,-3905.83 1710,-3905.83 1710,-3822.23 1504,-3822.23"/>
+<text text-anchor="middle" x="1607" y="-3890.13" font-family="Helvetica,sans-Serif" font-size="13.00" fill="#804010">Dual STFT</text>
+</g>
+<g id="clust6" class="cluster">
+<title>cluster_mode_select</title>
+<polygon fill="#f5e8d0" stroke="#e8a838" stroke-width="2" stroke-dasharray="5,2" points="1336,-3466.23 1336,-3775.03 1648,-3775.03 1648,-3466.23 1336,-3466.23"/>
+<text text-anchor="middle" x="1492" y="-3759.33" font-family="Helvetica,sans-Serif" font-size="13.00" fill="#804010">Analysis Mode (Auto/Mono/Poly)</text>
+</g>
+<g id="clust7" class="cluster">
+<title>cluster_frames</title>
+<path fill="#e8eef4" stroke="#666666" d="M1086,-3247.03C1086,-3247.03 1308,-3247.03 1308,-3247.03 1314,-3247.03 1320,-3253.03 1320,-3259.03 1320,-3259.03 1320,-4155.23 1320,-4155.23 1320,-4161.23 1314,-4167.23 1308,-4167.23 1308,-4167.23 1086,-4167.23 1086,-4167.23 1080,-4167.23 1074,-4161.23 1074,-4155.23 1074,-4155.23 1074,-3259.03 1074,-3259.03 1074,-3253.03 1080,-3247.03 1086,-3247.03"/>
+<text text-anchor="middle" x="1197" y="-4153.33" font-family="Helvetica,sans-Serif" font-size="11.00">Analysis Output Frames</text>
+</g>
+<g id="clust8" class="cluster">
+<title>cluster_freeze</title>
+<path fill="#fcedf2" stroke="#d94a7a" stroke-width="2" d="M974,-2992.63C974,-2992.63 1256,-2992.63 1256,-2992.63 1262,-2992.63 1268,-2998.63 1268,-3004.63 1268,-3004.63 1268,-3227.03 1268,-3227.03 1268,-3233.03 1262,-3239.03 1256,-3239.03 1256,-3239.03 974,-3239.03 974,-3239.03 968,-3239.03 962,-3233.03 962,-3227.03 962,-3227.03 962,-3004.63 962,-3004.63 962,-2998.63 968,-2992.63 974,-2992.63"/>
+<text text-anchor="middle" x="1115" y="-3223.33" font-family="Helvetica,sans-Serif" font-size="13.00" fill="#a02050">Freeze System &#160;— &#160;Frame Stabilization</text>
+</g>
+<g id="clust9" class="cluster">
+<title>cluster_memory</title>
+<path fill="#f3ecf9" stroke="#9b6bbf" d="M1461,-2582.43C1461,-2582.43 1654,-2582.43 1654,-2582.43 1660,-2582.43 1666,-2588.43 1666,-2594.43 1666,-2594.43 1666,-2925.43 1666,-2925.43 1666,-2931.43 1660,-2937.43 1654,-2937.43 1654,-2937.43 1461,-2937.43 1461,-2937.43 1455,-2937.43 1449,-2931.43 1449,-2925.43 1449,-2925.43 1449,-2594.43 1449,-2594.43 1449,-2588.43 1455,-2582.43 1461,-2582.43"/>
+<text text-anchor="middle" x="1557.5" y="-2923.53" font-family="Helvetica,sans-Serif" font-size="11.00">Harmonic Memory (M5: FR&#45;005, FR&#45;006)</text>
+</g>
+<g id="clust10" class="cluster">
+<title>cluster_frame_select</title>
+<path fill="#e5f5e5" stroke="#6bbf6b" d="M753,-2297.63C753,-2297.63 1091,-2297.63 1091,-2297.63 1097,-2297.63 1103,-2303.63 1103,-2309.63 1103,-2309.63 1103,-2530.83 1103,-2530.83 1103,-2536.83 1097,-2542.83 1091,-2542.83 1091,-2542.83 753,-2542.83 753,-2542.83 747,-2542.83 741,-2536.83 741,-2530.83 741,-2530.83 741,-2309.63 741,-2309.63 741,-2303.63 747,-2297.63 753,-2297.63"/>
+<text text-anchor="middle" x="922" y="-2528.93" font-family="Helvetica,sans-Serif" font-size="11.00">Frame Selection &#160;— &#160;Priority Hierarchy</text>
+</g>
+<g id="clust11" class="cluster">
+<title>cluster_creative</title>
+<path fill="#f3ecf9" stroke="#9b6bbf" stroke-width="2" d="M1123,-2150.43C1123,-2150.43 1429,-2150.43 1429,-2150.43 1435,-2150.43 1441,-2156.43 1441,-2162.43 1441,-2162.43 1441,-2678.03 1441,-2678.03 1441,-2684.03 1435,-2690.03 1429,-2690.03 1429,-2690.03 1123,-2690.03 1123,-2690.03 1117,-2690.03 1111,-2684.03 1111,-2678.03 1111,-2678.03 1111,-2162.43 1111,-2162.43 1111,-2156.43 1117,-2150.43 1123,-2150.43"/>
+<text text-anchor="middle" x="1276" y="-2674.33" font-family="Helvetica,sans-Serif" font-size="13.00" fill="#6b3b9f">Creative Extensions (M6) &#160;— &#160;Per&#45;Sample Processing</text>
+</g>
+<g id="clust12" class="cluster">
+<title>cluster_transform</title>
+<path fill="#e5f5e5" stroke="#6bbf6b" stroke-width="2" d="M799,-1717.43C799,-1717.43 1140,-1717.43 1140,-1717.43 1146,-1717.43 1152,-1723.43 1152,-1729.43 1152,-1729.43 1152,-2101.23 1152,-2101.23 1152,-2107.23 1146,-2113.23 1140,-2113.23 1140,-2113.23 799,-2113.23 799,-2113.23 793,-2113.23 787,-2107.23 787,-2101.23 787,-2101.23 787,-1729.43 787,-1729.43 787,-1723.43 793,-1717.43 799,-1717.43"/>
+<text text-anchor="middle" x="969.5" y="-2097.53" font-family="Helvetica,sans-Serif" font-size="13.00" fill="#2a6030">Harmonic Transformation Chain &#160;— &#160;Per&#45;Block + Per&#45;Sample</text>
+</g>
+<g id="clust13" class="cluster">
+<title>cluster_voices</title>
+<path fill="#edf4fc" stroke="#4a90d9" stroke-width="2" d="M753,-738.14C753,-738.14 1005,-738.14 1005,-738.14 1011,-738.14 1017,-744.14 1017,-750.14 1017,-750.14 1017,-1668.23 1017,-1668.23 1017,-1674.23 1011,-1680.23 1005,-1680.23 1005,-1680.23 753,-1680.23 753,-1680.23 747,-1680.23 741,-1674.23 741,-1668.23 741,-1668.23 741,-750.14 741,-750.14 741,-744.14 747,-738.14 753,-738.14"/>
+<text text-anchor="middle" x="879" y="-1664.53" font-family="Helvetica,sans-Serif" font-size="13.00" fill="#2a5080">Voice Allocation &#160;— &#160;Mono / 4&#45;Voice / 8&#45;Voice</text>
+</g>
+<g id="clust14" class="cluster">
+<title>cluster_synthesis</title>
+<path fill="#edf4fc" stroke="#4a90d9" stroke-width="2" d="M1738,-1289.03C1738,-1289.03 2327,-1289.03 2327,-1289.03 2333,-1289.03 2339,-1295.03 2339,-1301.03 2339,-1301.03 2339,-3935.43 2339,-3935.43 2339,-3941.43 2333,-3947.43 2327,-3947.43 2327,-3947.43 1738,-3947.43 1738,-3947.43 1732,-3947.43 1726,-3941.43 1726,-3935.43 1726,-3935.43 1726,-1301.03 1726,-1301.03 1726,-1295.03 1732,-1289.03 1738,-1289.03"/>
+<text text-anchor="middle" x="2032.5" y="-3931.73" font-family="Helvetica,sans-Serif" font-size="13.00" fill="#2a5080">Per&#45;Voice Synthesis &#160;— &#160;Per&#45;Sample Audio Generation</text>
+</g>
+<g id="clust15" class="cluster">
+<title>cluster_exciter</title>
+<polygon fill="#fff8e0" stroke="#b8860b" stroke-width="2" stroke-dasharray="5,2" points="1734,-3131.43 1734,-3915.83 2047,-3915.83 2047,-3131.43 1734,-3131.43"/>
+<text text-anchor="middle" x="1890.5" y="-3900.13" font-family="Helvetica,sans-Serif" font-size="13.00" fill="#2a5080">Exciter Selection (Spec 128)</text>
+</g>
+<g id="clust16" class="cluster">
+<title>cluster_resonance</title>
+<polygon fill="#fff8e0" stroke="#b8860b" stroke-width="2" stroke-dasharray="5,2" points="2055,-3137.43 2055,-3595.83 2331,-3595.83 2331,-3137.43 2055,-3137.43"/>
+<text text-anchor="middle" x="2193" y="-3580.13" font-family="Helvetica,sans-Serif" font-size="13.00" fill="#2a5080">Resonance Selection (Spec 129)</text>
+</g>
+<g id="clust17" class="cluster">
+<title>cluster_output</title>
+<path fill="#f0f0f0" stroke="#666666" stroke-width="2" d="M1037,-8C1037,-8 1312,-8 1312,-8 1318,-8 1324,-14 1324,-20 1324,-20 1324,-1240.03 1324,-1240.03 1324,-1246.03 1318,-1252.03 1312,-1252.03 1312,-1252.03 1037,-1252.03 1037,-1252.03 1031,-1252.03 1025,-1246.03 1025,-1240.03 1025,-1240.03 1025,-20 1025,-20 1025,-14 1031,-8 1037,-8"/>
+<text text-anchor="middle" x="1174.5" y="-1236.33" font-family="Helvetica,sans-Serif" font-size="13.00" fill="#444444">Output Chain &#160;— &#160;Per&#45;Sample Dynamics &amp; Safety</text>
+</g>
+<g id="clust18" class="cluster">
+<title>cluster_display</title>
+<path fill="#fafafa" stroke="#888888" d="M1546,-1271.03C1546,-1271.03 1676,-1271.03 1676,-1271.03 1682,-1271.03 1688,-1277.03 1688,-1283.03 1688,-1283.03 1688,-1400.23 1688,-1400.23 1688,-1406.23 1682,-1412.23 1676,-1412.23 1676,-1412.23 1546,-1412.23 1546,-1412.23 1540,-1412.23 1534,-1406.23 1534,-1400.23 1534,-1400.23 1534,-1283.03 1534,-1283.03 1534,-1277.03 1540,-1271.03 1546,-1271.03"/>
+<text text-anchor="middle" x="1611" y="-1398.33" font-family="Helvetica,sans-Serif" font-size="11.00">Display Data (FR&#45;048)</text>
+</g>
+<g id="clust19" class="cluster">
+<title>cluster_rates</title>
+<path fill="#fafafa" stroke="#888888" d="M1305,-4452.83C1305,-4452.83 1775,-4452.83 1775,-4452.83 1781,-4452.83 1787,-4458.83 1787,-4464.83 1787,-4464.83 1787,-4730.03 1787,-4730.03 1787,-4736.03 1781,-4742.03 1775,-4742.03 1775,-4742.03 1305,-4742.03 1305,-4742.03 1299,-4742.03 1293,-4736.03 1293,-4730.03 1293,-4730.03 1293,-4464.83 1293,-4464.83 1293,-4458.83 1299,-4452.83 1305,-4452.83"/>
+<text text-anchor="middle" x="1540" y="-4728.13" font-family="Helvetica,sans-Serif" font-size="11.00">Processing Rates</text>
+</g>
+<!-- leg -->
+<g id="node1" class="node">
+<title>leg</title>
+<polygon fill="#fafafa" stroke="none" points="215.69,-4672.83 16.31,-4672.83 16.31,-4500.83 215.69,-4500.83 215.69,-4672.83"/>
+<polygon fill="#4a90d9" stroke="none" points="28.31,-4648.83 28.31,-4664.83 52.86,-4664.83 52.86,-4648.83 28.31,-4648.83"/>
+<text text-anchor="start" x="39.2" y="-4653.83" font-family="Helvetica,sans-Serif" font-size="10.00"> </text>
+<text text-anchor="start" x="58.86" y="-4653.83" font-family="Helvetica,sans-Serif" font-size="10.00">Audio signal path</text>
+<polygon fill="#e8a838" stroke="none" points="28.31,-4628.83 28.31,-4644.83 52.86,-4644.83 52.86,-4628.83 28.31,-4628.83"/>
+<text text-anchor="start" x="39.2" y="-4633.83" font-family="Helvetica,sans-Serif" font-size="10.00"> </text>
+<text text-anchor="start" x="58.86" y="-4633.83" font-family="Helvetica,sans-Serif" font-size="10.00">Analysis pipeline</text>
+<polygon fill="#6bbf6b" stroke="none" points="28.31,-4608.83 28.31,-4624.83 52.86,-4624.83 52.86,-4608.83 28.31,-4608.83"/>
+<text text-anchor="start" x="39.2" y="-4613.83" font-family="Helvetica,sans-Serif" font-size="10.00"> </text>
+<text text-anchor="start" x="58.86" y="-4613.83" font-family="Helvetica,sans-Serif" font-size="10.00">Harmonic frame transformations</text>
+<polygon fill="#9b6bbf" stroke="none" points="28.31,-4588.83 28.31,-4604.83 52.86,-4604.83 52.86,-4588.83 28.31,-4588.83"/>
+<text text-anchor="start" x="39.2" y="-4593.83" font-family="Helvetica,sans-Serif" font-size="10.00"> </text>
+<text text-anchor="start" x="58.86" y="-4593.83" font-family="Helvetica,sans-Serif" font-size="10.00">Creative extensions (M6)</text>
+<polygon fill="#d94a7a" stroke="none" points="28.31,-4568.83 28.31,-4584.83 52.86,-4584.83 52.86,-4568.83 28.31,-4568.83"/>
+<text text-anchor="start" x="39.2" y="-4573.83" font-family="Helvetica,sans-Serif" font-size="10.00"> </text>
+<text text-anchor="start" x="58.86" y="-4573.83" font-family="Helvetica,sans-Serif" font-size="10.00">Freeze / confidence gating</text>
+<polygon fill="#b8860b" stroke="none" points="28.31,-4548.83 28.31,-4564.83 52.86,-4564.83 52.86,-4548.83 28.31,-4548.83"/>
+<text text-anchor="start" x="39.2" y="-4553.83" font-family="Helvetica,sans-Serif" font-size="10.00"> </text>
+<text text-anchor="start" x="58.86" y="-4553.83" font-family="Helvetica,sans-Serif" font-size="10.00">Physical modelling</text>
+<text text-anchor="start" x="32.25" y="-4533.83" font-family="Helvetica,sans-Serif" font-size="10.00">━▶</text>
+<text text-anchor="start" x="58.86" y="-4533.83" font-family="Helvetica,sans-Serif" font-size="10.00">Audio flow</text>
+<text text-anchor="start" x="30.31" y="-4513.83" font-family="Helvetica,sans-Serif" font-size="10.00">&#45; &#45; ▶</text>
+<text text-anchor="start" x="58.86" y="-4513.83" font-family="Helvetica,sans-Serif" font-size="10.00">Control / frame data</text>
+</g>
+<!-- midi_in -->
+<g id="node2" class="node">
+<title>midi_in</title>
+<polygon fill="#ccddee" stroke="black" points="724.57,-1020.61 628,-1054.43 531.43,-1020.61 531.52,-965.89 724.48,-965.89 724.57,-1020.61"/>
+<text text-anchor="middle" x="628" y="-1020.48" font-family="Helvetica,sans-Serif" font-size="10.00">MIDI Input</text>
+<text text-anchor="middle" x="628" y="-1008.48" font-family="Helvetica,sans-Serif" font-size="10.00">(Notes, Velocity,</text>
+<text text-anchor="middle" x="628" y="-996.48" font-family="Helvetica,sans-Serif" font-size="10.00">Pitch Bend ±12 semi,</text>
+<text text-anchor="middle" x="628" y="-984.48" font-family="Helvetica,sans-Serif" font-size="10.00">MPE Expression)</text>
+</g>
+<!-- voice_alloc -->
+<g id="node33" class="node">
+<title>voice_alloc</title>
+<polygon fill="#6aabea" stroke="black" points="865,-882.14 750.61,-814.14 865,-746.14 979.39,-814.14 865,-882.14"/>
+<text text-anchor="middle" x="865" y="-835.14" font-family="Helvetica,sans-Serif" font-size="10.00">VoiceAllocator</text>
+<text text-anchor="middle" x="865" y="-823.14" font-family="Helvetica,sans-Serif" font-size="10.00">Mono: voice 0 only</text>
+<text text-anchor="middle" x="865" y="-811.14" font-family="Helvetica,sans-Serif" font-size="10.00">4/8 Voice: round&#45;robin</text>
+<text text-anchor="middle" x="865" y="-799.14" font-family="Helvetica,sans-Serif" font-size="10.00">Voice steal with 20ms</text>
+<text text-anchor="middle" x="865" y="-787.14" font-family="Helvetica,sans-Serif" font-size="10.00">anti&#45;click crossfade</text>
+</g>
+<!-- midi_in&#45;&gt;voice_alloc -->
+<g id="edge41" class="edge">
+<title>midi_in&#45;&gt;voice_alloc</title>
+<path fill="none" stroke="black" stroke-width="2" d="M697.86,-965.4C711.21,-957.05 724.82,-947.91 737,-938.54 764.63,-917.29 792.8,-890.77 815.65,-867.77"/>
+<polygon fill="black" stroke="black" stroke-width="2" points="818.14,-870.23 822.65,-860.64 813.14,-865.32 818.14,-870.23"/>
+<text text-anchor="middle" x="810.75" y="-931.34" font-family="Helvetica,sans-Serif" font-size="8.00">note on/off</text>
+<text text-anchor="middle" x="810.75" y="-921.74" font-family="Helvetica,sans-Serif" font-size="8.00">velocity</text>
+<text text-anchor="middle" x="810.75" y="-912.14" font-family="Helvetica,sans-Serif" font-size="8.00">pitch bend</text>
+<text text-anchor="middle" x="810.75" y="-902.54" font-family="Helvetica,sans-Serif" font-size="8.00">MPE expression</text>
+</g>
+<!-- adsr -->
+<g id="node49" class="node">
+<title>adsr</title>
+<polygon fill="#888888" stroke="black" points="1201.03,-866.14 1044.97,-866.14 1044.97,-762.14 1201.03,-762.14 1201.03,-866.14"/>
+<text text-anchor="middle" x="1123" y="-853.14" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">ADSR Envelope</text>
+<text text-anchor="middle" x="1123" y="-841.14" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">(Spec 124)</text>
+<text text-anchor="middle" x="1123" y="-829.14" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">Auto&#45;detected from sample</text>
+<text text-anchor="middle" x="1123" y="-817.14" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">Attack/Decay/Sustain/Release</text>
+<text text-anchor="middle" x="1123" y="-805.14" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">Bezier curves, time scale</text>
+<text text-anchor="middle" x="1123" y="-793.14" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">Amount blend: lerp(1, env, amt)</text>
+<text text-anchor="middle" x="1123" y="-781.14" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">Sustain frame looping</text>
+<text text-anchor="middle" x="1123" y="-769.14" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">15ms amount smoother</text>
+</g>
+<!-- midi_in&#45;&gt;adsr -->
+<g id="edge72" class="edge">
+<title>midi_in&#45;&gt;adsr</title>
+<path fill="none" stroke="black" stroke-dasharray="5,2" d="M724.89,-991.71C846.67,-975.34 1041.54,-947.95 1055,-938.54 1076.38,-923.59 1091.75,-899.67 1102.41,-876.86"/>
+<polygon fill="black" stroke="black" points="1105.54,-878.44 1106.36,-867.88 1099.13,-875.62 1105.54,-878.44"/>
+<text text-anchor="middle" x="1105.88" y="-921.74" font-family="Helvetica,sans-Serif" font-size="8.00">note on</text>
+<text text-anchor="middle" x="1105.88" y="-912.14" font-family="Helvetica,sans-Serif" font-size="8.00">(retrigger)</text>
+</g>
+<!-- release_env -->
+<g id="node50" class="node">
+<title>release_env</title>
+<polygon fill="#888888" stroke="black" points="1164.66,-690.94 1033.34,-690.94 1033.34,-634.94 1164.66,-634.94 1164.66,-690.94"/>
+<text text-anchor="middle" x="1099" y="-677.94" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">Release Envelope</text>
+<text text-anchor="middle" x="1099" y="-665.94" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">(when ADSR Amount = 0)</text>
+<text text-anchor="middle" x="1099" y="-653.94" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">Exponential decay</text>
+<text text-anchor="middle" x="1099" y="-641.94" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">End note at gain &lt; 1e&#45;6</text>
+</g>
+<!-- midi_in&#45;&gt;release_env -->
+<g id="edge73" class="edge">
+<title>midi_in&#45;&gt;release_env</title>
+<path fill="none" stroke="black" stroke-dasharray="5,2" d="M623.58,-965.62C619.31,-907.43 620.83,-798.11 682.31,-738.14 729.45,-692.16 914.81,-674.19 1021.76,-667.55"/>
+<polygon fill="black" stroke="black" points="1021.84,-671.05 1031.61,-666.96 1021.42,-664.06 1021.84,-671.05"/>
+<text text-anchor="middle" x="695.66" y="-811.74" font-family="Helvetica,sans-Serif" font-size="8.00">note off</text>
+</g>
+<!-- sympathetic -->
+<g id="node54" class="node">
+<title>sympathetic</title>
+<polygon fill="#888888" stroke="black" points="1233.2,-342.94 1108.8,-342.94 1108.8,-262.94 1233.2,-262.94 1233.2,-342.94"/>
+<text text-anchor="middle" x="1171" y="-329.94" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">Sympathetic Resonance</text>
+<text text-anchor="middle" x="1171" y="-317.94" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">(Spec 132)</text>
+<text text-anchor="middle" x="1171" y="-305.94" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">Global (non&#45;per&#45;voice)</text>
+<text text-anchor="middle" x="1171" y="-293.94" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">Inharmonic partials:</text>
+<text text-anchor="middle" x="1171" y="-281.94" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">f_n = n·f0·√(1+B·n²)</text>
+<text text-anchor="middle" x="1171" y="-269.94" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">Amount + Decay control</text>
+</g>
+<!-- midi_in&#45;&gt;sympathetic -->
+<g id="edge74" class="edge">
+<title>midi_in&#45;&gt;sympathetic</title>
+<path fill="none" stroke="black" stroke-dasharray="5,2" d="M659.64,-965.4C676.72,-942.42 696.75,-912.08 709,-882.14 733.69,-821.8 687.21,-780.23 737,-738.14 754.15,-723.64 1119.44,-734.4 1141,-728.14 1207.76,-708.75 1251,-686.46 1251,-616.94 1251,-616.94 1251,-616.94 1251,-400.94 1251,-382.68 1242.46,-366 1230.96,-351.81"/>
+<polygon fill="black" stroke="black" points="1233.71,-349.63 1224.47,-344.44 1228.45,-354.26 1233.71,-349.63"/>
+<text text-anchor="middle" x="1269.9" y="-577.14" font-family="Helvetica,sans-Serif" font-size="8.00">note on/off</text>
+<text text-anchor="middle" x="1269.9" y="-567.54" font-family="Helvetica,sans-Serif" font-size="8.00">(resonator</text>
+<text text-anchor="middle" x="1269.9" y="-557.94" font-family="Helvetica,sans-Serif" font-size="8.00">allocation)</text>
+</g>
+<!-- sidechain_in -->
+<g id="node3" class="node">
+<title>sidechain_in</title>
+<polygon fill="#ccddee" stroke="black" points="463.63,-4598.71 352,-4625.29 240.37,-4598.71 240.48,-4555.72 463.52,-4555.72 463.63,-4598.71"/>
+<text text-anchor="middle" x="352" y="-4595.83" font-family="Helvetica,sans-Serif" font-size="10.00">Sidechain Audio</text>
+<text text-anchor="middle" x="352" y="-4583.83" font-family="Helvetica,sans-Serif" font-size="10.00">(Auxiliary Stereo Bus)</text>
+<text text-anchor="middle" x="352" y="-4571.83" font-family="Helvetica,sans-Serif" font-size="10.00">Stereo&#45;to&#45;mono downmix</text>
+</g>
+<!-- source_switch -->
+<g id="node6" class="node">
+<title>source_switch</title>
+<polygon fill="#7bafd4" stroke="black" points="1005,-4386.43 856.16,-4342.43 1005,-4298.43 1153.84,-4342.43 1005,-4386.43"/>
+<text text-anchor="middle" x="1005" y="-4351.43" font-family="Helvetica,sans-Serif" font-size="10.00">Input Source Switch</text>
+<text text-anchor="middle" x="1005" y="-4339.43" font-family="Helvetica,sans-Serif" font-size="10.00">Sample (0.0) / Sidechain (1.0)</text>
+<text text-anchor="middle" x="1005" y="-4327.43" font-family="Helvetica,sans-Serif" font-size="10.00">20ms crossfade on change</text>
+</g>
+<!-- sidechain_in&#45;&gt;source_switch -->
+<g id="edge1" class="edge">
+<title>sidechain_in&#45;&gt;source_switch</title>
+<path fill="none" stroke="black" stroke-width="2" d="M369.9,-4555.25C390.24,-4523.63 426.6,-4475.73 472,-4452.83 490.94,-4443.28 831.55,-4421.27 852,-4415.63 883.59,-4406.91 916.7,-4392.08 944.01,-4378.12"/>
+<polygon fill="black" stroke="black" stroke-width="2" points="945.41,-4381.34 952.65,-4373.61 942.17,-4375.13 945.41,-4381.34"/>
+<text text-anchor="middle" x="781.38" y="-4430.83" font-family="Helvetica,sans-Serif" font-size="8.00">live audio</text>
+</g>
+<!-- sample_load -->
+<g id="node4" class="node">
+<title>sample_load</title>
+<polygon fill="#ccddee" stroke="black" points="724.85,-4601.95 603,-4635.78 481.15,-4601.95 481.27,-4547.23 724.73,-4547.23 724.85,-4601.95"/>
+<text text-anchor="middle" x="603" y="-4601.83" font-family="Helvetica,sans-Serif" font-size="10.00">Sample Loader</text>
+<text text-anchor="middle" x="603" y="-4589.83" font-family="Helvetica,sans-Serif" font-size="10.00">(WAV/AIFF)</text>
+<text text-anchor="middle" x="603" y="-4577.83" font-family="Helvetica,sans-Serif" font-size="10.00">Background thread analysis</text>
+<text text-anchor="middle" x="603" y="-4565.83" font-family="Helvetica,sans-Serif" font-size="10.00">Lock&#45;free atomic exchange</text>
+</g>
+<!-- sample_load&#45;&gt;source_switch -->
+<g id="edge2" class="edge">
+<title>sample_load&#45;&gt;source_switch</title>
+<path fill="none" stroke="black" stroke-width="2" d="M667.59,-4546.88C744.33,-4500.61 871.29,-4424.05 945.65,-4379.22"/>
+<polygon fill="black" stroke="black" stroke-width="2" points="947.32,-4382.29 954.08,-4374.13 943.71,-4376.3 947.32,-4382.29"/>
+<text text-anchor="middle" x="877.95" y="-4435.63" font-family="Helvetica,sans-Serif" font-size="8.00">offline</text>
+<text text-anchor="middle" x="877.95" y="-4426.03" font-family="Helvetica,sans-Serif" font-size="8.00">analysis</text>
+</g>
+<!-- host_tempo -->
+<g id="node5" class="node">
+<title>host_tempo</title>
+<polygon fill="#ccddee" stroke="black" points="725.2,-2044.27 634,-2063.6 542.8,-2044.27 542.88,-2013 725.12,-2013 725.2,-2044.27"/>
+<text text-anchor="middle" x="634" y="-2038.63" font-family="Helvetica,sans-Serif" font-size="10.00">Host Tempo</text>
+<text text-anchor="middle" x="634" y="-2026.63" font-family="Helvetica,sans-Serif" font-size="10.00">(BPM for mod sync)</text>
+</g>
+<!-- modulators -->
+<g id="node31" class="node">
+<title>modulators</title>
+<polygon fill="#a8dca8" stroke="black" points="1016.04,-1934.43 839.96,-1934.43 839.96,-1854.43 1016.04,-1854.43 1016.04,-1934.43"/>
+<text text-anchor="middle" x="928" y="-1921.43" font-family="Helvetica,sans-Serif" font-size="10.00">Harmonic Modulators</text>
+<text text-anchor="middle" x="928" y="-1909.43" font-family="Helvetica,sans-Serif" font-size="10.00">(FR&#45;024 to FR&#45;029)</text>
+<text text-anchor="middle" x="928" y="-1897.43" font-family="Helvetica,sans-Serif" font-size="10.00">Mod 1 + Mod 2 (independent)</text>
+<text text-anchor="middle" x="928" y="-1885.43" font-family="Helvetica,sans-Serif" font-size="10.00">5 waveforms, tempo sync</text>
+<text text-anchor="middle" x="928" y="-1873.43" font-family="Helvetica,sans-Serif" font-size="10.00">Targets: Amplitude, Frequency, Pan</text>
+<text text-anchor="middle" x="928" y="-1861.43" font-family="Helvetica,sans-Serif" font-size="10.00">Adjustable partial range (1&#45;96)</text>
+</g>
+<!-- host_tempo&#45;&gt;modulators -->
+<g id="edge39" class="edge">
+<title>host_tempo&#45;&gt;modulators</title>
+<path fill="none" stroke="#888888" stroke-dasharray="5,2" d="M680.59,-2012.57C721.8,-1993.06 783.18,-1964 834.49,-1939.7"/>
+<polygon fill="#888888" stroke="#888888" points="835.7,-1943 843.24,-1935.56 832.71,-1936.67 835.7,-1943"/>
+<text text-anchor="middle" x="830.45" y="-1964.43" font-family="Helvetica,sans-Serif" font-size="8.00">BPM</text>
+<text text-anchor="middle" x="830.45" y="-1954.83" font-family="Helvetica,sans-Serif" font-size="8.00">(tempo sync)</text>
+</g>
+<!-- feedback_mix -->
+<g id="node7" class="node">
+<title>feedback_mix</title>
+<polygon fill="#f0c8a0" stroke="#c07020" points="1384.59,-4243.23 1267.41,-4243.23 1267.41,-4175.23 1384.59,-4175.23 1384.59,-4243.23"/>
+<text text-anchor="middle" x="1326" y="-4230.23" font-family="Helvetica,sans-Serif" font-size="10.00">Feedback Mixer</text>
+<text text-anchor="middle" x="1326" y="-4218.23" font-family="Helvetica,sans-Serif" font-size="10.00">(Spec B: FR&#45;005)</text>
+<text text-anchor="middle" x="1326" y="-4206.23" font-family="Helvetica,sans-Serif" font-size="10.00">synth output mixed</text>
+<text text-anchor="middle" x="1326" y="-4194.23" font-family="Helvetica,sans-Serif" font-size="10.00">into sidechain input</text>
+<text text-anchor="middle" x="1326" y="-4182.23" font-family="Helvetica,sans-Serif" font-size="10.00">with exponential decay</text>
+</g>
+<!-- source_switch&#45;&gt;feedback_mix -->
+<g id="edge3" class="edge">
+<title>source_switch&#45;&gt;feedback_mix</title>
+<path fill="none" stroke="#2a5080" stroke-width="2" d="M1072.99,-4318.05C1122.56,-4300.44 1191.41,-4274.82 1255.58,-4246.49"/>
+<polygon fill="#2a5080" stroke="#2a5080" stroke-width="2" points="1256.61,-4249.86 1264.32,-4242.59 1253.76,-4243.47 1256.61,-4249.86"/>
+<text text-anchor="middle" x="1232.95" y="-4273.23" font-family="Helvetica,sans-Serif" font-size="8.00">sidechain</text>
+<text text-anchor="middle" x="1232.95" y="-4263.63" font-family="Helvetica,sans-Serif" font-size="8.00">mode only</text>
+</g>
+<!-- sample_frames -->
+<g id="node18" class="node">
+<title>sample_frames</title>
+<polygon fill="#7bafd4" stroke="black" points="1223.96,-4138.03 1082.04,-4138.03 1082.04,-4070.03 1223.96,-4070.03 1223.96,-4138.03"/>
+<text text-anchor="middle" x="1153" y="-4125.03" font-family="Helvetica,sans-Serif" font-size="10.00">Sample Analysis</text>
+<text text-anchor="middle" x="1153" y="-4113.03" font-family="Helvetica,sans-Serif" font-size="10.00">(offline)</text>
+<text text-anchor="middle" x="1153" y="-4101.03" font-family="Helvetica,sans-Serif" font-size="10.00">Pre&#45;computed frame</text>
+<text text-anchor="middle" x="1153" y="-4089.03" font-family="Helvetica,sans-Serif" font-size="10.00">sequence + ADSR detection</text>
+<text text-anchor="middle" x="1153" y="-4077.03" font-family="Helvetica,sans-Serif" font-size="10.00">+ sustain loop region</text>
+</g>
+<!-- source_switch&#45;&gt;sample_frames -->
+<g id="edge17" class="edge">
+<title>source_switch&#45;&gt;sample_frames</title>
+<path fill="none" stroke="black" stroke-dasharray="5,2" d="M1027.96,-4304.75C1054.46,-4262.43 1097.97,-4192.93 1126.05,-4148.08"/>
+<polygon fill="black" stroke="black" points="1129,-4149.97 1131.33,-4139.64 1123.06,-4146.25 1129,-4149.97"/>
+<text text-anchor="middle" x="1066.96" y="-4273.23" font-family="Helvetica,sans-Serif" font-size="8.00">sample</text>
+<text text-anchor="middle" x="1066.96" y="-4263.63" font-family="Helvetica,sans-Serif" font-size="8.00">mode</text>
+</g>
+<!-- preproc -->
+<g id="node8" class="node">
+<title>preproc</title>
+<polygon fill="#f5d090" stroke="black" points="1539.53,-4030.43 1428.47,-4030.43 1428.47,-3974.43 1539.53,-3974.43 1539.53,-4030.43"/>
+<text text-anchor="middle" x="1484" y="-4017.43" font-family="Helvetica,sans-Serif" font-size="10.00">PreProcessing</text>
+<text text-anchor="middle" x="1484" y="-4005.43" font-family="Helvetica,sans-Serif" font-size="10.00">DC removal, HPF,</text>
+<text text-anchor="middle" x="1484" y="-3993.43" font-family="Helvetica,sans-Serif" font-size="10.00">noise gate,</text>
+<text text-anchor="middle" x="1484" y="-3981.43" font-family="Helvetica,sans-Serif" font-size="10.00">transient suppression</text>
+</g>
+<!-- feedback_mix&#45;&gt;preproc -->
+<g id="edge12" class="edge">
+<title>feedback_mix&#45;&gt;preproc</title>
+<path fill="none" stroke="#804010" stroke-width="2" d="M1351.87,-4175.13C1353.95,-4172.46 1356.01,-4169.8 1358,-4167.23 1391.51,-4123.98 1429.81,-4074.13 1455.3,-4040.9"/>
+<polygon fill="#804010" stroke="#804010" stroke-width="2" points="1457.95,-4043.19 1461.26,-4033.12 1452.4,-4038.93 1457.95,-4043.19"/>
+<text text-anchor="middle" x="1444.75" y="-4106.43" font-family="Helvetica,sans-Serif" font-size="8.00">audio</text>
+<text text-anchor="middle" x="1444.75" y="-4096.83" font-family="Helvetica,sans-Serif" font-size="8.00">samples</text>
+</g>
+<!-- yin -->
+<g id="node9" class="node">
+<title>yin</title>
+<polygon fill="#f5d090" stroke="black" points="1494.14,-3880.23 1335.86,-3880.23 1335.86,-3824.23 1494.14,-3824.23 1494.14,-3880.23"/>
+<text text-anchor="middle" x="1415" y="-3867.23" font-family="Helvetica,sans-Serif" font-size="10.00">YIN Pitch Detector</text>
+<text text-anchor="middle" x="1415" y="-3855.23" font-family="Helvetica,sans-Serif" font-size="10.00">FFT&#45;accelerated autocorrelation</text>
+<text text-anchor="middle" x="1415" y="-3843.23" font-family="Helvetica,sans-Serif" font-size="10.00">F0 + confidence [0, 1]</text>
+<text text-anchor="middle" x="1415" y="-3831.23" font-family="Helvetica,sans-Serif" font-size="10.00">Voiced/unvoiced classification</text>
+</g>
+<!-- preproc&#45;&gt;yin -->
+<g id="edge4" class="edge">
+<title>preproc&#45;&gt;yin</title>
+<path fill="none" stroke="#804010" stroke-width="2" d="M1471.34,-3974.25C1460.63,-3951.24 1445.14,-3917.97 1433.11,-3892.13"/>
+<polygon fill="#804010" stroke="#804010" stroke-width="2" points="1436.36,-3890.82 1428.97,-3883.23 1430.02,-3893.78 1436.36,-3890.82"/>
+</g>
+<!-- short_stft -->
+<g id="node10" class="node">
+<title>short_stft</title>
+<polygon fill="#e8c868" stroke="black" points="1598.02,-3874.23 1511.98,-3874.23 1511.98,-3830.23 1598.02,-3830.23 1598.02,-3874.23"/>
+<text text-anchor="middle" x="1555" y="-3861.23" font-family="Helvetica,sans-Serif" font-size="10.00">Short STFT</text>
+<text text-anchor="middle" x="1555" y="-3849.23" font-family="Helvetica,sans-Serif" font-size="10.00">1024&#45;pt window</text>
+<text text-anchor="middle" x="1555" y="-3837.23" font-family="Helvetica,sans-Serif" font-size="10.00">Low latency</text>
+</g>
+<!-- preproc&#45;&gt;short_stft -->
+<g id="edge5" class="edge">
+<title>preproc&#45;&gt;short_stft</title>
+<path fill="none" stroke="#804010" stroke-width="2" d="M1505.13,-3974.06C1509.02,-3968.4 1512.84,-3962.35 1516,-3956.43 1527.88,-3934.14 1537.87,-3907.43 1544.76,-3886.77"/>
+<polygon fill="#804010" stroke="#804010" stroke-width="2" points="1548.06,-3887.95 1547.81,-3877.35 1541.4,-3885.79 1548.06,-3887.95"/>
+</g>
+<!-- long_stft -->
+<g id="node11" class="node">
+<title>long_stft</title>
+<polygon fill="#e8c868" stroke="black" points="1702.02,-3874.23 1615.98,-3874.23 1615.98,-3830.23 1702.02,-3830.23 1702.02,-3874.23"/>
+<text text-anchor="middle" x="1659" y="-3861.23" font-family="Helvetica,sans-Serif" font-size="10.00">Long STFT</text>
+<text text-anchor="middle" x="1659" y="-3849.23" font-family="Helvetica,sans-Serif" font-size="10.00">2048&#45;pt window</text>
+<text text-anchor="middle" x="1659" y="-3837.23" font-family="Helvetica,sans-Serif" font-size="10.00">High precision</text>
+</g>
+<!-- preproc&#45;&gt;long_stft -->
+<g id="edge6" class="edge">
+<title>preproc&#45;&gt;long_stft</title>
+<path fill="none" stroke="#804010" stroke-width="2" d="M1539.91,-3987.76C1561.58,-3980.71 1585.75,-3970.55 1605,-3956.43 1628.11,-3939.48 1642.19,-3909.66 1650.14,-3886.42"/>
+<polygon fill="#804010" stroke="#804010" stroke-width="2" points="1653.38,-3887.78 1653.05,-3877.19 1646.71,-3885.68 1653.38,-3887.78"/>
+</g>
+<!-- mode_select -->
+<g id="node12" class="node">
+<title>mode_select</title>
+<polygon fill="#e8b050" stroke="black" points="1537,-3743.43 1433.74,-3687.43 1537,-3631.43 1640.26,-3687.43 1537,-3743.43"/>
+<text text-anchor="middle" x="1537" y="-3702.43" font-family="Helvetica,sans-Serif" font-size="10.00">Mode Selector</text>
+<text text-anchor="middle" x="1537" y="-3690.43" font-family="Helvetica,sans-Serif" font-size="10.00">Auto: switch on YIN</text>
+<text text-anchor="middle" x="1537" y="-3678.43" font-family="Helvetica,sans-Serif" font-size="10.00">confidence ≤ 0.6</text>
+<text text-anchor="middle" x="1537" y="-3666.43" font-family="Helvetica,sans-Serif" font-size="10.00">4&#45;frame crossfade</text>
+</g>
+<!-- yin&#45;&gt;mode_select -->
+<g id="edge7" class="edge">
+<title>yin&#45;&gt;mode_select</title>
+<path fill="none" stroke="#804010" stroke-dasharray="5,2" d="M1435.42,-3823.98C1453.23,-3800.21 1479.49,-3765.17 1500.85,-3736.67"/>
+<polygon fill="#804010" stroke="#804010" points="1503.49,-3738.98 1506.69,-3728.88 1497.89,-3734.78 1503.49,-3738.98"/>
+<text text-anchor="middle" x="1484.42" y="-3795.03" font-family="Helvetica,sans-Serif" font-size="8.00">F0 +</text>
+<text text-anchor="middle" x="1484.42" y="-3785.43" font-family="Helvetica,sans-Serif" font-size="8.00">confidence</text>
+</g>
+<!-- short_stft&#45;&gt;mode_select -->
+<g id="edge8" class="edge">
+<title>short_stft&#45;&gt;mode_select</title>
+<path fill="none" stroke="#804010" stroke-width="2" d="M1552.65,-3829.95C1550.49,-3810.45 1547.19,-3780.56 1544.17,-3753.27"/>
+<polygon fill="#804010" stroke="#804010" stroke-width="2" points="1547.67,-3753.11 1543.1,-3743.56 1540.72,-3753.88 1547.67,-3753.11"/>
+</g>
+<!-- long_stft&#45;&gt;mode_select -->
+<g id="edge9" class="edge">
+<title>long_stft&#45;&gt;mode_select</title>
+<path fill="none" stroke="#804010" stroke-width="2" d="M1643.05,-3829.95C1625.64,-3806.72 1597.17,-3768.73 1574.11,-3737.95"/>
+<polygon fill="#804010" stroke="#804010" stroke-width="2" points="1577.14,-3736.15 1568.34,-3730.25 1571.53,-3740.35 1577.14,-3736.15"/>
+</g>
+<!-- mono_path -->
+<g id="node13" class="node">
+<title>mono_path</title>
+<polygon fill="#e8c868" stroke="black" points="1484.25,-3536.23 1343.75,-3536.23 1343.75,-3480.23 1484.25,-3480.23 1484.25,-3536.23"/>
+<text text-anchor="middle" x="1414" y="-3523.23" font-family="Helvetica,sans-Serif" font-size="10.00">Monophonic Path</text>
+<text text-anchor="middle" x="1414" y="-3511.23" font-family="Helvetica,sans-Serif" font-size="10.00">YIN F0 → Partial Tracker</text>
+<text text-anchor="middle" x="1414" y="-3499.23" font-family="Helvetica,sans-Serif" font-size="10.00">→ Harmonic Model Builder</text>
+<text text-anchor="middle" x="1414" y="-3487.23" font-family="Helvetica,sans-Serif" font-size="10.00">→ Spectral Coring (residual)</text>
+</g>
+<!-- mode_select&#45;&gt;mono_path -->
+<g id="edge10" class="edge">
+<title>mode_select&#45;&gt;mono_path</title>
+<path fill="none" stroke="black" stroke-dasharray="5,2" d="M1509.09,-3646.22C1488.2,-3616.13 1459.86,-3575.3 1439.56,-3546.05"/>
+<polygon fill="black" stroke="black" points="1442.45,-3544.08 1433.87,-3537.86 1436.7,-3548.07 1442.45,-3544.08"/>
+<text text-anchor="middle" x="1492.87" y="-3606.23" font-family="Helvetica,sans-Serif" font-size="8.00">mono</text>
+</g>
+<!-- poly_path -->
+<g id="node14" class="node">
+<title>poly_path</title>
+<polygon fill="#e8c868" stroke="black" points="1639.85,-3542.23 1502.15,-3542.23 1502.15,-3474.23 1639.85,-3474.23 1639.85,-3542.23"/>
+<text text-anchor="middle" x="1571" y="-3529.23" font-family="Helvetica,sans-Serif" font-size="10.00">Polyphonic Path</text>
+<text text-anchor="middle" x="1571" y="-3517.23" font-family="Helvetica,sans-Serif" font-size="10.00">MultiPitchDetector (Klapuri)</text>
+<text text-anchor="middle" x="1571" y="-3505.23" font-family="Helvetica,sans-Serif" font-size="10.00">→ MultiSourceSieve</text>
+<text text-anchor="middle" x="1571" y="-3493.23" font-family="Helvetica,sans-Serif" font-size="10.00">→ Up to 8 voices</text>
+<text text-anchor="middle" x="1571" y="-3481.23" font-family="Helvetica,sans-Serif" font-size="10.00">Hungarian assignment</text>
+</g>
+<!-- mode_select&#45;&gt;poly_path -->
+<g id="edge11" class="edge">
+<title>mode_select&#45;&gt;poly_path</title>
+<path fill="none" stroke="black" stroke-dasharray="5,2" d="M1546.65,-3636.13C1551.64,-3610.13 1557.67,-3578.68 1562.49,-3553.6"/>
+<polygon fill="black" stroke="black" points="1565.87,-3554.53 1564.32,-3544.05 1559,-3553.21 1565.87,-3554.53"/>
+<text text-anchor="middle" x="1559.3" y="-3606.23" font-family="Helvetica,sans-Serif" font-size="8.00">poly</text>
+</g>
+<!-- live_frame -->
+<g id="node15" class="node">
+<title>live_frame</title>
+<polygon fill="#7bafd4" stroke="black" points="1198.03,-3391.03 1081.97,-3391.03 1081.97,-3335.03 1198.03,-3335.03 1198.03,-3391.03"/>
+<text text-anchor="middle" x="1140" y="-3378.03" font-family="Helvetica,sans-Serif" font-size="10.00">HarmonicFrame</text>
+<text text-anchor="middle" x="1140" y="-3366.03" font-family="Helvetica,sans-Serif" font-size="10.00">F0, partials (up to 96),</text>
+<text text-anchor="middle" x="1140" y="-3354.03" font-family="Helvetica,sans-Serif" font-size="10.00">confidence, amplitude,</text>
+<text text-anchor="middle" x="1140" y="-3342.03" font-family="Helvetica,sans-Serif" font-size="10.00">spectral descriptors</text>
+</g>
+<!-- mono_path&#45;&gt;live_frame -->
+<g id="edge13" class="edge">
+<title>mono_path&#45;&gt;live_frame</title>
+<path fill="none" stroke="#2a5080" stroke-width="2" d="M1380.46,-3479.82C1368.15,-3470.44 1353.83,-3460.28 1340,-3452.23 1298.54,-3428.09 1249.25,-3406.28 1209.98,-3390.39"/>
+<polygon fill="#2a5080" stroke="#2a5080" stroke-width="2" points="1211.53,-3387.24 1200.95,-3386.78 1208.93,-3393.74 1211.53,-3387.24"/>
+</g>
+<!-- residual_frame -->
+<g id="node16" class="node">
+<title>residual_frame</title>
+<polygon fill="#7bafd4" stroke="black" points="1312.03,-3385.03 1215.97,-3385.03 1215.97,-3341.03 1312.03,-3341.03 1312.03,-3385.03"/>
+<text text-anchor="middle" x="1264" y="-3372.03" font-family="Helvetica,sans-Serif" font-size="10.00">ResidualFrame</text>
+<text text-anchor="middle" x="1264" y="-3360.03" font-family="Helvetica,sans-Serif" font-size="10.00">Spectral envelope</text>
+<text text-anchor="middle" x="1264" y="-3348.03" font-family="Helvetica,sans-Serif" font-size="10.00">of noise residual</text>
+</g>
+<!-- mono_path&#45;&gt;residual_frame -->
+<g id="edge14" class="edge">
+<title>mono_path&#45;&gt;residual_frame</title>
+<path fill="none" stroke="#2a5080" stroke-width="2" d="M1389.03,-3479.86C1371.58,-3461.11 1347.47,-3435.95 1325,-3415.03 1317.4,-3407.95 1309,-3400.63 1300.92,-3393.82"/>
+<polygon fill="#2a5080" stroke="#2a5080" stroke-width="2" points="1303.2,-3391.16 1293.28,-3387.46 1298.73,-3396.54 1303.2,-3391.16"/>
+</g>
+<!-- poly_path&#45;&gt;live_frame -->
+<g id="edge16" class="edge">
+<title>poly_path&#45;&gt;live_frame</title>
+<path fill="none" stroke="#2a5080" stroke-width="2" d="M1532.72,-3473.86C1522.04,-3465.84 1510.04,-3457.95 1498,-3452.23 1404,-3407.56 1284.99,-3384.05 1210.66,-3372.85"/>
+<polygon fill="#2a5080" stroke="#2a5080" stroke-width="2" points="1211.62,-3369.45 1201.21,-3371.46 1210.6,-3376.37 1211.62,-3369.45"/>
+<text text-anchor="middle" x="1465.34" y="-3427.03" font-family="Helvetica,sans-Serif" font-size="8.00">primary</text>
+<text text-anchor="middle" x="1465.34" y="-3417.43" font-family="Helvetica,sans-Serif" font-size="8.00">voice</text>
+</g>
+<!-- poly_frame -->
+<g id="node17" class="node">
+<title>poly_frame</title>
+<polygon fill="#7bafd4" stroke="black" points="1312.08,-3311.03 1199.92,-3311.03 1199.92,-3255.03 1312.08,-3255.03 1312.08,-3311.03"/>
+<text text-anchor="middle" x="1256" y="-3298.03" font-family="Helvetica,sans-Serif" font-size="10.00">PolyphonicFrame</text>
+<text text-anchor="middle" x="1256" y="-3286.03" font-family="Helvetica,sans-Serif" font-size="10.00">Up to 8 source voices</text>
+<text text-anchor="middle" x="1256" y="-3274.03" font-family="Helvetica,sans-Serif" font-size="10.00">+ inharmonic partials</text>
+<text text-anchor="middle" x="1256" y="-3262.03" font-family="Helvetica,sans-Serif" font-size="10.00">(for UI display)</text>
+</g>
+<!-- poly_path&#45;&gt;poly_frame -->
+<g id="edge15" class="edge">
+<title>poly_path&#45;&gt;poly_frame</title>
+<path fill="none" stroke="#2a5080" stroke-width="2" d="M1555.7,-3473.74C1535.38,-3433.11 1495.59,-3365.55 1441,-3329.03 1406.72,-3306.1 1361.9,-3294.83 1324.96,-3289.3"/>
+<polygon fill="#2a5080" stroke="#2a5080" stroke-width="2" points="1325.64,-3285.86 1315.26,-3287.98 1324.69,-3292.8 1325.64,-3285.86"/>
+</g>
+<!-- confidence_gate -->
+<g id="node20" class="node">
+<title>confidence_gate</title>
+<polygon fill="#e88aaa" stroke="black" points="1260.02,-3207.43 1123.98,-3207.43 1123.98,-3139.43 1260.02,-3139.43 1260.02,-3207.43"/>
+<text text-anchor="middle" x="1192" y="-3194.43" font-family="Helvetica,sans-Serif" font-size="10.00">Confidence&#45;Gated Freeze</text>
+<text text-anchor="middle" x="1192" y="-3182.43" font-family="Helvetica,sans-Serif" font-size="10.00">(FR&#45;052)</text>
+<text text-anchor="middle" x="1192" y="-3170.43" font-family="Helvetica,sans-Serif" font-size="10.00">Threshold: 0.3</text>
+<text text-anchor="middle" x="1192" y="-3158.43" font-family="Helvetica,sans-Serif" font-size="10.00">Hysteresis: 0.05</text>
+<text text-anchor="middle" x="1192" y="-3146.43" font-family="Helvetica,sans-Serif" font-size="10.00">7ms crossfade on recovery</text>
+</g>
+<!-- live_frame&#45;&gt;confidence_gate -->
+<g id="edge18" class="edge">
+<title>live_frame&#45;&gt;confidence_gate</title>
+<path fill="none" stroke="#a02050" stroke-dasharray="5,2" d="M1114.1,-3334.54C1108.86,-3327.39 1104.1,-3319.35 1101.3,-3311.03 1092.23,-3284.07 1085.64,-3270.77 1101.3,-3247.03 1106.28,-3239.49 1112.38,-3243.89 1120,-3239.03 1130.73,-3232.18 1141.42,-3223.73 1151.15,-3215.22"/>
+<polygon fill="#a02050" stroke="#a02050" points="1153.22,-3218.07 1158.31,-3208.78 1148.53,-3212.86 1153.22,-3218.07"/>
+<text text-anchor="middle" x="1120.65" y="-3285.43" font-family="Helvetica,sans-Serif" font-size="8.00">confidence</text>
+<text text-anchor="middle" x="1120.65" y="-3275.83" font-family="Helvetica,sans-Serif" font-size="8.00">check</text>
+</g>
+<!-- capture -->
+<g id="node24" class="node">
+<title>capture</title>
+<polygon fill="#c49ee0" stroke="black" points="1600.65,-2908.23 1457.35,-2908.23 1457.35,-2852.23 1600.65,-2852.23 1600.65,-2908.23"/>
+<text text-anchor="middle" x="1529" y="-2895.23" font-family="Helvetica,sans-Serif" font-size="10.00">Capture Trigger</text>
+<text text-anchor="middle" x="1529" y="-2883.23" font-family="Helvetica,sans-Serif" font-size="10.00">Stores current frame</text>
+<text text-anchor="middle" x="1529" y="-2871.23" font-family="Helvetica,sans-Serif" font-size="10.00">+ ADSR to selected slot</text>
+<text text-anchor="middle" x="1529" y="-2859.23" font-family="Helvetica,sans-Serif" font-size="10.00">Updates evolution waypoints</text>
+</g>
+<!-- live_frame&#45;&gt;capture -->
+<g id="edge22" class="edge">
+<title>live_frame&#45;&gt;capture</title>
+<path fill="none" stroke="#6b3b9f" stroke-dasharray="5,2" d="M1144.06,-3334.75C1149.63,-3307.74 1162.44,-3267.55 1191,-3247.03 1206.59,-3235.83 1260.39,-3248.65 1277,-3239.03 1405.62,-3164.54 1484.82,-2994.95 1515.03,-2919.11"/>
+<polygon fill="#6b3b9f" stroke="#6b3b9f" points="1518.19,-2920.62 1518.57,-2910.03 1511.67,-2918.07 1518.19,-2920.62"/>
+<text text-anchor="middle" x="1436.37" y="-3109.43" font-family="Helvetica,sans-Serif" font-size="8.00">current</text>
+<text text-anchor="middle" x="1436.37" y="-3099.83" font-family="Helvetica,sans-Serif" font-size="8.00">frame</text>
+</g>
+<!-- frame_select -->
+<g id="node26" class="node">
+<title>frame_select</title>
+<polygon fill="#8ed08e" stroke="black" points="922,-2513.63 748.7,-2409.63 922,-2305.63 1095.3,-2409.63 922,-2513.63"/>
+<text text-anchor="middle" x="922" y="-2448.63" font-family="Helvetica,sans-Serif" font-size="10.00">Frame Source Selector</text>
+<text text-anchor="middle" x="922" y="-2424.63" font-family="Helvetica,sans-Serif" font-size="10.00">1. Manual Freeze (if engaged)</text>
+<text text-anchor="middle" x="922" y="-2412.63" font-family="Helvetica,sans-Serif" font-size="10.00">2. Memory Recall (if triggered)</text>
+<text text-anchor="middle" x="922" y="-2400.63" font-family="Helvetica,sans-Serif" font-size="10.00">3. Evolution Engine (if enabled)</text>
+<text text-anchor="middle" x="922" y="-2388.63" font-family="Helvetica,sans-Serif" font-size="10.00">4. Multi&#45;Source Blender (if enabled)</text>
+<text text-anchor="middle" x="922" y="-2376.63" font-family="Helvetica,sans-Serif" font-size="10.00">5. Live Analysis (sidechain mode)</text>
+<text text-anchor="middle" x="922" y="-2364.63" font-family="Helvetica,sans-Serif" font-size="10.00">6. Sample Frame (sample mode)</text>
+</g>
+<!-- live_frame&#45;&gt;frame_select -->
+<g id="edge28" class="edge">
+<title>live_frame&#45;&gt;frame_select</title>
+<path fill="none" stroke="#3a8f3a" stroke-width="2" d="M1089.23,-3334.6C1019.34,-3295.09 902,-3221.72 902,-3174.43 902,-3174.43 902,-3174.43 902,-2617.43 902,-2585.41 904.4,-2550.73 907.55,-2519.09"/>
+<polygon fill="#3a8f3a" stroke="#3a8f3a" stroke-width="2" points="911.02,-2519.51 908.57,-2509.21 904.06,-2518.79 911.02,-2519.51"/>
+<text text-anchor="middle" x="908" y="-2877.83" font-family="Helvetica,sans-Serif" font-size="8.00">live</text>
+</g>
+<!-- blender -->
+<g id="node28" class="node">
+<title>blender</title>
+<polygon fill="#c49ee0" stroke="black" points="1253.34,-2658.43 1118.66,-2658.43 1118.66,-2578.43 1253.34,-2578.43 1253.34,-2658.43"/>
+<text text-anchor="middle" x="1186" y="-2645.43" font-family="Helvetica,sans-Serif" font-size="10.00">Multi&#45;Source Blender</text>
+<text text-anchor="middle" x="1186" y="-2633.43" font-family="Helvetica,sans-Serif" font-size="10.00">(FR&#45;034 to FR&#45;042)</text>
+<text text-anchor="middle" x="1186" y="-2621.43" font-family="Helvetica,sans-Serif" font-size="10.00">8 slot weights + live weight</text>
+<text text-anchor="middle" x="1186" y="-2609.43" font-family="Helvetica,sans-Serif" font-size="10.00">Normalized weighted sum</text>
+<text text-anchor="middle" x="1186" y="-2597.43" font-family="Helvetica,sans-Serif" font-size="10.00">of spectral data</text>
+<text text-anchor="middle" x="1186" y="-2585.43" font-family="Helvetica,sans-Serif" font-size="10.00">Smoothed per&#45;sample</text>
+</g>
+<!-- live_frame&#45;&gt;blender -->
+<g id="edge32" class="edge">
+<title>live_frame&#45;&gt;blender</title>
+<path fill="none" stroke="#6b3b9f" stroke-dasharray="5,2" d="M1091.56,-3334.7C1043.87,-3306.88 975.69,-3264.36 958,-3239.03 941.06,-3214.78 942,-3204.01 942,-3174.43 942,-3174.43 942,-3174.43 942,-2833.23 942,-2733.42 1041.09,-2757.11 1115,-2690.03 1123.02,-2682.75 1131.35,-2674.82 1139.36,-2667"/>
+<polygon fill="#6b3b9f" stroke="#6b3b9f" points="1141.81,-2669.5 1146.48,-2659.99 1136.9,-2664.51 1141.81,-2669.5"/>
+<text text-anchor="middle" x="953.56" y="-2957.43" font-family="Helvetica,sans-Serif" font-size="8.00">live</text>
+<text text-anchor="middle" x="953.56" y="-2947.83" font-family="Helvetica,sans-Serif" font-size="8.00">weight</text>
+</g>
+<!-- residual_synth -->
+<g id="node37" class="node">
+<title>residual_synth</title>
+<polygon fill="#e8d080" stroke="black" points="1906.87,-3207.43 1749.13,-3207.43 1749.13,-3139.43 1906.87,-3139.43 1906.87,-3207.43"/>
+<text text-anchor="middle" x="1828" y="-3194.43" font-family="Helvetica,sans-Serif" font-size="10.00">Residual Synthesizer</text>
+<text text-anchor="middle" x="1828" y="-3182.43" font-family="Helvetica,sans-Serif" font-size="10.00">STFT&#45;domain noise shaping</text>
+<text text-anchor="middle" x="1828" y="-3170.43" font-family="Helvetica,sans-Serif" font-size="10.00">Spectral envelope from analysis</text>
+<text text-anchor="middle" x="1828" y="-3158.43" font-family="Helvetica,sans-Serif" font-size="10.00">Brightness tilt + transient</text>
+<text text-anchor="middle" x="1828" y="-3146.43" font-family="Helvetica,sans-Serif" font-size="10.00">emphasis</text>
+</g>
+<!-- residual_frame&#45;&gt;residual_synth -->
+<g id="edge57" class="edge">
+<title>residual_frame&#45;&gt;residual_synth</title>
+<path fill="none" stroke="#2a5080" stroke-width="2" d="M1312.16,-3350.28C1430.1,-3321.42 1725.22,-3248.73 1745,-3239.03 1757.68,-3232.81 1770.27,-3224.46 1781.67,-3215.82"/>
+<polygon fill="#2a5080" stroke="#2a5080" stroke-width="2" points="1783.7,-3218.68 1789.4,-3209.74 1779.37,-3213.18 1783.7,-3218.68"/>
+<text text-anchor="middle" x="1735.22" y="-3285.43" font-family="Helvetica,sans-Serif" font-size="8.00">spectral</text>
+<text text-anchor="middle" x="1735.22" y="-3275.83" font-family="Helvetica,sans-Serif" font-size="8.00">envelope</text>
+</g>
+<!-- display -->
+<g id="node58" class="node">
+<title>display</title>
+<polygon fill="#dddddd" stroke="black" points="1680.14,-1383.03 1541.86,-1383.03 1541.86,-1279.03 1680.14,-1279.03 1680.14,-1383.03"/>
+<text text-anchor="middle" x="1611" y="-1370.03" font-family="Helvetica,sans-Serif" font-size="10.00">DataExchange Handler</text>
+<text text-anchor="middle" x="1611" y="-1358.03" font-family="Helvetica,sans-Serif" font-size="10.00">~30Hz throttled</text>
+<text text-anchor="middle" x="1611" y="-1346.03" font-family="Helvetica,sans-Serif" font-size="10.00">Partial amplitudes, F0,</text>
+<text text-anchor="middle" x="1611" y="-1334.03" font-family="Helvetica,sans-Serif" font-size="10.00">confidence, memory status,</text>
+<text text-anchor="middle" x="1611" y="-1322.03" font-family="Helvetica,sans-Serif" font-size="10.00">evolution position,</text>
+<text text-anchor="middle" x="1611" y="-1310.03" font-family="Helvetica,sans-Serif" font-size="10.00">modulator phase,</text>
+<text text-anchor="middle" x="1611" y="-1298.03" font-family="Helvetica,sans-Serif" font-size="10.00">polyphonic voice data,</text>
+<text text-anchor="middle" x="1611" y="-1286.03" font-family="Helvetica,sans-Serif" font-size="10.00">analysis mode badge</text>
+</g>
+<!-- poly_frame&#45;&gt;display -->
+<g id="edge76" class="edge">
+<title>poly_frame&#45;&gt;display</title>
+<path fill="none" stroke="#888888" stroke-dasharray="5,2" d="M1312.25,-3281.9C1534.54,-3281.14 2341.61,-3275.82 2381,-3239.03 2423.79,-3199.06 2395,-3166.58 2395,-3108.03 2395,-3108.03 2395,-3108.03 2395,-2833.23 2395,-2390.04 2368,-2279.61 2368,-1836.43 2368,-1836.43 2368,-1836.43 2368,-1552.03 2368,-1412.39 1887.01,-1355.58 1691.84,-1338.28"/>
+<polygon fill="#888888" stroke="#888888" points="1692.3,-1334.81 1682.03,-1337.42 1691.69,-1341.78 1692.3,-1334.81"/>
+<text text-anchor="middle" x="2398.2" y="-2280.43" font-family="Helvetica,sans-Serif" font-size="8.00">multi&#45;voice</text>
+<text text-anchor="middle" x="2398.2" y="-2270.83" font-family="Helvetica,sans-Serif" font-size="8.00">F0 display</text>
+</g>
+<!-- sample_frames&#45;&gt;frame_select -->
+<g id="edge29" class="edge">
+<title>sample_frames&#45;&gt;frame_select</title>
+<path fill="none" stroke="#3a8f3a" stroke-width="2" d="M1081.94,-4071.62C987.11,-4029.58 831,-3959.85 831,-3956.43 831,-3956.43 831,-3956.43 831,-2617.43 831,-2574.96 847.28,-2531.42 866.07,-2495.31"/>
+<polygon fill="#3a8f3a" stroke="#3a8f3a" stroke-width="2" points="869.14,-2496.99 870.8,-2486.52 862.98,-2493.67 869.14,-2496.99"/>
+<text text-anchor="middle" x="858.79" y="-3290.23" font-family="Helvetica,sans-Serif" font-size="8.00">sample</text>
+<text text-anchor="middle" x="858.79" y="-3280.63" font-family="Helvetica,sans-Serif" font-size="8.00">(frame advance</text>
+<text text-anchor="middle" x="858.79" y="-3271.03" font-family="Helvetica,sans-Serif" font-size="8.00">+ sustain loop)</text>
+</g>
+<!-- manual_freeze -->
+<g id="node19" class="node">
+<title>manual_freeze</title>
+<polygon fill="#e88aaa" stroke="black" points="1106.03,-3201.43 969.97,-3201.43 969.97,-3145.43 1106.03,-3145.43 1106.03,-3201.43"/>
+<text text-anchor="middle" x="1038" y="-3188.43" font-family="Helvetica,sans-Serif" font-size="10.00">Manual Freeze (FR&#45;002)</text>
+<text text-anchor="middle" x="1038" y="-3176.43" font-family="Helvetica,sans-Serif" font-size="10.00">Captures current frame</text>
+<text text-anchor="middle" x="1038" y="-3164.43" font-family="Helvetica,sans-Serif" font-size="10.00">on parameter engage</text>
+<text text-anchor="middle" x="1038" y="-3152.43" font-family="Helvetica,sans-Serif" font-size="10.00">10ms crossfade on release</text>
+</g>
+<!-- last_good_frame -->
+<g id="node22" class="node">
+<title>last_good_frame</title>
+<polygon fill="#f0a0b8" stroke="black" points="1089.41,-3046.63 970.59,-3046.63 970.59,-3010.63 1089.41,-3010.63 1089.41,-3046.63"/>
+<text text-anchor="middle" x="1030" y="-3031.63" font-family="Helvetica,sans-Serif" font-size="10.00">Last Good Frame</text>
+<text text-anchor="middle" x="1030" y="-3019.63" font-family="Helvetica,sans-Serif" font-size="10.00">(frozen harmonic state)</text>
+</g>
+<!-- manual_freeze&#45;&gt;last_good_frame -->
+<g id="edge21" class="edge">
+<title>manual_freeze&#45;&gt;last_good_frame</title>
+<path fill="none" stroke="#a02050" stroke-dasharray="5,2" d="M1036.48,-3145.23C1035.08,-3120.34 1033.02,-3083.62 1031.6,-3058.28"/>
+<polygon fill="#a02050" stroke="#a02050" points="1035.1,-3058.15 1031.05,-3048.36 1028.11,-3058.54 1035.1,-3058.15"/>
+<text text-anchor="middle" x="1048.29" y="-3104.63" font-family="Helvetica,sans-Serif" font-size="8.00">capture</text>
+</g>
+<!-- spectral_decay -->
+<g id="node21" class="node">
+<title>spectral_decay</title>
+<polygon fill="#e88aaa" stroke="black" points="1260.1,-3056.63 1107.9,-3056.63 1107.9,-3000.63 1260.1,-3000.63 1260.1,-3056.63"/>
+<text text-anchor="middle" x="1184" y="-3043.63" font-family="Helvetica,sans-Serif" font-size="10.00">Spectral Decay Envelope</text>
+<text text-anchor="middle" x="1184" y="-3031.63" font-family="Helvetica,sans-Serif" font-size="10.00">Per&#45;partial amplitude decay</text>
+<text text-anchor="middle" x="1184" y="-3019.63" font-family="Helvetica,sans-Serif" font-size="10.00">Higher partials die first</text>
+<text text-anchor="middle" x="1184" y="-3007.63" font-family="Helvetica,sans-Serif" font-size="10.00">Prevents noise during fade&#45;out</text>
+</g>
+<!-- confidence_gate&#45;&gt;spectral_decay -->
+<g id="edge19" class="edge">
+<title>confidence_gate&#45;&gt;spectral_decay</title>
+<path fill="none" stroke="#a02050" stroke-dasharray="5,2" d="M1190.12,-3138.95C1188.93,-3117.71 1187.39,-3090.16 1186.15,-3068.03"/>
+<polygon fill="#a02050" stroke="#a02050" points="1189.65,-3067.99 1185.6,-3058.2 1182.67,-3068.38 1189.65,-3067.99"/>
+<text text-anchor="middle" x="1205.41" y="-3109.43" font-family="Helvetica,sans-Serif" font-size="8.00">below</text>
+<text text-anchor="middle" x="1205.41" y="-3099.83" font-family="Helvetica,sans-Serif" font-size="8.00">threshold</text>
+</g>
+<!-- confidence_gate&#45;&gt;last_good_frame -->
+<g id="edge20" class="edge">
+<title>confidence_gate&#45;&gt;last_good_frame</title>
+<path fill="none" stroke="#a02050" stroke-dasharray="5,2" d="M1159.24,-3139C1144.52,-3124.4 1126.73,-3107.29 1110,-3092.63 1094.69,-3079.22 1076.98,-3065.13 1062.11,-3053.69"/>
+<polygon fill="#a02050" stroke="#a02050" points="1064.55,-3051.14 1054.48,-3047.85 1060.3,-3056.7 1064.55,-3051.14"/>
+</g>
+<!-- last_good_frame&#45;&gt;capture -->
+<g id="edge23" class="edge">
+<title>last_good_frame&#45;&gt;capture</title>
+<path fill="none" stroke="#6b3b9f" stroke-dasharray="5,2" d="M1089.51,-3016.39C1198.06,-2995.68 1420.1,-2952.26 1453,-2937.43 1465.62,-2931.74 1478.18,-2923.7 1489.35,-2915.47"/>
+<polygon fill="#6b3b9f" stroke="#6b3b9f" points="1491.35,-2918.34 1497.17,-2909.48 1487.1,-2912.78 1491.35,-2918.34"/>
+<text text-anchor="middle" x="1435.09" y="-2957.43" font-family="Helvetica,sans-Serif" font-size="8.00">frozen</text>
+<text text-anchor="middle" x="1435.09" y="-2947.83" font-family="Helvetica,sans-Serif" font-size="8.00">frame</text>
+</g>
+<!-- last_good_frame&#45;&gt;frame_select -->
+<g id="edge26" class="edge">
+<title>last_good_frame&#45;&gt;frame_select</title>
+<path fill="none" stroke="#3a8f3a" stroke-width="2" d="M1026.94,-3010.16C1014.52,-2939.2 967.25,-2669.12 940.58,-2516.79"/>
+<polygon fill="#3a8f3a" stroke="#3a8f3a" stroke-width="2" points="944.08,-2516.46 938.91,-2507.21 937.18,-2517.66 944.08,-2516.46"/>
+<text text-anchor="middle" x="1003.56" y="-2772.83" font-family="Helvetica,sans-Serif" font-size="8.00">frozen</text>
+</g>
+<!-- memory_slots -->
+<g id="node23" class="node">
+<title>memory_slots</title>
+<polygon fill="#c49ee0" stroke="black" points="1586.55,-2815.23 1457.45,-2815.23 1457.45,-2735.23 1586.55,-2735.23 1586.55,-2815.23"/>
+<text text-anchor="middle" x="1522" y="-2802.23" font-family="Helvetica,sans-Serif" font-size="10.00">8 Memory Slots</text>
+<text text-anchor="middle" x="1522" y="-2790.23" font-family="Helvetica,sans-Serif" font-size="10.00">Each stores:</text>
+<text text-anchor="middle" x="1522" y="-2778.23" font-family="Helvetica,sans-Serif" font-size="10.00">• HarmonicSnapshot</text>
+<text text-anchor="middle" x="1522" y="-2766.23" font-family="Helvetica,sans-Serif" font-size="10.00"> &#160;(partials + spectral data)</text>
+<text text-anchor="middle" x="1522" y="-2754.23" font-family="Helvetica,sans-Serif" font-size="10.00">• 9 ADSR parameters</text>
+<text text-anchor="middle" x="1522" y="-2742.23" font-family="Helvetica,sans-Serif" font-size="10.00">• Occupied flag</text>
+</g>
+<!-- recall -->
+<g id="node25" class="node">
+<title>recall</title>
+<polygon fill="#c49ee0" stroke="black" points="1584.86,-2646.43 1457.14,-2646.43 1457.14,-2590.43 1584.86,-2590.43 1584.86,-2646.43"/>
+<text text-anchor="middle" x="1521" y="-2633.43" font-family="Helvetica,sans-Serif" font-size="10.00">Recall Trigger</text>
+<text text-anchor="middle" x="1521" y="-2621.43" font-family="Helvetica,sans-Serif" font-size="10.00">Loads snapshot from slot</text>
+<text text-anchor="middle" x="1521" y="-2609.43" font-family="Helvetica,sans-Serif" font-size="10.00">Restores ADSR values</text>
+<text text-anchor="middle" x="1521" y="-2597.43" font-family="Helvetica,sans-Serif" font-size="10.00">Initiates crossfade</text>
+</g>
+<!-- memory_slots&#45;&gt;recall -->
+<g id="edge25" class="edge">
+<title>memory_slots&#45;&gt;recall</title>
+<path fill="none" stroke="#6b3b9f" stroke-dasharray="5,2" d="M1521.75,-2734.77C1521.59,-2711.16 1521.4,-2681.31 1521.25,-2657.89"/>
+<polygon fill="#6b3b9f" stroke="#6b3b9f" points="1524.75,-2658.12 1521.19,-2648.14 1517.75,-2658.17 1524.75,-2658.12"/>
+</g>
+<!-- evolution -->
+<g id="node27" class="node">
+<title>evolution</title>
+<polygon fill="#c49ee0" stroke="black" points="1432.53,-2658.43 1271.47,-2658.43 1271.47,-2578.43 1432.53,-2578.43 1432.53,-2658.43"/>
+<text text-anchor="middle" x="1352" y="-2645.43" font-family="Helvetica,sans-Serif" font-size="10.00">Evolution Engine</text>
+<text text-anchor="middle" x="1352" y="-2633.43" font-family="Helvetica,sans-Serif" font-size="10.00">(FR&#45;014 to FR&#45;023)</text>
+<text text-anchor="middle" x="1352" y="-2621.43" font-family="Helvetica,sans-Serif" font-size="10.00">Cycle / PingPong / RandomWalk</text>
+<text text-anchor="middle" x="1352" y="-2609.43" font-family="Helvetica,sans-Serif" font-size="10.00">through occupied waypoints</text>
+<text text-anchor="middle" x="1352" y="-2597.43" font-family="Helvetica,sans-Serif" font-size="10.00">Per&#45;sample interpolation</text>
+<text text-anchor="middle" x="1352" y="-2585.43" font-family="Helvetica,sans-Serif" font-size="10.00">+ ADSR interpolation</text>
+</g>
+<!-- memory_slots&#45;&gt;evolution -->
+<g id="edge30" class="edge">
+<title>memory_slots&#45;&gt;evolution</title>
+<path fill="none" stroke="#6b3b9f" stroke-dasharray="5,2" d="M1478.66,-2734.77C1455.78,-2713.93 1427.55,-2688.23 1403.56,-2666.38"/>
+<polygon fill="#6b3b9f" stroke="#6b3b9f" points="1406.13,-2663.98 1396.38,-2659.84 1401.42,-2669.16 1406.13,-2663.98"/>
+<text text-anchor="middle" x="1473.01" y="-2710.03" font-family="Helvetica,sans-Serif" font-size="8.00">waypoint</text>
+<text text-anchor="middle" x="1473.01" y="-2700.43" font-family="Helvetica,sans-Serif" font-size="8.00">slots</text>
+</g>
+<!-- memory_slots&#45;&gt;blender -->
+<g id="edge31" class="edge">
+<title>memory_slots&#45;&gt;blender</title>
+<path fill="none" stroke="#6b3b9f" stroke-dasharray="5,2" d="M1457.09,-2737.29C1455.72,-2736.59 1454.36,-2735.9 1453,-2735.23 1390.66,-2704.2 1318.07,-2673.02 1264.32,-2650.85"/>
+<polygon fill="#6b3b9f" stroke="#6b3b9f" points="1265.81,-2647.67 1255.23,-2647.11 1263.15,-2654.15 1265.81,-2647.67"/>
+<text text-anchor="middle" x="1423.67" y="-2710.03" font-family="Helvetica,sans-Serif" font-size="8.00">slot</text>
+<text text-anchor="middle" x="1423.67" y="-2700.43" font-family="Helvetica,sans-Serif" font-size="8.00">weights</text>
+</g>
+<!-- memory_slots&#45;&gt;display -->
+<g id="edge77" class="edge">
+<title>memory_slots&#45;&gt;display</title>
+<path fill="none" stroke="#888888" stroke-dasharray="5,2" d="M1584.88,-2734.99C1590.3,-2729.59 1595.17,-2723.66 1599,-2717.23 1621.5,-2679.52 1613,-2663.34 1613,-2619.43 1613,-2619.43 1613,-2619.43 1613,-1490.43 1613,-1458.87 1612.6,-1423.77 1612.15,-1394.65"/>
+<polygon fill="#888888" stroke="#888888" points="1615.66,-1394.85 1612,-1384.9 1608.66,-1394.96 1615.66,-1394.85"/>
+<text text-anchor="middle" x="1623.67" y="-1964.43" font-family="Helvetica,sans-Serif" font-size="8.00">slot</text>
+<text text-anchor="middle" x="1623.67" y="-1954.83" font-family="Helvetica,sans-Serif" font-size="8.00">status</text>
+</g>
+<!-- capture&#45;&gt;memory_slots -->
+<g id="edge24" class="edge">
+<title>capture&#45;&gt;memory_slots</title>
+<path fill="none" stroke="#6b3b9f" stroke-dasharray="5,2" d="M1527.14,-2851.9C1526.62,-2844.19 1526.03,-2835.55 1525.45,-2826.94"/>
+<polygon fill="#6b3b9f" stroke="#6b3b9f" points="1528.96,-2826.96 1524.79,-2817.22 1521.97,-2827.44 1528.96,-2826.96"/>
+</g>
+<!-- recall&#45;&gt;frame_select -->
+<g id="edge27" class="edge">
+<title>recall&#45;&gt;frame_select</title>
+<path fill="none" stroke="#3a8f3a" stroke-width="2" d="M1476.35,-2590.02C1468.7,-2585.85 1460.73,-2581.82 1453,-2578.43 1322.03,-2520.98 1165.13,-2473.89 1055.98,-2444.38"/>
+<polygon fill="#3a8f3a" stroke="#3a8f3a" stroke-width="2" points="1057.07,-2441.05 1046.51,-2441.83 1055.25,-2447.81 1057.07,-2441.05"/>
+<text text-anchor="middle" x="1411.31" y="-2553.23" font-family="Helvetica,sans-Serif" font-size="8.00">recalled</text>
+</g>
+<!-- morph -->
+<g id="node29" class="node">
+<title>morph</title>
+<polygon fill="#c49ee0" stroke="black" points="1238.98,-2250.43 1119.02,-2250.43 1119.02,-2158.43 1238.98,-2158.43 1238.98,-2250.43"/>
+<text text-anchor="middle" x="1179" y="-2237.43" font-family="Helvetica,sans-Serif" font-size="10.00">Spectral Morph</text>
+<text text-anchor="middle" x="1179" y="-2225.43" font-family="Helvetica,sans-Serif" font-size="10.00">(FR&#45;010)</text>
+<text text-anchor="middle" x="1179" y="-2213.43" font-family="Helvetica,sans-Serif" font-size="10.00">Interpolate between</text>
+<text text-anchor="middle" x="1179" y="-2201.43" font-family="Helvetica,sans-Serif" font-size="10.00">frozen (A) and live (B)</text>
+<text text-anchor="middle" x="1179" y="-2189.43" font-family="Helvetica,sans-Serif" font-size="10.00">Per&#45;partial amplitude</text>
+<text text-anchor="middle" x="1179" y="-2177.43" font-family="Helvetica,sans-Serif" font-size="10.00">and frequency blending</text>
+<text text-anchor="middle" x="1179" y="-2165.43" font-family="Helvetica,sans-Serif" font-size="10.00">7ms smoother</text>
+</g>
+<!-- frame_select&#45;&gt;morph -->
+<g id="edge35" class="edge">
+<title>frame_select&#45;&gt;morph</title>
+<path fill="none" stroke="#3a8f3a" stroke-width="2" d="M996.34,-2349.86C1032.79,-2321.04 1076.35,-2286.59 1111.8,-2258.56"/>
+<polygon fill="#3a8f3a" stroke="#3a8f3a" stroke-width="2" points="1113.52,-2261.67 1119.19,-2252.72 1109.18,-2256.17 1113.52,-2261.67"/>
+</g>
+<!-- evolution&#45;&gt;frame_select -->
+<g id="edge33" class="edge">
+<title>evolution&#45;&gt;frame_select</title>
+<path fill="none" stroke="#6b3b9f" stroke-width="2" d="M1271.12,-2578.53C1202.62,-2545.59 1103.89,-2498.11 1028.89,-2462.03"/>
+<polygon fill="#6b3b9f" stroke="#6b3b9f" stroke-width="2" points="1030.79,-2459.07 1020.26,-2457.89 1027.75,-2465.37 1030.79,-2459.07"/>
+<text text-anchor="middle" x="1238.73" y="-2553.23" font-family="Helvetica,sans-Serif" font-size="8.00">evolved</text>
+</g>
+<!-- blender&#45;&gt;frame_select -->
+<g id="edge34" class="edge">
+<title>blender&#45;&gt;frame_select</title>
+<path fill="none" stroke="#6b3b9f" stroke-width="2" d="M1118.18,-2579.63C1117.12,-2579.21 1116.06,-2578.81 1115,-2578.43 1076.48,-2564.4 1058.74,-2583.02 1024.53,-2560.43 1001.94,-2545.52 982.96,-2523.74 967.72,-2501.4"/>
+<polygon fill="#6b3b9f" stroke="#6b3b9f" stroke-width="2" points="970.82,-2499.75 962.42,-2493.3 964.97,-2503.58 970.82,-2499.75"/>
+<text text-anchor="middle" x="1038.76" y="-2553.23" font-family="Helvetica,sans-Serif" font-size="8.00">blended</text>
+</g>
+<!-- harmonic_filter -->
+<g id="node30" class="node">
+<title>harmonic_filter</title>
+<polygon fill="#a8dca8" stroke="black" points="1118.24,-2081.63 977.76,-2081.63 977.76,-1989.63 1118.24,-1989.63 1118.24,-2081.63"/>
+<text text-anchor="middle" x="1048" y="-2068.63" font-family="Helvetica,sans-Serif" font-size="10.00">Harmonic Filter</text>
+<text text-anchor="middle" x="1048" y="-2056.63" font-family="Helvetica,sans-Serif" font-size="10.00">(FR&#45;019 to FR&#45;025)</text>
+<text text-anchor="middle" x="1048" y="-2044.63" font-family="Helvetica,sans-Serif" font-size="10.00">5 filter types:</text>
+<text text-anchor="middle" x="1048" y="-2032.63" font-family="Helvetica,sans-Serif" font-size="10.00">All&#45;Pass, Odd&#45;Only,</text>
+<text text-anchor="middle" x="1048" y="-2020.63" font-family="Helvetica,sans-Serif" font-size="10.00">Even&#45;Only, Low&#45;Harmonics,</text>
+<text text-anchor="middle" x="1048" y="-2008.63" font-family="Helvetica,sans-Serif" font-size="10.00">High&#45;Harmonics</text>
+<text text-anchor="middle" x="1048" y="-1996.63" font-family="Helvetica,sans-Serif" font-size="10.00">Per&#45;partial amplitude mask</text>
+</g>
+<!-- morph&#45;&gt;harmonic_filter -->
+<g id="edge36" class="edge">
+<title>morph&#45;&gt;harmonic_filter</title>
+<path fill="none" stroke="#3a8f3a" stroke-width="2" d="M1143.55,-2158.29C1127.52,-2137.88 1108.43,-2113.58 1091.54,-2092.07"/>
+<polygon fill="#3a8f3a" stroke="#3a8f3a" stroke-width="2" points="1094.51,-2090.18 1085.58,-2084.47 1089,-2094.5 1094.51,-2090.18"/>
+</g>
+<!-- harmonic_filter&#45;&gt;modulators -->
+<g id="edge37" class="edge">
+<title>harmonic_filter&#45;&gt;modulators</title>
+<path fill="none" stroke="#3a8f3a" stroke-width="2" d="M1009.04,-1989.44C996.7,-1975.12 982.99,-1959.22 970.42,-1944.63"/>
+<polygon fill="#3a8f3a" stroke="#3a8f3a" stroke-width="2" points="973.08,-1942.36 963.9,-1937.07 967.78,-1946.93 973.08,-1942.36"/>
+</g>
+<!-- physics -->
+<g id="node32" class="node">
+<title>physics</title>
+<polygon fill="#a8dca8" stroke="black" points="1016.05,-1817.43 839.95,-1817.43 839.95,-1725.43 1016.05,-1725.43 1016.05,-1817.43"/>
+<text text-anchor="middle" x="928" y="-1804.43" font-family="Helvetica,sans-Serif" font-size="10.00">Harmonic Physics</text>
+<text text-anchor="middle" x="928" y="-1792.43" font-family="Helvetica,sans-Serif" font-size="10.00">(Spec A: 122)</text>
+<text text-anchor="middle" x="928" y="-1780.43" font-family="Helvetica,sans-Serif" font-size="10.00">• Warmth (soft saturation)</text>
+<text text-anchor="middle" x="928" y="-1768.43" font-family="Helvetica,sans-Serif" font-size="10.00">• Coupling (neighbor energy share)</text>
+<text text-anchor="middle" x="928" y="-1756.43" font-family="Helvetica,sans-Serif" font-size="10.00">• Stability (per&#45;partial inertia)</text>
+<text text-anchor="middle" x="928" y="-1744.43" font-family="Helvetica,sans-Serif" font-size="10.00">• Entropy (natural decay)</text>
+<text text-anchor="middle" x="928" y="-1732.43" font-family="Helvetica,sans-Serif" font-size="10.00">All smoothed per&#45;block (5ms)</text>
+</g>
+<!-- modulators&#45;&gt;physics -->
+<g id="edge38" class="edge">
+<title>modulators&#45;&gt;physics</title>
+<path fill="none" stroke="#3a8f3a" stroke-width="2" d="M928,-1854.14C928,-1846.63 928,-1838.61 928,-1830.64"/>
+<polygon fill="#3a8f3a" stroke="#3a8f3a" stroke-width="2" points="931.5,-1830.85 928,-1820.85 924.5,-1830.85 931.5,-1830.85"/>
+</g>
+<!-- voice_frame -->
+<g id="node34" class="node">
+<title>voice_frame</title>
+<polygon fill="#6aabea" stroke="black" points="1009.37,-1648.63 846.63,-1648.63 846.63,-1580.63 1009.37,-1580.63 1009.37,-1648.63"/>
+<text text-anchor="middle" x="928" y="-1635.63" font-family="Helvetica,sans-Serif" font-size="10.00">Broadcast Frame to Voices</text>
+<text text-anchor="middle" x="928" y="-1623.63" font-family="Helvetica,sans-Serif" font-size="10.00">Each voice loads morphedFrame</text>
+<text text-anchor="middle" x="928" y="-1611.63" font-family="Helvetica,sans-Serif" font-size="10.00">at pitch = midiNote + pitchBend</text>
+<text text-anchor="middle" x="928" y="-1599.63" font-family="Helvetica,sans-Serif" font-size="10.00">+ expressionTuning</text>
+<text text-anchor="middle" x="928" y="-1587.63" font-family="Helvetica,sans-Serif" font-size="10.00">+ inharmonicity scaling</text>
+</g>
+<!-- physics&#45;&gt;voice_frame -->
+<g id="edge40" class="edge">
+<title>physics&#45;&gt;voice_frame</title>
+<path fill="none" stroke="#2a5080" stroke-width="2" d="M928,-1725.24C928,-1705.28 928,-1681.83 928,-1661.76"/>
+<polygon fill="#2a5080" stroke="#2a5080" stroke-width="2" points="931.5,-1661.84 928,-1651.84 924.5,-1661.84 931.5,-1661.84"/>
+<text text-anchor="middle" x="957.01" y="-1700.23" font-family="Helvetica,sans-Serif" font-size="8.00">morphedFrame</text>
+<text text-anchor="middle" x="957.01" y="-1690.63" font-family="Helvetica,sans-Serif" font-size="8.00">+ residualFrame</text>
+</g>
+<!-- osc_bank -->
+<g id="node35" class="node">
+<title>osc_bank</title>
+<polygon fill="#6aabea" stroke="black" points="1918.2,-1525.43 1733.8,-1525.43 1733.8,-1457.43 1918.2,-1457.43 1918.2,-1525.43"/>
+<text text-anchor="middle" x="1826" y="-1512.43" font-family="Helvetica,sans-Serif" font-size="10.00">Harmonic Oscillator Bank</text>
+<text text-anchor="middle" x="1826" y="-1500.43" font-family="Helvetica,sans-Serif" font-size="10.00">48&#45;96 Gordon&#45;Smith MCF oscillators</text>
+<text text-anchor="middle" x="1826" y="-1488.43" font-family="Helvetica,sans-Serif" font-size="10.00">Amplitude&#45;stable magic circle phasors</text>
+<text text-anchor="middle" x="1826" y="-1476.43" font-family="Helvetica,sans-Serif" font-size="10.00">Stereo partial spread, detune spread</text>
+<text text-anchor="middle" x="1826" y="-1464.43" font-family="Helvetica,sans-Serif" font-size="10.00">→ harmonicL, harmonicR</text>
+</g>
+<!-- voice_frame&#45;&gt;osc_bank -->
+<g id="edge56" class="edge">
+<title>voice_frame&#45;&gt;osc_bank</title>
+<path fill="none" stroke="#2a5080" stroke-width="2" d="M1009.71,-1610.42C1168.21,-1603.76 1512.02,-1586.95 1628,-1562.63 1663.92,-1555.1 1702.2,-1542.64 1735.43,-1530.29"/>
+<polygon fill="#2a5080" stroke="#2a5080" stroke-width="2" points="1736.49,-1533.63 1744.6,-1526.82 1734.01,-1527.08 1736.49,-1533.63"/>
+<text text-anchor="middle" x="1713.64" y="-1555.43" font-family="Helvetica,sans-Serif" font-size="8.00">load frame</text>
+<text text-anchor="middle" x="1713.64" y="-1545.83" font-family="Helvetica,sans-Serif" font-size="8.00">+ pitch</text>
+</g>
+<!-- voice_mix -->
+<g id="node45" class="node">
+<title>voice_mix</title>
+<polygon fill="#6aabea" stroke="black" points="1906.8,-1365.03 1745.2,-1365.03 1745.2,-1297.03 1906.8,-1297.03 1906.8,-1365.03"/>
+<text text-anchor="middle" x="1826" y="-1352.03" font-family="Helvetica,sans-Serif" font-size="10.00">Per&#45;Voice Mix</text>
+<text text-anchor="middle" x="1826" y="-1340.03" font-family="Helvetica,sans-Serif" font-size="10.00">vL = vL × harmLevel + monoMix</text>
+<text text-anchor="middle" x="1826" y="-1328.03" font-family="Helvetica,sans-Serif" font-size="10.00">vR = vR × harmLevel + monoMix</text>
+<text text-anchor="middle" x="1826" y="-1316.03" font-family="Helvetica,sans-Serif" font-size="10.00">brightScale adjusts ratio</text>
+<text text-anchor="middle" x="1826" y="-1304.03" font-family="Helvetica,sans-Serif" font-size="10.00">via MPE expression</text>
+</g>
+<!-- osc_bank&#45;&gt;voice_mix -->
+<g id="edge49" class="edge">
+<title>osc_bank&#45;&gt;voice_mix</title>
+<path fill="none" stroke="#2a5080" stroke-width="2" d="M1826,-1457.22C1826,-1434.39 1826,-1403.74 1826,-1378.48"/>
+<polygon fill="#2a5080" stroke="#2a5080" stroke-width="2" points="1829.5,-1378.49 1826,-1368.49 1822.5,-1378.49 1829.5,-1378.49"/>
+<text text-anchor="middle" x="1844.45" y="-1432.23" font-family="Helvetica,sans-Serif" font-size="8.00">stereo</text>
+<text text-anchor="middle" x="1844.45" y="-1422.63" font-family="Helvetica,sans-Serif" font-size="8.00">harmonics</text>
+</g>
+<!-- osc_bank&#45;&gt;display -->
+<g id="edge75" class="edge">
+<title>osc_bank&#45;&gt;display</title>
+<path fill="none" stroke="#888888" stroke-dasharray="5,2" d="M1780.67,-1457.03C1754.2,-1437.53 1720.08,-1412.4 1689.39,-1389.78"/>
+<polygon fill="#888888" stroke="#888888" points="1691.75,-1387.18 1681.63,-1384.06 1687.6,-1392.81 1691.75,-1387.18"/>
+<text text-anchor="middle" x="1767.35" y="-1432.23" font-family="Helvetica,sans-Serif" font-size="8.00">partial</text>
+<text text-anchor="middle" x="1767.35" y="-1422.63" font-family="Helvetica,sans-Serif" font-size="8.00">state</text>
+</g>
+<!-- exciter_switch -->
+<g id="node36" class="node">
+<title>exciter_switch</title>
+<polygon fill="#e8d080" stroke="black" points="1863,-3884.23 1741.96,-3852.23 1863,-3820.23 1984.04,-3852.23 1863,-3884.23"/>
+<text text-anchor="middle" x="1863" y="-3855.23" font-family="Helvetica,sans-Serif" font-size="10.00">Exciter Type</text>
+<text text-anchor="middle" x="1863" y="-3843.23" font-family="Helvetica,sans-Serif" font-size="10.00">Residual / Impact / Bow</text>
+</g>
+<!-- exciter_switch&#45;&gt;residual_synth -->
+<g id="edge42" class="edge">
+<title>exciter_switch&#45;&gt;residual_synth</title>
+<path fill="none" stroke="black" stroke-dasharray="5,2" d="M1861.41,-3820.39C1855.79,-3711.81 1836.92,-3346.87 1830.31,-3219.08"/>
+<polygon fill="black" stroke="black" points="1833.82,-3219.14 1829.81,-3209.33 1826.83,-3219.5 1833.82,-3219.14"/>
+<text text-anchor="middle" x="1860.68" y="-3505.83" font-family="Helvetica,sans-Serif" font-size="8.00">type 0</text>
+</g>
+<!-- impact_exciter -->
+<g id="node38" class="node">
+<title>impact_exciter</title>
+<polygon fill="#e8d080" stroke="black" points="1890.14,-3721.43 1761.86,-3721.43 1761.86,-3653.43 1890.14,-3653.43 1890.14,-3721.43"/>
+<text text-anchor="middle" x="1826" y="-3708.43" font-family="Helvetica,sans-Serif" font-size="10.00">Impact Exciter</text>
+<text text-anchor="middle" x="1826" y="-3696.43" font-family="Helvetica,sans-Serif" font-size="10.00">(Spec 128)</text>
+<text text-anchor="middle" x="1826" y="-3684.43" font-family="Helvetica,sans-Serif" font-size="10.00">Velocity&#45;dependent strike</text>
+<text text-anchor="middle" x="1826" y="-3672.43" font-family="Helvetica,sans-Serif" font-size="10.00">Hardness, mass, position</text>
+<text text-anchor="middle" x="1826" y="-3660.43" font-family="Helvetica,sans-Serif" font-size="10.00">Choke envelope (10ms)</text>
+</g>
+<!-- exciter_switch&#45;&gt;impact_exciter -->
+<g id="edge43" class="edge">
+<title>exciter_switch&#45;&gt;impact_exciter</title>
+<path fill="none" stroke="black" stroke-dasharray="5,2" d="M1856.3,-3821.75C1850.68,-3797.02 1842.57,-3761.33 1836.15,-3733.1"/>
+<polygon fill="black" stroke="black" points="1839.57,-3732.36 1833.94,-3723.38 1832.75,-3733.91 1839.57,-3732.36"/>
+<text text-anchor="middle" x="1861.93" y="-3790.23" font-family="Helvetica,sans-Serif" font-size="8.00">type 1</text>
+</g>
+<!-- bow_exciter -->
+<g id="node39" class="node">
+<title>bow_exciter</title>
+<polygon fill="#e8d080" stroke="black" points="2039.39,-3721.43 1908.61,-3721.43 1908.61,-3653.43 2039.39,-3653.43 2039.39,-3721.43"/>
+<text text-anchor="middle" x="1974" y="-3708.43" font-family="Helvetica,sans-Serif" font-size="10.00">Bow Exciter</text>
+<text text-anchor="middle" x="1974" y="-3696.43" font-family="Helvetica,sans-Serif" font-size="10.00">(Spec 130)</text>
+<text text-anchor="middle" x="1974" y="-3684.43" font-family="Helvetica,sans-Serif" font-size="10.00">Pressure, speed, position</text>
+<text text-anchor="middle" x="1974" y="-3672.43" font-family="Helvetica,sans-Serif" font-size="10.00">ADSR + resonator energy</text>
+<text text-anchor="middle" x="1974" y="-3660.43" font-family="Helvetica,sans-Serif" font-size="10.00">feedback loop</text>
+</g>
+<!-- exciter_switch&#45;&gt;bow_exciter -->
+<g id="edge44" class="edge">
+<title>exciter_switch&#45;&gt;bow_exciter</title>
+<path fill="none" stroke="black" stroke-dasharray="5,2" d="M1893.31,-3827.95C1901.97,-3820.36 1910.96,-3811.49 1918,-3802.23 1934.15,-3780.99 1947.56,-3754.36 1957.2,-3732.21"/>
+<polygon fill="black" stroke="black" points="1960.37,-3733.7 1961.04,-3723.12 1953.92,-3730.97 1960.37,-3733.7"/>
+<text text-anchor="middle" x="1940.63" y="-3790.23" font-family="Helvetica,sans-Serif" font-size="8.00">type 2</text>
+</g>
+<!-- phys_mix -->
+<g id="node44" class="node">
+<title>phys_mix</title>
+<polygon fill="#6aabea" stroke="black" points="2010.06,-3074.63 1855.94,-3074.63 1855.94,-2982.63 2010.06,-2982.63 2010.06,-3074.63"/>
+<text text-anchor="middle" x="1933" y="-3061.63" font-family="Helvetica,sans-Serif" font-size="10.00">Physical Model Mixer</text>
+<text text-anchor="middle" x="1933" y="-3049.63" font-family="Helvetica,sans-Serif" font-size="10.00">(Spec 127)</text>
+<text text-anchor="middle" x="1933" y="-3037.63" font-family="Helvetica,sans-Serif" font-size="10.00">mono = harmonic</text>
+<text text-anchor="middle" x="1933" y="-3025.63" font-family="Helvetica,sans-Serif" font-size="10.00">+ (1&#45;mix) × residual</text>
+<text text-anchor="middle" x="1933" y="-3013.63" font-family="Helvetica,sans-Serif" font-size="10.00">+ mix × physical</text>
+<text text-anchor="middle" x="1933" y="-3001.63" font-family="Helvetica,sans-Serif" font-size="10.00">mix=0: pure additive</text>
+<text text-anchor="middle" x="1933" y="-2989.63" font-family="Helvetica,sans-Serif" font-size="10.00">mix=1: modal replaces residual</text>
+</g>
+<!-- residual_synth&#45;&gt;phys_mix -->
+<g id="edge50" class="edge">
+<title>residual_synth&#45;&gt;phys_mix</title>
+<path fill="none" stroke="#2a5080" stroke-width="2" d="M1852.62,-3138.95C1864.32,-3123.03 1878.63,-3103.57 1891.92,-3085.5"/>
+<polygon fill="#2a5080" stroke="#2a5080" stroke-width="2" points="1894.7,-3087.63 1897.8,-3077.5 1889.06,-3083.49 1894.7,-3087.63"/>
+<text text-anchor="middle" x="1900.55" y="-3104.63" font-family="Helvetica,sans-Serif" font-size="8.00">excitation</text>
+</g>
+<!-- residual_synth&#45;&gt;phys_mix -->
+<g id="edge54" class="edge">
+<title>residual_synth&#45;&gt;phys_mix</title>
+<path fill="none" stroke="#2a5080" stroke-width="2" d="M1866.42,-3138.98C1871.95,-3133.39 1877.33,-3127.44 1882,-3121.43 1890.48,-3110.52 1898.41,-3098.02 1905.37,-3085.83"/>
+<polygon fill="#2a5080" stroke="#2a5080" stroke-width="2" points="1908.24,-3087.87 1910.01,-3077.43 1902.11,-3084.49 1908.24,-3087.87"/>
+<text text-anchor="middle" x="1918.88" y="-3114.23" font-family="Helvetica,sans-Serif" font-size="8.00">residual</text>
+<text text-anchor="middle" x="1918.88" y="-3104.63" font-family="Helvetica,sans-Serif" font-size="8.00">(when not</text>
+<text text-anchor="middle" x="1918.88" y="-3095.03" font-family="Helvetica,sans-Serif" font-size="8.00">physical)</text>
+</g>
+<!-- resonance_switch -->
+<g id="node40" class="node">
+<title>resonance_switch</title>
+<polygon fill="#dbc878" stroke="black" points="2165,-3564.23 2063.4,-3508.23 2165,-3452.23 2266.6,-3508.23 2165,-3564.23"/>
+<text text-anchor="middle" x="2165" y="-3523.23" font-family="Helvetica,sans-Serif" font-size="10.00">Resonance Type</text>
+<text text-anchor="middle" x="2165" y="-3511.23" font-family="Helvetica,sans-Serif" font-size="10.00">Modal / Waveguide</text>
+<text text-anchor="middle" x="2165" y="-3499.23" font-family="Helvetica,sans-Serif" font-size="10.00">23ms equal&#45;power</text>
+<text text-anchor="middle" x="2165" y="-3487.23" font-family="Helvetica,sans-Serif" font-size="10.00">cosine crossfade</text>
+</g>
+<!-- impact_exciter&#45;&gt;resonance_switch -->
+<g id="edge51" class="edge">
+<title>impact_exciter&#45;&gt;resonance_switch</title>
+<path fill="none" stroke="#8b6914" stroke-width="2" d="M1890.52,-3667.41C1938.73,-3651.79 2005.29,-3627.15 2059,-3595.83 2079.96,-3583.61 2101.06,-3567.36 2118.85,-3552.24"/>
+<polygon fill="#8b6914" stroke="#8b6914" stroke-width="2" points="2120.82,-3555.17 2126.09,-3545.98 2116.24,-3549.88 2120.82,-3555.17"/>
+<text text-anchor="middle" x="2058.22" y="-3606.23" font-family="Helvetica,sans-Serif" font-size="8.00">excitation</text>
+</g>
+<!-- bow_exciter&#45;&gt;resonance_switch -->
+<g id="edge52" class="edge">
+<title>bow_exciter&#45;&gt;resonance_switch</title>
+<path fill="none" stroke="#8b6914" stroke-width="2" d="M2009.93,-3653.1C2040.51,-3624.72 2084.68,-3583.75 2118.06,-3552.78"/>
+<polygon fill="#8b6914" stroke="#8b6914" stroke-width="2" points="2120.43,-3555.35 2125.39,-3545.98 2115.67,-3550.22 2120.43,-3555.35"/>
+<text text-anchor="middle" x="2074.96" y="-3606.23" font-family="Helvetica,sans-Serif" font-size="8.00">excitation</text>
+</g>
+<!-- modal_resonator -->
+<g id="node41" class="node">
+<title>modal_resonator</title>
+<polygon fill="#dbc878" stroke="black" points="2180.86,-3397.03 2063.14,-3397.03 2063.14,-3329.03 2180.86,-3329.03 2180.86,-3397.03"/>
+<text text-anchor="middle" x="2122" y="-3384.03" font-family="Helvetica,sans-Serif" font-size="10.00">Modal Resonator Bank</text>
+<text text-anchor="middle" x="2122" y="-3372.03" font-family="Helvetica,sans-Serif" font-size="10.00">(Spec 127)</text>
+<text text-anchor="middle" x="2122" y="-3360.03" font-family="Helvetica,sans-Serif" font-size="10.00">Decay, brightness,</text>
+<text text-anchor="middle" x="2122" y="-3348.03" font-family="Helvetica,sans-Serif" font-size="10.00">stretch, scatter</text>
+<text text-anchor="middle" x="2122" y="-3336.03" font-family="Helvetica,sans-Serif" font-size="10.00">Bowed&#45;mode coupling</text>
+</g>
+<!-- resonance_switch&#45;&gt;modal_resonator -->
+<g id="edge45" class="edge">
+<title>resonance_switch&#45;&gt;modal_resonator</title>
+<path fill="none" stroke="black" stroke-dasharray="5,2" d="M2150.8,-3459.94C2145.79,-3443.26 2140.18,-3424.59 2135.26,-3408.17"/>
+<polygon fill="black" stroke="black" points="2138.63,-3407.25 2132.4,-3398.68 2131.93,-3409.26 2138.63,-3407.25"/>
+<text text-anchor="middle" x="2153.11" y="-3422.23" font-family="Helvetica,sans-Serif" font-size="8.00">modal</text>
+</g>
+<!-- waveguide_string -->
+<g id="node42" class="node">
+<title>waveguide_string</title>
+<polygon fill="#dbc878" stroke="black" points="2323.2,-3391.03 2198.8,-3391.03 2198.8,-3335.03 2323.2,-3335.03 2323.2,-3391.03"/>
+<text text-anchor="middle" x="2261" y="-3378.03" font-family="Helvetica,sans-Serif" font-size="10.00">Waveguide String</text>
+<text text-anchor="middle" x="2261" y="-3366.03" font-family="Helvetica,sans-Serif" font-size="10.00">(Spec 129)</text>
+<text text-anchor="middle" x="2261" y="-3354.03" font-family="Helvetica,sans-Serif" font-size="10.00">Stiffness + pick position</text>
+<text text-anchor="middle" x="2261" y="-3342.03" font-family="Helvetica,sans-Serif" font-size="10.00">Digital waveguide model</text>
+</g>
+<!-- resonance_switch&#45;&gt;waveguide_string -->
+<g id="edge46" class="edge">
+<title>resonance_switch&#45;&gt;waveguide_string</title>
+<path fill="none" stroke="black" stroke-dasharray="5,2" d="M2192,-3466.96C2205.91,-3446.2 2222.76,-3421.07 2236.33,-3400.83"/>
+<polygon fill="black" stroke="black" points="2239.19,-3402.84 2241.85,-3392.59 2233.38,-3398.95 2239.19,-3402.84"/>
+<text text-anchor="middle" x="2243.55" y="-3422.23" font-family="Helvetica,sans-Serif" font-size="8.00">waveguide</text>
+</g>
+<!-- body_resonance -->
+<g id="node43" class="node">
+<title>body_resonance</title>
+<polygon fill="#dbc878" stroke="black" points="2200.59,-3201.43 2063.41,-3201.43 2063.41,-3145.43 2200.59,-3145.43 2200.59,-3201.43"/>
+<text text-anchor="middle" x="2132" y="-3188.43" font-family="Helvetica,sans-Serif" font-size="10.00">Body Resonance</text>
+<text text-anchor="middle" x="2132" y="-3176.43" font-family="Helvetica,sans-Serif" font-size="10.00">(Spec 131)</text>
+<text text-anchor="middle" x="2132" y="-3164.43" font-family="Helvetica,sans-Serif" font-size="10.00">Acoustic body filter</text>
+<text text-anchor="middle" x="2132" y="-3152.43" font-family="Helvetica,sans-Serif" font-size="10.00">Post&#45;resonance processing</text>
+</g>
+<!-- modal_resonator&#45;&gt;body_resonance -->
+<g id="edge47" class="edge">
+<title>modal_resonator&#45;&gt;body_resonance</title>
+<path fill="none" stroke="#8b6914" stroke-width="2" d="M2123.76,-3328.92C2125.47,-3296.98 2128.05,-3248.58 2129.87,-3214.48"/>
+<polygon fill="#8b6914" stroke="#8b6914" stroke-width="2" points="2133.35,-3214.92 2130.38,-3204.75 2126.36,-3214.55 2133.35,-3214.92"/>
+</g>
+<!-- waveguide_string&#45;&gt;body_resonance -->
+<g id="edge48" class="edge">
+<title>waveguide_string&#45;&gt;body_resonance</title>
+<path fill="none" stroke="#8b6914" stroke-width="2" d="M2245.87,-3334.88C2232.32,-3311.16 2211.49,-3276.06 2191,-3247.03 2182.61,-3235.14 2172.87,-3222.69 2163.75,-3211.51"/>
+<polygon fill="#8b6914" stroke="#8b6914" stroke-width="2" points="2166.6,-3209.47 2157.53,-3204 2161.21,-3213.94 2166.6,-3209.47"/>
+</g>
+<!-- body_resonance&#45;&gt;phys_mix -->
+<g id="edge53" class="edge">
+<title>body_resonance&#45;&gt;phys_mix</title>
+<path fill="none" stroke="#8b6914" stroke-width="2" d="M2098.57,-3145.07C2078.92,-3129.3 2053.42,-3109.35 2030,-3092.63 2025.15,-3089.17 2020.12,-3085.66 2015.01,-3082.16"/>
+<polygon fill="#8b6914" stroke="#8b6914" stroke-width="2" points="2017.22,-3079.43 2006.98,-3076.72 2013.3,-3085.23 2017.22,-3079.43"/>
+<text text-anchor="middle" x="2081.56" y="-3109.43" font-family="Helvetica,sans-Serif" font-size="8.00">physical</text>
+<text text-anchor="middle" x="2081.56" y="-3099.83" font-family="Helvetica,sans-Serif" font-size="8.00">output</text>
+</g>
+<!-- phys_mix&#45;&gt;voice_mix -->
+<g id="edge55" class="edge">
+<title>phys_mix&#45;&gt;voice_mix</title>
+<path fill="none" stroke="#2a5080" stroke-width="2" d="M1934.88,-2982.14C1935.92,-2953.24 1937,-2915.05 1937,-2881.23 1937,-2881.23 1937,-2881.23 1937,-1490.43 1937,-1475.6 1938.13,-1470.94 1932,-1457.43 1917.93,-1426.43 1893.91,-1397.06 1872.3,-1374.54"/>
+<polygon fill="#2a5080" stroke="#2a5080" stroke-width="2" points="1874.85,-1372.15 1865.34,-1367.49 1869.87,-1377.07 1874.85,-1372.15"/>
+<text text-anchor="middle" x="1947.01" y="-2133.23" font-family="Helvetica,sans-Serif" font-size="8.00">mono</text>
+<text text-anchor="middle" x="1947.01" y="-2123.63" font-family="Helvetica,sans-Serif" font-size="8.00">mix</text>
+</g>
+<!-- crossfades -->
+<g id="node46" class="node">
+<title>crossfades</title>
+<polygon fill="#aaaaaa" stroke="black" points="1263.7,-1220.43 1084.3,-1220.43 1084.3,-1164.43 1263.7,-1164.43 1263.7,-1220.43"/>
+<text text-anchor="middle" x="1174" y="-1207.43" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">Crossfade Stack</text>
+<text text-anchor="middle" x="1174" y="-1195.43" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">• Freeze recovery (7ms)</text>
+<text text-anchor="middle" x="1174" y="-1183.43" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">• Anti&#45;click voice steal (20ms)</text>
+<text text-anchor="middle" x="1174" y="-1171.43" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">• Resonance type crossfade (23ms)</text>
+</g>
+<!-- voice_mix&#45;&gt;crossfades -->
+<g id="edge70" class="edge">
+<title>voice_mix&#45;&gt;crossfades</title>
+<path fill="none" stroke="#2a5080" stroke-width="2" d="M1744.74,-1313.01C1626.31,-1288.19 1406.31,-1242.1 1276.77,-1214.96"/>
+<polygon fill="#2a5080" stroke="#2a5080" stroke-width="2" points="1277.61,-1211.56 1267.1,-1212.94 1276.17,-1218.41 1277.61,-1211.56"/>
+</g>
+<!-- velocity -->
+<g id="node47" class="node">
+<title>velocity</title>
+<polygon fill="#888888" stroke="black" points="1225.91,-1127.43 1112.09,-1127.43 1112.09,-1091.43 1225.91,-1091.43 1225.91,-1127.43"/>
+<text text-anchor="middle" x="1169" y="-1112.43" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">Velocity Scaling</text>
+<text text-anchor="middle" x="1169" y="-1100.43" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">sample × velocityGain</text>
+</g>
+<!-- crossfades&#45;&gt;velocity -->
+<g id="edge58" class="edge">
+<title>crossfades&#45;&gt;velocity</title>
+<path fill="none" stroke="black" stroke-width="2" d="M1172.31,-1164.01C1171.85,-1156.55 1171.35,-1148.43 1170.88,-1140.82"/>
+<polygon fill="black" stroke="black" stroke-width="2" points="1174.38,-1140.7 1170.27,-1130.94 1167.39,-1141.14 1174.38,-1140.7"/>
+</g>
+<!-- mpe_expr -->
+<g id="node48" class="node">
+<title>mpe_expr</title>
+<polygon fill="#888888" stroke="black" points="1202.24,-1045.48 1071.76,-1045.48 1071.76,-965.48 1202.24,-965.48 1202.24,-1045.48"/>
+<text text-anchor="middle" x="1137" y="-1032.48" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">MPE Expression</text>
+<text text-anchor="middle" x="1137" y="-1020.48" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">(Per&#45;Voice)</text>
+<text text-anchor="middle" x="1137" y="-1008.48" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">Volume: 0&#45;4× gain</text>
+<text text-anchor="middle" x="1137" y="-996.48" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">Pan: constant&#45;power law</text>
+<text text-anchor="middle" x="1137" y="-984.48" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">Brightness: harm/res ratio</text>
+<text text-anchor="middle" x="1137" y="-972.48" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">Tuning: pitch offset</text>
+</g>
+<!-- velocity&#45;&gt;mpe_expr -->
+<g id="edge59" class="edge">
+<title>velocity&#45;&gt;mpe_expr</title>
+<path fill="none" stroke="black" stroke-width="2" d="M1163.57,-1091.14C1160.69,-1081.94 1156.97,-1070.11 1153.24,-1058.22"/>
+<polygon fill="black" stroke="black" stroke-width="2" points="1156.62,-1057.3 1150.28,-1048.8 1149.94,-1059.39 1156.62,-1057.3"/>
+</g>
+<!-- mpe_expr&#45;&gt;adsr -->
+<g id="edge60" class="edge">
+<title>mpe_expr&#45;&gt;adsr</title>
+<path fill="none" stroke="black" stroke-width="2" d="M1134.1,-965.25C1132.27,-940.45 1129.85,-907.82 1127.74,-879.31"/>
+<polygon fill="black" stroke="black" stroke-width="2" points="1131.25,-879.28 1127.02,-869.57 1124.27,-879.8 1131.25,-879.28"/>
+</g>
+<!-- adsr&#45;&gt;release_env -->
+<g id="edge61" class="edge">
+<title>adsr&#45;&gt;release_env</title>
+<path fill="none" stroke="black" stroke-width="2" d="M1114.74,-761.79C1111.69,-742.85 1108.29,-721.68 1105.43,-703.9"/>
+<polygon fill="black" stroke="black" stroke-width="2" points="1108.89,-703.35 1103.84,-694.03 1101.97,-704.46 1108.89,-703.35"/>
+<text text-anchor="middle" x="1122.74" y="-720.94" font-family="Helvetica,sans-Serif" font-size="8.00">fallback</text>
+<text text-anchor="middle" x="1122.74" y="-711.34" font-family="Helvetica,sans-Serif" font-size="8.00">(amt=0)</text>
+</g>
+<!-- voice_accum -->
+<g id="node51" class="node">
+<title>voice_accum</title>
+<polygon fill="#888888" stroke="black" points="1209.79,-597.94 1108.21,-597.94 1108.21,-541.94 1209.79,-541.94 1209.79,-597.94"/>
+<text text-anchor="middle" x="1159" y="-584.94" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">Voice Accumulator</text>
+<text text-anchor="middle" x="1159" y="-572.94" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">sampleL += vL</text>
+<text text-anchor="middle" x="1159" y="-560.94" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">sampleR += vR</text>
+<text text-anchor="middle" x="1159" y="-548.94" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">Poly gain: 1/sqrt(N)</text>
+</g>
+<!-- adsr&#45;&gt;voice_accum -->
+<g id="edge62" class="edge">
+<title>adsr&#45;&gt;voice_accum</title>
+<path fill="none" stroke="black" stroke-width="2" d="M1149.81,-761.65C1159.47,-740.36 1169.17,-715.06 1174,-690.94 1179.3,-664.49 1175.5,-634.35 1170.4,-610.9"/>
+<polygon fill="black" stroke="black" stroke-width="2" points="1173.82,-610.15 1168.1,-601.23 1167.01,-611.77 1173.82,-610.15"/>
+<text text-anchor="middle" x="1187.78" y="-660.54" font-family="Helvetica,sans-Serif" font-size="8.00">amt&gt;0</text>
+</g>
+<!-- release_env&#45;&gt;voice_accum -->
+<g id="edge63" class="edge">
+<title>release_env&#45;&gt;voice_accum</title>
+<path fill="none" stroke="black" stroke-width="2" d="M1117,-634.64C1122.34,-626.54 1128.29,-617.52 1133.99,-608.87"/>
+<polygon fill="black" stroke="black" stroke-width="2" points="1136.76,-611.02 1139.34,-600.75 1130.92,-607.17 1136.76,-611.02"/>
+</g>
+<!-- source_crossfade -->
+<g id="node52" class="node">
+<title>source_crossfade</title>
+<polygon fill="#aaaaaa" stroke="black" points="1223.14,-504.94 1094.86,-504.94 1094.86,-460.94 1223.14,-460.94 1223.14,-504.94"/>
+<text text-anchor="middle" x="1159" y="-491.94" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">Source Switch Crossfade</text>
+<text text-anchor="middle" x="1159" y="-479.94" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">20ms fade on</text>
+<text text-anchor="middle" x="1159" y="-467.94" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">Sample ↔ Sidechain</text>
+</g>
+<!-- voice_accum&#45;&gt;source_crossfade -->
+<g id="edge64" class="edge">
+<title>voice_accum&#45;&gt;source_crossfade</title>
+<path fill="none" stroke="black" stroke-width="2" d="M1159,-541.58C1159,-534.14 1159,-526 1159,-518.24"/>
+<polygon fill="black" stroke="black" stroke-width="2" points="1162.5,-518.35 1159,-508.35 1155.5,-518.35 1162.5,-518.35"/>
+</g>
+<!-- freeze_crossfade -->
+<g id="node53" class="node">
+<title>freeze_crossfade</title>
+<polygon fill="#aaaaaa" stroke="black" points="1222.86,-423.94 1095.14,-423.94 1095.14,-379.94 1222.86,-379.94 1222.86,-423.94"/>
+<text text-anchor="middle" x="1159" y="-410.94" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">Manual Freeze Recovery</text>
+<text text-anchor="middle" x="1159" y="-398.94" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">10ms crossfade on</text>
+<text text-anchor="middle" x="1159" y="-386.94" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">freeze disengage</text>
+</g>
+<!-- source_crossfade&#45;&gt;freeze_crossfade -->
+<g id="edge65" class="edge">
+<title>source_crossfade&#45;&gt;freeze_crossfade</title>
+<path fill="none" stroke="black" stroke-width="2" d="M1159,-460.77C1159,-453.51 1159,-445.18 1159,-437.16"/>
+<polygon fill="black" stroke="black" stroke-width="2" points="1162.5,-437.19 1159,-427.19 1155.5,-437.19 1162.5,-437.19"/>
+</g>
+<!-- freeze_crossfade&#45;&gt;sympathetic -->
+<g id="edge66" class="edge">
+<title>freeze_crossfade&#45;&gt;sympathetic</title>
+<path fill="none" stroke="black" stroke-width="2" d="M1161.6,-379.89C1162.48,-372.79 1163.51,-364.51 1164.55,-356.09"/>
+<polygon fill="black" stroke="black" stroke-width="2" points="1168,-356.68 1165.76,-346.33 1161.05,-355.82 1168,-356.68"/>
+</g>
+<!-- master_gain -->
+<g id="node55" class="node">
+<title>master_gain</title>
+<polygon fill="#888888" stroke="black" points="1206.23,-225.94 1135.77,-225.94 1135.77,-189.94 1206.23,-189.94 1206.23,-225.94"/>
+<text text-anchor="middle" x="1171" y="-210.94" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">Master Gain</text>
+<text text-anchor="middle" x="1171" y="-198.94" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">(0.0 – 2.0)</text>
+</g>
+<!-- sympathetic&#45;&gt;master_gain -->
+<g id="edge67" class="edge">
+<title>sympathetic&#45;&gt;master_gain</title>
+<path fill="none" stroke="black" stroke-width="2" d="M1171,-262.5C1171,-254.68 1171,-246.58 1171,-239.13"/>
+<polygon fill="black" stroke="black" stroke-width="2" points="1174.5,-239.24 1171,-229.24 1167.5,-239.24 1174.5,-239.24"/>
+</g>
+<!-- soft_limiter -->
+<g id="node56" class="node">
+<title>soft_limiter</title>
+<polygon fill="#888888" stroke="black" points="1216.79,-152.94 1125.21,-152.94 1125.21,-108.94 1216.79,-108.94 1216.79,-152.94"/>
+<text text-anchor="middle" x="1171" y="-139.94" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">Soft Limiter</text>
+<text text-anchor="middle" x="1171" y="-127.94" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">tanh(sample)</text>
+<text text-anchor="middle" x="1171" y="-115.94" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">Always&#45;on safety</text>
+</g>
+<!-- master_gain&#45;&gt;soft_limiter -->
+<g id="edge68" class="edge">
+<title>master_gain&#45;&gt;soft_limiter</title>
+<path fill="none" stroke="black" stroke-width="2" d="M1171,-189.54C1171,-182.53 1171,-174.18 1171,-166.05"/>
+<polygon fill="black" stroke="black" stroke-width="2" points="1174.5,-166.28 1171,-156.28 1167.5,-166.28 1174.5,-166.28"/>
+</g>
+<!-- output -->
+<g id="node57" class="node">
+<title>output</title>
+<polygon fill="#ccddee" stroke="black" points="1105.99,-35.33 1171,-16 1236.01,-35.33 1235.94,-66.6 1106.06,-66.6 1105.99,-35.33"/>
+<text text-anchor="middle" x="1171" y="-46.97" font-family="Helvetica,sans-Serif" font-size="10.00">Audio Output</text>
+<text text-anchor="middle" x="1171" y="-34.97" font-family="Helvetica,sans-Serif" font-size="10.00">Stereo L / R</text>
+</g>
+<!-- soft_limiter&#45;&gt;output -->
+<g id="edge69" class="edge">
+<title>soft_limiter&#45;&gt;output</title>
+<path fill="none" stroke="black" stroke-width="2" d="M1171,-108.5C1171,-99.78 1171,-89.47 1171,-79.73"/>
+<polygon fill="black" stroke="black" stroke-width="2" points="1174.5,-80.02 1171,-70.02 1167.5,-80.02 1174.5,-80.02"/>
+</g>
+<!-- output&#45;&gt;feedback_mix -->
+<g id="edge71" class="edge">
+<title>output&#45;&gt;feedback_mix</title>
+<path fill="none" stroke="#c07020" stroke-width="2" d="M1193.07,-66.94C1204,-78.68 1216.79,-93.8 1226,-108.94 1515.37,-584.64 1579,-726.24 1694,-1271.03 1732.68,-1454.25 1647.54,-1941.41 1722,-2113.23 1877.32,-2471.66 2189.05,-2376.21 2343,-2735.23 2438.81,-2958.66 2357,-3038.93 2357,-3282.03 2357,-3793.63 2357,-3793.63 2357,-3793.63 2357,-4182.43 1936.83,-4050.39 1566,-4167.23 1510.2,-4184.81 1444.59,-4195.37 1396.08,-4201.35"/>
+<polygon fill="#c07020" stroke="#c07020" stroke-width="2" points="1397.28,-4197.68 1387.76,-4202.35 1398.11,-4204.64 1397.28,-4197.68"/>
+<text text-anchor="middle" x="1713.49" y="-1783.43" font-family="Helvetica,sans-Serif" font-size="8.00">mono sum</text>
+<text text-anchor="middle" x="1713.49" y="-1773.83" font-family="Helvetica,sans-Serif" font-size="8.00">of output</text>
+<text text-anchor="middle" x="1713.49" y="-1764.23" font-family="Helvetica,sans-Serif" font-size="8.00">(sidechain</text>
+<text text-anchor="middle" x="1713.49" y="-1754.63" font-family="Helvetica,sans-Serif" font-size="8.00">mode only)</text>
+</g>
+<!-- rates -->
+<g id="node59" class="node">
+<title>rates</title>
+<polygon fill="#fafafa" stroke="none" points="1779.34,-4712.83 1300.66,-4712.83 1300.66,-4460.83 1779.34,-4460.83 1779.34,-4712.83"/>
+<text text-anchor="start" x="1314.66" y="-4694.83" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="10.00">Analysis:</text>
+<text text-anchor="start" x="1411.02" y="-4693.83" font-family="Helvetica,sans-Serif" font-size="10.00">Per&#45;block (push samples → consume frames when new)</text>
+<text text-anchor="start" x="1314.66" y="-4674.83" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="10.00">Frame transforms:</text>
+<text text-anchor="start" x="1411.02" y="-4673.83" font-family="Helvetica,sans-Serif" font-size="10.00">Per&#45;block (filter, physics smoothers) + per&#45;sample (evolution, blend, modulation)</text>
+<text text-anchor="start" x="1314.66" y="-4654.83" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="10.00">Synthesis:</text>
+<text text-anchor="start" x="1411.02" y="-4653.83" font-family="Helvetica,sans-Serif" font-size="10.00">Per&#45;sample (oscillator bank + exciter + resonator)</text>
+<text text-anchor="start" x="1314.66" y="-4634.83" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="10.00">Output chain:</text>
+<text text-anchor="start" x="1411.02" y="-4633.83" font-family="Helvetica,sans-Serif" font-size="10.00">Per&#45;sample (crossfades, velocity, MPE, ADSR, limiter)</text>
+<text text-anchor="start" x="1314.66" y="-4614.83" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="10.00">Physical model:</text>
+<text text-anchor="start" x="1411.02" y="-4613.83" font-family="Helvetica,sans-Serif" font-size="10.00">Per&#45;sample (exciter → resonator → body → mixer)</text>
+<text text-anchor="start" x="1314.66" y="-4594.83" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="10.00">Sympathetic:</text>
+<text text-anchor="start" x="1411.02" y="-4593.83" font-family="Helvetica,sans-Serif" font-size="10.00">Per&#45;sample, global (post&#45;voice&#45;accumulation)</text>
+<text text-anchor="start" x="1314.66" y="-4574.83" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="10.00">Feedback loop:</text>
+<text text-anchor="start" x="1411.02" y="-4573.83" font-family="Helvetica,sans-Serif" font-size="10.00">Per&#45;block (capture output → mix into next analysis block)</text>
+<text text-anchor="start" x="1314.66" y="-4554.83" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="10.00">Display data:</text>
+<text text-anchor="start" x="1411.02" y="-4553.83" font-family="Helvetica,sans-Serif" font-size="10.00">~30Hz via DataExchange (throttled)</text>
+<text text-anchor="start" x="1314.66" y="-4534.83" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="10.00">Parameters:</text>
+<text text-anchor="start" x="1411.02" y="-4533.83" font-family="Helvetica,sans-Serif" font-size="10.00">Per&#45;block (atomic reads + smoother updates, 5&#45;15ms)</text>
+<text text-anchor="start" x="1314.66" y="-4514.83" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="10.00">Frame priority:</text>
+<text text-anchor="start" x="1411.02" y="-4513.83" font-family="Helvetica,sans-Serif" font-size="10.00">Manual Freeze → Recall → Evolution → Blender → Live → Sample</text>
+<text text-anchor="start" x="1314.66" y="-4494.83" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="10.00">Transform order:</text>
+<text text-anchor="start" x="1411.02" y="-4493.83" font-family="Helvetica,sans-Serif" font-size="10.00">Morph → Filter → Modulators → Physics → Voice Load</text>
+<text text-anchor="start" x="1314.66" y="-4474.83" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="10.00">Voice modes:</text>
+<text text-anchor="start" x="1411.02" y="-4473.83" font-family="Helvetica,sans-Serif" font-size="10.00">Mono (voice 0 only) / 4&#45;Voice / 8&#45;Voice polyphony</text>
+</g>
+</g>
+</svg>
+</div>
     </div>
 
     <script type="module">
-        import { instance } from "https://cdn.jsdelivr.net/npm/@viz-js/viz@3.11.0/+esm";
-
-        const dotSource = `digraph InnexusSignalFlow {
-    rankdir=TB;
-    fontname="Helvetica";
-    fontsize=11;
-    node [fontname="Helvetica", fontsize=10, style=filled];
-    edge [fontname="Helvetica", fontsize=8];
-    compound=true;
-    newrank=true;
-
-    // =========================================================================
-    // COLOR LEGEND
-    // =========================================================================
-    subgraph cluster_legend {
-        label="Legend";
-        style=rounded;
-        color="#888888";
-        fontsize=12;
-        fontcolor="#444444";
-        bgcolor="#FAFAFA";
-
-        node [shape=plaintext, fillcolor="#FAFAFA"];
-        leg [label=<
-            <TABLE BORDER="0" CELLBORDER="0" CELLSPACING="4">
-            <TR><TD BGCOLOR="#4A90D9" WIDTH="20"> </TD><TD ALIGN="LEFT">Audio signal path</TD></TR>
-            <TR><TD BGCOLOR="#E8A838" WIDTH="20"> </TD><TD ALIGN="LEFT">Analysis pipeline</TD></TR>
-            <TR><TD BGCOLOR="#6BBF6B" WIDTH="20"> </TD><TD ALIGN="LEFT">Harmonic frame transformations</TD></TR>
-            <TR><TD BGCOLOR="#9B6BBF" WIDTH="20"> </TD><TD ALIGN="LEFT">Creative extensions (M6)</TD></TR>
-            <TR><TD BGCOLOR="#D94A7A" WIDTH="20"> </TD><TD ALIGN="LEFT">Freeze / confidence gating</TD></TR>
-            <TR><TD BGCOLOR="#B8860B" WIDTH="20"> </TD><TD ALIGN="LEFT">Physical modelling</TD></TR>
-            <TR><TD>&#x2501;&#x25B6;</TD><TD ALIGN="LEFT">Audio flow</TD></TR>
-            <TR><TD>- - &#x25B6;</TD><TD ALIGN="LEFT">Control / frame data</TD></TR>
-            </TABLE>
-        >];
-    }
-
-    // =========================================================================
-    // INPUT SOURCES
-    // =========================================================================
-    subgraph cluster_input {
-        label="Input";
-        style=rounded;
-        color="#666666";
-        bgcolor="#F0F0F0";
-
-        midi_in [label="MIDI Input\\n(Notes, Velocity,\\nPitch Bend ±12 semi,\\nMPE Expression)", shape=house, fillcolor="#CCDDEE"];
-        sidechain_in [label="Sidechain Audio\\n(Auxiliary Stereo Bus)\\nStereo-to-mono downmix", shape=house, fillcolor="#CCDDEE"];
-        sample_load [label="Sample Loader\\n(WAV/AIFF)\\nBackground thread analysis\\nLock-free atomic exchange", shape=house, fillcolor="#CCDDEE"];
-        host_tempo [label="Host Tempo\\n(BPM for mod sync)", shape=house, fillcolor="#CCDDEE"];
-    }
-
-    // =========================================================================
-    // INPUT SOURCE SELECTION
-    // =========================================================================
-    subgraph cluster_source_select {
-        label="Input Source (FR-001)";
-        style=rounded;
-        color="#666666";
-        bgcolor="#E8EEF4";
-
-        source_switch [label="Input Source Switch\\nSample (0.0) / Sidechain (1.0)\\n20ms crossfade on change", shape=diamond, fillcolor="#7BAFD4"];
-    }
-
-    sidechain_in -> source_switch [penwidth=2, label="live audio"];
-    sample_load -> source_switch [penwidth=2, label="offline\\nanalysis"];
-
-    // =========================================================================
-    // ANALYSIS FEEDBACK LOOP (Spec B)
-    // =========================================================================
-    feedback_mix [label="Feedback Mixer\\n(Spec B: FR-005)\\nsynth output mixed\\ninto sidechain input\\nwith exponential decay", shape=box, fillcolor="#F0C8A0", color="#C07020"];
-
-    source_switch -> feedback_mix [penwidth=2, color="#2A5080", label="sidechain\\nmode only"];
-
-    // =========================================================================
-    // LIVE ANALYSIS PIPELINE
-    // =========================================================================
-    subgraph cluster_analysis {
-        label="LiveAnalysisPipeline  —  Real-Time Spectral Analysis";
-        style=rounded;
-        color="#E8A838";
-        bgcolor="#FDF3E8";
-        fontsize=13;
-        fontcolor="#804010";
-        penwidth=2;
-
-        preproc [label="PreProcessing\\nDC removal, HPF,\\nnoise gate,\\ntransient suppression", shape=box, fillcolor="#F5D090"];
-
-        yin [label="YIN Pitch Detector\\nFFT-accelerated autocorrelation\\nF0 + confidence [0, 1]\\nVoiced/unvoiced classification", shape=box, fillcolor="#F5D090"];
-
-        subgraph cluster_stft {
-            label="Dual STFT";
-            style=dashed;
-            color="#E8A838";
-            bgcolor="#F5E8D0";
-
-            short_stft [label="Short STFT\\n1024-pt window\\nLow latency", shape=box, fillcolor="#E8C868"];
-            long_stft [label="Long STFT\\n2048-pt window\\nHigh precision", shape=box, fillcolor="#E8C868"];
-        }
-
-        subgraph cluster_mode_select {
-            label="Analysis Mode (Auto/Mono/Poly)";
-            style=dashed;
-            color="#E8A838";
-            bgcolor="#F5E8D0";
-
-            mode_select [label="Mode Selector\\nAuto: switch on YIN\\nconfidence ≤ 0.6\\n4-frame crossfade", shape=diamond, fillcolor="#E8B050"];
-
-            mono_path [label="Monophonic Path\\nYIN F0 → Partial Tracker\\n→ Harmonic Model Builder\\n→ Spectral Coring (residual)", shape=box, fillcolor="#E8C868"];
-
-            poly_path [label="Polyphonic Path\\nMultiPitchDetector (Klapuri)\\n→ MultiSourceSieve\\n→ Up to 8 voices\\nHungarian assignment", shape=box, fillcolor="#E8C868"];
-        }
-
-        preproc -> yin [penwidth=2, color="#804010"];
-        preproc -> short_stft [penwidth=2, color="#804010"];
-        preproc -> long_stft [penwidth=2, color="#804010"];
-        yin -> mode_select [style=dashed, color="#804010", label="F0 +\\nconfidence"];
-        short_stft -> mode_select [penwidth=2, color="#804010"];
-        long_stft -> mode_select [penwidth=2, color="#804010"];
-        mode_select -> mono_path [style=dashed, label="mono"];
-        mode_select -> poly_path [style=dashed, label="poly"];
-    }
-
-    feedback_mix -> preproc [penwidth=2, color="#804010", label="audio\\nsamples"];
-
-    // =========================================================================
-    // ANALYSIS OUTPUTS
-    // =========================================================================
-    subgraph cluster_frames {
-        label="Analysis Output Frames";
-        style=rounded;
-        color="#666666";
-        bgcolor="#E8EEF4";
-
-        live_frame [label="HarmonicFrame\\nF0, partials (up to 96),\\nconfidence, amplitude,\\nspectral descriptors", shape=box, fillcolor="#7BAFD4"];
-        residual_frame [label="ResidualFrame\\nSpectral envelope\\nof noise residual", shape=box, fillcolor="#7BAFD4"];
-        poly_frame [label="PolyphonicFrame\\nUp to 8 source voices\\n+ inharmonic partials\\n(for UI display)", shape=box, fillcolor="#7BAFD4"];
-        sample_frames [label="Sample Analysis\\n(offline)\\nPre-computed frame\\nsequence + ADSR detection\\n+ sustain loop region", shape=box, fillcolor="#7BAFD4"];
-    }
-
-    mono_path -> live_frame [penwidth=2, color="#2A5080"];
-    mono_path -> residual_frame [penwidth=2, color="#2A5080"];
-    poly_path -> poly_frame [penwidth=2, color="#2A5080"];
-    poly_path -> live_frame [penwidth=2, color="#2A5080", label="primary\\nvoice"];
-    source_switch -> sample_frames [style=dashed, label="sample\\nmode"];
-
-    // =========================================================================
-    // FREEZE & CONFIDENCE GATING
-    // =========================================================================
-    subgraph cluster_freeze {
-        label="Freeze System  —  Frame Stabilization";
-        style=rounded;
-        color="#D94A7A";
-        bgcolor="#FCEDF2";
-        fontsize=13;
-        fontcolor="#A02050";
-        penwidth=2;
-
-        manual_freeze [label="Manual Freeze (FR-002)\\nCaptures current frame\\non parameter engage\\n10ms crossfade on release", shape=box, fillcolor="#E88AAA"];
-
-        confidence_gate [label="Confidence-Gated Freeze\\n(FR-052)\\nThreshold: 0.3\\nHysteresis: 0.05\\n7ms crossfade on recovery", shape=box, fillcolor="#E88AAA"];
-
-        spectral_decay [label="Spectral Decay Envelope\\nPer-partial amplitude decay\\nHigher partials die first\\nPrevents noise during fade-out", shape=box, fillcolor="#E88AAA"];
-
-        last_good_frame [label="Last Good Frame\\n(frozen harmonic state)", shape=box, fillcolor="#F0A0B8"];
-    }
-
-    live_frame -> confidence_gate [style=dashed, color="#A02050", label="confidence\\ncheck"];
-    confidence_gate -> spectral_decay [style=dashed, color="#A02050", label="below\\nthreshold"];
-    confidence_gate -> last_good_frame [style=dashed, color="#A02050"];
-    manual_freeze -> last_good_frame [style=dashed, color="#A02050", label="capture"];
-
-    // =========================================================================
-    // HARMONIC MEMORY (M5)
-    // =========================================================================
-    subgraph cluster_memory {
-        label="Harmonic Memory (M5: FR-005, FR-006)";
-        style=rounded;
-        color="#9B6BBF";
-        bgcolor="#F3ECF9";
-
-        memory_slots [label="8 Memory Slots\\nEach stores:\\n• HarmonicSnapshot\\n  (partials + spectral data)\\n• 9 ADSR parameters\\n• Occupied flag", shape=box, fillcolor="#C49EE0"];
-
-        capture [label="Capture Trigger\\nStores current frame\\n+ ADSR to selected slot\\nUpdates evolution waypoints", shape=box, fillcolor="#C49EE0"];
-
-        recall [label="Recall Trigger\\nLoads snapshot from slot\\nRestores ADSR values\\nInitiates crossfade", shape=box, fillcolor="#C49EE0"];
-    }
-
-    live_frame -> capture [style=dashed, color="#6B3B9F", label="current\\nframe"];
-    last_good_frame -> capture [style=dashed, color="#6B3B9F", label="frozen\\nframe"];
-    capture -> memory_slots [style=dashed, color="#6B3B9F"];
-    memory_slots -> recall [style=dashed, color="#6B3B9F"];
-
-    // =========================================================================
-    // FRAME SELECTION (Priority Hierarchy)
-    // =========================================================================
-    subgraph cluster_frame_select {
-        label="Frame Selection  —  Priority Hierarchy";
-        style=rounded;
-        color="#6BBF6B";
-        bgcolor="#E5F5E5";
-
-        frame_select [label="Frame Source Selector\\n\\n1. Manual Freeze (if engaged)\\n2. Memory Recall (if triggered)\\n3. Evolution Engine (if enabled)\\n4. Multi-Source Blender (if enabled)\\n5. Live Analysis (sidechain mode)\\n6. Sample Frame (sample mode)", shape=diamond, fillcolor="#8ED08E"];
-    }
-
-    last_good_frame -> frame_select [penwidth=2, color="#3A8F3A", label="frozen"];
-    recall -> frame_select [penwidth=2, color="#3A8F3A", label="recalled"];
-    live_frame -> frame_select [penwidth=2, color="#3A8F3A", label="live"];
-    sample_frames -> frame_select [penwidth=2, color="#3A8F3A", label="sample\\n(frame advance\\n+ sustain loop)"];
-
-    // =========================================================================
-    // CREATIVE EXTENSIONS (M6)
-    // =========================================================================
-    subgraph cluster_creative {
-        label="Creative Extensions (M6)  —  Per-Sample Processing";
-        style=rounded;
-        color="#9B6BBF";
-        bgcolor="#F3ECF9";
-        fontsize=13;
-        fontcolor="#6B3B9F";
-        penwidth=2;
-
-        // Evolution Engine
-        evolution [label="Evolution Engine\\n(FR-014 to FR-023)\\nCycle / PingPong / RandomWalk\\nthrough occupied waypoints\\nPer-sample interpolation\\n+ ADSR interpolation", shape=box, fillcolor="#C49EE0"];
-
-        // Multi-Source Blender
-        blender [label="Multi-Source Blender\\n(FR-034 to FR-042)\\n8 slot weights + live weight\\nNormalized weighted sum\\nof spectral data\\nSmoothed per-sample", shape=box, fillcolor="#C49EE0"];
-
-        // Morph
-        morph [label="Spectral Morph\\n(FR-010)\\nInterpolate between\\nfrozen (A) and live (B)\\nPer-partial amplitude\\nand frequency blending\\n7ms smoother", shape=box, fillcolor="#C49EE0"];
-    }
-
-    memory_slots -> evolution [style=dashed, color="#6B3B9F", label="waypoint\\nslots"];
-    memory_slots -> blender [style=dashed, color="#6B3B9F", label="slot\\nweights"];
-    live_frame -> blender [style=dashed, color="#6B3B9F", label="live\\nweight"];
-    evolution -> frame_select [penwidth=2, color="#6B3B9F", label="evolved"];
-    blender -> frame_select [penwidth=2, color="#6B3B9F", label="blended"];
-    frame_select -> morph [penwidth=2, color="#3A8F3A"];
-
-    // =========================================================================
-    // HARMONIC TRANSFORMATION CHAIN
-    // =========================================================================
-    subgraph cluster_transform {
-        label="Harmonic Transformation Chain  —  Per-Block + Per-Sample";
-        style=rounded;
-        color="#6BBF6B";
-        bgcolor="#E5F5E5";
-        fontsize=13;
-        fontcolor="#2A6030";
-        penwidth=2;
-
-        harmonic_filter [label="Harmonic Filter\\n(FR-019 to FR-025)\\n5 filter types:\\nAll-Pass, Odd-Only,\\nEven-Only, Low-Harmonics,\\nHigh-Harmonics\\nPer-partial amplitude mask", shape=box, fillcolor="#A8DCA8"];
-
-        modulators [label="Harmonic Modulators\\n(FR-024 to FR-029)\\nMod 1 + Mod 2 (independent)\\n5 waveforms, tempo sync\\nTargets: Amplitude, Frequency, Pan\\nAdjustable partial range (1-96)", shape=box, fillcolor="#A8DCA8"];
-
-        physics [label="Harmonic Physics\\n(Spec A: 122)\\n• Warmth (soft saturation)\\n• Coupling (neighbor energy share)\\n• Stability (per-partial inertia)\\n• Entropy (natural decay)\\nAll smoothed per-block (5ms)", shape=box, fillcolor="#A8DCA8"];
-
-        morph -> harmonic_filter [penwidth=2, color="#3A8F3A"];
-        harmonic_filter -> modulators [penwidth=2, color="#3A8F3A"];
-        modulators -> physics [penwidth=2, color="#3A8F3A"];
-    }
-
-    host_tempo -> modulators [style=dashed, color="#888888", label="BPM\\n(tempo sync)"];
-
-    // =========================================================================
-    // VOICE ALLOCATION
-    // =========================================================================
-    subgraph cluster_voices {
-        label="Voice Allocation  —  Mono / 4-Voice / 8-Voice";
-        style=rounded;
-        color="#4A90D9";
-        bgcolor="#EDF4FC";
-        fontsize=13;
-        fontcolor="#2A5080";
-        penwidth=2;
-
-        voice_alloc [label="VoiceAllocator\\nMono: voice 0 only\\n4/8 Voice: round-robin\\nVoice steal with 20ms\\nanti-click crossfade", shape=diamond, fillcolor="#6AABEA"];
-
-        voice_frame [label="Broadcast Frame to Voices\\nEach voice loads morphedFrame\\nat pitch = midiNote + pitchBend\\n+ expressionTuning\\n+ inharmonicity scaling", shape=box, fillcolor="#6AABEA"];
-    }
-
-    physics -> voice_frame [penwidth=2, color="#2A5080", label="morphedFrame\\n+ residualFrame"];
-    midi_in -> voice_alloc [penwidth=2, label="note on/off\\nvelocity\\npitch bend\\nMPE expression"];
-
-    // =========================================================================
-    // SYNTHESIS ENGINE (Per-Voice)
-    // =========================================================================
-    subgraph cluster_synthesis {
-        label="Per-Voice Synthesis  —  Per-Sample Audio Generation";
-        style=rounded;
-        color="#4A90D9";
-        bgcolor="#EDF4FC";
-        fontsize=13;
-        fontcolor="#2A5080";
-        penwidth=2;
-
-        osc_bank [label="Harmonic Oscillator Bank\\n48-96 Gordon-Smith MCF oscillators\\nAmplitude-stable magic circle phasors\\nStereo partial spread, detune spread\\n→ harmonicL, harmonicR", shape=box, fillcolor="#6AABEA"];
-
-        subgraph cluster_exciter {
-            label="Exciter Selection (Spec 128)";
-            style=dashed;
-            color="#B8860B";
-            bgcolor="#FFF8E0";
-
-            exciter_switch [label="Exciter Type\\nResidual / Impact / Bow", shape=diamond, fillcolor="#E8D080"];
-
-            residual_synth [label="Residual Synthesizer\\nSTFT-domain noise shaping\\nSpectral envelope from analysis\\nBrightness tilt + transient\\nemphasis", shape=box, fillcolor="#E8D080"];
-
-            impact_exciter [label="Impact Exciter\\n(Spec 128)\\nVelocity-dependent strike\\nHardness, mass, position\\nChoke envelope (10ms)", shape=box, fillcolor="#E8D080"];
-
-            bow_exciter [label="Bow Exciter\\n(Spec 130)\\nPressure, speed, position\\nADSR + resonator energy\\nfeedback loop", shape=box, fillcolor="#E8D080"];
-
-            exciter_switch -> residual_synth [style=dashed, label="type 0"];
-            exciter_switch -> impact_exciter [style=dashed, label="type 1"];
-            exciter_switch -> bow_exciter [style=dashed, label="type 2"];
-        }
-
-        subgraph cluster_resonance {
-            label="Resonance Selection (Spec 129)";
-            style=dashed;
-            color="#B8860B";
-            bgcolor="#FFF8E0";
-
-            resonance_switch [label="Resonance Type\\nModal / Waveguide\\n23ms equal-power\\ncosine crossfade", shape=diamond, fillcolor="#DBC878"];
-
-            modal_resonator [label="Modal Resonator Bank\\n(Spec 127)\\nDecay, brightness,\\nstretch, scatter\\nBowed-mode coupling", shape=box, fillcolor="#DBC878"];
-
-            waveguide_string [label="Waveguide String\\n(Spec 129)\\nStiffness + pick position\\nDigital waveguide model", shape=box, fillcolor="#DBC878"];
-
-            body_resonance [label="Body Resonance\\n(Spec 131)\\nAcoustic body filter\\nPost-resonance processing", shape=box, fillcolor="#DBC878"];
-
-            resonance_switch -> modal_resonator [style=dashed, label="modal"];
-            resonance_switch -> waveguide_string [style=dashed, label="waveguide"];
-            modal_resonator -> body_resonance [penwidth=2, color="#8B6914"];
-            waveguide_string -> body_resonance [penwidth=2, color="#8B6914"];
-        }
-
-        phys_mix [label="Physical Model Mixer\\n(Spec 127)\\nmono = harmonic\\n+ (1-mix) × residual\\n+ mix × physical\\nmix=0: pure additive\\nmix=1: modal replaces residual", shape=box, fillcolor="#6AABEA"];
-
-        voice_mix [label="Per-Voice Mix\\nvL = vL × harmLevel + monoMix\\nvR = vR × harmLevel + monoMix\\nbrightScale adjusts ratio\\nvia MPE expression", shape=box, fillcolor="#6AABEA"];
-
-        osc_bank -> voice_mix [penwidth=2, color="#2A5080", label="stereo\\nharmonics"];
-        residual_synth -> phys_mix [penwidth=2, color="#2A5080", label="excitation"];
-        impact_exciter -> resonance_switch [penwidth=2, color="#8B6914", label="excitation"];
-        bow_exciter -> resonance_switch [penwidth=2, color="#8B6914", label="excitation"];
-        body_resonance -> phys_mix [penwidth=2, color="#8B6914", label="physical\\noutput"];
-        residual_synth -> phys_mix [penwidth=2, color="#2A5080", label="residual\\n(when not\\nphysical)"];
-        phys_mix -> voice_mix [penwidth=2, color="#2A5080", label="mono\\nmix"];
-    }
-
-    voice_frame -> osc_bank [penwidth=2, color="#2A5080", label="load frame\\n+ pitch"];
-    residual_frame -> residual_synth [penwidth=2, color="#2A5080", label="spectral\\nenvelope"];
-
-    // =========================================================================
-    // OUTPUT CHAIN
-    // =========================================================================
-    subgraph cluster_output {
-        label="Output Chain  —  Per-Sample Dynamics & Safety";
-        style=rounded;
-        color="#666666";
-        bgcolor="#F0F0F0";
-        fontsize=13;
-        fontcolor="#444444";
-        penwidth=2;
-
-        crossfades [label="Crossfade Stack\\n• Freeze recovery (7ms)\\n• Anti-click voice steal (20ms)\\n• Resonance type crossfade (23ms)", shape=box, fillcolor="#AAAAAA", fontcolor="white"];
-
-        velocity [label="Velocity Scaling\\nsample × velocityGain", shape=box, fillcolor="#888888", fontcolor="white"];
-
-        mpe_expr [label="MPE Expression\\n(Per-Voice)\\nVolume: 0-4× gain\\nPan: constant-power law\\nBrightness: harm/res ratio\\nTuning: pitch offset", shape=box, fillcolor="#888888", fontcolor="white"];
-
-        adsr [label="ADSR Envelope\\n(Spec 124)\\nAuto-detected from sample\\nAttack/Decay/Sustain/Release\\nBezier curves, time scale\\nAmount blend: lerp(1, env, amt)\\nSustain frame looping\\n15ms amount smoother", shape=box, fillcolor="#888888", fontcolor="white"];
-
-        release_env [label="Release Envelope\\n(when ADSR Amount = 0)\\nExponential decay\\nEnd note at gain < 1e-6", shape=box, fillcolor="#888888", fontcolor="white"];
-
-        voice_accum [label="Voice Accumulator\\nsampleL += vL\\nsampleR += vR\\nPoly gain: 1/sqrt(N)", shape=box, fillcolor="#888888", fontcolor="white"];
-
-        source_crossfade [label="Source Switch Crossfade\\n20ms fade on\\nSample ↔ Sidechain", shape=box, fillcolor="#AAAAAA", fontcolor="white"];
-
-        freeze_crossfade [label="Manual Freeze Recovery\\n10ms crossfade on\\nfreeze disengage", shape=box, fillcolor="#AAAAAA", fontcolor="white"];
-
-        sympathetic [label="Sympathetic Resonance\\n(Spec 132)\\nGlobal (non-per-voice)\\nInharmonic partials:\\nf_n = n·f0·√(1+B·n²)\\nAmount + Decay control", shape=box, fillcolor="#888888", fontcolor="white"];
-
-        master_gain [label="Master Gain\\n(0.0 – 2.0)", shape=box, fillcolor="#888888", fontcolor="white"];
-
-        soft_limiter [label="Soft Limiter\\ntanh(sample)\\nAlways-on safety", shape=box, fillcolor="#888888", fontcolor="white"];
-
-        output [label="Audio Output\\nStereo L / R", shape=invhouse, fillcolor="#CCDDEE"];
-
-        crossfades -> velocity [penwidth=2];
-        velocity -> mpe_expr [penwidth=2];
-        mpe_expr -> adsr [penwidth=2];
-        adsr -> release_env [penwidth=2, label="fallback\\n(amt=0)"];
-        adsr -> voice_accum [penwidth=2, label="amt>0"];
-        release_env -> voice_accum [penwidth=2];
-        voice_accum -> source_crossfade [penwidth=2];
-        source_crossfade -> freeze_crossfade [penwidth=2];
-        freeze_crossfade -> sympathetic [penwidth=2];
-        sympathetic -> master_gain [penwidth=2];
-        master_gain -> soft_limiter [penwidth=2];
-        soft_limiter -> output [penwidth=2];
-    }
-
-    voice_mix -> crossfades [penwidth=2, color="#2A5080"];
-
-    // =========================================================================
-    // FEEDBACK LOOP (Output → Analysis)
-    // =========================================================================
-    output -> feedback_mix [style=bold, color="#C07020", label="mono sum\\nof output\\n(sidechain\\nmode only)", constraint=false];
-
-    // =========================================================================
-    // MIDI ROUTING (additional connections)
-    // =========================================================================
-    midi_in -> adsr [style=dashed, label="note on\\n(retrigger)"];
-    midi_in -> release_env [style=dashed, label="note off"];
-    midi_in -> sympathetic [style=dashed, label="note on/off\\n(resonator\\nallocation)"];
-
-    // =========================================================================
-    // DISPLAY DATA PIPELINE
-    // =========================================================================
-    subgraph cluster_display {
-        label="Display Data (FR-048)";
-        style=rounded;
-        color="#888888";
-        bgcolor="#FAFAFA";
-
-        display [label="DataExchange Handler\\n~30Hz throttled\\nPartial amplitudes, F0,\\nconfidence, memory status,\\nevolution position,\\nmodulator phase,\\npolyphonic voice data,\\nanalysis mode badge", shape=box, fillcolor="#DDDDDD"];
-    }
-
-    osc_bank -> display [style=dashed, color="#888888", label="partial\\nstate"];
-    poly_frame -> display [style=dashed, color="#888888", label="multi-voice\\nF0 display"];
-    memory_slots -> display [style=dashed, color="#888888", label="slot\\nstatus"];
-
-    // =========================================================================
-    // PROCESSING RATE ANNOTATIONS
-    // =========================================================================
-    subgraph cluster_rates {
-        label="Processing Rates";
-        style=rounded;
-        color="#888888";
-        bgcolor="#FAFAFA";
-        node [shape=plaintext, fillcolor="#FAFAFA"];
-
-        rates [label=<
-            <TABLE BORDER="0" CELLBORDER="0" CELLSPACING="4">
-            <TR><TD ALIGN="LEFT"><B>Analysis:</B></TD><TD ALIGN="LEFT">Per-block (push samples → consume frames when new)</TD></TR>
-            <TR><TD ALIGN="LEFT"><B>Frame transforms:</B></TD><TD ALIGN="LEFT">Per-block (filter, physics smoothers) + per-sample (evolution, blend, modulation)</TD></TR>
-            <TR><TD ALIGN="LEFT"><B>Synthesis:</B></TD><TD ALIGN="LEFT">Per-sample (oscillator bank + exciter + resonator)</TD></TR>
-            <TR><TD ALIGN="LEFT"><B>Output chain:</B></TD><TD ALIGN="LEFT">Per-sample (crossfades, velocity, MPE, ADSR, limiter)</TD></TR>
-            <TR><TD ALIGN="LEFT"><B>Physical model:</B></TD><TD ALIGN="LEFT">Per-sample (exciter → resonator → body → mixer)</TD></TR>
-            <TR><TD ALIGN="LEFT"><B>Sympathetic:</B></TD><TD ALIGN="LEFT">Per-sample, global (post-voice-accumulation)</TD></TR>
-            <TR><TD ALIGN="LEFT"><B>Feedback loop:</B></TD><TD ALIGN="LEFT">Per-block (capture output → mix into next analysis block)</TD></TR>
-            <TR><TD ALIGN="LEFT"><B>Display data:</B></TD><TD ALIGN="LEFT">~30Hz via DataExchange (throttled)</TD></TR>
-            <TR><TD ALIGN="LEFT"><B>Parameters:</B></TD><TD ALIGN="LEFT">Per-block (atomic reads + smoother updates, 5-15ms)</TD></TR>
-            <TR><TD ALIGN="LEFT"><B>Frame priority:</B></TD><TD ALIGN="LEFT">Manual Freeze → Recall → Evolution → Blender → Live → Sample</TD></TR>
-            <TR><TD ALIGN="LEFT"><B>Transform order:</B></TD><TD ALIGN="LEFT">Morph → Filter → Modulators → Physics → Voice Load</TD></TR>
-            <TR><TD ALIGN="LEFT"><B>Voice modes:</B></TD><TD ALIGN="LEFT">Mono (voice 0 only) / 4-Voice / 8-Voice polyphony</TD></TR>
-            </TABLE>
-        >];
-    }
-}
-`;
-
         const container = document.getElementById("diagram-container");
         const diagramEl = document.getElementById("diagram");
         const loadingEl = document.getElementById("loading");
@@ -728,19 +1592,11 @@
         container.addEventListener("touchend", () => { lastTouch = null; });
 
         // Render
-        try {
-            const viz = await instance();
-            const svg = viz.renderSVGElement(dotSource);
-            svg.style.width = "auto";
-            svg.style.height = "auto";
-            loadingEl.style.display = "none";
-            diagramEl.appendChild(svg);
-            fitToScreen();
-        } catch (err) {
-            loadingEl.style.display = "none";
-            errorEl.style.display = "block";
-            errorEl.textContent = "Failed to render diagram: " + err.message;
-        }
+        const svg = diagramEl.querySelector("svg");
+        svg.style.width = "auto";
+        svg.style.height = "auto";
+        loadingEl.style.display = "none";
+        fitToScreen();
     </script>
 </body>
 </html>

@@ -3,10 +3,73 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Seraphis - Signal Flow Diagram</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <title>Seraphis Signal Flow Diagram | Krate Audio</title>
+    <meta name="description" content="Interactive signal flow diagram of Seraphis, the free Spectral Organism Synthesizer VST3 plugin by Krate Audio, every stage from input to output.">
+    <link rel="canonical" href="https://krateaudio.com/seraphis/signal-flow.html">
+    <meta property="og:title" content="Seraphis Signal Flow Diagram">
+    <meta property="og:description" content="Interactive signal flow diagram of Seraphis, the free Spectral Organism Synthesizer VST3 plugin by Krate Audio, every stage from input to output.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https://krateaudio.com/seraphis/signal-flow.html">
+    <meta name="robots" content="index, follow, max-image-preview:large">
+    <meta name="theme-color" content="#0a0a0f">
+    <link rel="icon" href="/favicon.ico" sizes="32x32">
+    <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+    <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+    <link rel="preload" href="/assets/fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="stylesheet" href="/assets/site.css">
+    <meta property="og:site_name" content="Krate Audio">
+    <meta property="og:locale" content="en_US">
+    <meta property="og:image" content="https://krateaudio.com/seraphis/images/og-image.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="Seraphis plugin editor">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content="https://krateaudio.com/seraphis/images/og-image.png">
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "Organization",
+          "@id": "https://krateaudio.com/#organization",
+          "name": "Krate Audio",
+          "url": "https://krateaudio.com/",
+          "logo": {
+            "@type": "ImageObject",
+            "url": "https://krateaudio.com/assets/logo-512.png",
+            "width": 512,
+            "height": 512
+          },
+          "sameAs": [
+            "https://github.com/rolandzwaga"
+          ]
+        },
+        {
+          "@type": "BreadcrumbList",
+          "itemListElement": [
+            {
+              "@type": "ListItem",
+              "position": 1,
+              "name": "Krate Audio",
+              "item": "https://krateaudio.com/"
+            },
+            {
+              "@type": "ListItem",
+              "position": 2,
+              "name": "Seraphis",
+              "item": "https://krateaudio.com/seraphis/"
+            },
+            {
+              "@type": "ListItem",
+              "position": 3,
+              "name": "Signal Flow",
+              "item": "https://krateaudio.com/seraphis/signal-flow.html"
+            }
+          ]
+        }
+      ]
+    }
+    </script>
     <style>
         :root {
             --color-bg: #0a0a0f;
@@ -31,16 +94,14 @@
         }
 
         .header {
-            padding: 1.5rem 2rem;
+            padding: 1.25rem 2rem;
             border-bottom: 1px solid var(--color-border);
-            display: flex;
-            align-items: center;
-            gap: 1.5rem;
             flex-shrink: 0;
         }
 
         .breadcrumb {
             font-size: 0.875rem;
+            margin-bottom: 0.25rem;
         }
 
         .breadcrumb a {
@@ -65,6 +126,16 @@
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
+        }
+
+        .intro {
+            color: var(--color-text-muted);
+            font-size: 0.9rem;
+            max-width: 70ch;
+        }
+
+        .intro a {
+            color: var(--color-accent-hover);
         }
 
         .toolbar {
@@ -102,6 +173,7 @@
 
         #diagram-container {
             flex: 1;
+            min-height: 60vh;
             overflow: hidden;
             position: relative;
             cursor: grab;
@@ -137,7 +209,7 @@
         }
 
         @media (max-width: 640px) {
-            .header { padding: 1rem; gap: 1rem; }
+            .header { padding: 1rem; }
             .toolbar { padding: 0.5rem 1rem; }
             h1 { font-size: 1.25rem; }
         }
@@ -146,10 +218,13 @@
 <body>
     <div class="header">
         <nav class="breadcrumb">
+            <a href="/">Krate Audio</a>
+            <span class="separator">/</span>
             <a href="./">Seraphis</a>
             <span class="separator">/</span>
         </nav>
-        <h1>Signal Flow Diagram</h1>
+        <h1>Seraphis Signal Flow</h1>
+        <p class="intro">Interactive signal flow diagram of Seraphis, the free Spectral Organism Synthesizer VST3 plugin by Krate Audio, every stage from input to output. Drag to pan, scroll to zoom. The <a href="manual.html">user manual</a> explains each stage.</p>
     </div>
 
     <div class="toolbar">
@@ -163,346 +238,916 @@
     <div id="diagram-container">
         <div id="loading">Loading diagram&hellip;</div>
         <div id="error"></div>
-        <div id="diagram"></div>
+        <div id="diagram"><?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN"
+ "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<!-- Generated by graphviz version 12.2.0 (20241103.1931)
+ -->
+<!-- Title: SeraphisSignalFlow Pages: 1 -->
+<svg width="2710pt" height="3450pt"
+ viewBox="0.00 0.00 2710.00 3450.15" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+<g id="graph0" class="graph" transform="scale(1 1) rotate(0) translate(4 3446.15)">
+<title>SeraphisSignalFlow</title>
+<polygon fill="white" stroke="none" points="-4,4 -4,-3446.15 2706,-3446.15 2706,4 -4,4"/>
+<g id="clust1" class="cluster">
+<title>cluster_legend</title>
+<path fill="#fafafa" stroke="#888888" d="M23,-3243.75C23,-3243.75 293,-3243.75 293,-3243.75 299,-3243.75 305,-3249.75 305,-3255.75 305,-3255.75 305,-3422.15 305,-3422.15 305,-3428.15 299,-3434.15 293,-3434.15 293,-3434.15 23,-3434.15 23,-3434.15 17,-3434.15 11,-3428.15 11,-3422.15 11,-3422.15 11,-3255.75 11,-3255.75 11,-3249.75 17,-3243.75 23,-3243.75"/>
+<text text-anchor="middle" x="158" y="-3419.35" font-family="Helvetica,sans-Serif" font-size="12.00" fill="#444444">Legend</text>
+</g>
+<g id="clust2" class="cluster">
+<title>cluster_input</title>
+<path fill="#f0f0f0" stroke="#666666" d="M356,-2768.81C356,-2768.81 770,-2768.81 770,-2768.81 776,-2768.81 782,-2774.81 782,-2780.81 782,-2780.81 782,-3372.92 782,-3372.92 782,-3378.92 776,-3384.92 770,-3384.92 770,-3384.92 356,-3384.92 356,-3384.92 350,-3384.92 344,-3378.92 344,-3372.92 344,-3372.92 344,-2780.81 344,-2780.81 344,-2774.81 350,-2768.81 356,-2768.81"/>
+<text text-anchor="middle" x="563" y="-3371.02" font-family="Helvetica,sans-Serif" font-size="11.00">Input</text>
+</g>
+<g id="clust3" class="cluster">
+<title>cluster_voice</title>
+<path fill="#edf4fc" stroke="#4a90d9" stroke-width="2" d="M981,-1358.85C981,-1358.85 1519,-1358.85 1519,-1358.85 1525,-1358.85 1531,-1364.85 1531,-1370.85 1531,-1370.85 1531,-2916.95 1531,-2916.95 1531,-2922.95 1525,-2928.95 1519,-2928.95 1519,-2928.95 981,-2928.95 981,-2928.95 975,-2928.95 969,-2922.95 969,-2916.95 969,-2916.95 969,-1370.85 969,-1370.85 969,-1364.85 975,-1358.85 981,-1358.85"/>
+<text text-anchor="middle" x="1250" y="-2913.25" font-family="Helvetica,sans-Serif" font-size="13.00" fill="#2a5080">SeraphisVoice (x16) &#160;— &#160;64&#45;Sample Control Chunks</text>
+</g>
+<g id="clust4" class="cluster">
+<title>cluster_morph</title>
+<polygon fill="#fdf3e0" stroke="#e8a838" stroke-width="2" stroke-dasharray="5,2" points="1161,-2636.01 1161,-2897.35 1523,-2897.35 1523,-2636.01 1161,-2636.01"/>
+<text text-anchor="middle" x="1342" y="-2881.65" font-family="Helvetica,sans-Serif" font-size="13.00" fill="#2a5080">Spectral Morph Engine (control&#45;rate — processes no audio)</text>
+</g>
+<g id="clust5" class="cluster">
+<title>cluster_body</title>
+<polygon fill="#dde8f5" stroke="#4a90d9" stroke-width="2" stroke-dasharray="5,2" points="1129,-1842.9 1129,-2223.7 1325,-2223.7 1325,-1842.9 1129,-1842.9"/>
+<text text-anchor="middle" x="1227" y="-2208" font-family="Helvetica,sans-Serif" font-size="13.00" fill="#2a5080">Continuous Body</text>
+</g>
+<g id="clust6" class="cluster">
+<title>cluster_atmos</title>
+<polygon fill="#dde8f5" stroke="#4a90d9" stroke-width="2" stroke-dasharray="5,2" points="977,-1617.07 977,-1823.9 1317,-1823.9 1317,-1617.07 977,-1617.07"/>
+<text text-anchor="middle" x="1147" y="-1808.2" font-family="Helvetica,sans-Serif" font-size="13.00" fill="#2a5080">Granular Atmosphere (parallel layer, wet only)</text>
+</g>
+<g id="clust7" class="cluster">
+<title>cluster_spatial</title>
+<polygon fill="#dde8f5" stroke="#4a90d9" stroke-width="2" stroke-dasharray="5,2" points="1226,-1366.85 1226,-1579.87 1422,-1579.87 1422,-1366.85 1226,-1366.85"/>
+<text text-anchor="middle" x="1324" y="-1564.17" font-family="Helvetica,sans-Serif" font-size="13.00" fill="#2a5080">Spatial Stage</text>
+</g>
+<g id="clust8" class="cluster">
+<title>cluster_aether</title>
+<path fill="#f3ecf9" stroke="#9b6bbf" stroke-width="2" d="M477,-703.59C477,-703.59 949,-703.59 949,-703.59 955,-703.59 961,-709.59 961,-715.59 961,-715.59 961,-2616.01 961,-2616.01 961,-2622.01 955,-2628.01 949,-2628.01 949,-2628.01 477,-2628.01 477,-2628.01 471,-2628.01 465,-2622.01 465,-2616.01 465,-2616.01 465,-715.59 465,-715.59 465,-709.59 471,-703.59 477,-703.59"/>
+<text text-anchor="middle" x="713" y="-2612.31" font-family="Helvetica,sans-Serif" font-size="13.00" fill="#6b3b9f">Aether &#160;— &#160;The Space Engine (in the signal path)</text>
+</g>
+<g id="clust9" class="cluster">
+<title>cluster_fx</title>
+<path fill="#f3ecf9" stroke="#9b6bbf" stroke-width="2" d="M20,-292.14C20,-292.14 445,-292.14 445,-292.14 451,-292.14 457,-298.14 457,-304.14 457,-304.14 457,-2433.15 457,-2433.15 457,-2439.15 451,-2445.15 445,-2445.15 445,-2445.15 20,-2445.15 20,-2445.15 14,-2445.15 8,-2439.15 8,-2433.15 8,-2433.15 8,-304.14 8,-304.14 8,-298.14 14,-292.14 20,-292.14"/>
+<text text-anchor="middle" x="232.5" y="-2429.45" font-family="Helvetica,sans-Serif" font-size="13.00" fill="#6b3b9f">Effects Stage</text>
+</g>
+<g id="clust10" class="cluster">
+<title>cluster_delay</title>
+<polygon fill="#eae0f2" stroke="#9b6bbf" stroke-width="2" stroke-dasharray="5,2" points="188,-463.39 188,-684.59 449,-684.59 449,-463.39 188,-463.39"/>
+<text text-anchor="middle" x="318.5" y="-668.89" font-family="Helvetica,sans-Serif" font-size="13.00" fill="#6b3b9f">Spectral Delay (parallel send, per&#45;bin FFT)</text>
+</g>
+<g id="clust11" class="cluster">
+<title>cluster_stereo</title>
+<polygon fill="#eae0f2" stroke="#9b6bbf" stroke-width="2" stroke-dasharray="5,2" points="16,-300.14 16,-2413.55 180,-2413.55 180,-300.14 16,-300.14"/>
+<text text-anchor="middle" x="98" y="-2397.85" font-family="Helvetica,sans-Serif" font-size="13.00" fill="#6b3b9f">Stereo Stage</text>
+</g>
+<g id="clust12" class="cluster">
+<title>cluster_output</title>
+<path fill="#f0f0f0" stroke="#666666" d="M47,-8C47,-8 169,-8 169,-8 175,-8 181,-14 181,-20 181,-20 181,-263.14 181,-263.14 181,-269.14 175,-275.14 169,-275.14 169,-275.14 47,-275.14 47,-275.14 41,-275.14 35,-269.14 35,-263.14 35,-263.14 35,-20 35,-20 35,-14 41,-8 47,-8"/>
+<text text-anchor="middle" x="108" y="-261.24" font-family="Helvetica,sans-Serif" font-size="11.00">Output Stage (always last)</text>
+</g>
+<g id="clust13" class="cluster">
+<title>cluster_macros</title>
+<path fill="#e5f5e5" stroke="#6bbf6b" stroke-width="2" d="M1282,-2966.15C1282,-2966.15 2026,-2966.15 2026,-2966.15 2032,-2966.15 2038,-2972.15 2038,-2978.15 2038,-2978.15 2038,-3378.47 2038,-3378.47 2038,-3384.47 2032,-3390.47 2026,-3390.47 2026,-3390.47 1282,-3390.47 1282,-3390.47 1276,-3390.47 1270,-3384.47 1270,-3378.47 1270,-3378.47 1270,-2978.15 1270,-2978.15 1270,-2972.15 1276,-2966.15 1282,-2966.15"/>
+<text text-anchor="middle" x="1654" y="-3374.77" font-family="Helvetica,sans-Serif" font-size="13.00" fill="#3a8f3a">Macro Matrix &#160;— &#160;5 Macros x 32 Routes, 3 Target Owners</text>
+</g>
+<g id="clust14" class="cluster">
+<title>cluster_rates</title>
+<path fill="#fafafa" stroke="#888888" d="M2058,-3243.75C2058,-3243.75 2682,-3243.75 2682,-3243.75 2688,-3243.75 2694,-3249.75 2694,-3255.75 2694,-3255.75 2694,-3420.95 2694,-3420.95 2694,-3426.95 2688,-3432.95 2682,-3432.95 2682,-3432.95 2058,-3432.95 2058,-3432.95 2052,-3432.95 2046,-3426.95 2046,-3420.95 2046,-3420.95 2046,-3255.75 2046,-3255.75 2046,-3249.75 2052,-3243.75 2058,-3243.75"/>
+<text text-anchor="middle" x="2370" y="-3419.05" font-family="Helvetica,sans-Serif" font-size="11.00">Processing Notes</text>
+</g>
+<!-- leg -->
+<g id="node1" class="node">
+<title>leg</title>
+<polygon fill="#fafafa" stroke="none" points="296.62,-3403.75 19.38,-3403.75 19.38,-3251.75 296.62,-3251.75 296.62,-3403.75"/>
+<polygon fill="#4a90d9" stroke="none" points="31.38,-3379.75 31.38,-3395.75 68.72,-3395.75 68.72,-3379.75 31.38,-3379.75"/>
+<text text-anchor="start" x="48.66" y="-3384.75" font-family="Helvetica,sans-Serif" font-size="10.00"> </text>
+<text text-anchor="start" x="74.72" y="-3384.75" font-family="Helvetica,sans-Serif" font-size="10.00">Audio signal path</text>
+<polygon fill="#e8a838" stroke="none" points="31.38,-3359.75 31.38,-3375.75 68.72,-3375.75 68.72,-3359.75 31.38,-3359.75"/>
+<text text-anchor="start" x="48.66" y="-3364.75" font-family="Helvetica,sans-Serif" font-size="10.00"> </text>
+<text text-anchor="start" x="74.72" y="-3364.75" font-family="Helvetica,sans-Serif" font-size="10.00">Life modulators (autonomous, never repeating)</text>
+<polygon fill="#6bbf6b" stroke="none" points="31.38,-3339.75 31.38,-3355.75 68.72,-3355.75 68.72,-3339.75 31.38,-3339.75"/>
+<text text-anchor="start" x="48.66" y="-3344.75" font-family="Helvetica,sans-Serif" font-size="10.00"> </text>
+<text text-anchor="start" x="74.72" y="-3344.75" font-family="Helvetica,sans-Serif" font-size="10.00">Macro matrix routing</text>
+<polygon fill="#9b6bbf" stroke="none" points="31.38,-3319.75 31.38,-3335.75 68.72,-3335.75 68.72,-3319.75 31.38,-3319.75"/>
+<text text-anchor="start" x="48.66" y="-3324.75" font-family="Helvetica,sans-Serif" font-size="10.00"> </text>
+<text text-anchor="start" x="74.72" y="-3324.75" font-family="Helvetica,sans-Serif" font-size="10.00">Aether space &amp; effects</text>
+<polygon fill="#aaaaaa" stroke="none" points="31.38,-3299.75 31.38,-3315.75 68.72,-3315.75 68.72,-3299.75 31.38,-3299.75"/>
+<text text-anchor="start" x="48.66" y="-3304.75" font-family="Helvetica,sans-Serif" font-size="10.00"> </text>
+<text text-anchor="start" x="74.72" y="-3304.75" font-family="Helvetica,sans-Serif" font-size="10.00">Host tempo / seed (control)</text>
+<text text-anchor="start" x="33.38" y="-3284.75" font-family="Helvetica,sans-Serif" font-size="10.00">───▶</text>
+<text text-anchor="start" x="74.72" y="-3284.75" font-family="Helvetica,sans-Serif" font-size="10.00">Audio flow</text>
+<text text-anchor="start" x="39.78" y="-3264.75" font-family="Helvetica,sans-Serif" font-size="10.00">&#45; &#45; ▶</text>
+<text text-anchor="start" x="74.72" y="-3264.75" font-family="Helvetica,sans-Serif" font-size="10.00">Modulation / control</text>
+</g>
+<!-- midi_in -->
+<g id="node2" class="node">
+<title>midi_in</title>
+<polygon fill="#ccddee" stroke="black" points="774.1,-3336.4 696,-3355.72 617.9,-3336.4 617.97,-3305.13 774.03,-3305.13 774.1,-3336.4"/>
+<text text-anchor="middle" x="696" y="-3330.75" font-family="Helvetica,sans-Serif" font-size="10.00">MIDI</text>
+<text text-anchor="middle" x="696" y="-3318.75" font-family="Helvetica,sans-Serif" font-size="10.00">(Notes, Velocity)</text>
+</g>
+<!-- voice_alloc -->
+<g id="node5" class="node">
+<title>voice_alloc</title>
+<polygon fill="#7bafd4" stroke="black" points="1262.1,-3072.4 1262.1,-3107.91 1209.32,-3133.01 1134.68,-3133.01 1081.9,-3107.91 1081.9,-3072.4 1134.68,-3047.29 1209.32,-3047.29 1262.1,-3072.4"/>
+<text text-anchor="middle" x="1172" y="-3105.15" font-family="Helvetica,sans-Serif" font-size="10.00">Voice Allocation</text>
+<text text-anchor="middle" x="1172" y="-3093.15" font-family="Helvetica,sans-Serif" font-size="10.00">(1&#45;16 voices, default 8)</text>
+<text text-anchor="middle" x="1172" y="-3081.15" font-family="Helvetica,sans-Serif" font-size="10.00">silent voices keep their</text>
+<text text-anchor="middle" x="1172" y="-3069.15" font-family="Helvetica,sans-Serif" font-size="10.00">life modulators running</text>
+</g>
+<!-- midi_in&#45;&gt;voice_alloc -->
+<g id="edge1" class="edge">
+<title>midi_in&#45;&gt;voice_alloc</title>
+<path fill="none" stroke="black" stroke-width="2" d="M774.21,-3315.62C855.75,-3301.06 984.45,-3269.56 1078,-3206.15 1101.94,-3189.93 1122.94,-3165.85 1138.99,-3143.91"/>
+<polygon fill="black" stroke="black" stroke-width="2" points="1141.79,-3146.01 1144.71,-3135.83 1136.08,-3141.97 1141.79,-3146.01"/>
+<text text-anchor="middle" x="1060.02" y="-3226.55" font-family="Helvetica,sans-Serif" font-size="8.00">note on/off</text>
+</g>
+<!-- host_tempo -->
+<g id="node3" class="node">
+<title>host_tempo</title>
+<polygon fill="#ccddee" stroke="black" points="774.01,-2834.4 693,-2853.72 611.99,-2834.4 612.07,-2803.13 773.93,-2803.13 774.01,-2834.4"/>
+<text text-anchor="middle" x="693" y="-2828.75" font-family="Helvetica,sans-Serif" font-size="10.00">Host Tempo</text>
+<text text-anchor="middle" x="693" y="-2816.75" font-family="Helvetica,sans-Serif" font-size="10.00">(BPM, Transport)</text>
+</g>
+<!-- morph_engine -->
+<g id="node7" class="node">
+<title>morph_engine</title>
+<polygon fill="#f5c878" stroke="black" points="1317.92,-2712.01 1174.08,-2712.01 1174.08,-2644.01 1317.92,-2644.01 1317.92,-2712.01"/>
+<text text-anchor="middle" x="1246" y="-2699.01" font-family="Helvetica,sans-Serif" font-size="10.00">Morph Travel</text>
+<text text-anchor="middle" x="1246" y="-2687.01" font-family="Helvetica,sans-Serif" font-size="10.00">External position or</text>
+<text text-anchor="middle" x="1246" y="-2675.01" font-family="Helvetica,sans-Serif" font-size="10.00">autonomous spline trajectory</text>
+<text text-anchor="middle" x="1246" y="-2663.01" font-family="Helvetica,sans-Serif" font-size="10.00">tempo&#45;syncable</text>
+<text text-anchor="middle" x="1246" y="-2651.01" font-family="Helvetica,sans-Serif" font-size="10.00">+ Bloom (highs lag lows)</text>
+</g>
+<!-- host_tempo&#45;&gt;morph_engine -->
+<g id="edge52" class="edge">
+<title>host_tempo&#45;&gt;morph_engine</title>
+<path fill="none" stroke="#888888" stroke-dasharray="5,2" d="M774.4,-2810.09C867.9,-2792.23 1025.67,-2758.97 1163.01,-2714.27"/>
+<polygon fill="#888888" stroke="#888888" points="1163.86,-2717.67 1172.27,-2711.22 1161.68,-2711.02 1163.86,-2717.67"/>
+<text text-anchor="middle" x="1131.53" y="-2746.81" font-family="Helvetica,sans-Serif" font-size="8.00">travel sync</text>
+<text text-anchor="middle" x="1131.53" y="-2737.21" font-family="Helvetica,sans-Serif" font-size="8.00">(1/16 &#45; 8 bars)</text>
+</g>
+<!-- spec_delay -->
+<g id="node35" class="node">
+<title>spec_delay</title>
+<polygon fill="#c49ee0" stroke="black" points="441.37,-551.39 268.63,-551.39 268.63,-471.39 441.37,-471.39 441.37,-551.39"/>
+<text text-anchor="middle" x="355" y="-538.39" font-family="Helvetica,sans-Serif" font-size="10.00">Spectral Delay</text>
+<text text-anchor="middle" x="355" y="-526.39" font-family="Helvetica,sans-Serif" font-size="10.00">each frequency bin delayed</text>
+<text text-anchor="middle" x="355" y="-514.39" font-family="Helvetica,sans-Serif" font-size="10.00">independently: time 0&#45;2 s,</text>
+<text text-anchor="middle" x="355" y="-502.39" font-family="Helvetica,sans-Serif" font-size="10.00">spread across bins (3 directions),</text>
+<text text-anchor="middle" x="355" y="-490.39" font-family="Helvetica,sans-Serif" font-size="10.00">tilt&#45;compensated feedback (≤0.95),</text>
+<text text-anchor="middle" x="355" y="-478.39" font-family="Helvetica,sans-Serif" font-size="10.00">diffusion, width, tempo sync</text>
+</g>
+<!-- host_tempo&#45;&gt;spec_delay -->
+<g id="edge53" class="edge">
+<title>host_tempo&#45;&gt;spec_delay</title>
+<path fill="none" stroke="#888888" stroke-dasharray="5,2" d="M656.62,-2802.65C579.78,-2754.7 408,-2640.18 408,-2574.78 408,-2574.78 408,-2574.78 408,-623.99 408,-602.37 399.78,-580.46 389.81,-561.86"/>
+<polygon fill="#888888" stroke="#888888" points="392.87,-560.16 384.88,-553.2 386.79,-563.62 392.87,-560.16"/>
+<text text-anchor="middle" x="432.45" y="-1519.56" font-family="Helvetica,sans-Serif" font-size="8.00">delay sync</text>
+<text text-anchor="middle" x="432.45" y="-1509.96" font-family="Helvetica,sans-Serif" font-size="8.00">(1/64T &#45; 1/8T)</text>
+</g>
+<!-- seed -->
+<g id="node4" class="node">
+<title>seed</title>
+<polygon fill="#ccddee" stroke="black" points="593.87,-2840.88 473,-2874.7 352.13,-2840.88 352.24,-2786.16 593.76,-2786.16 593.87,-2840.88"/>
+<text text-anchor="middle" x="473" y="-2840.75" font-family="Helvetica,sans-Serif" font-size="10.00">Seed (1&#45;16)</text>
+<text text-anchor="middle" x="473" y="-2828.75" font-family="Helvetica,sans-Serif" font-size="10.00">reseeds every RNG:</text>
+<text text-anchor="middle" x="473" y="-2816.75" font-family="Helvetica,sans-Serif" font-size="10.00">cloud, morph, body, atmos,</text>
+<text text-anchor="middle" x="473" y="-2804.75" font-family="Helvetica,sans-Serif" font-size="10.00">orbit, Aether, delay, wander</text>
+</g>
+<!-- cloud_drift -->
+<g id="node10" class="node">
+<title>cloud_drift</title>
+<ellipse fill="#f5c878" stroke="black" cx="1065" cy="-2678.01" rx="87.57" ry="31.11"/>
+<text text-anchor="middle" x="1065" y="-2687.01" font-family="Helvetica,sans-Serif" font-size="10.00">Per&#45;Partial Drift</text>
+<text text-anchor="middle" x="1065" y="-2675.01" font-family="Helvetica,sans-Serif" font-size="10.00">64 OU lanes, 0&#45;50 cents</text>
+<text text-anchor="middle" x="1065" y="-2663.01" font-family="Helvetica,sans-Serif" font-size="10.00">+ mutation bank (t=15s)</text>
+</g>
+<!-- seed&#45;&gt;cloud_drift -->
+<g id="edge54" class="edge">
+<title>seed&#45;&gt;cloud_drift</title>
+<path fill="none" stroke="#888888" stroke-dasharray="5,2" d="M556.63,-2785.66C571.85,-2779.44 587.74,-2773.52 603,-2768.81 728.11,-2730.22 877.61,-2704.75 971.94,-2691.1"/>
+<polygon fill="#888888" stroke="#888888" points="972.27,-2694.59 981.67,-2689.71 971.27,-2687.66 972.27,-2694.59"/>
+</g>
+<!-- aether_drift -->
+<g id="node33" class="node">
+<title>aether_drift</title>
+<ellipse fill="#f5c878" stroke="black" cx="542" cy="-2573.78" rx="69.09" ry="22.63"/>
+<text text-anchor="middle" x="542" y="-2576.78" font-family="Helvetica,sans-Serif" font-size="10.00">Brownian Drift</text>
+<text text-anchor="middle" x="542" y="-2564.78" font-family="Helvetica,sans-Serif" font-size="10.00">per&#45;line delay jitter</text>
+</g>
+<!-- seed&#45;&gt;aether_drift -->
+<g id="edge55" class="edge">
+<title>seed&#45;&gt;aether_drift</title>
+<path fill="none" stroke="#888888" stroke-dasharray="5,2" d="M483.78,-2785.7C497.31,-2736.68 520.27,-2653.51 532.94,-2607.62"/>
+<polygon fill="#888888" stroke="#888888" points="536.31,-2608.56 535.59,-2597.99 529.56,-2606.69 536.31,-2608.56"/>
+</g>
+<!-- width_wander -->
+<g id="node39" class="node">
+<title>width_wander</title>
+<ellipse fill="#f5c878" stroke="black" cx="98" cy="-2359.33" rx="56.11" ry="22.63"/>
+<text text-anchor="middle" x="98" y="-2362.33" font-family="Helvetica,sans-Serif" font-size="10.00">Width Wander</text>
+<text text-anchor="middle" x="98" y="-2350.33" font-family="Helvetica,sans-Serif" font-size="10.00">Brownian drift</text>
+</g>
+<!-- seed&#45;&gt;width_wander -->
+<g id="edge56" class="edge">
+<title>seed&#45;&gt;width_wander</title>
+<path fill="none" stroke="#888888" stroke-dasharray="5,2" d="M441.67,-2785.96C368.45,-2695.27 187.36,-2471 122.01,-2390.06"/>
+<polygon fill="#888888" stroke="#888888" points="124.94,-2388.11 115.93,-2382.53 119.49,-2392.51 124.94,-2388.11"/>
+</g>
+<!-- morph_states -->
+<g id="node6" class="node">
+<title>morph_states</title>
+<polygon fill="#f5c878" stroke="black" points="1514.92,-2865.75 1361.08,-2865.75 1361.08,-2785.75 1514.92,-2785.75 1514.92,-2865.75"/>
+<text text-anchor="middle" x="1438" y="-2852.75" font-family="Helvetica,sans-Serif" font-size="10.00">Spectral States</text>
+<text text-anchor="middle" x="1438" y="-2840.75" font-family="Helvetica,sans-Serif" font-size="10.00">4 slots (A&#45;D)</text>
+<text text-anchor="middle" x="1438" y="-2828.75" font-family="Helvetica,sans-Serif" font-size="10.00">factory: Sine Stack, Bell, Choir,</text>
+<text text-anchor="middle" x="1438" y="-2816.75" font-family="Helvetica,sans-Serif" font-size="10.00">Glass, Breath, Hollow, Metal,</text>
+<text text-anchor="middle" x="1438" y="-2804.75" font-family="Helvetica,sans-Serif" font-size="10.00">Organ, Vowel, Shimmer</text>
+<text text-anchor="middle" x="1438" y="-2792.75" font-family="Helvetica,sans-Serif" font-size="10.00">or hand&#45;authored spectra</text>
+</g>
+<!-- voice_alloc&#45;&gt;morph_states -->
+<g id="edge19" class="edge">
+<title>voice_alloc&#45;&gt;morph_states</title>
+<path fill="none" stroke="black" stroke-width="2" d="M1218.03,-3051.37C1252.86,-3022.09 1301.6,-2979.64 1343.01,-2938.08"/>
+<polygon fill="black" stroke="black" stroke-width="2" points="1345.35,-2940.69 1349.88,-2931.11 1340.37,-2935.78 1345.35,-2940.69"/>
+<text text-anchor="middle" x="1361.81" y="-2948.95" font-family="Helvetica,sans-Serif" font-size="8.00">note on/off</text>
+<text text-anchor="middle" x="1361.81" y="-2939.35" font-family="Helvetica,sans-Serif" font-size="8.00">per voice</text>
+</g>
+<!-- morph_states&#45;&gt;morph_engine -->
+<g id="edge2" class="edge">
+<title>morph_states&#45;&gt;morph_engine</title>
+<path fill="none" stroke="#c88820" stroke-dasharray="5,2" d="M1386.04,-2785.31C1359,-2764.79 1326.01,-2739.74 1298.84,-2719.12"/>
+<polygon fill="#c88820" stroke="#c88820" points="1301.16,-2716.48 1291.07,-2713.22 1296.92,-2722.06 1301.16,-2716.48"/>
+</g>
+<!-- cloud -->
+<g id="node9" class="node">
+<title>cloud</title>
+<polygon fill="#6aabea" stroke="black" points="1313.15,-2533.15 1144.85,-2533.15 1144.85,-2453.15 1313.15,-2453.15 1313.15,-2533.15"/>
+<text text-anchor="middle" x="1229" y="-2520.15" font-family="Helvetica,sans-Serif" font-size="10.00">Harmonic Cloud</text>
+<text text-anchor="middle" x="1229" y="-2508.15" font-family="Helvetica,sans-Serif" font-size="10.00">64 additive partials, stereo</text>
+<text text-anchor="middle" x="1229" y="-2496.15" font-family="Helvetica,sans-Serif" font-size="10.00">richness, inharmonicity, tilt,</text>
+<text text-anchor="middle" x="1229" y="-2484.15" font-family="Helvetica,sans-Serif" font-size="10.00">spectral gravity, stereo spread</text>
+<text text-anchor="middle" x="1229" y="-2472.15" font-family="Helvetica,sans-Serif" font-size="10.00">per&#45;partial attack/decay envelopes</text>
+<text text-anchor="middle" x="1229" y="-2460.15" font-family="Helvetica,sans-Serif" font-size="10.00">+ per&#45;partial pan/mask overrides</text>
+</g>
+<!-- morph_engine&#45;&gt;cloud -->
+<g id="edge11" class="edge">
+<title>morph_engine&#45;&gt;cloud</title>
+<path fill="none" stroke="#c88820" stroke-width="2" stroke-dasharray="5,2" d="M1242.92,-2643.89C1240.39,-2616.7 1236.77,-2577.69 1233.85,-2546.3"/>
+<polygon fill="#c88820" stroke="#c88820" stroke-width="2" points="1237.34,-2546.02 1232.93,-2536.39 1230.37,-2546.67 1237.34,-2546.02"/>
+<text text-anchor="middle" x="1277.79" y="-2576.18" font-family="Helvetica,sans-Serif" font-size="8.00">target spectrum</text>
+<text text-anchor="middle" x="1277.79" y="-2566.58" font-family="Helvetica,sans-Serif" font-size="8.00">(ratios + amplitudes)</text>
+</g>
+<!-- entropy_proc -->
+<g id="node8" class="node">
+<title>entropy_proc</title>
+<ellipse fill="#f5c878" stroke="black" cx="1256" cy="-2825.75" rx="87.16" ry="39.6"/>
+<text text-anchor="middle" x="1256" y="-2840.75" font-family="Helvetica,sans-Serif" font-size="10.00">Entropy Processor</text>
+<text text-anchor="middle" x="1256" y="-2828.75" font-family="Helvetica,sans-Serif" font-size="10.00">OU jitter bank:</text>
+<text text-anchor="middle" x="1256" y="-2816.75" font-family="Helvetica,sans-Serif" font-size="10.00">amp jitter, phase smear,</text>
+<text text-anchor="middle" x="1256" y="-2804.75" font-family="Helvetica,sans-Serif" font-size="10.00">partial death &amp; rebirth</text>
+</g>
+<!-- entropy_proc&#45;&gt;morph_engine -->
+<g id="edge3" class="edge">
+<title>entropy_proc&#45;&gt;morph_engine</title>
+<path fill="none" stroke="#c88820" stroke-dasharray="5,2" d="M1253.32,-2785.7C1252,-2766.52 1250.41,-2743.34 1249.05,-2723.49"/>
+<polygon fill="#c88820" stroke="#c88820" points="1252.56,-2723.49 1248.38,-2713.75 1245.58,-2723.97 1252.56,-2723.49"/>
+</g>
+<!-- voice_env -->
+<g id="node11" class="node">
+<title>voice_env</title>
+<polygon fill="#6aabea" stroke="black" points="1302.59,-2318.7 1155.41,-2318.7 1155.41,-2250.7 1302.59,-2250.7 1302.59,-2318.7"/>
+<text text-anchor="middle" x="1229" y="-2305.7" font-family="Helvetica,sans-Serif" font-size="10.00">Voice Envelope</text>
+<text text-anchor="middle" x="1229" y="-2293.7" font-family="Helvetica,sans-Serif" font-size="10.00">(gain on the cloud only —</text>
+<text text-anchor="middle" x="1229" y="-2281.7" font-family="Helvetica,sans-Serif" font-size="10.00">nothing downstream is gated)</text>
+<text text-anchor="middle" x="1229" y="-2269.7" font-family="Helvetica,sans-Serif" font-size="10.00">Standard or Growth</text>
+<text text-anchor="middle" x="1229" y="-2257.7" font-family="Helvetica,sans-Serif" font-size="10.00">(slow logistic swell, 1&#45;60 s)</text>
+</g>
+<!-- cloud&#45;&gt;voice_env -->
+<g id="edge13" class="edge">
+<title>cloud&#45;&gt;voice_env</title>
+<path fill="none" stroke="#2a5080" stroke-width="2" d="M1229,-2452.83C1229,-2418.35 1229,-2368.16 1229,-2331.79"/>
+<polygon fill="#2a5080" stroke="#2a5080" stroke-width="2" points="1232.5,-2332.1 1229,-2322.1 1225.5,-2332.1 1232.5,-2332.1"/>
+</g>
+<!-- cloud_drift&#45;&gt;cloud -->
+<g id="edge12" class="edge">
+<title>cloud_drift&#45;&gt;cloud</title>
+<path fill="none" stroke="#c88820" stroke-dasharray="5,2" d="M1090.99,-2648.03C1116.55,-2619.53 1156.02,-2575.52 1186.21,-2541.86"/>
+<polygon fill="#c88820" stroke="#c88820" points="1188.6,-2544.45 1192.67,-2534.66 1183.38,-2539.77 1188.6,-2544.45"/>
+</g>
+<!-- body_agc -->
+<g id="node12" class="node">
+<title>body_agc</title>
+<polygon fill="#6aabea" stroke="black" points="1277.71,-2192.1 1180.29,-2192.1 1180.29,-2148.1 1277.71,-2148.1 1277.71,-2192.1"/>
+<text text-anchor="middle" x="1229" y="-2179.1" font-family="Helvetica,sans-Serif" font-size="10.00">Input AGC + Drive</text>
+<text text-anchor="middle" x="1229" y="-2167.1" font-family="Helvetica,sans-Serif" font-size="10.00">(pre&#45;resonator,</text>
+<text text-anchor="middle" x="1229" y="-2155.1" font-family="Helvetica,sans-Serif" font-size="10.00">on the excitation)</text>
+</g>
+<!-- voice_env&#45;&gt;body_agc -->
+<g id="edge14" class="edge">
+<title>voice_env&#45;&gt;body_agc</title>
+<path fill="none" stroke="#2a5080" stroke-width="2" d="M1229,-2250.22C1229,-2236.07 1229,-2219.61 1229,-2205.37"/>
+<polygon fill="#2a5080" stroke="#2a5080" stroke-width="2" points="1232.5,-2205.59 1229,-2195.59 1225.5,-2205.59 1232.5,-2205.59"/>
+</g>
+<!-- body_res -->
+<g id="node13" class="node">
+<title>body_res</title>
+<polygon fill="#6aabea" stroke="black" points="1305.09,-2111.1 1152.91,-2111.1 1152.91,-2043.1 1305.09,-2043.1 1305.09,-2111.1"/>
+<text text-anchor="middle" x="1229" y="-2098.1" font-family="Helvetica,sans-Serif" font-size="10.00">Modal Resonator</text>
+<text text-anchor="middle" x="1229" y="-2086.1" font-family="Helvetica,sans-Serif" font-size="10.00">Glass / Strings / Metal Plate /</text>
+<text text-anchor="middle" x="1229" y="-2074.1" font-family="Helvetica,sans-Serif" font-size="10.00">Chamber / Ice</text>
+<text text-anchor="middle" x="1229" y="-2062.1" font-family="Helvetica,sans-Serif" font-size="10.00">resonance, damping, key track</text>
+<text text-anchor="middle" x="1229" y="-2050.1" font-family="Helvetica,sans-Serif" font-size="10.00">(bypassable, equal&#45;power)</text>
+</g>
+<!-- body_agc&#45;&gt;body_res -->
+<g id="edge4" class="edge">
+<title>body_agc&#45;&gt;body_res</title>
+<path fill="none" stroke="#2a5080" stroke-width="2" d="M1229,-2147.99C1229,-2140.89 1229,-2132.67 1229,-2124.41"/>
+<polygon fill="#2a5080" stroke="#2a5080" stroke-width="2" points="1232.5,-2124.59 1229,-2114.59 1225.5,-2124.59 1232.5,-2124.59"/>
+</g>
+<!-- body_wash -->
+<g id="node14" class="node">
+<title>body_wash</title>
+<polygon fill="#6aabea" stroke="black" points="1296.99,-1987.9 1137.01,-1987.9 1137.01,-1931.9 1296.99,-1931.9 1296.99,-1987.9"/>
+<text text-anchor="middle" x="1217" y="-1974.9" font-family="Helvetica,sans-Serif" font-size="10.00">Decay Cloud Wash</text>
+<text text-anchor="middle" x="1217" y="-1962.9" font-family="Helvetica,sans-Serif" font-size="10.00">delay + diffusion + damping loop</text>
+<text text-anchor="middle" x="1217" y="-1950.9" font-family="Helvetica,sans-Serif" font-size="10.00">0.1&#45;30 s, parallel to the</text>
+<text text-anchor="middle" x="1217" y="-1938.9" font-family="Helvetica,sans-Serif" font-size="10.00">resonator (equal&#45;power blend)</text>
+</g>
+<!-- body_res&#45;&gt;body_wash -->
+<g id="edge5" class="edge">
+<title>body_res&#45;&gt;body_wash</title>
+<path fill="none" stroke="#2a5080" stroke-width="2" d="M1225.53,-2042.78C1224.17,-2029.68 1222.59,-2014.54 1221.16,-2000.87"/>
+<polygon fill="#2a5080" stroke="#2a5080" stroke-width="2" points="1224.69,-2000.92 1220.17,-1991.33 1217.73,-2001.64 1224.69,-2000.92"/>
+<text text-anchor="middle" x="1236.26" y="-2017.9" font-family="Helvetica,sans-Serif" font-size="8.00">parallel</text>
+<text text-anchor="middle" x="1236.26" y="-2008.3" font-family="Helvetica,sans-Serif" font-size="8.00">tap</text>
+</g>
+<!-- body_mix -->
+<g id="node15" class="node">
+<title>body_mix</title>
+<polygon fill="#6aabea" stroke="black" points="1310.14,-1894.9 1221.86,-1894.9 1221.86,-1850.9 1310.14,-1850.9 1310.14,-1894.9"/>
+<text text-anchor="middle" x="1266" y="-1881.9" font-family="Helvetica,sans-Serif" font-size="10.00">Body Mix</text>
+<text text-anchor="middle" x="1266" y="-1869.9" font-family="Helvetica,sans-Serif" font-size="10.00">(dry cloud vs.</text>
+<text text-anchor="middle" x="1266" y="-1857.9" font-family="Helvetica,sans-Serif" font-size="10.00">resonated body)</text>
+</g>
+<!-- body_res&#45;&gt;body_mix -->
+<g id="edge6" class="edge">
+<title>body_res&#45;&gt;body_mix</title>
+<path fill="none" stroke="#2a5080" stroke-width="2" d="M1268.31,-2042.77C1283.1,-2027.71 1298.22,-2008.64 1306,-1987.9 1314.74,-1964.6 1313.4,-1955.66 1306,-1931.9 1303.15,-1922.75 1298.3,-1913.76 1292.93,-1905.7"/>
+<polygon fill="#2a5080" stroke="#2a5080" stroke-width="2" points="1295.91,-1903.85 1287.22,-1897.8 1290.24,-1907.95 1295.91,-1903.85"/>
+</g>
+<!-- body_wash&#45;&gt;body_mix -->
+<g id="edge7" class="edge">
+<title>body_wash&#45;&gt;body_mix</title>
+<path fill="none" stroke="#2a5080" stroke-width="2" d="M1232.77,-1931.54C1237.38,-1923.55 1242.45,-1914.75 1247.22,-1906.48"/>
+<polygon fill="#2a5080" stroke="#2a5080" stroke-width="2" points="1250.2,-1908.31 1252.16,-1897.9 1244.14,-1904.82 1250.2,-1908.31"/>
+</g>
+<!-- atmos_capture -->
+<g id="node16" class="node">
+<title>atmos_capture</title>
+<polygon fill="#6aabea" stroke="black" points="1309.02,-1783.19 1192.98,-1783.19 1192.98,-1739.19 1309.02,-1739.19 1309.02,-1783.19"/>
+<text text-anchor="middle" x="1251" y="-1770.19" font-family="Helvetica,sans-Serif" font-size="10.00">Capture Ring</text>
+<text text-anchor="middle" x="1251" y="-1758.19" font-family="Helvetica,sans-Serif" font-size="10.00">(records the post&#45;body</text>
+<text text-anchor="middle" x="1251" y="-1746.19" font-family="Helvetica,sans-Serif" font-size="10.00">signal continuously)</text>
+</g>
+<!-- body_mix&#45;&gt;atmos_capture -->
+<g id="edge15" class="edge">
+<title>body_mix&#45;&gt;atmos_capture</title>
+<path fill="none" stroke="#2a5080" stroke-width="2" d="M1261.2,-1850.51C1260.03,-1844.81 1258.87,-1838.64 1258,-1832.9 1256.21,-1821.06 1254.77,-1808.04 1253.67,-1796.43"/>
+<polygon fill="#2a5080" stroke="#2a5080" stroke-width="2" points="1257.17,-1796.28 1252.81,-1786.62 1250.2,-1796.89 1257.17,-1796.28"/>
+</g>
+<!-- voice_sum -->
+<g id="node19" class="node">
+<title>voice_sum</title>
+<polygon fill="#6aabea" stroke="black" points="1215.94,-1535.16 1114.06,-1535.16 1114.06,-1499.16 1215.94,-1499.16 1215.94,-1535.16"/>
+<text text-anchor="middle" x="1165" y="-1520.16" font-family="Helvetica,sans-Serif" font-size="10.00">Voice Bus</text>
+<text text-anchor="middle" x="1165" y="-1508.16" font-family="Helvetica,sans-Serif" font-size="10.00">body + atmosphere</text>
+</g>
+<!-- body_mix&#45;&gt;voice_sum -->
+<g id="edge16" class="edge">
+<title>body_mix&#45;&gt;voice_sum</title>
+<path fill="none" stroke="#2a5080" stroke-width="2" d="M1299.43,-1850.62C1308.08,-1843.3 1316.28,-1834.28 1321,-1823.9 1359.04,-1740.22 1373.33,-1692.64 1321,-1617.07 1294.24,-1578.43 1261,-1606.11 1222,-1579.87 1208.15,-1570.55 1195.29,-1557.23 1185.3,-1545.35"/>
+<polygon fill="#2a5080" stroke="#2a5080" stroke-width="2" points="1188.2,-1543.37 1179.21,-1537.77 1182.75,-1547.76 1188.2,-1543.37"/>
+</g>
+<!-- atmos_grains -->
+<g id="node17" class="node">
+<title>atmos_grains</title>
+<polygon fill="#6aabea" stroke="black" points="1242.21,-1693.07 1087.79,-1693.07 1087.79,-1625.07 1242.21,-1625.07 1242.21,-1693.07"/>
+<text text-anchor="middle" x="1165" y="-1680.07" font-family="Helvetica,sans-Serif" font-size="10.00">Grain Engine</text>
+<text text-anchor="middle" x="1165" y="-1668.07" font-family="Helvetica,sans-Serif" font-size="10.00">0.1&#45;20 grains/s, 0.05&#45;30 s each</text>
+<text text-anchor="middle" x="1165" y="-1656.07" font-family="Helvetica,sans-Serif" font-size="10.00">position, pitch (+/&#45;24 st), jitter,</text>
+<text text-anchor="middle" x="1165" y="-1644.07" font-family="Helvetica,sans-Serif" font-size="10.00">pan spread, decorrelation, blur,</text>
+<text text-anchor="middle" x="1165" y="-1632.07" font-family="Helvetica,sans-Serif" font-size="10.00">6 window shapes, freeze</text>
+</g>
+<!-- atmos_capture&#45;&gt;atmos_grains -->
+<g id="edge8" class="edge">
+<title>atmos_capture&#45;&gt;atmos_grains</title>
+<path fill="none" stroke="#2a5080" stroke-width="2" d="M1232.76,-1738.95C1223.81,-1728.54 1212.7,-1715.59 1202.07,-1703.23"/>
+<polygon fill="#2a5080" stroke="#2a5080" stroke-width="2" points="1204.85,-1701.09 1195.68,-1695.78 1199.54,-1705.65 1204.85,-1701.09"/>
+</g>
+<!-- atmos_grains&#45;&gt;voice_sum -->
+<g id="edge17" class="edge">
+<title>atmos_grains&#45;&gt;voice_sum</title>
+<path fill="none" stroke="#2a5080" stroke-width="2" d="M1165,-1624.92C1165,-1601.63 1165,-1570.73 1165,-1548.17"/>
+<polygon fill="#2a5080" stroke="#2a5080" stroke-width="2" points="1168.5,-1548.37 1165,-1538.37 1161.5,-1548.37 1168.5,-1548.37"/>
+<text text-anchor="middle" x="1177.23" y="-1599.87" font-family="Helvetica,sans-Serif" font-size="8.00">wet</text>
+<text text-anchor="middle" x="1177.23" y="-1590.27" font-family="Helvetica,sans-Serif" font-size="8.00">texture</text>
+</g>
+<!-- grain_drift -->
+<g id="node18" class="node">
+<title>grain_drift</title>
+<ellipse fill="#f5c878" stroke="black" cx="1080" cy="-1761.19" rx="95.42" ry="31.11"/>
+<text text-anchor="middle" x="1080" y="-1770.19" font-family="Helvetica,sans-Serif" font-size="10.00">Grain Drift Lanes</text>
+<text text-anchor="middle" x="1080" y="-1758.19" font-family="Helvetica,sans-Serif" font-size="10.00">per&#45;grain OU pitch/position</text>
+<text text-anchor="middle" x="1080" y="-1746.19" font-family="Helvetica,sans-Serif" font-size="10.00">drift, 0&#45;12 st</text>
+</g>
+<!-- grain_drift&#45;&gt;atmos_grains -->
+<g id="edge9" class="edge">
+<title>grain_drift&#45;&gt;atmos_grains</title>
+<path fill="none" stroke="#c88820" stroke-dasharray="5,2" d="M1105.04,-1730.69C1112.69,-1721.68 1121.25,-1711.6 1129.46,-1701.93"/>
+<polygon fill="#c88820" stroke="#c88820" points="1132.07,-1704.26 1135.88,-1694.37 1126.74,-1699.73 1132.07,-1704.26"/>
+</g>
+<!-- spatial -->
+<g id="node21" class="node">
+<title>spatial</title>
+<polygon fill="#6aabea" stroke="black" points="1379.76,-1430.85 1234.24,-1430.85 1234.24,-1374.85 1379.76,-1374.85 1379.76,-1430.85"/>
+<text text-anchor="middle" x="1307" y="-1417.85" font-family="Helvetica,sans-Serif" font-size="10.00">Azimuth + Width</text>
+<text text-anchor="middle" x="1307" y="-1405.85" font-family="Helvetica,sans-Serif" font-size="10.00">equal&#45;power balance (orbit x)</text>
+<text text-anchor="middle" x="1307" y="-1393.85" font-family="Helvetica,sans-Serif" font-size="10.00">voice width 50&#45;150% (orbit y)</text>
+<text text-anchor="middle" x="1307" y="-1381.85" font-family="Helvetica,sans-Serif" font-size="10.00">Mid/Side matrix</text>
+</g>
+<!-- voice_sum&#45;&gt;spatial -->
+<g id="edge18" class="edge">
+<title>voice_sum&#45;&gt;spatial</title>
+<path fill="none" stroke="#2a5080" stroke-width="2" d="M1186.88,-1498.86C1206.91,-1483.01 1237.18,-1459.07 1262.32,-1439.19"/>
+<polygon fill="#2a5080" stroke="#2a5080" stroke-width="2" points="1264.33,-1442.06 1270.01,-1433.11 1259.99,-1436.57 1264.33,-1442.06"/>
+</g>
+<!-- orbit -->
+<g id="node20" class="node">
+<title>orbit</title>
+<ellipse fill="#f5c878" stroke="black" cx="1324" cy="-1517.16" rx="90.31" ry="31.11"/>
+<text text-anchor="middle" x="1324" y="-1526.16" font-family="Helvetica,sans-Serif" font-size="10.00">Orbit Modulator</text>
+<text text-anchor="middle" x="1324" y="-1514.16" font-family="Helvetica,sans-Serif" font-size="10.00">depth, rate (0.01&#45;0.5 Hz),</text>
+<text text-anchor="middle" x="1324" y="-1502.16" font-family="Helvetica,sans-Serif" font-size="10.00">axis coupling, growth</text>
+</g>
+<!-- orbit&#45;&gt;spatial -->
+<g id="edge10" class="edge">
+<title>orbit&#45;&gt;spatial</title>
+<path fill="none" stroke="#c88820" stroke-dasharray="5,2" d="M1319.4,-1485.77C1317.37,-1472.34 1314.95,-1456.4 1312.8,-1442.16"/>
+<polygon fill="#c88820" stroke="#c88820" points="1316.32,-1442.05 1311.37,-1432.69 1309.4,-1443.1 1316.32,-1442.05"/>
+<text text-anchor="middle" x="1337.08" y="-1460.85" font-family="Helvetica,sans-Serif" font-size="8.00">x = azimuth</text>
+<text text-anchor="middle" x="1337.08" y="-1451.25" font-family="Helvetica,sans-Serif" font-size="8.00">y = width</text>
+</g>
+<!-- engine_sum -->
+<g id="node22" class="node">
+<title>engine_sum</title>
+<polygon fill="#4a90d9" stroke="black" points="1206.01,-1331.85 1057.99,-1331.85 1057.99,-1275.85 1206.01,-1275.85 1206.01,-1331.85"/>
+<text text-anchor="middle" x="1132" y="-1318.85" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">Voice Summation</text>
+<text text-anchor="middle" x="1132" y="-1306.85" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">16 voices → Stereo L/R</text>
+<text text-anchor="middle" x="1132" y="-1294.85" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">× 1/√polyphony gain</text>
+<text text-anchor="middle" x="1132" y="-1282.85" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">+ per&#45;sample finiteness guard</text>
+</g>
+<!-- spatial&#45;&gt;engine_sum -->
+<g id="edge20" class="edge">
+<title>spatial&#45;&gt;engine_sum</title>
+<path fill="none" stroke="#2a5080" stroke-width="2" d="M1236.89,-1374.37C1221.41,-1367.39 1205.36,-1359.42 1191,-1350.85 1185.43,-1347.52 1179.78,-1343.74 1174.31,-1339.81"/>
+<polygon fill="#2a5080" stroke="#2a5080" stroke-width="2" points="1176.58,-1337.14 1166.47,-1333.96 1172.39,-1342.75 1176.58,-1337.14"/>
+</g>
+<!-- aether_predelay -->
+<g id="node23" class="node">
+<title>aether_predelay</title>
+<polygon fill="#c49ee0" stroke="black" points="570.23,-1220.65 509.77,-1220.65 509.77,-1184.65 570.23,-1184.65 570.23,-1220.65"/>
+<text text-anchor="middle" x="540" y="-1205.65" font-family="Helvetica,sans-Serif" font-size="10.00">Pre&#45;Delay</text>
+<text text-anchor="middle" x="540" y="-1193.65" font-family="Helvetica,sans-Serif" font-size="10.00">0&#45;200 ms</text>
+</g>
+<!-- engine_sum&#45;&gt;aether_predelay -->
+<g id="edge31" class="edge">
+<title>engine_sum&#45;&gt;aether_predelay</title>
+<path fill="none" stroke="#2a5080" stroke-width="2" d="M1057.81,-1289.21C1028.93,-1284.34 995.51,-1279.22 965,-1275.85 831.84,-1261.14 794.37,-1289.14 664.1,-1257.85 635.68,-1251.02 605.59,-1238.04 582.16,-1226.49"/>
+<polygon fill="#2a5080" stroke="#2a5080" stroke-width="2" points="583.77,-1223.38 573.26,-1221.99 580.61,-1229.63 583.77,-1223.38"/>
+<text text-anchor="middle" x="690.55" y="-1250.65" font-family="Helvetica,sans-Serif" font-size="8.00">dry (also fed</text>
+<text text-anchor="middle" x="690.55" y="-1241.05" font-family="Helvetica,sans-Serif" font-size="8.00">forward to mix)</text>
+</g>
+<!-- aether_diffuser -->
+<g id="node24" class="node">
+<title>aether_diffuser</title>
+<polygon fill="#c49ee0" stroke="black" points="568.74,-1143.02 493.26,-1143.02 493.26,-1107.02 568.74,-1107.02 568.74,-1143.02"/>
+<text text-anchor="middle" x="531" y="-1128.02" font-family="Helvetica,sans-Serif" font-size="10.00">Input Diffuser</text>
+<text text-anchor="middle" x="531" y="-1116.02" font-family="Helvetica,sans-Serif" font-size="10.00">(density)</text>
+</g>
+<!-- aether_predelay&#45;&gt;aether_diffuser -->
+<g id="edge21" class="edge">
+<title>aether_predelay&#45;&gt;aether_diffuser</title>
+<path fill="none" stroke="#6b3b9f" stroke-width="2" d="M537.96,-1184.49C536.96,-1176.13 535.74,-1165.84 534.6,-1156.23"/>
+<polygon fill="#6b3b9f" stroke="#6b3b9f" stroke-width="2" points="538.08,-1155.9 533.42,-1146.38 531.13,-1156.72 538.08,-1155.9"/>
+</g>
+<!-- aether_fdn -->
+<g id="node25" class="node">
+<title>aether_fdn</title>
+<polygon fill="#c49ee0" stroke="black" points="742.36,-1056.79 599.64,-1056.79 599.64,-988.79 742.36,-988.79 742.36,-1056.79"/>
+<text text-anchor="middle" x="671" y="-1043.79" font-family="Helvetica,sans-Serif" font-size="10.00">FDN Reverb Core</text>
+<text text-anchor="middle" x="671" y="-1031.79" font-family="Helvetica,sans-Serif" font-size="10.00">N modulated delay lines</text>
+<text text-anchor="middle" x="671" y="-1019.79" font-family="Helvetica,sans-Serif" font-size="10.00">decay 0.5&#45;60 s, damping,</text>
+<text text-anchor="middle" x="671" y="-1007.79" font-family="Helvetica,sans-Serif" font-size="10.00">dimensionality, freeze</text>
+<text text-anchor="middle" x="671" y="-995.79" font-family="Helvetica,sans-Serif" font-size="10.00">(latched, energy&#45;conserving)</text>
+</g>
+<!-- aether_diffuser&#45;&gt;aether_fdn -->
+<g id="edge22" class="edge">
+<title>aether_diffuser&#45;&gt;aether_fdn</title>
+<path fill="none" stroke="#6b3b9f" stroke-width="2" d="M555.39,-1106.56C571.53,-1095 593.41,-1079.34 613.79,-1064.75"/>
+<polygon fill="#6b3b9f" stroke="#6b3b9f" stroke-width="2" points="615.72,-1067.67 621.81,-1059.01 611.64,-1061.98 615.72,-1067.67"/>
+</g>
+<!-- aether_shimmer -->
+<g id="node26" class="node">
+<title>aether_shimmer</title>
+<polygon fill="#c49ee0" stroke="black" points="594.81,-927.59 473.19,-927.59 473.19,-883.59 594.81,-883.59 594.81,-927.59"/>
+<text text-anchor="middle" x="534" y="-914.59" font-family="Helvetica,sans-Serif" font-size="10.00">Shimmer Taps</text>
+<text text-anchor="middle" x="534" y="-902.59" font-family="Helvetica,sans-Serif" font-size="10.00">+12 st and +7 st returns</text>
+<text text-anchor="middle" x="534" y="-890.59" font-family="Helvetica,sans-Serif" font-size="10.00">fed back into the tail</text>
+</g>
+<!-- aether_fdn&#45;&gt;aether_shimmer -->
+<g id="edge23" class="edge">
+<title>aether_fdn&#45;&gt;aether_shimmer</title>
+<path fill="none" stroke="#6b3b9f" stroke-width="2" d="M621.58,-980.23C604.26,-965.67 585.17,-949.62 569.25,-936.23"/>
+<polygon fill="#6b3b9f" stroke="#6b3b9f" stroke-width="2" points="619.15,-982.77 629.06,-986.52 623.66,-977.41 619.15,-982.77"/>
+<polygon fill="#6b3b9f" stroke="#6b3b9f" stroke-width="2" points="571.51,-933.56 561.61,-929.81 567.01,-938.92 571.51,-933.56"/>
+<text text-anchor="middle" x="620.62" y="-963.59" font-family="Helvetica,sans-Serif" font-size="8.00">1 chunk</text>
+<text text-anchor="middle" x="620.62" y="-953.99" font-family="Helvetica,sans-Serif" font-size="8.00">late</text>
+</g>
+<!-- aether_bloom -->
+<g id="node27" class="node">
+<title>aether_bloom</title>
+<polygon fill="#c49ee0" stroke="black" points="734.81,-933.59 613.19,-933.59 613.19,-877.59 734.81,-877.59 734.81,-933.59"/>
+<text text-anchor="middle" x="674" y="-920.59" font-family="Helvetica,sans-Serif" font-size="10.00">Harmonic Bloom</text>
+<text text-anchor="middle" x="674" y="-908.59" font-family="Helvetica,sans-Serif" font-size="10.00">32&#45;slot sympathetic</text>
+<text text-anchor="middle" x="674" y="-896.59" font-family="Helvetica,sans-Serif" font-size="10.00">resonator bank tuned to</text>
+<text text-anchor="middle" x="674" y="-884.59" font-family="Helvetica,sans-Serif" font-size="10.00">held notes</text>
+</g>
+<!-- aether_fdn&#45;&gt;aether_bloom -->
+<g id="edge24" class="edge">
+<title>aether_fdn&#45;&gt;aether_bloom</title>
+<path fill="none" stroke="#6b3b9f" stroke-width="2" d="M672.2,-975.84C672.45,-966.21 672.71,-956.13 672.95,-946.73"/>
+<polygon fill="#6b3b9f" stroke="#6b3b9f" stroke-width="2" points="668.71,-975.36 671.95,-985.45 675.71,-975.54 668.71,-975.36"/>
+<polygon fill="#6b3b9f" stroke="#6b3b9f" stroke-width="2" points="676.45,-947.13 673.21,-937.04 669.45,-946.95 676.45,-947.13"/>
+<text text-anchor="middle" x="692.33" y="-963.59" font-family="Helvetica,sans-Serif" font-size="8.00">tap sum /</text>
+<text text-anchor="middle" x="692.33" y="-953.99" font-family="Helvetica,sans-Serif" font-size="8.00">re&#45;injection</text>
+</g>
+<!-- aether_width -->
+<g id="node28" class="node">
+<title>aether_width</title>
+<polygon fill="#c49ee0" stroke="black" points="815.06,-923.59 752.94,-923.59 752.94,-887.59 815.06,-887.59 815.06,-923.59"/>
+<text text-anchor="middle" x="784" y="-908.59" font-family="Helvetica,sans-Serif" font-size="10.00">M/S Width</text>
+<text text-anchor="middle" x="784" y="-896.59" font-family="Helvetica,sans-Serif" font-size="10.00">(wet only)</text>
+</g>
+<!-- aether_fdn&#45;&gt;aether_width -->
+<g id="edge25" class="edge">
+<title>aether_fdn&#45;&gt;aether_width</title>
+<path fill="none" stroke="#6b3b9f" stroke-width="2" d="M703.68,-988.47C721.01,-970.81 742,-949.41 758.17,-932.93"/>
+<polygon fill="#6b3b9f" stroke="#6b3b9f" stroke-width="2" points="760.45,-935.6 764.95,-926.01 755.45,-930.7 760.45,-935.6"/>
+<text text-anchor="middle" x="762.74" y="-963.59" font-family="Helvetica,sans-Serif" font-size="8.00">output taps</text>
+<text text-anchor="middle" x="762.74" y="-953.99" font-family="Helvetica,sans-Serif" font-size="8.00">(pre&#45;damping)</text>
+</g>
+<!-- aether_specdiff -->
+<g id="node29" class="node">
+<title>aether_specdiff</title>
+<polygon fill="#c49ee0" stroke="black" points="721.17,-840.59 596.83,-840.59 596.83,-784.59 721.17,-784.59 721.17,-840.59"/>
+<text text-anchor="middle" x="659" y="-827.59" font-family="Helvetica,sans-Serif" font-size="10.00">Spectral Diffusion</text>
+<text text-anchor="middle" x="659" y="-815.59" font-family="Helvetica,sans-Serif" font-size="10.00">STFT smear (FFT 1024)</text>
+<text text-anchor="middle" x="659" y="-803.59" font-family="Helvetica,sans-Serif" font-size="10.00">— the plugin&#39;s constant</text>
+<text text-anchor="middle" x="659" y="-791.59" font-family="Helvetica,sans-Serif" font-size="10.00">1024&#45;sample latency</text>
+</g>
+<!-- aether_width&#45;&gt;aether_specdiff -->
+<g id="edge26" class="edge">
+<title>aether_width&#45;&gt;aether_specdiff</title>
+<path fill="none" stroke="#6b3b9f" stroke-width="2" d="M760.19,-887.26C745.15,-876.31 725.18,-861.78 706.96,-848.51"/>
+<polygon fill="#6b3b9f" stroke="#6b3b9f" stroke-width="2" points="709.08,-845.72 698.93,-842.66 704.96,-851.38 709.08,-845.72"/>
+</g>
+<!-- aether_mix -->
+<g id="node30" class="node">
+<title>aether_mix</title>
+<polygon fill="#c49ee0" stroke="black" points="578.85,-747.59 501.15,-747.59 501.15,-711.59 578.85,-711.59 578.85,-747.59"/>
+<text text-anchor="middle" x="540" y="-732.59" font-family="Helvetica,sans-Serif" font-size="10.00">Dry / Wet Mix</text>
+<text text-anchor="middle" x="540" y="-720.59" font-family="Helvetica,sans-Serif" font-size="10.00">(equal&#45;power)</text>
+</g>
+<!-- aether_specdiff&#45;&gt;aether_mix -->
+<g id="edge27" class="edge">
+<title>aether_specdiff&#45;&gt;aether_mix</title>
+<path fill="none" stroke="#6b3b9f" stroke-width="2" d="M618.71,-784.17C605.02,-774.85 589.8,-764.49 576.42,-755.38"/>
+<polygon fill="#6b3b9f" stroke="#6b3b9f" stroke-width="2" points="578.43,-752.52 568.2,-749.78 574.49,-758.31 578.43,-752.52"/>
+</g>
+<!-- master_gain -->
+<g id="node34" class="node">
+<title>master_gain</title>
+<polygon fill="#888888" stroke="black" points="583.14,-646.99 464.86,-646.99 464.86,-602.99 583.14,-602.99 583.14,-646.99"/>
+<text text-anchor="middle" x="524" y="-633.99" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">Master Gain</text>
+<text text-anchor="middle" x="524" y="-621.99" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">(0&#45;200%, on the reverb</text>
+<text text-anchor="middle" x="524" y="-609.99" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">return, before the FX)</text>
+</g>
+<!-- aether_mix&#45;&gt;master_gain -->
+<g id="edge32" class="edge">
+<title>aether_mix&#45;&gt;master_gain</title>
+<path fill="none" stroke="#2a5080" stroke-width="2" d="M537.29,-711.19C535.11,-697.22 531.99,-677.2 529.31,-660.07"/>
+<polygon fill="#2a5080" stroke="#2a5080" stroke-width="2" points="532.8,-659.74 527.81,-650.39 525.89,-660.81 532.8,-659.74"/>
+</g>
+<!-- aether_breath -->
+<g id="node31" class="node">
+<title>aether_breath</title>
+<ellipse fill="#f5c878" stroke="black" cx="671" cy="-1125.02" rx="84.02" ry="22.63"/>
+<text text-anchor="middle" x="671" y="-1128.02" font-family="Helvetica,sans-Serif" font-size="10.00">Breathing Modulator</text>
+<text text-anchor="middle" x="671" y="-1116.02" font-family="Helvetica,sans-Serif" font-size="10.00">size breath (20 s cycle)</text>
+</g>
+<!-- aether_breath&#45;&gt;aether_fdn -->
+<g id="edge28" class="edge">
+<title>aether_breath&#45;&gt;aether_fdn</title>
+<path fill="none" stroke="#c88820" stroke-dasharray="5,2" d="M671,-1102.27C671,-1092.34 671,-1080.19 671,-1068.45"/>
+<polygon fill="#c88820" stroke="#c88820" points="674.5,-1068.45 671,-1058.45 667.5,-1068.45 674.5,-1068.45"/>
+<text text-anchor="middle" x="678.11" y="-1077.19" font-family="Helvetica,sans-Serif" font-size="8.00">size</text>
+</g>
+<!-- aether_tide -->
+<g id="node32" class="node">
+<title>aether_tide</title>
+<ellipse fill="#f5c878" stroke="black" cx="863" cy="-1125.02" rx="89.52" ry="22.63"/>
+<text text-anchor="middle" x="863" y="-1128.02" font-family="Helvetica,sans-Serif" font-size="10.00">Tidal Modulator</text>
+<text text-anchor="middle" x="863" y="-1116.02" font-family="Helvetica,sans-Serif" font-size="10.00">dimensionality tide (30 s)</text>
+</g>
+<!-- aether_tide&#45;&gt;aether_fdn -->
+<g id="edge29" class="edge">
+<title>aether_tide&#45;&gt;aether_fdn</title>
+<path fill="none" stroke="#c88820" stroke-dasharray="5,2" d="M825.07,-1104.22C802.19,-1092.28 772.28,-1076.66 744.89,-1062.37"/>
+<polygon fill="#c88820" stroke="#c88820" points="746.77,-1059.4 736.28,-1057.87 743.53,-1065.6 746.77,-1059.4"/>
+<text text-anchor="middle" x="802.43" y="-1077.19" font-family="Helvetica,sans-Serif" font-size="8.00">dimension</text>
+</g>
+<!-- aether_drift&#45;&gt;aether_fdn -->
+<g id="edge30" class="edge">
+<title>aether_drift&#45;&gt;aether_fdn</title>
+<path fill="none" stroke="#c88820" stroke-dasharray="5,2" d="M533.12,-2550.87C518.5,-2512.79 491,-2431.64 491,-2360.33 491,-2360.33 491,-2360.33 491,-1831.9 491,-1755.53 490,-1736.44 490,-1660.07 490,-1660.07 490,-1660.07 490,-1349.85 490,-1239.84 423.12,-1194.02 484,-1102.39 507.43,-1067.14 550.08,-1047.66 588.74,-1036.92"/>
+<polygon fill="#c88820" stroke="#c88820" points="589.26,-1040.4 598.05,-1034.49 587.49,-1033.62 589.26,-1040.4"/>
+<text text-anchor="middle" x="503.89" y="-1763.59" font-family="Helvetica,sans-Serif" font-size="8.00">line</text>
+<text text-anchor="middle" x="503.89" y="-1753.99" font-family="Helvetica,sans-Serif" font-size="8.00">lengths</text>
+</g>
+<!-- master_gain&#45;&gt;spec_delay -->
+<g id="edge37" class="edge">
+<title>master_gain&#45;&gt;spec_delay</title>
+<path fill="none" stroke="#2a5080" stroke-width="2" d="M491.81,-602.74C473.05,-590.35 448.6,-574.2 425.58,-559"/>
+<polygon fill="#2a5080" stroke="#2a5080" stroke-width="2" points="427.57,-556.12 417.3,-553.53 423.72,-561.96 427.57,-556.12"/>
+<text text-anchor="middle" x="463.31" y="-571.79" font-family="Helvetica,sans-Serif" font-size="8.00">send</text>
+</g>
+<!-- fx_return -->
+<g id="node37" class="node">
+<title>fx_return</title>
+<polygon fill="#c49ee0" stroke="black" points="391.07,-429.77 318.93,-429.77 318.93,-393.77 391.07,-393.77 391.07,-429.77"/>
+<text text-anchor="middle" x="355" y="-414.77" font-family="Helvetica,sans-Serif" font-size="10.00">Send Return</text>
+<text text-anchor="middle" x="355" y="-402.77" font-family="Helvetica,sans-Serif" font-size="10.00">(delay mix)</text>
+</g>
+<!-- master_gain&#45;&gt;fx_return -->
+<g id="edge38" class="edge">
+<title>master_gain&#45;&gt;fx_return</title>
+<path fill="none" stroke="#2a5080" stroke-width="2" d="M519.43,-602.72C511.3,-569.34 491.44,-504.24 453,-463.39 439.35,-448.89 420.62,-437.82 403.18,-429.78"/>
+<polygon fill="#2a5080" stroke="#2a5080" stroke-width="2" points="404.75,-426.64 394.18,-425.89 401.97,-433.07 404.75,-426.64"/>
+<text text-anchor="middle" x="508.46" y="-508.99" font-family="Helvetica,sans-Serif" font-size="8.00">dry</text>
+</g>
+<!-- spec_delay&#45;&gt;fx_return -->
+<g id="edge36" class="edge">
+<title>spec_delay&#45;&gt;fx_return</title>
+<path fill="none" stroke="#6b3b9f" stroke-width="2" d="M355,-470.97C355,-461.66 355,-451.88 355,-443.05"/>
+<polygon fill="#6b3b9f" stroke="#6b3b9f" stroke-width="2" points="358.5,-443.18 355,-433.18 351.5,-443.18 358.5,-443.18"/>
+</g>
+<!-- spec_freeze -->
+<g id="node36" class="node">
+<title>spec_freeze</title>
+<polygon fill="#c49ee0" stroke="black" points="379.59,-652.99 262.41,-652.99 262.41,-596.99 379.59,-596.99 379.59,-652.99"/>
+<text text-anchor="middle" x="321" y="-639.99" font-family="Helvetica,sans-Serif" font-size="10.00">Spectral Freeze</text>
+<text text-anchor="middle" x="321" y="-627.99" font-family="Helvetica,sans-Serif" font-size="10.00">(lives inside the delay:</text>
+<text text-anchor="middle" x="321" y="-615.99" font-family="Helvetica,sans-Serif" font-size="10.00">captures and holds the</text>
+<text text-anchor="middle" x="321" y="-603.99" font-family="Helvetica,sans-Serif" font-size="10.00">current spectrum)</text>
+</g>
+<!-- spec_freeze&#45;&gt;spec_delay -->
+<g id="edge33" class="edge">
+<title>spec_freeze&#45;&gt;spec_delay</title>
+<path fill="none" stroke="#6b3b9f" stroke-dasharray="5,2" d="M329.32,-596.69C332.48,-586.32 336.19,-574.15 339.79,-562.33"/>
+<polygon fill="#6b3b9f" stroke="#6b3b9f" points="343.04,-563.67 342.6,-553.08 336.34,-561.63 343.04,-563.67"/>
+</g>
+<!-- stereo_stage -->
+<g id="node38" class="node">
+<title>stereo_stage</title>
+<polygon fill="#c49ee0" stroke="black" points="166.45,-352.14 49.55,-352.14 49.55,-308.14 166.45,-308.14 166.45,-352.14"/>
+<text text-anchor="middle" x="108" y="-339.14" font-family="Helvetica,sans-Serif" font-size="10.00">Global M/S Width</text>
+<text text-anchor="middle" x="108" y="-327.14" font-family="Helvetica,sans-Serif" font-size="10.00">0&#45;200% + equal&#45;power</text>
+<text text-anchor="middle" x="108" y="-315.14" font-family="Helvetica,sans-Serif" font-size="10.00">azimuth balance</text>
+</g>
+<!-- fx_return&#45;&gt;stereo_stage -->
+<g id="edge39" class="edge">
+<title>fx_return&#45;&gt;stereo_stage</title>
+<path fill="none" stroke="#2a5080" stroke-width="2" d="M318.55,-399.02C281.92,-387.21 224.5,-368.7 178.87,-353.99"/>
+<polygon fill="#2a5080" stroke="#2a5080" stroke-width="2" points="180.12,-350.71 169.52,-350.97 177.97,-357.37 180.12,-350.71"/>
+</g>
+<!-- saturator -->
+<g id="node41" class="node">
+<title>saturator</title>
+<polygon fill="#888888" stroke="black" points="163.51,-245.94 52.49,-245.94 52.49,-189.94 163.51,-189.94 163.51,-245.94"/>
+<text text-anchor="middle" x="108" y="-232.94" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">Tape Saturator</text>
+<text text-anchor="middle" x="108" y="-220.94" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">(the Soft Limit switch:</text>
+<text text-anchor="middle" x="108" y="-208.94" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">ON = warm ceiling,</text>
+<text text-anchor="middle" x="108" y="-196.94" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">OFF = clean)</text>
+</g>
+<!-- stereo_stage&#45;&gt;saturator -->
+<g id="edge42" class="edge">
+<title>stereo_stage&#45;&gt;saturator</title>
+<path fill="none" stroke="#2a5080" stroke-width="2" d="M108,-307.89C108,-294.07 108,-275.62 108,-259.1"/>
+<polygon fill="#2a5080" stroke="#2a5080" stroke-width="2" points="111.5,-259.42 108,-249.42 104.5,-259.42 111.5,-259.42"/>
+</g>
+<!-- width_wander&#45;&gt;stereo_stage -->
+<g id="edge34" class="edge">
+<title>width_wander&#45;&gt;stereo_stage</title>
+<path fill="none" stroke="#c88820" stroke-dasharray="5,2" d="M77.28,-2338.19C55.69,-2314.96 25,-2274.57 25,-2232.7 25,-2232.7 25,-2232.7 25,-410.77 25,-389.34 39.58,-371.89 56.52,-358.84"/>
+<polygon fill="#c88820" stroke="#c88820" points="58.18,-361.95 64.29,-353.3 54.12,-356.25 58.18,-361.95"/>
+</g>
+<!-- azimuth_wander -->
+<g id="node40" class="node">
+<title>azimuth_wander</title>
+<ellipse fill="#f5c878" stroke="black" cx="108" cy="-411.77" rx="63.58" ry="22.63"/>
+<text text-anchor="middle" x="108" y="-414.77" font-family="Helvetica,sans-Serif" font-size="10.00">Azimuth Wander</text>
+<text text-anchor="middle" x="108" y="-402.77" font-family="Helvetica,sans-Serif" font-size="10.00">Brownian drift</text>
+</g>
+<!-- azimuth_wander&#45;&gt;stereo_stage -->
+<g id="edge35" class="edge">
+<title>azimuth_wander&#45;&gt;stereo_stage</title>
+<path fill="none" stroke="#c88820" stroke-dasharray="5,2" d="M108,-389.01C108,-381.31 108,-372.47 108,-364.05"/>
+<polygon fill="#c88820" stroke="#c88820" points="111.5,-364.11 108,-354.11 104.5,-364.11 111.5,-364.11"/>
+</g>
+<!-- limiter -->
+<g id="node42" class="node">
+<title>limiter</title>
+<polygon fill="#888888" stroke="black" points="155.73,-152.94 60.27,-152.94 60.27,-108.94 155.73,-108.94 155.73,-152.94"/>
+<text text-anchor="middle" x="108" y="-139.94" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">True&#45;Peak Limiter</text>
+<text text-anchor="middle" x="108" y="-127.94" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">(ALWAYS on —</text>
+<text text-anchor="middle" x="108" y="-115.94" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">no bypass path)</text>
+</g>
+<!-- saturator&#45;&gt;limiter -->
+<g id="edge40" class="edge">
+<title>saturator&#45;&gt;limiter</title>
+<path fill="none" stroke="black" stroke-width="2" d="M108,-189.58C108,-182.14 108,-174 108,-166.24"/>
+<polygon fill="black" stroke="black" stroke-width="2" points="111.5,-166.35 108,-156.35 104.5,-166.35 111.5,-166.35"/>
+</g>
+<!-- output -->
+<g id="node43" class="node">
+<title>output</title>
+<polygon fill="#ccddee" stroke="black" points="42.99,-35.33 108,-16 173.01,-35.33 172.94,-66.6 43.06,-66.6 42.99,-35.33"/>
+<text text-anchor="middle" x="108" y="-46.97" font-family="Helvetica,sans-Serif" font-size="10.00">Audio Output</text>
+<text text-anchor="middle" x="108" y="-34.97" font-family="Helvetica,sans-Serif" font-size="10.00">L / R</text>
+</g>
+<!-- limiter&#45;&gt;output -->
+<g id="edge41" class="edge">
+<title>limiter&#45;&gt;output</title>
+<path fill="none" stroke="black" stroke-width="2" d="M108,-108.5C108,-99.78 108,-89.47 108,-79.73"/>
+<polygon fill="black" stroke="black" stroke-width="2" points="111.5,-80.02 108,-70.02 104.5,-80.02 111.5,-80.02"/>
+</g>
+<!-- m_dream -->
+<g id="node44" class="node">
+<title>m_dream</title>
+<ellipse fill="#8ed08e" stroke="black" cx="1959" cy="-3327.75" rx="71.07" ry="31.11"/>
+<text text-anchor="middle" x="1959" y="-3336.75" font-family="Helvetica,sans-Serif" font-size="10.00">DREAM</text>
+<text text-anchor="middle" x="1959" y="-3324.75" font-family="Helvetica,sans-Serif" font-size="10.00">purifies harmonics,</text>
+<text text-anchor="middle" x="1959" y="-3312.75" font-family="Helvetica,sans-Serif" font-size="10.00">deepens the space</text>
+</g>
+<!-- macro_matrix -->
+<g id="node49" class="node">
+<title>macro_matrix</title>
+<polygon fill="#8ed08e" stroke="black" points="1674,-3206.15 1519.6,-3090.15 1674,-2974.15 1828.4,-3090.15 1674,-3206.15"/>
+<text text-anchor="middle" x="1674" y="-3135.15" font-family="Helvetica,sans-Serif" font-size="10.00">SeraphisMacroMatrix</text>
+<text text-anchor="middle" x="1674" y="-3111.15" font-family="Helvetica,sans-Serif" font-size="10.00">deep parameters set the base,</text>
+<text text-anchor="middle" x="1674" y="-3099.15" font-family="Helvetica,sans-Serif" font-size="10.00">macros add travel on top</text>
+<text text-anchor="middle" x="1674" y="-3087.15" font-family="Helvetica,sans-Serif" font-size="10.00">(clamped by each target setter)</text>
+<text text-anchor="middle" x="1674" y="-3063.15" font-family="Helvetica,sans-Serif" font-size="10.00">19 voice targets</text>
+<text text-anchor="middle" x="1674" y="-3051.15" font-family="Helvetica,sans-Serif" font-size="10.00">8 Aether targets</text>
+<text text-anchor="middle" x="1674" y="-3039.15" font-family="Helvetica,sans-Serif" font-size="10.00">2 effects targets</text>
+</g>
+<!-- m_dream&#45;&gt;macro_matrix -->
+<g id="edge43" class="edge">
+<title>m_dream&#45;&gt;macro_matrix</title>
+<path fill="none" stroke="#3a8f3a" stroke-dasharray="5,2" d="M1933.78,-3298.34C1918.54,-3281.76 1898.38,-3260.81 1879,-3243.75 1842.77,-3211.86 1800.32,-3179.52 1763.47,-3152.87"/>
+<polygon fill="#3a8f3a" stroke="#3a8f3a" points="1765.62,-3150.1 1755.46,-3147.1 1761.53,-3155.78 1765.62,-3150.1"/>
+</g>
+<!-- m_bloom -->
+<g id="node45" class="node">
+<title>m_bloom</title>
+<ellipse fill="#8ed08e" stroke="black" cx="1355" cy="-3327.75" rx="77.35" ry="31.11"/>
+<text text-anchor="middle" x="1355" y="-3336.75" font-family="Helvetica,sans-Serif" font-size="10.00">BLOOM</text>
+<text text-anchor="middle" x="1355" y="-3324.75" font-family="Helvetica,sans-Serif" font-size="10.00">opens upper partials,</text>
+<text text-anchor="middle" x="1355" y="-3312.75" font-family="Helvetica,sans-Serif" font-size="10.00">shimmer and width</text>
+</g>
+<!-- m_bloom&#45;&gt;macro_matrix -->
+<g id="edge44" class="edge">
+<title>m_bloom&#45;&gt;macro_matrix</title>
+<path fill="none" stroke="#3a8f3a" stroke-dasharray="5,2" d="M1379.3,-3297.86C1395.34,-3280.27 1417.64,-3258.44 1441,-3243.75 1451.83,-3236.94 1456.41,-3239.18 1468,-3233.75 1511.21,-3213.5 1555.21,-3184.42 1591.4,-3157.8"/>
+<polygon fill="#3a8f3a" stroke="#3a8f3a" points="1593.27,-3160.77 1599.21,-3151.99 1589.1,-3155.15 1593.27,-3160.77"/>
+</g>
+<!-- m_dissolve -->
+<g id="node46" class="node">
+<title>m_dissolve</title>
+<ellipse fill="#8ed08e" stroke="black" cx="1530" cy="-3327.75" rx="79.71" ry="31.11"/>
+<text text-anchor="middle" x="1530" y="-3336.75" font-family="Helvetica,sans-Serif" font-size="10.00">DISSOLVE</text>
+<text text-anchor="middle" x="1530" y="-3324.75" font-family="Helvetica,sans-Serif" font-size="10.00">melts into granular</text>
+<text text-anchor="middle" x="1530" y="-3312.75" font-family="Helvetica,sans-Serif" font-size="10.00">fog, slower envelopes</text>
+</g>
+<!-- m_dissolve&#45;&gt;macro_matrix -->
+<g id="edge45" class="edge">
+<title>m_dissolve&#45;&gt;macro_matrix</title>
+<path fill="none" stroke="#3a8f3a" stroke-dasharray="5,2" d="M1550.75,-3297.41C1563.34,-3279.3 1579.52,-3255.45 1593,-3233.75 1603.11,-3217.48 1613.51,-3199.91 1623.33,-3182.85"/>
+<polygon fill="#3a8f3a" stroke="#3a8f3a" points="1626.36,-3184.6 1628.29,-3174.19 1620.29,-3181.12 1626.36,-3184.6"/>
+</g>
+<!-- m_gravity -->
+<g id="node47" class="node">
+<title>m_gravity</title>
+<ellipse fill="#8ed08e" stroke="black" cx="1674" cy="-3327.75" rx="46.29" ry="31.11"/>
+<text text-anchor="middle" x="1674" y="-3336.75" font-family="Helvetica,sans-Serif" font-size="10.00">GRAVITY</text>
+<text text-anchor="middle" x="1674" y="-3324.75" font-family="Helvetica,sans-Serif" font-size="10.00">(bipolar)</text>
+<text text-anchor="middle" x="1674" y="-3312.75" font-family="Helvetica,sans-Serif" font-size="10.00">air ↔ stone</text>
+</g>
+<!-- m_gravity&#45;&gt;macro_matrix -->
+<g id="edge46" class="edge">
+<title>m_gravity&#45;&gt;macro_matrix</title>
+<path fill="none" stroke="#3a8f3a" stroke-dasharray="5,2" d="M1674,-3296.44C1674,-3275.94 1674,-3247.34 1674,-3218"/>
+<polygon fill="#3a8f3a" stroke="#3a8f3a" points="1677.5,-3218.24 1674,-3208.24 1670.5,-3218.24 1677.5,-3218.24"/>
+</g>
+<!-- m_entropy -->
+<g id="node48" class="node">
+<title>m_entropy</title>
+<ellipse fill="#8ed08e" stroke="black" cx="1804" cy="-3327.75" rx="65.56" ry="31.11"/>
+<text text-anchor="middle" x="1804" y="-3336.75" font-family="Helvetica,sans-Serif" font-size="10.00">ENTROPY</text>
+<text text-anchor="middle" x="1804" y="-3324.75" font-family="Helvetica,sans-Serif" font-size="10.00">decays order into</text>
+<text text-anchor="middle" x="1804" y="-3312.75" font-family="Helvetica,sans-Serif" font-size="10.00">jitter and detune</text>
+</g>
+<!-- m_entropy&#45;&gt;macro_matrix -->
+<g id="edge47" class="edge">
+<title>m_entropy&#45;&gt;macro_matrix</title>
+<path fill="none" stroke="#3a8f3a" stroke-dasharray="5,2" d="M1787.8,-3297.39C1771.95,-3268.67 1746.99,-3223.43 1724.48,-3182.63"/>
+<polygon fill="#3a8f3a" stroke="#3a8f3a" points="1727.59,-3181.03 1719.69,-3173.97 1721.46,-3184.41 1727.59,-3181.03"/>
+</g>
+<!-- macro_matrix&#45;&gt;cloud -->
+<g id="edge48" class="edge">
+<title>macro_matrix&#45;&gt;cloud</title>
+<path fill="none" stroke="#3a8f3a" stroke-width="2" d="M1625.73,-3009.97C1615.76,-2992.49 1605.67,-2973.89 1597,-2956.15 1557.43,-2875.17 1567.94,-2847.19 1550.29,-2758.81 1540.72,-2710.91 1556.2,-2686.31 1537.02,-2651.16"/>
+<polygon fill="#3a8f3a" stroke="#3a8f3a" stroke-width="2" points="1540.84,-2650.69 1532.59,-2644.04 1534.89,-2654.38 1540.84,-2650.69"/>
+<text text-anchor="middle" x="1589.64" y="-2751.61" font-family="Helvetica,sans-Serif" font-size="8.00">→ all voices:</text>
+<text text-anchor="middle" x="1589.64" y="-2742.01" font-family="Helvetica,sans-Serif" font-size="8.00">cloud, morph, body,</text>
+<text text-anchor="middle" x="1589.64" y="-2732.41" font-family="Helvetica,sans-Serif" font-size="8.00">atmos, orbit, envelope</text>
+</g>
+<!-- macro_matrix&#45;&gt;aether_fdn -->
+<g id="edge49" class="edge">
+<title>macro_matrix&#45;&gt;aether_fdn</title>
+<path fill="none" stroke="#3a8f3a" stroke-width="2" d="M1645.4,-2995.46C1639.92,-2973.82 1634.98,-2950.75 1632,-2928.95 1629.01,-2907.05 1635.2,-2751.23 1629,-2730.01 1614.06,-2678.86 1583.76,-2678.24 1566,-2628.01 1546.01,-2571.47 1549,-2554.12 1549,-2494.15 1549,-2494.15 1549,-2494.15 1549,-2014.5 1549,-1902.36 1549,-1874.32 1549,-1762.19 1549,-1762.19 1549,-1762.19 1549,-1457.45 1549,-1387.38 1491.58,-1383.5 1426,-1358.85 1406.85,-1351.65 1258.48,-1362.98 1242,-1350.85 1213.46,-1329.85 1243.23,-1297.25 1215,-1275.85 1173.3,-1244.24 1023.14,-1291.8 970.01,-1260.35"/>
+<polygon fill="#3a8f3a" stroke="#3a8f3a" stroke-width="2" points="973.39,-1258.56 963.38,-1255.11 969.06,-1264.05 973.39,-1258.56"/>
+<text text-anchor="middle" x="1578.56" y="-1880.1" font-family="Helvetica,sans-Serif" font-size="8.00">mix, size, width,</text>
+<text text-anchor="middle" x="1578.56" y="-1870.5" font-family="Helvetica,sans-Serif" font-size="8.00">shimmer, bloom,</text>
+<text text-anchor="middle" x="1578.56" y="-1860.9" font-family="Helvetica,sans-Serif" font-size="8.00">breath, tide</text>
+</g>
+<!-- macro_matrix&#45;&gt;spec_delay -->
+<g id="edge50" class="edge">
+<title>macro_matrix&#45;&gt;spec_delay</title>
+<path fill="none" stroke="#3a8f3a" stroke-width="2" d="M1672.13,-2975.19C1669.09,-2904.01 1661.67,-2810.85 1644,-2730.01 1634.51,-2686.61 1634.92,-2672.78 1610,-2636.01 1607,-2631.58 1603.19,-2632.89 1601,-2628.01 1544.37,-2501.89 1600.26,-2144.14 1601,-2005.9 1601.22,-1964.56 1591.42,-1952.86 1602,-1912.9 1604.34,-1904.05 1609.7,-1903.76 1612,-1894.9 1617.8,-1872.53 1621.35,-1864.03 1612,-1842.9 1609.33,-1836.86 1603.97,-1838.8 1601,-1832.9 1523.96,-1679.65 1622.57,-1609.69 1563,-1448.85 1546.04,-1403.06 1542.88,-1382.2 1500,-1358.85 1458.21,-1336.09 1327.53,-1374.08 1286,-1350.85 1251.04,-1331.29 1270.59,-1296.06 1236,-1275.85 1189.82,-1248.86 1033.77,-1295.71 996,-1257.85 986.79,-1248.62 979,-1036.83 979,-1023.79 979,-1023.79 979,-1023.79 979,-765.59 979,-737.34 986.8,-721.55 965,-703.59 935.74,-679.49 654.4,-716.23 624,-693.59 587.73,-666.58 624.16,-628.79 592,-596.99 547.07,-552.56 515.15,-571.97 452.47,-552.34"/>
+<polygon fill="#3a8f3a" stroke="#3a8f3a" stroke-width="2" points="455.17,-549.56 444.57,-549.65 452.91,-556.19 455.17,-549.56"/>
+<text text-anchor="middle" x="1601.39" y="-1599.87" font-family="Helvetica,sans-Serif" font-size="8.00">delay send</text>
+<text text-anchor="middle" x="1601.39" y="-1590.27" font-family="Helvetica,sans-Serif" font-size="8.00">(Dissolve)</text>
+</g>
+<!-- macro_matrix&#45;&gt;stereo_stage -->
+<g id="edge51" class="edge">
+<title>macro_matrix&#45;&gt;stereo_stage</title>
+<path fill="none" stroke="#3a8f3a" stroke-width="2" d="M1695.63,-2989.84C1751.05,-2709.1 1871.72,-1895.28 1542,-1358.85 1201.42,-804.75 1056.35,-613.85 446,-389.14 356.95,-356.35 247.78,-341.91 178.05,-335.68"/>
+<polygon fill="#3a8f3a" stroke="#3a8f3a" stroke-width="2" points="180.06,-332.34 169.79,-334.97 179.46,-339.31 180.06,-332.34"/>
+<text text-anchor="middle" x="1625.4" y="-1460.85" font-family="Helvetica,sans-Serif" font-size="8.00">wander depth</text>
+<text text-anchor="middle" x="1625.4" y="-1451.25" font-family="Helvetica,sans-Serif" font-size="8.00">(Entropy)</text>
+</g>
+<!-- rates -->
+<g id="node50" class="node">
+<title>rates</title>
+<polygon fill="#fafafa" stroke="none" points="2686.2,-3403.75 2053.8,-3403.75 2053.8,-3251.75 2686.2,-3251.75 2686.2,-3403.75"/>
+<text text-anchor="start" x="2067.8" y="-3385.75" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="10.00">Control rate:</text>
+<text text-anchor="start" x="2154.14" y="-3384.75" font-family="Helvetica,sans-Serif" font-size="10.00">64&#45;sample chunks (voice, body, Aether); morph drives the cloud&#39;s target spectrum, it processes no audio</text>
+<text text-anchor="start" x="2067.8" y="-3365.75" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="10.00">Macro matrix:</text>
+<text text-anchor="start" x="2154.14" y="-3364.75" font-family="Helvetica,sans-Serif" font-size="10.00">applied every slice on the audio thread; neutral macros contribute exactly zero</text>
+<text text-anchor="start" x="2067.8" y="-3345.75" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="10.00">Voice envelope:</text>
+<text text-anchor="start" x="2154.14" y="-3344.75" font-family="Helvetica,sans-Serif" font-size="10.00">gates the cloud (excitation) only — body wash, grains and the Aether tail all ring past note&#45;off</text>
+<text text-anchor="start" x="2067.8" y="-3325.75" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="10.00">Life modulators:</text>
+<text text-anchor="start" x="2154.14" y="-3324.75" font-family="Helvetica,sans-Serif" font-size="10.00">all OU / Brownian processes; they advance even for silent voices and an idle reverb, so nothing ever resets to a pose</text>
+<text text-anchor="start" x="2067.8" y="-3305.75" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="10.00">Latency:</text>
+<text text-anchor="start" x="2154.14" y="-3304.75" font-family="Helvetica,sans-Serif" font-size="10.00">constant 1024 samples — the Aether spectral&#45;diffusion STFT; never re&#45;announced</text>
+<text text-anchor="start" x="2067.8" y="-3285.75" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="10.00">Chain order:</text>
+<text text-anchor="start" x="2154.14" y="-3284.75" font-family="Helvetica,sans-Serif" font-size="10.00">voices → Aether → master gain → spectral delay send → stereo stage → saturator → true&#45;peak limiter</text>
+<text text-anchor="start" x="2067.8" y="-3265.75" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="10.00">Seed:</text>
+<text text-anchor="start" x="2154.14" y="-3264.75" font-family="Helvetica,sans-Serif" font-size="10.00">one dropdown reseeds every stochastic process (per&#45;voice salts × cloud/morph/body/atmos/orbit + Aether + FX)</text>
+</g>
+</g>
+</svg>
+</div>
     </div>
 
     <script type="module">
-        import { instance } from "https://cdn.jsdelivr.net/npm/@viz-js/viz@3.11.0/+esm";
-
-        const dotSource = `digraph SeraphisSignalFlow {
-    rankdir=TB;
-    fontname="Helvetica";
-    fontsize=11;
-    node [fontname="Helvetica", fontsize=10, style=filled];
-    edge [fontname="Helvetica", fontsize=8];
-    compound=true;
-    newrank=true;
-
-    // =========================================================================
-    // COLOR LEGEND
-    // =========================================================================
-    subgraph cluster_legend {
-        label="Legend";
-        style=rounded;
-        color="#888888";
-        fontsize=12;
-        fontcolor="#444444";
-        bgcolor="#FAFAFA";
-
-        node [shape=plaintext, fillcolor="#FAFAFA"];
-        leg [label=<
-            <TABLE BORDER="0" CELLBORDER="0" CELLSPACING="4">
-            <TR><TD BGCOLOR="#4A90D9" WIDTH="20"> </TD><TD ALIGN="LEFT">Audio signal path</TD></TR>
-            <TR><TD BGCOLOR="#E8A838" WIDTH="20"> </TD><TD ALIGN="LEFT">Life modulators (autonomous, never repeating)</TD></TR>
-            <TR><TD BGCOLOR="#6BBF6B" WIDTH="20"> </TD><TD ALIGN="LEFT">Macro matrix routing</TD></TR>
-            <TR><TD BGCOLOR="#9B6BBF" WIDTH="20"> </TD><TD ALIGN="LEFT">Aether space &amp; effects</TD></TR>
-            <TR><TD BGCOLOR="#AAAAAA" WIDTH="20"> </TD><TD ALIGN="LEFT">Host tempo / seed (control)</TD></TR>
-            <TR><TD>───▶</TD><TD ALIGN="LEFT">Audio flow</TD></TR>
-            <TR><TD>- - ▶</TD><TD ALIGN="LEFT">Modulation / control</TD></TR>
-            </TABLE>
-        >];
-    }
-
-    // =========================================================================
-    // INPUT SOURCES
-    // =========================================================================
-    subgraph cluster_input {
-        label="Input";
-        style=rounded;
-        color="#666666";
-        bgcolor="#F0F0F0";
-
-        midi_in [label="MIDI\\n(Notes, Velocity)", shape=house, fillcolor="#CCDDEE"];
-        host_tempo [label="Host Tempo\\n(BPM, Transport)", shape=house, fillcolor="#CCDDEE"];
-        seed [label="Seed (1-16)\\nreseeds every RNG:\\ncloud, morph, body, atmos,\\norbit, Aether, delay, wander", shape=house, fillcolor="#CCDDEE"];
-    }
-
-    // =========================================================================
-    // VOICE MANAGEMENT
-    // =========================================================================
-    voice_alloc [label="Voice Allocation\\n(1-16 voices, default 8)\\nsilent voices keep their\\nlife modulators running", shape=octagon, fillcolor="#7BAFD4"];
-
-    midi_in -> voice_alloc [penwidth=2, label="note on/off"];
-
-    // =========================================================================
-    // PER-VOICE PROCESSING (x16)
-    // =========================================================================
-    subgraph cluster_voice {
-        label="SeraphisVoice (x16)  —  64-Sample Control Chunks";
-        style=rounded;
-        color="#4A90D9";
-        bgcolor="#EDF4FC";
-        fontsize=13;
-        fontcolor="#2A5080";
-        penwidth=2;
-
-        // --- Spectral evolution layer (control-rate, no audio) ---
-        subgraph cluster_morph {
-            label="Spectral Morph Engine (control-rate — processes no audio)";
-            style=dashed;
-            color="#E8A838";
-            bgcolor="#FDF3E0";
-
-            morph_states [label="Spectral States\\n4 slots (A-D)\\nfactory: Sine Stack, Bell, Choir,\\nGlass, Breath, Hollow, Metal,\\nOrgan, Vowel, Shimmer\\nor hand-authored spectra", shape=box, fillcolor="#F5C878"];
-            morph_engine [label="Morph Travel\\nExternal position or\\nautonomous spline trajectory\\ntempo-syncable\\n+ Bloom (highs lag lows)", shape=box, fillcolor="#F5C878"];
-            entropy_proc [label="Entropy Processor\\nOU jitter bank:\\namp jitter, phase smear,\\npartial death &amp; rebirth", shape=ellipse, fillcolor="#F5C878"];
-
-            morph_states -> morph_engine [style=dashed, color="#C88820"];
-            entropy_proc -> morph_engine [style=dashed, color="#C88820"];
-        }
-
-        // --- Harmonic cloud ---
-        cloud [label="Harmonic Cloud\\n64 additive partials, stereo\\nrichness, inharmonicity, tilt,\\nspectral gravity, stereo spread\\nper-partial attack/decay envelopes\\n+ per-partial pan/mask overrides", shape=box, fillcolor="#6AABEA"];
-
-        cloud_drift [label="Per-Partial Drift\\n64 OU lanes, 0-50 cents\\n+ mutation bank (t=15s)", shape=ellipse, fillcolor="#F5C878"];
-
-        voice_env [label="Voice Envelope\\n(gain on the cloud only —\\nnothing downstream is gated)\\nStandard or Growth\\n(slow logistic swell, 1-60 s)", shape=box, fillcolor="#6AABEA"];
-
-        // --- Continuous body ---
-        subgraph cluster_body {
-            label="Continuous Body";
-            style=dashed;
-            color="#4A90D9";
-            bgcolor="#DDE8F5";
-
-            body_agc [label="Input AGC + Drive\\n(pre-resonator,\\non the excitation)", shape=box, fillcolor="#6AABEA"];
-            body_res [label="Modal Resonator\\nGlass / Strings / Metal Plate /\\nChamber / Ice\\nresonance, damping, key track\\n(bypassable, equal-power)", shape=box, fillcolor="#6AABEA"];
-            body_wash [label="Decay Cloud Wash\\ndelay + diffusion + damping loop\\n0.1-30 s, parallel to the\\nresonator (equal-power blend)", shape=box, fillcolor="#6AABEA"];
-            body_mix [label="Body Mix\\n(dry cloud vs.\\nresonated body)", shape=box, fillcolor="#6AABEA"];
-
-            body_agc -> body_res [penwidth=2, color="#2A5080"];
-            body_res -> body_wash [penwidth=2, color="#2A5080", label="parallel\\ntap"];
-            body_res -> body_mix [penwidth=2, color="#2A5080"];
-            body_wash -> body_mix [penwidth=2, color="#2A5080"];
-        }
-
-        // --- Granular atmosphere (parallel) ---
-        subgraph cluster_atmos {
-            label="Granular Atmosphere (parallel layer, wet only)";
-            style=dashed;
-            color="#4A90D9";
-            bgcolor="#DDE8F5";
-
-            atmos_capture [label="Capture Ring\\n(records the post-body\\nsignal continuously)", shape=box, fillcolor="#6AABEA"];
-            atmos_grains [label="Grain Engine\\n0.1-20 grains/s, 0.05-30 s each\\nposition, pitch (+/-24 st), jitter,\\npan spread, decorrelation, blur,\\n6 window shapes, freeze", shape=box, fillcolor="#6AABEA"];
-            grain_drift [label="Grain Drift Lanes\\nper-grain OU pitch/position\\ndrift, 0-12 st", shape=ellipse, fillcolor="#F5C878"];
-
-            atmos_capture -> atmos_grains [penwidth=2, color="#2A5080"];
-            grain_drift -> atmos_grains [style=dashed, color="#C88820"];
-        }
-
-        voice_sum [label="Voice Bus\\nbody + atmosphere", shape=box, fillcolor="#6AABEA"];
-
-        // --- Spatial stage ---
-        subgraph cluster_spatial {
-            label="Spatial Stage";
-            style=dashed;
-            color="#4A90D9";
-            bgcolor="#DDE8F5";
-
-            orbit [label="Orbit Modulator\\ndepth, rate (0.01-0.5 Hz),\\naxis coupling, growth", shape=ellipse, fillcolor="#F5C878"];
-            spatial [label="Azimuth + Width\\nequal-power balance (orbit x)\\nvoice width 50-150% (orbit y)\\nMid/Side matrix", shape=box, fillcolor="#6AABEA"];
-
-            orbit -> spatial [style=dashed, color="#C88820", label="x = azimuth\\ny = width"];
-        }
-
-        // --- Audio flow within the voice ---
-        morph_engine -> cloud [style=dashed, color="#C88820", penwidth=2, label="target spectrum\\n(ratios + amplitudes)"];
-        cloud_drift -> cloud [style=dashed, color="#C88820"];
-        cloud -> voice_env [penwidth=2, color="#2A5080"];
-        voice_env -> body_agc [penwidth=2, color="#2A5080"];
-        body_mix -> atmos_capture [penwidth=2, color="#2A5080"];
-        body_mix -> voice_sum [penwidth=2, color="#2A5080"];
-        atmos_grains -> voice_sum [penwidth=2, color="#2A5080", label="wet\\ntexture"];
-        voice_sum -> spatial [penwidth=2, color="#2A5080"];
-    }
-
-    voice_alloc -> morph_states [lhead=cluster_voice, penwidth=2, label="note on/off\\nper voice"];
-
-    // =========================================================================
-    // ENGINE SUMMING
-    // =========================================================================
-    engine_sum [label="Voice Summation\\n16 voices → Stereo L/R\\n× 1/√polyphony gain\\n+ per-sample finiteness guard", shape=box, fillcolor="#4A90D9", fontcolor="white"];
-
-    spatial -> engine_sum [penwidth=2, color="#2A5080"];
-
-    // =========================================================================
-    // AETHER — THE SPACE ENGINE (in the path, before the effects)
-    // =========================================================================
-    subgraph cluster_aether {
-        label="Aether  —  The Space Engine (in the signal path)";
-        style=rounded;
-        color="#9B6BBF";
-        bgcolor="#F3ECF9";
-        fontsize=13;
-        fontcolor="#6B3B9F";
-        penwidth=2;
-
-        aether_predelay [label="Pre-Delay\\n0-200 ms", shape=box, fillcolor="#C49EE0"];
-        aether_diffuser [label="Input Diffuser\\n(density)", shape=box, fillcolor="#C49EE0"];
-        aether_fdn [label="FDN Reverb Core\\nN modulated delay lines\\ndecay 0.5-60 s, damping,\\ndimensionality, freeze\\n(latched, energy-conserving)", shape=box, fillcolor="#C49EE0"];
-        aether_shimmer [label="Shimmer Taps\\n+12 st and +7 st returns\\nfed back into the tail", shape=box, fillcolor="#C49EE0"];
-        aether_bloom [label="Harmonic Bloom\\n32-slot sympathetic\\nresonator bank tuned to\\nheld notes", shape=box, fillcolor="#C49EE0"];
-        aether_width [label="M/S Width\\n(wet only)", shape=box, fillcolor="#C49EE0"];
-        aether_specdiff [label="Spectral Diffusion\\nSTFT smear (FFT 1024)\\n— the plugin's constant\\n1024-sample latency", shape=box, fillcolor="#C49EE0"];
-        aether_mix [label="Dry / Wet Mix\\n(equal-power)", shape=box, fillcolor="#C49EE0"];
-
-        // Internal life modulators
-        aether_breath [label="Breathing Modulator\\nsize breath (20 s cycle)", shape=ellipse, fillcolor="#F5C878"];
-        aether_tide [label="Tidal Modulator\\ndimensionality tide (30 s)", shape=ellipse, fillcolor="#F5C878"];
-        aether_drift [label="Brownian Drift\\nper-line delay jitter", shape=ellipse, fillcolor="#F5C878"];
-
-        aether_predelay -> aether_diffuser [penwidth=2, color="#6B3B9F"];
-        aether_diffuser -> aether_fdn [penwidth=2, color="#6B3B9F"];
-        aether_fdn -> aether_shimmer [penwidth=2, color="#6B3B9F", dir=both, label="1 chunk\\nlate"];
-        aether_fdn -> aether_bloom [penwidth=2, color="#6B3B9F", dir=both, label="tap sum /\\nre-injection"];
-        aether_fdn -> aether_width [penwidth=2, color="#6B3B9F", label="output taps\\n(pre-damping)"];
-        aether_width -> aether_specdiff [penwidth=2, color="#6B3B9F"];
-        aether_specdiff -> aether_mix [penwidth=2, color="#6B3B9F"];
-
-        aether_breath -> aether_fdn [style=dashed, color="#C88820", label="size"];
-        aether_tide -> aether_fdn [style=dashed, color="#C88820", label="dimension"];
-        aether_drift -> aether_fdn [style=dashed, color="#C88820", label="line\\nlengths"];
-    }
-
-    engine_sum -> aether_predelay [penwidth=2, color="#2A5080", label="dry (also fed\\nforward to mix)"];
-
-    master_gain [label="Master Gain\\n(0-200%, on the reverb\\nreturn, before the FX)", shape=box, fillcolor="#888888", fontcolor="white"];
-
-    aether_mix -> master_gain [penwidth=2, color="#2A5080"];
-
-    // =========================================================================
-    // EFFECTS STAGE
-    // =========================================================================
-    subgraph cluster_fx {
-        label="Effects Stage";
-        style=rounded;
-        color="#9B6BBF";
-        bgcolor="#F3ECF9";
-        fontsize=13;
-        fontcolor="#6B3B9F";
-        penwidth=2;
-
-        subgraph cluster_delay {
-            label="Spectral Delay (parallel send, per-bin FFT)";
-            style=dashed;
-            color="#9B6BBF";
-            bgcolor="#EAE0F2";
-
-            spec_delay [label="Spectral Delay\\neach frequency bin delayed\\nindependently: time 0-2 s,\\nspread across bins (3 directions),\\ntilt-compensated feedback (≤0.95),\\ndiffusion, width, tempo sync", shape=box, fillcolor="#C49EE0"];
-            spec_freeze [label="Spectral Freeze\\n(lives inside the delay:\\ncaptures and holds the\\ncurrent spectrum)", shape=box, fillcolor="#C49EE0"];
-
-            spec_freeze -> spec_delay [style=dashed, color="#6B3B9F"];
-        }
-
-        fx_return [label="Send Return\\n(delay mix)", shape=box, fillcolor="#C49EE0"];
-
-        subgraph cluster_stereo {
-            label="Stereo Stage";
-            style=dashed;
-            color="#9B6BBF";
-            bgcolor="#EAE0F2";
-
-            stereo_stage [label="Global M/S Width\\n0-200% + equal-power\\nazimuth balance", shape=box, fillcolor="#C49EE0"];
-            width_wander [label="Width Wander\\nBrownian drift", shape=ellipse, fillcolor="#F5C878"];
-            azimuth_wander [label="Azimuth Wander\\nBrownian drift", shape=ellipse, fillcolor="#F5C878"];
-
-            width_wander -> stereo_stage [style=dashed, color="#C88820"];
-            azimuth_wander -> stereo_stage [style=dashed, color="#C88820"];
-        }
-
-        spec_delay -> fx_return [penwidth=2, color="#6B3B9F"];
-    }
-
-    master_gain -> spec_delay [penwidth=2, color="#2A5080", label="send"];
-    master_gain -> fx_return [penwidth=2, color="#2A5080", label="dry"];
-    fx_return -> stereo_stage [penwidth=2, color="#2A5080"];
-
-    // =========================================================================
-    // OUTPUT STAGE
-    // =========================================================================
-    subgraph cluster_output {
-        label="Output Stage (always last)";
-        style=rounded;
-        color="#666666";
-        bgcolor="#F0F0F0";
-
-        saturator [label="Tape Saturator\\n(the Soft Limit switch:\\nON = warm ceiling,\\nOFF = clean)", shape=box, fillcolor="#888888", fontcolor="white"];
-        limiter [label="True-Peak Limiter\\n(ALWAYS on —\\nno bypass path)", shape=box, fillcolor="#888888", fontcolor="white"];
-        output [label="Audio Output\\nL / R", shape=invhouse, fillcolor="#CCDDEE"];
-
-        saturator -> limiter [penwidth=2];
-        limiter -> output [penwidth=2];
-    }
-
-    stereo_stage -> saturator [penwidth=2, color="#2A5080"];
-
-    // =========================================================================
-    // MACRO MATRIX
-    // =========================================================================
-    subgraph cluster_macros {
-        label="Macro Matrix  —  5 Macros x 32 Routes, 3 Target Owners";
-        style=rounded;
-        color="#6BBF6B";
-        bgcolor="#E5F5E5";
-        fontsize=13;
-        fontcolor="#3A8F3A";
-        penwidth=2;
-
-        m_dream [label="DREAM\\npurifies harmonics,\\ndeepens the space", shape=ellipse, fillcolor="#8ED08E"];
-        m_bloom [label="BLOOM\\nopens upper partials,\\nshimmer and width", shape=ellipse, fillcolor="#8ED08E"];
-        m_dissolve [label="DISSOLVE\\nmelts into granular\\nfog, slower envelopes", shape=ellipse, fillcolor="#8ED08E"];
-        m_gravity [label="GRAVITY\\n(bipolar)\\nair ↔ stone", shape=ellipse, fillcolor="#8ED08E"];
-        m_entropy [label="ENTROPY\\ndecays order into\\njitter and detune", shape=ellipse, fillcolor="#8ED08E"];
-
-        macro_matrix [label="SeraphisMacroMatrix\\n\\ndeep parameters set the base,\\nmacros add travel on top\\n(clamped by each target setter)\\n\\n19 voice targets\\n8 Aether targets\\n2 effects targets", shape=diamond, fillcolor="#8ED08E"];
-
-        m_dream -> macro_matrix [style=dashed, color="#3A8F3A"];
-        m_bloom -> macro_matrix [style=dashed, color="#3A8F3A"];
-        m_dissolve -> macro_matrix [style=dashed, color="#3A8F3A"];
-        m_gravity -> macro_matrix [style=dashed, color="#3A8F3A"];
-        m_entropy -> macro_matrix [style=dashed, color="#3A8F3A"];
-    }
-
-    macro_matrix -> cloud [style=bold, color="#3A8F3A", label="→ all voices:\\ncloud, morph, body,\\natmos, orbit, envelope", constraint=false, lhead=cluster_voice];
-    macro_matrix -> aether_fdn [style=bold, color="#3A8F3A", label="mix, size, width,\\nshimmer, bloom,\\nbreath, tide", constraint=false, lhead=cluster_aether];
-    macro_matrix -> spec_delay [style=bold, color="#3A8F3A", label="delay send\\n(Dissolve)", constraint=false];
-    macro_matrix -> stereo_stage [style=bold, color="#3A8F3A", label="wander depth\\n(Entropy)", constraint=false];
-
-    // =========================================================================
-    // CROSS-SYSTEM CONNECTIONS
-    // =========================================================================
-    host_tempo -> morph_engine [style=dashed, color="#888888", label="travel sync\\n(1/16 - 8 bars)"];
-    host_tempo -> spec_delay [style=dashed, color="#888888", label="delay sync\\n(1/64T - 1/8T)"];
-    seed -> cloud_drift [style=dashed, color="#888888"];
-    seed -> aether_drift [style=dashed, color="#888888"];
-    seed -> width_wander [style=dashed, color="#888888"];
-
-    // =========================================================================
-    // PROCESSING NOTES
-    // =========================================================================
-    subgraph cluster_rates {
-        label="Processing Notes";
-        style=rounded;
-        color="#888888";
-        bgcolor="#FAFAFA";
-        node [shape=plaintext, fillcolor="#FAFAFA"];
-
-        rates [label=<
-            <TABLE BORDER="0" CELLBORDER="0" CELLSPACING="4">
-            <TR><TD ALIGN="LEFT"><B>Control rate:</B></TD><TD ALIGN="LEFT">64-sample chunks (voice, body, Aether); morph drives the cloud's target spectrum, it processes no audio</TD></TR>
-            <TR><TD ALIGN="LEFT"><B>Macro matrix:</B></TD><TD ALIGN="LEFT">applied every slice on the audio thread; neutral macros contribute exactly zero</TD></TR>
-            <TR><TD ALIGN="LEFT"><B>Voice envelope:</B></TD><TD ALIGN="LEFT">gates the cloud (excitation) only — body wash, grains and the Aether tail all ring past note-off</TD></TR>
-            <TR><TD ALIGN="LEFT"><B>Life modulators:</B></TD><TD ALIGN="LEFT">all OU / Brownian processes; they advance even for silent voices and an idle reverb, so nothing ever resets to a pose</TD></TR>
-            <TR><TD ALIGN="LEFT"><B>Latency:</B></TD><TD ALIGN="LEFT">constant 1024 samples — the Aether spectral-diffusion STFT; never re-announced</TD></TR>
-            <TR><TD ALIGN="LEFT"><B>Chain order:</B></TD><TD ALIGN="LEFT">voices → Aether → master gain → spectral delay send → stereo stage → saturator → true-peak limiter</TD></TR>
-            <TR><TD ALIGN="LEFT"><B>Seed:</B></TD><TD ALIGN="LEFT">one dropdown reseeds every stochastic process (per-voice salts × cloud/morph/body/atmos/orbit + Aether + FX)</TD></TR>
-            </TABLE>
-        >];
-    }
-}
-`;
-
         const container = document.getElementById("diagram-container");
         const diagramEl = document.getElementById("diagram");
         const loadingEl = document.getElementById("loading");
@@ -601,19 +1246,11 @@
         container.addEventListener("touchend", () => { lastTouch = null; });
 
         // Render
-        try {
-            const viz = await instance();
-            const svg = viz.renderSVGElement(dotSource);
-            svg.style.width = "auto";
-            svg.style.height = "auto";
-            loadingEl.style.display = "none";
-            diagramEl.appendChild(svg);
-            fitToScreen();
-        } catch (err) {
-            loadingEl.style.display = "none";
-            errorEl.style.display = "block";
-            errorEl.textContent = "Failed to render diagram: " + err.message;
-        }
+        const svg = diagramEl.querySelector("svg");
+        svg.style.width = "auto";
+        svg.style.height = "auto";
+        loadingEl.style.display = "none";
+        fitToScreen();
     </script>
 </body>
 </html>

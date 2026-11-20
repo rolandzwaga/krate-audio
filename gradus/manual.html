@@ -3,31 +3,91 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gradus User Manual - Step Arpeggiator | Krate Audio</title>
+    <title>Gradus User Manual – Step Arpeggiator | Krate Audio</title>
     <meta name="description" content="Complete user manual for Gradus, a free open-source polymetric step arpeggiator VST3 plugin. Covers arp modes, lanes, speed curves, Markov chains, and presets.">
-    <meta name="robots" content="index, follow">
     <link rel="canonical" href="https://krateaudio.com/gradus/manual.html">
-
-    <!-- Open Graph -->
-    <meta property="og:title" content="Gradus User Manual - Step Arpeggiator">
-    <meta property="og:description" content="Complete user manual for Gradus, a free open-source polymetric step arpeggiator VST3 plugin.">
+    <meta property="og:title" content="Gradus User Manual – Step Arpeggiator">
+    <meta property="og:description" content="Complete user manual for Gradus, a free open-source polymetric step arpeggiator VST3 plugin. Covers arp modes, lanes, speed curves, Markov chains, and presets.">
     <meta property="og:type" content="article">
     <meta property="og:url" content="https://krateaudio.com/gradus/manual.html">
+    <meta name="robots" content="index, follow, max-image-preview:large">
+    <meta name="theme-color" content="#0a0a0f">
+    <link rel="icon" href="/favicon.ico" sizes="32x32">
+    <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+    <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+    <link rel="preload" href="/assets/fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="stylesheet" href="/assets/site.css">
     <meta property="og:site_name" content="Krate Audio">
     <meta property="og:locale" content="en_US">
-
-    <!-- Twitter Card -->
-    <meta name="twitter:card" content="summary">
-    <meta name="twitter:title" content="Gradus User Manual">
-    <meta name="twitter:description" content="Complete user manual for Gradus, a free open-source polymetric step arpeggiator VST3 plugin.">
-
-    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-    <meta http-equiv="Pragma" content="no-cache">
-    <meta http-equiv="Expires" content="0">
-    <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <meta property="og:image" content="https://krateaudio.com/gradus/images/og-image.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="Gradus plugin editor">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content="https://krateaudio.com/gradus/images/og-image.png">
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "Organization",
+          "@id": "https://krateaudio.com/#organization",
+          "name": "Krate Audio",
+          "url": "https://krateaudio.com/",
+          "logo": {
+            "@type": "ImageObject",
+            "url": "https://krateaudio.com/assets/logo-512.png",
+            "width": 512,
+            "height": 512
+          },
+          "sameAs": [
+            "https://github.com/rolandzwaga"
+          ]
+        },
+        {
+          "@type": "TechArticle",
+          "headline": "Gradus User Manual – Step Arpeggiator",
+          "description": "Complete user manual for Gradus, a free open-source polymetric step arpeggiator VST3 plugin. Covers arp modes, lanes, speed curves, Markov chains, and presets.",
+          "url": "https://krateaudio.com/gradus/manual.html",
+          "inLanguage": "en",
+          "image": "https://krateaudio.com/gradus/images/og-image.png",
+          "about": {
+            "@id": "https://krateaudio.com/gradus/#software"
+          },
+          "author": {
+            "@id": "https://krateaudio.com/#organization"
+          },
+          "publisher": {
+            "@id": "https://krateaudio.com/#organization"
+          },
+          "dateModified": "2026-11-20T15:01:23+01:00"
+        },
+        {
+          "@type": "BreadcrumbList",
+          "itemListElement": [
+            {
+              "@type": "ListItem",
+              "position": 1,
+              "name": "Krate Audio",
+              "item": "https://krateaudio.com/"
+            },
+            {
+              "@type": "ListItem",
+              "position": 2,
+              "name": "Gradus",
+              "item": "https://krateaudio.com/gradus/"
+            },
+            {
+              "@type": "ListItem",
+              "position": 3,
+              "name": "User Manual",
+              "item": "https://krateaudio.com/gradus/manual.html"
+            }
+          ]
+        }
+      ]
+    }
+    </script>
     <style>
         /* Base — matches Gradus landing page */
         :root {
@@ -283,132 +343,114 @@
             <p class="subtitle">Polymetric Step Arpeggiator</p>
         </div>
 
-        <ul>
-        <li><a href="#introduction"
-        id="toc-introduction">Introduction</a>
-        <ul>
-        <li><a href="#quick-start" id="toc-quick-start">Quick
-        Start</a></li>
-        </ul></li>
-        <li><a href="#interface-overview"
-        id="toc-interface-overview">Interface Overview</a></li>
-        <li><a href="#control-row-1" id="toc-control-row-1">Control Row
-        1</a></li>
-        <li><a href="#control-row-2" id="toc-control-row-2">Control Row
-        2</a>
-        <ul>
-        <li><a href="#timing" id="toc-timing">Timing</a></li>
-        <li><a href="#euclidean" id="toc-euclidean">Euclidean</a></li>
-        <li><a href="#generative"
-        id="toc-generative">Generative</a></li>
-        </ul></li>
-        <li><a href="#arp-modes" id="toc-arp-modes">Arp Modes</a></li>
-        <li><a href="#ring-display" id="toc-ring-display">Ring
-        Display</a>
-        <ul>
-        <li><a href="#direct-ring-editing"
-        id="toc-direct-ring-editing">Direct Ring Editing</a></li>
-        <li><a href="#euclidean-visualizer"
-        id="toc-euclidean-visualizer">Euclidean Visualizer</a></li>
-        </ul></li>
-        <li><a href="#detail-strip" id="toc-detail-strip">Detail
-        Strip</a>
-        <ul>
-        <li><a href="#lane-tabs" id="toc-lane-tabs">Lane Tabs</a></li>
-        <li><a href="#lane-editor" id="toc-lane-editor">Lane
-        Editor</a></li>
-        <li><a href="#per-lane-controls"
-        id="toc-per-lane-controls">Per-Lane Controls</a></li>
-        <li><a href="#lane-transforms" id="toc-lane-transforms">Lane
-        Transforms</a></li>
-        <li><a href="#per-lane-speed" id="toc-per-lane-speed">Per-Lane
-        Speed</a></li>
-        </ul></li>
-        <li><a href="#speed-curve" id="toc-speed-curve">Speed Curve</a>
-        <ul>
-        <li><a href="#enabling" id="toc-enabling">Enabling</a></li>
-        <li><a href="#curve-editor" id="toc-curve-editor">Curve
-        Editor</a></li>
-        <li><a href="#editing-the-curve"
-        id="toc-editing-the-curve">Editing the Curve</a></li>
-        <li><a href="#how-it-works" id="toc-how-it-works">How It
-        Works</a></li>
-        </ul></li>
-        <li><a href="#step-pinning" id="toc-step-pinning">Step
-        Pinning</a>
-        <ul>
-        <li><a href="#pin-grid" id="toc-pin-grid">Pin Grid</a></li>
-        <li><a href="#parameters"
-        id="toc-parameters">Parameters</a></li>
-        </ul></li>
-        <li><a href="#note-range-mapping"
-        id="toc-note-range-mapping">Note Range Mapping</a></li>
-        <li><a href="#midi-delay-lane" id="toc-midi-delay-lane">MIDI
-        Delay Lane</a>
-        <ul>
-        <li><a href="#grid-editor" id="toc-grid-editor">Grid
-        Editor</a></li>
-        <li><a href="#scrolling" id="toc-scrolling">Scrolling</a></li>
-        <li><a href="#per-step-active-toggle"
-        id="toc-per-step-active-toggle">Per-Step Active Toggle</a></li>
-        <li><a href="#how-echo-processing-works"
-        id="toc-how-echo-processing-works">How Echo Processing
-        Works</a></li>
-        <li><a href="#tempo-synced-delays"
-        id="toc-tempo-synced-delays">Tempo-Synced Delays</a></li>
-        </ul></li>
-        <li><a href="#markov-chain-mode"
-        id="toc-markov-chain-mode">Markov Chain Mode</a>
-        <ul>
-        <li><a href="#how-it-works-1" id="toc-how-it-works-1">How It
-        Works</a></li>
-        <li><a href="#matrix-editor" id="toc-matrix-editor">Matrix
-        Editor</a></li>
-        </ul></li>
-        <li><a href="#audition-synth" id="toc-audition-synth">Audition
-        Synth</a></li>
-        <li><a href="#preset-browser" id="toc-preset-browser">Preset
-        Browser</a>
-        <ul>
-        <li><a href="#saving-presets" id="toc-saving-presets">Saving
-        Presets</a></li>
-        <li><a href="#preset-sharing-with-ruinae"
-        id="toc-preset-sharing-with-ruinae">Preset Sharing with
-        Ruinae</a></li>
-        </ul></li>
-        <li><a href="#midi-output" id="toc-midi-output">MIDI
-        Output</a></li>
-        <li><a href="#tips-and-techniques"
-        id="toc-tips-and-techniques">Tips and Techniques</a>
-        <ul>
-        <li><a href="#creating-polymetric-patterns"
-        id="toc-creating-polymetric-patterns">Creating Polymetric
-        Patterns</a></li>
-        <li><a href="#accelerando-ritardando"
-        id="toc-accelerando-ritardando">Accelerando /
-        Ritardando</a></li>
-        <li><a href="#evolving-patterns-with-jitter"
-        id="toc-evolving-patterns-with-jitter">Evolving Patterns with
-        Jitter</a></li>
-        <li><a href="#anchoring-with-pin-notes"
-        id="toc-anchoring-with-pin-notes">Anchoring with Pin
-        Notes</a></li>
-        <li><a href="#probabilistic-melodies-with-markov"
-        id="toc-probabilistic-melodies-with-markov">Probabilistic
-        Melodies with Markov</a></li>
-        <li><a href="#bouncing-ball-ratchets"
-        id="toc-bouncing-ball-ratchets">Bouncing Ball Ratchets</a></li>
-        <li><a href="#harmonic-echo-cascades"
-        id="toc-harmonic-echo-cascades">Harmonic Echo Cascades</a></li>
-        <li><a href="#rhythmic-delay-patterns"
-        id="toc-rhythmic-delay-patterns">Rhythmic Delay
-        Patterns</a></li>
-        <li><a href="#fading-canon" id="toc-fading-canon">Fading
-        Canon</a></li>
-        </ul></li>
-        <li><a href="#system-requirements"
-        id="toc-system-requirements">System Requirements</a></li>
-        </ul>
+        <nav id="TOC" aria-label="Contents">
+<ul>
+<li><a href="#introduction" id="toc-introduction">Introduction</a>
+<ul>
+<li><a href="#quick-start" id="toc-quick-start">Quick Start</a></li>
+</ul></li>
+<li><a href="#interface-overview" id="toc-interface-overview">Interface
+Overview</a></li>
+<li><a href="#control-row-1" id="toc-control-row-1">Control Row
+1</a></li>
+<li><a href="#control-row-2" id="toc-control-row-2">Control Row 2</a>
+<ul>
+<li><a href="#timing" id="toc-timing">Timing</a></li>
+<li><a href="#euclidean" id="toc-euclidean">Euclidean</a></li>
+<li><a href="#generative" id="toc-generative">Generative</a></li>
+</ul></li>
+<li><a href="#arp-modes" id="toc-arp-modes">Arp Modes</a></li>
+<li><a href="#ring-display" id="toc-ring-display">Ring Display</a>
+<ul>
+<li><a href="#direct-ring-editing" id="toc-direct-ring-editing">Direct
+Ring Editing</a></li>
+<li><a href="#euclidean-visualizer"
+id="toc-euclidean-visualizer">Euclidean Visualizer</a></li>
+</ul></li>
+<li><a href="#detail-strip" id="toc-detail-strip">Detail Strip</a>
+<ul>
+<li><a href="#lane-tabs" id="toc-lane-tabs">Lane Tabs</a></li>
+<li><a href="#lane-editor" id="toc-lane-editor">Lane Editor</a></li>
+<li><a href="#per-lane-controls" id="toc-per-lane-controls">Per-Lane
+Controls</a></li>
+<li><a href="#lane-transforms" id="toc-lane-transforms">Lane
+Transforms</a></li>
+<li><a href="#per-lane-speed" id="toc-per-lane-speed">Per-Lane
+Speed</a></li>
+</ul></li>
+<li><a href="#speed-curve" id="toc-speed-curve">Speed Curve</a>
+<ul>
+<li><a href="#enabling" id="toc-enabling">Enabling</a></li>
+<li><a href="#curve-editor" id="toc-curve-editor">Curve Editor</a></li>
+<li><a href="#editing-the-curve" id="toc-editing-the-curve">Editing the
+Curve</a></li>
+<li><a href="#how-it-works" id="toc-how-it-works">How It Works</a></li>
+</ul></li>
+<li><a href="#step-pinning" id="toc-step-pinning">Step Pinning</a>
+<ul>
+<li><a href="#pin-grid" id="toc-pin-grid">Pin Grid</a></li>
+<li><a href="#parameters" id="toc-parameters">Parameters</a></li>
+</ul></li>
+<li><a href="#note-range-mapping" id="toc-note-range-mapping">Note Range
+Mapping</a></li>
+<li><a href="#midi-delay-lane" id="toc-midi-delay-lane">MIDI Delay
+Lane</a>
+<ul>
+<li><a href="#grid-editor" id="toc-grid-editor">Grid Editor</a></li>
+<li><a href="#scrolling" id="toc-scrolling">Scrolling</a></li>
+<li><a href="#per-step-active-toggle"
+id="toc-per-step-active-toggle">Per-Step Active Toggle</a></li>
+<li><a href="#how-echo-processing-works"
+id="toc-how-echo-processing-works">How Echo Processing Works</a></li>
+<li><a href="#tempo-synced-delays"
+id="toc-tempo-synced-delays">Tempo-Synced Delays</a></li>
+</ul></li>
+<li><a href="#markov-chain-mode" id="toc-markov-chain-mode">Markov Chain
+Mode</a>
+<ul>
+<li><a href="#how-it-works-1" id="toc-how-it-works-1">How It
+Works</a></li>
+<li><a href="#matrix-editor" id="toc-matrix-editor">Matrix
+Editor</a></li>
+</ul></li>
+<li><a href="#audition-synth" id="toc-audition-synth">Audition
+Synth</a></li>
+<li><a href="#preset-browser" id="toc-preset-browser">Preset Browser</a>
+<ul>
+<li><a href="#saving-presets" id="toc-saving-presets">Saving
+Presets</a></li>
+<li><a href="#preset-sharing-with-ruinae"
+id="toc-preset-sharing-with-ruinae">Preset Sharing with Ruinae</a></li>
+</ul></li>
+<li><a href="#midi-output" id="toc-midi-output">MIDI Output</a></li>
+<li><a href="#tips-and-techniques" id="toc-tips-and-techniques">Tips and
+Techniques</a>
+<ul>
+<li><a href="#creating-polymetric-patterns"
+id="toc-creating-polymetric-patterns">Creating Polymetric
+Patterns</a></li>
+<li><a href="#accelerando-ritardando"
+id="toc-accelerando-ritardando">Accelerando / Ritardando</a></li>
+<li><a href="#evolving-patterns-with-jitter"
+id="toc-evolving-patterns-with-jitter">Evolving Patterns with
+Jitter</a></li>
+<li><a href="#anchoring-with-pin-notes"
+id="toc-anchoring-with-pin-notes">Anchoring with Pin Notes</a></li>
+<li><a href="#probabilistic-melodies-with-markov"
+id="toc-probabilistic-melodies-with-markov">Probabilistic Melodies with
+Markov</a></li>
+<li><a href="#bouncing-ball-ratchets"
+id="toc-bouncing-ball-ratchets">Bouncing Ball Ratchets</a></li>
+<li><a href="#harmonic-echo-cascades"
+id="toc-harmonic-echo-cascades">Harmonic Echo Cascades</a></li>
+<li><a href="#rhythmic-delay-patterns"
+id="toc-rhythmic-delay-patterns">Rhythmic Delay Patterns</a></li>
+<li><a href="#fading-canon" id="toc-fading-canon">Fading Canon</a></li>
+</ul></li>
+<li><a href="#system-requirements" id="toc-system-requirements">System
+Requirements</a></li>
+</ul>
+        </nav>
         <h2 id="introduction">Introduction</h2>
         <p>Gradus is a standalone step arpeggiator and MIDI pattern
         generator. It takes held notes and transforms them into complex,
@@ -437,6 +479,10 @@
         </ol>
         <hr />
         <h2 id="interface-overview">Interface Overview</h2>
+        <figure>
+        <img src="images/hero.png" alt="The Gradus editor" width="1100" height="816" loading="lazy" decoding="async">
+        <figcaption aria-hidden="true">The Gradus editor</figcaption>
+        </figure>
         <p>The interface is organized into three zones:</p>
         <ul>
         <li><strong>Control Rows</strong> (top) — Global arp parameters:
@@ -452,6 +498,10 @@
         </ul>
         <hr />
         <h2 id="control-row-1">Control Row 1</h2>
+        <figure>
+        <img src="images/control-row-1.png" alt="Control row 1" width="1100" height="32" loading="lazy" decoding="async">
+        <figcaption aria-hidden="true">Control row 1</figcaption>
+        </figure>
         <p>The first control row holds the core arp settings:</p>
         <ul>
         <li><strong>Pattern</strong> — Selects the arp mode (see <a
@@ -478,6 +528,12 @@
         </ul>
         <hr />
         <h2 id="control-row-2">Control Row 2</h2>
+        <figure>
+        <img src="images/control-row-2.png"
+        alt="Control row 2: timing, Euclidean and generative controls" width="1100" height="44" loading="lazy" decoding="async">
+        <figcaption aria-hidden="true">Control row 2: timing, Euclidean
+        and generative controls</figcaption>
+        </figure>
         <p>The second control row holds timing and generative
         controls:</p>
         <h3 id="timing">Timing</h3>
@@ -590,6 +646,10 @@
         </table>
         <hr />
         <h2 id="ring-display">Ring Display</h2>
+        <figure>
+        <img src="images/ring-display.png" alt="The ring display" width="660" height="660" loading="lazy" decoding="async">
+        <figcaption aria-hidden="true">The ring display</figcaption>
+        </figure>
         <p>The circular ring display provides a visual overview of all 9
         lanes simultaneously. Steps are arranged radially around
         concentric rings:</p>
@@ -617,9 +677,21 @@
         of the ring shows the current Euclidean rhythm distribution.</p>
         <hr />
         <h2 id="detail-strip">Detail Strip</h2>
+        <figure>
+        <img src="images/lane-velocity.png"
+        alt="The detail strip on the Velocity lane" width="416" height="660" loading="lazy" decoding="async">
+        <figcaption aria-hidden="true">The detail strip on the Velocity
+        lane</figcaption>
+        </figure>
         <p>The detail strip on the right side provides precise linear
         editing for one lane at a time.</p>
         <h3 id="lane-tabs">Lane Tabs</h3>
+        <figure>
+        <img src="images/lane-chord.png"
+        alt="The detail strip on the Chord lane" width="416" height="660" loading="lazy" decoding="async">
+        <figcaption aria-hidden="true">The detail strip on the Chord
+        lane</figcaption>
+        </figure>
         <p>Nine color-coded tabs select the active lane: -
         <strong>VEL</strong> (copper) — Velocity per step (0-100%) -
         <strong>GATE</strong> (sand) — Gate length per step (0-100%) -
@@ -638,6 +710,12 @@
         drag to edit values. The lane header shows the lane name, step
         count (adjustable 1-32), and speed multiplier.</p>
         <h3 id="per-lane-controls">Per-Lane Controls</h3>
+        <figure>
+        <img src="images/lane-ratchet.png"
+        alt="The detail strip on the Ratchet lane" width="416" height="660" loading="lazy" decoding="async">
+        <figcaption aria-hidden="true">The detail strip on the Ratchet
+        lane</figcaption>
+        </figure>
         <p>When a lane tab is selected, contextual controls appear:</p>
         <ul>
         <li><strong>Swing</strong> — Per-lane swing amount (0-75%). Each
@@ -721,6 +799,12 @@
         slow down to near 0x (clamped to 0.1x minimum)</p>
         <hr />
         <h2 id="step-pinning">Step Pinning</h2>
+        <figure>
+        <img src="images/lane-pitch.png"
+        alt="The Pitch lane with the pin grid and note-range controls" width="416" height="660" loading="lazy" decoding="async">
+        <figcaption aria-hidden="true">The Pitch lane with the pin grid
+        and note-range controls</figcaption>
+        </figure>
         <p>Step Pinning lets you lock specific steps to a fixed MIDI
         note, creating pedal tones, drone notes, or anchor points within
         moving patterns.</p>
@@ -758,6 +842,11 @@
         </ul>
         <hr />
         <h2 id="midi-delay-lane">MIDI Delay Lane</h2>
+        <figure>
+        <img src="images/lane-midi-delay.png"
+        alt="The MIDI Delay lane" width="416" height="660" loading="lazy" decoding="async">
+        <figcaption aria-hidden="true">The MIDI Delay lane</figcaption>
+        </figure>
         <p>The MIDI Delay lane is a per-step echo post-processor that
         generates delayed copies of arp output notes as real MIDI
         events. Unlike audio delay effects, MIDI delays produce new
@@ -907,6 +996,12 @@
         don’t need to manually balance probabilities.</p>
         <hr />
         <h2 id="audition-synth">Audition Synth</h2>
+        <figure>
+        <img src="images/audition.png"
+        alt="The audition synth footer" width="1100" height="34" loading="lazy" decoding="async">
+        <figcaption aria-hidden="true">The audition synth
+        footer</figcaption>
+        </figure>
         <p>Gradus includes a lightweight built-in synthesizer for
         previewing patterns without routing to an external instrument.
         The audition synth defaults to off and is session-only — its

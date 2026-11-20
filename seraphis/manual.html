@@ -3,31 +3,91 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Seraphis User Manual - Spectral Organism Synthesizer | Krate Audio</title>
-    <meta name="description" content="Complete user manual for Seraphis, a free open-source spectral organism synthesizer VST3 plugin. Covers the harmonic cloud, spectral morphing, life modulators, body, atmosphere, Aether, effects, macros, and presets.">
-    <meta name="robots" content="index, follow">
+    <title>Seraphis User Manual – Spectral Synthesizer | Krate Audio</title>
+    <meta name="description" content="User manual for Seraphis, the free spectral synthesizer VST3 plugin: the cloud view, five macros, the drawer pages, life modulators and presets.">
     <link rel="canonical" href="https://krateaudio.com/seraphis/manual.html">
-
-    <!-- Open Graph -->
-    <meta property="og:title" content="Seraphis User Manual - Spectral Organism Synthesizer">
-    <meta property="og:description" content="Complete user manual for Seraphis, a free open-source spectral organism synthesizer VST3 plugin.">
+    <meta property="og:title" content="Seraphis User Manual – Spectral Synthesizer">
+    <meta property="og:description" content="User manual for Seraphis, the free spectral synthesizer VST3 plugin: the cloud view, five macros, the drawer pages, life modulators and presets.">
     <meta property="og:type" content="article">
     <meta property="og:url" content="https://krateaudio.com/seraphis/manual.html">
+    <meta name="robots" content="index, follow, max-image-preview:large">
+    <meta name="theme-color" content="#0a0a0f">
+    <link rel="icon" href="/favicon.ico" sizes="32x32">
+    <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+    <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+    <link rel="preload" href="/assets/fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="stylesheet" href="/assets/site.css">
     <meta property="og:site_name" content="Krate Audio">
     <meta property="og:locale" content="en_US">
-
-    <!-- Twitter Card -->
-    <meta name="twitter:card" content="summary">
-    <meta name="twitter:title" content="Seraphis User Manual">
-    <meta name="twitter:description" content="Complete user manual for Seraphis, a free open-source spectral organism synthesizer VST3 plugin.">
-
-    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-    <meta http-equiv="Pragma" content="no-cache">
-    <meta http-equiv="Expires" content="0">
-    <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <meta property="og:image" content="https://krateaudio.com/seraphis/images/og-image.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="Seraphis plugin editor">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content="https://krateaudio.com/seraphis/images/og-image.png">
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "Organization",
+          "@id": "https://krateaudio.com/#organization",
+          "name": "Krate Audio",
+          "url": "https://krateaudio.com/",
+          "logo": {
+            "@type": "ImageObject",
+            "url": "https://krateaudio.com/assets/logo-512.png",
+            "width": 512,
+            "height": 512
+          },
+          "sameAs": [
+            "https://github.com/rolandzwaga"
+          ]
+        },
+        {
+          "@type": "TechArticle",
+          "headline": "Seraphis User Manual – Spectral Synthesizer",
+          "description": "User manual for Seraphis, the free spectral synthesizer VST3 plugin: the cloud view, five macros, the drawer pages, life modulators and presets.",
+          "url": "https://krateaudio.com/seraphis/manual.html",
+          "inLanguage": "en",
+          "image": "https://krateaudio.com/seraphis/images/og-image.png",
+          "about": {
+            "@id": "https://krateaudio.com/seraphis/#software"
+          },
+          "author": {
+            "@id": "https://krateaudio.com/#organization"
+          },
+          "publisher": {
+            "@id": "https://krateaudio.com/#organization"
+          },
+          "dateModified": "2026-11-20T15:01:23+01:00"
+        },
+        {
+          "@type": "BreadcrumbList",
+          "itemListElement": [
+            {
+              "@type": "ListItem",
+              "position": 1,
+              "name": "Krate Audio",
+              "item": "https://krateaudio.com/"
+            },
+            {
+              "@type": "ListItem",
+              "position": 2,
+              "name": "Seraphis",
+              "item": "https://krateaudio.com/seraphis/"
+            },
+            {
+              "@type": "ListItem",
+              "position": 3,
+              "name": "User Manual",
+              "item": "https://krateaudio.com/seraphis/manual.html"
+            }
+          ]
+        }
+      ]
+    }
+    </script>
     <style>
         /* Base — matches Seraphis landing page */
         :root {
@@ -283,77 +343,74 @@
             <p class="subtitle">Spectral Organism Synthesizer</p>
         </div>
 
-        <ul>
-        <li><a href="#introduction"
-        id="toc-introduction">Introduction</a></li>
-        <li><a href="#signal-flow" id="toc-signal-flow">Signal
-        Flow</a></li>
-        <li><a href="#interface-overview"
-        id="toc-interface-overview">Interface Overview</a></li>
-        <li><a href="#the-cloud-view" id="toc-the-cloud-view">The Cloud
-        View</a>
-        <ul>
-        <li><a href="#observe-mode" id="toc-observe-mode">Observe
-        mode</a></li>
-        <li><a href="#edit-mode-editing-partials"
-        id="toc-edit-mode-editing-partials">Edit mode — editing
-        partials</a></li>
-        </ul></li>
-        <li><a href="#macros" id="toc-macros">Macros</a>
-        <ul>
-        <li><a
-        href="#dream-purifies-the-harmonics-deepens-the-reverb-and-calms-entropy"
-        id="toc-dream-purifies-the-harmonics-deepens-the-reverb-and-calms-entropy">Dream
-        — <em>“Purifies the harmonics, deepens the reverb and calms
-        entropy”</em></a></li>
-        <li><a
-        href="#bloom-opens-upper-partials-shimmer-and-width-morphs-toward-brightness"
-        id="toc-bloom-opens-upper-partials-shimmer-and-width-morphs-toward-brightness">Bloom
-        — <em>“Opens upper partials, shimmer and width; morphs toward
-        brightness”</em></a></li>
-        <li><a
-        href="#dissolve-melts-the-tone-into-granular-fog-blur-and-slower-envelopes"
-        id="toc-dissolve-melts-the-tone-into-granular-fog-blur-and-slower-envelopes">Dissolve
-        — <em>“Melts the tone into granular fog, blur and slower
-        envelopes”</em></a></li>
-        <li><a href="#gravity-air-to-stone-axis-bipolar"
-        id="toc-gravity-air-to-stone-axis-bipolar">Gravity —
-        <em>“Air-to-stone axis”</em> (bipolar)</a></li>
-        <li><a
-        href="#entropy-decays-order-into-jitter-detune-and-partial-death-and-rebirth"
-        id="toc-entropy-decays-order-into-jitter-detune-and-partial-death-and-rebirth">Entropy
-        — <em>“Decays order into jitter, detune and partial death and
-        rebirth”</em></a></li>
-        </ul></li>
-        <li><a href="#header-controls" id="toc-header-controls">Header
-        Controls</a></li>
-        <li><a href="#the-drawer-cloud-tab"
-        id="toc-the-drawer-cloud-tab">The Drawer: Cloud Tab</a></li>
-        <li><a href="#the-drawer-morph-tab"
-        id="toc-the-drawer-morph-tab">The Drawer: Morph Tab</a></li>
-        <li><a href="#the-drawer-body-tab"
-        id="toc-the-drawer-body-tab">The Drawer: Body Tab</a></li>
-        <li><a href="#the-drawer-atmos-tab"
-        id="toc-the-drawer-atmos-tab">The Drawer: Atmos Tab</a></li>
-        <li><a href="#the-drawer-aether-tab"
-        id="toc-the-drawer-aether-tab">The Drawer: Aether Tab</a></li>
-        <li><a href="#the-drawer-fx-tab" id="toc-the-drawer-fx-tab">The
-        Drawer: FX Tab</a></li>
-        <li><a href="#the-drawer-lifeenv-tab"
-        id="toc-the-drawer-lifeenv-tab">The Drawer: Life/Env
-        Tab</a></li>
-        <li><a href="#presets" id="toc-presets">Presets</a>
-        <ul>
-        <li><a href="#factory-library" id="toc-factory-library">Factory
-        Library</a></li>
-        </ul></li>
-        <li><a href="#performance-notes"
-        id="toc-performance-notes">Performance Notes</a></li>
-        <li><a href="#cross-platform"
-        id="toc-cross-platform">Cross-Platform</a></li>
-        <li><a href="#tips-tricks" id="toc-tips-tricks">Tips &amp;
-        Tricks</a></li>
-        </ul>
+        <nav id="TOC" aria-label="Contents">
+<ul>
+<li><a href="#introduction" id="toc-introduction">Introduction</a></li>
+<li><a href="#signal-flow" id="toc-signal-flow">Signal Flow</a></li>
+<li><a href="#interface-overview" id="toc-interface-overview">Interface
+Overview</a></li>
+<li><a href="#the-cloud-view" id="toc-the-cloud-view">The Cloud View</a>
+<ul>
+<li><a href="#observe-mode" id="toc-observe-mode">Observe mode</a></li>
+<li><a href="#edit-mode-editing-partials"
+id="toc-edit-mode-editing-partials">Edit mode — editing
+partials</a></li>
+</ul></li>
+<li><a href="#macros" id="toc-macros">Macros</a>
+<ul>
+<li><a
+href="#dream-purifies-the-harmonics-deepens-the-reverb-and-calms-entropy"
+id="toc-dream-purifies-the-harmonics-deepens-the-reverb-and-calms-entropy">Dream
+— <em>“Purifies the harmonics, deepens the reverb and calms
+entropy”</em></a></li>
+<li><a
+href="#bloom-opens-upper-partials-shimmer-and-width-morphs-toward-brightness"
+id="toc-bloom-opens-upper-partials-shimmer-and-width-morphs-toward-brightness">Bloom
+— <em>“Opens upper partials, shimmer and width; morphs toward
+brightness”</em></a></li>
+<li><a
+href="#dissolve-melts-the-tone-into-granular-fog-blur-and-slower-envelopes"
+id="toc-dissolve-melts-the-tone-into-granular-fog-blur-and-slower-envelopes">Dissolve
+— <em>“Melts the tone into granular fog, blur and slower
+envelopes”</em></a></li>
+<li><a href="#gravity-air-to-stone-axis-bipolar"
+id="toc-gravity-air-to-stone-axis-bipolar">Gravity — <em>“Air-to-stone
+axis”</em> (bipolar)</a></li>
+<li><a
+href="#entropy-decays-order-into-jitter-detune-and-partial-death-and-rebirth"
+id="toc-entropy-decays-order-into-jitter-detune-and-partial-death-and-rebirth">Entropy
+— <em>“Decays order into jitter, detune and partial death and
+rebirth”</em></a></li>
+</ul></li>
+<li><a href="#header-controls" id="toc-header-controls">Header
+Controls</a></li>
+<li><a href="#the-drawer-cloud-tab" id="toc-the-drawer-cloud-tab">The
+Drawer: Cloud Tab</a></li>
+<li><a href="#the-drawer-morph-tab" id="toc-the-drawer-morph-tab">The
+Drawer: Morph Tab</a></li>
+<li><a href="#the-drawer-body-tab" id="toc-the-drawer-body-tab">The
+Drawer: Body Tab</a></li>
+<li><a href="#the-drawer-atmos-tab" id="toc-the-drawer-atmos-tab">The
+Drawer: Atmos Tab</a></li>
+<li><a href="#the-drawer-aether-tab" id="toc-the-drawer-aether-tab">The
+Drawer: Aether Tab</a></li>
+<li><a href="#the-drawer-fx-tab" id="toc-the-drawer-fx-tab">The Drawer:
+FX Tab</a></li>
+<li><a href="#the-drawer-lifeenv-tab"
+id="toc-the-drawer-lifeenv-tab">The Drawer: Life/Env Tab</a></li>
+<li><a href="#presets" id="toc-presets">Presets</a>
+<ul>
+<li><a href="#factory-library" id="toc-factory-library">Factory
+Library</a></li>
+</ul></li>
+<li><a href="#performance-notes" id="toc-performance-notes">Performance
+Notes</a></li>
+<li><a href="#cross-platform"
+id="toc-cross-platform">Cross-Platform</a></li>
+<li><a href="#tips-tricks" id="toc-tips-tricks">Tips &amp;
+Tricks</a></li>
+</ul>
+        </nav>
         <h2 id="introduction">Introduction</h2>
         <p>Seraphis is a <strong>spectral organism synthesizer</strong>.
         Each voice is a cloud of 64 harmonic partials driven by a
@@ -402,6 +459,10 @@ Output ──────────── master gain → true-peak limiter (a
         continuously. Both are described in their own sections
         below.</p>
         <h2 id="interface-overview">Interface Overview</h2>
+        <figure>
+        <img src="images/hero.png" alt="The Seraphis editor" width="1000" height="700" loading="lazy" decoding="async">
+        <figcaption aria-hidden="true">The Seraphis editor</figcaption>
+        </figure>
         <p>The editor is a fixed 1000 × 700 window built
         <em>organism-first</em>: the entire window is a live view of the
         sound, and the controls orbit it.</p>
@@ -435,6 +496,12 @@ Output ──────────── master gain → true-peak limiter (a
         <p>Every control in the editor carries a tooltip — hover over
         anything to get a one-line description.</p>
         <h2 id="the-cloud-view">The Cloud View</h2>
+        <figure>
+        <img src="images/cloud-view.png"
+        alt="The cloud view in Observe mode" width="1000" height="638" loading="lazy" decoding="async">
+        <figcaption aria-hidden="true">The cloud view in Observe
+        mode</figcaption>
+        </figure>
         <h3 id="observe-mode">Observe mode</h3>
         <p>The default. The constellation shows the loudest
         currently-sounding voice: partials rise and fall with their
@@ -445,6 +512,11 @@ Output ──────────── master gain → true-peak limiter (a
         empty.</p>
         <h3 id="edit-mode-editing-partials">Edit mode — editing
         partials</h3>
+        <figure>
+        <img src="images/edit-mode.png" alt="The editor in Edit mode" width="1000" height="700" loading="lazy" decoding="async">
+        <figcaption aria-hidden="true">The editor in Edit
+        mode</figcaption>
+        </figure>
         <p>Flip the toggle to <strong>EDIT</strong> and the
         constellation becomes editable:</p>
         <ul>
@@ -689,6 +761,10 @@ Output ──────────── master gain → true-peak limiter (a
         </tbody>
         </table>
         <h2 id="header-controls">Header Controls</h2>
+        <figure>
+        <img src="images/header.png" alt="The header" width="1000" height="32" loading="lazy" decoding="async">
+        <figcaption aria-hidden="true">The header</figcaption>
+        </figure>
         <table>
         <colgroup>
         <col style="width: 25%" />
@@ -763,6 +839,12 @@ Output ──────────── master gain → true-peak limiter (a
         same parameters on the Atmos, Aether and FX tabs, placed within
         reach while performing.</p>
         <h2 id="the-drawer-cloud-tab">The Drawer: Cloud Tab</h2>
+        <figure>
+        <img src="images/drawer-cloud.png"
+        alt="The drawer, Cloud tab" width="1000" height="280" loading="lazy" decoding="async">
+        <figcaption aria-hidden="true">The drawer, Cloud
+        tab</figcaption>
+        </figure>
         <p>The harmonic cloud is the additive core — 64 partials per
         voice.</p>
         <table>
@@ -859,6 +941,12 @@ Output ──────────── master gain → true-peak limiter (a
         front of you (hear <em>Bell Garden</em>).</p>
         </blockquote>
         <h2 id="the-drawer-morph-tab">The Drawer: Morph Tab</h2>
+        <figure>
+        <img src="images/drawer-morph.png"
+        alt="The drawer, Morph tab" width="1000" height="280" loading="lazy" decoding="async">
+        <figcaption aria-hidden="true">The drawer, Morph
+        tab</figcaption>
+        </figure>
         <p>The morph engine travels the cloud between up to four
         <strong>spectral states</strong> — factory spectra loaded into
         slots A–D, or your own states authored in Edit mode.</p>
@@ -963,6 +1051,10 @@ Output ──────────── master gain → true-peak limiter (a
         Edit mode, and authored slots survive saving and preset load
         exactly.</p>
         <h2 id="the-drawer-body-tab">The Drawer: Body Tab</h2>
+        <figure>
+        <img src="images/drawer-body.png" alt="The drawer, Body tab" width="1000" height="280" loading="lazy" decoding="async">
+        <figcaption aria-hidden="true">The drawer, Body tab</figcaption>
+        </figure>
         <p>The cloud speaks through a <strong>continuous modal
         body</strong> — a physical resonator that can morph between
         materials.</p>
@@ -1070,6 +1162,12 @@ Output ──────────── master gain → true-peak limiter (a
         Drive knob genuinely overload the resonator (hear <em>Iron
         Lung</em>).</p>
         <h2 id="the-drawer-atmos-tab">The Drawer: Atmos Tab</h2>
+        <figure>
+        <img src="images/drawer-atmos.png"
+        alt="The drawer, Atmos tab" width="1000" height="280" loading="lazy" decoding="async">
+        <figcaption aria-hidden="true">The drawer, Atmos
+        tab</figcaption>
+        </figure>
         <p>A granular layer running in parallel with the voice: grains
         are captured from the sound itself and re-scattered.</p>
         <table>
@@ -1201,6 +1299,12 @@ Output ──────────── master gain → true-peak limiter (a
         instrument keeps digging through (hear <em>Aftermath</em>).</p>
         </blockquote>
         <h2 id="the-drawer-aether-tab">The Drawer: Aether Tab</h2>
+        <figure>
+        <img src="images/drawer-aether.png"
+        alt="The drawer, Aether tab" width="1000" height="280" loading="lazy" decoding="async">
+        <figcaption aria-hidden="true">The drawer, Aether
+        tab</figcaption>
+        </figure>
         <p>The space engine. Aether sits inside the signal path —
         freezing it, breathing it and blooming it are part of playing
         the instrument.</p>
@@ -1331,6 +1435,10 @@ Output ──────────── master gain → true-peak limiter (a
         </tbody>
         </table>
         <h2 id="the-drawer-fx-tab">The Drawer: FX Tab</h2>
+        <figure>
+        <img src="images/drawer-fx.png" alt="The drawer, FX tab" width="1000" height="280" loading="lazy" decoding="async">
+        <figcaption aria-hidden="true">The drawer, FX tab</figcaption>
+        </figure>
         <p>The final stage: saturation, a spectral delay, spectral
         freeze, and the stereo stage.</p>
         <table>
@@ -1456,6 +1564,12 @@ Output ──────────── master gain → true-peak limiter (a
         reduced as Tilt increases, so the loop stays bounded at every
         setting.</p>
         <h2 id="the-drawer-lifeenv-tab">The Drawer: Life/Env Tab</h2>
+        <figure>
+        <img src="images/drawer-life-env.png"
+        alt="The drawer, Life/Env tab" width="1000" height="280" loading="lazy" decoding="async">
+        <figcaption aria-hidden="true">The drawer, Life/Env
+        tab</figcaption>
+        </figure>
         <p>The per-voice life modulators and the voice envelope.</p>
         <table>
         <colgroup>

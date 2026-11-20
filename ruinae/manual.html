@@ -3,36 +3,91 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ruinae User Manual - Chaos/Spectral Hybrid Synthesizer | Krate Audio</title>
-    <meta name="description" content="Complete user manual for Ruinae, a free open-source chaos/spectral hybrid synthesizer VST3 plugin. Covers oscillators, filters, modulation, arpeggiator, and effects.">
-    <meta name="robots" content="index, follow">
+    <title>Ruinae User Manual – Hybrid Synthesizer | Krate Audio</title>
+    <meta name="description" content="User manual for Ruinae, the free chaos/spectral hybrid synthesizer VST3 plugin: oscillators, filters, modulation, effects and the arpeggiator.">
     <link rel="canonical" href="https://krateaudio.com/ruinae/manual.html">
-
-    <!-- Open Graph -->
-    <meta property="og:title" content="Ruinae User Manual - Chaos/Spectral Hybrid Synthesizer">
-    <meta property="og:description" content="Complete user manual for Ruinae, a free open-source chaos/spectral hybrid synthesizer VST3 plugin.">
+    <meta property="og:title" content="Ruinae User Manual – Hybrid Synthesizer">
+    <meta property="og:description" content="User manual for Ruinae, the free chaos/spectral hybrid synthesizer VST3 plugin: oscillators, filters, modulation, effects and the arpeggiator.">
     <meta property="og:type" content="article">
     <meta property="og:url" content="https://krateaudio.com/ruinae/manual.html">
+    <meta name="robots" content="index, follow, max-image-preview:large">
+    <meta name="theme-color" content="#0a0a0f">
+    <link rel="icon" href="/favicon.ico" sizes="32x32">
+    <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+    <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+    <link rel="preload" href="/assets/fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="stylesheet" href="/assets/site.css">
     <meta property="og:site_name" content="Krate Audio">
     <meta property="og:locale" content="en_US">
-    <!-- TODO: Add og:image once a 1200x630 PNG screenshot exists at plugins/ruinae/docs/assets/og-image.png -->
-    <!-- <meta property="og:image" content="https://krateaudio.com/ruinae/assets/og-image.png"> -->
-    <!-- <meta property="og:image:width" content="1200"> -->
-    <!-- <meta property="og:image:height" content="630"> -->
-    <!-- <meta property="og:image:alt" content="Ruinae synthesizer plugin interface"> -->
-
-    <!-- Twitter Card -->
-    <meta name="twitter:card" content="summary">
-    <meta name="twitter:title" content="Ruinae User Manual">
-    <meta name="twitter:description" content="Complete user manual for Ruinae, a free open-source chaos/spectral hybrid synthesizer VST3 plugin.">
-
-    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-    <meta http-equiv="Pragma" content="no-cache">
-    <meta http-equiv="Expires" content="0">
-    <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <meta property="og:image" content="https://krateaudio.com/ruinae/images/og-image.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="Ruinae plugin editor">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content="https://krateaudio.com/ruinae/images/og-image.png">
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "Organization",
+          "@id": "https://krateaudio.com/#organization",
+          "name": "Krate Audio",
+          "url": "https://krateaudio.com/",
+          "logo": {
+            "@type": "ImageObject",
+            "url": "https://krateaudio.com/assets/logo-512.png",
+            "width": 512,
+            "height": 512
+          },
+          "sameAs": [
+            "https://github.com/rolandzwaga"
+          ]
+        },
+        {
+          "@type": "TechArticle",
+          "headline": "Ruinae User Manual – Hybrid Synthesizer",
+          "description": "User manual for Ruinae, the free chaos/spectral hybrid synthesizer VST3 plugin: oscillators, filters, modulation, effects and the arpeggiator.",
+          "url": "https://krateaudio.com/ruinae/manual.html",
+          "inLanguage": "en",
+          "image": "https://krateaudio.com/ruinae/images/og-image.png",
+          "about": {
+            "@id": "https://krateaudio.com/ruinae/#software"
+          },
+          "author": {
+            "@id": "https://krateaudio.com/#organization"
+          },
+          "publisher": {
+            "@id": "https://krateaudio.com/#organization"
+          },
+          "dateModified": "2026-11-20T15:01:23+01:00"
+        },
+        {
+          "@type": "BreadcrumbList",
+          "itemListElement": [
+            {
+              "@type": "ListItem",
+              "position": 1,
+              "name": "Krate Audio",
+              "item": "https://krateaudio.com/"
+            },
+            {
+              "@type": "ListItem",
+              "position": 2,
+              "name": "Ruinae",
+              "item": "https://krateaudio.com/ruinae/"
+            },
+            {
+              "@type": "ListItem",
+              "position": 3,
+              "name": "User Manual",
+              "item": "https://krateaudio.com/ruinae/manual.html"
+            }
+          ]
+        }
+      ]
+    }
+    </script>
     <style>
         /* Base — matches Ruinae landing page */
         :root {
@@ -288,76 +343,69 @@
             <p class="subtitle">Chaos/Spectral Hybrid Synthesizer</p>
         </div>
 
-        <ul>
-        <li><a href="#introduction"
-        id="toc-introduction">Introduction</a>
-        <ul>
-        <li><a href="#quick-start" id="toc-quick-start">Quick
-        Start</a></li>
-        </ul></li>
-        <li><a href="#signal-flow" id="toc-signal-flow">Signal
-        Flow</a></li>
-        <li><a href="#top-bar" id="toc-top-bar">Top Bar</a></li>
-        <li><a href="#sound-tab" id="toc-sound-tab">Sound Tab</a>
-        <ul>
-        <li><a href="#osc-a" id="toc-osc-a">OSC A</a></li>
-        <li><a href="#spectral-morph" id="toc-spectral-morph">Spectral
-        Morph</a></li>
-        <li><a href="#osc-b" id="toc-osc-b">OSC B</a></li>
-        <li><a href="#master" id="toc-master">Master</a></li>
-        <li><a href="#filter" id="toc-filter">Filter</a></li>
-        <li><a href="#distortion"
-        id="toc-distortion">Distortion</a></li>
-        <li><a href="#envelopes" id="toc-envelopes">Envelopes</a></li>
-        </ul></li>
-        <li><a href="#mod-tab" id="toc-mod-tab">Mod Tab</a>
-        <ul>
-        <li><a href="#modulation-sources"
-        id="toc-modulation-sources">Modulation Sources</a></li>
-        <li><a href="#modulation-matrix"
-        id="toc-modulation-matrix">Modulation Matrix</a></li>
-        <li><a href="#mod-heatmap" id="toc-mod-heatmap">Mod
-        Heatmap</a></li>
-        </ul></li>
-        <li><a href="#fx-tab" id="toc-fx-tab">FX Tab</a>
-        <ul>
-        <li><a href="#global-filter" id="toc-global-filter">Global
-        Filter</a></li>
-        <li><a href="#phaser" id="toc-phaser">Phaser</a></li>
-        <li><a href="#delay" id="toc-delay">Delay</a></li>
-        <li><a href="#harmonizer"
-        id="toc-harmonizer">Harmonizer</a></li>
-        <li><a href="#reverb" id="toc-reverb">Reverb</a></li>
-        </ul></li>
-        <li><a href="#seq-tab" id="toc-seq-tab">SEQ Tab</a>
-        <ul>
-        <li><a href="#trance-gate" id="toc-trance-gate">Trance
-        Gate</a></li>
-        <li><a href="#arpeggiator"
-        id="toc-arpeggiator">Arpeggiator</a></li>
-        <li><a href="#step-lanes" id="toc-step-lanes">Step
-        Lanes</a></li>
-        </ul></li>
-        <li><a href="#settings" id="toc-settings">Settings</a></li>
-        <li><a href="#tips-techniques" id="toc-tips-techniques">Tips
-        &amp; Techniques</a>
-        <ul>
-        <li><a href="#layering-oscillators"
-        id="toc-layering-oscillators">Layering Oscillators</a></li>
-        <li><a href="#modulation-depth"
-        id="toc-modulation-depth">Modulation Depth</a></li>
-        <li><a href="#using-the-arpeggiator-as-a-modulator"
-        id="toc-using-the-arpeggiator-as-a-modulator">Using the
-        Arpeggiator as a Modulator</a></li>
-        <li><a href="#feedback-safety" id="toc-feedback-safety">Feedback
-        Safety</a></li>
-        <li><a href="#cpu-management" id="toc-cpu-management">CPU
-        Management</a></li>
-        </ul></li>
-        </ul>
+        <nav id="TOC" aria-label="Contents">
+<ul>
+<li><a href="#introduction" id="toc-introduction">Introduction</a>
+<ul>
+<li><a href="#quick-start" id="toc-quick-start">Quick Start</a></li>
+</ul></li>
+<li><a href="#signal-flow" id="toc-signal-flow">Signal Flow</a></li>
+<li><a href="#top-bar" id="toc-top-bar">Top Bar</a></li>
+<li><a href="#sound-tab" id="toc-sound-tab">Sound Tab</a>
+<ul>
+<li><a href="#osc-a" id="toc-osc-a">OSC A</a></li>
+<li><a href="#spectral-morph" id="toc-spectral-morph">Spectral
+Morph</a></li>
+<li><a href="#osc-b" id="toc-osc-b">OSC B</a></li>
+<li><a href="#master" id="toc-master">Master</a></li>
+<li><a href="#filter" id="toc-filter">Filter</a></li>
+<li><a href="#distortion" id="toc-distortion">Distortion</a></li>
+<li><a href="#envelopes" id="toc-envelopes">Envelopes</a></li>
+</ul></li>
+<li><a href="#mod-tab" id="toc-mod-tab">Mod Tab</a>
+<ul>
+<li><a href="#modulation-sources" id="toc-modulation-sources">Modulation
+Sources</a></li>
+<li><a href="#modulation-matrix" id="toc-modulation-matrix">Modulation
+Matrix</a></li>
+<li><a href="#mod-heatmap" id="toc-mod-heatmap">Mod Heatmap</a></li>
+</ul></li>
+<li><a href="#fx-tab" id="toc-fx-tab">FX Tab</a>
+<ul>
+<li><a href="#global-filter" id="toc-global-filter">Global
+Filter</a></li>
+<li><a href="#modulation" id="toc-modulation">Modulation</a></li>
+<li><a href="#delay" id="toc-delay">Delay</a></li>
+<li><a href="#harmonizer" id="toc-harmonizer">Harmonizer</a></li>
+<li><a href="#reverb" id="toc-reverb">Reverb</a></li>
+</ul></li>
+<li><a href="#seq-tab" id="toc-seq-tab">SEQ Tab</a>
+<ul>
+<li><a href="#trance-gate" id="toc-trance-gate">Trance Gate</a></li>
+<li><a href="#arpeggiator" id="toc-arpeggiator">Arpeggiator</a></li>
+<li><a href="#step-lanes" id="toc-step-lanes">Step Lanes</a></li>
+</ul></li>
+<li><a href="#settings" id="toc-settings">Settings</a></li>
+<li><a href="#tips-techniques" id="toc-tips-techniques">Tips &amp;
+Techniques</a>
+<ul>
+<li><a href="#layering-oscillators"
+id="toc-layering-oscillators">Layering Oscillators</a></li>
+<li><a href="#modulation-depth" id="toc-modulation-depth">Modulation
+Depth</a></li>
+<li><a href="#using-the-arpeggiator-as-a-modulator"
+id="toc-using-the-arpeggiator-as-a-modulator">Using the Arpeggiator as a
+Modulator</a></li>
+<li><a href="#feedback-safety" id="toc-feedback-safety">Feedback
+Safety</a></li>
+<li><a href="#cpu-management" id="toc-cpu-management">CPU
+Management</a></li>
+</ul></li>
+</ul>
+        </nav>
         <!-- IMG-01: Full screenshot of Ruinae with the Sound tab active, showing the complete plugin window -->
         <figure>
-        <img src="images/IMG-01.png" alt="Ruinae Overview" />
+        <img src="images/hero.png" alt="Ruinae Overview" width="1400" height="800" loading="lazy" decoding="async">
         <figcaption aria-hidden="true">Ruinae Overview</figcaption>
         </figure>
         <h2 id="introduction">Introduction</h2>
@@ -380,8 +428,8 @@
         distortion, envelopes, and master controls</li>
         <li><strong>MOD</strong> — Modulation sources (LFOs, chaos,
         macros, and more) and an 8-slot modulation matrix</li>
-        <li><strong>FX</strong> — Phaser, delay, harmonizer, reverb, and
-        a global filter</li>
+        <li><strong>FX</strong> — Modulation (phaser, flanger or
+        chorus), delay, harmonizer, reverb, and a global filter</li>
         <li><strong>SEQ</strong> — Trance gate and a full-featured
         32-step arpeggiator</li>
         </ul>
@@ -408,7 +456,7 @@
 
 Global:
   All Voices ──&gt; Stereo Pan + Sum ──&gt; Stereo Width ──&gt; Global Filter
-    ──&gt; Phaser ──&gt; Delay ──&gt; Harmonizer ──&gt; Reverb
+    ──&gt; Modulation ──&gt; Delay ──&gt; Harmonizer ──&gt; Reverb
     ──&gt; Master Gain ──&gt; Soft Limiter ──&gt; Output</code></pre>
         <p>Each voice produces a mono signal. Voices are panned and
         summed to stereo, then processed through the shared effects
@@ -419,7 +467,7 @@ Global:
         <h2 id="top-bar">Top Bar</h2>
         <!-- IMG-02: Close-up of the top bar showing the plugin title, tab selector, preset controls, and settings gear -->
         <figure>
-        <img src="images/IMG-02.png" alt="Top Bar" />
+        <img src="images/top-bar.png" alt="Top Bar" width="1400" height="40" loading="lazy" decoding="async">
         <figcaption aria-hidden="true">Top Bar</figcaption>
         </figure>
         <p>The top bar is always visible regardless of which tab is
@@ -446,14 +494,14 @@ Global:
         (envelopes).</p>
         <!-- IMG-03: Full screenshot of the Sound tab showing all three rows -->
         <figure>
-        <img src="images/IMG-03.png" alt="Sound Tab" />
+        <img src="images/sound-tab.png" alt="Sound Tab" width="1400" height="531" loading="lazy" decoding="async">
         <figcaption aria-hidden="true">Sound Tab</figcaption>
         </figure>
         <hr />
         <h3 id="osc-a">OSC A</h3>
         <!-- IMG-04: Close-up of the OSC A container, showing the type selector, main knobs, and type-specific parameter area -->
         <figure>
-        <img src="images/IMG-04.png" alt="OSC A" />
+        <img src="images/osc-a.png" alt="OSC A" width="316" height="165" loading="lazy" decoding="async">
         <figcaption aria-hidden="true">OSC A</figcaption>
         </figure>
         <p>OSC A is the first of two oscillators in each voice. It
@@ -818,7 +866,7 @@ Global:
         <h3 id="spectral-morph">Spectral Morph</h3>
         <!-- IMG-05: Close-up of the Spectral Morph container, showing the XY morph pad with the blue-to-orange gradient, mode dropdown, and shift knob -->
         <figure>
-        <img src="images/IMG-05.png" alt="Spectral Morph" />
+        <img src="images/spectral-morph.png" alt="Spectral Morph" width="428" height="165" loading="lazy" decoding="async">
         <figcaption aria-hidden="true">Spectral Morph</figcaption>
         </figure>
         <p>The Spectral Morph section sits between the two oscillators
@@ -873,7 +921,7 @@ Global:
         <h3 id="osc-b">OSC B</h3>
         <!-- IMG-06: Close-up of the OSC B container (can be omitted if the layout is identical to OSC A — reference the OSC A screenshot instead) -->
         <figure>
-        <img src="images/IMG-06.png" alt="OSC B" />
+        <img src="images/osc-b.png" alt="OSC B" width="316" height="165" loading="lazy" decoding="async">
         <figcaption aria-hidden="true">OSC B</figcaption>
         </figure>
         <p>OSC B is identical in structure to OSC A — it has the same
@@ -889,7 +937,7 @@ Global:
         <h3 id="master">Master</h3>
         <!-- IMG-07: Close-up of the Master container, showing the voice mode dropdown, output/width/spread knobs, and soft limit toggle -->
         <figure>
-        <img src="images/IMG-07.png" alt="Master" />
+        <img src="images/master.png" alt="Master" width="300" height="165" loading="lazy" decoding="async">
         <figcaption aria-hidden="true">Master</figcaption>
         </figure>
         <p>The Master section controls global voice behavior and output
@@ -996,7 +1044,7 @@ Global:
         <h3 id="filter">Filter</h3>
         <!-- IMG-08: Close-up of the Filter container, showing the filter type dropdown, the general/type-specific toggle, and the parameter area. Show the General view. -->
         <figure>
-        <img src="images/IMG-08.png" alt="Filter" />
+        <img src="images/filter.png" alt="Filter" width="260" height="149" loading="lazy" decoding="async">
         <figcaption aria-hidden="true">Filter</figcaption>
         </figure>
         <p>The filter shapes the timbre of each voice after the
@@ -1204,7 +1252,7 @@ Global:
         <h3 id="distortion">Distortion</h3>
         <!-- IMG-09: Close-up of the Distortion container, showing the type dropdown, general/type-specific toggle, and parameter area. Show the General view. -->
         <figure>
-        <img src="images/IMG-09.png" alt="Distortion" />
+        <img src="images/distortion.png" alt="Distortion" width="270" height="149" loading="lazy" decoding="async">
         <figcaption aria-hidden="true">Distortion</figcaption>
         </figure>
         <p>The distortion stage comes after the filter in each voice’s
@@ -1424,7 +1472,7 @@ Global:
         <h3 id="envelopes">Envelopes</h3>
         <!-- IMG-10: Close-up of the Envelopes row showing all three envelope displays (AMP, FILTER, MOD) side by side with their ADSR knobs -->
         <figure>
-        <img src="images/IMG-10.png" alt="Envelopes" />
+        <img src="images/envelopes.png" alt="Envelopes" width="1384" height="207" loading="lazy" decoding="async">
         <figcaption aria-hidden="true">Envelopes</figcaption>
         </figure>
         <p>Three ADSR envelopes control the dynamics and modulation of
@@ -1491,15 +1539,17 @@ Global:
         throughout the synth.</p>
         <!-- IMG-11: Full screenshot of the Mod tab showing the modulation sources panel on the left and the modulation matrix on the right -->
         <figure>
-        <img src="images/IMG-11.png" alt="Mod Tab" />
+        <img src="images/mod-tab.png" alt="Mod Tab" width="1400" height="800" loading="lazy" decoding="async">
         <figcaption aria-hidden="true">Mod Tab</figcaption>
         </figure>
         <hr />
         <h3 id="modulation-sources">Modulation Sources</h3>
         <!-- IMG-12: Close-up of the Modulation Sources container with the source selector dropdown open, showing the list of available sources -->
         <figure>
-        <img src="images/IMG-12.png" alt="Modulation Sources" />
-        <figcaption aria-hidden="true">Modulation Sources</figcaption>
+        <img src="images/mod-lfo.png"
+        alt="Modulation Sources, LFO 1 selected" width="540" height="448" loading="lazy" decoding="async">
+        <figcaption aria-hidden="true">Modulation Sources, LFO 1
+        selected</figcaption>
         </figure>
         <p>Select a modulation source from the dropdown to view and edit
         its parameters. Each source generates a control signal that can
@@ -1507,8 +1557,8 @@ Global:
         <h4 id="lfo-1-lfo-2">LFO 1 &amp; LFO 2</h4>
         <!-- IMG-13: Close-up of the LFO source view showing rate, shape, and other controls -->
         <figure>
-        <img src="images/IMG-13.png" alt="LFO" />
-        <figcaption aria-hidden="true">LFO</figcaption>
+        <img src="images/mod-lfo-2.png" alt="LFO 2" width="540" height="448" loading="lazy" decoding="async">
+        <figcaption aria-hidden="true">LFO 2</figcaption>
         </figure>
         <p>Two independent low-frequency oscillators for cyclic
         modulation (vibrato, tremolo, filter sweeps, etc.).</p>
@@ -1580,7 +1630,7 @@ Global:
         <h4 id="chaos-mod">Chaos Mod</h4>
         <!-- IMG-14: Close-up of the Chaos modulation source view -->
         <figure>
-        <img src="images/IMG-14.png" alt="Chaos Mod" />
+        <img src="images/mod-chaos.png" alt="Chaos Mod" width="540" height="448" loading="lazy" decoding="async">
         <figcaption aria-hidden="true">Chaos Mod</figcaption>
         </figure>
         <p>A modulation source driven by a chaotic attractor system,
@@ -1619,7 +1669,7 @@ Global:
         <h4 id="macros">Macros</h4>
         <!-- IMG-15: Close-up of the Macros source view showing the four macro knobs -->
         <figure>
-        <img src="images/IMG-15.png" alt="Macros" />
+        <img src="images/mod-macros.png" alt="Macros" width="540" height="448" loading="lazy" decoding="async">
         <figcaption aria-hidden="true">Macros</figcaption>
         </figure>
         <p>Four user-assignable macro knobs that provide direct,
@@ -1644,7 +1694,7 @@ Global:
         <h4 id="rungler">Rungler</h4>
         <!-- IMG-16: Close-up of the Rungler source view -->
         <figure>
-        <img src="images/IMG-16.png" alt="Rungler" />
+        <img src="images/mod-rungler.png" alt="Rungler" width="540" height="448" loading="lazy" decoding="async">
         <figcaption aria-hidden="true">Rungler</figcaption>
         </figure>
         <p>Inspired by the Benjolin circuit, the Rungler is a
@@ -1695,7 +1745,8 @@ Global:
         <h4 id="envelope-follower">Envelope Follower</h4>
         <!-- IMG-17: Close-up of the Envelope Follower source view -->
         <figure>
-        <img src="images/IMG-17.png" alt="Envelope Follower" />
+        <img src="images/mod-env-follower.png"
+        alt="Envelope Follower" width="540" height="448" loading="lazy" decoding="async">
         <figcaption aria-hidden="true">Envelope Follower</figcaption>
         </figure>
         <p>Tracks the amplitude of the audio input signal and converts
@@ -1726,7 +1777,7 @@ Global:
         <h4 id="sample-hold">Sample &amp; Hold</h4>
         <!-- IMG-18: Close-up of the Sample & Hold source view -->
         <figure>
-        <img src="images/IMG-18.png" alt="Sample &amp; Hold" />
+        <img src="images/mod-sample-hold.png" alt="Sample &amp; Hold" width="540" height="448" loading="lazy" decoding="async">
         <figcaption aria-hidden="true">Sample &amp; Hold</figcaption>
         </figure>
         <p>Periodically samples a random value and holds it until the
@@ -1766,7 +1817,7 @@ Global:
         <h4 id="random">Random</h4>
         <!-- IMG-19: Close-up of the Random source view -->
         <figure>
-        <img src="images/IMG-19.png" alt="Random" />
+        <img src="images/mod-random.png" alt="Random" width="540" height="448" loading="lazy" decoding="async">
         <figcaption aria-hidden="true">Random</figcaption>
         </figure>
         <p>Generates continuous random modulation, either smooth or
@@ -1806,7 +1857,7 @@ Global:
         <h4 id="pitch-follower">Pitch Follower</h4>
         <!-- IMG-20: Close-up of the Pitch Follower source view -->
         <figure>
-        <img src="images/IMG-20.png" alt="Pitch Follower" />
+        <img src="images/mod-pitch-follower.png" alt="Pitch Follower" width="540" height="448" loading="lazy" decoding="async">
         <figcaption aria-hidden="true">Pitch Follower</figcaption>
         </figure>
         <p>Tracks the pitch of the input signal and converts it to a
@@ -1846,7 +1897,7 @@ Global:
         <h4 id="transient-detector">Transient Detector</h4>
         <!-- IMG-21: Close-up of the Transient Detector source view -->
         <figure>
-        <img src="images/IMG-21.png" alt="Transient Detector" />
+        <img src="images/mod-transient.png" alt="Transient Detector" width="540" height="448" loading="lazy" decoding="async">
         <figcaption aria-hidden="true">Transient Detector</figcaption>
         </figure>
         <p>Detects transient attacks in the signal and generates a
@@ -1883,7 +1934,7 @@ Global:
         <h3 id="modulation-matrix">Modulation Matrix</h3>
         <!-- IMG-22: Close-up of the Modulation Configuration panel showing the 8-slot matrix with source, destination, and amount columns. Show at least 2-3 slots with active routings. -->
         <figure>
-        <img src="images/IMG-22.png" alt="Modulation Matrix" />
+        <img src="images/mod-matrix.png" alt="Modulation Matrix" width="836" height="448" loading="lazy" decoding="async">
         <figcaption aria-hidden="true">Modulation Matrix</figcaption>
         </figure>
         <p>The modulation matrix provides 8 independent routing slots.
@@ -1957,7 +2008,7 @@ Global:
         <h3 id="mod-heatmap">Mod Heatmap</h3>
         <!-- IMG-23: Close-up of the Mod Heatmap at the bottom of the Mod tab, ideally with some active modulation routing so the heatmap shows activity -->
         <figure>
-        <img src="images/IMG-23.png" alt="Mod Heatmap" />
+        <img src="images/mod-heatmap.png" alt="Mod Heatmap" width="1384" height="296" loading="lazy" decoding="async">
         <figcaption aria-hidden="true">Mod Heatmap</figcaption>
         </figure>
         <p>The mod heatmap at the bottom of the tab provides a visual
@@ -1968,18 +2019,18 @@ Global:
         <h2 id="fx-tab">FX Tab</h2>
         <p>The FX tab contains the global effects chain that processes
         the summed output of all voices. Effects are processed in a
-        fixed order: Phaser → Delay → Harmonizer → Reverb. Each effect
-        can be independently enabled or bypassed.</p>
+        fixed order: Modulation → Delay → Harmonizer → Reverb. Each
+        effect can be independently enabled or bypassed.</p>
         <!-- IMG-24: Full screenshot of the FX tab showing all four effect sections and the global filter strip at the top -->
         <figure>
-        <img src="images/IMG-24.png" alt="FX Tab" />
+        <img src="images/fx-tab.png" alt="FX Tab" width="1400" height="800" loading="lazy" decoding="async">
         <figcaption aria-hidden="true">FX Tab</figcaption>
         </figure>
         <hr />
         <h3 id="global-filter">Global Filter</h3>
         <!-- IMG-25: Close-up of the global filter strip at the top of the FX tab -->
         <figure>
-        <img src="images/IMG-25.png" alt="Global Filter" />
+        <img src="images/global-filter.png" alt="Global Filter" width="1384" height="44" loading="lazy" decoding="async">
         <figcaption aria-hidden="true">Global Filter</figcaption>
         </figure>
         <p>A stereo filter applied to the summed voice output before the
@@ -2012,15 +2063,24 @@ Global:
         </tbody>
         </table>
         <hr />
-        <h3 id="phaser">Phaser</h3>
-        <!-- IMG-26: Close-up of the Phaser section -->
+        <h3 id="modulation">Modulation</h3>
+        <p>The MODULATION panel holds one modulation effect at a time.
+        The selector at its top left (the Modulation Type parameter)
+        chooses <strong>None</strong> (the panel is bypassed),
+        <strong>Phaser</strong>, <strong>Flanger</strong> or
+        <strong>Chorus</strong>, and the controls below it change to
+        match. Switching type crossfades between the old and the new
+        effect, so it does not click. Each type keeps its own settings,
+        so switching back restores them.</p>
+        <h4 id="phaser">Phaser</h4>
         <figure>
-        <img src="images/IMG-26.png" alt="Phaser" />
-        <figcaption aria-hidden="true">Phaser</figcaption>
+        <img src="images/modulation-phaser.png"
+        alt="Modulation panel set to Phaser" width="688" height="344" loading="lazy" decoding="async">
+        <figcaption aria-hidden="true">Modulation panel set to
+        Phaser</figcaption>
         </figure>
-        <p>A stereo phaser effect that creates sweeping notches in the
-        frequency spectrum through a series of all-pass filter
-        stages.</p>
+        <p>A stereo phaser that sweeps notches through the spectrum with
+        a chain of all-pass filter stages.</p>
         <table>
         <colgroup>
         <col style="width: 40%" />
@@ -2034,20 +2094,12 @@ Global:
         </thead>
         <tbody>
         <tr>
-        <td><strong>Enable</strong></td>
-        <td>Toggle phaser on/off</td>
-        </tr>
-        <tr>
-        <td><strong>Mix</strong></td>
-        <td>Dry/wet blend</td>
-        </tr>
-        <tr>
         <td><strong>Rate</strong></td>
-        <td>Sweep speed (0.01–20 Hz), or tempo-synced</td>
+        <td>Sweep speed (0.01–20 Hz)</td>
         </tr>
         <tr>
         <td><strong>Sync</strong></td>
-        <td>Lock rate to host tempo</td>
+        <td>Lock the rate to host tempo</td>
         </tr>
         <tr>
         <td><strong>Note Value</strong></td>
@@ -2059,26 +2111,141 @@ Global:
         </tr>
         <tr>
         <td><strong>Feedback</strong></td>
-        <td>Signal fed back through the phaser stages — higher values
-        create a more resonant, intense effect</td>
+        <td>Signal fed back through the stages (−1 to +1); higher
+        amounts give a more resonant, intense sweep</td>
+        </tr>
+        <tr>
+        <td><strong>Mix</strong></td>
+        <td>Dry/wet blend</td>
         </tr>
         <tr>
         <td><strong>Stages</strong></td>
-        <td>Number of all-pass filter stages (2, 4, 6, 8, 10, or 12).
-        More stages = more notches = more complex character.</td>
+        <td>Number of all-pass stages: 2, 4, 6, 8, 10 or 12. More stages
+        give more notches and a denser character.</td>
         </tr>
         <tr>
         <td><strong>Center Freq</strong></td>
-        <td>Center frequency of the sweep range</td>
+        <td>Centre of the sweep range (100 Hz–10 kHz)</td>
         </tr>
         <tr>
-        <td><strong>Stereo Spread</strong></td>
-        <td>Phase offset between left and right channels for stereo
-        width</td>
+        <td><strong>Spread</strong></td>
+        <td>Phase offset between left and right sweeps (0–360°), for
+        stereo width</td>
         </tr>
         <tr>
         <td><strong>Waveform</strong></td>
-        <td>LFO shape: Sine, Triangle, Square, or Sawtooth</td>
+        <td>Sweep shape: Sine, Triangle, Sawtooth or Square</td>
+        </tr>
+        </tbody>
+        </table>
+        <h4 id="flanger">Flanger</h4>
+        <figure>
+        <img src="images/modulation-flanger.png"
+        alt="Modulation panel set to Flanger" width="688" height="344" loading="lazy" decoding="async">
+        <figcaption aria-hidden="true">Modulation panel set to
+        Flanger</figcaption>
+        </figure>
+        <p>A stereo flanger: a short, swept delay mixed with the dry
+        signal, giving the jet-like comb sweep.</p>
+        <table>
+        <colgroup>
+        <col style="width: 40%" />
+        <col style="width: 59%" />
+        </colgroup>
+        <thead>
+        <tr>
+        <th>Control</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr>
+        <td><strong>Rate</strong></td>
+        <td>Sweep speed (0.05–5 Hz)</td>
+        </tr>
+        <tr>
+        <td><strong>Sync</strong></td>
+        <td>Lock the rate to host tempo</td>
+        </tr>
+        <tr>
+        <td><strong>Note Value</strong></td>
+        <td>Tempo division when synced</td>
+        </tr>
+        <tr>
+        <td><strong>Depth</strong></td>
+        <td>Sweep range</td>
+        </tr>
+        <tr>
+        <td><strong>Feedback</strong></td>
+        <td>Signal fed back into the delay (−1 to +1); negative and
+        positive values give different comb colours</td>
+        </tr>
+        <tr>
+        <td><strong>Mix</strong></td>
+        <td>Dry/wet crossfade</td>
+        </tr>
+        <tr>
+        <td><strong>Spread</strong></td>
+        <td>Phase offset between left and right sweeps (0–360°)</td>
+        </tr>
+        <tr>
+        <td><strong>Waveform</strong></td>
+        <td>Sweep shape: Sine or Triangle</td>
+        </tr>
+        </tbody>
+        </table>
+        <h4 id="chorus">Chorus</h4>
+        <figure>
+        <img src="images/modulation-chorus.png"
+        alt="Modulation panel set to Chorus" width="688" height="344" loading="lazy" decoding="async">
+        <figcaption aria-hidden="true">Modulation panel set to
+        Chorus</figcaption>
+        </figure>
+        <p>A stereo chorus: several slowly modulated delay voices that
+        thicken and widen the sound.</p>
+        <table>
+        <thead>
+        <tr>
+        <th>Control</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr>
+        <td><strong>Rate</strong></td>
+        <td>Modulation speed (0.05–10 Hz)</td>
+        </tr>
+        <tr>
+        <td><strong>Sync</strong></td>
+        <td>Lock the rate to host tempo</td>
+        </tr>
+        <tr>
+        <td><strong>Note Value</strong></td>
+        <td>Tempo division when synced</td>
+        </tr>
+        <tr>
+        <td><strong>Depth</strong></td>
+        <td>Modulation amount</td>
+        </tr>
+        <tr>
+        <td><strong>Feedback</strong></td>
+        <td>Signal fed back into the voices (−1 to +1)</td>
+        </tr>
+        <tr>
+        <td><strong>Mix</strong></td>
+        <td>Dry/wet blend</td>
+        </tr>
+        <tr>
+        <td><strong>Spread</strong></td>
+        <td>Phase offset between left and right (0–360°)</td>
+        </tr>
+        <tr>
+        <td><strong>Voices</strong></td>
+        <td>Number of chorus voices: 1 to 4</td>
+        </tr>
+        <tr>
+        <td><strong>Waveform</strong></td>
+        <td>Modulation shape: Sine or Triangle</td>
         </tr>
         </tbody>
         </table>
@@ -2086,8 +2253,10 @@ Global:
         <h3 id="delay">Delay</h3>
         <!-- IMG-27: Close-up of the Delay section showing the type dropdown and common controls. Show one of the type-specific views (e.g., Tape) -->
         <figure>
-        <img src="images/IMG-27.png" alt="Delay" />
-        <figcaption aria-hidden="true">Delay</figcaption>
+        <img src="images/delay-ping-pong.png"
+        alt="Delay, Ping Pong type" width="688" height="344" loading="lazy" decoding="async">
+        <figcaption aria-hidden="true">Delay, Ping Pong
+        type</figcaption>
         </figure>
         <p>A versatile delay effect with five distinct delay types, each
         with its own character and controls.</p>
@@ -2140,7 +2309,7 @@ Global:
         <h5 id="digital">Digital</h5>
         <!-- IMG-28: Close-up of the Digital delay type-specific controls (switch to type-specific view) -->
         <figure>
-        <img src="images/IMG-28.png" alt="Digital Delay" />
+        <img src="images/delay-digital.png" alt="Digital Delay" width="688" height="344" loading="lazy" decoding="async">
         <figcaption aria-hidden="true">Digital Delay</figcaption>
         </figure>
         <p>A clean or characterful digital delay with optional
@@ -2203,7 +2372,7 @@ Global:
         <h5 id="tape-1">Tape</h5>
         <!-- IMG-29: Close-up of the Tape delay type-specific controls showing the three tape head controls -->
         <figure>
-        <img src="images/IMG-29.png" alt="Tape Delay" />
+        <img src="images/delay-tape.png" alt="Tape Delay" width="688" height="344" loading="lazy" decoding="async">
         <figcaption aria-hidden="true">Tape Delay</figcaption>
         </figure>
         <p>Models the warm, wobbly character of analog tape echo
@@ -2306,7 +2475,7 @@ Global:
         <h5 id="granular-1">Granular</h5>
         <!-- IMG-30: Close-up of the Granular delay type-specific controls -->
         <figure>
-        <img src="images/IMG-30.png" alt="Granular Delay" />
+        <img src="images/delay-granular.png" alt="Granular Delay" width="688" height="344" loading="lazy" decoding="async">
         <figcaption aria-hidden="true">Granular Delay</figcaption>
         </figure>
         <p>A granular delay that chops the delayed signal into grains
@@ -2382,7 +2551,7 @@ Global:
         <h5 id="spectral-1">Spectral</h5>
         <!-- IMG-31: Close-up of the Spectral delay type-specific controls -->
         <figure>
-        <img src="images/IMG-31.png" alt="Spectral Delay" />
+        <img src="images/delay-spectral.png" alt="Spectral Delay" width="688" height="344" loading="lazy" decoding="async">
         <figcaption aria-hidden="true">Spectral Delay</figcaption>
         </figure>
         <p>An FFT-based delay that operates in the frequency domain,
@@ -2439,7 +2608,7 @@ Global:
         <h3 id="harmonizer">Harmonizer</h3>
         <!-- IMG-32: Close-up of the Harmonizer section showing the global controls and per-voice harmony settings -->
         <figure>
-        <img src="images/IMG-32.png" alt="Harmonizer" />
+        <img src="images/harmonizer.png" alt="Harmonizer" width="688" height="344" loading="lazy" decoding="async">
         <figcaption aria-hidden="true">Harmonizer</figcaption>
         </figure>
         <p>A polyphonic pitch-shifting harmonizer that adds up to four
@@ -2545,7 +2714,7 @@ Global:
         <h3 id="reverb">Reverb</h3>
         <!-- IMG-33: Close-up of the Reverb section showing type selector and all knobs -->
         <figure>
-        <img src="images/IMG-33.png" alt="Reverb" />
+        <img src="images/reverb.png" alt="Reverb" width="688" height="344" loading="lazy" decoding="async">
         <figcaption aria-hidden="true">Reverb</figcaption>
         </figure>
         <p>A stereo reverb with two algorithm types for spatial
@@ -2623,14 +2792,14 @@ Global:
         full-featured step sequencer and note generator).</p>
         <!-- IMG-34: Full screenshot of the SEQ tab showing the Trance Gate at the top and the Arpeggiator below -->
         <figure>
-        <img src="images/IMG-34.png" alt="SEQ Tab" />
+        <img src="images/seq-tab.png" alt="SEQ Tab" width="1400" height="800" loading="lazy" decoding="async">
         <figcaption aria-hidden="true">SEQ Tab</figcaption>
         </figure>
         <hr />
         <h3 id="trance-gate">Trance Gate</h3>
         <!-- IMG-35: Close-up of the Trance Gate section showing the step pattern editor, controls, and euclidean options -->
         <figure>
-        <img src="images/IMG-35.png" alt="Trance Gate" />
+        <img src="images/trance-gate.png" alt="Trance Gate" width="1384" height="125" loading="lazy" decoding="async">
         <figcaption aria-hidden="true">Trance Gate</figcaption>
         </figure>
         <p>The Trance Gate is a rhythmic volume gate applied to each
@@ -2766,7 +2935,7 @@ Global:
         <h3 id="arpeggiator">Arpeggiator</h3>
         <!-- IMG-36: Close-up of the Arpeggiator controls row (top area) showing the mode, octave, latch, and other dropdowns -->
         <figure>
-        <img src="images/IMG-36.png" alt="Arpeggiator Controls" />
+        <img src="images/arpeggiator.png" alt="Arpeggiator Controls" width="1384" height="623" loading="lazy" decoding="async">
         <figcaption aria-hidden="true">Arpeggiator Controls</figcaption>
         </figure>
         <p>The Arpeggiator is a comprehensive step sequencer that can
@@ -2956,7 +3125,8 @@ Global:
         <h3 id="step-lanes">Step Lanes</h3>
         <!-- IMG-37: Close-up of the arpeggiator step lanes showing at least the velocity and pitch lanes with visible step data -->
         <figure>
-        <img src="images/IMG-37.png" alt="Arpeggiator Step Lanes" />
+        <img src="images/arp-step-lanes.png"
+        alt="Arpeggiator Step Lanes" width="1368" height="455" loading="lazy" decoding="async">
         <figcaption aria-hidden="true">Arpeggiator Step
         Lanes</figcaption>
         </figure>
@@ -3039,7 +3209,7 @@ Global:
         <h2 id="settings">Settings</h2>
         <!-- IMG-38: Screenshot of the settings drawer slid open from the right side of the plugin -->
         <figure>
-        <img src="images/IMG-38.png" alt="Settings Drawer" />
+        <img src="images/settings-drawer.png" alt="Settings Drawer" width="220" height="800" loading="lazy" decoding="async">
         <figcaption aria-hidden="true">Settings Drawer</figcaption>
         </figure>
         <p>Access the settings drawer by clicking the gear icon in the
