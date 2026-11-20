@@ -15,6 +15,9 @@
 //   - per plugin the first tag of `git tag -l "<dir>/v*" --sort=-v:refname`; no tag, no card (and its version.json is
 //     not read); the version is the text after the last "/v"; the card links <dir>/ when plugins/<dir>/docs/index.html
 //     is a file, and shows images/card.png (600 x 315, written by the plugin's [screenshots] test) when it exists;
+//   - the release date under the version is the committer date of that tag's commit (`git log -1 --format=%cI <tag>`;
+//     it matched GitHub's publish date for every release checked, 2026-11), shown "15 Nov 2026" in a <time>; no date,
+//     no line;
 //   - docs/site.json names each tagged plugin's group (Instruments, Effects, MIDI, in its "groups" order) and a
 //     one-sentence summary; the cards are grouped under an <h2> per group, path order within a group, and every text
 //     is HTML-escaped (SEO pass, 2026-11: the cards had been the Python f-strings, name and description only, raw);
@@ -58,6 +61,8 @@ const CARD_INDENT = ' '.repeat(16);
 const LINE_INDENT = ' '.repeat(20);
 // images/card.png: the size every plugin's [screenshots] test writes (tests/test_helpers/editor_screenshot.h).
 const CARD_IMAGE = { width: 600, height: 315 };
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const ISO_DATE_RE = /^(\d{4})-(\d{2})-(\d{2})/u;
 
 class RootIndexError extends Error {
   constructor(code, message) {
@@ -101,6 +106,15 @@ function renderManagerCard({ version, template, repo }) {
   return universalNewlines(filled).replace(/\n+$/u, '');
 }
 
+/** An ISO date ("2026-11-15" or a full %cI timestamp) as { iso: "2026-11-15", text: "15 Nov 2026" }; null if none. */
+function releaseDate(value) {
+  const m = ISO_DATE_RE.exec(value ?? '');
+  if (m === null) return null;
+  const month = MONTHS[Number(m[2]) - 1];
+  if (month === undefined) return null;
+  return { iso: `${m[1]}-${m[2]}-${m[3]}`, text: `${Number(m[3])} ${month} ${m[1]}` };
+}
+
 /** The plugin cards, an <h2> per group before its cards (group order, then path order), joined with "\n". */
 function renderPluginCards(plugins) {
   const esc = common.escapeHtml;
@@ -124,8 +138,13 @@ function renderPluginCards(plugins) {
       `${LINE_INDENT}<p class="tagline">${esc(p.description)}</p>`,
       `${LINE_INDENT}<p class="description">${esc(p.summary)}</p>`,
       `${LINE_INDENT}<span class="version">v${esc(p.version)}</span>`,
-      `${CARD_INDENT}${p.hasPage ? '</a>' : '</div>'}`,
     );
+    if (p.released !== null) {
+      lines.push(
+        `${LINE_INDENT}<span class="released">Released <time datetime="${p.released.iso}">${p.released.text}</time></span>`,
+      );
+    }
+    lines.push(`${CARD_INDENT}${p.hasPage ? '</a>' : '</div>'}`);
   }
   return lines.join('\n');
 }
@@ -169,7 +188,7 @@ function readSiteConfig(deps, root) {
 
 /**
  * The tagged plugins under <root>/plugins in path order:
- * { dir, name, description, version, hasPage, hasCard, group, groupOrder, summary }.
+ * { dir, name, description, version, released, hasPage, hasCard, group, groupOrder, summary }.
  */
 function collectPlugins(deps, root) {
   const config = readSiteConfig(deps, root);
@@ -207,6 +226,7 @@ function collectPlugins(deps, root) {
       name: data.name,
       description: data.description,
       version: tag.split('/v').pop(),
+      released: releaseDate(deps.commitDate(tag, [])),
       hasPage: deps.isFile(path.join(root, 'plugins', dir, 'docs', 'index.html')),
       hasCard: deps.isFile(path.join(root, 'plugins', dir, 'images', 'card.png')),
       group: site.group,
@@ -240,7 +260,7 @@ function readTemplate(deps, root, rel) {
 function main(argv, io, deps) {
   if (deps === null || typeof deps !== 'object') {
     throw new TypeError(
-      `${NAME}: main(argv, io, deps): deps is required (gitTags, repo, readFile, readDir, isFile, writeFile, root; ` +
+      `${NAME}: main(argv, io, deps): deps is required (gitTags, commitDate, repo, readFile, readDir, isFile, writeFile, root; ` +
         'only the entry point builds productionDeps())',
     );
   }
@@ -288,6 +308,18 @@ function productionDeps() {
         .split('\n')
         .map((line) => line.trim())
         .filter((line) => line !== ''),
+    commitDate: (rev, paths) => {
+      try {
+        return childProcess
+          .execFileSync('git', ['log', '-1', '--format=%cI', rev, '--', ...paths], {
+            encoding: 'utf8',
+            stdio: ['ignore', 'pipe', 'ignore'],
+          })
+          .trim();
+      } catch {
+        return '';
+      }
+    },
     repo: () => process.env.REPO,
     readFile: (p) => fs.readFileSync(p, 'utf8'),
     readDir: (p) => fs.readdirSync(p),

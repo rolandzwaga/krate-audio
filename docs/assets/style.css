@@ -149,6 +149,13 @@ section h2 {
     font-weight: 500;
 }
 
+/* The latest release's date beside the version: a detail, not a headline */
+.plugin-card .released {
+    margin-left: 0.5rem;
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+}
+
 /* Krate Manager card: the full grid width, above the plugin cards */
 .manager-card {
     grid-column: 1 / -1;

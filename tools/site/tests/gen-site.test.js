@@ -257,6 +257,8 @@ test('gen-site builds a lint-clean site from the plugin sources', async (t) => {
     assert.ok(html.indexOf('<h3>Alpha</h3>') < html.indexOf('<h2 class="group-heading">Effects</h2>'));
     assert.ok(html.includes('<img src="alpha/images/card.png" width="600" height="315"'));
     assert.ok(html.includes('Beta is the fixture effect &amp; has no manual.'));
+    assert.ok(html.includes('<span class="released">Released <time datetime="2026-10-01">1 Oct 2026</time></span>'));
+    assert.ok(html.includes('<span class="released">Released <time datetime="2026-09-01">1 Sep 2026</time></span>'));
     const notFound = read(out, '404.html');
     assert.ok(notFound.includes('<meta name="robots" content="noindex, follow">'));
     assert.ok(notFound.includes('<a href="/alpha/">'));

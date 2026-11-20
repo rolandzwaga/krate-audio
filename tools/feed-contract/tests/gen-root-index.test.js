@@ -35,6 +35,13 @@ const PLUGIN_TAGS = Object.freeze({
 });
 const MANAGER_TAGS = Object.freeze(['manager/v0.10.0', 'manager/v0.10.0-rc.1', 'manager/v0.9.0']);
 
+// `git log -1 --format=%cI <tag>` per newest plugin tag; beta has none, so its card has no release line.
+const RELEASE_DATES = Object.freeze({
+  'alpha/v1.10.0': '2026-11-15T19:19:29+01:00',
+  'delta/v2.0.0': '2025-01-03T08:00:00-05:00',
+  'delta-x/v0.1.0': '2026-07-22T08:42:28+02:00',
+});
+
 // Repository-relative paths the tool reads -> the fixture file standing in for them.
 const STAND_INS = Object.freeze({
   'docs/index-template.html': 'index-template.html',
@@ -70,6 +77,11 @@ function fixtureDeps(opts = {}) {
       if (pattern === 'manager/v*') return [...managerTags];
       if (!Object.hasOwn(PLUGIN_TAGS, pattern)) throw new Error(`unexpected tag pattern ${pattern}`);
       return [...PLUGIN_TAGS[pattern]];
+    },
+    commitDate(rev, paths) {
+      calls.push(`commitDate ${rev}`);
+      assert.deepEqual(paths, [], 'the release date is the tag commit, not a path');
+      return RELEASE_DATES[rev] ?? '';
     },
     repo() {
       calls.push('repo');
@@ -181,6 +193,24 @@ test('root index renders the plugin cards and the manager card', async (t) => {
     assert.ok(EXPECTED.includes("Alpha's summary escapes &amp; and &lt;i&gt; too."));
     assert.equal(/\{\{[A-Z_]+\}\}/.test(EXPECTED), false, 'a placeholder is left');
     assert.ok(EXPECTED.includes('<link rel="icon" href="/favicon.ico" sizes="32x32">'), 'the shared head is filled');
+  });
+
+  await t.test('each card shows its newest tag commit date, quietly; no date, no line', () => {
+    const released = [...EXPECTED.matchAll(/<span class="released">Released <time datetime="([^"]+)">([^<]+)<\/time><\/span>/gu)];
+    assert.deepEqual(
+      released.map((m) => [m[1], m[2]]),
+      [
+        ['2026-11-15', '15 Nov 2026'],
+        ['2026-07-22', '22 Jul 2026'],
+        ['2025-01-03', '3 Jan 2025'],
+      ],
+    );
+    const beta = EXPECTED.slice(EXPECTED.indexOf('<h3>Beta</h3>'), EXPECTED.indexOf('<h3>Delta X</h3>'));
+    assert.equal(beta.includes('class="released"'), false, 'beta has no release date');
+    assert.ok(
+      EXPECTED.indexOf('<span class="version">v1.10.0</span>') < EXPECTED.indexOf('datetime="2026-11-15"'),
+      'the date follows the version',
+    );
   });
 
   await t.test('a tagged plugin docs/site.json does not place is E_ROOT_INDEX_SITE_JSON', () => {
