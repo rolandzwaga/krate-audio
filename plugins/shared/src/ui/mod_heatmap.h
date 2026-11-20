@@ -7,8 +7,8 @@
 // intensity. Cell color = source color, brightness = |amount|.
 // Supports click-to-select and hover tooltips.
 //
-// Global mode: 12 sources x 11 destinations grid
-// Voice mode:   8 sources x  7 destinations grid
+// Global mode: kNumGlobalSources x kNumGlobalDestinations (14 x 15)
+// Voice mode:  kNumVoiceSources x kNumVoiceDestinations (8 x 8)
 //
 // Registered as "ModHeatmap" via VSTGUI ViewCreator system.
 // Spec: 049-mod-matrix-grid (FR-031 to FR-038)
@@ -46,8 +46,10 @@ public:
     // Constants
     // =========================================================================
 
-    static constexpr int kMaxSources = 12;      // Global mode max
-    static constexpr int kMaxDestinations = 11;  // Global mode max
+    // The cell grid holds the larger tab in each direction (mod_matrix_types.h). draw() and the hit test walk the
+    // tab's full source x destination range, so a smaller grid is an out-of-bounds read.
+    static constexpr int kMaxSources = std::max(kNumGlobalSources, kNumVoiceSources);
+    static constexpr int kMaxDestinations = std::max(kNumGlobalDestinations, kNumVoiceDestinations);
     static constexpr VSTGUI::CCoord kHeaderHeight = 16.0;
     static constexpr VSTGUI::CCoord kRowHeaderWidth = 30.0;
 
@@ -86,6 +88,14 @@ public:
             cellData_[static_cast<size_t>(sourceRow)][static_cast<size_t>(destCol)] = {.amount = amount, .active = active};
             setDirty();
         }
+    }
+
+    /// The cell at (@p sourceRow, @p destCol); an empty cell outside the grid.
+    [[nodiscard]] CellData cellAt(int sourceRow, int destCol) const {
+        if (sourceRow < 0 || sourceRow >= kMaxSources || destCol < 0 || destCol >= kMaxDestinations) {
+            return {};
+        }
+        return cellData_[static_cast<size_t>(sourceRow)][static_cast<size_t>(destCol)];
     }
 
     void setMode(int mode) {
