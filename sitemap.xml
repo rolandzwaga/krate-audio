@@ -2,25 +2,57 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
   <url>
     <loc>https://krateaudio.com/</loc>
-    <lastmod>2026-11-20T15:01:23+01:00</lastmod>
+    <lastmod>2026-11-21T00:32:17+01:00</lastmod>
   </url>
   <url>
     <loc>https://krateaudio.com/disrumpo/</loc>
-    <lastmod>2026-11-20T15:01:23+01:00</lastmod>
+    <lastmod>2026-11-21T00:32:17+01:00</lastmod>
     <image:image>
       <image:loc>https://krateaudio.com/disrumpo/images/hero.png</image:loc>
     </image:image>
   </url>
   <url>
+    <loc>https://krateaudio.com/disrumpo/manual.html</loc>
+    <lastmod>2026-11-21T00:32:17+01:00</lastmod>
+    <image:image>
+      <image:loc>https://krateaudio.com/disrumpo/images/hero.png</image:loc>
+    </image:image>
+    <image:image>
+      <image:loc>https://krateaudio.com/disrumpo/images/header.png</image:loc>
+    </image:image>
+    <image:image>
+      <image:loc>https://krateaudio.com/disrumpo/images/spectrum.png</image:loc>
+    </image:image>
+    <image:image>
+      <image:loc>https://krateaudio.com/disrumpo/images/bands.png</image:loc>
+    </image:image>
+    <image:image>
+      <image:loc>https://krateaudio.com/disrumpo/images/band-shape-tab.png</image:loc>
+    </image:image>
+    <image:image>
+      <image:loc>https://krateaudio.com/disrumpo/images/band-expanded.png</image:loc>
+    </image:image>
+    <image:image>
+      <image:loc>https://krateaudio.com/disrumpo/images/sweep-row.png</image:loc>
+    </image:image>
+    <image:image>
+      <image:loc>https://krateaudio.com/disrumpo/images/mod-panel.png</image:loc>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://krateaudio.com/disrumpo/signal-flow.html</loc>
+    <lastmod>2026-11-21T00:32:17+01:00</lastmod>
+  </url>
+  <url>
     <loc>https://krateaudio.com/gradus/</loc>
-    <lastmod>2026-11-20T15:01:23+01:00</lastmod>
+    <lastmod>2026-11-21T00:32:17+01:00</lastmod>
     <image:image>
       <image:loc>https://krateaudio.com/gradus/images/hero.png</image:loc>
     </image:image>
   </url>
   <url>
     <loc>https://krateaudio.com/gradus/manual.html</loc>
-    <lastmod>2026-11-20T15:01:23+01:00</lastmod>
+    <lastmod>2026-11-21T00:32:17+01:00</lastmod>
     <image:image>
       <image:loc>https://krateaudio.com/gradus/images/hero.png</image:loc>
     </image:image>
@@ -53,8 +85,12 @@
     </image:image>
   </url>
   <url>
+    <loc>https://krateaudio.com/gradus/signal-flow.html</loc>
+    <lastmod>2026-11-21T00:32:17+01:00</lastmod>
+  </url>
+  <url>
     <loc>https://krateaudio.com/innexus/</loc>
-    <lastmod>2026-11-20T15:01:23+01:00</lastmod>
+    <lastmod>2026-11-21T00:32:17+01:00</lastmod>
     <image:image>
       <image:loc>https://krateaudio.com/innexus/images/hero.png</image:loc>
     </image:image>
@@ -123,14 +159,73 @@
   </url>
   <url>
     <loc>https://krateaudio.com/iterum/</loc>
-    <lastmod>2026-11-20T15:01:23+01:00</lastmod>
+    <lastmod>2026-11-21T00:32:17+01:00</lastmod>
     <image:image>
       <image:loc>https://krateaudio.com/iterum/images/hero.png</image:loc>
     </image:image>
   </url>
   <url>
+    <loc>https://krateaudio.com/iterum/manual.html</loc>
+    <lastmod>2026-11-21T00:32:17+01:00</lastmod>
+    <image:image>
+      <image:loc>https://krateaudio.com/iterum/images/hero.png</image:loc>
+    </image:image>
+    <image:image>
+      <image:loc>https://krateaudio.com/iterum/images/header.png</image:loc>
+    </image:image>
+    <image:image>
+      <image:loc>https://krateaudio.com/iterum/images/footer.png</image:loc>
+    </image:image>
+    <image:image>
+      <image:loc>https://krateaudio.com/iterum/images/mode-granular.png</image:loc>
+    </image:image>
+    <image:image>
+      <image:loc>https://krateaudio.com/iterum/images/mode-spectral.png</image:loc>
+    </image:image>
+    <image:image>
+      <image:loc>https://krateaudio.com/iterum/images/mode-shimmer.png</image:loc>
+    </image:image>
+    <image:image>
+      <image:loc>https://krateaudio.com/iterum/images/mode-tape.png</image:loc>
+    </image:image>
+    <image:image>
+      <image:loc>https://krateaudio.com/iterum/images/mode-bbd.png</image:loc>
+    </image:image>
+    <image:image>
+      <image:loc>https://krateaudio.com/iterum/images/mode-digital.png</image:loc>
+    </image:image>
+    <image:image>
+      <image:loc>https://krateaudio.com/iterum/images/mode-pingpong.png</image:loc>
+    </image:image>
+    <image:image>
+      <image:loc>https://krateaudio.com/iterum/images/mode-reverse.png</image:loc>
+    </image:image>
+    <image:image>
+      <image:loc>https://krateaudio.com/iterum/images/mode-multitap.png</image:loc>
+    </image:image>
+    <image:image>
+      <image:loc>https://krateaudio.com/iterum/images/multitap-custom.png</image:loc>
+    </image:image>
+    <image:image>
+      <image:loc>https://krateaudio.com/iterum/images/mode-freeze.png</image:loc>
+    </image:image>
+    <image:image>
+      <image:loc>https://krateaudio.com/iterum/images/freeze-granular-scatter.png</image:loc>
+    </image:image>
+    <image:image>
+      <image:loc>https://krateaudio.com/iterum/images/freeze-harmonic-drones.png</image:loc>
+    </image:image>
+    <image:image>
+      <image:loc>https://krateaudio.com/iterum/images/freeze-noise-bursts.png</image:loc>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://krateaudio.com/iterum/signal-flow.html</loc>
+    <lastmod>2026-11-21T00:32:17+01:00</lastmod>
+  </url>
+  <url>
     <loc>https://krateaudio.com/membrum/</loc>
-    <lastmod>2026-11-20T15:01:23+01:00</lastmod>
+    <lastmod>2026-11-21T00:32:17+01:00</lastmod>
     <image:image>
       <image:loc>https://krateaudio.com/membrum/images/hero.png</image:loc>
     </image:image>
@@ -202,7 +297,7 @@
   </url>
   <url>
     <loc>https://krateaudio.com/profundum/</loc>
-    <lastmod>2026-11-20T15:01:23+01:00</lastmod>
+    <lastmod>2026-11-21T00:32:17+01:00</lastmod>
     <image:image>
       <image:loc>https://krateaudio.com/profundum/images/hero.png</image:loc>
     </image:image>
@@ -265,14 +360,14 @@
   </url>
   <url>
     <loc>https://krateaudio.com/ruinae/</loc>
-    <lastmod>2026-11-20T15:01:23+01:00</lastmod>
+    <lastmod>2026-11-21T00:32:17+01:00</lastmod>
     <image:image>
       <image:loc>https://krateaudio.com/ruinae/images/hero.png</image:loc>
     </image:image>
   </url>
   <url>
     <loc>https://krateaudio.com/ruinae/manual.html</loc>
-    <lastmod>2026-11-20T15:01:23+01:00</lastmod>
+    <lastmod>2026-11-21T00:32:17+01:00</lastmod>
     <image:image>
       <image:loc>https://krateaudio.com/ruinae/images/hero.png</image:loc>
     </image:image>
@@ -400,7 +495,7 @@
   </url>
   <url>
     <loc>https://krateaudio.com/seraphis/</loc>
-    <lastmod>2026-11-20T15:01:23+01:00</lastmod>
+    <lastmod>2026-11-21T00:32:17+01:00</lastmod>
     <image:image>
       <image:loc>https://krateaudio.com/seraphis/images/hero.png</image:loc>
     </image:image>
@@ -448,7 +543,7 @@
   </url>
   <url>
     <loc>https://krateaudio.com/vorago/</loc>
-    <lastmod>2026-11-20T15:01:23+01:00</lastmod>
+    <lastmod>2026-11-21T00:32:17+01:00</lastmod>
     <image:image>
       <image:loc>https://krateaudio.com/vorago/images/hero.png</image:loc>
     </image:image>

@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gradus Signal Flow Diagram | Krate Audio</title>
+    <meta name="description" content="Interactive signal flow diagram of Gradus, the free Step Arpeggiator VST3 plugin by Krate Audio, every stage from input to output.">
+    <link rel="canonical" href="https://krateaudio.com/gradus/signal-flow.html">
+    <meta property="og:title" content="Gradus Signal Flow Diagram">
+    <meta property="og:description" content="Interactive signal flow diagram of Gradus, the free Step Arpeggiator VST3 plugin by Krate Audio, every stage from input to output.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https://krateaudio.com/gradus/signal-flow.html">
+    <meta name="robots" content="index, follow, max-image-preview:large">
+    <meta name="theme-color" content="#0a0a0f">
+    <link rel="icon" href="/favicon.ico" sizes="32x32">
+    <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+    <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+    <link rel="preload" href="/assets/fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="stylesheet" href="/assets/site.css">
+    <meta property="og:site_name" content="Krate Audio">
+    <meta property="og:locale" content="en_US">
+    <meta property="og:image" content="https://krateaudio.com/gradus/images/og-image.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="Gradus plugin editor">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content="https://krateaudio.com/gradus/images/og-image.png">
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "Organization",
+          "@id": "https://krateaudio.com/#organization",
+          "name": "Krate Audio",
+          "url": "https://krateaudio.com/",
+          "logo": {
+            "@type": "ImageObject",
+            "url": "https://krateaudio.com/assets/logo-512.png",
+            "width": 512,
+            "height": 512
+          },
+          "sameAs": [
+            "https://github.com/rolandzwaga"
+          ]
+        },
+        {
+          "@type": "BreadcrumbList",
+          "itemListElement": [
+            {
+              "@type": "ListItem",
+              "position": 1,
+              "name": "Krate Audio",
+              "item": "https://krateaudio.com/"
+            },
+            {
+              "@type": "ListItem",
+              "position": 2,
+              "name": "Gradus",
+              "item": "https://krateaudio.com/gradus/"
+            },
+            {
+              "@type": "ListItem",
+              "position": 3,
+              "name": "Signal Flow",
+              "item": "https://krateaudio.com/gradus/signal-flow.html"
+            }
+          ]
+        }
+      ]
+    }
+    </script>
+    <style>
+        :root {
+            --color-bg: #0a0a0f;
+            --color-surface: #12121a;
+            --color-border: #2a2a3a;
+            --color-text: #e8e8f0;
+            --color-text-muted: #8888a0;
+            --color-accent: #a855f7;
+            --color-accent-hover: #c084fc;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--color-bg);
+            color: var(--color-text);
+            line-height: 1.6;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            padding: 1.25rem 2rem;
+            border-bottom: 1px solid var(--color-border);
+            flex-shrink: 0;
+        }
+
+        .breadcrumb {
+            font-size: 0.875rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .breadcrumb a {
+            color: var(--color-text-muted);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .breadcrumb a:hover {
+            color: var(--color-accent);
+        }
+
+        .breadcrumb .separator {
+            color: var(--color-border);
+            margin: 0 0.5rem;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            background: linear-gradient(135deg, var(--color-text) 0%, var(--color-accent) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .intro {
+            color: var(--color-text-muted);
+            font-size: 0.9rem;
+            max-width: 70ch;
+        }
+
+        .intro a {
+            color: var(--color-accent-hover);
+        }
+
+        .toolbar {
+            padding: 0.75rem 2rem;
+            border-bottom: 1px solid var(--color-border);
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            background: var(--color-surface);
+            flex-shrink: 0;
+        }
+
+        .toolbar button {
+            padding: 0.375rem 0.75rem;
+            background: var(--color-bg);
+            border: 1px solid var(--color-border);
+            border-radius: 6px;
+            color: var(--color-text);
+            font-family: inherit;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .toolbar button:hover {
+            border-color: var(--color-accent);
+            color: var(--color-accent);
+        }
+
+        .toolbar .zoom-info {
+            font-size: 0.8rem;
+            color: var(--color-text-muted);
+            margin-left: auto;
+        }
+
+        #diagram-container {
+            flex: 1;
+            min-height: 60vh;
+            overflow: hidden;
+            position: relative;
+            cursor: grab;
+        }
+
+        #diagram-container.grabbing {
+            cursor: grabbing;
+        }
+
+        #diagram {
+            position: absolute;
+            transform-origin: 0 0;
+        }
+
+        #diagram svg {
+            display: block;
+        }
+
+        #loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: var(--color-text-muted);
+            font-size: 1.1rem;
+        }
+
+        #error {
+            display: none;
+            padding: 2rem;
+            color: #f87171;
+            text-align: center;
+        }
+
+        @media (max-width: 640px) {
+            .header { padding: 1rem; }
+            .toolbar { padding: 0.5rem 1rem; }
+            h1 { font-size: 1.25rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <nav class="breadcrumb">
+            <a href="/">Krate Audio</a>
+            <span class="separator">/</span>
+            <a href="./">Gradus</a>
+            <span class="separator">/</span>
+        </nav>
+        <h1>Gradus Signal Flow</h1>
+        <p class="intro">Interactive signal flow diagram of Gradus, the free Step Arpeggiator VST3 plugin by Krate Audio, every stage from input to output. Drag to pan, scroll to zoom. The <a href="manual.html">user manual</a> explains each stage.</p>
+    </div>
+
+    <div class="toolbar">
+        <button id="zoom-in" title="Zoom in">+</button>
+        <button id="zoom-out" title="Zoom out">&minus;</button>
+        <button id="zoom-fit" title="Fit to screen">Fit</button>
+        <button id="zoom-reset" title="Reset to 100%">1:1</button>
+        <span class="zoom-info" id="zoom-level">100%</span>
+    </div>
+
+    <div id="diagram-container">
+        <div id="loading">Loading diagram&hellip;</div>
+        <div id="error"></div>
+        <div id="diagram"><?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN"
+ "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<!-- Generated by graphviz version 12.2.0 (20241103.1931)
+ -->
+<!-- Title: GradusSignalFlow Pages: 1 -->
+<svg width="737pt" height="1620pt"
+ viewBox="0.00 0.00 737.26 1619.51" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+<g id="graph0" class="graph" transform="scale(1 1) rotate(0) translate(4 1615.51)">
+<title>GradusSignalFlow</title>
+<polygon fill="white" stroke="none" points="-4,4 -4,-1615.51 733.26,-1615.51 733.26,4 -4,4"/>
+<g id="clust1" class="cluster">
+<title>cluster_legend</title>
+<path fill="#fafafa" stroke="#888888" d="M20,-1433.11C20,-1433.11 222,-1433.11 222,-1433.11 228,-1433.11 234,-1439.11 234,-1445.11 234,-1445.11 234,-1591.51 234,-1591.51 234,-1597.51 228,-1603.51 222,-1603.51 222,-1603.51 20,-1603.51 20,-1603.51 14,-1603.51 8,-1597.51 8,-1591.51 8,-1591.51 8,-1445.11 8,-1445.11 8,-1439.11 14,-1433.11 20,-1433.11"/>
+<text text-anchor="middle" x="121" y="-1588.71" font-family="Helvetica,sans-Serif" font-size="12.00" fill="#444444">Legend</text>
+</g>
+<g id="clust2" class="cluster">
+<title>cluster_input</title>
+<path fill="#f0f0f0" stroke="#666666" d="M254,-1471.14C254,-1471.14 648,-1471.14 648,-1471.14 654,-1471.14 660,-1477.14 660,-1483.14 660,-1483.14 660,-1552.28 660,-1552.28 660,-1558.28 654,-1564.28 648,-1564.28 648,-1564.28 254,-1564.28 254,-1564.28 248,-1564.28 242,-1558.28 242,-1552.28 242,-1552.28 242,-1483.14 242,-1483.14 242,-1477.14 248,-1471.14 254,-1471.14"/>
+<text text-anchor="middle" x="451" y="-1550.38" font-family="Helvetica,sans-Serif" font-size="11.00">Input</text>
+</g>
+<g id="clust3" class="cluster">
+<title>cluster_step</title>
+<path fill="#fbf1eb" stroke="#8c5030" d="M177,-418.11C177,-418.11 569,-418.11 569,-418.11 575,-418.11 581,-424.11 581,-430.11 581,-430.11 581,-1291.91 581,-1291.91 581,-1297.91 575,-1303.91 569,-1303.91 569,-1303.91 177,-1303.91 177,-1303.91 171,-1303.91 165,-1297.91 165,-1291.91 165,-1291.91 165,-430.11 165,-430.11 165,-424.11 171,-418.11 177,-418.11"/>
+<text text-anchor="middle" x="373" y="-1290.01" font-family="Helvetica,sans-Serif" font-size="11.00">Each step, in this order</text>
+</g>
+<g id="clust4" class="cluster">
+<title>cluster_audition</title>
+<path fill="#eef4fb" stroke="#2e5e8c" d="M449,-93.54C449,-93.54 619,-93.54 619,-93.54 625,-93.54 631,-99.54 631,-105.54 631,-105.54 631,-257.71 631,-257.71 631,-263.71 625,-269.71 619,-269.71 619,-269.71 449,-269.71 449,-269.71 443,-269.71 437,-263.71 437,-257.71 437,-257.71 437,-105.54 437,-105.54 437,-99.54 443,-93.54 449,-93.54"/>
+<text text-anchor="middle" x="534" y="-255.81" font-family="Helvetica,sans-Serif" font-size="11.00">Audition (built&#45;in monitor, not saved)</text>
+</g>
+<!-- leg -->
+<g id="node1" class="node">
+<title>leg</title>
+<polygon fill="#fafafa" stroke="none" points="225.71,-1573.11 16.29,-1573.11 16.29,-1441.11 225.71,-1441.11 225.71,-1573.11"/>
+<polygon fill="#c87850" stroke="none" points="28.29,-1549.11 28.29,-1565.11 65.63,-1565.11 65.63,-1549.11 28.29,-1549.11"/>
+<text text-anchor="start" x="45.57" y="-1554.11" font-family="Helvetica,sans-Serif" font-size="10.00"> </text>
+<text text-anchor="start" x="71.63" y="-1554.11" font-family="Helvetica,sans-Serif" font-size="10.00">MIDI note / event path</text>
+<polygon fill="#e8a838" stroke="none" points="28.29,-1529.11 28.29,-1545.11 65.63,-1545.11 65.63,-1529.11 28.29,-1529.11"/>
+<text text-anchor="start" x="45.57" y="-1534.11" font-family="Helvetica,sans-Serif" font-size="10.00"> </text>
+<text text-anchor="start" x="71.63" y="-1534.11" font-family="Helvetica,sans-Serif" font-size="10.00">Step lanes (read once per step)</text>
+<polygon fill="#4a90d9" stroke="none" points="28.29,-1509.11 28.29,-1525.11 65.63,-1525.11 65.63,-1509.11 28.29,-1509.11"/>
+<text text-anchor="start" x="45.57" y="-1514.11" font-family="Helvetica,sans-Serif" font-size="10.00"> </text>
+<text text-anchor="start" x="71.63" y="-1514.11" font-family="Helvetica,sans-Serif" font-size="10.00">Audition audio</text>
+<polygon fill="#aaaaaa" stroke="none" points="28.29,-1489.11 28.29,-1505.11 65.63,-1505.11 65.63,-1489.11 28.29,-1489.11"/>
+<text text-anchor="start" x="45.57" y="-1494.11" font-family="Helvetica,sans-Serif" font-size="10.00"> </text>
+<text text-anchor="start" x="71.63" y="-1494.11" font-family="Helvetica,sans-Serif" font-size="10.00">Host / editor</text>
+<text text-anchor="start" x="30.29" y="-1474.11" font-family="Helvetica,sans-Serif" font-size="10.00">───▶</text>
+<text text-anchor="start" x="71.63" y="-1474.11" font-family="Helvetica,sans-Serif" font-size="10.00">Event / audio flow</text>
+<text text-anchor="start" x="36.68" y="-1454.11" font-family="Helvetica,sans-Serif" font-size="10.00">&#45; &#45; ▶</text>
+<text text-anchor="start" x="71.63" y="-1454.11" font-family="Helvetica,sans-Serif" font-size="10.00">Control / timing</text>
+</g>
+<!-- midi_in -->
+<g id="node2" class="node">
+<title>midi_in</title>
+<polygon fill="#ccddee" stroke="black" points="361.68,-1512.67 306,-1525.11 250.32,-1512.67 250.37,-1492.54 361.63,-1492.54 361.68,-1512.67"/>
+<text text-anchor="middle" x="306" y="-1504.11" font-family="Helvetica,sans-Serif" font-size="10.00">MIDI notes in</text>
+</g>
+<!-- held -->
+<g id="node4" class="node">
+<title>held</title>
+<polygon fill="#c87850" stroke="black" points="389.31,-1395.51 212.69,-1395.51 212.69,-1339.51 389.31,-1339.51 389.31,-1395.51"/>
+<text text-anchor="middle" x="301" y="-1382.51" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">Held notes (up to 32)</text>
+<text text-anchor="middle" x="301" y="-1370.51" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">Latch: Off · Hold · Add</text>
+<text text-anchor="middle" x="301" y="-1358.51" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">Quantize In (to Scale / Root)</text>
+<text text-anchor="middle" x="301" y="-1346.51" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">Retrigger Note: restart on a new key</text>
+</g>
+<!-- midi_in&#45;&gt;held -->
+<g id="edge1" class="edge">
+<title>midi_in&#45;&gt;held</title>
+<path fill="none" stroke="black" stroke-width="2" d="M305.49,-1492.16C304.79,-1472.75 303.48,-1436.83 302.46,-1408.68"/>
+<polygon fill="black" stroke="black" stroke-width="2" points="305.97,-1408.88 302.11,-1399.01 298.97,-1409.13 305.97,-1408.88"/>
+<text text-anchor="middle" x="321.81" y="-1415.91" font-family="Helvetica,sans-Serif" font-size="8.00">note on/off</text>
+</g>
+<!-- transport -->
+<g id="node3" class="node">
+<title>transport</title>
+<polygon fill="#ccddee" stroke="black" points="651.93,-1515.75 516,-1535.08 380.07,-1515.75 380.2,-1484.48 651.8,-1484.48 651.93,-1515.75"/>
+<text text-anchor="middle" x="516" y="-1510.11" font-family="Helvetica,sans-Serif" font-size="10.00">Host tempo, position, play state</text>
+<text text-anchor="middle" x="516" y="-1498.11" font-family="Helvetica,sans-Serif" font-size="10.00">(120 BPM when absent)</text>
+</g>
+<!-- clock -->
+<g id="node5" class="node">
+<title>clock</title>
+<polygon fill="#c87850" stroke="black" points="630.66,-1395.51 407.34,-1395.51 407.34,-1339.51 630.66,-1339.51 630.66,-1395.51"/>
+<text text-anchor="middle" x="519" y="-1382.51" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">Step clock</text>
+<text text-anchor="middle" x="519" y="-1370.51" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">Sync: Note Value × tempo, or Rate (0.5&#45;50 Hz)</text>
+<text text-anchor="middle" x="519" y="-1358.51" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">Swing (0&#45;75%)</text>
+<text text-anchor="middle" x="519" y="-1346.51" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">Retrigger Beat: restart on the bar</text>
+</g>
+<!-- transport&#45;&gt;clock -->
+<g id="edge2" class="edge">
+<title>transport&#45;&gt;clock</title>
+<path fill="none" stroke="#888888" stroke-dasharray="5,2" d="M516.48,-1484C516.93,-1463.28 517.62,-1431.85 518.16,-1407.01"/>
+<polygon fill="#888888" stroke="#888888" points="521.65,-1407.36 518.37,-1397.28 514.66,-1407.2 521.65,-1407.36"/>
+</g>
+<!-- source -->
+<g id="node6" class="node">
+<title>source</title>
+<polygon fill="#c87850" stroke="black" points="544.22,-1274.71 259.78,-1274.71 259.78,-1206.71 544.22,-1206.71 544.22,-1274.71"/>
+<text text-anchor="middle" x="402" y="-1261.71" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">1 &#160;Note source</text>
+<text text-anchor="middle" x="402" y="-1249.71" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">LIVE: Pattern (Up · Down · UpDown · DownUp · Converge</text>
+<text text-anchor="middle" x="402" y="-1237.71" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">Diverge · Random · Walk · AsPlayed · Chord · Gravity</text>
+<text text-anchor="middle" x="402" y="-1225.71" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">Markov Chain) × Octaves / Oct Mode</text>
+<text text-anchor="middle" x="402" y="-1213.71" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">SEQUENCER: Seq Note lane, transposed by the last key</text>
+</g>
+<!-- held&#45;&gt;source -->
+<g id="edge11" class="edge">
+<title>held&#45;&gt;source</title>
+<path fill="none" stroke="black" stroke-width="2" d="M323.16,-1339.12C329.31,-1331.53 336.28,-1322.91 343.48,-1314.02"/>
+<polygon fill="black" stroke="black" stroke-width="2" points="346.19,-1316.23 349.76,-1306.26 340.75,-1311.83 346.19,-1316.23"/>
+<text text-anchor="middle" x="356.46" y="-1314.31" font-family="Helvetica,sans-Serif" font-size="8.00">held set</text>
+</g>
+<!-- clock&#45;&gt;source -->
+<g id="edge12" class="edge">
+<title>clock&#45;&gt;source</title>
+<path fill="none" stroke="#888888" stroke-dasharray="5,2" d="M493.32,-1339.12C485.75,-1331.04 477.08,-1321.8 468.18,-1312.3"/>
+<polygon fill="#888888" stroke="#888888" points="470.74,-1309.91 461.35,-1305.01 465.63,-1314.7 470.74,-1309.91"/>
+<text text-anchor="middle" x="481.98" y="-1314.31" font-family="Helvetica,sans-Serif" font-size="8.00">step</text>
+</g>
+<!-- lanes -->
+<g id="node7" class="node">
+<title>lanes</title>
+<polygon fill="#e8a838" stroke="black" points="519.46,-1169.71 284.54,-1169.71 284.54,-1101.71 519.46,-1101.71 519.46,-1169.71"/>
+<text text-anchor="middle" x="402" y="-1156.71" font-family="Helvetica,sans-Serif" font-size="10.00">2 &#160;Read every lane, then advance it</text>
+<text text-anchor="middle" x="402" y="-1144.71" font-family="Helvetica,sans-Serif" font-size="10.00">VEL · GATE · PITCH · MOD · RATCH · COND</text>
+<text text-anchor="middle" x="402" y="-1132.71" font-family="Helvetica,sans-Serif" font-size="10.00">CHORD · INV · DELAY (+ Seq Note)</text>
+<text text-anchor="middle" x="402" y="-1120.71" font-family="Helvetica,sans-Serif" font-size="10.00">per lane: steps (≤32), Speed 0.25&#45;4×,</text>
+<text text-anchor="middle" x="402" y="-1108.71" font-family="Helvetica,sans-Serif" font-size="10.00">speed curve, lane swing, jitter</text>
+</g>
+<!-- source&#45;&gt;lanes -->
+<g id="edge3" class="edge">
+<title>source&#45;&gt;lanes</title>
+<path fill="none" stroke="#8c5030" stroke-dasharray="5,2" d="M402,-1206.27C402,-1198.36 402,-1189.81 402,-1181.49"/>
+<polygon fill="#8c5030" stroke="#8c5030" points="405.5,-1181.49 402,-1171.49 398.5,-1181.49 405.5,-1181.49"/>
+</g>
+<!-- spice -->
+<g id="node8" class="node">
+<title>spice</title>
+<polygon fill="#e8a838" stroke="black" points="472.04,-1064.71 315.96,-1064.71 315.96,-1020.71 472.04,-1020.71 472.04,-1064.71"/>
+<text text-anchor="middle" x="394" y="-1051.71" font-family="Helvetica,sans-Serif" font-size="10.00">3 &#160;Spice</text>
+<text text-anchor="middle" x="394" y="-1039.71" font-family="Helvetica,sans-Serif" font-size="10.00">blends the Dice variation into</text>
+<text text-anchor="middle" x="394" y="-1027.71" font-family="Helvetica,sans-Serif" font-size="10.00">velocity, gate, ratchet, condition</text>
+</g>
+<!-- lanes&#45;&gt;spice -->
+<g id="edge4" class="edge">
+<title>lanes&#45;&gt;spice</title>
+<path fill="none" stroke="#8c5030" stroke-dasharray="5,2" d="M399.07,-1101.34C398.35,-1093.23 397.59,-1084.56 396.88,-1076.48"/>
+<polygon fill="#8c5030" stroke="#8c5030" points="400.38,-1076.35 396.02,-1066.69 393.41,-1076.96 400.38,-1076.35"/>
+</g>
+<!-- playheads -->
+<g id="node20" class="node">
+<title>playheads</title>
+<polygon fill="#cccccc" stroke="black" points="729.26,-1060.71 588.74,-1060.71 588.74,-1024.71 729.26,-1024.71 729.26,-1060.71"/>
+<text text-anchor="middle" x="659" y="-1045.71" font-family="Helvetica,sans-Serif" font-size="10.00">Lane playheads → editor</text>
+<text text-anchor="middle" x="659" y="-1033.71" font-family="Helvetica,sans-Serif" font-size="10.00">ring display and lane editors</text>
+</g>
+<!-- lanes&#45;&gt;playheads -->
+<g id="edge18" class="edge">
+<title>lanes&#45;&gt;playheads</title>
+<path fill="none" stroke="#888888" stroke-dasharray="5,2" d="M496.6,-1101.21C530.91,-1089.06 568.7,-1075.68 599.18,-1064.89"/>
+<polygon fill="#888888" stroke="#888888" points="599.96,-1068.33 608.21,-1061.69 597.62,-1061.73 599.96,-1068.33"/>
+</g>
+<!-- gates -->
+<g id="node9" class="node">
+<title>gates</title>
+<polygon fill="#e8a838" stroke="black" points="373,-983.71 173.04,-927.71 373,-871.71 572.96,-927.71 373,-983.71"/>
+<text text-anchor="middle" x="373" y="-942.71" font-family="Helvetica,sans-Serif" font-size="10.00">4 &#160;Gating</text>
+<text text-anchor="middle" x="373" y="-930.71" font-family="Helvetica,sans-Serif" font-size="10.00">Euclidean (Hits / Steps / Rotation)</text>
+<text text-anchor="middle" x="373" y="-918.71" font-family="Helvetica,sans-Serif" font-size="10.00">Condition lane (probability, A:B, First, Fill)</text>
+<text text-anchor="middle" x="373" y="-906.71" font-family="Helvetica,sans-Serif" font-size="10.00">miss = rest</text>
+</g>
+<!-- spice&#45;&gt;gates -->
+<g id="edge5" class="edge">
+<title>spice&#45;&gt;gates</title>
+<path fill="none" stroke="#8c5030" stroke-dasharray="5,2" d="M390.05,-1020.45C388.53,-1012.28 386.71,-1002.48 384.83,-992.36"/>
+<polygon fill="#8c5030" stroke="#8c5030" points="388.32,-992 383.05,-982.81 381.44,-993.28 388.32,-992"/>
+</g>
+<!-- modifier -->
+<g id="node10" class="node">
+<title>modifier</title>
+<polygon fill="#e8a838" stroke="black" points="441.73,-826.11 304.27,-826.11 304.27,-790.11 441.73,-790.11 441.73,-826.11"/>
+<text text-anchor="middle" x="373" y="-811.11" font-family="Helvetica,sans-Serif" font-size="10.00">5 &#160;Modifier lane</text>
+<text text-anchor="middle" x="373" y="-799.11" font-family="Helvetica,sans-Serif" font-size="10.00">Rest &gt; Tie &gt; Slide &gt; Accent</text>
+</g>
+<!-- gates&#45;&gt;modifier -->
+<g id="edge6" class="edge">
+<title>gates&#45;&gt;modifier</title>
+<path fill="none" stroke="black" stroke-width="2" d="M373,-871.35C373,-860.26 373,-849 373,-839.16"/>
+<polygon fill="black" stroke="black" stroke-width="2" points="376.5,-839.4 373,-829.4 369.5,-839.4 376.5,-839.4"/>
+<text text-anchor="middle" x="382.34" y="-846.51" font-family="Helvetica,sans-Serif" font-size="8.00">plays</text>
+</g>
+<!-- velocity -->
+<g id="node11" class="node">
+<title>velocity</title>
+<polygon fill="#c87850" stroke="black" points="444.64,-753.11 301.36,-753.11 301.36,-709.11 444.64,-709.11 444.64,-753.11"/>
+<text text-anchor="middle" x="373" y="-740.11" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">6 &#160;Velocity</text>
+<text text-anchor="middle" x="373" y="-728.11" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">× VEL lane → Velocity Curve</text>
+<text text-anchor="middle" x="373" y="-716.11" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">+ Accent</text>
+</g>
+<!-- modifier&#45;&gt;velocity -->
+<g id="edge7" class="edge">
+<title>modifier&#45;&gt;velocity</title>
+<path fill="none" stroke="black" stroke-width="2" d="M373,-789.71C373,-782.7 373,-774.35 373,-766.22"/>
+<polygon fill="black" stroke="black" stroke-width="2" points="376.5,-766.45 373,-756.45 369.5,-766.45 376.5,-766.45"/>
+</g>
+<!-- pitch -->
+<g id="node12" class="node">
+<title>pitch</title>
+<polygon fill="#c87850" stroke="black" points="478.26,-672.11 267.74,-672.11 267.74,-604.11 478.26,-604.11 478.26,-672.11"/>
+<text text-anchor="middle" x="373" y="-659.11" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">7 &#160;Pitch</text>
+<text text-anchor="middle" x="373" y="-647.11" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">CHORD + INV lanes + Voicing</text>
+<text text-anchor="middle" x="373" y="-635.11" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">+ PITCH lane + Transpose</text>
+<text text-anchor="middle" x="373" y="-623.11" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">(scale degrees unless Chromatic)</text>
+<text text-anchor="middle" x="373" y="-611.11" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">→ Range Low / High (Wrap · Clamp · Skip)</text>
+</g>
+<!-- velocity&#45;&gt;pitch -->
+<g id="edge8" class="edge">
+<title>velocity&#45;&gt;pitch</title>
+<path fill="none" stroke="black" stroke-width="2" d="M373,-709C373,-701.9 373,-693.68 373,-685.42"/>
+<polygon fill="black" stroke="black" stroke-width="2" points="376.5,-685.6 373,-675.6 369.5,-685.6 376.5,-685.6"/>
+</g>
+<!-- humanize -->
+<g id="node13" class="node">
+<title>humanize</title>
+<polygon fill="#c87850" stroke="black" points="467.98,-567.11 278.02,-567.11 278.02,-531.11 467.98,-531.11 467.98,-567.11"/>
+<text text-anchor="middle" x="373" y="-552.11" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">8 &#160;Humanize</text>
+<text text-anchor="middle" x="373" y="-540.11" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">±20 ms timing, ±15 velocity, ±10% gate</text>
+</g>
+<!-- pitch&#45;&gt;humanize -->
+<g id="edge9" class="edge">
+<title>pitch&#45;&gt;humanize</title>
+<path fill="none" stroke="black" stroke-width="2" d="M373,-603.72C373,-595.93 373,-587.69 373,-580.06"/>
+<polygon fill="black" stroke="black" stroke-width="2" points="376.5,-580.26 373,-570.26 369.5,-580.26 376.5,-580.26"/>
+</g>
+<!-- emit -->
+<g id="node14" class="node">
+<title>emit</title>
+<polygon fill="#c87850" stroke="black" points="468.97,-494.11 277.03,-494.11 277.03,-426.11 468.97,-426.11 468.97,-494.11"/>
+<text text-anchor="middle" x="373" y="-481.11" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">9 &#160;Note events</text>
+<text text-anchor="middle" x="373" y="-469.11" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">gate = step × Gate Length × GATE lane</text>
+<text text-anchor="middle" x="373" y="-457.11" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">Ratchet 1&#45;4 (Shuffle, Decay)</text>
+<text text-anchor="middle" x="373" y="-445.11" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">Strum for chords</text>
+<text text-anchor="middle" x="373" y="-433.11" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">Tie / Slide hold the note</text>
+</g>
+<!-- humanize&#45;&gt;emit -->
+<g id="edge10" class="edge">
+<title>humanize&#45;&gt;emit</title>
+<path fill="none" stroke="black" stroke-width="2" d="M373,-530.92C373,-524.01 373,-515.69 373,-507.23"/>
+<polygon fill="black" stroke="black" stroke-width="2" points="376.5,-507.49 373,-497.49 369.5,-507.49 376.5,-507.49"/>
+</g>
+<!-- echo -->
+<g id="node15" class="node">
+<title>echo</title>
+<polygon fill="#c87850" stroke="black" points="487.16,-370.91 258.84,-370.91 258.84,-314.91 487.16,-314.91 487.16,-370.91"/>
+<text text-anchor="middle" x="373" y="-357.91" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">MIDI Delay echoes</text>
+<text text-anchor="middle" x="373" y="-345.91" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">steps with the DELAY lane active</text>
+<text text-anchor="middle" x="373" y="-333.91" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">Feedback ≤16 repeats, Time (Free 10&#45;2000 ms</text>
+<text text-anchor="middle" x="373" y="-321.91" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">or Synced), Vel Decay, Pitch Shift, Gate Scale</text>
+</g>
+<!-- emit&#45;&gt;echo -->
+<g id="edge13" class="edge">
+<title>emit&#45;&gt;echo</title>
+<path fill="none" stroke="black" stroke-width="2" d="M373,-425.79C373,-412.83 373,-397.86 373,-384.3"/>
+<polygon fill="black" stroke="black" stroke-width="2" points="376.5,-384.36 373,-374.36 369.5,-384.36 376.5,-384.36"/>
+<text text-anchor="middle" x="403.24" y="-400.91" font-family="Helvetica,sans-Serif" font-size="8.00">arp notes</text>
+<text text-anchor="middle" x="403.24" y="-391.31" font-family="Helvetica,sans-Serif" font-size="8.00">(passed through)</text>
+</g>
+<!-- midi_out -->
+<g id="node16" class="node">
+<title>midi_out</title>
+<polygon fill="#ccddee" stroke="black" points="287.18,-213.86 358,-194.54 428.82,-213.86 428.76,-245.13 287.24,-245.13 287.18,-213.86"/>
+<text text-anchor="middle" x="358" y="-225.51" font-family="Helvetica,sans-Serif" font-size="10.00">MIDI notes out</text>
+<text text-anchor="middle" x="358" y="-213.51" font-family="Helvetica,sans-Serif" font-size="10.00">channel 1</text>
+</g>
+<!-- echo&#45;&gt;midi_out -->
+<g id="edge14" class="edge">
+<title>echo&#45;&gt;midi_out</title>
+<path fill="none" stroke="black" stroke-width="2" d="M369.52,-314.45C367.4,-297.68 364.66,-276.09 362.39,-258.15"/>
+<polygon fill="black" stroke="black" stroke-width="2" points="365.87,-257.78 361.14,-248.3 358.93,-258.66 365.87,-257.78"/>
+<text text-anchor="middle" x="401.42" y="-284.91" font-family="Helvetica,sans-Serif" font-size="8.00">arp notes + echoes</text>
+</g>
+<!-- allocator -->
+<g id="node17" class="node">
+<title>allocator</title>
+<polygon fill="#d6e4f2" stroke="black" points="548.52,-240.51 457.48,-240.51 457.48,-204.51 548.52,-204.51 548.52,-240.51"/>
+<text text-anchor="middle" x="503" y="-225.51" font-family="Helvetica,sans-Serif" font-size="10.00">8 voices</text>
+<text text-anchor="middle" x="503" y="-213.51" font-family="Helvetica,sans-Serif" font-size="10.00">oldest stolen first</text>
+</g>
+<!-- echo&#45;&gt;allocator -->
+<g id="edge16" class="edge">
+<title>echo&#45;&gt;allocator</title>
+<path fill="none" stroke="black" stroke-width="2" d="M416.44,-314.63C424.22,-309.1 432.05,-303.08 439,-296.91 445.23,-291.37 451.44,-285.25 457.39,-278.97"/>
+<polygon fill="black" stroke="black" stroke-width="2" points="459.67,-281.66 463.87,-271.93 454.52,-276.92 459.67,-281.66"/>
+<text text-anchor="middle" x="483.21" y="-289.71" font-family="Helvetica,sans-Serif" font-size="8.00">when Audition</text>
+<text text-anchor="middle" x="483.21" y="-280.11" font-family="Helvetica,sans-Serif" font-size="8.00">is on</text>
+</g>
+<!-- voice -->
+<g id="node18" class="node">
+<title>voice</title>
+<polygon fill="#4a90d9" stroke="black" points="622.88,-157.54 445.12,-157.54 445.12,-101.54 622.88,-101.54 622.88,-157.54"/>
+<text text-anchor="middle" x="534" y="-144.54" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">Voice</text>
+<text text-anchor="middle" x="534" y="-132.54" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">Waveform: Sine · Saw · Square</text>
+<text text-anchor="middle" x="534" y="-120.54" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">envelope: 2 ms attack, Decay to 0.6,</text>
+<text text-anchor="middle" x="534" y="-108.54" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">30 ms release; × velocity × Volume</text>
+</g>
+<!-- allocator&#45;&gt;voice -->
+<g id="edge15" class="edge">
+<title>allocator&#45;&gt;voice</title>
+<path fill="none" stroke="black" stroke-width="2" d="M508.83,-204.4C512.14,-194.69 516.42,-182.12 520.51,-170.11"/>
+<polygon fill="black" stroke="black" stroke-width="2" points="523.77,-171.4 523.69,-160.81 517.15,-169.14 523.77,-171.4"/>
+</g>
+<!-- audio_out -->
+<g id="node19" class="node">
+<title>audio_out</title>
+<polygon fill="#ccddee" stroke="black" points="465.12,-19.33 534,0 602.88,-19.33 602.82,-50.6 465.18,-50.6 465.12,-19.33"/>
+<text text-anchor="middle" x="534" y="-30.97" font-family="Helvetica,sans-Serif" font-size="10.00">Stereo out</text>
+<text text-anchor="middle" x="534" y="-18.97" font-family="Helvetica,sans-Serif" font-size="10.00">(audition only)</text>
+</g>
+<!-- voice&#45;&gt;audio_out -->
+<g id="edge17" class="edge">
+<title>voice&#45;&gt;audio_out</title>
+<path fill="none" stroke="#2e5e8c" stroke-width="2" d="M534,-93.54C534,-83.96 534,-73.58 534,-64"/>
+<polygon fill="#2e5e8c" stroke="#2e5e8c" stroke-width="2" points="537.5,-64.03 534,-54.03 530.5,-64.03 537.5,-64.03"/>
+<text text-anchor="middle" x="563.57" y="-76.34" font-family="Helvetica,sans-Serif" font-size="8.00">mono to L and R</text>
+</g>
+</g>
+</svg>
+</div>
+    </div>
+
+    <script type="module">
+        const container = document.getElementById("diagram-container");
+        const diagramEl = document.getElementById("diagram");
+        const loadingEl = document.getElementById("loading");
+        const errorEl = document.getElementById("error");
+        const zoomLevelEl = document.getElementById("zoom-level");
+
+        let scale = 1;
+        let panX = 0;
+        let panY = 0;
+        let isDragging = false;
+        let startX, startY;
+
+        function updateTransform() {
+            diagramEl.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
+            zoomLevelEl.textContent = Math.round(scale * 100) + "%";
+        }
+
+        function fitToScreen() {
+            const svg = diagramEl.querySelector("svg");
+            if (!svg) return;
+            const svgW = svg.viewBox.baseVal.width || svg.width.baseVal.value;
+            const svgH = svg.viewBox.baseVal.height || svg.height.baseVal.value;
+            const cW = container.clientWidth;
+            const cH = container.clientHeight;
+            scale = Math.min(cW / svgW, cH / svgH, 1) * 0.95;
+            panX = (cW - svgW * scale) / 2;
+            panY = (cH - svgH * scale) / 2;
+            updateTransform();
+        }
+
+        // Zoom controls
+        document.getElementById("zoom-in").addEventListener("click", () => {
+            scale = Math.min(scale * 1.25, 5);
+            updateTransform();
+        });
+        document.getElementById("zoom-out").addEventListener("click", () => {
+            scale = Math.max(scale / 1.25, 0.1);
+            updateTransform();
+        });
+        document.getElementById("zoom-fit").addEventListener("click", fitToScreen);
+        document.getElementById("zoom-reset").addEventListener("click", () => {
+            scale = 1; panX = 0; panY = 0;
+            updateTransform();
+        });
+
+        // Mouse wheel zoom
+        container.addEventListener("wheel", (e) => {
+            e.preventDefault();
+            const rect = container.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+            const factor = e.deltaY < 0 ? 1.1 : 1 / 1.1;
+            const newScale = Math.min(Math.max(scale * factor, 0.1), 5);
+            panX = mouseX - (mouseX - panX) * (newScale / scale);
+            panY = mouseY - (mouseY - panY) * (newScale / scale);
+            scale = newScale;
+            updateTransform();
+        }, { passive: false });
+
+        // Pan with mouse drag
+        container.addEventListener("mousedown", (e) => {
+            isDragging = true;
+            startX = e.clientX - panX;
+            startY = e.clientY - panY;
+            container.classList.add("grabbing");
+        });
+        window.addEventListener("mousemove", (e) => {
+            if (!isDragging) return;
+            panX = e.clientX - startX;
+            panY = e.clientY - startY;
+            updateTransform();
+        });
+        window.addEventListener("mouseup", () => {
+            isDragging = false;
+            container.classList.remove("grabbing");
+        });
+
+        // Touch support for pan
+        let lastTouch = null;
+        container.addEventListener("touchstart", (e) => {
+            if (e.touches.length === 1) {
+                lastTouch = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+            }
+        });
+        container.addEventListener("touchmove", (e) => {
+            if (e.touches.length === 1 && lastTouch) {
+                e.preventDefault();
+                const dx = e.touches[0].clientX - lastTouch.x;
+                const dy = e.touches[0].clientY - lastTouch.y;
+                panX += dx;
+                panY += dy;
+                lastTouch = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+                updateTransform();
+            }
+        }, { passive: false });
+        container.addEventListener("touchend", () => { lastTouch = null; });
+
+        // Render
+        const svg = diagramEl.querySelector("svg");
+        svg.style.width = "auto";
+        svg.style.height = "auto";
+        loadingEl.style.display = "none";
+        fitToScreen();
+    </script>
+</body>
+</html>

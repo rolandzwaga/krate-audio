@@ -1,0 +1,2069 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Iterum User Manual – Multi-Mode Delay | Krate Audio</title>
+    <meta name="description" content="User manual for Iterum, the free multi-mode delay VST3 plugin: all ten delay modes, every control, the tap pattern editor and the factory presets.">
+    <link rel="canonical" href="https://krateaudio.com/iterum/manual.html">
+    <meta property="og:title" content="Iterum User Manual – Multi-Mode Delay">
+    <meta property="og:description" content="User manual for Iterum, the free multi-mode delay VST3 plugin: all ten delay modes, every control, the tap pattern editor and the factory presets.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https://krateaudio.com/iterum/manual.html">
+    <meta name="robots" content="index, follow, max-image-preview:large">
+    <meta name="theme-color" content="#0a0a0f">
+    <link rel="icon" href="/favicon.ico" sizes="32x32">
+    <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+    <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+    <link rel="preload" href="/assets/fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="stylesheet" href="/assets/site.css">
+    <meta property="og:site_name" content="Krate Audio">
+    <meta property="og:locale" content="en_US">
+    <meta property="og:image" content="https://krateaudio.com/iterum/images/og-image.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="Iterum plugin editor">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content="https://krateaudio.com/iterum/images/og-image.png">
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "Organization",
+          "@id": "https://krateaudio.com/#organization",
+          "name": "Krate Audio",
+          "url": "https://krateaudio.com/",
+          "logo": {
+            "@type": "ImageObject",
+            "url": "https://krateaudio.com/assets/logo-512.png",
+            "width": 512,
+            "height": 512
+          },
+          "sameAs": [
+            "https://github.com/rolandzwaga"
+          ]
+        },
+        {
+          "@type": "TechArticle",
+          "headline": "Iterum User Manual – Multi-Mode Delay",
+          "description": "User manual for Iterum, the free multi-mode delay VST3 plugin: all ten delay modes, every control, the tap pattern editor and the factory presets.",
+          "url": "https://krateaudio.com/iterum/manual.html",
+          "inLanguage": "en",
+          "image": "https://krateaudio.com/iterum/images/og-image.png",
+          "about": {
+            "@id": "https://krateaudio.com/iterum/#software"
+          },
+          "author": {
+            "@id": "https://krateaudio.com/#organization"
+          },
+          "publisher": {
+            "@id": "https://krateaudio.com/#organization"
+          },
+          "dateModified": "2026-11-21T00:32:17+01:00"
+        },
+        {
+          "@type": "BreadcrumbList",
+          "itemListElement": [
+            {
+              "@type": "ListItem",
+              "position": 1,
+              "name": "Krate Audio",
+              "item": "https://krateaudio.com/"
+            },
+            {
+              "@type": "ListItem",
+              "position": 2,
+              "name": "Iterum",
+              "item": "https://krateaudio.com/iterum/"
+            },
+            {
+              "@type": "ListItem",
+              "position": 3,
+              "name": "User Manual",
+              "item": "https://krateaudio.com/iterum/manual.html"
+            }
+          ]
+        }
+      ]
+    }
+    </script>
+    <style>
+        /* Base — matches Iterum landing page */
+        :root {
+            --color-bg: #0a0a0f;
+            --color-surface: #12121a;
+            --color-border: #2a2a3a;
+            --color-text: #e8e8f0;
+            --color-text-muted: #8888a0;
+            --color-accent: #6366f1;
+            --color-accent-hover: #818cf8;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--color-bg);
+            color: var(--color-text);
+            line-height: 1.7;
+            min-height: 100vh;
+        }
+
+        /* Layout */
+        .manual-container {
+            max-width: 960px;
+            margin: 0 auto;
+            padding: 3rem 2rem 4rem;
+        }
+
+        /* Header */
+        .manual-header {
+            text-align: center;
+            margin-bottom: 3rem;
+            padding-bottom: 2rem;
+            border-bottom: 1px solid var(--color-border);
+        }
+
+        .manual-header .breadcrumb {
+            font-size: 0.875rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .manual-header .breadcrumb a {
+            color: var(--color-text-muted);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .manual-header .breadcrumb a:hover {
+            color: var(--color-accent);
+        }
+
+        .manual-header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, var(--color-text) 0%, var(--color-accent) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .manual-header .subtitle {
+            color: var(--color-text-muted);
+            font-size: 1.1rem;
+        }
+
+        /* Table of contents */
+        #TOC {
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: 12px;
+            padding: 1.5rem 2rem;
+            margin-bottom: 3rem;
+        }
+
+        #TOC > ul { list-style: none; }
+        #TOC ul { list-style: none; padding-left: 1.25rem; }
+        #TOC > ul > li { margin-bottom: 0.5rem; }
+        #TOC li { margin-bottom: 0.25rem; }
+
+        #TOC a {
+            color: var(--color-text);
+            text-decoration: none;
+            transition: color 0.2s;
+            font-size: 0.95rem;
+        }
+
+        #TOC a:hover { color: var(--color-accent); }
+        #TOC > ul > li > a { font-weight: 600; }
+
+        /* Headings */
+        h1 { font-size: 2rem; font-weight: 700; margin: 3rem 0 1rem; }
+        h2 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin: 3rem 0 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid var(--color-border);
+            color: var(--color-text);
+        }
+        h3 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin: 2rem 0 0.75rem;
+            color: var(--color-accent-hover);
+        }
+        h4 { font-size: 1.05rem; font-weight: 600; margin: 1.5rem 0 0.5rem; }
+        h5 { font-size: 1rem; font-weight: 600; margin: 1.25rem 0 0.5rem; color: var(--color-text-muted); }
+
+        /* Paragraphs & text */
+        p { margin-bottom: 1rem; }
+        strong { font-weight: 600; }
+
+        a {
+            color: var(--color-accent);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+        a:hover { color: var(--color-accent-hover); }
+
+        /* Lists */
+        ul, ol {
+            margin-bottom: 1rem;
+            padding-left: 1.5rem;
+        }
+        li { margin-bottom: 0.35rem; }
+
+        /* Tables */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 1.5rem;
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        thead {
+            background: rgba(99, 102, 241, 0.08);
+        }
+
+        th {
+            text-align: left;
+            padding: 0.75rem 1rem;
+            font-weight: 600;
+            font-size: 0.875rem;
+            color: var(--color-accent-hover);
+            border-bottom: 1px solid var(--color-border);
+        }
+
+        td {
+            padding: 0.6rem 1rem;
+            font-size: 0.9rem;
+            border-bottom: 1px solid var(--color-border);
+            vertical-align: top;
+        }
+
+        tr:last-child td { border-bottom: none; }
+
+        /* Code */
+        code {
+            font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+            font-size: 0.85em;
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            padding: 0.125rem 0.375rem;
+            border-radius: 4px;
+        }
+
+        pre {
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: 8px;
+            padding: 1rem 1.25rem;
+            overflow-x: auto;
+            margin-bottom: 1.5rem;
+        }
+
+        pre code {
+            background: none;
+            border: none;
+            padding: 0;
+            font-size: 0.85rem;
+            line-height: 1.6;
+        }
+
+        /* Images */
+        img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+            border: 1px solid var(--color-border);
+            margin: 1rem 0 1.5rem;
+            display: block;
+        }
+
+        /* Horizontal rules */
+        hr {
+            border: none;
+            border-top: 1px solid var(--color-border);
+            margin: 2.5rem 0;
+        }
+
+        /* Blockquotes (tips) */
+        blockquote {
+            border-left: 3px solid var(--color-accent);
+            padding: 0.75rem 1rem;
+            margin: 1rem 0 1.5rem;
+            background: rgba(99, 102, 241, 0.05);
+            border-radius: 0 8px 8px 0;
+        }
+
+        blockquote p { margin-bottom: 0; }
+
+        /* Footer */
+        .manual-footer {
+            text-align: center;
+            padding-top: 2rem;
+            margin-top: 3rem;
+            border-top: 1px solid var(--color-border);
+            color: var(--color-text-muted);
+            font-size: 0.875rem;
+        }
+
+        .manual-footer a {
+            color: var(--color-text);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .manual-footer a:hover { color: var(--color-accent); }
+
+        /* Responsive */
+        @media (max-width: 640px) {
+            .manual-container { padding: 2rem 1rem; }
+            .manual-header h1 { font-size: 2rem; }
+            h2 { font-size: 1.25rem; }
+            table { font-size: 0.85rem; }
+            th, td { padding: 0.5rem 0.75rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="manual-container">
+        <div class="manual-header">
+            <p class="breadcrumb">
+                <a href="../">Krate Audio</a> / <a href="./">Iterum</a>
+            </p>
+            <h1>Iterum — User Manual</h1>
+            <p class="subtitle">Multi-Mode Delay</p>
+        </div>
+
+        <nav id="TOC" aria-label="Contents">
+<ul>
+<li><a href="#introduction" id="toc-introduction">Introduction</a></li>
+<li><a href="#signal-flow" id="toc-signal-flow">Signal Flow</a></li>
+<li><a href="#interface-overview" id="toc-interface-overview">Interface
+Overview</a>
+<ul>
+<li><a href="#reading-the-panels" id="toc-reading-the-panels">Reading
+the panels</a></li>
+</ul></li>
+<li><a href="#time-sync-feedback-and-mix"
+id="toc-time-sync-feedback-and-mix">Time, Sync, Feedback and
+Mix</a></li>
+<li><a href="#granular" id="toc-granular">Granular</a></li>
+<li><a href="#spectral" id="toc-spectral">Spectral</a></li>
+<li><a href="#shimmer" id="toc-shimmer">Shimmer</a></li>
+<li><a href="#tape" id="toc-tape">Tape</a></li>
+<li><a href="#bbd" id="toc-bbd">BBD</a></li>
+<li><a href="#digital" id="toc-digital">Digital</a></li>
+<li><a href="#pingpong" id="toc-pingpong">PingPong</a></li>
+<li><a href="#reverse" id="toc-reverse">Reverse</a></li>
+<li><a href="#multitap" id="toc-multitap">MultiTap</a>
+<ul>
+<li><a href="#the-tap-pattern-editor"
+id="toc-the-tap-pattern-editor">The tap pattern editor</a></li>
+</ul></li>
+<li><a href="#freeze" id="toc-freeze">Freeze</a></li>
+<li><a href="#presets" id="toc-presets">Presets</a>
+<ul>
+<li><a href="#factory-library" id="toc-factory-library">Factory
+library</a></li>
+</ul></li>
+<li><a href="#host-automation" id="toc-host-automation">Host
+Automation</a></li>
+<li><a href="#tips-tricks" id="toc-tips-tricks">Tips &amp;
+Tricks</a></li>
+</ul>
+        </nav>
+        <h2 id="introduction">Introduction</h2>
+        <p>Iterum is a <strong>multi-mode delay</strong>: ten complete
+        delay engines in one plugin, from vintage tape and
+        bucket-brigade echoes to granular clouds, spectral smears,
+        pitch-shifted shimmer and frozen rhythmic loops. One engine
+        plays at a time. Pick a mode and the editor shows that engine’s
+        controls; switch modes while audio is running and Iterum
+        crossfades from the old engine to the new one over 50 ms, so a
+        change of character never clicks.</p>
+        <p>Every mode keeps the same layout language: its main time
+        control, <strong>Feedback</strong> and <strong>Mix</strong> sit
+        in the same three places at the top of every panel, and the rest
+        of the panel is grouped into labelled sections. Delay times lock
+        to the host tempo, and every mode comes with ten or more factory
+        presets to start from.</p>
+        <p><strong>Formats:</strong> VST3 (Windows, macOS, Linux) and
+        Audio Unit (macOS). Stereo in, stereo out.</p>
+        <h2 id="signal-flow">Signal Flow</h2>
+        <pre><code>Stereo in
+  │
+  ▼
+Mode ─────────────── one of ten engines; a mode switch runs the old and the new
+  │                  engine side by side for 50 ms and crossfades between them
+  ▼
+Delay engine ─────── taps its own dry signal, runs its delay and feedback path,
+  │                  and mixes dry and wet with its own Mix control
+  ▼
+Gain ─────────────── output level, −∞ to +6 dB
+  │
+  ▼
+Stereo out</code></pre>
+        <p>There is no separate global dry/wet control: each mode’s
+        <strong>Mix</strong> is the dry/wet balance. Each mode section
+        below describes what happens inside that engine, and the
+        interactive signal-flow diagram on the Iterum page shows every
+        engine’s chain, including what sits inside each feedback
+        loop.</p>
+        <h2 id="interface-overview">Interface Overview</h2>
+        <figure>
+        <img src="images/hero.png"
+        alt="The Iterum editor in Tape mode" width="940" height="608" loading="lazy" decoding="async">
+        <figcaption aria-hidden="true">The Iterum editor in Tape
+        mode</figcaption>
+        </figure>
+        <p>The editor is a fixed 940 × 608 window in three parts.</p>
+        <figure>
+        <img src="images/header.png"
+        alt="The header: the mode selector" width="940" height="52" loading="lazy" decoding="async">
+        <figcaption aria-hidden="true">The header: the mode
+        selector</figcaption>
+        </figure>
+        <ul>
+        <li><strong>The header</strong> holds the <strong>Mode</strong>
+        selector: ten buttons, Granular, Spectral, Shimmer, Tape, BBD,
+        Digital, PingPong, Reverse, MultiTap and Freeze. A new instance
+        starts in <strong>Digital</strong>. When an update is available,
+        a banner appears over the header with a
+        <strong>Download</strong> button and a dismiss button.</li>
+        <li><strong>The mode panel</strong> in the middle shows the
+        controls of the selected mode.</li>
+        <li><strong>The footer</strong> holds the output
+        <strong>Gain</strong> knob, the version number, <strong>Check
+        for Updates</strong>, <strong>Save Preset</strong> and
+        <strong>Presets</strong>.</li>
+        </ul>
+        <figure>
+        <img src="images/footer.png"
+        alt="The footer: Gain, version, updates and presets" width="940" height="52" loading="lazy" decoding="async">
+        <figcaption aria-hidden="true">The footer: Gain, version,
+        updates and presets</figcaption>
+        </figure>
+        <table>
+        <colgroup>
+        <col style="width: 20%" />
+        <col style="width: 20%" />
+        <col style="width: 20%" />
+        <col style="width: 20%" />
+        <col style="width: 20%" />
+        </colgroup>
+        <thead>
+        <tr>
+        <th>Control</th>
+        <th>Host name</th>
+        <th>Range</th>
+        <th>Default</th>
+        <th>What it does</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr>
+        <td>Mode</td>
+        <td>Mode</td>
+        <td>Granular … Freeze</td>
+        <td>Digital</td>
+        <td>Selects the delay engine. Switching crossfades over 50
+        ms.</td>
+        </tr>
+        <tr>
+        <td>Gain</td>
+        <td>Gain</td>
+        <td>−∞ to +6 dB</td>
+        <td>0.0 dB</td>
+        <td>Output level after the delay engine.</td>
+        </tr>
+        </tbody>
+        </table>
+        <p><strong>Check for Updates</strong> asks krateaudio.com for a
+        newer version; it reads “Checking…” and then “Up to date” for a
+        few seconds, or shows the update banner. Iterum also checks once
+        each time the editor opens.</p>
+        <h3 id="reading-the-panels">Reading the panels</h3>
+        <ul>
+        <li>Knobs and sliders show their value next to them. Drag to
+        change a value.</li>
+        <li>Time readouts show milliseconds below one second
+        (<code>499.0 ms</code>) and seconds from one second up
+        (<code>1.25 s</code>).</li>
+        <li>Centre-zero sliders (Pitch, Feedback Tilt, Symmetry, Pan)
+        fill from the middle.</li>
+        </ul>
+        <h2 id="time-sync-feedback-and-mix">Time, Sync, Feedback and
+        Mix</h2>
+        <p>Eight modes (Granular, Spectral, Shimmer, Tape, BBD, Digital,
+        PingPong and Reverse) have a <strong>Sync</strong> switch next
+        to their main time control.</p>
+        <ul>
+        <li><strong>Sync on</strong> (the default): the time knob
+        chooses a <strong>note value</strong> and the delay follows the
+        host tempo. The list runs from 1/64T to 4/1D: 1/64T, 1/64,
+        1/64D, 1/32T, 1/32, 1/32D, 1/16T, 1/16, 1/16D, 1/8T, 1/8, 1/8D,
+        1/4T, 1/4, 1/4D, 1/2T, 1/2, 1/2D, 1/1T, 1/1, 1/1D, 2/1T, 2/1,
+        2/1D, 3/1T, 3/1, 3/1D, 4/1T, 4/1, 4/1D (T = triplet, D =
+        dotted). The default is <strong>1/8</strong>.</li>
+        <li><strong>Sync off</strong>: the same knob sets the time in
+        milliseconds.</li>
+        </ul>
+        <p>The knob keeps its label (“Time”, or “Chunk Size” in Reverse)
+        in both states; only its readout changes. In the host’s
+        automation list the two values are separate parameters, for
+        example <strong>Tape Time Mode</strong>, <strong>Tape Motor
+        Speed</strong> (the free time) and <strong>Tape Note
+        Value</strong> (the synced time). Without a host tempo Iterum
+        assumes 120 BPM.</p>
+        <p><strong>Feedback</strong> runs from 0 to 120 % in every mode
+        except MultiTap (0 to 110 %). Above 100 % the repeats grow
+        instead of dying away: the range for swelling, self-oscillating
+        textures. Ride it back below 100 % to let the delay settle.</p>
+        <p><strong>Mix</strong> is the dry/wet balance of the mode: 0 %
+        is dry only, 100 % is wet only. In Freeze, the
+        <strong>Dry</strong> switch changes how the dry signal is
+        handled (see the Freeze section).</p>
+        <h2 id="granular">Granular</h2>
+        <figure>
+        <img src="images/mode-granular.png" alt="Granular mode" width="900" height="480" loading="lazy" decoding="async">
+        <figcaption aria-hidden="true">Granular mode</figcaption>
+        </figure>
+        <p>Granular rebuilds the delay from short grains. The input,
+        plus the feedback, is written to a grain buffer; a scheduler
+        fires grains that each read a short window of that buffer with
+        its own pitch, position, pan, direction and level. The sum of
+        the grains is softly limited, and that limited signal is both
+        the wet output and what feeds back. <strong>Freeze</strong>
+        stops the buffer from recording, so the grains keep playing what
+        it holds.</p>
+        <table>
+        <colgroup>
+        <col style="width: 20%" />
+        <col style="width: 20%" />
+        <col style="width: 20%" />
+        <col style="width: 20%" />
+        <col style="width: 20%" />
+        </colgroup>
+        <thead>
+        <tr>
+        <th>Control</th>
+        <th>Host name</th>
+        <th>Range</th>
+        <th>Default</th>
+        <th>What it does</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr>
+        <td>Time</td>
+        <td>Delay Time · Time Mode · Note Value</td>
+        <td>0–2000 ms, or a note value</td>
+        <td>Synced, 1/8</td>
+        <td>How far back the grains read.</td>
+        </tr>
+        <tr>
+        <td>Feedback</td>
+        <td>Feedback</td>
+        <td>0–120 %</td>
+        <td>40 %</td>
+        <td>Grain output fed back into the buffer.</td>
+        </tr>
+        <tr>
+        <td>Mix</td>
+        <td>Dry/Wet</td>
+        <td>0–100 %</td>
+        <td>50 %</td>
+        <td>Dry/wet balance.</td>
+        </tr>
+        <tr>
+        <td>Freeze</td>
+        <td>Freeze</td>
+        <td>Off / On</td>
+        <td>Off</td>
+        <td>Holds the grain buffer: grains keep playing what it
+        contains.</td>
+        </tr>
+        <tr>
+        <td>Grain Size</td>
+        <td>Grain Size</td>
+        <td>10–500 ms</td>
+        <td>100 ms</td>
+        <td>Length of each grain.</td>
+        </tr>
+        <tr>
+        <td>Density</td>
+        <td>Density</td>
+        <td>1–100 grains/s</td>
+        <td>20</td>
+        <td>How many grains start each second.</td>
+        </tr>
+        <tr>
+        <td>Grain Envelope</td>
+        <td>Envelope</td>
+        <td>Hann, Trapezoid, Sine, Blackman</td>
+        <td>Hann</td>
+        <td>The shape each grain fades in and out with.</td>
+        </tr>
+        <tr>
+        <td>Pitch</td>
+        <td>Pitch</td>
+        <td>−24 to +24 semitones</td>
+        <td>0</td>
+        <td>Pitch of every grain.</td>
+        </tr>
+        <tr>
+        <td>Pitch Quantize</td>
+        <td>Pitch Quant</td>
+        <td>Off, Semitones, Octaves, Fifths, Scale</td>
+        <td>Off</td>
+        <td>Snaps the grain pitch (including Pitch Spray) to semitones,
+        octaves, fifths or the degrees of a major scale.</td>
+        </tr>
+        <tr>
+        <td>Pitch Spray</td>
+        <td>Pitch Spray</td>
+        <td>0–100 %</td>
+        <td>0 %</td>
+        <td>Random pitch variation per grain.</td>
+        </tr>
+        <tr>
+        <td>Position Spray</td>
+        <td>Position Spray</td>
+        <td>0–100 %</td>
+        <td>0 %</td>
+        <td>Random variation of where in the buffer each grain
+        reads.</td>
+        </tr>
+        <tr>
+        <td>Pan Spray</td>
+        <td>Pan Spray</td>
+        <td>0–100 %</td>
+        <td>0 %</td>
+        <td>Random stereo position per grain.</td>
+        </tr>
+        <tr>
+        <td>Reverse Probability</td>
+        <td>Reverse Prob</td>
+        <td>0–100 %</td>
+        <td>0 %</td>
+        <td>The chance that a grain plays backwards.</td>
+        </tr>
+        <tr>
+        <td>Texture</td>
+        <td>Texture</td>
+        <td>0–100 %</td>
+        <td>0 %</td>
+        <td>Random level variation per grain: smooth at 0 %, grainy and
+        uneven at 100 %.</td>
+        </tr>
+        <tr>
+        <td>Timing Jitter</td>
+        <td>Jitter</td>
+        <td>0–100 %</td>
+        <td>50 %</td>
+        <td>Randomness of the grain start times; 0 % is a steady
+        stream.</td>
+        </tr>
+        <tr>
+        <td>Width</td>
+        <td>Stereo Width</td>
+        <td>0–100 %</td>
+        <td>100 %</td>
+        <td>Stereo width of the output (mid/side).</td>
+        </tr>
+        </tbody>
+        </table>
+        <h2 id="spectral">Spectral</h2>
+        <figure>
+        <img src="images/mode-spectral.png" alt="Spectral mode" width="900" height="480" loading="lazy" decoding="async">
+        <figcaption aria-hidden="true">Spectral mode</figcaption>
+        </figure>
+        <p>Spectral splits the signal into frequency bands with an FFT
+        and delays each band by its own amount, so an echo smears across
+        the spectrum: low frequencies first and highs later, or the
+        other way round. Each band has its own feedback, which
+        <strong>Feedback Tilt</strong> can weight towards the lows or
+        the highs. <strong>Freeze</strong> captures the current spectrum
+        and holds it.</p>
+        <table>
+        <colgroup>
+        <col style="width: 20%" />
+        <col style="width: 20%" />
+        <col style="width: 20%" />
+        <col style="width: 20%" />
+        <col style="width: 20%" />
+        </colgroup>
+        <thead>
+        <tr>
+        <th>Control</th>
+        <th>Host name</th>
+        <th>Range</th>
+        <th>Default</th>
+        <th>What it does</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr>
+        <td>Time</td>
+        <td>Base Delay · Time Mode · Note Value</td>
+        <td>0–2000 ms, or a note value</td>
+        <td>Synced, 1/8</td>
+        <td>The delay of the first band.</td>
+        </tr>
+        <tr>
+        <td>Feedback</td>
+        <td>Feedback</td>
+        <td>0–120 %</td>
+        <td>40 %</td>
+        <td>Per-band feedback.</td>
+        </tr>
+        <tr>
+        <td>Mix</td>
+        <td>Dry/Wet</td>
+        <td>0–100 %</td>
+        <td>50 %</td>
+        <td>Dry/wet balance.</td>
+        </tr>
+        <tr>
+        <td>Freeze</td>
+        <td>Freeze</td>
+        <td>Off / On</td>
+        <td>Off</td>
+        <td>Holds the current spectrum.</td>
+        </tr>
+        <tr>
+        <td>Spread</td>
+        <td>Spread</td>
+        <td>0–2000 ms</td>
+        <td>0 ms</td>
+        <td>The extra delay across the bands; 0 makes every band arrive
+        together.</td>
+        </tr>
+        <tr>
+        <td>Spread Direction</td>
+        <td>Spread Dir</td>
+        <td>Low-&gt;High, High-&gt;Low, Center Out</td>
+        <td>Low-&gt;High</td>
+        <td>Which bands arrive first. Center Out delays the extremes
+        most.</td>
+        </tr>
+        <tr>
+        <td>Spread Curve</td>
+        <td>Spread Curve</td>
+        <td>Linear, Logarithmic</td>
+        <td>Linear</td>
+        <td>How the spread is shared out; Logarithmic spaces the delays
+        more evenly to the ear.</td>
+        </tr>
+        <tr>
+        <td>Feedback Tilt</td>
+        <td>Feedback Tilt</td>
+        <td>−100 to +100 %</td>
+        <td>0 %</td>
+        <td>Negative favours the lows in the feedback, positive the
+        highs.</td>
+        </tr>
+        <tr>
+        <td>Diffusion</td>
+        <td>Diffusion</td>
+        <td>0–100 %</td>
+        <td>0 %</td>
+        <td>Blurs neighbouring bands together for a softer, washier
+        tail.</td>
+        </tr>
+        <tr>
+        <td>FFT Size</td>
+        <td>FFT Size</td>
+        <td>512, 1024, 2048, 4096</td>
+        <td>1024</td>
+        <td>Larger sizes resolve frequency more finely but smear time
+        more.</td>
+        </tr>
+        <tr>
+        <td>Width</td>
+        <td>Stereo Width</td>
+        <td>0–100 %</td>
+        <td>0 %</td>
+        <td>Stereo decorrelation between the left and right
+        spectra.</td>
+        </tr>
+        </tbody>
+        </table>
+        <h2 id="shimmer">Shimmer</h2>
+        <figure>
+        <img src="images/mode-shimmer.png" alt="Shimmer mode" width="900" height="480" loading="lazy" decoding="async">
+        <figcaption aria-hidden="true">Shimmer mode</figcaption>
+        </figure>
+        <p>Shimmer pitch-shifts its feedback, so each repeat climbs (or
+        falls) further: an octave up by default, the classic shimmer
+        sound. The delayed signal runs through a pitch shifter and a
+        diffuser; <strong>Pitch Blend</strong> chooses how much of the
+        feedback takes that pitched path. An optional low-pass filter
+        and a limiter sit in the loop too.</p>
+        <table>
+        <colgroup>
+        <col style="width: 20%" />
+        <col style="width: 20%" />
+        <col style="width: 20%" />
+        <col style="width: 20%" />
+        <col style="width: 20%" />
+        </colgroup>
+        <thead>
+        <tr>
+        <th>Control</th>
+        <th>Host name</th>
+        <th>Range</th>
+        <th>Default</th>
+        <th>What it does</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr>
+        <td>Time</td>
+        <td>Delay Time · Shimmer Time Mode · Shimmer Note Value</td>
+        <td>10–5000 ms, or a note value</td>
+        <td>Synced, 1/8</td>
+        <td>Delay time.</td>
+        </tr>
+        <tr>
+        <td>Feedback</td>
+        <td>Feedback</td>
+        <td>0–120 %</td>
+        <td>40 %</td>
+        <td>Feedback amount.</td>
+        </tr>
+        <tr>
+        <td>Mix</td>
+        <td>Dry/Wet</td>
+        <td>0–100 %</td>
+        <td>50 %</td>
+        <td>Dry/wet balance.</td>
+        </tr>
+        <tr>
+        <td>Pitch</td>
+        <td>Pitch</td>
+        <td>−24 to +24 semitones</td>
+        <td>+12</td>
+        <td>Pitch shift per repeat.</td>
+        </tr>
+        <tr>
+        <td>Fine Pitch</td>
+        <td>Fine Tune</td>
+        <td>−100 to +100 cents</td>
+        <td>0</td>
+        <td>Fine pitch offset; a few cents gives a slowly detuning
+        wash.</td>
+        </tr>
+        <tr>
+        <td>Pitch Blend</td>
+        <td>Shimmer Mix</td>
+        <td>0–100 %</td>
+        <td>100 %</td>
+        <td>How much of the feedback is pitch-shifted; at 0 % Shimmer is
+        a plain diffused delay.</td>
+        </tr>
+        <tr>
+        <td>Diffusion Size</td>
+        <td>Diff Size</td>
+        <td>0–100 %</td>
+        <td>50 %</td>
+        <td>Size of the diffuser after the pitch shifter.</td>
+        </tr>
+        <tr>
+        <td>Filter</td>
+        <td>Filter</td>
+        <td>Off / On</td>
+        <td>Off</td>
+        <td>Switches the low-pass filter in the feedback loop.</td>
+        </tr>
+        <tr>
+        <td>Filter Cutoff</td>
+        <td>Filter Cutoff</td>
+        <td>20 Hz – 20 kHz</td>
+        <td>4 kHz</td>
+        <td>Cutoff of that filter: lower values darken each repeat.</td>
+        </tr>
+        </tbody>
+        </table>
+        <h2 id="tape">Tape</h2>
+        <figure>
+        <img src="images/mode-tape.png" alt="Tape mode" width="900" height="480" loading="lazy" decoding="async">
+        <figcaption aria-hidden="true">Tape mode</figcaption>
+        </figure>
+        <p>Tape models a tape echo with three playback heads. The input
+        is recorded onto one tape; the heads read it at once, 1.5 and 2
+        times the delay time, each with its own level and pan. Every
+        enabled head feeds back into the tape. The tape character (wow
+        and flutter, saturation, ageing and hiss) colours the heads’
+        output, and optional splice clicks mark each pass of the tape
+        loop.</p>
+        <table>
+        <colgroup>
+        <col style="width: 20%" />
+        <col style="width: 20%" />
+        <col style="width: 20%" />
+        <col style="width: 20%" />
+        <col style="width: 20%" />
+        </colgroup>
+        <thead>
+        <tr>
+        <th>Control</th>
+        <th>Host name</th>
+        <th>Range</th>
+        <th>Default</th>
+        <th>What it does</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr>
+        <td>Time</td>
+        <td>Tape Motor Speed · Tape Time Mode · Tape Note Value</td>
+        <td>20–2000 ms, or a note value</td>
+        <td>Synced, 1/8</td>
+        <td>The delay of Head 1 (the motor speed).</td>
+        </tr>
+        <tr>
+        <td>Feedback</td>
+        <td>Tape Feedback</td>
+        <td>0–120 %</td>
+        <td>40 %</td>
+        <td>Feedback from each enabled head.</td>
+        </tr>
+        <tr>
+        <td>Mix</td>
+        <td>Tape Mix</td>
+        <td>0–100 %</td>
+        <td>50 %</td>
+        <td>Dry/wet balance.</td>
+        </tr>
+        <tr>
+        <td>Inertia</td>
+        <td>Tape Motor Inertia</td>
+        <td>100–1000 ms</td>
+        <td>300 ms</td>
+        <td>How long the motor takes to reach a new speed: a time change
+        glides in pitch, like a real tape machine.</td>
+        </tr>
+        <tr>
+        <td>Wear</td>
+        <td>Tape Wear</td>
+        <td>0–100 %</td>
+        <td>30 %</td>
+        <td>Wow and flutter depth, and hiss.</td>
+        </tr>
+        <tr>
+        <td>Saturation</td>
+        <td>Tape Saturation</td>
+        <td>0–100 %</td>
+        <td>50 %</td>
+        <td>Tape drive and warmth.</td>
+        </tr>
+        <tr>
+        <td>Age</td>
+        <td>Tape Age</td>
+        <td>0–100 %</td>
+        <td>30 %</td>
+        <td>High-frequency roll-off (from 12 kHz down to 4 kHz), noise
+        and artefacts.</td>
+        </tr>
+        <tr>
+        <td>Splice</td>
+        <td>Tape Splice Enable</td>
+        <td>Off / On</td>
+        <td>Off</td>
+        <td>A splice click each time the tape loop comes round.</td>
+        </tr>
+        <tr>
+        <td>Splice Intensity</td>
+        <td>Tape Splice Intensity</td>
+        <td>0–100 %</td>
+        <td>50 %</td>
+        <td>Loudness of the splice clicks.</td>
+        </tr>
+        <tr>
+        <td>Head 1 / 2 / 3</td>
+        <td>Tape Head 1 Enable · Tape Head 2 Enable · Tape Head 3
+        Enable</td>
+        <td>Off / On</td>
+        <td>Head 1 on, Heads 2 and 3 off</td>
+        <td>Switches each head. The heads sit at 1×, 1.5× and 2× the
+        delay time.</td>
+        </tr>
+        <tr>
+        <td>Level</td>
+        <td>Tape Head 1 Level · Tape Head 2 Level · Tape Head 3
+        Level</td>
+        <td>−30 to +6 dB</td>
+        <td>0 dB</td>
+        <td>Level of each head.</td>
+        </tr>
+        <tr>
+        <td>Pan</td>
+        <td>Tape Head 1 Pan · Tape Head 2 Pan · Tape Head 3 Pan</td>
+        <td>L100 to R100</td>
+        <td>C</td>
+        <td>Stereo position of each head.</td>
+        </tr>
+        </tbody>
+        </table>
+        <h2 id="bbd">BBD</h2>
+        <figure>
+        <img src="images/mode-bbd.png" alt="BBD mode" width="900" height="480" loading="lazy" decoding="async">
+        <figcaption aria-hidden="true">BBD mode</figcaption>
+        </figure>
+        <p>BBD models a bucket-brigade delay chip. A compander squeezes
+        the signal before the chip and expands it after; inside the
+        feedback loop the chip’s limited bandwidth darkens each repeat,
+        followed by gentle saturation. A triangle LFO modulates the
+        delay time for chorus and vibrato. <strong>Era</strong> picks
+        the chip, and <strong>Age</strong> wears it out.</p>
+        <table>
+        <colgroup>
+        <col style="width: 20%" />
+        <col style="width: 20%" />
+        <col style="width: 20%" />
+        <col style="width: 20%" />
+        <col style="width: 20%" />
+        </colgroup>
+        <thead>
+        <tr>
+        <th>Control</th>
+        <th>Host name</th>
+        <th>Range</th>
+        <th>Default</th>
+        <th>What it does</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr>
+        <td>Time</td>
+        <td>BBD Delay Time · BBD Time Mode · BBD Note Value</td>
+        <td>20–1000 ms, or a note value</td>
+        <td>Synced, 1/8</td>
+        <td>Delay time.</td>
+        </tr>
+        <tr>
+        <td>Feedback</td>
+        <td>BBD Feedback</td>
+        <td>0–120 %</td>
+        <td>40 %</td>
+        <td>Feedback amount.</td>
+        </tr>
+        <tr>
+        <td>Mix</td>
+        <td>BBD Mix</td>
+        <td>0–100 %</td>
+        <td>50 %</td>
+        <td>Dry/wet balance.</td>
+        </tr>
+        <tr>
+        <td>Era</td>
+        <td>BBD Era</td>
+        <td>MN3005, MN3007, MN3205, SAD1024</td>
+        <td>MN3005</td>
+        <td>The chip model: its bandwidth, drive and noise.</td>
+        </tr>
+        <tr>
+        <td>Age</td>
+        <td>BBD Age</td>
+        <td>0–100 %</td>
+        <td>20 %</td>
+        <td>Noise, bandwidth loss and compander artefacts of an older
+        chip.</td>
+        </tr>
+        <tr>
+        <td>Mod Depth</td>
+        <td>BBD Mod Depth</td>
+        <td>0–100 %</td>
+        <td>0 %</td>
+        <td>Depth of the delay-time modulation (up to ±5 % of the
+        time).</td>
+        </tr>
+        <tr>
+        <td>Mod Rate</td>
+        <td>BBD Mod Rate</td>
+        <td>0.1–10 Hz</td>
+        <td>0.50 Hz</td>
+        <td>Speed of the modulation.</td>
+        </tr>
+        </tbody>
+        </table>
+        <h2 id="digital">Digital</h2>
+        <figure>
+        <img src="images/mode-digital.png"
+        alt="Digital mode with Era on 80s Digital" width="900" height="480" loading="lazy" decoding="async">
+        <figcaption aria-hidden="true">Digital mode with Era on 80s
+        Digital</figcaption>
+        </figure>
+        <p>Digital is a clean delay that can be roughened on purpose.
+        Pristine is transparent; <strong>80s Digital</strong> adds the
+        filtering and reduced sample rate of early digital units, and
+        <strong>Lo-Fi</strong> goes further with bit and sample-rate
+        reduction. A wavefolder and a limiter shape the output, and an
+        LFO with six waveforms modulates the delay time.</p>
+        <table>
+        <colgroup>
+        <col style="width: 20%" />
+        <col style="width: 20%" />
+        <col style="width: 20%" />
+        <col style="width: 20%" />
+        <col style="width: 20%" />
+        </colgroup>
+        <thead>
+        <tr>
+        <th>Control</th>
+        <th>Host name</th>
+        <th>Range</th>
+        <th>Default</th>
+        <th>What it does</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr>
+        <td>Time</td>
+        <td>Digital Delay Time · Digital Time Mode · Digital Note
+        Value</td>
+        <td>1–10000 ms, or a note value</td>
+        <td>Synced, 1/8</td>
+        <td>Delay time.</td>
+        </tr>
+        <tr>
+        <td>Feedback</td>
+        <td>Digital Feedback</td>
+        <td>0–120 %</td>
+        <td>40 %</td>
+        <td>Feedback amount.</td>
+        </tr>
+        <tr>
+        <td>Mix</td>
+        <td>Digital Mix</td>
+        <td>0–100 %</td>
+        <td>50 %</td>
+        <td>Dry/wet balance.</td>
+        </tr>
+        <tr>
+        <td>Era</td>
+        <td>Digital Era</td>
+        <td>Pristine, 80s Digital, Lo-Fi</td>
+        <td>Pristine</td>
+        <td>The character of the converter.</td>
+        </tr>
+        <tr>
+        <td>Age</td>
+        <td>Digital Age</td>
+        <td>0–100 %</td>
+        <td>0 %</td>
+        <td>How worn the converter sounds. Shown only when Era is not
+        Pristine (as in the picture above).</td>
+        </tr>
+        <tr>
+        <td>Limiter</td>
+        <td>Digital Limiter</td>
+        <td>Soft, Medium, Hard</td>
+        <td>Soft</td>
+        <td>The knee of the output limiter, which keeps high feedback in
+        check.</td>
+        </tr>
+        <tr>
+        <td>Wavefold Amount</td>
+        <td>Digital Wavefold</td>
+        <td>0–100 %</td>
+        <td>0 %</td>
+        <td>Folds the echoes back on themselves for added harmonics; 0 %
+        is off.</td>
+        </tr>
+        <tr>
+        <td>Wavefold Type</td>
+        <td>Digital Wavefold Type</td>
+        <td>Simple, Serge, Buchla, Lockhart</td>
+        <td>Simple</td>
+        <td>The folding circuit.</td>
+        </tr>
+        <tr>
+        <td>Wavefold Symmetry</td>
+        <td>Digital Wavefold Sym</td>
+        <td>−100 to +100 %</td>
+        <td>0 %</td>
+        <td>Makes the folding asymmetric for even harmonics.</td>
+        </tr>
+        <tr>
+        <td>Mod Depth</td>
+        <td>Digital Mod Depth</td>
+        <td>0–100 %</td>
+        <td>0 %</td>
+        <td>Depth of the delay-time modulation (up to ±10 % of the
+        time).</td>
+        </tr>
+        <tr>
+        <td>Mod Rate</td>
+        <td>Digital Mod Rate</td>
+        <td>0.1–10 Hz</td>
+        <td>1.00 Hz</td>
+        <td>Speed of the modulation.</td>
+        </tr>
+        <tr>
+        <td>Mod Waveform</td>
+        <td>Digital Mod Waveform</td>
+        <td>Sine, Triangle, Saw Up, Saw Down, Square, Random</td>
+        <td>Sine</td>
+        <td>Shape of the modulation.</td>
+        </tr>
+        <tr>
+        <td>Width</td>
+        <td>Digital Width</td>
+        <td>0–200 %</td>
+        <td>100 %</td>
+        <td>Stereo width of the echoes: 0 % mono, 100 % as recorded, 200
+        % widest.</td>
+        </tr>
+        </tbody>
+        </table>
+        <h2 id="pingpong">PingPong</h2>
+        <figure>
+        <img src="images/mode-pingpong.png" alt="PingPong mode" width="900" height="480" loading="lazy" decoding="async">
+        <figcaption aria-hidden="true">PingPong mode</figcaption>
+        </figure>
+        <p>PingPong bounces the echoes between left and right. Each side
+        has its own delay line; <strong>L/R Ratio</strong> sets their
+        times relative to each other, and
+        <strong>Cross-Feedback</strong> decides how much each repeat
+        crosses to the other side: at 100 % every repeat swaps sides
+        (full ping-pong), at 0 % the two sides echo independently. Two
+        LFOs, a quarter cycle apart, modulate the two delay times.</p>
+        <table>
+        <colgroup>
+        <col style="width: 20%" />
+        <col style="width: 20%" />
+        <col style="width: 20%" />
+        <col style="width: 20%" />
+        <col style="width: 20%" />
+        </colgroup>
+        <thead>
+        <tr>
+        <th>Control</th>
+        <th>Host name</th>
+        <th>Range</th>
+        <th>Default</th>
+        <th>What it does</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr>
+        <td>Time</td>
+        <td>PingPong Delay Time · PingPong Time Mode · PingPong Note
+        Value</td>
+        <td>1–10000 ms, or a note value</td>
+        <td>Synced, 1/8</td>
+        <td>Base delay time.</td>
+        </tr>
+        <tr>
+        <td>Feedback</td>
+        <td>PingPong Feedback</td>
+        <td>0–120 %</td>
+        <td>50 %</td>
+        <td>Feedback amount.</td>
+        </tr>
+        <tr>
+        <td>Mix</td>
+        <td>PingPong Mix</td>
+        <td>0–100 %</td>
+        <td>50 %</td>
+        <td>Dry/wet balance.</td>
+        </tr>
+        <tr>
+        <td>L/R Ratio</td>
+        <td>PingPong L/R Ratio</td>
+        <td>1:1, 2:1, 3:2, 4:3, 1:2, 2:3, 3:4</td>
+        <td>1:1</td>
+        <td>Ratio of the left to the right delay time, for polyrhythmic
+        bounces.</td>
+        </tr>
+        <tr>
+        <td>Cross-Feedback</td>
+        <td>PingPong Cross-Feedback</td>
+        <td>0–100 %</td>
+        <td>100 %</td>
+        <td>0 % = two independent echoes, 100 % = full ping-pong.</td>
+        </tr>
+        <tr>
+        <td>Mod Depth</td>
+        <td>PingPong Mod Depth</td>
+        <td>0–100 %</td>
+        <td>0 %</td>
+        <td>Depth of the delay-time modulation (up to ±10 %).</td>
+        </tr>
+        <tr>
+        <td>Mod Rate</td>
+        <td>PingPong Mod Rate</td>
+        <td>0.1–10 Hz</td>
+        <td>1.00 Hz</td>
+        <td>Speed of the modulation.</td>
+        </tr>
+        <tr>
+        <td>Width</td>
+        <td>PingPong Width</td>
+        <td>0–200 %</td>
+        <td>100 %</td>
+        <td>Stereo width of the echoes.</td>
+        </tr>
+        </tbody>
+        </table>
+        <h2 id="reverse">Reverse</h2>
+        <figure>
+        <img src="images/mode-reverse.png" alt="Reverse mode" width="900" height="480" loading="lazy" decoding="async">
+        <figcaption aria-hidden="true">Reverse mode</figcaption>
+        </figure>
+        <p>Reverse records the input in chunks and plays each chunk
+        backwards, so every echo swells in instead of decaying.
+        <strong>Playback Mode</strong> can alternate forward and
+        reversed chunks or choose at random, and
+        <strong>Crossfade</strong> smooths the joins between chunks. A
+        filter and a limiter sit in the feedback loop.</p>
+        <table>
+        <colgroup>
+        <col style="width: 20%" />
+        <col style="width: 20%" />
+        <col style="width: 20%" />
+        <col style="width: 20%" />
+        <col style="width: 20%" />
+        </colgroup>
+        <thead>
+        <tr>
+        <th>Control</th>
+        <th>Host name</th>
+        <th>Range</th>
+        <th>Default</th>
+        <th>What it does</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr>
+        <td>Chunk Size</td>
+        <td>Reverse Chunk Size · Reverse Time Mode · Reverse Note
+        Value</td>
+        <td>10–2000 ms, or a note value</td>
+        <td>Synced, 1/8</td>
+        <td>Length of each reversed chunk.</td>
+        </tr>
+        <tr>
+        <td>Feedback</td>
+        <td>Reverse Feedback</td>
+        <td>0–120 %</td>
+        <td>40 %</td>
+        <td>Feedback amount.</td>
+        </tr>
+        <tr>
+        <td>Mix</td>
+        <td>Reverse Dry/Wet</td>
+        <td>0–100 %</td>
+        <td>50 %</td>
+        <td>Dry/wet balance.</td>
+        </tr>
+        <tr>
+        <td>Playback Mode</td>
+        <td>Reverse Playback Mode</td>
+        <td>Full Reverse, Alternating, Random</td>
+        <td>Full Reverse</td>
+        <td>Every chunk reversed, alternately forward and reversed, or a
+        random choice per chunk.</td>
+        </tr>
+        <tr>
+        <td>Crossfade</td>
+        <td>Reverse Crossfade</td>
+        <td>0–100 %</td>
+        <td>50 %</td>
+        <td>The crossfade between chunks, as a share of the chunk
+        length.</td>
+        </tr>
+        <tr>
+        <td>Filter</td>
+        <td>Reverse Filter Enable</td>
+        <td>Off / On</td>
+        <td>Off</td>
+        <td>Switches the filter in the feedback loop.</td>
+        </tr>
+        <tr>
+        <td>Filter Cutoff</td>
+        <td>Reverse Filter Cutoff</td>
+        <td>20 Hz – 20 kHz</td>
+        <td>4 kHz</td>
+        <td>Cutoff of that filter.</td>
+        </tr>
+        <tr>
+        <td>Filter Type</td>
+        <td>Reverse Filter Type</td>
+        <td>LowPass, HighPass, BandPass</td>
+        <td>LowPass</td>
+        <td>Filter type.</td>
+        </tr>
+        </tbody>
+        </table>
+        <h2 id="multitap">MultiTap</h2>
+        <figure>
+        <img src="images/mode-multitap.png"
+        alt="MultiTap mode on a preset pattern" width="900" height="480" loading="lazy" decoding="async">
+        <figcaption aria-hidden="true">MultiTap mode on a preset
+        pattern</figcaption>
+        </figure>
+        <p>MultiTap places 2 to 16 taps on one delay line in a rhythm.
+        The rhythmic patterns (Whole to Triplet 16th) follow the host
+        tempo directly; the mathematical patterns (Golden Ratio,
+        Fibonacci, Exponential, Primes, Linear) are measured in units of
+        <strong>Note Value</strong>. <strong>Spatial Pattern</strong>
+        gives each tap its level and stereo position. When you choose a
+        new pattern with the same number of taps, the taps glide to
+        their new places over <strong>Morph Time</strong>.
+        <strong>Custom</strong> lets you draw your own pattern in the
+        tap editor.</p>
+        <p>MultiTap has no Sync switch: its timing always comes from the
+        host tempo.</p>
+        <table>
+        <colgroup>
+        <col style="width: 20%" />
+        <col style="width: 20%" />
+        <col style="width: 20%" />
+        <col style="width: 20%" />
+        <col style="width: 20%" />
+        </colgroup>
+        <thead>
+        <tr>
+        <th>Control</th>
+        <th>Host name</th>
+        <th>Range</th>
+        <th>Default</th>
+        <th>What it does</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr>
+        <td>Timing Pattern</td>
+        <td>MultiTap Timing Pattern</td>
+        <td>Whole, Half, Quarter, Eighth, 16th, 32nd, Dotted Half,
+        Dotted Qtr, Dotted 8th, Dotted 16th, Triplet Half, Triplet Qtr,
+        Triplet 8th, Triplet 16th, Golden Ratio, Fibonacci, Exponential,
+        Primes, Linear, Custom</td>
+        <td>Quarter</td>
+        <td>Where the taps fall.</td>
+        </tr>
+        <tr>
+        <td>Feedback</td>
+        <td>MultiTap Feedback</td>
+        <td>0–110 %</td>
+        <td>50 %</td>
+        <td>Feedback amount.</td>
+        </tr>
+        <tr>
+        <td>Mix</td>
+        <td>MultiTap Dry/Wet</td>
+        <td>0–100 %</td>
+        <td>50 %</td>
+        <td>Dry/wet balance.</td>
+        </tr>
+        <tr>
+        <td>Spatial Pattern</td>
+        <td>MultiTap Spatial Pattern</td>
+        <td>Cascade, Alternating, Centered, Widening, Decaying, Flat,
+        Custom</td>
+        <td>Centered</td>
+        <td>Level and pan of each tap.</td>
+        </tr>
+        <tr>
+        <td>Taps</td>
+        <td>MultiTap Tap Count</td>
+        <td>2–16</td>
+        <td>4</td>
+        <td>Number of taps.</td>
+        </tr>
+        <tr>
+        <td>Morph Time</td>
+        <td>MultiTap Morph Time</td>
+        <td>50–2000 ms</td>
+        <td>500 ms</td>
+        <td>Glide time when the pattern changes and the tap count stays
+        the same.</td>
+        </tr>
+        <tr>
+        <td>Note Value</td>
+        <td>MultiTap Note Value</td>
+        <td>Whole, Half, Quarter, 8th, 16th, 32nd, 64th, 128th, 1/2T,
+        1/4T</td>
+        <td>Quarter</td>
+        <td>The time unit of the mathematical patterns. Shown only for
+        those patterns.</td>
+        </tr>
+        <tr>
+        <td>Note Modifier</td>
+        <td>MultiTap Note Modifier</td>
+        <td>None, Triplet, Dotted</td>
+        <td>None</td>
+        <td>Makes that unit a triplet or dotted value.</td>
+        </tr>
+        <tr>
+        <td>LP Cutoff</td>
+        <td>MultiTap Feedback LP</td>
+        <td>20 Hz – 20 kHz</td>
+        <td>20 kHz</td>
+        <td>Low-pass filter in the feedback: lower values darken the
+        repeats.</td>
+        </tr>
+        <tr>
+        <td>HP Cutoff</td>
+        <td>MultiTap Feedback HP</td>
+        <td>20 Hz – 20 kHz</td>
+        <td>20 Hz</td>
+        <td>High-pass filter in the feedback: higher values thin out the
+        repeats.</td>
+        </tr>
+        <tr>
+        <td>Pattern Length</td>
+        <td>MultiTap Custom Length</td>
+        <td>Free, 1/8, 1/4, 1/2, 1/1, 2/1</td>
+        <td>1/1</td>
+        <td>The span of the Custom pattern’s timeline. Free is a 5
+        second span. Custom only.</td>
+        </tr>
+        <tr>
+        <td>Snap</td>
+        <td>MultiTap Snap</td>
+        <td>Off, 1/64T … 1/1D</td>
+        <td>1/4</td>
+        <td>The grid that tap drags snap to. Custom only.</td>
+        </tr>
+        </tbody>
+        </table>
+        <h3 id="the-tap-pattern-editor">The tap pattern editor</h3>
+        <figure>
+        <img src="images/multitap-custom.png"
+        alt="The tap editor on the Custom pattern" width="900" height="480" loading="lazy" decoding="async">
+        <figcaption aria-hidden="true">The tap editor on the Custom
+        pattern</figcaption>
+        </figure>
+        <p>The strip along the bottom of the MultiTap panel is the tap
+        pattern editor. Time runs from left to right across the pattern
+        length; level runs from 0 dB at the top down to −48 dB, with a
+        silence band below that. A ruler shows the beats, the snap grid
+        and the current tempo.</p>
+        <p>On a preset pattern the editor is <strong>read-only</strong>:
+        it shows where the pattern places its taps at the current tempo,
+        and a <strong>Copy to custom pattern</strong> button copies
+        those times and levels into the Custom pattern and switches to
+        it. On the <strong>Custom</strong> pattern the editor is
+        live:</p>
+        <table>
+        <colgroup>
+        <col style="width: 50%" />
+        <col style="width: 50%" />
+        </colgroup>
+        <thead>
+        <tr>
+        <th>Action</th>
+        <th>Result</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr>
+        <td>Hover a tap</td>
+        <td>A readout shows its grid position, time and level.</td>
+        </tr>
+        <tr>
+        <td>Drag a tap’s bar</td>
+        <td>Moves it in time.</td>
+        </tr>
+        <tr>
+        <td>Drag a tap’s top handle</td>
+        <td>Changes its level.</td>
+        </tr>
+        <tr>
+        <td>Drag a short or silent tap</td>
+        <td>The first movement decides whether the drag moves time or
+        level.</td>
+        </tr>
+        <tr>
+        <td>Shift while dragging</td>
+        <td>Fine control, and ignores the snap grid.</td>
+        </tr>
+        <tr>
+        <td>Double-click a tap</td>
+        <td>Returns it to its default place at 0 dB.</td>
+        </tr>
+        <tr>
+        <td>Ctrl-click (Cmd-click on macOS) a tap</td>
+        <td>Sets its level to 0 dB.</td>
+        </tr>
+        <tr>
+        <td>Esc while dragging</td>
+        <td>Cancels the drag.</td>
+        </tr>
+        <tr>
+        <td><strong>Reset</strong></td>
+        <td>Puts every tap back at its default place, at 0 dB.</td>
+        </tr>
+        </tbody>
+        </table>
+        <p>Raising <strong>Taps</strong> reveals new taps; a new tap
+        whose place is already taken moves to the nearest free grid
+        line. Taps later than 5 seconds play at 5 seconds.</p>
+        <p>The custom pattern is stored in 32 automatable host
+        parameters, <strong>Custom Time</strong> 1–16 (each tap’s place
+        on the timeline) and <strong>Custom Level</strong> 1–16 (each
+        tap’s level). The editor writes them; they have no other
+        control.</p>
+        <h2 id="freeze">Freeze</h2>
+        <figure>
+        <img src="images/mode-freeze.png"
+        alt="Freeze mode on the Euclidean pattern" width="900" height="480" loading="lazy" decoding="async">
+        <figcaption aria-hidden="true">Freeze mode on the Euclidean
+        pattern</figcaption>
+        </figure>
+        <p>Freeze turns the delay into a rhythmic sampler. It records
+        the input in windows one <strong>Capture</strong> cycle long,
+        locked to the bar, and plays the newest window back in a
+        pattern: Euclidean rhythms, scattered grains, harmonic drones or
+        noise bursts. <strong>Hold</strong> stops capturing and keeps
+        playing the current window. Freeze has no feedback.</p>
+        <table>
+        <colgroup>
+        <col style="width: 20%" />
+        <col style="width: 20%" />
+        <col style="width: 20%" />
+        <col style="width: 20%" />
+        <col style="width: 20%" />
+        </colgroup>
+        <thead>
+        <tr>
+        <th>Control</th>
+        <th>Host name</th>
+        <th>Range</th>
+        <th>Default</th>
+        <th>What it does</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr>
+        <td>Slice Length</td>
+        <td>Freeze Slice Length</td>
+        <td>10–2000 ms</td>
+        <td>200 ms</td>
+        <td>Length of each slice a hit plays.</td>
+        </tr>
+        <tr>
+        <td>Pattern</td>
+        <td>Freeze Pattern Type</td>
+        <td>Euclidean, Granular Scatter, Harmonic Drones, Noise
+        Bursts</td>
+        <td>Euclidean</td>
+        <td>How the window is played back.</td>
+        </tr>
+        <tr>
+        <td>Mix</td>
+        <td>Freeze Dry/Wet</td>
+        <td>0–100 %</td>
+        <td>100 %</td>
+        <td>Dry/wet balance.</td>
+        </tr>
+        <tr>
+        <td>Hold</td>
+        <td>Freeze Hold</td>
+        <td>Off / On</td>
+        <td>Off</td>
+        <td>Keeps playing the current window instead of capturing new
+        ones.</td>
+        </tr>
+        <tr>
+        <td>Capture</td>
+        <td>Freeze Capture</td>
+        <td>1/4, 1/2, 1/1, 2/1</td>
+        <td>1/1</td>
+        <td>Length of each captured window, in bars of 4/4 at the host
+        tempo.</td>
+        </tr>
+        <tr>
+        <td>Slice Mode</td>
+        <td>Freeze Slice Mode</td>
+        <td>Fixed, Variable</td>
+        <td>Fixed</td>
+        <td>Fixed replays the window from its downbeat; Variable plays
+        from the matching place in the bar.</td>
+        </tr>
+        <tr>
+        <td>Dry</td>
+        <td>Freeze Dry Mode</td>
+        <td>Mix, Insert</td>
+        <td>Insert</td>
+        <td>Mix crossfades dry and wet by Mix. Insert keeps the dry
+        signal and ducks it only while a slice plays.</td>
+        </tr>
+        <tr>
+        <td>Attack</td>
+        <td>Freeze Envelope Attack</td>
+        <td>0–500 ms</td>
+        <td>10 ms</td>
+        <td>Fade-in of each slice, grain, drone and burst.</td>
+        </tr>
+        <tr>
+        <td>Release</td>
+        <td>Freeze Envelope Release</td>
+        <td>0–2000 ms</td>
+        <td>100 ms</td>
+        <td>Fade-out.</td>
+        </tr>
+        <tr>
+        <td>Envelope Shape</td>
+        <td>Freeze Envelope Shape</td>
+        <td>Linear, Exponential</td>
+        <td>Linear</td>
+        <td>Curve of the fades.</td>
+        </tr>
+        </tbody>
+        </table>
+        <p>The right side of the panel shows the controls of the
+        selected pattern.</p>
+        <p><strong>Euclidean</strong> spreads a number of hits as evenly
+        as possible over a number of steps and plays a slice on each
+        hit.</p>
+        <table>
+        <colgroup>
+        <col style="width: 20%" />
+        <col style="width: 20%" />
+        <col style="width: 20%" />
+        <col style="width: 20%" />
+        <col style="width: 20%" />
+        </colgroup>
+        <thead>
+        <tr>
+        <th>Control</th>
+        <th>Host name</th>
+        <th>Range</th>
+        <th>Default</th>
+        <th>What it does</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr>
+        <td>Steps</td>
+        <td>Freeze Euclidean Steps</td>
+        <td>2–32</td>
+        <td>8</td>
+        <td>Steps in the rhythm.</td>
+        </tr>
+        <tr>
+        <td>Hits</td>
+        <td>Freeze Euclidean Hits</td>
+        <td>1 to Steps</td>
+        <td>3</td>
+        <td>Hits spread over the steps.</td>
+        </tr>
+        <tr>
+        <td>Rotation</td>
+        <td>Freeze Euclidean Rotation</td>
+        <td>0 to Steps − 1</td>
+        <td>0</td>
+        <td>Rotates the rhythm by whole steps.</td>
+        </tr>
+        <tr>
+        <td>Pattern Rate</td>
+        <td>Freeze Pattern Rate</td>
+        <td>a note value</td>
+        <td>1/8</td>
+        <td>Length of one step, at the host tempo.</td>
+        </tr>
+        </tbody>
+        </table>
+        <figure>
+        <img src="images/freeze-granular-scatter.png"
+        alt="Granular Scatter" width="580" height="372" loading="lazy" decoding="async">
+        <figcaption aria-hidden="true">Granular Scatter</figcaption>
+        </figure>
+        <p><strong>Granular Scatter</strong> plays grains from the
+        window at random moments.</p>
+        <table>
+        <colgroup>
+        <col style="width: 20%" />
+        <col style="width: 20%" />
+        <col style="width: 20%" />
+        <col style="width: 20%" />
+        <col style="width: 20%" />
+        </colgroup>
+        <thead>
+        <tr>
+        <th>Control</th>
+        <th>Host name</th>
+        <th>Range</th>
+        <th>Default</th>
+        <th>What it does</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr>
+        <td>Density</td>
+        <td>Freeze Granular Density</td>
+        <td>1–50 Hz</td>
+        <td>10 Hz</td>
+        <td>Average number of grains per second.</td>
+        </tr>
+        <tr>
+        <td>Grain Size</td>
+        <td>Freeze Grain Size</td>
+        <td>10–500 ms</td>
+        <td>100 ms</td>
+        <td>Length of each grain.</td>
+        </tr>
+        <tr>
+        <td>Position Jitter</td>
+        <td>Freeze Position Jitter</td>
+        <td>0–100 %</td>
+        <td>50 %</td>
+        <td>How widely the grains wander through the window.</td>
+        </tr>
+        <tr>
+        <td>Size Jitter</td>
+        <td>Freeze Size Jitter</td>
+        <td>0–100 %</td>
+        <td>25 %</td>
+        <td>Random variation of the grain length.</td>
+        </tr>
+        </tbody>
+        </table>
+        <figure>
+        <img src="images/freeze-harmonic-drones.png"
+        alt="Harmonic Drones" width="580" height="372" loading="lazy" decoding="async">
+        <figcaption aria-hidden="true">Harmonic Drones</figcaption>
+        </figure>
+        <p><strong>Harmonic Drones</strong> sustains the window as a
+        drone, with up to three pitch-shifted voice pairs above the
+        root.</p>
+        <table>
+        <colgroup>
+        <col style="width: 20%" />
+        <col style="width: 20%" />
+        <col style="width: 20%" />
+        <col style="width: 20%" />
+        <col style="width: 20%" />
+        </colgroup>
+        <thead>
+        <tr>
+        <th>Control</th>
+        <th>Host name</th>
+        <th>Range</th>
+        <th>Default</th>
+        <th>What it does</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr>
+        <td>Voices</td>
+        <td>Freeze Drone Voices</td>
+        <td>1–4</td>
+        <td>2</td>
+        <td>The root plus up to three shifted voices.</td>
+        </tr>
+        <tr>
+        <td>Interval</td>
+        <td>Freeze Drone Interval</td>
+        <td>Unison, Minor 3rd, Major 3rd, Perfect 4th, Perfect 5th,
+        Octave</td>
+        <td>Octave</td>
+        <td>The interval between the voices.</td>
+        </tr>
+        <tr>
+        <td>Drift</td>
+        <td>Freeze Drone Drift</td>
+        <td>0–100 %</td>
+        <td>30 %</td>
+        <td>Slow pitch drift of the voices.</td>
+        </tr>
+        <tr>
+        <td>Drift Rate</td>
+        <td>Freeze Drift Rate</td>
+        <td>0.1–2.0 Hz</td>
+        <td>0.50 Hz</td>
+        <td>Speed of that drift.</td>
+        </tr>
+        </tbody>
+        </table>
+        <figure>
+        <img src="images/freeze-noise-bursts.png" alt="Noise Bursts" width="580" height="372" loading="lazy" decoding="async">
+        <figcaption aria-hidden="true">Noise Bursts</figcaption>
+        </figure>
+        <p><strong>Noise Bursts</strong> plays a slice together with a
+        burst of filtered noise on each beat of <strong>Burst
+        Rate</strong>.</p>
+        <table>
+        <colgroup>
+        <col style="width: 20%" />
+        <col style="width: 20%" />
+        <col style="width: 20%" />
+        <col style="width: 20%" />
+        <col style="width: 20%" />
+        </colgroup>
+        <thead>
+        <tr>
+        <th>Control</th>
+        <th>Host name</th>
+        <th>Range</th>
+        <th>Default</th>
+        <th>What it does</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr>
+        <td>Noise Color</td>
+        <td>Freeze Noise Color</td>
+        <td>White, Pink, Brown, Blue, Violet, Grey, Velvet, Radio</td>
+        <td>Pink</td>
+        <td>The colour of the noise.</td>
+        </tr>
+        <tr>
+        <td>Burst Rate</td>
+        <td>Freeze Noise Burst Rate</td>
+        <td>a note value</td>
+        <td>1/8</td>
+        <td>Time between bursts, at the host tempo.</td>
+        </tr>
+        <tr>
+        <td>Filter Type</td>
+        <td>Freeze Noise Filter Type</td>
+        <td>LowPass, HighPass, BandPass</td>
+        <td>LowPass</td>
+        <td>Filter on the noise.</td>
+        </tr>
+        <tr>
+        <td>Filter Cutoff</td>
+        <td>Freeze Noise Filter Cutoff</td>
+        <td>20 Hz – 20 kHz</td>
+        <td>2 kHz</td>
+        <td>Cutoff of that filter.</td>
+        </tr>
+        <tr>
+        <td>Filter Sweep</td>
+        <td>Freeze Noise Filter Sweep</td>
+        <td>0–100 %</td>
+        <td>50 %</td>
+        <td>How far the cutoff sweeps down during each burst.</td>
+        </tr>
+        </tbody>
+        </table>
+        <h2 id="presets">Presets</h2>
+        <p><strong>Presets</strong> in the footer opens the preset
+        browser over the whole editor. It opens on the tab of the
+        current mode; the tabs are <strong>All</strong> plus one per
+        mode. Type in the search field to filter, and double-click a
+        preset to load it and close the browser. Loading a preset also
+        switches to its mode. The browser’s <strong>Save</strong>,
+        <strong>Import…</strong> and <strong>Delete</strong> buttons
+        manage your own presets; factory presets cannot be deleted. Esc
+        closes the browser.</p>
+        <p><strong>Save Preset</strong> in the footer opens a small
+        dialog: type a name, pick a category (the current mode is
+        selected) and click <strong>Save</strong>. Iterum asks before
+        overwriting a preset of the same name.</p>
+        <h3 id="factory-library">Factory library</h3>
+        <p>Iterum ships 101 factory presets, at least ten per mode. The
+        browser shows them by file name.</p>
+        <ul>
+        <li><strong>Granular</strong> — <code>Ambient_Drift</code>,
+        <code>Cloud_Nine</code>, <code>Frozen_Moment</code>,
+        <code>Grain_Cascade</code>, <code>Grain_Storm</code>,
+        <code>LoFi_Clouds</code>, <code>Micro_Slice</code>,
+        <code>Stutter_Step</code>, <code>Time_Warp</code>,
+        <code>Whisper_Trail</code></li>
+        <li><strong>Spectral</strong> — <code>Crystal_Diffusion</code>,
+        <code>Frequency_Cascade</code>, <code>Ghost_Frequencies</code>,
+        <code>Low_End_Spread</code>, <code>Mono_to_Wide</code>,
+        <code>Prism</code>, <code>Rainbow_Scatter</code>,
+        <code>Resonant_Sweep</code>, <code>Spectral_Freeze</code>,
+        <code>Treble_Trail</code></li>
+        <li><strong>Shimmer</strong> — <code>Bright_Stars</code>,
+        <code>Cathedral</code>, <code>Dark_Shimmer</code>,
+        <code>Detune_Wash</code>, <code>Fifth_Up</code>,
+        <code>Heavenly</code>, <code>Infinite_Rise</code>,
+        <code>Octave_Below</code>, <code>Subtle_Shine</code>,
+        <code>Vocal_Halo</code></li>
+        <li><strong>Tape</strong> — <code>LoFi_Groove</code>,
+        <code>Old_Radio</code>, <code>Slapback_Echo</code>,
+        <code>Splice_Madness</code>, <code>Studio_Reel</code>,
+        <code>Tape_Saturation</code>, <code>VHS_Memory</code>,
+        <code>Vintage_Dub</code>, <code>Warm_Bass</code>,
+        <code>Worn_Cassette</code></li>
+        <li><strong>BBD</strong> — <code>Analog_Dreams</code>,
+        <code>Classic_Chorus</code>, <code>Clean_Repeat</code>,
+        <code>Dark_Bucket</code>, <code>Drum_Pocket</code>,
+        <code>Murky_Depths</code>, <code>Space_Echo</code>,
+        <code>Subtle_Widen</code>, <code>Synth_Lead</code>,
+        <code>Vintage_Flange</code></li>
+        <li><strong>Digital</strong> — <code>Clean_Vocal</code>,
+        <code>Crystal_Clear</code>, <code>Dotted_Eighth</code>,
+        <code>Long_Tail</code>, <code>Modulated_Space</code>,
+        <code>Ping_Pong_Lite</code>, <code>Precise_Hit</code>,
+        <code>Rhythmic_Sync</code>, <code>Subtle_Room</code>,
+        <code>Wide_Stereo</code></li>
+        <li><strong>PingPong</strong> — <code>Asymmetric</code>,
+        <code>Guitar_Spread</code>, <code>Modulated_Space</code>,
+        <code>Rhythmic_Tennis</code>, <code>Slow_Motion</code>,
+        <code>Subtle_Bounce</code>, <code>Synth_Panorama</code>,
+        <code>Tight_Pocket</code>, <code>Vocal_Depth</code>,
+        <code>Wide_Pong</code></li>
+        <li><strong>Reverse</strong> — <code>Alternating_Reality</code>,
+        <code>Backward_Glance</code>, <code>Drum_Reverse</code>,
+        <code>Filtered_Ghost</code>, <code>Ghostly</code>,
+        <code>Long_Tail_Reverse</code>, <code>Random_Chaos</code>,
+        <code>Short_Flip</code>, <code>Swell_Up</code>,
+        <code>Vocal_Spirit</code></li>
+        <li><strong>MultiTap</strong> — <code>Alternating_Stereo</code>,
+        <code>Cascading_Echoes</code>, <code>Dub_Echoes</code>,
+        <code>Fibonacci_Rhythm</code>, <code>Golden_Ratio</code>,
+        <code>Prime_Numbers</code>, <code>Sixteenth_Grid</code>,
+        <code>Slow_Buildup</code>, <code>Tight_Pocket</code>,
+        <code>Wide_Taps</code></li>
+        <li><strong>Freeze</strong> — <code>Euclidean_Pulse</code>,
+        <code>Fifths_Drone</code>, <code>Ghost_Pattern</code>,
+        <code>Granular_Cloud</code>, <code>Harmonic_Bed</code>,
+        <code>Noise_Texture</code>, <code>Radio_Static</code>,
+        <code>Scatter_Drift</code>, <code>Slice_Machine</code>,
+        <code>Stutter_Fill</code>, <code>Total_Freeze</code></li>
+        </ul>
+        <h2 id="host-automation">Host Automation</h2>
+        <p>Every control above is automatable, under the host name in
+        its table. Each mode’s parameters keep their values while
+        another mode plays, so you can automate <strong>Mode</strong> to
+        switch between prepared settings. Automation is applied once per
+        processing block.</p>
+        <h2 id="tips-tricks">Tips &amp; Tricks</h2>
+        <ul>
+        <li><strong>Instant dub:</strong> Tape with Heads 2 and 3 on,
+        Feedback around 70 % and Age up; ride Feedback past 100 % for a
+        runaway swell, then pull it back.</li>
+        <li><strong>Pitch-gliding repeats:</strong> in Tape, raise
+        Inertia and turn the Time knob (with Sync off): the motor slows
+        and speeds up, bending the pitch of the echoes.</li>
+        <li><strong>Shimmer pads:</strong> Pitch +12, Pitch Blend 100 %,
+        Feedback 80–90 %, Filter on around 6 kHz to keep the top end
+        soft.</li>
+        <li><strong>Polyrhythmic bounce:</strong> PingPong with L/R
+        Ratio 3:2 and Cross-Feedback 100 %.</li>
+        <li><strong>Rhythmic stutter on a loop:</strong> Freeze,
+        Euclidean, Steps 16, Hits 5, Dry on Insert: the dry signal plays
+        on and the slices cut in on the hits.</li>
+        <li><strong>Make a preset pattern your own:</strong> in MultiTap
+        pick a pattern close to what you want, press <strong>Copy to
+        custom pattern</strong>, then drag the taps.</li>
+        </ul>
+
+        <div class="manual-footer">
+            <p>
+                <a href="./">Back to Iterum</a> |
+                <a href="../">Krate Audio</a>
+            </p>
+        </div>
+    </div>
+</body>
+</html>

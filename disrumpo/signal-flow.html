@@ -1,0 +1,871 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Disrumpo Signal Flow Diagram | Krate Audio</title>
+    <meta name="description" content="Interactive signal flow diagram of Disrumpo, the free Multiband Morphing Distortion VST3 plugin by Krate Audio, every stage from input to output.">
+    <link rel="canonical" href="https://krateaudio.com/disrumpo/signal-flow.html">
+    <meta property="og:title" content="Disrumpo Signal Flow Diagram">
+    <meta property="og:description" content="Interactive signal flow diagram of Disrumpo, the free Multiband Morphing Distortion VST3 plugin by Krate Audio, every stage from input to output.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https://krateaudio.com/disrumpo/signal-flow.html">
+    <meta name="robots" content="index, follow, max-image-preview:large">
+    <meta name="theme-color" content="#0a0a0f">
+    <link rel="icon" href="/favicon.ico" sizes="32x32">
+    <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+    <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+    <link rel="preload" href="/assets/fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="stylesheet" href="/assets/site.css">
+    <meta property="og:site_name" content="Krate Audio">
+    <meta property="og:locale" content="en_US">
+    <meta property="og:image" content="https://krateaudio.com/disrumpo/images/og-image.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="Disrumpo plugin editor">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content="https://krateaudio.com/disrumpo/images/og-image.png">
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "Organization",
+          "@id": "https://krateaudio.com/#organization",
+          "name": "Krate Audio",
+          "url": "https://krateaudio.com/",
+          "logo": {
+            "@type": "ImageObject",
+            "url": "https://krateaudio.com/assets/logo-512.png",
+            "width": 512,
+            "height": 512
+          },
+          "sameAs": [
+            "https://github.com/rolandzwaga"
+          ]
+        },
+        {
+          "@type": "BreadcrumbList",
+          "itemListElement": [
+            {
+              "@type": "ListItem",
+              "position": 1,
+              "name": "Krate Audio",
+              "item": "https://krateaudio.com/"
+            },
+            {
+              "@type": "ListItem",
+              "position": 2,
+              "name": "Disrumpo",
+              "item": "https://krateaudio.com/disrumpo/"
+            },
+            {
+              "@type": "ListItem",
+              "position": 3,
+              "name": "Signal Flow",
+              "item": "https://krateaudio.com/disrumpo/signal-flow.html"
+            }
+          ]
+        }
+      ]
+    }
+    </script>
+    <style>
+        :root {
+            --color-bg: #0a0a0f;
+            --color-surface: #12121a;
+            --color-border: #2a2a3a;
+            --color-text: #e8e8f0;
+            --color-text-muted: #8888a0;
+            --color-accent: #a855f7;
+            --color-accent-hover: #c084fc;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--color-bg);
+            color: var(--color-text);
+            line-height: 1.6;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            padding: 1.25rem 2rem;
+            border-bottom: 1px solid var(--color-border);
+            flex-shrink: 0;
+        }
+
+        .breadcrumb {
+            font-size: 0.875rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .breadcrumb a {
+            color: var(--color-text-muted);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .breadcrumb a:hover {
+            color: var(--color-accent);
+        }
+
+        .breadcrumb .separator {
+            color: var(--color-border);
+            margin: 0 0.5rem;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            background: linear-gradient(135deg, var(--color-text) 0%, var(--color-accent) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .intro {
+            color: var(--color-text-muted);
+            font-size: 0.9rem;
+            max-width: 70ch;
+        }
+
+        .intro a {
+            color: var(--color-accent-hover);
+        }
+
+        .toolbar {
+            padding: 0.75rem 2rem;
+            border-bottom: 1px solid var(--color-border);
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            background: var(--color-surface);
+            flex-shrink: 0;
+        }
+
+        .toolbar button {
+            padding: 0.375rem 0.75rem;
+            background: var(--color-bg);
+            border: 1px solid var(--color-border);
+            border-radius: 6px;
+            color: var(--color-text);
+            font-family: inherit;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .toolbar button:hover {
+            border-color: var(--color-accent);
+            color: var(--color-accent);
+        }
+
+        .toolbar .zoom-info {
+            font-size: 0.8rem;
+            color: var(--color-text-muted);
+            margin-left: auto;
+        }
+
+        #diagram-container {
+            flex: 1;
+            min-height: 60vh;
+            overflow: hidden;
+            position: relative;
+            cursor: grab;
+        }
+
+        #diagram-container.grabbing {
+            cursor: grabbing;
+        }
+
+        #diagram {
+            position: absolute;
+            transform-origin: 0 0;
+        }
+
+        #diagram svg {
+            display: block;
+        }
+
+        #loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: var(--color-text-muted);
+            font-size: 1.1rem;
+        }
+
+        #error {
+            display: none;
+            padding: 2rem;
+            color: #f87171;
+            text-align: center;
+        }
+
+        @media (max-width: 640px) {
+            .header { padding: 1rem; }
+            .toolbar { padding: 0.5rem 1rem; }
+            h1 { font-size: 1.25rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <nav class="breadcrumb">
+            <a href="/">Krate Audio</a>
+            <span class="separator">/</span>
+            <a href="./">Disrumpo</a>
+            <span class="separator">/</span>
+        </nav>
+        <h1>Disrumpo Signal Flow</h1>
+        <p class="intro">Interactive signal flow diagram of Disrumpo, the free Multiband Morphing Distortion VST3 plugin by Krate Audio, every stage from input to output. Drag to pan, scroll to zoom. The <a href="manual.html">user manual</a> explains each stage.</p>
+    </div>
+
+    <div class="toolbar">
+        <button id="zoom-in" title="Zoom in">+</button>
+        <button id="zoom-out" title="Zoom out">&minus;</button>
+        <button id="zoom-fit" title="Fit to screen">Fit</button>
+        <button id="zoom-reset" title="Reset to 100%">1:1</button>
+        <span class="zoom-info" id="zoom-level">100%</span>
+    </div>
+
+    <div id="diagram-container">
+        <div id="loading">Loading diagram&hellip;</div>
+        <div id="error"></div>
+        <div id="diagram"><?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN"
+ "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<!-- Generated by graphviz version 12.2.0 (20241103.1931)
+ -->
+<!-- Title: DisrumpoSignalFlow Pages: 1 -->
+<svg width="1158pt" height="1957pt"
+ viewBox="0.00 0.00 1157.69 1957.46" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+<g id="graph0" class="graph" transform="scale(1 1) rotate(0) translate(4 1953.46)">
+<title>DisrumpoSignalFlow</title>
+<polygon fill="white" stroke="none" points="-4,4 -4,-1953.46 1153.69,-1953.46 1153.69,4 -4,4"/>
+<g id="clust1" class="cluster">
+<title>cluster_legend</title>
+<path fill="#fafafa" stroke="#888888" d="M20,-1751.06C20,-1751.06 260,-1751.06 260,-1751.06 266,-1751.06 272,-1757.06 272,-1763.06 272,-1763.06 272,-1929.46 272,-1929.46 272,-1935.46 266,-1941.46 260,-1941.46 260,-1941.46 20,-1941.46 20,-1941.46 14,-1941.46 8,-1935.46 8,-1929.46 8,-1929.46 8,-1763.06 8,-1763.06 8,-1757.06 14,-1751.06 20,-1751.06"/>
+<text text-anchor="middle" x="140" y="-1926.66" font-family="Helvetica,sans-Serif" font-size="12.00" fill="#444444">Legend</text>
+</g>
+<g id="clust2" class="cluster">
+<title>cluster_input</title>
+<path fill="#f0f0f0" stroke="#666666" d="M292,-1492.4C292,-1492.4 510,-1492.4 510,-1492.4 516,-1492.4 522,-1498.4 522,-1504.4 522,-1504.4 522,-1870.26 522,-1870.26 522,-1876.26 516,-1882.26 510,-1882.26 510,-1882.26 292,-1882.26 292,-1882.26 286,-1882.26 280,-1876.26 280,-1870.26 280,-1870.26 280,-1504.4 280,-1504.4 280,-1498.4 286,-1492.4 292,-1492.4"/>
+<text text-anchor="middle" x="401" y="-1868.36" font-family="Helvetica,sans-Serif" font-size="11.00">Input</text>
+</g>
+<g id="clust3" class="cluster">
+<title>cluster_mod</title>
+<path fill="#fff6e5" stroke="#c08020" d="M542,-1080C542,-1080 746,-1080 746,-1080 752,-1080 758,-1086 758,-1092 758,-1092 758,-1584.06 758,-1584.06 758,-1590.06 752,-1596.06 746,-1596.06 746,-1596.06 542,-1596.06 542,-1596.06 536,-1596.06 530,-1590.06 530,-1584.06 530,-1584.06 530,-1092 530,-1092 530,-1086 536,-1080 542,-1080"/>
+<text text-anchor="middle" x="644" y="-1582.16" font-family="Helvetica,sans-Serif" font-size="11.00">Modulation — evaluated once per block</text>
+</g>
+<g id="clust4" class="cluster">
+<title>cluster_band</title>
+<path fill="#fbeeee" stroke="#a03030" d="M519,-461.4C519,-461.4 1081,-461.4 1081,-461.4 1087,-461.4 1093,-467.4 1093,-473.4 1093,-473.4 1093,-1060 1093,-1060 1093,-1066 1087,-1072 1081,-1072 1081,-1072 519,-1072 519,-1072 513,-1072 507,-1066 507,-1060 507,-1060 507,-473.4 507,-473.4 507,-467.4 513,-461.4 519,-461.4"/>
+<text text-anchor="middle" x="800" y="-1058.1" font-family="Helvetica,sans-Serif" font-size="11.00">Per band (1 to 4 bands, each identical)</text>
+</g>
+<g id="clust5" class="cluster">
+<title>cluster_morph</title>
+<path fill="#ffffff" stroke="#a03030" d="M527,-607.4C527,-607.4 751,-607.4 751,-607.4 757,-607.4 763,-613.4 763,-619.4 763,-619.4 763,-1030.8 763,-1030.8 763,-1036.8 757,-1042.8 751,-1042.8 751,-1042.8 527,-1042.8 527,-1042.8 521,-1042.8 515,-1036.8 515,-1030.8 515,-1030.8 515,-619.4 515,-619.4 515,-613.4 521,-607.4 527,-607.4"/>
+<text text-anchor="middle" x="639" y="-1028.9" font-family="Helvetica,sans-Serif" font-size="11.00">Morph engine — Active Nodes 1&#45;4 (A&#45;D)</text>
+</g>
+<g id="clust6" class="cluster">
+<title>cluster_global</title>
+<path fill="#eef8ee" stroke="#3c8c3c" d="M332,-105.6C332,-105.6 516,-105.6 516,-105.6 522,-105.6 528,-111.6 528,-117.6 528,-117.6 528,-430.4 528,-430.4 528,-436.4 522,-442.4 516,-442.4 516,-442.4 332,-442.4 332,-442.4 326,-442.4 320,-436.4 320,-430.4 320,-430.4 320,-117.6 320,-117.6 320,-111.6 326,-105.6 332,-105.6"/>
+<text text-anchor="middle" x="424" y="-428.5" font-family="Helvetica,sans-Serif" font-size="11.00">Global chain</text>
+</g>
+<!-- leg -->
+<g id="node1" class="node">
+<title>leg</title>
+<polygon fill="#fafafa" stroke="none" points="264.16,-1911.06 15.84,-1911.06 15.84,-1759.06 264.16,-1759.06 264.16,-1911.06"/>
+<polygon fill="#d9534f" stroke="none" points="27.84,-1887.06 27.84,-1903.06 65.18,-1903.06 65.18,-1887.06 27.84,-1887.06"/>
+<text text-anchor="start" x="45.12" y="-1892.06" font-family="Helvetica,sans-Serif" font-size="10.00"> </text>
+<text text-anchor="start" x="71.18" y="-1892.06" font-family="Helvetica,sans-Serif" font-size="10.00">Audio path (wet)</text>
+<polygon fill="#7bafd4" stroke="none" points="27.84,-1867.06 27.84,-1883.06 65.18,-1883.06 65.18,-1867.06 27.84,-1867.06"/>
+<text text-anchor="start" x="45.12" y="-1872.06" font-family="Helvetica,sans-Serif" font-size="10.00"> </text>
+<text text-anchor="start" x="71.18" y="-1872.06" font-family="Helvetica,sans-Serif" font-size="10.00">Dry path</text>
+<polygon fill="#e8a838" stroke="none" points="27.84,-1847.06 27.84,-1863.06 65.18,-1863.06 65.18,-1847.06 27.84,-1847.06"/>
+<text text-anchor="start" x="45.12" y="-1852.06" font-family="Helvetica,sans-Serif" font-size="10.00"> </text>
+<text text-anchor="start" x="71.18" y="-1852.06" font-family="Helvetica,sans-Serif" font-size="10.00">Modulation (control rate, once per block)</text>
+<polygon fill="#6bbf6b" stroke="none" points="27.84,-1827.06 27.84,-1843.06 65.18,-1843.06 65.18,-1827.06 27.84,-1827.06"/>
+<text text-anchor="start" x="45.12" y="-1832.06" font-family="Helvetica,sans-Serif" font-size="10.00"> </text>
+<text text-anchor="start" x="71.18" y="-1832.06" font-family="Helvetica,sans-Serif" font-size="10.00">Global output chain</text>
+<polygon fill="#aaaaaa" stroke="none" points="27.84,-1807.06 27.84,-1823.06 65.18,-1823.06 65.18,-1807.06 27.84,-1807.06"/>
+<text text-anchor="start" x="45.12" y="-1812.06" font-family="Helvetica,sans-Serif" font-size="10.00"> </text>
+<text text-anchor="start" x="71.18" y="-1812.06" font-family="Helvetica,sans-Serif" font-size="10.00">Host / editor</text>
+<text text-anchor="start" x="29.84" y="-1792.06" font-family="Helvetica,sans-Serif" font-size="10.00">───▶</text>
+<text text-anchor="start" x="71.18" y="-1792.06" font-family="Helvetica,sans-Serif" font-size="10.00">Audio flow</text>
+<text text-anchor="start" x="36.23" y="-1772.06" font-family="Helvetica,sans-Serif" font-size="10.00">&#45; &#45; ▶</text>
+<text text-anchor="start" x="71.18" y="-1772.06" font-family="Helvetica,sans-Serif" font-size="10.00">Modulation / control</text>
+</g>
+<!-- audio_in -->
+<g id="node2" class="node">
+<title>audio_in</title>
+<polygon fill="#ccddee" stroke="black" points="513.64,-1840.62 472,-1853.06 430.36,-1840.62 430.4,-1820.5 513.6,-1820.5 513.64,-1840.62"/>
+<text text-anchor="middle" x="472" y="-1832.06" font-family="Helvetica,sans-Serif" font-size="10.00">Stereo in</text>
+</g>
+<!-- mod_in -->
+<g id="node5" class="node">
+<title>mod_in</title>
+<polygon fill="#cccccc" stroke="black" points="858.43,-1722.06 699.57,-1722.06 699.57,-1678.06 858.43,-1678.06 858.43,-1722.06"/>
+<text text-anchor="middle" x="779" y="-1709.06" font-family="Helvetica,sans-Serif" font-size="10.00">Modulation input</text>
+<text text-anchor="middle" x="779" y="-1697.06" font-family="Helvetica,sans-Serif" font-size="10.00">raw input delayed by the latency</text>
+<text text-anchor="middle" x="779" y="-1685.06" font-family="Helvetica,sans-Serif" font-size="10.00">(before Input Gain)</text>
+</g>
+<!-- audio_in&#45;&gt;mod_in -->
+<g id="edge1" class="edge">
+<title>audio_in&#45;&gt;mod_in</title>
+<path fill="none" stroke="#888888" stroke-dasharray="5,2" d="M504.27,-1820.08C555.17,-1798.03 654.88,-1754.83 719.14,-1726.99"/>
+<polygon fill="#888888" stroke="#888888" points="720.36,-1730.28 728.14,-1723.09 717.58,-1723.85 720.36,-1730.28"/>
+</g>
+<!-- in_gain -->
+<g id="node11" class="node">
+<title>in_gain</title>
+<polygon fill="#d9534f" stroke="black" points="973.58,-1331.6 876.42,-1331.6 876.42,-1287.6 973.58,-1287.6 973.58,-1331.6"/>
+<text text-anchor="middle" x="925" y="-1318.6" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">Input Gain</text>
+<text text-anchor="middle" x="925" y="-1306.6" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">±24 dB, smoothed</text>
+<text text-anchor="middle" x="925" y="-1294.6" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">(wet path only)</text>
+</g>
+<!-- audio_in&#45;&gt;in_gain -->
+<g id="edge11" class="edge">
+<title>audio_in&#45;&gt;in_gain</title>
+<path fill="none" stroke="black" stroke-width="2" d="M514.11,-1830.36C612.15,-1820.95 851.85,-1793.09 911,-1741.06 925.14,-1728.62 925,-1719.89 925,-1701.06 925,-1701.06 925,-1701.06 925,-1425.8 925,-1398.51 925,-1367.58 925,-1344.65"/>
+<polygon fill="black" stroke="black" stroke-width="2" points="928.5,-1344.86 925,-1334.86 921.5,-1344.86 928.5,-1344.86"/>
+</g>
+<!-- dry -->
+<g id="node20" class="node">
+<title>dry</title>
+<polygon fill="#7bafd4" stroke="black" points="271.7,-1660.06 102.3,-1660.06 102.3,-1604.06 271.7,-1604.06 271.7,-1660.06"/>
+<text text-anchor="middle" x="187" y="-1647.06" font-family="Helvetica,sans-Serif" font-size="10.00">Dry path</text>
+<text text-anchor="middle" x="187" y="-1635.06" font-family="Helvetica,sans-Serif" font-size="10.00">raw input (before Input Gain)</text>
+<text text-anchor="middle" x="187" y="-1623.06" font-family="Helvetica,sans-Serif" font-size="10.00">→ crossover allpass compensation</text>
+<text text-anchor="middle" x="187" y="-1611.06" font-family="Helvetica,sans-Serif" font-size="10.00">→ delayed to the plugin latency</text>
+</g>
+<!-- audio_in&#45;&gt;dry -->
+<g id="edge27" class="edge">
+<title>audio_in&#45;&gt;dry</title>
+<path fill="none" stroke="#4a7fb0" stroke-width="2" d="M452.41,-1820.24C408.31,-1789.14 300.09,-1712.82 236.29,-1667.82"/>
+<polygon fill="#4a7fb0" stroke="#4a7fb0" stroke-width="2" points="238.35,-1664.99 228.16,-1662.08 234.31,-1670.71 238.35,-1664.99"/>
+</g>
+<!-- spectrum -->
+<g id="node26" class="node">
+<title>spectrum</title>
+<polygon fill="#cccccc" stroke="black" points="1047.09,-68 834.91,-68 834.91,0 1047.09,0 1047.09,-68"/>
+<text text-anchor="middle" x="941" y="-55" font-family="Helvetica,sans-Serif" font-size="10.00">Spectrum + meters → editor</text>
+<text text-anchor="middle" x="941" y="-43" font-family="Helvetica,sans-Serif" font-size="10.00">input spectrum (raw), output spectrum (final)</text>
+<text text-anchor="middle" x="941" y="-31" font-family="Helvetica,sans-Serif" font-size="10.00">input / band / output meters, clip light</text>
+<text text-anchor="middle" x="941" y="-19" font-family="Helvetica,sans-Serif" font-size="10.00">mod offsets for the slider rings</text>
+<text text-anchor="middle" x="941" y="-7" font-family="Helvetica,sans-Serif" font-size="10.00">(~30 Hz, DataExchange)</text>
+</g>
+<!-- audio_in&#45;&gt;spectrum -->
+<g id="edge36" class="edge">
+<title>audio_in&#45;&gt;spectrum</title>
+<path fill="none" stroke="#888888" stroke-dasharray="5,2" d="M514.07,-1833.39C640.56,-1830.56 1014.3,-1815.91 1105,-1741.06 1119.53,-1729.07 1119,-1719.89 1119,-1701.06 1119,-1701.06 1119,-1701.06 1119,-140.6 1119,-104.22 1091.15,-80.1 1057.49,-64.23"/>
+<polygon fill="#888888" stroke="#888888" points="1059.32,-61.21 1048.75,-60.38 1056.49,-67.61 1059.32,-61.21"/>
+<text text-anchor="middle" x="1134.35" y="-754.6" font-family="Helvetica,sans-Serif" font-size="8.00">input tap</text>
+</g>
+<!-- params -->
+<g id="node3" class="node">
+<title>params</title>
+<polygon fill="#ccddee" stroke="black" points="513.57,-1550.74 401,-1577.31 288.43,-1550.74 288.53,-1507.74 513.47,-1507.74 513.57,-1550.74"/>
+<text text-anchor="middle" x="401" y="-1547.86" font-family="Helvetica,sans-Serif" font-size="10.00">Host parameters</text>
+<text text-anchor="middle" x="401" y="-1535.86" font-family="Helvetica,sans-Serif" font-size="10.00">(MIDI CC learn arrives as</text>
+<text text-anchor="middle" x="401" y="-1523.86" font-family="Helvetica,sans-Serif" font-size="10.00">parameter changes)</text>
+</g>
+<!-- matrix -->
+<g id="node7" class="node">
+<title>matrix</title>
+<polygon fill="#e8a838" stroke="black" points="667.69,-1454.8 538.31,-1454.8 538.31,-1398.8 667.69,-1398.8 667.69,-1454.8"/>
+<text text-anchor="middle" x="603" y="-1441.8" font-family="Helvetica,sans-Serif" font-size="10.00">Mod matrix</text>
+<text text-anchor="middle" x="603" y="-1429.8" font-family="Helvetica,sans-Serif" font-size="10.00">32 routes: Source → Dest</text>
+<text text-anchor="middle" x="603" y="-1417.8" font-family="Helvetica,sans-Serif" font-size="10.00">Amount ±100%, Curve</text>
+<text text-anchor="middle" x="603" y="-1405.8" font-family="Helvetica,sans-Serif" font-size="10.00">38 destinations</text>
+</g>
+<!-- params&#45;&gt;matrix -->
+<g id="edge10" class="edge">
+<title>params&#45;&gt;matrix</title>
+<path fill="none" stroke="#888888" stroke-dasharray="5,2" d="M457,-1507.35C483.73,-1492.79 515.73,-1475.35 542.96,-1460.51"/>
+<polygon fill="#888888" stroke="#888888" points="544.32,-1463.76 551.43,-1455.9 540.97,-1457.61 544.32,-1463.76"/>
+</g>
+<!-- tempo -->
+<g id="node4" class="node">
+<title>tempo</title>
+<polygon fill="#ccddee" stroke="black" points="514.43,-1705.62 429,-1718.06 343.57,-1705.62 343.65,-1685.5 514.35,-1685.5 514.43,-1705.62"/>
+<text text-anchor="middle" x="429" y="-1697.06" font-family="Helvetica,sans-Serif" font-size="10.00">Host tempo / transport</text>
+</g>
+<!-- sources -->
+<g id="node6" class="node">
+<title>sources</title>
+<polygon fill="#e8a838" stroke="black" points="738.26,-1566.86 537.74,-1566.86 537.74,-1510.86 738.26,-1510.86 738.26,-1566.86"/>
+<text text-anchor="middle" x="638" y="-1553.86" font-family="Helvetica,sans-Serif" font-size="10.00">Mod sources</text>
+<text text-anchor="middle" x="638" y="-1541.86" font-family="Helvetica,sans-Serif" font-size="10.00">LFO 1 · LFO 2 · Env Follower · Random</text>
+<text text-anchor="middle" x="638" y="-1529.86" font-family="Helvetica,sans-Serif" font-size="10.00">Macro 1&#45;4 · Chaos · Rungler · S&amp;H</text>
+<text text-anchor="middle" x="638" y="-1517.86" font-family="Helvetica,sans-Serif" font-size="10.00">Pitch · Transient</text>
+</g>
+<!-- tempo&#45;&gt;sources -->
+<g id="edge8" class="edge">
+<title>tempo&#45;&gt;sources</title>
+<path fill="none" stroke="#888888" stroke-dasharray="5,2" d="M452.29,-1685.03C463.84,-1677.86 477.87,-1668.82 490,-1660.06 527.69,-1632.83 568.58,-1599.3 597.81,-1574.57"/>
+<polygon fill="#888888" stroke="#888888" points="599.98,-1577.32 605.34,-1568.18 595.45,-1571.98 599.98,-1577.32"/>
+<text text-anchor="middle" x="578.44" y="-1634.46" font-family="Helvetica,sans-Serif" font-size="8.00">LFO sync,</text>
+<text text-anchor="middle" x="578.44" y="-1624.86" font-family="Helvetica,sans-Serif" font-size="8.00">retrigger</text>
+</g>
+<!-- sweep -->
+<g id="node8" class="node">
+<title>sweep</title>
+<polygon fill="#e8a838" stroke="black" points="750.11,-1343.6 537.89,-1343.6 537.89,-1275.6 750.11,-1275.6 750.11,-1343.6"/>
+<text text-anchor="middle" x="644" y="-1330.6" font-family="Helvetica,sans-Serif" font-size="10.00">Sweep</text>
+<text text-anchor="middle" x="644" y="-1318.6" font-family="Helvetica,sans-Serif" font-size="10.00">Frequency, Width, Intensity, Falloff</text>
+<text text-anchor="middle" x="644" y="-1306.6" font-family="Helvetica,sans-Serif" font-size="10.00">+ Sweep LFO (±2 oct × Depth, tempo sync)</text>
+<text text-anchor="middle" x="644" y="-1294.6" font-family="Helvetica,sans-Serif" font-size="10.00">+ Sweep Envelope (0 to +2 oct × Sensitivity)</text>
+<text text-anchor="middle" x="644" y="-1282.6" font-family="Helvetica,sans-Serif" font-size="10.00">20 ms smoothing</text>
+</g>
+<!-- tempo&#45;&gt;sweep -->
+<g id="edge9" class="edge">
+<title>tempo&#45;&gt;sweep</title>
+<path fill="none" stroke="#888888" stroke-dasharray="5,2" d="M514.72,-1693C598.59,-1686.28 716.03,-1674.47 732,-1660.06 753.69,-1640.48 743.64,-1625.08 747,-1596.06 759.18,-1490.74 762.1,-1449.62 703,-1361.6 700.82,-1358.35 698.38,-1355.19 695.77,-1352.14"/>
+<polygon fill="#888888" stroke="#888888" points="698.44,-1349.86 689.06,-1344.93 693.31,-1354.63 698.44,-1349.86"/>
+<text text-anchor="middle" x="783.38" y="-1475.2" font-family="Helvetica,sans-Serif" font-size="8.00">Sweep LFO sync</text>
+</g>
+<!-- mod_in&#45;&gt;sources -->
+<g id="edge6" class="edge">
+<title>mod_in&#45;&gt;sources</title>
+<path fill="none" stroke="#888888" stroke-dasharray="5,2" d="M778.95,-1677.69C777.86,-1656.92 773.33,-1625.46 757,-1604.06 747.6,-1591.74 735.15,-1581.51 721.83,-1573.11"/>
+<polygon fill="#888888" stroke="#888888" points="723.7,-1570.15 713.31,-1568.08 720.14,-1576.18 723.7,-1570.15"/>
+<text text-anchor="middle" x="805.05" y="-1634.46" font-family="Helvetica,sans-Serif" font-size="8.00">Env Follower,</text>
+<text text-anchor="middle" x="805.05" y="-1624.86" font-family="Helvetica,sans-Serif" font-size="8.00">Pitch, Transient</text>
+</g>
+<!-- mod_in&#45;&gt;sweep -->
+<g id="edge7" class="edge">
+<title>mod_in&#45;&gt;sweep</title>
+<path fill="none" stroke="#888888" stroke-dasharray="5,2" d="M821.05,-1677.61C827.07,-1672.68 832.42,-1666.84 836,-1660.06 847.46,-1638.34 842.72,-1534.52 828,-1472.8 815.51,-1420.44 818.98,-1398.73 780,-1361.6 774.04,-1355.92 767.38,-1350.86 760.31,-1346.35"/>
+<polygon fill="#888888" stroke="#888888" points="762.13,-1343.36 751.74,-1341.31 758.58,-1349.4 762.13,-1343.36"/>
+<text text-anchor="middle" x="860" y="-1475.2" font-family="Helvetica,sans-Serif" font-size="8.00">Sweep Envelope</text>
+</g>
+<!-- sources&#45;&gt;matrix -->
+<g id="edge2" class="edge">
+<title>sources&#45;&gt;matrix</title>
+<path fill="none" stroke="#c08020" stroke-dasharray="5,2" d="M629.26,-1510.37C624.97,-1496.87 619.73,-1480.4 615.06,-1465.73"/>
+<polygon fill="#c08020" stroke="#c08020" points="618.46,-1464.85 612.09,-1456.38 611.78,-1466.97 618.46,-1464.85"/>
+</g>
+<!-- matrix&#45;&gt;sweep -->
+<g id="edge3" class="edge">
+<title>matrix&#45;&gt;sweep</title>
+<path fill="none" stroke="#c08020" stroke-dasharray="5,2" d="M612.72,-1398.5C617.4,-1385.33 623.14,-1369.2 628.42,-1354.38"/>
+<polygon fill="#c08020" stroke="#c08020" points="631.6,-1355.89 631.65,-1345.3 625,-1353.54 631.6,-1355.89"/>
+<text text-anchor="middle" x="662.08" y="-1373.6" font-family="Helvetica,sans-Serif" font-size="8.00">Sweep Freq / Width /</text>
+<text text-anchor="middle" x="662.08" y="-1364" font-family="Helvetica,sans-Serif" font-size="8.00">Intensity offsets</text>
+</g>
+<!-- matrix&#45;&gt;in_gain -->
+<g id="edge13" class="edge">
+<title>matrix&#45;&gt;in_gain</title>
+<path fill="none" stroke="#c08020" stroke-dasharray="5,2" d="M668.16,-1402.49C725.88,-1381.84 809.43,-1351.95 865.4,-1331.92"/>
+<polygon fill="#c08020" stroke="#c08020" points="866.55,-1335.23 874.78,-1328.57 864.19,-1328.64 866.55,-1335.23"/>
+</g>
+<!-- weights -->
+<g id="node15" class="node">
+<title>weights</title>
+<polygon fill="#f2c4c2" stroke="black" points="754.83,-1013.6 523.17,-1013.6 523.17,-969.6 754.83,-969.6 754.83,-1013.6"/>
+<text text-anchor="middle" x="639" y="-1000.6" font-family="Helvetica,sans-Serif" font-size="10.00">Node weights</text>
+<text text-anchor="middle" x="639" y="-988.6" font-family="Helvetica,sans-Serif" font-size="10.00">Morph X / Y (smoothed by Morph Smoothing)</text>
+<text text-anchor="middle" x="639" y="-976.6" font-family="Helvetica,sans-Serif" font-size="10.00">Morph Mode: 1D Linear · 2D Planar · 2D Radial</text>
+</g>
+<!-- matrix&#45;&gt;weights -->
+<g id="edge24" class="edge">
+<title>matrix&#45;&gt;weights</title>
+<path fill="none" stroke="#c08020" stroke-dasharray="5,2" d="M569.69,-1398.48C554.44,-1383.92 537.83,-1364.67 529,-1343.6 509.05,-1295.99 521.99,-1093.96 529,-1080 541.58,-1054.94 565.05,-1034.75 587.09,-1020.13"/>
+<polygon fill="#c08020" stroke="#c08020" points="588.9,-1023.13 595.47,-1014.81 585.15,-1017.22 588.9,-1023.13"/>
+<text text-anchor="middle" x="539.66" y="-1250.4" font-family="Helvetica,sans-Serif" font-size="8.00">Morph X / Y</text>
+</g>
+<!-- node_chain -->
+<g id="node16" class="node">
+<title>node_chain</title>
+<polygon fill="#d9534f" stroke="black" points="722.97,-797 523.03,-797 523.03,-717 722.97,-717 722.97,-797"/>
+<text text-anchor="middle" x="623" y="-784" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">Each node A&#45;D</text>
+<text text-anchor="middle" x="623" y="-772" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">Drive (0&#45;10) → Type (26 types, 7 families)</text>
+<text text-anchor="middle" x="623" y="-760" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">Shape · Bias · Folds · Bit Depth</text>
+<text text-anchor="middle" x="623" y="-748" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">→ level normalisation → DC blocker</text>
+<text text-anchor="middle" x="623" y="-736" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">→ Tone (200 Hz &#45; 8 kHz low&#45;pass)</text>
+<text text-anchor="middle" x="623" y="-724" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">→ node Mix</text>
+</g>
+<!-- matrix&#45;&gt;node_chain -->
+<g id="edge25" class="edge">
+<title>matrix&#45;&gt;node_chain</title>
+<path fill="none" stroke="#c08020" stroke-dasharray="5,2" d="M538.11,-1403.14C499.12,-1384.93 457,-1355 457,-1310.6 457,-1310.6 457,-1310.6 457,-873 457,-838.2 481.95,-813.1 512.51,-795.41"/>
+<polygon fill="#c08020" stroke="#c08020" points="514.16,-798.49 521.28,-790.64 510.82,-792.34 514.16,-798.49"/>
+<text text-anchor="middle" x="476.12" y="-1118.4" font-family="Helvetica,sans-Serif" font-size="8.00">Drive, Mix,</text>
+<text text-anchor="middle" x="476.12" y="-1108.8" font-family="Helvetica,sans-Serif" font-size="8.00">Tone, Bias</text>
+</g>
+<!-- band_out -->
+<g id="node19" class="node">
+<title>band_out</title>
+<polygon fill="#d9534f" stroke="black" points="728.12,-505.4 515.88,-505.4 515.88,-469.4 728.12,-469.4 728.12,-505.4"/>
+<text text-anchor="middle" x="622" y="-490.4" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">Band output</text>
+<text text-anchor="middle" x="622" y="-478.4" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">Band Gain ±24 dB · Band Pan · Band Mute</text>
+</g>
+<!-- matrix&#45;&gt;band_out -->
+<g id="edge26" class="edge">
+<title>matrix&#45;&gt;band_out</title>
+<path fill="none" stroke="#c08020" stroke-dasharray="5,2" d="M537.99,-1417.7C476.32,-1405.94 393,-1377.65 393,-1310.6 393,-1310.6 393,-1310.6 393,-935.8 393,-828.53 412,-802.47 412,-695.2 412,-695.2 412,-695.2 412,-559.4 412,-536.72 456.49,-519.88 504.52,-508.3"/>
+<polygon fill="#c08020" stroke="#c08020" points="505.04,-511.78 513.99,-506.11 503.46,-504.96 505.04,-511.78"/>
+<text text-anchor="middle" x="417.48" y="-871.6" font-family="Helvetica,sans-Serif" font-size="8.00">Gain, Pan</text>
+</g>
+<!-- mix -->
+<g id="node22" class="node">
+<title>mix</title>
+<polygon fill="#6bbf6b" stroke="black" points="464.15,-323.6 327.85,-323.6 327.85,-287.6 464.15,-287.6 464.15,-323.6"/>
+<text text-anchor="middle" x="396" y="-308.6" font-family="Helvetica,sans-Serif" font-size="10.00">Mix</text>
+<text text-anchor="middle" x="396" y="-296.6" font-family="Helvetica,sans-Serif" font-size="10.00">dry × (1 − mix) + wet × mix</text>
+</g>
+<!-- matrix&#45;&gt;mix -->
+<g id="edge33" class="edge">
+<title>matrix&#45;&gt;mix</title>
+<path fill="none" stroke="#c08020" stroke-dasharray="5,2" d="M537.82,-1423.87C461.68,-1417.73 346,-1394.58 346,-1310.6 346,-1310.6 346,-1310.6 346,-390.2 346,-368.71 358.32,-347.96 370.73,-332.51"/>
+<polygon fill="#c08020" stroke="#c08020" points="373.13,-335.08 376.97,-325.2 367.81,-330.53 373.13,-335.08"/>
+<text text-anchor="middle" x="364.89" y="-754.6" font-family="Helvetica,sans-Serif" font-size="8.00">Global Mix</text>
+</g>
+<!-- out_gain -->
+<g id="node23" class="node">
+<title>out_gain</title>
+<polygon fill="#6bbf6b" stroke="black" points="445.4,-250.6 346.6,-250.6 346.6,-206.6 445.4,-206.6 445.4,-250.6"/>
+<text text-anchor="middle" x="396" y="-237.6" font-family="Helvetica,sans-Serif" font-size="10.00">Output Gain</text>
+<text text-anchor="middle" x="396" y="-225.6" font-family="Helvetica,sans-Serif" font-size="10.00">±24 dB, smoothed</text>
+<text text-anchor="middle" x="396" y="-213.6" font-family="Helvetica,sans-Serif" font-size="10.00">(trims dry and wet)</text>
+</g>
+<!-- matrix&#45;&gt;out_gain -->
+<g id="edge34" class="edge">
+<title>matrix&#45;&gt;out_gain</title>
+<path fill="none" stroke="#c08020" stroke-dasharray="5,2" d="M537.84,-1424.61C487.52,-1421.17 417.65,-1410.73 364,-1380.8 327.13,-1360.23 300,-1352.82 300,-1310.6 300,-1310.6 300,-1310.6 300,-304.6 300,-281.88 316.9,-265.02 336.52,-253.11"/>
+<polygon fill="#c08020" stroke="#c08020" points="337.96,-256.31 344.99,-248.39 334.55,-250.2 337.96,-256.31"/>
+</g>
+<!-- sweep_bands -->
+<g id="node9" class="node">
+<title>sweep_bands</title>
+<polygon fill="#e8a838" stroke="black" points="699.53,-1144 538.47,-1144 538.47,-1088 699.53,-1088 699.53,-1144"/>
+<text text-anchor="middle" x="619" y="-1131" font-family="Helvetica,sans-Serif" font-size="10.00">Sweep → bands</text>
+<text text-anchor="middle" x="619" y="-1119" font-family="Helvetica,sans-Serif" font-size="10.00">intensity per band from its centre</text>
+<text text-anchor="middle" x="619" y="-1107" font-family="Helvetica,sans-Serif" font-size="10.00">(geometric mean of its edges)</text>
+<text text-anchor="middle" x="619" y="-1095" font-family="Helvetica,sans-Serif" font-size="10.00">→ drive × 1 to 2</text>
+</g>
+<!-- sweep&#45;&gt;sweep_bands -->
+<g id="edge4" class="edge">
+<title>sweep&#45;&gt;sweep_bands</title>
+<path fill="none" stroke="#c08020" stroke-dasharray="5,2" d="M594.51,-1275.2C580.33,-1262.83 566.65,-1247.49 559,-1230 546.89,-1202.31 545.48,-1189.03 559,-1162 560.66,-1158.68 562.69,-1155.54 565,-1152.59"/>
+<polygon fill="#c08020" stroke="#c08020" points="567.42,-1155.12 571.59,-1145.38 562.26,-1150.39 567.42,-1155.12"/>
+</g>
+<!-- sweep_link -->
+<g id="node10" class="node">
+<title>sweep_link</title>
+<polygon fill="#e8a838" stroke="black" points="750.1,-1230 567.9,-1230 567.9,-1162 750.1,-1162 750.1,-1230"/>
+<text text-anchor="middle" x="659" y="-1217" font-family="Helvetica,sans-Serif" font-size="10.00">Sweep → Morph link</text>
+<text text-anchor="middle" x="659" y="-1205" font-family="Helvetica,sans-Serif" font-size="10.00">None · Sweep Freq · Inverse Sweep</text>
+<text text-anchor="middle" x="659" y="-1193" font-family="Helvetica,sans-Serif" font-size="10.00">Ease In · Ease Out · Hold&#45;Rise</text>
+<text text-anchor="middle" x="659" y="-1181" font-family="Helvetica,sans-Serif" font-size="10.00">Stepped · Custom</text>
+<text text-anchor="middle" x="659" y="-1169" font-family="Helvetica,sans-Serif" font-size="10.00">(active whenever a link is set)</text>
+</g>
+<!-- sweep&#45;&gt;sweep_link -->
+<g id="edge5" class="edge">
+<title>sweep&#45;&gt;sweep_link</title>
+<path fill="none" stroke="#c08020" stroke-dasharray="5,2" d="M648.5,-1275.12C649.91,-1264.63 651.49,-1252.89 652.98,-1241.76"/>
+<polygon fill="#c08020" stroke="#c08020" points="656.44,-1242.34 654.3,-1231.96 649.5,-1241.4 656.44,-1242.34"/>
+</g>
+<!-- sweep_bands&#45;&gt;node_chain -->
+<g id="edge22" class="edge">
+<title>sweep_bands&#45;&gt;node_chain</title>
+<path fill="none" stroke="#c08020" stroke-dasharray="5,2" d="M538.13,-1094.04C528.63,-1088.37 520.15,-1081.16 514,-1072 486.16,-1030.52 501.75,-1008.03 514,-959.6 528.28,-903.18 561.82,-845.42 587.96,-806.26"/>
+<polygon fill="#c08020" stroke="#c08020" points="590.53,-808.71 593.24,-798.47 584.73,-804.79 590.53,-808.71"/>
+<text text-anchor="middle" x="534.17" y="-934.4" font-family="Helvetica,sans-Serif" font-size="8.00">drive ×</text>
+</g>
+<!-- sweep_link&#45;&gt;weights -->
+<g id="edge23" class="edge">
+<title>sweep_link&#45;&gt;weights</title>
+<path fill="none" stroke="#c08020" stroke-dasharray="5,2" d="M691.68,-1161.61C695.49,-1156.1 698.79,-1150.15 701,-1144 710.61,-1117.23 709.64,-1107.1 701,-1080 694.25,-1058.81 680.28,-1038.35 667.31,-1022.56"/>
+<polygon fill="#c08020" stroke="#c08020" points="670,-1020.32 660.84,-1014.99 664.67,-1024.86 670,-1020.32"/>
+<text text-anchor="middle" x="738.75" y="-1113.6" font-family="Helvetica,sans-Serif" font-size="8.00">Morph X / Y base</text>
+</g>
+<!-- crossover -->
+<g id="node12" class="node">
+<title>crossover</title>
+<polygon fill="#d9534f" stroke="black" points="1003.18,-1230 848.82,-1230 848.82,-1162 1003.18,-1162 1003.18,-1230"/>
+<text text-anchor="middle" x="926" y="-1217" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">Crossover</text>
+<text text-anchor="middle" x="926" y="-1205" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">Band Count 1&#45;4</text>
+<text text-anchor="middle" x="926" y="-1193" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">Linkwitz&#45;Riley 24 dB/oct</text>
+<text text-anchor="middle" x="926" y="-1181" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">Crossover 1&#45;3 (20 Hz &#45; 20 kHz)</text>
+<text text-anchor="middle" x="926" y="-1169" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">band&#45;count change: 5 ms dip</text>
+</g>
+<!-- in_gain&#45;&gt;crossover -->
+<g id="edge12" class="edge">
+<title>in_gain&#45;&gt;crossover</title>
+<path fill="none" stroke="black" stroke-width="2" d="M925.19,-1287.35C925.3,-1274.8 925.45,-1258.4 925.59,-1243.03"/>
+<polygon fill="black" stroke="black" stroke-width="2" points="929.08,-1243.52 925.67,-1233.49 922.08,-1243.46 929.08,-1243.52"/>
+</g>
+<!-- bypass -->
+<g id="node13" class="node">
+<title>bypass</title>
+<polygon fill="#f2c4c2" stroke="black" points="929,-1023.6 772.64,-991.6 929,-959.6 1085.36,-991.6 929,-1023.6"/>
+<text text-anchor="middle" x="929" y="-994.6" font-family="Helvetica,sans-Serif" font-size="10.00">Band Bypass?</text>
+<text text-anchor="middle" x="929" y="-982.6" font-family="Helvetica,sans-Serif" font-size="10.00">(bypassed = latency delay only)</text>
+</g>
+<!-- crossover&#45;&gt;bypass -->
+<g id="edge21" class="edge">
+<title>crossover&#45;&gt;bypass</title>
+<path fill="none" stroke="black" stroke-width="2" d="M926.5,-1161.58C926.81,-1140.55 927.23,-1112.29 927.63,-1084.91"/>
+<polygon fill="black" stroke="black" stroke-width="2" points="931.13,-1085.07 927.78,-1075.02 924.13,-1084.97 931.13,-1085.07"/>
+<text text-anchor="middle" x="944.36" y="-1118.4" font-family="Helvetica,sans-Serif" font-size="8.00">one band</text>
+<text text-anchor="middle" x="944.36" y="-1108.8" font-family="Helvetica,sans-Serif" font-size="8.00">per split</text>
+</g>
+<!-- os_up -->
+<g id="node14" class="node">
+<title>os_up</title>
+<polygon fill="#d9534f" stroke="black" points="927.44,-914 770.56,-914 770.56,-834 927.44,-834 927.44,-914"/>
+<text text-anchor="middle" x="849" y="-901" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">Oversample ↑</text>
+<text text-anchor="middle" x="849" y="-889" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">1x / 2x / 4x / 8x</text>
+<text text-anchor="middle" x="849" y="-877" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">weighted from the nodes&#39; types,</text>
+<text text-anchor="middle" x="849" y="-865" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">capped by Oversample Max;</text>
+<text text-anchor="middle" x="849" y="-853" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">1x when every drive is 0</text>
+<text text-anchor="middle" x="849" y="-841" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">(10 ms crossfade on change)</text>
+</g>
+<!-- bypass&#45;&gt;os_up -->
+<g id="edge16" class="edge">
+<title>bypass&#45;&gt;os_up</title>
+<path fill="none" stroke="black" stroke-width="2" d="M910.04,-963.2C902.09,-951.72 892.6,-938 883.49,-924.83"/>
+<polygon fill="black" stroke="black" stroke-width="2" points="886.59,-923.17 878.03,-916.94 880.84,-927.16 886.59,-923.17"/>
+<text text-anchor="middle" x="904.24" y="-934.4" font-family="Helvetica,sans-Serif" font-size="8.00">active</text>
+</g>
+<!-- bypass&#45;&gt;band_out -->
+<g id="edge20" class="edge">
+<title>bypass&#45;&gt;band_out</title>
+<path fill="none" stroke="black" stroke-width="2" stroke-dasharray="1,5" d="M935.82,-960.84C940.55,-937.59 946,-904.41 946,-875 946,-875 946,-875 946,-559.4 946,-516.02 833.78,-499.11 741.42,-492.54"/>
+<polygon fill="black" stroke="black" stroke-width="2" points="741.77,-489.05 731.56,-491.88 741.3,-496.04 741.77,-489.05"/>
+<text text-anchor="middle" x="963.12" y="-691.8" font-family="Helvetica,sans-Serif" font-size="8.00">bypassed</text>
+</g>
+<!-- os_up&#45;&gt;node_chain -->
+<g id="edge17" class="edge">
+<title>os_up&#45;&gt;node_chain</title>
+<path fill="none" stroke="black" stroke-width="2" d="M771.54,-833.58C752.31,-823.8 731.56,-813.24 711.83,-803.2"/>
+<polygon fill="black" stroke="black" stroke-width="2" points="713.56,-800.15 703.06,-798.74 710.38,-806.39 713.56,-800.15"/>
+</g>
+<!-- morph_sum -->
+<g id="node17" class="node">
+<title>morph_sum</title>
+<polygon fill="#d9534f" stroke="black" points="698.26,-671.4 547.74,-671.4 547.74,-615.4 698.26,-615.4 698.26,-671.4"/>
+<text text-anchor="middle" x="623" y="-658.4" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">Same type: one processor,</text>
+<text text-anchor="middle" x="623" y="-646.4" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">parameters interpolated</text>
+<text text-anchor="middle" x="623" y="-634.4" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">Mixed types: nodes in parallel,</text>
+<text text-anchor="middle" x="623" y="-622.4" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">summed by weight</text>
+</g>
+<!-- weights&#45;&gt;morph_sum -->
+<g id="edge14" class="edge">
+<title>weights&#45;&gt;morph_sum</title>
+<path fill="none" stroke="#a03030" stroke-dasharray="5,2" d="M657.49,-969.4C696.38,-922.11 779.25,-805.23 732,-717 723.56,-701.23 710.01,-688.3 695.29,-677.95"/>
+<polygon fill="#a03030" stroke="#a03030" points="697.55,-675.24 687.27,-672.66 693.7,-681.09 697.55,-675.24"/>
+</g>
+<!-- node_chain&#45;&gt;morph_sum -->
+<g id="edge15" class="edge">
+<title>node_chain&#45;&gt;morph_sum</title>
+<path fill="none" stroke="black" stroke-width="2" d="M623,-716.65C623,-706.24 623,-694.99 623,-684.53"/>
+<polygon fill="black" stroke="black" stroke-width="2" points="626.5,-684.87 623,-674.87 619.5,-684.87 626.5,-684.87"/>
+</g>
+<!-- os_down -->
+<g id="node18" class="node">
+<title>os_down</title>
+<polygon fill="#d9534f" stroke="black" points="662.51,-578.4 581.49,-578.4 581.49,-542.4 662.51,-542.4 662.51,-578.4"/>
+<text text-anchor="middle" x="622" y="-557.4" font-family="Helvetica,sans-Serif" font-size="10.00" fill="white">Oversample ↓</text>
+</g>
+<!-- morph_sum&#45;&gt;os_down -->
+<g id="edge18" class="edge">
+<title>morph_sum&#45;&gt;os_down</title>
+<path fill="none" stroke="black" stroke-width="2" d="M622.66,-614.98C622.57,-607.52 622.47,-599.4 622.38,-591.79"/>
+<polygon fill="black" stroke="black" stroke-width="2" points="625.88,-591.87 622.25,-581.92 618.88,-591.96 625.88,-591.87"/>
+</g>
+<!-- os_down&#45;&gt;band_out -->
+<g id="edge19" class="edge">
+<title>os_down&#45;&gt;band_out</title>
+<path fill="none" stroke="black" stroke-width="2" d="M622,-542.21C622,-535.06 622,-526.55 622,-518.42"/>
+<polygon fill="black" stroke="black" stroke-width="2" points="625.5,-518.46 622,-508.46 618.5,-518.46 625.5,-518.46"/>
+</g>
+<!-- band_sum -->
+<g id="node21" class="node">
+<title>band_sum</title>
+<polygon fill="#6bbf6b" stroke="black" points="520.04,-413.2 373.96,-413.2 373.96,-369.2 520.04,-369.2 520.04,-413.2"/>
+<text text-anchor="middle" x="447" y="-400.2" font-family="Helvetica,sans-Serif" font-size="10.00">Σ bands</text>
+<text text-anchor="middle" x="447" y="-388.2" font-family="Helvetica,sans-Serif" font-size="10.00">Solo / Mute</text>
+<text text-anchor="middle" x="447" y="-376.2" font-family="Helvetica,sans-Serif" font-size="10.00">(any solo: only soloed bands)</text>
+</g>
+<!-- band_out&#45;&gt;band_sum -->
+<g id="edge31" class="edge">
+<title>band_out&#45;&gt;band_sum</title>
+<path fill="none" stroke="black" stroke-width="2" d="M575.56,-461.4C551.69,-448.55 522.55,-432.87 498.05,-419.68"/>
+<polygon fill="black" stroke="black" stroke-width="2" points="499.82,-416.66 489.36,-415 496.51,-422.82 499.82,-416.66"/>
+</g>
+<!-- dry&#45;&gt;mix -->
+<g id="edge32" class="edge">
+<title>dry&#45;&gt;mix</title>
+<path fill="none" stroke="#4a7fb0" stroke-width="2" d="M197.8,-1603.72C208.72,-1573.58 224,-1523.4 224,-1478.6 224,-1478.6 224,-1478.6 224,-390.2 224,-346.04 270.42,-325.2 315.03,-315.37"/>
+<polygon fill="#4a7fb0" stroke="#4a7fb0" stroke-width="2" points="315.44,-318.86 324.56,-313.47 314.07,-312 315.44,-318.86"/>
+<text text-anchor="middle" x="229.56" y="-871.6" font-family="Helvetica,sans-Serif" font-size="8.00">dry</text>
+</g>
+<!-- band_sum&#45;&gt;mix -->
+<g id="edge28" class="edge">
+<title>band_sum&#45;&gt;mix</title>
+<path fill="none" stroke="black" stroke-width="2" d="M434.13,-369.1C427.82,-358.76 420.14,-346.16 413.32,-334.99"/>
+<polygon fill="black" stroke="black" stroke-width="2" points="416.4,-333.32 408.21,-326.61 410.43,-336.97 416.4,-333.32"/>
+<text text-anchor="middle" x="429.25" y="-344" font-family="Helvetica,sans-Serif" font-size="8.00">wet</text>
+</g>
+<!-- mix&#45;&gt;out_gain -->
+<g id="edge29" class="edge">
+<title>mix&#45;&gt;out_gain</title>
+<path fill="none" stroke="black" stroke-width="2" d="M396,-287.2C396,-280.19 396,-271.84 396,-263.71"/>
+<polygon fill="black" stroke="black" stroke-width="2" points="399.5,-263.94 396,-253.94 392.5,-263.94 399.5,-263.94"/>
+</g>
+<!-- clipper -->
+<g id="node24" class="node">
+<title>clipper</title>
+<polygon fill="#6bbf6b" stroke="black" points="520.11,-169.6 327.89,-169.6 327.89,-113.6 520.11,-113.6 520.11,-169.6"/>
+<text text-anchor="middle" x="424" y="-156.6" font-family="Helvetica,sans-Serif" font-size="10.00">Output safety clipper</text>
+<text text-anchor="middle" x="424" y="-144.6" font-family="Helvetica,sans-Serif" font-size="10.00">exact below −6 dBFS, soft knee above,</text>
+<text text-anchor="middle" x="424" y="-132.6" font-family="Helvetica,sans-Serif" font-size="10.00">ceiling −0.18 dBFS, DC servo</text>
+<text text-anchor="middle" x="424" y="-120.6" font-family="Helvetica,sans-Serif" font-size="10.00">(always on)</text>
+</g>
+<!-- out_gain&#45;&gt;clipper -->
+<g id="edge30" class="edge">
+<title>out_gain&#45;&gt;clipper</title>
+<path fill="none" stroke="black" stroke-width="2" d="M403.07,-206.15C405.48,-198.84 408.25,-190.41 410.98,-182.13"/>
+<polygon fill="black" stroke="black" stroke-width="2" points="414.27,-183.31 414.08,-172.72 407.62,-181.12 414.27,-183.31"/>
+</g>
+<!-- out -->
+<g id="node25" class="node">
+<title>out</title>
+<polygon fill="#ccddee" stroke="black" points="377.81,-28.44 424,-16 470.19,-28.44 470.15,-48.56 377.85,-48.56 377.81,-28.44"/>
+<text text-anchor="middle" x="424" y="-31" font-family="Helvetica,sans-Serif" font-size="10.00">Stereo out</text>
+</g>
+<!-- clipper&#45;&gt;out -->
+<g id="edge35" class="edge">
+<title>clipper&#45;&gt;out</title>
+<path fill="none" stroke="black" stroke-width="2" d="M424,-113.13C424,-97.15 424,-77.12 424,-61.34"/>
+<polygon fill="black" stroke="black" stroke-width="2" points="427.5,-61.81 424,-51.81 420.5,-61.81 427.5,-61.81"/>
+</g>
+<!-- clipper&#45;&gt;spectrum -->
+<g id="edge37" class="edge">
+<title>clipper&#45;&gt;spectrum</title>
+<path fill="none" stroke="#888888" stroke-dasharray="5,2" d="M520.33,-120.92C606.1,-103.41 731.81,-77.73 823.46,-59.01"/>
+<polygon fill="#888888" stroke="#888888" points="823.89,-62.49 832.98,-57.06 822.48,-55.64 823.89,-62.49"/>
+<text text-anchor="middle" x="700.29" y="-88.4" font-family="Helvetica,sans-Serif" font-size="8.00">output tap</text>
+</g>
+</g>
+</svg>
+</div>
+    </div>
+
+    <script type="module">
+        const container = document.getElementById("diagram-container");
+        const diagramEl = document.getElementById("diagram");
+        const loadingEl = document.getElementById("loading");
+        const errorEl = document.getElementById("error");
+        const zoomLevelEl = document.getElementById("zoom-level");
+
+        let scale = 1;
+        let panX = 0;
+        let panY = 0;
+        let isDragging = false;
+        let startX, startY;
+
+        function updateTransform() {
+            diagramEl.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
+            zoomLevelEl.textContent = Math.round(scale * 100) + "%";
+        }
+
+        function fitToScreen() {
+            const svg = diagramEl.querySelector("svg");
+            if (!svg) return;
+            const svgW = svg.viewBox.baseVal.width || svg.width.baseVal.value;
+            const svgH = svg.viewBox.baseVal.height || svg.height.baseVal.value;
+            const cW = container.clientWidth;
+            const cH = container.clientHeight;
+            scale = Math.min(cW / svgW, cH / svgH, 1) * 0.95;
+            panX = (cW - svgW * scale) / 2;
+            panY = (cH - svgH * scale) / 2;
+            updateTransform();
+        }
+
+        // Zoom controls
+        document.getElementById("zoom-in").addEventListener("click", () => {
+            scale = Math.min(scale * 1.25, 5);
+            updateTransform();
+        });
+        document.getElementById("zoom-out").addEventListener("click", () => {
+            scale = Math.max(scale / 1.25, 0.1);
+            updateTransform();
+        });
+        document.getElementById("zoom-fit").addEventListener("click", fitToScreen);
+        document.getElementById("zoom-reset").addEventListener("click", () => {
+            scale = 1; panX = 0; panY = 0;
+            updateTransform();
+        });
+
+        // Mouse wheel zoom
+        container.addEventListener("wheel", (e) => {
+            e.preventDefault();
+            const rect = container.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+            const factor = e.deltaY < 0 ? 1.1 : 1 / 1.1;
+            const newScale = Math.min(Math.max(scale * factor, 0.1), 5);
+            panX = mouseX - (mouseX - panX) * (newScale / scale);
+            panY = mouseY - (mouseY - panY) * (newScale / scale);
+            scale = newScale;
+            updateTransform();
+        }, { passive: false });
+
+        // Pan with mouse drag
+        container.addEventListener("mousedown", (e) => {
+            isDragging = true;
+            startX = e.clientX - panX;
+            startY = e.clientY - panY;
+            container.classList.add("grabbing");
+        });
+        window.addEventListener("mousemove", (e) => {
+            if (!isDragging) return;
+            panX = e.clientX - startX;
+            panY = e.clientY - startY;
+            updateTransform();
+        });
+        window.addEventListener("mouseup", () => {
+            isDragging = false;
+            container.classList.remove("grabbing");
+        });
+
+        // Touch support for pan
+        let lastTouch = null;
+        container.addEventListener("touchstart", (e) => {
+            if (e.touches.length === 1) {
+                lastTouch = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+            }
+        });
+        container.addEventListener("touchmove", (e) => {
+            if (e.touches.length === 1 && lastTouch) {
+                e.preventDefault();
+                const dx = e.touches[0].clientX - lastTouch.x;
+                const dy = e.touches[0].clientY - lastTouch.y;
+                panX += dx;
+                panY += dy;
+                lastTouch = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+                updateTransform();
+            }
+        }, { passive: false });
+        container.addEventListener("touchend", () => { lastTouch = null; });
+
+        // Render
+        const svg = diagramEl.querySelector("svg");
+        svg.style.width = "auto";
+        svg.style.height = "auto";
+        loadingEl.style.display = "none";
+        fitToScreen();
+    </script>
+</body>
+</html>

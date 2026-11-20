@@ -1,0 +1,1514 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Disrumpo User Manual – Multiband Distortion | Krate Audio</title>
+    <meta name="description" content="User manual for Disrumpo, the free multiband distortion VST3 plugin: bands and crossovers, 26 distortion types, morphing, Sweep, modulation and presets.">
+    <link rel="canonical" href="https://krateaudio.com/disrumpo/manual.html">
+    <meta property="og:title" content="Disrumpo User Manual – Multiband Distortion">
+    <meta property="og:description" content="User manual for Disrumpo, the free multiband distortion VST3 plugin: bands and crossovers, 26 distortion types, morphing, Sweep, modulation and presets.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https://krateaudio.com/disrumpo/manual.html">
+    <meta name="robots" content="index, follow, max-image-preview:large">
+    <meta name="theme-color" content="#0a0a0f">
+    <link rel="icon" href="/favicon.ico" sizes="32x32">
+    <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+    <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+    <link rel="preload" href="/assets/fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="stylesheet" href="/assets/site.css">
+    <meta property="og:site_name" content="Krate Audio">
+    <meta property="og:locale" content="en_US">
+    <meta property="og:image" content="https://krateaudio.com/disrumpo/images/og-image.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="Disrumpo plugin editor">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content="https://krateaudio.com/disrumpo/images/og-image.png">
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "Organization",
+          "@id": "https://krateaudio.com/#organization",
+          "name": "Krate Audio",
+          "url": "https://krateaudio.com/",
+          "logo": {
+            "@type": "ImageObject",
+            "url": "https://krateaudio.com/assets/logo-512.png",
+            "width": 512,
+            "height": 512
+          },
+          "sameAs": [
+            "https://github.com/rolandzwaga"
+          ]
+        },
+        {
+          "@type": "TechArticle",
+          "headline": "Disrumpo User Manual – Multiband Distortion",
+          "description": "User manual for Disrumpo, the free multiband distortion VST3 plugin: bands and crossovers, 26 distortion types, morphing, Sweep, modulation and presets.",
+          "url": "https://krateaudio.com/disrumpo/manual.html",
+          "inLanguage": "en",
+          "image": "https://krateaudio.com/disrumpo/images/og-image.png",
+          "about": {
+            "@id": "https://krateaudio.com/disrumpo/#software"
+          },
+          "author": {
+            "@id": "https://krateaudio.com/#organization"
+          },
+          "publisher": {
+            "@id": "https://krateaudio.com/#organization"
+          },
+          "dateModified": "2026-11-21T00:32:17+01:00"
+        },
+        {
+          "@type": "BreadcrumbList",
+          "itemListElement": [
+            {
+              "@type": "ListItem",
+              "position": 1,
+              "name": "Krate Audio",
+              "item": "https://krateaudio.com/"
+            },
+            {
+              "@type": "ListItem",
+              "position": 2,
+              "name": "Disrumpo",
+              "item": "https://krateaudio.com/disrumpo/"
+            },
+            {
+              "@type": "ListItem",
+              "position": 3,
+              "name": "User Manual",
+              "item": "https://krateaudio.com/disrumpo/manual.html"
+            }
+          ]
+        }
+      ]
+    }
+    </script>
+    <style>
+        /* Base — matches Disrumpo landing page */
+        :root {
+            --color-bg: #0a0a0f;
+            --color-surface: #12121a;
+            --color-border: #2a2a3a;
+            --color-text: #e8e8f0;
+            --color-text-muted: #8888a0;
+            --color-accent: #ef4444;
+            --color-accent-hover: #f87171;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--color-bg);
+            color: var(--color-text);
+            line-height: 1.7;
+            min-height: 100vh;
+        }
+
+        /* Layout */
+        .manual-container {
+            max-width: 960px;
+            margin: 0 auto;
+            padding: 3rem 2rem 4rem;
+        }
+
+        /* Header */
+        .manual-header {
+            text-align: center;
+            margin-bottom: 3rem;
+            padding-bottom: 2rem;
+            border-bottom: 1px solid var(--color-border);
+        }
+
+        .manual-header .breadcrumb {
+            font-size: 0.875rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .manual-header .breadcrumb a {
+            color: var(--color-text-muted);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .manual-header .breadcrumb a:hover {
+            color: var(--color-accent);
+        }
+
+        .manual-header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, var(--color-text) 0%, var(--color-accent) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .manual-header .subtitle {
+            color: var(--color-text-muted);
+            font-size: 1.1rem;
+        }
+
+        /* Table of contents */
+        #TOC {
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: 12px;
+            padding: 1.5rem 2rem;
+            margin-bottom: 3rem;
+        }
+
+        #TOC > ul { list-style: none; }
+        #TOC ul { list-style: none; padding-left: 1.25rem; }
+        #TOC > ul > li { margin-bottom: 0.5rem; }
+        #TOC li { margin-bottom: 0.25rem; }
+
+        #TOC a {
+            color: var(--color-text);
+            text-decoration: none;
+            transition: color 0.2s;
+            font-size: 0.95rem;
+        }
+
+        #TOC a:hover { color: var(--color-accent); }
+        #TOC > ul > li > a { font-weight: 600; }
+
+        /* Headings */
+        h1 { font-size: 2rem; font-weight: 700; margin: 3rem 0 1rem; }
+        h2 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin: 3rem 0 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid var(--color-border);
+            color: var(--color-text);
+        }
+        h3 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin: 2rem 0 0.75rem;
+            color: var(--color-accent-hover);
+        }
+        h4 { font-size: 1.05rem; font-weight: 600; margin: 1.5rem 0 0.5rem; }
+        h5 { font-size: 1rem; font-weight: 600; margin: 1.25rem 0 0.5rem; color: var(--color-text-muted); }
+
+        /* Paragraphs & text */
+        p { margin-bottom: 1rem; }
+        strong { font-weight: 600; }
+
+        a {
+            color: var(--color-accent);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+        a:hover { color: var(--color-accent-hover); }
+
+        /* Lists */
+        ul, ol {
+            margin-bottom: 1rem;
+            padding-left: 1.5rem;
+        }
+        li { margin-bottom: 0.35rem; }
+
+        /* Tables */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 1.5rem;
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        thead {
+            background: rgba(239, 68, 68, 0.08);
+        }
+
+        th {
+            text-align: left;
+            padding: 0.75rem 1rem;
+            font-weight: 600;
+            font-size: 0.875rem;
+            color: var(--color-accent-hover);
+            border-bottom: 1px solid var(--color-border);
+        }
+
+        td {
+            padding: 0.6rem 1rem;
+            font-size: 0.9rem;
+            border-bottom: 1px solid var(--color-border);
+            vertical-align: top;
+        }
+
+        tr:last-child td { border-bottom: none; }
+
+        /* Code */
+        code {
+            font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+            font-size: 0.85em;
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            padding: 0.125rem 0.375rem;
+            border-radius: 4px;
+        }
+
+        pre {
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: 8px;
+            padding: 1rem 1.25rem;
+            overflow-x: auto;
+            margin-bottom: 1.5rem;
+        }
+
+        pre code {
+            background: none;
+            border: none;
+            padding: 0;
+            font-size: 0.85rem;
+            line-height: 1.6;
+        }
+
+        /* Images */
+        img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+            border: 1px solid var(--color-border);
+            margin: 1rem 0 1.5rem;
+            display: block;
+        }
+
+        /* Horizontal rules */
+        hr {
+            border: none;
+            border-top: 1px solid var(--color-border);
+            margin: 2.5rem 0;
+        }
+
+        /* Blockquotes (tips) */
+        blockquote {
+            border-left: 3px solid var(--color-accent);
+            padding: 0.75rem 1rem;
+            margin: 1rem 0 1.5rem;
+            background: rgba(239, 68, 68, 0.05);
+            border-radius: 0 8px 8px 0;
+        }
+
+        blockquote p { margin-bottom: 0; }
+
+        /* Footer */
+        .manual-footer {
+            text-align: center;
+            padding-top: 2rem;
+            margin-top: 3rem;
+            border-top: 1px solid var(--color-border);
+            color: var(--color-text-muted);
+            font-size: 0.875rem;
+        }
+
+        .manual-footer a {
+            color: var(--color-text);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .manual-footer a:hover { color: var(--color-accent); }
+
+        /* Responsive */
+        @media (max-width: 640px) {
+            .manual-container { padding: 2rem 1rem; }
+            .manual-header h1 { font-size: 2rem; }
+            h2 { font-size: 1.25rem; }
+            table { font-size: 0.85rem; }
+            th, td { padding: 0.5rem 0.75rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="manual-container">
+        <div class="manual-header">
+            <p class="breadcrumb">
+                <a href="../">Krate Audio</a> / <a href="./">Disrumpo</a>
+            </p>
+            <h1>Disrumpo — User Manual</h1>
+            <p class="subtitle">Multiband Morphing Distortion</p>
+        </div>
+
+        <nav id="TOC" aria-label="Contents">
+<ul>
+<li><a href="#introduction" id="toc-introduction">Introduction</a></li>
+<li><a href="#signal-flow" id="toc-signal-flow">Signal Flow</a></li>
+<li><a href="#interface-overview" id="toc-interface-overview">Interface
+Overview</a></li>
+<li><a href="#header" id="toc-header">Header</a></li>
+<li><a href="#spectrum-and-crossovers"
+id="toc-spectrum-and-crossovers">Spectrum and Crossovers</a></li>
+<li><a href="#bands" id="toc-bands">Bands</a>
+<ul>
+<li><a href="#the-expanded-strip" id="toc-the-expanded-strip">The
+expanded strip</a></li>
+<li><a href="#nodes-and-the-morphpad"
+id="toc-nodes-and-the-morphpad">Nodes and the MorphPad</a></li>
+</ul></li>
+<li><a href="#distortion-types" id="toc-distortion-types">Distortion
+Types</a></li>
+<li><a href="#sweep" id="toc-sweep">Sweep</a>
+<ul>
+<li><a href="#linking-the-morph-to-the-sweep"
+id="toc-linking-the-morph-to-the-sweep">Linking the morph to the
+sweep</a></li>
+</ul></li>
+<li><a href="#modulation" id="toc-modulation">Modulation</a>
+<ul>
+<li><a href="#sources" id="toc-sources">Sources</a></li>
+<li><a href="#macros" id="toc-macros">Macros</a></li>
+<li><a href="#routing-matrix" id="toc-routing-matrix">Routing
+matrix</a></li>
+</ul></li>
+<li><a href="#presets" id="toc-presets">Presets</a>
+<ul>
+<li><a href="#factory-library" id="toc-factory-library">Factory
+library</a></li>
+</ul></li>
+<li><a href="#host-automation" id="toc-host-automation">Host
+Automation</a></li>
+<li><a href="#tips-tricks" id="toc-tips-tricks">Tips &amp;
+Tricks</a></li>
+</ul>
+        </nav>
+        <h2 id="introduction">Introduction</h2>
+        <p>Disrumpo is a <strong>multiband morphing distortion</strong>.
+        It splits the signal into up to four frequency bands and
+        distorts each band on its own, with 26 distortion algorithms in
+        seven families: saturation, wavefolding, rectification, digital
+        destruction, dynamic, hybrid and experimental processing. Each
+        band holds up to four distortion <strong>nodes</strong> and
+        blends between them with a <strong>MorphPad</strong>, so a band
+        can move smoothly from warm tube drive to a folded, bit-crushed
+        snarl. The <strong>Sweep</strong> system aims extra drive at one
+        region of the spectrum and moves it with an LFO or the input’s
+        envelope, and a 32-route <strong>modulation matrix</strong> with
+        eleven kinds of modulation source can move almost everything
+        else.</p>
+        <p><strong>Formats:</strong> VST3 (Windows, macOS, Linux) and
+        Audio Unit (macOS). Stereo in, stereo out. Left and right are
+        processed separately all the way through.</p>
+        <h2 id="signal-flow">Signal Flow</h2>
+        <pre><code>Stereo in
+  │
+  ├──────────────────────────────── dry path (before Input Gain), phase- and
+  │                                  latency-matched to the bands
+  ▼
+Input Gain
+  │
+  ▼
+Crossover ─────────── 1 to 4 bands, Linkwitz-Riley 24 dB/oct
+  │
+  ▼
+Per band ──────────── oversample ↑ → up to 4 distortion nodes blended by the
+  │                   MorphPad → oversample ↓ → Gain, Pan, Mute
+  ▼
+Σ bands ──────────── Solo and Mute decide which bands are heard
+  │
+  ▼
+Mix ──────────────── dry × (1 − Mix) + wet × Mix
+  │
+  ▼
+Output Gain → safety clipper → Stereo out</code></pre>
+        <p>The Sweep and the modulation matrix run once per processing
+        block and steer the stages above: the Sweep multiplies each
+        band’s drive, and the matrix offsets gains, the Mix, the morph
+        positions and the nodes’ drive, mix, tone and bias. The
+        interactive signal-flow diagram on the Disrumpo page shows every
+        connection.</p>
+        <p>Two details are worth knowing:</p>
+        <ul>
+        <li><strong>Input Gain drives the bands only.</strong> The dry
+        path is taken before it, so Input Gain changes how hard the
+        bands are driven without changing the dry level.</li>
+        <li><strong>The safety clipper is always on.</strong> Below −6
+        dBFS it passes the signal untouched; above that it rounds peaks
+        off softly so the output never exceeds −0.18 dBFS.</li>
+        </ul>
+        <h2 id="interface-overview">Interface Overview</h2>
+        <figure>
+        <img src="images/hero.png" alt="The Disrumpo editor" width="1000" height="600" loading="lazy" decoding="async">
+        <figcaption aria-hidden="true">The Disrumpo editor</figcaption>
+        </figure>
+        <p>The editor is 1000 × 600, and 830 tall when the modulation
+        panel is open. From top to bottom:</p>
+        <ul>
+        <li><strong>The header</strong> — presets, update check,
+        version, level meters and the global controls.</li>
+        <li><strong>The spectrum</strong> — the analysed spectrum behind
+        the band regions, with the crossover handles.</li>
+        <li><strong>The bands</strong> — one panel per band, each with
+        its own type, drive, morph and output controls.</li>
+        <li><strong>The sweep row</strong> — the Sweep, its LFO and
+        envelope follower, and the <strong>Mod</strong> button that
+        opens the modulation panel.</li>
+        </ul>
+        <p>Every control can be MIDI-learned: right-click it and choose
+        <strong>MIDI Learn</strong>, then move a controller. A learned
+        control offers <strong>Clear MIDI Learn</strong> and
+        <strong>Save Mapping with Preset</strong> (which keeps the
+        mapping with the preset instead of globally). Esc cancels a
+        learn in progress.</p>
+        <p><strong>Keyboard:</strong> Tab and Shift+Tab move between the
+        active bands; Space toggles Bypass on the focused band; the
+        arrow keys move the focused control by 1 % of its range (10 %
+        with Shift, one step on stepped controls).</p>
+        <h2 id="header">Header</h2>
+        <figure>
+        <img src="images/header.png" alt="The header bar" width="1000" height="50" loading="lazy" decoding="async">
+        <figcaption aria-hidden="true">The header bar</figcaption>
+        </figure>
+        <table>
+        <colgroup>
+        <col style="width: 20%" />
+        <col style="width: 20%" />
+        <col style="width: 20%" />
+        <col style="width: 20%" />
+        <col style="width: 20%" />
+        </colgroup>
+        <thead>
+        <tr>
+        <th>Control</th>
+        <th>Host name</th>
+        <th>Range</th>
+        <th>Default</th>
+        <th>What it does</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr>
+        <td>Input</td>
+        <td>Input Gain</td>
+        <td>−24 to +24 dB</td>
+        <td>0 dB</td>
+        <td>Drive into the bands (the dry path is taken before it).</td>
+        </tr>
+        <tr>
+        <td>Output</td>
+        <td>Output Gain</td>
+        <td>−24 to +24 dB</td>
+        <td>0 dB</td>
+        <td>Output level, after the Mix.</td>
+        </tr>
+        <tr>
+        <td>Mix</td>
+        <td>Mix</td>
+        <td>0–100 %</td>
+        <td>100 %</td>
+        <td>Dry/wet balance.</td>
+        </tr>
+        <tr>
+        <td>Bands</td>
+        <td>Band Count</td>
+        <td>1, 2, 3, 4</td>
+        <td>4</td>
+        <td>Number of bands. Changing it dips the output for 5 ms to
+        switch cleanly.</td>
+        </tr>
+        <tr>
+        <td>OS Max</td>
+        <td>Oversample Max</td>
+        <td>1x, 2x, 4x, 8x</td>
+        <td>8x</td>
+        <td>The most oversampling any band may use (see below).</td>
+        </tr>
+        </tbody>
+        </table>
+        <ul>
+        <li><strong>Presets</strong> opens the preset browser and
+        <strong>Save</strong> opens the save dialog (see Presets).</li>
+        <li><strong>Check for Updates</strong> reads “Checking…” and
+        then “Up to date”, or shows a banner with a
+        <strong>Download</strong> button.</li>
+        <li><strong>IN / OUT meters</strong> show the level after Input
+        Gain and the final output. The clip light at the top of OUT
+        reads the signal before the safety clipper, so it shows when the
+        clipper is catching peaks; click a meter to clear it.</li>
+        </ul>
+        <p><strong>Oversampling.</strong> Each distortion type has a
+        recommended oversampling factor, chosen to keep its aliasing
+        down: 8x for Tape, Temporal, the three folders, Fuzz, Asymmetric
+        Fuzz and Allpass Resonant; 4x for Soft Clip, Hard Clip, the two
+        rectifiers, Ring Saturation, Feedback and Formant; 2x for Tube,
+        Chaos, Granular, Fractal and Stochastic; and 1x for the digital
+        types and Spectral, whose aliasing is part of the sound. A band
+        uses the factors of its active nodes, weighted by the morph,
+        capped by <strong>OS Max</strong>. A band whose drive is 0
+        everywhere runs without oversampling. Lower OS Max to save
+        CPU.</p>
+        <h2 id="spectrum-and-crossovers">Spectrum and Crossovers</h2>
+        <figure>
+        <img src="images/spectrum.png"
+        alt="The spectrum with three crossover handles" width="960" height="120" loading="lazy" decoding="async">
+        <figcaption aria-hidden="true">The spectrum with three crossover
+        handles</figcaption>
+        </figure>
+        <p>The spectrum runs from 20 Hz to 20 kHz. Each band’s region is
+        tinted in its colour (Band 1 orange, Band 2 teal, Band 3 green,
+        Band 4 violet), with the live spectrum and peak-hold lines over
+        it. When the Sweep is on, the display also shows its curve and
+        how strongly it reaches each band.</p>
+        <table>
+        <colgroup>
+        <col style="width: 20%" />
+        <col style="width: 20%" />
+        <col style="width: 20%" />
+        <col style="width: 20%" />
+        <col style="width: 20%" />
+        </colgroup>
+        <thead>
+        <tr>
+        <th>Control</th>
+        <th>Host name</th>
+        <th>Range</th>
+        <th>Default</th>
+        <th>What it does</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr>
+        <td>Wet / Dry / Both</td>
+        <td>Spectrum Mode</td>
+        <td>Wet, Dry, Both</td>
+        <td>Wet</td>
+        <td>What the display analyses: the output, the input, or both
+        (input faint, output over it). Display only.</td>
+        </tr>
+        <tr>
+        <td>Crossover handles</td>
+        <td>Crossover 1 · Crossover 2 · Crossover 3</td>
+        <td>20 Hz – 20 kHz</td>
+        <td>about 112 Hz, 632 Hz, 3.56 kHz</td>
+        <td>Where the bands split.</td>
+        </tr>
+        </tbody>
+        </table>
+        <p><strong>Moving a crossover:</strong> drag the triangle handle
+        at the top of a divider. Hovering or dragging shows its exact
+        frequency. A crossover always stays at least half an octave from
+        its neighbours. Only as many handles as there are band splits
+        are shown; with one band there are none.</p>
+        <h2 id="bands">Bands</h2>
+        <figure>
+        <img src="images/bands.png" alt="The band panels" width="960" height="340" loading="lazy" decoding="async">
+        <figcaption aria-hidden="true">The band panels</figcaption>
+        </figure>
+        <p>Each band panel shows the band’s name and level meter, a
+        chevron that opens the expanded strip, the <strong>Type</strong>
+        of the selected node and two tabs, <strong>Main</strong> and
+        <strong>Shape</strong>.</p>
+        <p><strong>Main tab:</strong></p>
+        <table>
+        <colgroup>
+        <col style="width: 20%" />
+        <col style="width: 20%" />
+        <col style="width: 20%" />
+        <col style="width: 20%" />
+        <col style="width: 20%" />
+        </colgroup>
+        <thead>
+        <tr>
+        <th>Control</th>
+        <th>Host name</th>
+        <th>Range</th>
+        <th>Default</th>
+        <th>What it does</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr>
+        <td>Type</td>
+        <td>Type (of the selected node)</td>
+        <td>the 26 types</td>
+        <td>Soft Clip</td>
+        <td>The distortion algorithm of the selected node.</td>
+        </tr>
+        <tr>
+        <td>Drive</td>
+        <td>Drive (of the selected node)</td>
+        <td>0–10</td>
+        <td>1.0</td>
+        <td>How hard the node is driven. 0 passes the signal
+        untouched.</td>
+        </tr>
+        <tr>
+        <td>Mix</td>
+        <td>Mix (of the selected node)</td>
+        <td>0–100 %</td>
+        <td>100 %</td>
+        <td>The node’s own dry/wet.</td>
+        </tr>
+        <tr>
+        <td>Tone</td>
+        <td>Tone (of the selected node)</td>
+        <td>200 Hz – 8 kHz</td>
+        <td>4 kHz</td>
+        <td>A low-pass on the node’s distorted signal (not on the
+        digital types).</td>
+        </tr>
+        <tr>
+        <td>Gain</td>
+        <td>Gain</td>
+        <td>−24 to +24 dB</td>
+        <td>0 dB</td>
+        <td>Band output level.</td>
+        </tr>
+        <tr>
+        <td>Pan</td>
+        <td>Pan</td>
+        <td>−1 to +1</td>
+        <td>Center</td>
+        <td>Band balance.</td>
+        </tr>
+        <tr>
+        <td>Solo</td>
+        <td>Solo</td>
+        <td>Off / On</td>
+        <td>Off</td>
+        <td>When any band is soloed, only soloed bands are heard.</td>
+        </tr>
+        <tr>
+        <td>Bypass</td>
+        <td>Bypass</td>
+        <td>Off / On</td>
+        <td>Off</td>
+        <td>The band passes its input through unprocessed (still
+        time-aligned).</td>
+        </tr>
+        <tr>
+        <td>Mute</td>
+        <td>Mute</td>
+        <td>Off / On</td>
+        <td>Off</td>
+        <td>Silences the band. Mute wins over Solo.</td>
+        </tr>
+        <tr>
+        <td>Morph X / Morph Y</td>
+        <td>Morph X · Morph Y</td>
+        <td>0–1</td>
+        <td>0.5</td>
+        <td>The band’s position on its MorphPad.</td>
+        </tr>
+        </tbody>
+        </table>
+        <p>Drive, Mix, Tone, Gain and Pan draw the live modulation range
+        around their value when the modulation matrix moves them.</p>
+        <p><strong>Shape tab:</strong></p>
+        <figure>
+        <img src="images/band-shape-tab.png"
+        alt="Band 1 on its Shape tab" width="235" height="340" loading="lazy" decoding="async">
+        <figcaption aria-hidden="true">Band 1 on its Shape
+        tab</figcaption>
+        </figure>
+        <p>The Shape tab shows the controls of the selected node’s type
+        (see Distortion Types) and, when the band has more than one
+        active node, a <strong>Node</strong> A–D selector that chooses
+        which node the panel edits. Every type keeps its own shape
+        settings, so switching a node to another type and back restores
+        them.</p>
+        <h3 id="the-expanded-strip">The expanded strip</h3>
+        <figure>
+        <img src="images/band-expanded.png"
+        alt="Band 1’s expanded strip" width="690" height="290" loading="lazy" decoding="async">
+        <figcaption aria-hidden="true">Band 1’s expanded
+        strip</figcaption>
+        </figure>
+        <p>The chevron opens a wide strip over the band area with
+        everything for that band at once:</p>
+        <ul>
+        <li><strong>The header row:</strong> Type, Drive and Mix of the
+        selected node, and <strong>Bias</strong> when the type has a
+        bias control (Tube, Tape, Fuzz, Asymmetric Fuzz, the three
+        folders and Ring Saturation).</li>
+        <li><strong>Morph:</strong> the MorphPad, <strong>Mode</strong>,
+        <strong>Nodes</strong> and <strong>Smooth</strong>.</li>
+        <li><strong>The node editor:</strong> the <strong>Node</strong>
+        selector and the selected node’s shape controls.</li>
+        <li><strong>Output:</strong> Gain, Pan, Solo, Bypass, Mute and
+        the two morph links.</li>
+        </ul>
+        <table>
+        <colgroup>
+        <col style="width: 20%" />
+        <col style="width: 20%" />
+        <col style="width: 20%" />
+        <col style="width: 20%" />
+        <col style="width: 20%" />
+        </colgroup>
+        <thead>
+        <tr>
+        <th>Control</th>
+        <th>Host name</th>
+        <th>Range</th>
+        <th>Default</th>
+        <th>What it does</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr>
+        <td>Bias</td>
+        <td>Bias (of the selected node)</td>
+        <td>−1 to +1</td>
+        <td>0</td>
+        <td>Asymmetry of the curve, for even harmonics.</td>
+        </tr>
+        <tr>
+        <td>Mode</td>
+        <td>Morph Mode</td>
+        <td>1D Linear, 2D Planar, 2D Radial</td>
+        <td>1D Linear</td>
+        <td>How the MorphPad position blends the nodes.</td>
+        </tr>
+        <tr>
+        <td>Nodes</td>
+        <td>Active Nodes</td>
+        <td>1, 2, 3, 4</td>
+        <td>1</td>
+        <td>How many nodes (A–D) the band blends.</td>
+        </tr>
+        <tr>
+        <td>Smooth</td>
+        <td>Morph Smoothing</td>
+        <td>0–500 ms</td>
+        <td>0 ms</td>
+        <td>Glide time of the morph position.</td>
+        </tr>
+        <tr>
+        <td>Node</td>
+        <td>Selected Node</td>
+        <td>Node A, Node B, Node C, Node D</td>
+        <td>Node A</td>
+        <td>Which node the type, drive, mix, tone, bias and shape
+        controls edit.</td>
+        </tr>
+        <tr>
+        <td>Morph X Link</td>
+        <td>Morph X Link</td>
+        <td>None, Sweep Freq, Inverse Sweep, Ease In, Ease Out,
+        Hold-Rise, Stepped, Custom</td>
+        <td>None</td>
+        <td>Lets the sweep frequency drive the band’s Morph X (see
+        Sweep).</td>
+        </tr>
+        <tr>
+        <td>Morph Y Link</td>
+        <td>Morph Y Link</td>
+        <td>the same list</td>
+        <td>None</td>
+        <td>The same for Morph Y.</td>
+        </tr>
+        </tbody>
+        </table>
+        <h3 id="nodes-and-the-morphpad">Nodes and the MorphPad</h3>
+        <p>Each band has four nodes, <strong>A</strong>,
+        <strong>B</strong>, <strong>C</strong> and <strong>D</strong>;
+        <strong>Nodes</strong> sets how many take part. Every node has
+        its own type, drive, mix, tone, bias and shape settings. The
+        MorphPad blends the active nodes by the position of its
+        cursor:</p>
+        <ul>
+        <li><strong>1D Linear</strong> uses X only: the nodes sit on a
+        horizontal line (A at the left end, B at the right end, C in the
+        middle, D three quarters of the way along) and the cursor
+        crossfades between neighbours. Drag a node along the line to
+        move it; its place on the line is separate from its place in the
+        2D modes, so switching modes moves nothing.</li>
+        <li><strong>2D Planar</strong> weighs each node by the cursor’s
+        distance to it. The nodes start at the corners (A bottom-left, B
+        bottom-right, C top-left, D top-right); drag them anywhere on
+        the pad.</li>
+        <li><strong>2D Radial</strong> weighs the nodes by angle around
+        the centre: at the centre all nodes mix equally, at the edge the
+        angle picks the blend. A node’s angle comes from where it sits
+        on the pad.</li>
+        </ul>
+        <p>When every active node uses the same type, the band runs that
+        type once with its settings blended by the morph. When the types
+        differ, the nodes run side by side and their outputs are mixed
+        by weight. Either way, adding a node, removing one or changing a
+        type crossfades over a few milliseconds.</p>
+        <p><strong>Using the pad:</strong> click or drag to move the
+        cursor; hold Shift for fine moves; double-click to return to the
+        centre; the mouse wheel moves X (and the horizontal wheel Y).
+        Click a node to select it for editing, as the
+        <strong>Node</strong> selector does, and drag a node to move it:
+        the band blends by where the nodes sit, so moving a node
+        reshapes the blend. In 1D Linear a node slides along the line
+        only. Node positions are saved with the project and presets and
+        can be automated (host names <strong>Pos X</strong> and
+        <strong>Pos Y</strong> for the 2D modes, <strong>Line
+        Pos</strong> for 1D Linear). Projects and presets saved before
+        Disrumpo 1.1.0 keep the even spacing on the line they had. The
+        pad follows the band’s <strong>Mode</strong>: the readout in the
+        corner shows the position, and lines from the cursor to each
+        node fade with that node’s weight in the current mode. With one
+        active node the pad is greyed out.</p>
+        <h2 id="distortion-types">Distortion Types</h2>
+        <p>The Type menu lists the 26 types. The families group related
+        sounds:</p>
+        <table>
+        <colgroup>
+        <col style="width: 50%" />
+        <col style="width: 50%" />
+        </colgroup>
+        <thead>
+        <tr>
+        <th>Family</th>
+        <th>Types</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr>
+        <td>Saturation</td>
+        <td>Soft Clip, Hard Clip, Tube, Tape, Fuzz, Asymmetric Fuzz</td>
+        </tr>
+        <tr>
+        <td>Wavefold</td>
+        <td>Sine Fold, Triangle Fold, Serge Fold</td>
+        </tr>
+        <tr>
+        <td>Rectify</td>
+        <td>Full Rectify, Half Rectify</td>
+        </tr>
+        <tr>
+        <td>Digital</td>
+        <td>Bitcrush, Sample Reduce, Quantize, Aliasing, Bitwise
+        Mangler</td>
+        </tr>
+        <tr>
+        <td>Dynamic</td>
+        <td>Temporal, Feedback</td>
+        </tr>
+        <tr>
+        <td>Hybrid</td>
+        <td>Ring Saturation, Allpass Resonant</td>
+        </tr>
+        <tr>
+        <td>Experimental</td>
+        <td>Chaos, Formant, Granular, Spectral, Fractal, Stochastic</td>
+        </tr>
+        </tbody>
+        </table>
+        <p>Each type’s Shape page shows its own controls. “%” controls
+        run 0–100 %, “±1” controls run −1 to +1, and a “curve” control
+        chooses one of nine saturation curves (Tanh, Atan, Cubic,
+        Quintic, RSqrt, Erf, HardClip, Diode, Tube).</p>
+        <table>
+        <colgroup>
+        <col style="width: 33%" />
+        <col style="width: 33%" />
+        <col style="width: 33%" />
+        </colgroup>
+        <thead>
+        <tr>
+        <th>Type</th>
+        <th>Sound</th>
+        <th>Shape controls</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr>
+        <td>Soft Clip</td>
+        <td>Warm, rounded saturation, mostly odd harmonics.</td>
+        <td>Curve %, Knee %</td>
+        </tr>
+        <tr>
+        <td>Hard Clip</td>
+        <td>Flat-topped clipping with a full, harsh harmonic
+        series.</td>
+        <td>Threshold %, Ceiling %</td>
+        </tr>
+        <tr>
+        <td>Tube</td>
+        <td>Asymmetric valve stage, rich in even harmonics.</td>
+        <td>Bias ±1, Sag %, Stage (12AX7, EL84, 6L6, 300B)</td>
+        </tr>
+        <tr>
+        <td>Tape</td>
+        <td>Tape saturation with optional magnetic hysteresis.</td>
+        <td>Bias ±1, Sag %, Speed %, Model (Simple, Hysteresis), HF Roll
+        %, Flutter %</td>
+        </tr>
+        <tr>
+        <td>Fuzz</td>
+        <td>Germanium-style fuzz with a sagging, “dying battery”
+        response.</td>
+        <td>Bias ±1, Transistor (Germanium, Silicon), Octave %, Sustain
+        %</td>
+        </tr>
+        <tr>
+        <td>Asymmetric Fuzz</td>
+        <td>Brighter, tighter silicon-style fuzz.</td>
+        <td>Bias ±1, Asym %, Trans (Germanium, Silicon), Sustain %, Body
+        %</td>
+        </tr>
+        <tr>
+        <td>Sine Fold</td>
+        <td>Serge-style sine folding: sparse, FM-like spectra.</td>
+        <td>Folds 1–12, Symmetry ±1, Shape %, Bias ±1, Smooth %</td>
+        </tr>
+        <tr>
+        <td>Triangle Fold</td>
+        <td>Mirror folding with dense odd harmonics.</td>
+        <td>Folds 1–12, Symmetry ±1, Angle %, Bias ±1, Smooth %</td>
+        </tr>
+        <tr>
+        <td>Serge Fold</td>
+        <td>Circuit-modelled folder with spectral nulls.</td>
+        <td>Folds 1–12, Symm ±1, Model (Serge, Simple, Buchla,
+        Lockhart), Bias ±1, Shape %, Smooth %</td>
+        </tr>
+        <tr>
+        <td>Full Rectify</td>
+        <td>Absolute value: an octave up, every harmonic.</td>
+        <td>Smooth %, DC Block (on/off)</td>
+        </tr>
+        <tr>
+        <td>Half Rectify</td>
+        <td>One half of the wave only: asymmetric and gated.</td>
+        <td>Threshold %, Smooth %, DC Block (on/off)</td>
+        </tr>
+        <tr>
+        <td>Bitcrush</td>
+        <td>Reduced bit depth for quantisation grit.</td>
+        <td>Bits 4–16, Dither %, Mode (Truncate, Dither), Jitter %</td>
+        </tr>
+        <tr>
+        <td>Sample Reduce</td>
+        <td>Reduced sample rate: aliasing and stepped waveforms.</td>
+        <td>Rate 1–32x, Jitter %, Mode (ZOH, Linear), Smooth %</td>
+        </tr>
+        <tr>
+        <td>Quantize</td>
+        <td>Amplitude stepped into levels.</td>
+        <td>Levels %, Dither %, Smooth %, Offset %</td>
+        </tr>
+        <tr>
+        <td>Aliasing</td>
+        <td>Deliberate aliasing with frequency shifting: metallic,
+        inharmonic.</td>
+        <td>Down 2–32x, Shift −5000 to +5000 Hz</td>
+        </tr>
+        <tr>
+        <td>Bitwise Mangler</td>
+        <td>Bit operations on the samples: glitchy, noisy textures.</td>
+        <td>Op (XorPat, XorPrev, BitAnd, Overflow), Intensity %, Pattern
+        % (XorPat only)</td>
+        </tr>
+        <tr>
+        <td>Temporal</td>
+        <td>Distortion that follows the input’s dynamics.</td>
+        <td>Mode (Follow, Inverse, Transient, Hyst), Sens %, Curve, Atk
+        1–500 ms, Rel 10–5000 ms; Depth % and Hold 1–500 ms in Hyst</td>
+        </tr>
+        <tr>
+        <td>Feedback</td>
+        <td>A distorting feedback loop with a filter inside.</td>
+        <td>FB 0–1.5, Delay 1–100 ms, Curve, Filter (Off, LP, BP, HP),
+        Freq %, Stage (1x–4x), Lim (on/off), Thr %, Decay %</td>
+        </tr>
+        <tr>
+        <td>Ring Saturation</td>
+        <td>Ring modulation blended with saturation.</td>
+        <td>Mod %, Stages 1–4, Curve, Carrier (Sine, Triangle, Square,
+        Saw), Bias ±1, Freq (Fixed, Harmonic, Track, Random), Hz
+        (20–5000 Hz in Fixed, a 1–16x ratio in Harmonic)</td>
+        </tr>
+        <tr>
+        <td>Allpass Resonant</td>
+        <td>Saturated allpass network: resonant, ringing peaks.</td>
+        <td>Topo (Single, Chain, Karplus, Matrix), Freq 20–2000 Hz, FB
+        0–0.99, Decay 0.01–10 s, Drive %, Curve (Tanh, Clip, Asym,
+        Hyst), Damp %</td>
+        </tr>
+        <tr>
+        <td>Chaos</td>
+        <td>Waveshaping driven by a chaotic attractor.</td>
+        <td>Attr (Lorenz, Rossler, Chua, Henon), Spd 0.01–100, Amt %,
+        Coup %, X-Dr %, Y-Dr %, Smth %</td>
+        </tr>
+        <tr>
+        <td>Formant</td>
+        <td>Vowel resonances with distortion: vocal, talking tones.</td>
+        <td>Vowel (A, E, I, O, U), Shift ±24 st, Curve %, Reso %, BW %,
+        Fmts (2–5), Gendr %, Blend %</td>
+        </tr>
+        <tr>
+        <td>Granular</td>
+        <td>Distortion in short grains: cloudy, broken textures.</td>
+        <td>Size 5–100 ms, Dens %, PVar %, DVar %, Pos %, Curve %, Env
+        (Hann, Trap, Sine, Blk)</td>
+        </tr>
+        <tr>
+        <td>Spectral</td>
+        <td>Distortion per frequency bin.</td>
+        <td>Mode (PerBin, MagOnly, Selective, Bitcrush), FFT (512–4096),
+        Curve, Tilt %, Thr %, Mag (Linear, Log, Bark, ERB), Freq %,
+        Phase (Preserve, Random, Gradient, Temporal)</td>
+        </tr>
+        <tr>
+        <td>Fractal</td>
+        <td>Recursive, self-similar distortion.</td>
+        <td>Mode (Residual, Multiband, Harmonic, Cascade, Feedback),
+        Iter 1–8, Scale 0.3–0.9, Curve, FDecay %, FB 0–0.5 (Feedback
+        mode), Blend (Add, Multiply, Max, Screen), Depth % (Multiband
+        mode)</td>
+        </tr>
+        <tr>
+        <td>Stochastic</td>
+        <td>Noise-modulated distortion: shimmering and diffuse.</td>
+        <td>Curve (Tanh, Atan, Cubic, Qntc, RSqrt, Erf), Jit %, Rate
+        0.1–100 Hz, Coef %, Drift %, Corr (None, Sample, Param, Both),
+        Smth %, Dist (White, Pink, Brown, Blue, Violet)</td>
+        </tr>
+        </tbody>
+        </table>
+        <h2 id="sweep">Sweep</h2>
+        <figure>
+        <img src="images/sweep-row.png" alt="The sweep row" width="1000" height="70" loading="lazy" decoding="async">
+        <figcaption aria-hidden="true">The sweep row</figcaption>
+        </figure>
+        <p>The Sweep focuses extra drive on one region of the spectrum.
+        Each band’s drive is multiplied by up to 2× depending on how
+        close the band’s centre lies to the sweep frequency:
+        <strong>Width</strong> sets how far the boost reaches,
+        <strong>Falloff</strong> whether it ends sharply (Hard) or in a
+        bell curve (Soft), and <strong>Intensity</strong> how strong it
+        is. The sweep frequency can move on its own with the sweep
+        <strong>LFO</strong> (up to ±2 octaves) and the
+        <strong>Env</strong> follower, which pushes it upwards (up to +2
+        octaves) as the input gets louder.</p>
+        <table>
+        <colgroup>
+        <col style="width: 20%" />
+        <col style="width: 20%" />
+        <col style="width: 20%" />
+        <col style="width: 20%" />
+        <col style="width: 20%" />
+        </colgroup>
+        <thead>
+        <tr>
+        <th>Control</th>
+        <th>Host name</th>
+        <th>Range</th>
+        <th>Default</th>
+        <th>What it does</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr>
+        <td>Sweep</td>
+        <td>Sweep Enable</td>
+        <td>Off / On</td>
+        <td>Off</td>
+        <td>Switches the Sweep.</td>
+        </tr>
+        <tr>
+        <td>Freq</td>
+        <td>Sweep Frequency</td>
+        <td>20 Hz – 20 kHz</td>
+        <td>1 kHz</td>
+        <td>Centre of the sweep.</td>
+        </tr>
+        <tr>
+        <td>Width</td>
+        <td>Sweep Width</td>
+        <td>0.5–4.0 octaves</td>
+        <td>1.5 oct</td>
+        <td>How far the boost reaches either side.</td>
+        </tr>
+        <tr>
+        <td>Intensity</td>
+        <td>Sweep Intensity</td>
+        <td>0–200 %</td>
+        <td>50 %</td>
+        <td>Strength of the drive boost.</td>
+        </tr>
+        <tr>
+        <td>Falloff</td>
+        <td>Sweep Falloff</td>
+        <td>Hard, Soft</td>
+        <td>Soft</td>
+        <td>A straight-line or bell-shaped edge.</td>
+        </tr>
+        <tr>
+        <td>Link</td>
+        <td>Sweep Morph Link</td>
+        <td>None, Sweep Freq, Inverse Sweep, Ease In, Ease Out,
+        Hold-Rise, Stepped, Custom</td>
+        <td>None</td>
+        <td>Drives Morph X of every band whose own Morph X Link is
+        None.</td>
+        </tr>
+        <tr>
+        <td>LFO</td>
+        <td>Sweep LFO Enable</td>
+        <td>Off / On</td>
+        <td>Off</td>
+        <td>Switches the sweep LFO.</td>
+        </tr>
+        <tr>
+        <td>Rate</td>
+        <td>Sweep LFO Rate</td>
+        <td>0.01–20 Hz</td>
+        <td>1 Hz</td>
+        <td>LFO speed (free).</td>
+        </tr>
+        <tr>
+        <td>Wave</td>
+        <td>Sweep LFO Waveform</td>
+        <td>Sine, Triangle, Sawtooth, Square, S&amp;H, Random</td>
+        <td>Sine</td>
+        <td>LFO shape.</td>
+        </tr>
+        <tr>
+        <td>Depth</td>
+        <td>Sweep LFO Depth</td>
+        <td>0–100 %</td>
+        <td>50 %</td>
+        <td>LFO depth (100 % = ±2 octaves).</td>
+        </tr>
+        <tr>
+        <td>Sync</td>
+        <td>Sweep LFO Sync</td>
+        <td>Off / On</td>
+        <td>Off</td>
+        <td>Locks the LFO to the host tempo.</td>
+        </tr>
+        <tr>
+        <td>Note</td>
+        <td>Sweep LFO Note</td>
+        <td>1/64T … 4/1D</td>
+        <td>1/8</td>
+        <td>The synced LFO period.</td>
+        </tr>
+        <tr>
+        <td>Env</td>
+        <td>Sweep Env Enable</td>
+        <td>Off / On</td>
+        <td>Off</td>
+        <td>Switches the envelope follower.</td>
+        </tr>
+        <tr>
+        <td>Atk</td>
+        <td>Sweep Env Attack</td>
+        <td>1–100 ms</td>
+        <td>10 ms</td>
+        <td>Follower attack.</td>
+        </tr>
+        <tr>
+        <td>Rel</td>
+        <td>Sweep Env Release</td>
+        <td>10–500 ms</td>
+        <td>100 ms</td>
+        <td>Follower release.</td>
+        </tr>
+        <tr>
+        <td>Sens</td>
+        <td>Sweep Env Sensitivity</td>
+        <td>0–100 %</td>
+        <td>50 %</td>
+        <td>How far the input level moves the sweep.</td>
+        </tr>
+        </tbody>
+        </table>
+        <h3 id="linking-the-morph-to-the-sweep">Linking the morph to the
+        sweep</h3>
+        <p>A morph link turns the sweep frequency (from 20 Hz to 20 kHz,
+        as a 0–1 position) into a MorphPad position, so the distortion
+        character changes as the sweep moves. <strong>Sweep
+        Freq</strong> follows it directly, <strong>Inverse
+        Sweep</strong> runs the other way, <strong>Ease In</strong> and
+        <strong>Ease Out</strong> curve it, <strong>Hold-Rise</strong>
+        holds and then rises, and <strong>Stepped</strong> moves in
+        steps. <strong>Custom</strong> follows a curve of up to eight
+        points that is stored with the preset; its points are the host
+        parameters <strong>Curve Point Count</strong> and <strong>Curve
+        P0 X</strong> to <strong>Curve P7 Y</strong>. The link works
+        whenever it is set, whether or not the Sweep itself is on.</p>
+        <h2 id="modulation">Modulation</h2>
+        <figure>
+        <img src="images/mod-panel.png" alt="The modulation panel" width="1000" height="230" loading="lazy" decoding="async">
+        <figcaption aria-hidden="true">The modulation panel</figcaption>
+        </figure>
+        <p><strong>Mod</strong> at the right of the sweep row opens the
+        modulation panel below the editor: the modulation sources on the
+        left, four macros in the middle and the routing matrix on the
+        right.</p>
+        <h3 id="sources">Sources</h3>
+        <table>
+        <colgroup>
+        <col style="width: 50%" />
+        <col style="width: 50%" />
+        </colgroup>
+        <thead>
+        <tr>
+        <th>Row</th>
+        <th>Controls (host names)</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr>
+        <td>LFO1, LFO2</td>
+        <td>Rate (LFO 1 Rate: 0.01–20 Hz), Shape (LFO 1 Shape: Sine,
+        Triangle, Saw, Square, S&amp;H, Smooth Random), Phase (LFO 1
+        Phase: 0–360°), Sync (LFO 1 Sync), Note (LFO 1 Note Value), U =
+        unipolar (LFO 1 Unipolar), R = retrigger on transport start (LFO
+        1 Retrigger); the same for LFO 2 Rate, LFO 2 Shape, LFO 2 Phase,
+        LFO 2 Sync, LFO 2 Note Value, LFO 2 Unipolar, LFO 2
+        Retrigger</td>
+        </tr>
+        <tr>
+        <td>Env</td>
+        <td>Atk (Env Attack: 1–100 ms), Rel (Env Release: 10–500 ms),
+        Sens (Env Sensitivity), source (Env Source: Input L, Input R,
+        Input Sum, Mid, Side)</td>
+        </tr>
+        <tr>
+        <td>Rnd</td>
+        <td>Rate (Random Rate: 0.1–50 Hz), Smth (Random Smoothness),
+        Sync (Random Sync)</td>
+        </tr>
+        <tr>
+        <td>Chaos</td>
+        <td>model (Chaos Model: Lorenz, Rossler, Chua, Henon), Spd
+        (Chaos Speed: 0.05–20x), Cpln (Chaos Coupling: 0–1)</td>
+        </tr>
+        <tr>
+        <td>S&amp;H</td>
+        <td>source (S&amp;H Source: Random, LFO 1, LFO 2, External),
+        Rate (S&amp;H Rate: 0.1–50 Hz), Slew (S&amp;H Slew: 0–500
+        ms)</td>
+        </tr>
+        <tr>
+        <td>Pitch</td>
+        <td>Lo (Pitch Min Hz: 20–500), Hi (Pitch Max Hz: 200–5000), Conf
+        (Pitch Confidence), Trk (Pitch Tracking: 10–300 ms)</td>
+        </tr>
+        <tr>
+        <td>Trans</td>
+        <td>Sens (Transient Sensitivity), Atk (Transient Attack: 0.5–10
+        ms), Dcy (Transient Decay: 20–200 ms)</td>
+        </tr>
+        <tr>
+        <td>Rnglr</td>
+        <td>Rate (Rungler Rate: 0.1–50 Hz), Dpth (Rungler Depth), Bits
+        (Rungler Bits: 4–16), Loop (Rungler Loop)</td>
+        </tr>
+        </tbody>
+        </table>
+        <p>The Env follower, Pitch and Transient sources listen to the
+        input before Input Gain.</p>
+        <h3 id="macros">Macros</h3>
+        <p><strong>M1–M4</strong> (Macro 1, Macro 2, Macro 3, Macro 4)
+        are four knobs you can route like any other source, for one-knob
+        control of several destinations at once. Each has a
+        <strong>Min</strong> and a <strong>Max</strong> (host names
+        Macro 1 Min, Macro 1 Max, Macro 2 Min, Macro 2 Max, Macro 3 Min,
+        Macro 3 Max, Macro 4 Min, Macro 4 Max) that set the range it
+        sweeps, and a curve (<strong>Crv</strong>, host name Macro
+        Curve: Linear, Exponential, S-Curve, Stepped).</p>
+        <h3 id="routing-matrix">Routing matrix</h3>
+        <p>The matrix has 32 routes; scroll the list to reach them all.
+        Each route has:</p>
+        <table>
+        <colgroup>
+        <col style="width: 25%" />
+        <col style="width: 25%" />
+        <col style="width: 25%" />
+        <col style="width: 25%" />
+        </colgroup>
+        <thead>
+        <tr>
+        <th>Column</th>
+        <th>Host name</th>
+        <th>Range</th>
+        <th>What it does</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr>
+        <td>Src</td>
+        <td>Route Source</td>
+        <td>None, LFO 1, LFO 2, Env Follower, Random, Macro 1–4, Chaos,
+        Rungler, S&amp;H, Pitch, Transient</td>
+        <td>The modulation source.</td>
+        </tr>
+        <tr>
+        <td>Dest</td>
+        <td>Route Dest</td>
+        <td>Input Gain, Output Gain, Global Mix, Sweep Freq, Sweep
+        Width, Sweep Intensity, and for each band Morph X, Morph Y,
+        Drive, Mix, Gain, Pan, Tone, Bias</td>
+        <td>What it moves.</td>
+        </tr>
+        <tr>
+        <td>Amount</td>
+        <td>Route Amount</td>
+        <td>−100 to +100 %</td>
+        <td>How far, and in which direction.</td>
+        </tr>
+        <tr>
+        <td>Curve</td>
+        <td>Route Curve</td>
+        <td>Linear, Exponential, S-Curve, Stepped</td>
+        <td>The response curve.</td>
+        </tr>
+        </tbody>
+        </table>
+        <p>A band’s Drive, Mix, Tone and Bias destinations move every
+        node of that band.</p>
+        <h2 id="presets">Presets</h2>
+        <p><strong>Presets</strong> in the header opens the preset
+        browser: tabs for <strong>All</strong> and each category, a
+        search field, and buttons to save, import and delete your own
+        presets. Double-click a preset to load it. <strong>Save</strong>
+        in the header opens a dialog to name a preset and choose its
+        category.</p>
+        <h3 id="factory-library">Factory library</h3>
+        <p>Disrumpo ships 120 factory presets in eleven categories. The
+        browser shows them by file name.</p>
+        <ul>
+        <li><strong>Init</strong> — <code>Init_1_Band</code>,
+        <code>Init_2_Bands</code>, <code>Init_3_Bands</code>,
+        <code>Init_4_Bands</code></li>
+        <li><strong>Sweep</strong> — <code>Ease_In_Morph</code>,
+        <code>Envelope_Follower</code>, <code>Frequency_Hunter</code>,
+        <code>High_Sweep</code>, <code>Inverse_Link</code>,
+        <code>Low_Rumble</code>, <code>Random_Scan</code>,
+        <code>Resonant_Sweep</code>, <code>Sharp_Focus</code>,
+        <code>Slow_Scan</code>, <code>Step_Scanner</code>,
+        <code>Synced_Pulse</code>, <code>Triangle_Wobble</code>,
+        <code>Wah_Wah_Drive</code>, <code>Wide_Sweep</code></li>
+        <li><strong>Morph</strong> — <code>Chaos_to_Order</code>,
+        <code>Digital_Organic</code>, <code>Feedback_Explorer</code>,
+        <code>Formant_Shift</code>, <code>Four_Corners</code>,
+        <code>Multi_Band_Morph</code>, <code>Radial_Blend</code>,
+        <code>Rectify_Blend</code>, <code>Smooth_Crossfade</code>,
+        <code>Soft_to_Hard</code>, <code>Spectral_Morph</code>,
+        <code>Tape_Fold_Morph</code>, <code>Three_Node_Blend</code>,
+        <code>Tube_to_Fuzz</code>, <code>Wavefolder_Quad</code></li>
+        <li><strong>Bass</strong> — <code>Dirty_Sub</code>,
+        <code>Multi_Band_Bass</code>, <code>Punchy_Low_End</code>,
+        <code>Ring_Bass</code>, <code>Serge_Bass</code>,
+        <code>Soft_Bass_Drive</code>, <code>Subharmonic_Growl</code>,
+        <code>Tape_Warmth</code>, <code>Warm_Bass</code>,
+        <code>Wavefold_Bass</code></li>
+        <li><strong>Leads</strong> — <code>Asymmetric_Bite</code>,
+        <code>Chaos_Lead</code>, <code>Feedback_Scream</code>,
+        <code>Fractal_Lead</code>, <code>Fuzz_Face</code>,
+        <code>Modulated_Edge</code>, <code>Ring_Mod_Lead</code>,
+        <code>Screaming_Lead</code>, <code>Temporal_Edge</code>,
+        <code>Wavefold_Lead</code></li>
+        <li><strong>Pads</strong> — <code>Allpass_Shimmer</code>,
+        <code>Evolving_Texture</code>, <code>Formant_Pad</code>,
+        <code>Gentle_Warmth</code>, <code>Granular_Wash</code>,
+        <code>Slow_Morph_Pad</code>, <code>Soft_Sweep</code>,
+        <code>Spectral_Pad</code>, <code>Stochastic_Drift</code>,
+        <code>Tape_Haze</code></li>
+        <li><strong>Drums</strong> — <code>Aliased_Drums</code>,
+        <code>Crushed_Beats</code>, <code>Dirty_Groove</code>,
+        <code>Glitch_Drum</code>, <code>Kick_Saturate</code>,
+        <code>Punchy_Clip</code>, <code>Rectified_Drums</code>,
+        <code>Snare_Crack</code>, <code>Temporal_Snap</code>,
+        <code>Transient_Shape</code></li>
+        <li><strong>Experimental</strong> — <code>Alien_Voice</code>,
+        <code>All_Types_Morph</code>, <code>Bitwise_Mangler</code>,
+        <code>Broken_Radio</code>, <code>Chaos_Engine</code>,
+        <code>Feedback_Loop</code>, <code>Formant_Shift</code>,
+        <code>Formant_Vowels</code>, <code>Fractal_Noise</code>,
+        <code>Granular_Crush</code>, <code>Quantize_Glitch</code>,
+        <code>Ring_Chaos</code>, <code>Serge_Madness</code>,
+        <code>Spectral_Scatter</code>, <code>Stochastic_Burst</code>,
+        <code>Temporal_Flux</code></li>
+        <li><strong>Chaos</strong> — <code>Attractor_Pan</code>,
+        <code>Chaos_Morph_4</code>, <code>Chaotic_Sweep</code>,
+        <code>Chua_Circuit</code>, <code>Coupled_Chaos</code>,
+        <code>Fast_Chaos</code>, <code>Henon_Map</code>,
+        <code>Lorenz_Drive</code>, <code>Rossler_Morph</code>,
+        <code>Slow_Chaos</code></li>
+        <li><strong>Dynamic</strong> — <code>Dynamic_Mix</code>,
+        <code>Envelope_Morph</code>, <code>Multi_Dynamic</code>,
+        <code>Pitch_Drive</code>, <code>Pitch_Tracker</code>,
+        <code>Sidechain_Pump</code>, <code>Touch_Sensitive</code>,
+        <code>Transient_Gate</code>, <code>Transient_Punch</code>,
+        <code>Velocity_Response</code></li>
+        <li><strong>Lo-Fi</strong> — <code>4-Bit_Retro</code>,
+        <code>8-Bit_Crunch</code>, <code>Aliasing_Harsh</code>,
+        <code>Bit_Mangler</code>, <code>Digital_Decay</code>,
+        <code>Glitch_Box</code>, <code>Multi_Band_Lo-Fi</code>,
+        <code>Quantize_Dirt</code>, <code>Sample_Rate_Crush</code>,
+        <code>Warm_Lo-Fi</code></li>
+        </ul>
+        <h2 id="host-automation">Host Automation</h2>
+        <p>Disrumpo’s host parameter names follow a pattern for the
+        per-band and per-node controls:</p>
+        <ul>
+        <li><strong>Per band:</strong>
+        <code>Band &lt;n&gt; &lt;control&gt;</code>, for example
+        <strong>Band 2 Gain</strong>. The per-band controls are Gain,
+        Pan, Solo, Bypass, Mute, Morph X, Morph Y, Morph Mode, Active
+        Nodes, Morph Smoothing, Morph X Link, Morph Y Link and Selected
+        Node, plus editor state that is saved but not meant for
+        automation: Expanded, Tab View and Displayed Type.</li>
+        <li><strong>Per node:</strong>
+        <code>B&lt;band&gt; N&lt;node&gt; &lt;control&gt;</code>, for
+        example <strong>B3 N1 Drive</strong> (band 3, node A). The
+        per-node controls are Type, Drive, Mix, Tone, Bias, Folds,
+        BitDepth, Pos X and Pos Y (the node’s place on the MorphPad in
+        the 2D modes), Line Pos (its place on the 1D Linear line), plus
+        Shape 0 to Shape 9, the type’s shape controls in the order the
+        Shape page lists them. Folds and BitDepth are taken over by the
+        shape controls of the folder and bit-crush types.</li>
+        <li><strong>Matrix routes:</strong> all 32 routes share the
+        names Route Source, Route Dest, Route Amount and Route Curve, in
+        route order.</li>
+        <li><strong>Editor state:</strong> Mod Panel Visible (whether
+        the modulation panel is open) and Spectrum Mode are saved with
+        the session. Displayed Drive, Displayed Mix, Displayed Tone,
+        Displayed Bias and Displayed Shape are the band panel’s controls
+        for the selected node: they forward to that node’s own
+        parameters, so automate the per-node names instead. MIDI Learn
+        Active and MIDI Learn Target belong to MIDI learn and are not
+        meant for automation.</li>
+        </ul>
+        <h2 id="tips-tricks">Tips &amp; Tricks</h2>
+        <ul>
+        <li><strong>Start from Init:</strong> the Init presets set up
+        one to four clean bands at Drive 1, ready to build on.</li>
+        <li><strong>Tame the low end:</strong> distort the mids and
+        highs hard and give the lowest band a gentle Soft Clip or Tube,
+        or Bypass it, so the bass stays solid.</li>
+        <li><strong>Moving distortion:</strong> two nodes of different
+        types, Morph Mode 1D Linear, and an LFO routed to the band’s
+        Morph X.</li>
+        <li><strong>Wah-style drive:</strong> Sweep on, Width 1 octave,
+        Intensity 150 %, Env follower on: the drive climbs with the
+        playing.</li>
+        <li><strong>Save CPU:</strong> lower OS Max to 2x while writing
+        and raise it again for the mixdown.</li>
+        </ul>
+
+        <div class="manual-footer">
+            <p>
+                <a href="./">Back to Disrumpo</a> |
+                <a href="../">Krate Audio</a>
+            </p>
+        </div>
+    </div>
+</body>
+</html>
