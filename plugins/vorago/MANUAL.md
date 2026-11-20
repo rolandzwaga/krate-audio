@@ -69,6 +69,10 @@ interactive diagram on the landing page shows every connection.
 
 ## Interface Overview
 
+![The Vorago editor](images/hero.png)
+
+![The ecosystem view with a living colony](images/ecosystem.png)
+
 The editor is a fixed 1100 × 760 window built around the life of the sound.
 
 - **The header bar** — the master **Gain** slider, the **Voices** selector, the **Seed** selector,
@@ -87,6 +91,10 @@ The editor is a fixed 1100 × 760 window built around the life of the sound.
 Every control carries a tooltip — hover over anything for a one-line description.
 
 ## Macros
+
+![Macros: Darkness, Age, Density, Movement, Gravity, Entropy](images/macros-left.png)
+
+![Macros: Pressure, Weight, Fog, Life, Depth, Mass](images/macros-right.png)
 
 The twelve macros are the performance surface of Vorago. Each sweeps a curated set of targets across
 the whole engine — voice, global chain and cavern at once. Two things are worth knowing:
@@ -220,6 +228,8 @@ all touch the sub level, and their offsets sum.
 
 ## Header Controls
 
+![The header](images/header.png)
+
 | Control | Range | Default | Notes |
 |---|---|---|---|
 | **Gain** | 0 – 200 % | unity (centre) | Master output level of the whole instrument, smoothed |
@@ -229,6 +239,8 @@ all touch the sub level, and their offsets sum.
 | **Presets** | — | — | Opens the preset browser |
 
 ## The Cloud Page
+
+![The Cloud page](images/page-cloud.png)
 
 The harmonic cloud is the additive core — 64 partials per voice — and the bloom engine that grows
 new partials into it.
@@ -256,6 +268,8 @@ drives bloom depth, and a scheduled event can trigger a bloom outright.
 
 ## The Noise Page
 
+![The Noise page](images/page-noise.png)
+
 The noise organism is the second sound source: four semi-independent noise sources, each feeding its
 own resonator → comb → wandering-filter chain. It is summed into the cloud *before* the envelope,
 so it is gated with the tone and coloured by everything downstream.
@@ -282,6 +296,8 @@ Air* (Direct), *Abyssal Wind* (Filtered Wind), *Spore Drift* (Granular Dust) and
 (Metallic Hiss).
 
 ## The Resonance Page
+
+![The Resonance page](images/page-resonance.png)
 
 Two stages share this page: the resonance drift network that colours the excitation, and the
 feedback ecology that sustains it.
@@ -314,6 +330,8 @@ Pressure macro pushes the ecology forward and tightens the loop gain.
 > population. *Feedback Mire* runs Lowpass, Bandpass and Highpass twice each.
 
 ## The Body Page
+
+![The Body page](images/page-body.png)
 
 Every voice speaks through **two continuous bodies at once** — physical resonators driven by a
 sustained stream rather than struck — blended per sample. Both bodies run at every blend value, so
@@ -348,6 +366,8 @@ the engine behind *Growth Ring*. Velocity scales the whole envelope.
 
 ## The Sub / Smear Page
 
+![The Sub / Smear page](images/page-sub-smear.png)
+
 Two global stages, after the voices are summed.
 
 **Subharmonic Engine** — three synchronous dividers tracking the lowest sounding voice (÷2 one
@@ -376,6 +396,8 @@ The tide of every voice folds into the smear amount, so the fog thickens and thi
 cycle even with the knob still. The Fog macro is mostly this stage plus the cavern's own fog.
 
 ## The Space Page
+
+![The Space page](images/page-space.png)
 
 The cavern: an enormous underground bunker, in the signal path. Sparse stone-flavoured early
 reflections feed a diffusion network and an FDN reverb with spectral damping, whose damping filters
@@ -407,6 +429,8 @@ field blooms. Freeze is not saved into presets as *on*; it is a gesture you make
 bloomed (*Cathedral Void* is written for it).
 
 ## The Life Page
+
+![The Life page](images/page-life.png)
 
 The identity layer: the ecosystem, the slow events, the ghosts and the life modulators.
 

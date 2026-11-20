@@ -49,6 +49,8 @@ their own sections below.
 
 ## Interface Overview
 
+![The Seraphis editor](images/hero.png)
+
 The editor is a fixed 1000 × 700 window built *organism-first*: the entire window is a live view of
 the sound, and the controls orbit it.
 
@@ -72,6 +74,8 @@ Every control in the editor carries a tooltip — hover over anything to get a o
 
 ## The Cloud View
 
+![The cloud view in Observe mode](images/cloud-view.png)
+
 ### Observe mode
 
 The default. The constellation shows the loudest currently-sounding voice: partials rise and fall
@@ -80,6 +84,8 @@ travel vertically as morphing retunes them. With no note held, the view shows th
 slot's spectrum at a reference pitch, so the display is never empty.
 
 ### Edit mode — editing partials
+
+![The editor in Edit mode](images/edit-mode.png)
 
 Flip the toggle to **EDIT** and the constellation becomes editable:
 
@@ -174,6 +180,8 @@ up toward **stone**.
 
 ## Header Controls
 
+![The header](images/header.png)
+
 | Control | Range | Default | Notes |
 |---|---|---|---|
 | **Gain** | 0 – 200 % (−80 dB … +6 dB) | unity (centre) | Overall output level of the whole instrument |
@@ -189,6 +197,8 @@ The three freeze switches in the header are duplicates of the same parameters on
 and FX tabs, placed within reach while performing.
 
 ## The Drawer: Cloud Tab
+
+![The drawer, Cloud tab](images/drawer-cloud.png)
 
 The harmonic cloud is the additive core — 64 partials per voice.
 
@@ -210,6 +220,8 @@ The harmonic cloud is the additive core — 64 partials per voice.
 > partials enter one after another and the note builds itself in front of you (hear *Bell Garden*).
 
 ## The Drawer: Morph Tab
+
+![The drawer, Morph tab](images/drawer-morph.png)
 
 The morph engine travels the cloud between up to four **spectral states** — factory spectra loaded
 into slots A–D, or your own states authored in Edit mode.
@@ -237,6 +249,8 @@ authored slots survive saving and preset load exactly.
 
 ## The Drawer: Body Tab
 
+![The drawer, Body tab](images/drawer-body.png)
+
 The cloud speaks through a **continuous modal body** — a physical resonator that can morph between
 materials.
 
@@ -262,6 +276,8 @@ diffuse wash (hear *Warm Static*); turning **Input AGC off** lets the Drive knob
 the resonator (hear *Iron Lung*).
 
 ## The Drawer: Atmos Tab
+
+![The drawer, Atmos tab](images/drawer-atmos.png)
 
 A granular layer running in parallel with the voice: grains are captured from the sound itself and
 re-scattered.
@@ -292,6 +308,8 @@ re-scattered.
 
 ## The Drawer: Aether Tab
 
+![The drawer, Aether tab](images/drawer-aether.png)
+
 The space engine. Aether sits inside the signal path — freezing it, breathing it and blooming it
 are part of playing the instrument.
 
@@ -317,6 +335,8 @@ are part of playing the instrument.
 | **Width** | 0 – 100 % | 100 % | Stereo width of the reverb tail |
 
 ## The Drawer: FX Tab
+
+![The drawer, FX tab](images/drawer-fx.png)
 
 The final stage: saturation, a spectral delay, spectral freeze, and the stereo stage.
 
@@ -344,6 +364,8 @@ repeat at different times, and **Delay Tilt** feeds back the top or bottom of th
 Feedback is internally reduced as Tilt increases, so the loop stays bounded at every setting.
 
 ## The Drawer: Life/Env Tab
+
+![The drawer, Life/Env tab](images/drawer-life-env.png)
 
 The per-voice life modulators and the voice envelope.
 

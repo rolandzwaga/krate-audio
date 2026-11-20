@@ -32,6 +32,7 @@ on:
       - 'apps/krate-manager/README.md'        # the FR-073 record that flips SC-016b
       - 'apps/krate-manager/RELEASING.md'
       - 'tools/gen-root-index.js'
+      - 'tools/site/common.js'                # the shared page head gen-root-index.js writes
       - 'tools/manager-readiness-counts.js'
       - '.github/workflows/docs.yml'
       - 'specs/krate-manager-phase12/user-checks.md'
@@ -64,6 +65,7 @@ on:
       - 'apps/krate-manager/README.md'        # the FR-073 record that flips SC-016b
       - 'apps/krate-manager/RELEASING.md'
       - 'tools/gen-root-index.js'
+      - 'tools/site/common.js'                # the shared page head gen-root-index.js writes
       - 'tools/manager-readiness-counts.js'
       - '.github/workflows/docs.yml'
       - 'specs/krate-manager-phase12/user-checks.md'

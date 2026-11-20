@@ -114,10 +114,11 @@ Auto-loads when working under `plugins/profundum/`. Root `CLAUDE.md` still appli
     (session tag 9300) or the host's zoom menu, applied with `VST3Editor::setZoomFactor`. Zoom, page, tab and highlight
     are **session state**: never persisted, never a parameter.
   - `IMidiLearn` is **not** implemented; MIDI learn is the host's.
-  - **Manual screenshots:** `node tools/gen-screenshots.js profundum` rebuilds `profundum_tests` and runs the hidden
-    `[screenshots]` case (`tests/unit/controller/editor_screenshot_test.cpp`, which holds the shot list), writing the
-    PNGs that `MANUAL.md` links into `images/` (committed). Rerun after any editor change. A uidesc-labelled view is a
-    crop target; the live displays render at rest (no processor feeds them).
+  - **Manual and site screenshots:** `node tools/gen-screenshots.js profundum` rebuilds `profundum_tests` and runs the
+    hidden `[site]` case (`tests/unit/controller/editor_screenshot_test.cpp`, which holds the shot list), writing the
+    PNGs that `MANUAL.md` links, plus `hero.png` / `og-image.png` / `card.png` for krateaudio.com, into `images/`
+    (committed). Rerun after any editor change. A uidesc-labelled view is a crop target; the harmonic displays show
+    one hand-written spectrum frame (an A1 note) delivered as the processor's DataExchange frame would be.
 - **Presets (Phase 13, `specs/profundum-phase13-presets-release/`):** 73 factory presets in seven categories, `Sub`,
   `Resonant`, `Harmonic`, `Driven`, `Plucked`, `Animated`, `Kicks` (Phase 14b) (`makeProfundumPresetConfig()` in
   `src/preset/profundum_preset_config.h`; the list is additive-only and must match the directories under

@@ -23,6 +23,8 @@
 #include "ui/icon_segment_button.h"
 #include "ui/toggle_button.h"
 
+#include <editor_screenshot.h>
+
 #include <base/source/updatehandler.h>
 #include <vstgui/lib/cbitmap.h>
 #include <vstgui/lib/cframe.h>
@@ -172,4 +174,48 @@ TEST_CASE("Iterum_EditorScreenshots", "[.][screenshots]") {
     // No CoUninitialize: VSTGUI's platform factory keeps its WIC factory until VSTGUI::exit at process exit, and
     // releasing it after COM is torn down crashes.
     std::cout << kModeNames.size() << " shots written to " << dir.string() << '\n';
+}
+
+// The krateaudio.com images (hero.png, og-image.png, card.png; tests/test_helpers/editor_screenshot.h): the editor in
+// Tape mode at its defaults. Iterum has no manual, so these are all it commits.
+// Regenerate: node tools/gen-screenshots.js iterum   (writes plugins/iterum/images/)
+TEST_CASE("Iterum_SiteScreenshots", "[.][screenshots][site]") {
+    namespace Shots = ::Krate::TestSupport::Screenshots;
+    REQUIRE(Shots::initPlatformForShots());
+    const std::filesystem::path dir = shotsDir();
+
+    auto controller = Steinberg::owned(new Iterum::Controller());
+    REQUIRE(controller->initialize(nullptr) == Steinberg::kResultOk);
+    {
+        Krate::TestSupport::ensureVstguiInitialized();
+        const std::string uidescPath = std::string(ITERUM_RESOURCES_DIR) + "/editor.uidesc";
+        auto* editor = new VSTGUI::VST3Editor(controller.get(), "Editor", uidescPath.c_str());
+        Steinberg::IPlugView* view = editor;
+        REQUIRE(view->attached(nullptr, Krate::TestSupport::nativePlatformType()) == Steinberg::kResultTrue);
+        VSTGUI::CFrame* frame = editor->getFrame();
+        REQUIRE(frame != nullptr);
+        VSTGUI::CViewContainer* root = frame->getView(0) != nullptr ? frame->getView(0)->asViewContainer() : nullptr;
+        REQUIRE(root != nullptr);
+        if (!root->isAttached()) {
+            root->attached(frame);
+        }
+        Steinberg::UpdateHandler::instance()->triggerDeferedUpdates();
+        VSTGUI::UIViewSwitchContainer* panels = findSwitchContainer(frame);
+        REQUIRE(panels != nullptr);
+        panels->setAnimationTime(0);
+
+        VSTGUI::CControl* modeControl = findTagged(frame, Iterum::kModeId);
+        REQUIRE(modeControl != nullptr);
+        constexpr float kLastMode = static_cast<float>(static_cast<int>(Iterum::DelayMode::NumModes) - 1);
+        modeControl->setValueNormalized(static_cast<float>(static_cast<int>(Iterum::DelayMode::Tape)) / kLastMode);
+        modeControl->valueChanged();
+        Steinberg::UpdateHandler::instance()->triggerDeferedUpdates();
+
+        CHECK(Shots::writeSiteShots(root, dir) == 3);
+
+        view->removed();
+        view->release();
+    }
+    REQUIRE(controller->terminate() == Steinberg::kResultOk);
+    std::cout << "3 shots written to " << dir.string() << '\n';
 }

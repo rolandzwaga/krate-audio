@@ -74,6 +74,8 @@ const LINTS = [
     { script: 'tsan-scope.js', args: ['--check'], what: 'threaded test file in no executable (the TSan nightly cannot run it)' },
     { script: 'lint-workflow-triggers.js', args: ['--self-test'], what: 'workflow-trigger lint self-test' },
     { script: 'lint-workflow-triggers.js', what: 'workflow run twice per PR commit, without a concurrency group, or cancelling its own callers' },
+    { script: 'lint-site-seo.js', args: ['--self-test'], what: 'krateaudio.com SEO lint self-test (site.yml)' },
+    { script: 'lint-site-seo.js', what: 'a krateaudio.com page without its title, description, canonical, social card or sitemap entry' },
 ];
 
 // Node test suites of the other workflows (2026-11-13: an action-pin commit edited .github/workflows/*.yml and the PR
@@ -87,6 +89,8 @@ const NODE_SUITES = [
       args: ['--test', '--test-reporter=dot', 'tools/feed-contract/tests/*.test.js'] },
     { workflow: 'manager-ci.yml', cwd: 'apps/krate-manager', deps: ['apps/krate-manager'],
       args: ['--test', '--test-reporter=dot', 'scripts/*.test.js'] },
+    { workflow: 'site.yml', cwd: '.', deps: [],
+      args: ['--test', '--test-reporter=dot', 'tools/site/tests/*.test.js'] },
 ];
 
 // rustfmt checks of the workflows (2026-11-14: a harness edit passed clippy and every test locally, then manager-ci.yml's

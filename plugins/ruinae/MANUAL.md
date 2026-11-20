@@ -1,7 +1,7 @@
 # Ruinae — User Manual
 
 <!-- IMG-01: Full screenshot of Ruinae with the Sound tab active, showing the complete plugin window -->
-![Ruinae Overview](images/IMG-01.png)
+![Ruinae Overview](images/hero.png)
 
 ## Introduction
 
@@ -13,7 +13,7 @@ The interface is organized into four tabs:
 
 - **SOUND** — Oscillators, mixer, filter, distortion, envelopes, and master controls
 - **MOD** — Modulation sources (LFOs, chaos, macros, and more) and an 8-slot modulation matrix
-- **FX** — Phaser, delay, harmonizer, reverb, and a global filter
+- **FX** — Modulation (phaser, flanger or chorus), delay, harmonizer, reverb, and a global filter
 - **SEQ** — Trance gate and a full-featured 32-step arpeggiator
 
 ### Quick Start
@@ -40,7 +40,7 @@ Per Voice:
 
 Global:
   All Voices ──> Stereo Pan + Sum ──> Stereo Width ──> Global Filter
-    ──> Phaser ──> Delay ──> Harmonizer ──> Reverb
+    ──> Modulation ──> Delay ──> Harmonizer ──> Reverb
     ──> Master Gain ──> Soft Limiter ──> Output
 ```
 
@@ -51,7 +51,7 @@ Each voice produces a mono signal. Voices are panned and summed to stereo, then 
 ## Top Bar
 
 <!-- IMG-02: Close-up of the top bar showing the plugin title, tab selector, preset controls, and settings gear -->
-![Top Bar](images/IMG-02.png)
+![Top Bar](images/top-bar.png)
 
 The top bar is always visible regardless of which tab is active.
 
@@ -69,14 +69,14 @@ The top bar is always visible regardless of which tab is active.
 The Sound tab is where you build the fundamental timbre. It's divided into three rows: sound sources (oscillators and mixer), timbre shaping (filter and distortion), and dynamics (envelopes).
 
 <!-- IMG-03: Full screenshot of the Sound tab showing all three rows -->
-![Sound Tab](images/IMG-03.png)
+![Sound Tab](images/sound-tab.png)
 
 ---
 
 ### OSC A
 
 <!-- IMG-04: Close-up of the OSC A container, showing the type selector, main knobs, and type-specific parameter area -->
-![OSC A](images/IMG-04.png)
+![OSC A](images/osc-a.png)
 
 OSC A is the first of two oscillators in each voice. It provides ten synthesis types, each with its own character and set of controls.
 
@@ -202,7 +202,7 @@ Generates various colors of noise, useful as a sound source for percussive textu
 ### Spectral Morph
 
 <!-- IMG-05: Close-up of the Spectral Morph container, showing the XY morph pad with the blue-to-orange gradient, mode dropdown, and shift knob -->
-![Spectral Morph](images/IMG-05.png)
+![Spectral Morph](images/spectral-morph.png)
 
 The Spectral Morph section sits between the two oscillators and controls how they are blended together. This is where Ruinae's hybrid character really shines.
 
@@ -229,7 +229,7 @@ Click and drag anywhere on the pad to set both parameters simultaneously. The gr
 ### OSC B
 
 <!-- IMG-06: Close-up of the OSC B container (can be omitted if the layout is identical to OSC A — reference the OSC A screenshot instead) -->
-![OSC B](images/IMG-06.png)
+![OSC B](images/osc-b.png)
 
 OSC B is identical in structure to OSC A — it has the same ten synthesis types and the same common controls (Tune, Detune, Level, Phase). The two oscillators are independent: you can use the same type on both or mix completely different synthesis methods.
 
@@ -240,7 +240,7 @@ OSC B is identical in structure to OSC A — it has the same ten synthesis types
 ### Master
 
 <!-- IMG-07: Close-up of the Master container, showing the voice mode dropdown, output/width/spread knobs, and soft limit toggle -->
-![Master](images/IMG-07.png)
+![Master](images/master.png)
 
 The Master section controls global voice behavior and output characteristics.
 
@@ -276,7 +276,7 @@ When Mono mode is selected, additional controls appear:
 ### Filter
 
 <!-- IMG-08: Close-up of the Filter container, showing the filter type dropdown, the general/type-specific toggle, and the parameter area. Show the General view. -->
-![Filter](images/IMG-08.png)
+![Filter](images/filter.png)
 
 The filter shapes the timbre of each voice after the oscillators are mixed. Six filter types are available, each with shared "general" parameters and type-specific controls.
 
@@ -353,7 +353,7 @@ A resonant filter pushed into self-oscillation — it generates its own pitched 
 ### Distortion
 
 <!-- IMG-09: Close-up of the Distortion container, showing the type dropdown, general/type-specific toggle, and parameter area. Show the General view. -->
-![Distortion](images/IMG-09.png)
+![Distortion](images/distortion.png)
 
 The distortion stage comes after the filter in each voice's signal path. Seven distortion types range from subtle warmth to extreme spectral destruction.
 
@@ -439,7 +439,7 @@ Ring modulation multiplies the signal with an internal oscillator, creating sum 
 ### Envelopes
 
 <!-- IMG-10: Close-up of the Envelopes row showing all three envelope displays (AMP, FILTER, MOD) side by side with their ADSR knobs -->
-![Envelopes](images/IMG-10.png)
+![Envelopes](images/envelopes.png)
 
 Three ADSR envelopes control the dynamics and modulation of each voice. Each envelope has the same set of controls but serves a different purpose:
 
@@ -469,21 +469,21 @@ Each envelope also supports **curve shaping** for the attack, decay, and release
 The Mod tab is where you bring your sound to life with movement and variation. The left side houses ten different modulation sources, and the right side provides an 8-slot modulation matrix for routing those sources to destinations throughout the synth.
 
 <!-- IMG-11: Full screenshot of the Mod tab showing the modulation sources panel on the left and the modulation matrix on the right -->
-![Mod Tab](images/IMG-11.png)
+![Mod Tab](images/mod-tab.png)
 
 ---
 
 ### Modulation Sources
 
 <!-- IMG-12: Close-up of the Modulation Sources container with the source selector dropdown open, showing the list of available sources -->
-![Modulation Sources](images/IMG-12.png)
+![Modulation Sources, LFO 1 selected](images/mod-lfo.png)
 
 Select a modulation source from the dropdown to view and edit its parameters. Each source generates a control signal that can be routed to any destination via the modulation matrix.
 
 #### LFO 1 & LFO 2
 
 <!-- IMG-13: Close-up of the LFO source view showing rate, shape, and other controls -->
-![LFO](images/IMG-13.png)
+![LFO 2](images/mod-lfo-2.png)
 
 Two independent low-frequency oscillators for cyclic modulation (vibrato, tremolo, filter sweeps, etc.).
 
@@ -504,7 +504,7 @@ Two independent low-frequency oscillators for cyclic modulation (vibrato, tremol
 #### Chaos Mod
 
 <!-- IMG-14: Close-up of the Chaos modulation source view -->
-![Chaos Mod](images/IMG-14.png)
+![Chaos Mod](images/mod-chaos.png)
 
 A modulation source driven by a chaotic attractor system, producing complex, non-repeating patterns that are more organic than LFOs but more structured than random.
 
@@ -519,7 +519,7 @@ A modulation source driven by a chaotic attractor system, producing complex, non
 #### Macros
 
 <!-- IMG-15: Close-up of the Macros source view showing the four macro knobs -->
-![Macros](images/IMG-15.png)
+![Macros](images/mod-macros.png)
 
 Four user-assignable macro knobs that provide direct, hands-on control. Assign a macro as a modulation source in the matrix, then use the knob to manually sweep the modulation amount in real time. Great for performance control and MIDI CC mapping.
 
@@ -530,7 +530,7 @@ Four user-assignable macro knobs that provide direct, hands-on control. Assign a
 #### Rungler
 
 <!-- IMG-16: Close-up of the Rungler source view -->
-![Rungler](images/IMG-16.png)
+![Rungler](images/mod-rungler.png)
 
 Inspired by the Benjolin circuit, the Rungler is a shift-register based pattern generator that produces semi-random, repeating stepped patterns. It uses two internal oscillators whose interaction feeds a digital shift register.
 
@@ -546,7 +546,7 @@ Inspired by the Benjolin circuit, the Rungler is a shift-register based pattern 
 #### Envelope Follower
 
 <!-- IMG-17: Close-up of the Envelope Follower source view -->
-![Envelope Follower](images/IMG-17.png)
+![Envelope Follower](images/mod-env-follower.png)
 
 Tracks the amplitude of the audio input signal and converts it to a modulation signal. Useful for making parameters respond to playing dynamics.
 
@@ -559,7 +559,7 @@ Tracks the amplitude of the audio input signal and converts it to a modulation s
 #### Sample & Hold
 
 <!-- IMG-18: Close-up of the Sample & Hold source view -->
-![Sample & Hold](images/IMG-18.png)
+![Sample & Hold](images/mod-sample-hold.png)
 
 Periodically samples a random value and holds it until the next sample, creating stepped random modulation.
 
@@ -573,7 +573,7 @@ Periodically samples a random value and holds it until the next sample, creating
 #### Random
 
 <!-- IMG-19: Close-up of the Random source view -->
-![Random](images/IMG-19.png)
+![Random](images/mod-random.png)
 
 Generates continuous random modulation, either smooth or stepped.
 
@@ -587,7 +587,7 @@ Generates continuous random modulation, either smooth or stepped.
 #### Pitch Follower
 
 <!-- IMG-20: Close-up of the Pitch Follower source view -->
-![Pitch Follower](images/IMG-20.png)
+![Pitch Follower](images/mod-pitch-follower.png)
 
 Tracks the pitch of the input signal and converts it to a modulation signal. This allows parameters to respond to what notes are being played.
 
@@ -601,7 +601,7 @@ Tracks the pitch of the input signal and converts it to a modulation signal. Thi
 #### Transient Detector
 
 <!-- IMG-21: Close-up of the Transient Detector source view -->
-![Transient Detector](images/IMG-21.png)
+![Transient Detector](images/mod-transient.png)
 
 Detects transient attacks in the signal and generates a trigger/envelope in response. Useful for making parameters respond to rhythmic articulation.
 
@@ -616,7 +616,7 @@ Detects transient attacks in the signal and generates a trigger/envelope in resp
 ### Modulation Matrix
 
 <!-- IMG-22: Close-up of the Modulation Configuration panel showing the 8-slot matrix with source, destination, and amount columns. Show at least 2-3 slots with active routings. -->
-![Modulation Matrix](images/IMG-22.png)
+![Modulation Matrix](images/mod-matrix.png)
 
 The modulation matrix provides 8 independent routing slots. Each slot connects one source to one destination with a configurable amount.
 
@@ -647,7 +647,7 @@ Global destinations: Global Filter Cutoff/Resonance, Master Volume, Effect Mix, 
 ### Mod Heatmap
 
 <!-- IMG-23: Close-up of the Mod Heatmap at the bottom of the Mod tab, ideally with some active modulation routing so the heatmap shows activity -->
-![Mod Heatmap](images/IMG-23.png)
+![Mod Heatmap](images/mod-heatmap.png)
 
 The mod heatmap at the bottom of the tab provides a visual overview of all active modulation routing. Brighter cells indicate stronger modulation. This helps you quickly see which parameters are being modulated and by how much.
 
@@ -655,17 +655,17 @@ The mod heatmap at the bottom of the tab provides a visual overview of all activ
 
 ## FX Tab
 
-The FX tab contains the global effects chain that processes the summed output of all voices. Effects are processed in a fixed order: Phaser → Delay → Harmonizer → Reverb. Each effect can be independently enabled or bypassed.
+The FX tab contains the global effects chain that processes the summed output of all voices. Effects are processed in a fixed order: Modulation → Delay → Harmonizer → Reverb. Each effect can be independently enabled or bypassed.
 
 <!-- IMG-24: Full screenshot of the FX tab showing all four effect sections and the global filter strip at the top -->
-![FX Tab](images/IMG-24.png)
+![FX Tab](images/fx-tab.png)
 
 ---
 
 ### Global Filter
 
 <!-- IMG-25: Close-up of the global filter strip at the top of the FX tab -->
-![Global Filter](images/IMG-25.png)
+![Global Filter](images/global-filter.png)
 
 A stereo filter applied to the summed voice output before the effects chain. Useful for broad tonal shaping or as a modulation target for sweeping the entire mix.
 
@@ -678,33 +678,70 @@ A stereo filter applied to the summed voice output before the effects chain. Use
 
 ---
 
-### Phaser
+### Modulation
 
-<!-- IMG-26: Close-up of the Phaser section -->
-![Phaser](images/IMG-26.png)
+The MODULATION panel holds one modulation effect at a time. The selector at its top left (the Modulation Type parameter) chooses **None** (the panel is bypassed), **Phaser**, **Flanger** or **Chorus**, and the controls below it change to match. Switching type crossfades between the old and the new effect, so it does not click. Each type keeps its own settings, so switching back restores them.
 
-A stereo phaser effect that creates sweeping notches in the frequency spectrum through a series of all-pass filter stages.
+#### Phaser
+
+![Modulation panel set to Phaser](images/modulation-phaser.png)
+
+A stereo phaser that sweeps notches through the spectrum with a chain of all-pass filter stages.
 
 | Control | Description |
 |---------|-------------|
-| **Enable** | Toggle phaser on/off |
-| **Mix** | Dry/wet blend |
-| **Rate** | Sweep speed (0.01–20 Hz), or tempo-synced |
-| **Sync** | Lock rate to host tempo |
+| **Rate** | Sweep speed (0.01–20 Hz) |
+| **Sync** | Lock the rate to host tempo |
 | **Note Value** | Tempo division when synced |
 | **Depth** | Sweep range |
-| **Feedback** | Signal fed back through the phaser stages — higher values create a more resonant, intense effect |
-| **Stages** | Number of all-pass filter stages (2, 4, 6, 8, 10, or 12). More stages = more notches = more complex character. |
-| **Center Freq** | Center frequency of the sweep range |
-| **Stereo Spread** | Phase offset between left and right channels for stereo width |
-| **Waveform** | LFO shape: Sine, Triangle, Square, or Sawtooth |
+| **Feedback** | Signal fed back through the stages (−1 to +1); higher amounts give a more resonant, intense sweep |
+| **Mix** | Dry/wet blend |
+| **Stages** | Number of all-pass stages: 2, 4, 6, 8, 10 or 12. More stages give more notches and a denser character. |
+| **Center Freq** | Centre of the sweep range (100 Hz–10 kHz) |
+| **Spread** | Phase offset between left and right sweeps (0–360°), for stereo width |
+| **Waveform** | Sweep shape: Sine, Triangle, Sawtooth or Square |
+
+#### Flanger
+
+![Modulation panel set to Flanger](images/modulation-flanger.png)
+
+A stereo flanger: a short, swept delay mixed with the dry signal, giving the jet-like comb sweep.
+
+| Control | Description |
+|---------|-------------|
+| **Rate** | Sweep speed (0.05–5 Hz) |
+| **Sync** | Lock the rate to host tempo |
+| **Note Value** | Tempo division when synced |
+| **Depth** | Sweep range |
+| **Feedback** | Signal fed back into the delay (−1 to +1); negative and positive values give different comb colours |
+| **Mix** | Dry/wet crossfade |
+| **Spread** | Phase offset between left and right sweeps (0–360°) |
+| **Waveform** | Sweep shape: Sine or Triangle |
+
+#### Chorus
+
+![Modulation panel set to Chorus](images/modulation-chorus.png)
+
+A stereo chorus: several slowly modulated delay voices that thicken and widen the sound.
+
+| Control | Description |
+|---------|-------------|
+| **Rate** | Modulation speed (0.05–10 Hz) |
+| **Sync** | Lock the rate to host tempo |
+| **Note Value** | Tempo division when synced |
+| **Depth** | Modulation amount |
+| **Feedback** | Signal fed back into the voices (−1 to +1) |
+| **Mix** | Dry/wet blend |
+| **Spread** | Phase offset between left and right (0–360°) |
+| **Voices** | Number of chorus voices: 1 to 4 |
+| **Waveform** | Modulation shape: Sine or Triangle |
 
 ---
 
 ### Delay
 
 <!-- IMG-27: Close-up of the Delay section showing the type dropdown and common controls. Show one of the type-specific views (e.g., Tape) -->
-![Delay](images/IMG-27.png)
+![Delay, Ping Pong type](images/delay-ping-pong.png)
 
 A versatile delay effect with five distinct delay types, each with its own character and controls.
 
@@ -725,7 +762,7 @@ A versatile delay effect with five distinct delay types, each with its own chara
 ##### Digital
 
 <!-- IMG-28: Close-up of the Digital delay type-specific controls (switch to type-specific view) -->
-![Digital Delay](images/IMG-28.png)
+![Digital Delay](images/delay-digital.png)
 
 A clean or characterful digital delay with optional modulation and waveshaping in the feedback path.
 
@@ -745,7 +782,7 @@ A clean or characterful digital delay with optional modulation and waveshaping i
 ##### Tape
 
 <!-- IMG-29: Close-up of the Tape delay type-specific controls showing the three tape head controls -->
-![Tape Delay](images/IMG-29.png)
+![Tape Delay](images/delay-tape.png)
 
 Models the warm, wobbly character of analog tape echo machines with three independent playback heads.
 
@@ -781,7 +818,7 @@ A stereo ping-pong delay that bounces the signal between left and right channels
 ##### Granular
 
 <!-- IMG-30: Close-up of the Granular delay type-specific controls -->
-![Granular Delay](images/IMG-30.png)
+![Granular Delay](images/delay-granular.png)
 
 A granular delay that chops the delayed signal into grains and reassembles them, allowing for pitch-shifting, time-stretching, and textural effects in the delay path.
 
@@ -804,7 +841,7 @@ A granular delay that chops the delayed signal into grains and reassembles them,
 ##### Spectral
 
 <!-- IMG-31: Close-up of the Spectral delay type-specific controls -->
-![Spectral Delay](images/IMG-31.png)
+![Spectral Delay](images/delay-spectral.png)
 
 An FFT-based delay that operates in the frequency domain, allowing different frequency bands to be delayed by different amounts.
 
@@ -824,7 +861,7 @@ An FFT-based delay that operates in the frequency domain, allowing different fre
 ### Harmonizer
 
 <!-- IMG-32: Close-up of the Harmonizer section showing the global controls and per-voice harmony settings -->
-![Harmonizer](images/IMG-32.png)
+![Harmonizer](images/harmonizer.png)
 
 A polyphonic pitch-shifting harmonizer that adds up to four harmony voices to the signal, with optional formant preservation.
 
@@ -861,7 +898,7 @@ Each of the four harmony voices has:
 ### Reverb
 
 <!-- IMG-33: Close-up of the Reverb section showing type selector and all knobs -->
-![Reverb](images/IMG-33.png)
+![Reverb](images/reverb.png)
 
 A stereo reverb with two algorithm types for spatial processing.
 
@@ -886,14 +923,14 @@ A stereo reverb with two algorithm types for spatial processing.
 The SEQ tab contains two rhythm/pattern tools: the Trance Gate (a rhythmic amplitude gate) and the Arpeggiator (a full-featured step sequencer and note generator).
 
 <!-- IMG-34: Full screenshot of the SEQ tab showing the Trance Gate at the top and the Arpeggiator below -->
-![SEQ Tab](images/IMG-34.png)
+![SEQ Tab](images/seq-tab.png)
 
 ---
 
 ### Trance Gate
 
 <!-- IMG-35: Close-up of the Trance Gate section showing the step pattern editor, controls, and euclidean options -->
-![Trance Gate](images/IMG-35.png)
+![Trance Gate](images/trance-gate.png)
 
 The Trance Gate is a rhythmic volume gate applied to each voice. It modulates the amplitude in a repeating step pattern, creating rhythmic chopping, stutter, and gating effects.
 
@@ -943,7 +980,7 @@ Enable the Euclidean toggle for algorithmically generated patterns based on Eucl
 ### Arpeggiator
 
 <!-- IMG-36: Close-up of the Arpeggiator controls row (top area) showing the mode, octave, latch, and other dropdowns -->
-![Arpeggiator Controls](images/IMG-36.png)
+![Arpeggiator Controls](images/arpeggiator.png)
 
 The Arpeggiator is a comprehensive step sequencer that can generate note patterns from held chords, modulate parameters, or both simultaneously. It features 32 steps with multiple independent lanes for detailed per-step control.
 
@@ -999,7 +1036,7 @@ The Arpeggiator is a comprehensive step sequencer that can generate note pattern
 ### Step Lanes
 
 <!-- IMG-37: Close-up of the arpeggiator step lanes showing at least the velocity and pitch lanes with visible step data -->
-![Arpeggiator Step Lanes](images/IMG-37.png)
+![Arpeggiator Step Lanes](images/arp-step-lanes.png)
 
 The arpeggiator's power comes from its multiple independent step lanes. Each lane has up to 32 steps and can have its own independent length, creating polymetric patterns when lanes have different lengths.
 
@@ -1047,7 +1084,7 @@ Per-step chord type. Each step can trigger a chord instead of a single note: Non
 ## Settings
 
 <!-- IMG-38: Screenshot of the settings drawer slid open from the right side of the plugin -->
-![Settings Drawer](images/IMG-38.png)
+![Settings Drawer](images/settings-drawer.png)
 
 Access the settings drawer by clicking the gear icon in the top bar. These settings affect the plugin's global behavior.
 

@@ -375,7 +375,7 @@ TEST_CASE("Controller rejects out-of-range state version like the processor",
     auto* stream = new MemoryStream();
     {
         IBStreamer writer(stream, kLittleEndian);
-        writer.writeInt32(4);          // out of the accepted {2, 3} range
+        writer.writeInt32(4);          // out of the accepted {1, 2, 3} range
         for (int i = 0; i < 256; ++i) {
             writer.writeFloat(0.123f); // payload the controller must not apply
         }

@@ -20,6 +20,8 @@ Gradus outputs standard MIDI events, so it can drive any instrument in your DAW.
 
 ## Interface Overview
 
+![The Gradus editor](images/hero.png)
+
 The interface is organized into three zones:
 
 - **Control Rows** (top) — Global arp parameters: pattern mode, octave range, tempo sync, rate, gate length, swing, Euclidean settings, scale quantization, and generative controls
@@ -29,6 +31,8 @@ The interface is organized into three zones:
 ---
 
 ## Control Row 1
+
+![Control row 1](images/control-row-1.png)
 
 The first control row holds the core arp settings:
 
@@ -45,6 +49,8 @@ The first control row holds the core arp settings:
 ---
 
 ## Control Row 2
+
+![Control row 2: timing, Euclidean and generative controls](images/control-row-2.png)
 
 The second control row holds timing and generative controls:
 
@@ -92,6 +98,8 @@ Gradus offers 12 arpeggiator modes that determine the order in which held notes 
 
 ## Ring Display
 
+![The ring display](images/ring-display.png)
+
 The circular ring display provides a visual overview of all 9 lanes simultaneously. Steps are arranged radially around concentric rings:
 
 - **Outer ring** — Velocity (copper) + Gate (sand)
@@ -116,9 +124,13 @@ When Euclidean mode is enabled, a dot pattern in the center of the ring shows th
 
 ## Detail Strip
 
+![The detail strip on the Velocity lane](images/lane-velocity.png)
+
 The detail strip on the right side provides precise linear editing for one lane at a time.
 
 ### Lane Tabs
+
+![The detail strip on the Chord lane](images/lane-chord.png)
 
 Nine color-coded tabs select the active lane:
 - **VEL** (copper) — Velocity per step (0-100%)
@@ -136,6 +148,8 @@ Nine color-coded tabs select the active lane:
 Each lane editor shows a bar chart of step values. Click and drag to edit values. The lane header shows the lane name, step count (adjustable 1-32), and speed multiplier.
 
 ### Per-Lane Controls
+
+![The detail strip on the Ratchet lane](images/lane-ratchet.png)
 
 When a lane tab is selected, contextual controls appear:
 
@@ -201,6 +215,8 @@ The speed curve uses a center+offset model:
 
 ## Step Pinning
 
+![The Pitch lane with the pin grid and note-range controls](images/lane-pitch.png)
+
 Step Pinning lets you lock specific steps to a fixed MIDI note, creating pedal tones, drone notes, or anchor points within moving patterns.
 
 ### Pin Grid
@@ -230,6 +246,8 @@ Constrains all output notes to a MIDI note range:
 ---
 
 ## MIDI Delay Lane
+
+![The MIDI Delay lane](images/lane-midi-delay.png)
 
 The MIDI Delay lane is a per-step echo post-processor that generates delayed copies of arp output notes as real MIDI events. Unlike audio delay effects, MIDI delays produce new note-on/off messages — meaning the echoes play through your instrument with full voice allocation, polyphony, and per-note processing.
 
@@ -300,6 +318,8 @@ Rows are automatically normalized at sample time, so you don't need to manually 
 ---
 
 ## Audition Synth
+
+![The audition synth footer](images/audition.png)
 
 Gradus includes a lightweight built-in synthesizer for previewing patterns without routing to an external instrument. The audition synth defaults to off and is session-only — its settings are not saved in presets.
 

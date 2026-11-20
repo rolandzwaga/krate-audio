@@ -175,6 +175,7 @@ add_executable(innexus_tests
 
     # Editor open/close lifecycle regression (willClose UAF guard)
     unit/controller/editor_lifecycle_test.cpp
+    unit/controller/editor_screenshot_test.cpp
 
     # UI custom view implementations (needed by controller tests)
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/views/harmonic_display_view.cpp

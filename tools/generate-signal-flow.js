@@ -1,39 +1,67 @@
-#!/usr/bin/env node
 // generate-signal-flow.js
-// Reads a Graphviz .dot file and produces a self-contained HTML page
-// that renders it client-side using @viz-js/viz (WebAssembly Graphviz).
+// Renders a plugin's signal-flow page (krateaudio.com/<plugin>/signal-flow.html) from its Graphviz .dot source.
+// tools/gen-site.js calls renderSignalFlowPage() for every plugin with a plugins/<dir>/docs/<dir>_signal_flow.dot.
 //
-// Usage: node tools/generate-signal-flow.js <input.dot> <output.html>
+// With `svg` (the diagram pre-rendered at build time by @viz-js/viz) the page ships the diagram as inline SVG, so its
+// stage names are page text and no WebAssembly loads in the browser; without it the page renders the .dot client-side
+// with @viz-js/viz from the CDN, as it did before the site generator existed.
 
-const fs = require("fs");
-const path = require("path");
+"use strict";
 
-const [inputPath, outputPath] = process.argv.slice(2);
-
-if (!inputPath || !outputPath) {
-  console.error("Usage: node generate-signal-flow.js <input.dot> <output.html>");
-  process.exit(1);
+function escapeHtml(text) {
+  return String(text).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
-const dotSource = fs.readFileSync(inputPath, "utf-8");
+/**
+ * The page's HTML.
+ *   pluginName   "Ruinae"
+ *   description  the meta description (also shown under the heading)
+ *   canonical    the page's absolute URL
+ *   headCommon   the shared <head> block (tools/site/common.js headCommon())
+ *   dotSource    the .dot text
+ *   svg          the pre-rendered diagram, or null to render in the browser
+ *   hasManual    whether the plugin has a manual.html beside this page to link to
+ */
+function renderSignalFlowPage({ pluginName, description, canonical, headCommon, dotSource, svg, hasManual }) {
+  const name = escapeHtml(pluginName);
+  const title = `${name} Signal Flow Diagram | Krate Audio`;
+  const desc = escapeHtml(description);
+  // Escape backticks, backslashes and "${" for embedding the .dot source in a JS template literal.
+  const escapedDot = dotSource.replace(/\\/g, "\\\\").replace(/`/g, "\\`").replace(/\$/g, "\\$");
+  const render = svg
+    ? `        const svg = diagramEl.querySelector("svg");
+        svg.style.width = "auto";
+        svg.style.height = "auto";
+        loadingEl.style.display = "none";
+        fitToScreen();`
+    : `        try {
+            const { instance } = await import("https://cdn.jsdelivr.net/npm/@viz-js/viz@3.11.0/+esm");
+            const viz = await instance();
+            const svg = viz.renderSVGElement(\`${escapedDot}\`);
+            svg.style.width = "auto";
+            svg.style.height = "auto";
+            loadingEl.style.display = "none";
+            diagramEl.appendChild(svg);
+            fitToScreen();
+        } catch (err) {
+            loadingEl.style.display = "none";
+            errorEl.style.display = "block";
+            errorEl.textContent = "Failed to render diagram: " + err.message;
+        }`;
 
-// Derive plugin name from input path (e.g., "plugins/ruinae/docs/ruinae_signal_flow.dot" → "Ruinae")
-const inputBasename = path.basename(inputPath, ".dot"); // "ruinae_signal_flow"
-const pluginSlug = inputBasename.replace(/_signal_flow$/, ""); // "ruinae"
-const pluginName = pluginSlug.charAt(0).toUpperCase() + pluginSlug.slice(1); // "Ruinae"
-
-// Escape backticks and backslashes for embedding in a JS template literal
-const escapedDot = dotSource.replace(/\\/g, "\\\\").replace(/`/g, "\\`").replace(/\$/g, "\\$");
-
-const html = `<!DOCTYPE html>
+  return `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>${pluginName} - Signal Flow Diagram</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <title>${title}</title>
+    <meta name="description" content="${desc}">
+    <link rel="canonical" href="${escapeHtml(canonical)}">
+    <meta property="og:title" content="${name} Signal Flow Diagram">
+    <meta property="og:description" content="${desc}">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="${escapeHtml(canonical)}">
+${headCommon}
     <style>
         :root {
             --color-bg: #0a0a0f;
@@ -58,16 +86,14 @@ const html = `<!DOCTYPE html>
         }
 
         .header {
-            padding: 1.5rem 2rem;
+            padding: 1.25rem 2rem;
             border-bottom: 1px solid var(--color-border);
-            display: flex;
-            align-items: center;
-            gap: 1.5rem;
             flex-shrink: 0;
         }
 
         .breadcrumb {
             font-size: 0.875rem;
+            margin-bottom: 0.25rem;
         }
 
         .breadcrumb a {
@@ -92,6 +118,16 @@ const html = `<!DOCTYPE html>
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
+        }
+
+        .intro {
+            color: var(--color-text-muted);
+            font-size: 0.9rem;
+            max-width: 70ch;
+        }
+
+        .intro a {
+            color: var(--color-accent-hover);
         }
 
         .toolbar {
@@ -129,6 +165,7 @@ const html = `<!DOCTYPE html>
 
         #diagram-container {
             flex: 1;
+            min-height: 60vh;
             overflow: hidden;
             position: relative;
             cursor: grab;
@@ -164,7 +201,7 @@ const html = `<!DOCTYPE html>
         }
 
         @media (max-width: 640px) {
-            .header { padding: 1rem; gap: 1rem; }
+            .header { padding: 1rem; }
             .toolbar { padding: 0.5rem 1rem; }
             h1 { font-size: 1.25rem; }
         }
@@ -173,10 +210,13 @@ const html = `<!DOCTYPE html>
 <body>
     <div class="header">
         <nav class="breadcrumb">
-            <a href="./">${pluginName}</a>
+            <a href="/">Krate Audio</a>
+            <span class="separator">/</span>
+            <a href="./">${name}</a>
             <span class="separator">/</span>
         </nav>
-        <h1>Signal Flow Diagram</h1>
+        <h1>${name} Signal Flow</h1>
+        <p class="intro">${desc} Drag to pan, scroll to zoom.${hasManual ? ' The <a href="manual.html">user manual</a> explains each stage.' : ""}</p>
     </div>
 
     <div class="toolbar">
@@ -190,14 +230,10 @@ const html = `<!DOCTYPE html>
     <div id="diagram-container">
         <div id="loading">Loading diagram&hellip;</div>
         <div id="error"></div>
-        <div id="diagram"></div>
+        <div id="diagram">${svg ?? ""}</div>
     </div>
 
     <script type="module">
-        import { instance } from "https://cdn.jsdelivr.net/npm/@viz-js/viz@3.11.0/+esm";
-
-        const dotSource = \`${escapedDot}\`;
-
         const container = document.getElementById("diagram-container");
         const diagramEl = document.getElementById("diagram");
         const loadingEl = document.getElementById("loading");
@@ -296,27 +332,11 @@ const html = `<!DOCTYPE html>
         container.addEventListener("touchend", () => { lastTouch = null; });
 
         // Render
-        try {
-            const viz = await instance();
-            const svg = viz.renderSVGElement(dotSource);
-            svg.style.width = "auto";
-            svg.style.height = "auto";
-            loadingEl.style.display = "none";
-            diagramEl.appendChild(svg);
-            fitToScreen();
-        } catch (err) {
-            loadingEl.style.display = "none";
-            errorEl.style.display = "block";
-            errorEl.textContent = "Failed to render diagram: " + err.message;
-        }
+${render}
     </script>
 </body>
 </html>
 `;
+}
 
-// Ensure output directory exists
-const outDir = path.dirname(outputPath);
-fs.mkdirSync(outDir, { recursive: true });
-
-fs.writeFileSync(outputPath, html, "utf-8");
-console.log(`Generated: ${outputPath}`);
+module.exports = { renderSignalFlowPage };

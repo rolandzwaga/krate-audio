@@ -26,6 +26,9 @@ add_executable(gradus_tests
     # State v2 -> v3 migration tests (spec 142)
     unit/vst/state_v2_v3_migration_test.cpp
 
+    # Factory presets and v1 state streams load (1.10.5)
+    unit/vst/factory_preset_load_test.cpp
+
     # Sequencer Note lane (lane 10) tests (spec 142, Phase 3)
     unit/processor/arpeggiator_core_sequencer_test.cpp
     unit/processor/sequencer_polymetric_test.cpp
@@ -78,6 +81,7 @@ add_executable(gradus_tests
 
     # Editor open/close lifecycle regression (willClose UAF guard)
     unit/ui/editor_lifecycle_test.cpp
+    unit/ui/editor_screenshot_test.cpp
 
     # The live update check: banner + manual button views and their uidesc placement
     unit/ui/update_check_test.cpp

@@ -1,48 +1,47 @@
 // ==============================================================================
-// Editor screenshots for the manual (hidden: [.][screenshots]; never a gate)
+// Editor screenshots for the site and the manual (hidden: [.][screenshots][site]; never a gate)
 // ==============================================================================
 // Builds the editor headlessly (HeadlessEditor), loads a factory preset into the controller, and renders the whole
-// editor or one uidesc-labelled section offscreen at 2x into PNG files for MANUAL.md. The images are documentation,
-// not goldens: nothing asserts on pixels.
+// editor or one uidesc-labelled section offscreen at 2x into PNG files for MANUAL.md, plus the site images
+// (hero.png, og-image.png, card.png; tests/test_helpers/editor_screenshot.h). The images are documentation, not
+// goldens: nothing asserts on pixels.
 //
 // Regenerate: node tools/gen-screenshots.js profundum   (writes plugins/profundum/images/)
-// By hand:    profundum_tests.exe "[screenshots]"  with PROFUNDUM_SHOTS_DIR set (default <temp>/profundum-shots)
+// By hand:    profundum_tests.exe "[site]"  with PROFUNDUM_SHOTS_DIR set (default <temp>/profundum-shots)
 //
-// The live harmonic displays stay at rest: no processor feeds them here.
+// The live harmonic displays get one hand-written spectrum frame (an A1 bass note: 24 harmonics and the sub anchor),
+// delivered as the processor's DataExchange frame would be, so they show what they draw while a note plays.
 
 #include "controller/controller.h"
+#include "processor/spectrum_frame.h"
 #include "profundum_preset_host.h"
+#include "ui/harmonic_bar_view.h"
 #include "ui/panel_sub_controller.h"
 #include "ui_tree_helpers.h"
 
+#include <editor_screenshot.h>
+
 #include <base/source/updatehandler.h>
+#include <pluginterfaces/vst/ivstdataexchange.h>
 #include <public.sdk/source/common/memorystream.h>
-#include <vstgui/lib/cbitmap.h>
 #include <vstgui/lib/cframe.h>
-#include <vstgui/lib/coffscreencontext.h>
 #include <vstgui/lib/controls/csegmentbutton.h>
-#include <vstgui/lib/platform/platformfactory.h>
-#include <vstgui/uidescription/viewcreator/viewcreator.h>
 
 #include <catch2/catch_test_macros.hpp>
 
 #include <array>
-#include <cstdlib>
+#include <cmath>
 #include <filesystem>
-#include <fstream>
 #include <iostream>
 #include <string>
 #include <string_view>
 #include <vector>
 
-#if SMTG_OS_WINDOWS
-#include <objbase.h>   // CoInitializeEx: Direct2D offscreen bitmaps are WIC bitmaps, which need COM (a host has it)
-#endif
-
 namespace {
 
 namespace P = ::Profundum;
 namespace Pd = ::Profundum::PresetDefs;
+namespace Shots = ::Krate::TestSupport::Screenshots;
 
 /// One manual image: the preset loaded, the page (0 Main, 1 Advanced) and tab (Advanced: 0 SECTIONS, 1 MODULATION,
 /// 2 SETTINGS) shown, and the uidesc-label of the view cropped ("" = the whole editor).
@@ -80,92 +79,55 @@ constexpr std::array kShots{
     Shot{.file = "adv-settings.png", .preset = kShowcase, .page = 1, .tab = 2, .label = "tab-settings"},
 };
 
-[[nodiscard]] std::filesystem::path shotsDir() {
-    if (const char* dir = std::getenv("PROFUNDUM_SHOTS_DIR"); dir != nullptr && *dir != '\0') {
-        return dir;
+/// One spectrum frame of a driven A1 (55 Hz) note: harmonic n at about 0.6 / n^1.1, odd harmonics a little stronger,
+/// over a centred anchor sine of amplitude 0.5 (power 0.25).
+[[nodiscard]] P::ProfundumSpectrumFrame bassFrame() {
+    P::ProfundumSpectrumFrame f{};
+    f.sequence = 1;
+    f.sampleRate = 48000.0f;
+    f.f0Hz = 55.0f;
+    f.anchorPower = 0.25f;
+    f.windowSamples = 4096;
+    f.numPartials = 24;
+    for (unsigned n = 1; n <= f.numPartials; ++n) {
+        const float amp = (n % 2 == 1 ? 0.6f : 0.45f) / std::pow(static_cast<float>(n), 1.1f);
+        f.partialPower[n - 1] = amp * amp;
     }
-    return std::filesystem::temp_directory_path() / "profundum-shots";
+    f.morphPosition = 0.0f;
+    return f;
 }
 
-[[nodiscard]] std::string labelOf(const VSTGUI::CView* view) {
-    std::uint32_t size = 0;
-    const auto id = VSTGUI::UIViewCreator::ViewCreator::labelAttrID;
-    if (!view->getAttributeSize(id, size) || size == 0) {
-        return {};
-    }
-    std::vector<char> buf(size + 1, '\0');
-    std::uint32_t outSize = 0;
-    if (!view->getAttribute(id, size, buf.data(), outSize)) {
-        return {};
-    }
-    return {buf.data()};
+void deliver(P::Controller& ctl, P::ProfundumSpectrumFrame& frame) {
+    const auto context = static_cast<Steinberg::Vst::DataExchangeUserContextID>(P::kProfundumFrameUserContextId);
+    Steinberg::TBool background = 1;
+    ctl.queueOpened(context, static_cast<Steinberg::uint32>(sizeof(frame)), background);
+    Steinberg::Vst::DataExchangeBlock block{};
+    block.data = &frame;
+    block.size = static_cast<Steinberg::uint32>(sizeof(frame));
+    block.blockID = 0;
+    ctl.onDataExchangeBlocksReceived(context, 1, &block, 0);
 }
 
-/// Finds the uidesc-labelled view under @p container and returns its rectangle in frame coordinates (@p origin = the
-/// container's own offset). The walk carries the offset itself rather than reading parent links.
-[[nodiscard]] bool findLabelled(VSTGUI::CViewContainer* container, std::string_view label, VSTGUI::CPoint origin,
-                                VSTGUI::CRect& out) {
-    bool found = false;
-    container->forEachChild([&](VSTGUI::CView* child) {
-        if (found) {
-            return;
-        }
-        VSTGUI::CRect r = child->getViewSize();
-        r.offset(origin.x, origin.y);
-        if (labelOf(child) == label) {
-            out = r;
-            found = true;
-        } else if (auto* sub = child->asViewContainer()) {
-            found = findLabelled(sub, label, r.getTopLeft(), out);
-        }
-    });
-    return found;
-}
-
-template <typename T>
-[[nodiscard]] T* findTagged(VSTGUI::CViewContainer* container, std::int32_t tag) {
-    T* found = nullptr;
-    container->forEachChild([&](VSTGUI::CView* child) {
-        if (found != nullptr) {
-            return;
-        }
-        if (auto* typed = dynamic_cast<T*>(child); typed != nullptr && typed->getTag() == tag) {
-            found = typed;
-        } else if (auto* sub = child->asViewContainer()) {
-            found = findTagged<T>(sub, tag);
-        }
-    });
-    return found;
+/// Runs one timer tick on every harmonic display, which is when a display takes a new frame (no run loop here).
+void tickDisplays(VSTGUI::CViewContainer* frame) {
+    VSTGUI::CRect unused;
+    static_cast<void>(Shots::findView(
+        frame,
+        [](VSTGUI::CView* v) {
+            if (auto* bars = dynamic_cast<P::UI::HarmonicBarView*>(v)) {
+                bars->onTickForTest(0.0f);
+            }
+            return false;
+        },
+        {0, 0}, unused));
 }
 
 void select(VSTGUI::CViewContainer* frame, std::int32_t stripTag, int segment) {
-    auto* strip = findTagged<VSTGUI::CSegmentButton>(frame, stripTag);
+    auto* strip = Shots::findFirst<VSTGUI::CSegmentButton>(
+        frame, [stripTag](VSTGUI::CSegmentButton* s) { return s->getTag() == stripTag; });
     REQUIRE(strip != nullptr);
     strip->setSelectedSegment(static_cast<std::uint32_t>(segment));
     strip->valueChanged();
-}
-
-/// Renders @p rect of @p root (the editor's 960 x 600 template container, at the frame origin) at @p scale and writes
-/// it as a PNG; returns the byte count written (0 on failure). The root is drawn, not the frame: a headless frame has
-/// no window and reads 0 x 0.
-std::size_t writeShot(VSTGUI::CViewContainer* root, const VSTGUI::CRect& rect, const std::filesystem::path& file,
-                      double scale = 2.0) {
-    auto bitmap = VSTGUI::renderBitmapOffscreen(rect.getSize(), scale, [&](VSTGUI::CDrawContext& ctx) {
-        VSTGUI::CDrawContext::Transform shift(ctx, VSTGUI::CGraphicsTransform().translate(-rect.left, -rect.top));
-        root->drawRect(&ctx, rect);
-    });
-    if (bitmap == nullptr || bitmap->getPlatformBitmap() == nullptr) {
-        return 0;
-    }
-    const VSTGUI::PNGBitmapBuffer png =
-        VSTGUI::getPlatformFactory().createBitmapMemoryPNGRepresentation(bitmap->getPlatformBitmap());
-    if (png.empty()) {
-        return 0;
-    }
-    std::filesystem::create_directories(file.parent_path());
-    std::ofstream out(file, std::ios::binary);
-    out.write(reinterpret_cast<const char*>(png.data()), static_cast<std::streamsize>(png.size()));
-    return out ? png.size() : 0;
 }
 
 void loadPreset(P::Controller& ctl, std::string_view name) {
@@ -188,7 +150,8 @@ void loadPreset(P::Controller& ctl, std::string_view name) {
     FAIL("no factory preset " << name);
 }
 
-/// One editor per preset: load it into a fresh controller, build the editor, render every shot that uses it.
+/// One editor per preset: load it into a fresh controller, build the editor, render every shot that uses it (and,
+/// for the showcase preset, the site images of the Main page).
 void renderShotsFor(std::string_view preset, const std::filesystem::path& dir) {
     auto controller = Steinberg::owned(new P::Controller());
     REQUIRE(controller->initialize(nullptr) == Steinberg::kResultOk);
@@ -208,7 +171,14 @@ void renderShotsFor(std::string_view preset, const std::filesystem::path& dir) {
         // VST3Editor fills a bound menu's entries and a segment button's segments in a deferred parameter update,
         // which a host's idle timer flushes; no timer runs here.
         Steinberg::UpdateHandler::instance()->triggerDeferedUpdates();
+        P::ProfundumSpectrumFrame spectrum = bassFrame();
+        deliver(*controller, spectrum);
 
+        if (preset == kShowcase) {
+            select(frame, P::UI::kPageStripTag, 0);
+            tickDisplays(frame);
+            CHECK(Shots::writeSiteShots(root, dir) == 3);
+        }
         for (const Shot& shot : kShots) {
             if (shot.preset != preset) {
                 continue;
@@ -218,11 +188,12 @@ void renderShotsFor(std::string_view preset, const std::filesystem::path& dir) {
             if (shot.page == 1) {
                 select(frame, P::UI::kTabStripTag, shot.tab);
             }
+            tickDisplays(frame);
             VSTGUI::CRect rect = root->getViewSize();
             if (!shot.label.empty()) {
-                REQUIRE(findLabelled(frame, shot.label, {0, 0}, rect));
+                REQUIRE(Shots::findLabelled(frame, shot.label, rect));
             }
-            const std::size_t bytes = writeShot(root, rect, dir / shot.file);
+            const std::size_t bytes = Shots::writeShot(root, rect, dir / shot.file);
             std::cout << shot.file << ": " << rect.getWidth() << " x " << rect.getHeight() << " at (" << rect.left
                       << ", " << rect.top << "), " << bytes << " bytes\n";
             CHECK(bytes > 0u);
@@ -233,15 +204,11 @@ void renderShotsFor(std::string_view preset, const std::filesystem::path& dir) {
 
 }  // namespace
 
-TEST_CASE("Profundum_EditorScreenshots", "[.][screenshots]") {
-#if SMTG_OS_WINDOWS
-    REQUIRE(SUCCEEDED(::CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED)));
-#endif
-    const std::filesystem::path dir = shotsDir();
+TEST_CASE("Profundum_EditorScreenshots", "[.][screenshots][site]") {
+    REQUIRE(Shots::initPlatformForShots());
+    const std::filesystem::path dir = Shots::shotsDir("PROFUNDUM_SHOTS_DIR", "profundum-shots");
     for (const std::string_view preset : {kShowcase, kAnimated}) {
         renderShotsFor(preset, dir);
     }
-    // No CoUninitialize: VSTGUI's platform factory keeps its WIC factory until VSTGUI::exit at process exit, and
-    // releasing it after COM is torn down crashes.
-    std::cout << kShots.size() << " shots written to " << dir.string() << '\n';
+    std::cout << kShots.size() + 3 << " shots written to " << dir.string() << '\n';
 }

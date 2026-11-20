@@ -1,0 +1,9 @@
+{
+  "groups": ["Instruments", "Effects"],
+  "plugins": {
+    "alpha": { "group": "Instruments", "summary": "Alpha's summary escapes & and <i> too." },
+    "beta": { "group": "Effects", "summary": "Beta is grouped after Alpha." },
+    "delta": { "group": "Effects", "summary": "Delta follows Delta X in its group." },
+    "delta-x": { "group": "Effects", "summary": "Delta X leads Delta in its group." }
+  }
+}

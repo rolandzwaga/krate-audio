@@ -20,6 +20,8 @@
 #include "ui/arc_knob.h"
 #include "ui/toggle_button.h"
 
+#include <editor_screenshot.h>
+
 #include <base/source/updatehandler.h>
 #include <vstgui/lib/cbitmap.h>
 #include <vstgui/lib/cframe.h>
@@ -101,6 +103,32 @@ void shoot(VSTGUI::CViewContainer* root, const VSTGUI::CRect& rect, const std::f
     CHECK(bytes > 0u);
 }
 
+/// Lights the level meters: one processor window (300 ms at 48 kHz) through the editor timer, Output L clipped.
+void feedMeters(Disrumpo::Controller& controller) {
+    auto block = std::make_unique<Disrumpo::SpectrumBlock>();
+    block->numSamples = 64;
+    block->sampleRate = 48000.0f;
+    auto& m = block->meters;
+    m.inPeak[0] = 0.5f;
+    m.inPeak[1] = 0.4f;
+    m.inMeanSq[0] = 0.125f;
+    m.inMeanSq[1] = 0.08f;
+    m.outPeak[0] = 1.1f;
+    m.outPeak[1] = 0.8f;
+    m.outMeanSq[0] = 0.35f;
+    m.outMeanSq[1] = 0.2f;
+    m.bandPeak[0] = 0.7f;
+    m.bandPeak[1] = 0.35f;
+    m.bandPeak[2] = 0.2f;
+    m.bandPeak[3] = 0.1f;
+    m.clipFlags = Disrumpo::kMeterClipOutL;
+    m.numSamples = 14400;
+    Steinberg::Vst::DataExchangeBlock deb{
+        .data = block.get(), .size = static_cast<Steinberg::uint32>(sizeof(Disrumpo::SpectrumBlock)), .blockID = 0};
+    controller.onDataExchangeBlocksReceived(0, 1, &deb, static_cast<Steinberg::TBool>(false));
+    controller.tickEditorTimerForTest();
+}
+
 }  // namespace
 
 TEST_CASE("Disrumpo_EditorScreenshots", "[.][screenshots]") {
@@ -136,32 +164,7 @@ TEST_CASE("Disrumpo_EditorScreenshots", "[.][screenshots]") {
         REQUIRE(sweepEnable->getParentView() != nullptr);
         const VSTGUI::CRect sweepRowRect = rectInRoot(sweepEnable->getParentView(), root);
 
-        // Level meters lit: one processor window (300 ms at 48 kHz) through the editor timer, Output L clipped
-        {
-            auto block = std::make_unique<Disrumpo::SpectrumBlock>();
-            block->numSamples = 64;
-            block->sampleRate = 48000.0f;
-            auto& m = block->meters;
-            m.inPeak[0] = 0.5f;
-            m.inPeak[1] = 0.4f;
-            m.inMeanSq[0] = 0.125f;
-            m.inMeanSq[1] = 0.08f;
-            m.outPeak[0] = 1.1f;
-            m.outPeak[1] = 0.8f;
-            m.outMeanSq[0] = 0.35f;
-            m.outMeanSq[1] = 0.2f;
-            m.bandPeak[0] = 0.7f;
-            m.bandPeak[1] = 0.35f;
-            m.bandPeak[2] = 0.2f;
-            m.bandPeak[3] = 0.1f;
-            m.clipFlags = Disrumpo::kMeterClipOutL;
-            m.numSamples = 14400;
-            Steinberg::Vst::DataExchangeBlock deb{
-                .data = block.get(), .size = static_cast<Steinberg::uint32>(sizeof(Disrumpo::SpectrumBlock)),
-                .blockID = 0};
-            controller->onDataExchangeBlocksReceived(0, 1, &deb, static_cast<Steinberg::TBool>(false));
-            controller->tickEditorTimerForTest();
-        }
+        feedMeters(*controller);
 
         shoot(root, editorRect, dir / "editor-main.png");
         shoot(root, sweepRowRect, dir / "sweep-row.png");
@@ -195,4 +198,38 @@ TEST_CASE("Disrumpo_EditorScreenshots", "[.][screenshots]") {
     }
     REQUIRE(controller->terminate() == Steinberg::kResultOk);
     std::cout << "disrumpo shots written to " << dir.string() << '\n';
+}
+
+// The krateaudio.com images (hero.png, og-image.png, card.png; tests/test_helpers/editor_screenshot.h) of the
+// "Multi_Band_Bass" factory preset with the meters lit. Disrumpo has no manual, so these are all it commits.
+// Regenerate: node tools/gen-screenshots.js disrumpo   (writes plugins/disrumpo/images/)
+TEST_CASE("Disrumpo_SiteScreenshots", "[.][screenshots][site]") {
+    namespace Shots = ::Krate::TestSupport::Screenshots;
+    REQUIRE(Shots::initPlatformForShots());
+    const std::filesystem::path dir = disrumpoShotsDir();
+
+    auto controller = Steinberg::owned(new Disrumpo::Controller());
+    REQUIRE(controller->initialize(nullptr) == Steinberg::kResultOk);
+    const std::filesystem::path preset =
+        std::filesystem::path(DISRUMPO_RESOURCES_DIR) / "presets" / "Bass" / "Multi_Band_Bass.vstpreset";
+    REQUIRE(Shots::loadPresetIntoController(preset, controller.get()));
+    {
+        Disrumpo::TestSupport::HeadlessEditor editor(*controller);
+        REQUIRE(editor.ready());
+        VSTGUI::CFrame* frame = editor.frame();
+        VSTGUI::CViewContainer* root = frame->getView(0) != nullptr ? frame->getView(0)->asViewContainer() : nullptr;
+        REQUIRE(root != nullptr);
+        if (!root->isAttached()) {
+            root->attached(frame);
+        }
+        Steinberg::UpdateHandler::instance()->triggerDeferedUpdates();
+        feedMeters(*controller);
+        // The editor opens at the base height; the mod panel below it is closed.
+        const VSTGUI::CRect editorRect(0.0, 0.0, root->getViewSize().getWidth(),
+                                       Disrumpo::ModPanelToggleController::kBaseHeight);
+        CHECK(Shots::writeSiteShots(root, dir, editorRect) == 3);
+        editor.close();
+    }
+    REQUIRE(controller->terminate() == Steinberg::kResultOk);
+    std::cout << "3 shots written to " << dir.string() << '\n';
 }

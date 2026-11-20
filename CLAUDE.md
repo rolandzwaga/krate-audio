@@ -147,6 +147,20 @@ each was found months later by someone looking.
   (`tests/test_helpers/shared_editor_views_probe.h`).
 - Gated in CI by `tools/lint-plugin-editor-baseline.js`, which walks every `plugins/` directory.
 
+### krateaudio.com Is Generated and Linted, Never Hand-Assembled
+
+The site (landing pages, manuals, signal-flow pages, root index, sitemap, 404) is built only by `tools/gen-site.js`,
+in `docs.yml` and `release.yml` alike, and it refuses to deploy unless `tools/lint-site-seo.js` passes (title ≤ 60,
+description 50–160, canonical = the page's own URL, social card, sitemap = the indexable pages). Shared `<head>` tags
+come from `tools/site/common.js` through `{{HEAD_COMMON}}`; never paste them into a template.
+
+- A plugin page needs: `plugins/<p>/docs/index.html` with `{{HEAD_COMMON}}`, `{{HERO}}`, `{{OTHER_PLUGINS}}`; a
+  `docs/site.json` entry (group, one-sentence summary); `version.json` `url` = `https://krateaudio.com/<p>/`.
+- Every plugin has a hidden `[.][screenshots][site]` case writing `hero.png`, `og-image.png`, `card.png` (and its
+  manual's images) via `tests/test_helpers/editor_screenshot.h`; `node tools/gen-screenshots.js <p>` refreshes
+  `plugins/<p>/images/` exactly. Rerun it after an editor change.
+- Gated by `site.yml` and the commit gate (`lint-site-seo.js`, `tools/site/tests`).
+
 ### Use Node.js for Helper Scripts
 
 **When generating helper scripts, CLI tools, or automation utilities, use Node.js — NOT Python.** This applies to any scripting needs such as code generators, data processing, build helpers, or dev tooling.
