@@ -5,6 +5,23 @@ All notable changes to Disrumpo will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-11-20
+
+### Added
+
+- **MorphPad node positions shape the sound, and can be automated** — Dragging a node on the MorphPad used to move only its dot; the engine kept every node in its corner. A node's place is now a parameter pair per band and node (**B1 N1 Pos X**, **B1 N1 Pos Y** and so on), so dragging a node changes the blend in 2D Planar and 2D Radial, and a host can automate it. In 1D Linear the nodes sit on the line instead, each at its own **Line Pos** (A at the start, B at the end, C in the middle, D three quarters of the way), apart from its 2D place, so switching modes moves nothing; dragging a node there slides it along the line. Positions are saved with the project. Projects and presets saved before 1.1.0 load as they sounded: every node in its corner, and the even spacing on the line.
+- **User manual and signal-flow diagram** — Disrumpo's page on krateaudio.com now links a full user manual and a diagram of the signal flow.
+
+### Changed
+
+- **The MorphPad follows the band's Morph Mode** — The pad always drew and weighed the nodes as 2D Planar, so in 1D Linear and 2D Radial its blend lines and readout showed weights the engine was not using. It now draws the mode the band is in. In 1D Linear the cursor moves along X only.
+
+### Fixed
+
+- **Clicking a MorphPad node did not select it for editing** — The click highlighted the node on the pad, but the type, drive, mix, tone, bias and shape controls kept editing the previously selected node. Clicking a node now selects it.
+- **Automating the custom sweep curve did nothing** — The Curve Point Count and Curve P0 X to Curve P7 Y parameters reached the processor and were dropped, so the curve only changed when a project was loaded. They now reshape the curve while playing.
+- **Sweep Falloff and LFO Retrigger showed the wrong default** — Sweep Falloff showed Hard and LFO 1 and LFO 2 Retrigger showed off, while a new instance runs Soft and on. A host's "reset to default" therefore changed the sound. They now default to Soft and on.
+
 ## [1.0.0] - 2026-11-10
 
 ### Added

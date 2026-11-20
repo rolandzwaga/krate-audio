@@ -1,0 +1,176 @@
+digraph DisrumpoSignalFlow {
+    rankdir=TB;
+    fontname="Helvetica";
+    fontsize=11;
+    node [fontname="Helvetica", fontsize=10, style=filled];
+    edge [fontname="Helvetica", fontsize=8];
+    compound=true;
+    newrank=true;
+
+    // Source of truth: plugins/disrumpo/src/processor/processor.cpp (process(): taps, mod engine, sweep, input gain,
+    // crossover, band sum, dry compensation, mix, output gain, safety clipper), src/dsp/band_processor.h (per-band
+    // chain), src/dsp/morph_engine.{h,cpp} (nodes and weights), src/dsp/distortion_adapter.cpp (per-node stages),
+    // src/dsp/sweep_processor.h and src/processor/processor_messaging.cpp (spectrum and meters).
+    // L and R run through separate but identical instances everywhere; there is no mid/side stage.
+
+    // =========================================================================
+    // COLOR LEGEND
+    // =========================================================================
+    subgraph cluster_legend {
+        label="Legend";
+        style=rounded;
+        color="#888888";
+        fontsize=12;
+        fontcolor="#444444";
+        bgcolor="#FAFAFA";
+
+        node [shape=plaintext, fillcolor="#FAFAFA"];
+        leg [label=<
+            <TABLE BORDER="0" CELLBORDER="0" CELLSPACING="4">
+            <TR><TD BGCOLOR="#D9534F" WIDTH="20"> </TD><TD ALIGN="LEFT">Audio path (wet)</TD></TR>
+            <TR><TD BGCOLOR="#7BAFD4" WIDTH="20"> </TD><TD ALIGN="LEFT">Dry path</TD></TR>
+            <TR><TD BGCOLOR="#E8A838" WIDTH="20"> </TD><TD ALIGN="LEFT">Modulation (control rate, once per block)</TD></TR>
+            <TR><TD BGCOLOR="#6BBF6B" WIDTH="20"> </TD><TD ALIGN="LEFT">Global output chain</TD></TR>
+            <TR><TD BGCOLOR="#AAAAAA" WIDTH="20"> </TD><TD ALIGN="LEFT">Host / editor</TD></TR>
+            <TR><TD>───▶</TD><TD ALIGN="LEFT">Audio flow</TD></TR>
+            <TR><TD>- - ▶</TD><TD ALIGN="LEFT">Modulation / control</TD></TR>
+            </TABLE>
+        >];
+    }
+
+    // =========================================================================
+    // INPUT
+    // =========================================================================
+    subgraph cluster_input {
+        label="Input";
+        style=rounded;
+        color="#666666";
+        bgcolor="#F0F0F0";
+
+        audio_in [label="Stereo in", shape=house, fillcolor="#CCDDEE"];
+        params [label="Host parameters\n(MIDI CC learn arrives as\nparameter changes)", shape=house, fillcolor="#CCDDEE"];
+        tempo [label="Host tempo / transport", shape=house, fillcolor="#CCDDEE"];
+    }
+
+    mod_in [label="Modulation input\nraw input delayed by the latency\n(before Input Gain)", shape=box, fillcolor="#CCCCCC"];
+    audio_in -> mod_in [style=dashed, color="#888888"];
+
+    // =========================================================================
+    // MODULATION
+    // =========================================================================
+    subgraph cluster_mod {
+        label="Modulation — evaluated once per block";
+        style=rounded;
+        color="#C08020";
+        bgcolor="#FFF6E5";
+
+        sources [label="Mod sources\nLFO 1 · LFO 2 · Env Follower · Random\nMacro 1-4 · Chaos · Rungler · S&H\nPitch · Transient", shape=box, fillcolor="#E8A838"];
+        matrix [label="Mod matrix\n32 routes: Source → Dest\nAmount ±100%, Curve\n38 destinations", shape=box, fillcolor="#E8A838"];
+        sweep [label="Sweep\nFrequency, Width, Intensity, Falloff\n+ Sweep LFO (±2 oct × Depth, tempo sync)\n+ Sweep Envelope (0 to +2 oct × Sensitivity)\n20 ms smoothing", shape=box, fillcolor="#E8A838"];
+        sweep_bands [label="Sweep → bands\nintensity per band from its centre\n(geometric mean of its edges)\n→ drive × 1 to 2", shape=box, fillcolor="#E8A838"];
+        sweep_link [label="Sweep → Morph link\nNone · Sweep Freq · Inverse Sweep\nEase In · Ease Out · Hold-Rise\nStepped · Custom\n(active whenever a link is set)", shape=box, fillcolor="#E8A838"];
+
+        sources -> matrix [style=dashed, color="#C08020"];
+        matrix -> sweep [style=dashed, color="#C08020", label="Sweep Freq / Width /\nIntensity offsets"];
+        sweep -> sweep_bands [style=dashed, color="#C08020"];
+        sweep -> sweep_link [style=dashed, color="#C08020"];
+    }
+
+    mod_in -> sources [style=dashed, color="#888888", label="Env Follower,\nPitch, Transient"];
+    mod_in -> sweep [style=dashed, color="#888888", label="Sweep Envelope"];
+    tempo -> sources [style=dashed, color="#888888", label="LFO sync,\nretrigger"];
+    tempo -> sweep [style=dashed, color="#888888", label="Sweep LFO sync"];
+    params -> matrix [style=dashed, color="#888888"];
+
+    // =========================================================================
+    // INPUT STAGE AND CROSSOVER
+    // =========================================================================
+    in_gain [label="Input Gain\n±24 dB, smoothed\n(wet path only)", shape=box, fillcolor="#D9534F", fontcolor="white"];
+    crossover [label="Crossover\nBand Count 1-4\nLinkwitz-Riley 24 dB/oct\nCrossover 1-3 (20 Hz - 20 kHz)\nband-count change: 5 ms dip", shape=box, fillcolor="#D9534F", fontcolor="white"];
+
+    audio_in -> in_gain [penwidth=2];
+    in_gain -> crossover [penwidth=2];
+    matrix -> in_gain [style=dashed, color="#C08020"];
+
+    // =========================================================================
+    // PER-BAND CHAIN
+    // =========================================================================
+    subgraph cluster_band {
+        label="Per band (1 to 4 bands, each identical)";
+        style=rounded;
+        color="#A03030";
+        bgcolor="#FBEEEE";
+
+        bypass [label="Band Bypass?\n(bypassed = latency delay only)", shape=diamond, fillcolor="#F2C4C2"];
+        os_up [label="Oversample ↑\n1x / 2x / 4x / 8x\nweighted from the nodes' types,\ncapped by Oversample Max;\n1x when every drive is 0\n(10 ms crossfade on change)", shape=box, fillcolor="#D9534F", fontcolor="white"];
+
+        subgraph cluster_morph {
+            label="Morph engine — Active Nodes 1-4 (A-D)";
+            style=rounded;
+            color="#A03030";
+            bgcolor="#FFFFFF";
+
+            weights [label="Node weights\nMorph X / Y (smoothed by Morph Smoothing)\nMorph Mode: 1D Linear · 2D Planar · 2D Radial", shape=box, fillcolor="#F2C4C2"];
+            node_chain [label="Each node A-D\nDrive (0-10) → Type (26 types, 7 families)\nShape · Bias · Folds · Bit Depth\n→ level normalisation → DC blocker\n→ Tone (200 Hz - 8 kHz low-pass)\n→ node Mix", shape=box, fillcolor="#D9534F", fontcolor="white"];
+            morph_sum [label="Same type: one processor,\nparameters interpolated\nMixed types: nodes in parallel,\nsummed by weight", shape=box, fillcolor="#D9534F", fontcolor="white"];
+
+            weights -> morph_sum [style=dashed, color="#A03030"];
+            node_chain -> morph_sum [penwidth=2];
+        }
+
+        os_down [label="Oversample ↓", shape=box, fillcolor="#D9534F", fontcolor="white"];
+        band_out [label="Band output\nBand Gain ±24 dB · Band Pan · Band Mute", shape=box, fillcolor="#D9534F", fontcolor="white"];
+
+        bypass -> os_up [penwidth=2, label="active"];
+        os_up -> node_chain [penwidth=2];
+        morph_sum -> os_down [penwidth=2];
+        os_down -> band_out [penwidth=2];
+        bypass -> band_out [penwidth=2, style=dotted, label="bypassed"];
+    }
+
+    crossover -> bypass [penwidth=2, lhead=cluster_band, label="one band\nper split"];
+    sweep_bands -> node_chain [style=dashed, color="#C08020", label="drive ×"];
+    sweep_link -> weights [style=dashed, color="#C08020", label="Morph X / Y base"];
+    matrix -> weights [style=dashed, color="#C08020", label="Morph X / Y"];
+    matrix -> node_chain [style=dashed, color="#C08020", label="Drive, Mix,\nTone, Bias"];
+    matrix -> band_out [style=dashed, color="#C08020", label="Gain, Pan"];
+
+    // =========================================================================
+    // DRY PATH
+    // =========================================================================
+    dry [label="Dry path\nraw input (before Input Gain)\n→ crossover allpass compensation\n→ delayed to the plugin latency", shape=box, fillcolor="#7BAFD4"];
+    audio_in -> dry [penwidth=2, color="#4A7FB0"];
+
+    // =========================================================================
+    // GLOBAL CHAIN
+    // =========================================================================
+    subgraph cluster_global {
+        label="Global chain";
+        style=rounded;
+        color="#3C8C3C";
+        bgcolor="#EEF8EE";
+
+        band_sum [label="Σ bands\nSolo / Mute\n(any solo: only soloed bands)", shape=box, fillcolor="#6BBF6B"];
+        mix [label="Mix\ndry × (1 − mix) + wet × mix", shape=box, fillcolor="#6BBF6B"];
+        out_gain [label="Output Gain\n±24 dB, smoothed\n(trims dry and wet)", shape=box, fillcolor="#6BBF6B"];
+        clipper [label="Output safety clipper\nexact below −6 dBFS, soft knee above,\nceiling −0.18 dBFS, DC servo\n(always on)", shape=box, fillcolor="#6BBF6B"];
+
+        band_sum -> mix [penwidth=2, label="wet"];
+        mix -> out_gain -> clipper [penwidth=2];
+    }
+
+    band_out -> band_sum [penwidth=2, ltail=cluster_band];
+    dry -> mix [penwidth=2, color="#4A7FB0", label="dry"];
+    matrix -> mix [style=dashed, color="#C08020", label="Global Mix"];
+    matrix -> out_gain [style=dashed, color="#C08020"];
+
+    out [label="Stereo out", shape=invhouse, fillcolor="#CCDDEE"];
+    clipper -> out [penwidth=2];
+
+    // =========================================================================
+    // EDITOR FEEDBACK
+    // =========================================================================
+    spectrum [label="Spectrum + meters → editor\ninput spectrum (raw), output spectrum (final)\ninput / band / output meters, clip light\nmod offsets for the slider rings\n(~30 Hz, DataExchange)", shape=box, fillcolor="#CCCCCC"];
+    audio_in -> spectrum [style=dashed, color="#888888", label="input tap"];
+    clipper -> spectrum [style=dashed, color="#888888", label="output tap"];
+}

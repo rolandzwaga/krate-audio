@@ -53,6 +53,11 @@ struct MorphNode {
     /// For 2D modes: vertical position.
     float posY = 0.0f;
 
+    /// @brief Position on the 1D Linear line [0, 1], apart from the 2-D corner (posX, posY), so that switching
+    /// modes moves nothing. Negative (the default here): unplaced, the active nodes spread evenly on the line in
+    /// order A, B, C, D at i / (N - 1). The plugin always places its nodes (kDefaultNodeLinePos).
+    float linePos = -1.0f;
+
     /// @brief Default constructor with safe defaults.
     constexpr MorphNode() noexcept = default;
 
@@ -84,6 +89,24 @@ struct MorphNode {
 /// @brief Maximum number of morph nodes per band.
 /// Per spec FR-002: Support 2 to 4 active morph nodes per band.
 inline constexpr int kMaxMorphNodes = 4;
+
+/// @brief Where a node sits until it is dragged on the MorphPad: the corners, A (0, 0), B (1, 0), C (0, 1),
+/// D (1, 1). The node position parameters default here, and a state without positions loads them.
+inline constexpr float kDefaultNodePosX[kMaxMorphNodes] = {0.0f, 1.0f, 0.0f, 1.0f};
+inline constexpr float kDefaultNodePosY[kMaxMorphNodes] = {0.0f, 0.0f, 1.0f, 1.0f};
+
+/// @brief Where a node sits on the 1D Linear line until it is dragged there: A 0, B 1, C 1/2, D 3/4. Two active nodes
+/// span the whole line and three sit evenly at 0, 1/2, 1, as 1D Linear spaced them before line positions; a fourth
+/// joins at 3/4. The Line Pos parameters default here.
+inline constexpr float kDefaultNodeLinePos[kMaxMorphNodes] = {0.0f, 1.0f, 0.5f, 0.75f};
+
+/// @brief The line position a state without saved positions (every state before them) gives a node: 1D Linear
+/// spaced a band's @p activeCount active nodes evenly at i / (N - 1), so they keep that place; an inactive node
+/// takes its default.
+[[nodiscard]] constexpr float legacyNodeLinePos(int node, int activeCount) noexcept {
+    if (node >= activeCount) return kDefaultNodeLinePos[node];
+    return activeCount > 1 ? static_cast<float>(node) / static_cast<float>(activeCount - 1) : 0.0f;
+}
 
 // ==============================================================================
 // ShapeShadowStorage: Per-type shape parameter storage for one node

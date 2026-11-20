@@ -357,7 +357,8 @@ void ArpeggiatorCore::fireSubStep([[maybe_unused]] const BlockContext& ctx,
                     .velocity = applyDecay(ratchetVelocities_[i]),
                     .sampleOffset = clampOffsetToBlock(
                         sampleOffset + strumOffsetFor(i), ctx.blockSize),
-                    .legato = false};  // Sub-steps after first are never legato
+                    .legato = false,  // Sub-steps after first are never legato
+                    .delayStep = stepDelayStep_};
             }
             // Update currentArpNotes_ tracking
             for (size_t i = 0; i < ratchetNoteCount_ && i < 32; ++i) {
@@ -372,7 +373,8 @@ void ArpeggiatorCore::fireSubStep([[maybe_unused]] const BlockContext& ctx,
                     .note = ratchetNote_,
                     .velocity = applyDecay(ratchetVelocity_),
                     .sampleOffset = sampleOffset,
-                    .legato = false};  // Sub-steps after first are never legato
+                    .legato = false,  // Sub-steps after first are never legato
+                    .delayStep = stepDelayStep_};
             }
             currentArpNotes_[0] = ratchetNote_;
             currentArpNoteCount_ = 1;
@@ -481,6 +483,10 @@ void ArpeggiatorCore::fireStep(const BlockContext& ctx,
                 result.notes[0] = pinNote_;
                 result.count = 1;
             }
+
+            // The MIDI Delay lane step this step's notes (and their ratchet sub-steps) are echoed with, read before the
+            // lane advances below; the echo stage reads it from each NoteOn (ArpEvent::delayStep)
+            stepDelayStep_ = static_cast<uint8_t>(midiDelayLane_.currentStep());
 
             // 077-spice-dice-humanize: capture overlay indices BEFORE lane advances (FR-010)
             const size_t velStep = velocityLane_.currentStep();
@@ -1078,7 +1084,8 @@ void ArpeggiatorCore::fireStep(const BlockContext& ctx,
                         .note = result.notes[emittedNoteOns],
                         .velocity = result.velocities[emittedNoteOns],
                         .sampleOffset = clampOffsetToBlock(humanizedSampleOffset + strumOffsetFor(emittedNoteOns), blockSize),
-                        .legato = isSlide};  // legato on first sub-step if Slide
+                        .legato = isSlide,  // legato on first sub-step if Slide
+                        .delayStep = stepDelayStep_};
                 }
 
                 // Track only the notes that actually sounded -- see the chord
@@ -1135,7 +1142,8 @@ void ArpeggiatorCore::fireStep(const BlockContext& ctx,
                             .note = result.notes[i],
                             .velocity = result.velocities[i],
                             .sampleOffset = clampOffsetToBlock(humanizedSampleOffset + strumOffsetFor(i), blockSize),
-                            .legato = true};  // legato=true
+                            .legato = true,  // legato=true
+                            .delayStep = stepDelayStep_};
                     }
                     // Track all new chord notes as currently sounding
                     for (size_t i = 0; i < result.count && i < 32; ++i) {
@@ -1150,7 +1158,8 @@ void ArpeggiatorCore::fireStep(const BlockContext& ctx,
                             .note = result.notes[0],
                             .velocity = result.velocities[0],
                             .sampleOffset = humanizedSampleOffset,
-                            .legato = true};  // legato=true
+                            .legato = true,  // legato=true
+                            .delayStep = stepDelayStep_};
                     }
                     // Replace the previous note tracking with the new note
                     currentArpNotes_[0] = result.notes[0];
@@ -1205,7 +1214,8 @@ void ArpeggiatorCore::fireStep(const BlockContext& ctx,
                         .type = ArpEvent::Type::NoteOn,
                         .note = result.notes[emittedNoteOns],
                         .velocity = result.velocities[emittedNoteOns],
-                        .sampleOffset = clampOffsetToBlock(humanizedSampleOffset + strumOffsetFor(emittedNoteOns), blockSize)};
+                        .sampleOffset = clampOffsetToBlock(humanizedSampleOffset + strumOffsetFor(emittedNoteOns), blockSize),
+                        .delayStep = stepDelayStep_};
                 }
 
                 // Track the chord notes that actually sounded (FR-025). Notes
@@ -1237,7 +1247,8 @@ void ArpeggiatorCore::fireStep(const BlockContext& ctx,
                         .type = ArpEvent::Type::NoteOn,
                         .note = result.notes[0],
                         .velocity = result.velocities[0],
-                        .sampleOffset = humanizedSampleOffset};
+                        .sampleOffset = humanizedSampleOffset,
+                        .delayStep = stepDelayStep_};
 
                     // Track currently sounding note (FR-025). The store must sit
                     // INSIDE the bound check -- the chord path above can leave the

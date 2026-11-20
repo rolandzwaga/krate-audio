@@ -146,7 +146,7 @@ TEST_CASE("MultiSourceSieve: buildPolyphonicFrame separates sources",
 
     auto f0s = makeF0s({440.0f, 330.0f});
 
-    auto frame = sieve.buildPolyphonicFrame(partials, numPartials, f0s, 0.5f);
+    auto frame = MultiSourceSieve::buildPolyphonicFrame(partials, numPartials, f0s, 0.5f);
 
     CHECK(frame.numSources == 2);
     CHECK(frame.sources[0].numPartials == 2); // Source 1: 440, 880

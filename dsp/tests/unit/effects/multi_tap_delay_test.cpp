@@ -1645,3 +1645,121 @@ TEST_CASE("morphToPattern(Custom) targets ratio x span, clamped to [1, 5000]", "
     REQUIRE(delay.getTapTimeMs(0) == Approx(1.0f).margin(1e-3));
     REQUIRE(delay.getTapTimeMs(1) == Approx(5000.0f).margin(1e-3));
 }
+
+// =============================================================================
+// Feedback repeats the whole tap pattern (spec 028 US3.1, US3.2, FR-018)
+// =============================================================================
+// Quarter pattern, 2 taps, 120 BPM: taps at 500 and 1000 ms, so the pattern repeats every 1000 ms. The input is a
+// 20 ms burst at t = 0 (a sine at @p burstHz); the output is wet only. Generation g of tap k sits at
+// (k + 1) * 500 + g * 1000 ms. Until 2026-11 the feedback network ran with a 0 ms delay (it was never given one), so
+// Feedback acted as a one-pole low-pass on the taps and the pattern never repeated.
+
+namespace {
+
+std::vector<float> renderMultiTapBurst(float feedback, float lpHz, float hpHz, float burstHz, float seconds) {
+    MultiTapDelay delay;
+    delay.prepare(kSampleRate, kBlockSize, kMaxDelayMs);
+    delay.setTempo(120.0f);
+    delay.loadTimingPattern(TimingPattern::QuarterNote, 2);
+    delay.setFeedbackAmount(feedback);
+    delay.setFeedbackLPCutoff(lpHz);
+    delay.setFeedbackHPCutoff(hpHz);
+    delay.setDryWetMix(100.0f);
+    delay.snapParameters();
+
+    const auto total = static_cast<size_t>(seconds * kSampleRate);
+    const auto burst = static_cast<size_t>(0.020 * kSampleRate);
+    std::vector<float> out(total, 0.0f);
+    std::array<float, kBlockSize> left{};
+    std::array<float, kBlockSize> right{};
+    auto ctx = makeTestContext();
+    for (size_t start = 0; start < total; start += kBlockSize) {
+        const size_t n = std::min(kBlockSize, total - start);
+        for (size_t i = 0; i < n; ++i) {
+            const size_t t = start + i;
+            const float x = t < burst ? std::sin(2.0f * 3.14159265f * burstHz * static_cast<float>(t) /
+                                                 static_cast<float>(kSampleRate))
+                                      : 0.0f;
+            left[i] = x;
+            right[i] = x;
+        }
+        delay.process(left.data(), right.data(), n, ctx);
+        std::copy_n(left.begin(), n, out.begin() + static_cast<std::ptrdiff_t>(start));
+    }
+    return out;
+}
+
+/// Peak of @p out in [ms - 40, ms + 40].
+float peakAroundMs(const std::vector<float>& out, double ms) {
+    const auto from = static_cast<size_t>((ms - 40.0) * 0.001 * kSampleRate);
+    const auto to = std::min(out.size(), static_cast<size_t>((ms + 40.0) * 0.001 * kSampleRate));
+    return findPeak(out.data() + from, to - from);
+}
+
+}  // namespace
+
+TEST_CASE("MultiTap feedback repeats the whole pattern, each generation at the feedback level", "[multi-tap][us3][feedback]") {
+    const auto out = renderMultiTapBurst(0.5f, 20000.0f, 20.0f, 1000.0f, 3.3f);
+    const float tap1 = peakAroundMs(out, 500.0);
+    const float tap2 = peakAroundMs(out, 1000.0);
+    REQUIRE(tap1 > 0.3f);
+    REQUIRE(tap2 > 0.3f);
+    // Generation 1 one pattern period later, generation 2 two periods later
+    CHECK(peakAroundMs(out, 1500.0) == Approx(0.5f * tap1).epsilon(0.15));
+    CHECK(peakAroundMs(out, 2000.0) == Approx(0.5f * tap2).epsilon(0.15));
+    CHECK(peakAroundMs(out, 2500.0) == Approx(0.25f * tap1).epsilon(0.2));
+    CHECK(peakAroundMs(out, 3000.0) == Approx(0.25f * tap2).epsilon(0.2));
+    // Nothing between the repeats
+    CHECK(peakAroundMs(out, 1250.0) < 0.01f * tap1);
+}
+
+TEST_CASE("MultiTap with no feedback plays the pattern once", "[multi-tap][us3][feedback]") {
+    const auto out = renderMultiTapBurst(0.0f, 20000.0f, 20.0f, 1000.0f, 2.2f);
+    REQUIRE(peakAroundMs(out, 500.0) > 0.3f);
+    CHECK(peakAroundMs(out, 1500.0) < 1e-3f);
+    CHECK(peakAroundMs(out, 2000.0) < 1e-3f);
+}
+
+TEST_CASE("MultiTap feedback filters darken and thin the repeats (FR-018)", "[multi-tap][us3][filter]") {
+    SECTION("LP Cutoff attenuates a high burst from the first repeat on") {
+        const auto open = renderMultiTapBurst(0.8f, 20000.0f, 20.0f, 8000.0f, 1.7f);
+        const auto dark = renderMultiTapBurst(0.8f, 1000.0f, 20.0f, 8000.0f, 1.7f);
+        REQUIRE(peakAroundMs(open, 1500.0) > 0.2f);
+        CHECK(peakAroundMs(dark, 500.0) == Approx(peakAroundMs(open, 500.0)).epsilon(0.01));  // the taps are unfiltered
+        CHECK(peakAroundMs(dark, 1500.0) < 0.1f * peakAroundMs(open, 1500.0));
+    }
+    SECTION("HP Cutoff attenuates a low burst from the first repeat on") {
+        const auto open = renderMultiTapBurst(0.8f, 20000.0f, 20.0f, 100.0f, 1.7f);
+        const auto thin = renderMultiTapBurst(0.8f, 20000.0f, 2000.0f, 100.0f, 1.7f);
+        REQUIRE(peakAroundMs(open, 1500.0) > 0.2f);
+        CHECK(peakAroundMs(thin, 500.0) == Approx(peakAroundMs(open, 500.0)).epsilon(0.01));
+        CHECK(peakAroundMs(thin, 1500.0) < 0.1f * peakAroundMs(open, 1500.0));
+    }
+}
+
+TEST_CASE("MultiTap keeps the dry signal exact in a block longer than 8192 samples", "[multi-tap][mix]") {
+    constexpr size_t kLong = 10000;
+    MultiTapDelay delay;
+    delay.prepare(kSampleRate, kLong, kMaxDelayMs);
+    delay.setTempo(120.0f);
+    delay.loadTimingPattern(TimingPattern::QuarterNote, 4);
+    delay.setFeedbackAmount(0.0f);
+    delay.setDryWetMix(0.0f);
+    delay.snapParameters();
+    std::vector<float> left(kLong);
+    std::vector<float> right(kLong);
+    for (size_t i = 0; i < kLong; ++i) {
+        left[i] = std::sin(0.001f * static_cast<float>(i)) * 0.5f;
+        right[i] = std::cos(0.0013f * static_cast<float>(i)) * 0.5f;
+    }
+    const std::vector<float> inL = left;
+    const std::vector<float> inR = right;
+    auto ctx = makeTestContext();
+    ctx.blockSize = kLong;
+    delay.process(left.data(), right.data(), kLong, ctx);
+    float worst = 0.0f;
+    for (size_t i = 0; i < kLong; ++i) {
+        worst = std::max({worst, std::abs(left[i] - inL[i]), std::abs(right[i] - inR[i])});
+    }
+    CHECK(worst < 1e-6f);
+}

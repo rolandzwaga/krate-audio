@@ -37,6 +37,7 @@
 #include "controller/controller.h"
 #include "dsp/crossover_network.h"
 #include "dsp/morph_engine.h"
+#include "dsp/sweep_processor.h"
 #include "plugin_ids.h"
 
 #include "test_helpers/audio_features.h"
@@ -684,7 +685,8 @@ TEST_CASE("Morph link modes round-trip through processor state",
                     got.bands[2].xLink, got.bands[3].xLink, got.bands[0].yLink, got.bands[1].yLink,
                     got.bands[2].yLink, got.bands[3].yLink, firstDifference(s13, t13), s13.size());
         REQUIRE(got.version == 13);
-        CHECK(s13.size() == fixture.size() + kBands * kLinkBytes);
+        // Re-saving also adds the MorphPad node-position block (marker + 4 bands x 4 nodes x (x, y, line) floats)
+        CHECK(s13.size() == fixture.size() + kBands * kLinkBytes + 4 + kBands * 4 * 3 * 4);
         CHECK(got.bandCount == want.bandCount);
         CHECK(readAt<int8_t>(s13, kSweepMorphLinkOffset) == readAt<int8_t>(fixture, kSweepMorphLinkOffset));
         for (size_t c = 0; c + 1 < kBands; ++c) CHECK(got.crossover[c] == want.crossover[c]);
@@ -1378,6 +1380,18 @@ TEST_CASE("Registered plain value matches the processor's applied value", "[disr
                 [b, n](const Rig& r, const std::vector<uint8_t>&) {
                     return static_cast<double>(liveEngine(r, b).getNodeCommonParams(n).toneHz);
                 });
+            add(makeNodeParamId(band, node, NodeParamType::kNodePosX), "live node pos X",
+                [b, n](const Rig& r, const std::vector<uint8_t>&) {
+                    return static_cast<double>(liveEngine(r, b).getNodes()[static_cast<size_t>(n)].posX);
+                });
+            add(makeNodeParamId(band, node, NodeParamType::kNodePosY), "live node pos Y",
+                [b, n](const Rig& r, const std::vector<uint8_t>&) {
+                    return static_cast<double>(liveEngine(r, b).getNodes()[static_cast<size_t>(n)].posY);
+                });
+            add(makeNodeParamId(band, node, NodeParamType::kNodeLinePos), "live node line pos",
+                [b, n](const Rig& r, const std::vector<uint8_t>&) {
+                    return static_cast<double>(liveEngine(r, b).getNodes()[static_cast<size_t>(n)].linePos);
+                });
             add(makeNodeParamId(band, node, NodeParamType::kNodeBias), "live node bias",
                 [b, n](const Rig& r, const std::vector<uint8_t>&) {
                     return static_cast<double>(liveEngine(r, b).getNodeParams(n).bias);
@@ -1507,6 +1521,295 @@ TEST_CASE("Chaos Speed's registered default is what a fresh processor runs", "[d
     const double fresh = modRange(49, kChaosSpeedRange)(rig, getStateBytes(*rig.p));
     std::printf("Chaos Speed default: registered plain %.5g, fresh processor %.5g\n", registered, fresh);
     CHECK(std::fabs(registered - fresh) <= 1e-4);
+    c.terminate();
+}
+
+// MorphPad node positions: dragging a node on the pad only moved the dot (2026-11); the engine kept the nodes at the
+// corners. A node's place is now the parameters "B<b> N<n> Pos X / Pos Y" (the reserved node parameter types 0x07 /
+// 0x08), which the engine weighs by and the state keeps in a marker-tagged trailer block just before the instance ID
+// (which stays the stream's last 12 bytes); a state without that block (every older project and preset) loads the
+// corners.
+namespace {
+
+constexpr size_t kNodePositionsTrailerBytes = 4 + kMaxBands * 4 * 3 * 4;  // marker + 4 x 4 x (x, y, line)
+constexpr size_t kInstanceIdTrailerBytes = 12;                              // "KRAT" + int64
+
+Steinberg::Vst::ParamID nodePos(int band, int node, bool y) {
+    return makeNodeParamId(static_cast<uint8_t>(band), static_cast<uint8_t>(node),
+                           y ? NodeParamType::kNodePosY : NodeParamType::kNodePosX);
+}
+
+Steinberg::Vst::ParamID nodeLine(int band, int node) {
+    return makeNodeParamId(static_cast<uint8_t>(band), static_cast<uint8_t>(node), NodeParamType::kNodeLinePos);
+}
+
+/// Where a saved stream's node-position block starts.
+size_t nodePositionsAt(const std::vector<uint8_t>& b) {
+    return b.size() - kInstanceIdTrailerBytes - kNodePositionsTrailerBytes;
+}
+
+/// The (x, y) the state's node-position block holds for band 0, node @p node.
+std::pair<float, float> trailerPos(const std::vector<uint8_t>& b, int node) {
+    const size_t at = nodePositionsAt(b) + 4 + static_cast<size_t>(node) * 12;
+    return {readAt<float>(b, at), readAt<float>(b, at + 4)};
+}
+
+/// The 1D line position the state's node-position block holds for band 0, node @p node.
+float trailerLine(const std::vector<uint8_t>& b, int node) {
+    return readAt<float>(b, nodePositionsAt(b) + 4 + static_cast<size_t>(node) * 12 + 8);
+}
+
+/// @p b without its node-position block (an older state: the instance ID right after the patch).
+std::vector<uint8_t> withoutNodePositions(const std::vector<uint8_t>& b) {
+    std::vector<uint8_t> s(b.begin(), b.begin() + static_cast<std::ptrdiff_t>(nodePositionsAt(b)));
+    s.insert(s.end(), b.end() - static_cast<std::ptrdiff_t>(kInstanceIdTrailerBytes), b.end());
+    return s;
+}
+
+/// @p b as a factory preset writes it: the node-position block and no instance ID
+/// (tools/disrumpo_preset_generator.cpp).
+std::vector<uint8_t> asFactoryPreset(const std::vector<uint8_t>& b) {
+    return {b.begin(), b.end() - static_cast<std::ptrdiff_t>(kInstanceIdTrailerBytes)};
+}
+
+}  // namespace
+
+TEST_CASE("MorphPad node positions are saved, and an older state loads the corners", "[disrumpo][morph][state][nodes]") {
+    Rig rig(48000.0);
+    rig.apply({{nodePos(0, 1, false), 0.3}, {nodePos(0, 1, true), 0.6}});
+    const std::vector<uint8_t> moved = getStateBytes(*rig.p);
+    CHECK(readAt<Steinberg::int32>(moved, nodePositionsAt(moved)) == 0x4E504F53);                       // "NPOS"
+    CHECK(readAt<Steinberg::int32>(moved, moved.size() - kInstanceIdTrailerBytes) == 0x4B524154);     // "KRAT"
+    CHECK(trailerPos(moved, 0) == std::pair{0.0f, 0.0f});
+    const auto b = trailerPos(moved, 1);
+    CHECK(std::fabs(b.first - 0.3f) < 1e-6f);
+    CHECK(std::fabs(b.second - 0.6f) < 1e-6f);
+
+    // A factory preset carries the positions without an instance ID (tools/disrumpo_preset_generator.cpp): they load
+    {
+        Rig other(48000.0);
+        REQUIRE(setStateBytes(*other.p, asFactoryPreset(moved)));
+        other.apply({});
+        const std::vector<uint8_t> loaded = getStateBytes(*other.p);
+        const auto pos = trailerPos(loaded, 1);
+        CHECK(std::fabs(pos.first - 0.3f) < 1e-6f);
+        CHECK(std::fabs(pos.second - 0.6f) < 1e-6f);
+    }
+
+    // The same state without the node-position block: node B goes back to its corner (1, 0)
+    REQUIRE(setStateBytes(*rig.p, withoutNodePositions(moved)));
+    rig.apply({});
+    const std::vector<uint8_t> reloaded = getStateBytes(*rig.p);
+    CHECK(trailerPos(reloaded, 1) == std::pair{1.0f, 0.0f});
+    CHECK(trailerPos(reloaded, 3) == std::pair{1.0f, 1.0f});
+}
+
+TEST_CASE("The controller mirrors saved node positions, and the corners from an older state",
+          "[disrumpo][morph][state][nodes][controller]") {
+    Rig rig(48000.0);
+    rig.apply({{nodePos(0, 1, false), 0.3}, {nodePos(0, 1, true), 0.6}});
+    const std::vector<uint8_t> moved = getStateBytes(*rig.p);
+    const std::vector<uint8_t> older = withoutNodePositions(moved);
+
+    Controller c;
+    REQUIRE(c.initialize(nullptr) == Steinberg::kResultOk);
+    const auto load = [&c](const std::vector<uint8_t>& bytes) {
+        auto* s = new Steinberg::MemoryStream(const_cast<uint8_t*>(bytes.data()),
+                                              static_cast<Steinberg::TSize>(bytes.size()));
+        REQUIRE(c.setComponentState(s) == Steinberg::kResultOk);
+        s->release();
+    };
+    load(moved);
+    CHECK(std::fabs(c.getParamNormalized(nodePos(0, 1, false)) - 0.3) < 1e-6);
+    CHECK(std::fabs(c.getParamNormalized(nodePos(0, 1, true)) - 0.6) < 1e-6);
+    load(older);
+    CHECK(c.getParamNormalized(nodePos(0, 1, false)) == 1.0);
+    // A factory preset: the positions without an instance ID
+    load(asFactoryPreset(moved));
+    CHECK(std::fabs(c.getParamNormalized(nodePos(0, 1, false)) - 0.3) < 1e-6);
+    load(older);
+    CHECK(c.getParamNormalized(nodePos(0, 1, false)) == 1.0);
+    CHECK(c.getParamNormalized(nodePos(0, 1, true)) == 0.0);
+    c.terminate();
+}
+
+// 1D line positions (Line Pos, apart from the 2-D corners): saved in the node-position block. A state without the
+// block (every project and preset before them) places a band's active nodes where 1D Linear spaced them then, evenly
+// at i / (N - 1); its inactive nodes take the defaults (A 0, B 1, C 1/2, D 3/4). The controller mirrors both.
+TEST_CASE("1D line positions are saved, and an older state keeps its even spacing",
+          "[disrumpo][morph][state][nodes][line]") {
+    Rig rig(48000.0);
+    rig.apply({{makeBandParamId(0, BandParamType::kBandActiveNodes), listIndexToNorm(2, 4)},  // 3 nodes
+               {nodeLine(0, 1), 0.8}});
+    const std::vector<uint8_t> moved = getStateBytes(*rig.p);
+    CHECK(trailerLine(moved, 0) == 0.0f);
+    CHECK(std::fabs(trailerLine(moved, 1) - 0.8f) < 1e-6f);
+    CHECK(trailerLine(moved, 2) == 0.5f);  // the defaults
+    CHECK(trailerLine(moved, 3) == 0.75f);
+
+    // Without the block: A, B, C evenly at 0, 0.5, 1 (where 1D Linear put 3 nodes), D at its default 3/4
+    const std::vector<uint8_t> older = withoutNodePositions(moved);
+    {
+        Rig other(48000.0);
+        REQUIRE(setStateBytes(*other.p, older));
+        other.apply({});
+        const auto& nodes = liveEngine(other, 0).getNodes();
+        CHECK(nodes[0].linePos == 0.0f);
+        CHECK(nodes[1].linePos == 0.5f);
+        CHECK(nodes[2].linePos == 1.0f);
+        CHECK(nodes[3].linePos == 0.75f);
+    }
+
+    Controller c;
+    REQUIRE(c.initialize(nullptr) == Steinberg::kResultOk);
+    const auto load = [&c](const std::vector<uint8_t>& bytes) {
+        auto* s = new Steinberg::MemoryStream(const_cast<uint8_t*>(bytes.data()),
+                                              static_cast<Steinberg::TSize>(bytes.size()));
+        REQUIRE(c.setComponentState(s) == Steinberg::kResultOk);
+        s->release();
+    };
+    load(moved);
+    CHECK(std::fabs(c.getParamNormalized(nodeLine(0, 1)) - 0.8) < 1e-6);
+    load(older);
+    CHECK(c.getParamNormalized(nodeLine(0, 0)) == 0.0);
+    CHECK(c.getParamNormalized(nodeLine(0, 1)) == 0.5);
+    CHECK(c.getParamNormalized(nodeLine(0, 2)) == 1.0);
+    CHECK(c.getParamNormalized(nodeLine(0, 3)) == 0.75);
+    c.terminate();
+}
+
+TEST_CASE("Moving a node along the 1D line changes the sound", "[disrumpo][morph][nodes][line][audio]") {
+    // One band, two nodes of very different types, 1D Linear, the cursor at 0.3 (B at its default, the end of the line)
+    const auto renderWith = [](bool moveB) {
+        Rig rig(48000.0);
+        rig.apply({{kBandCountId, 0.0},
+                   {makeBandParamId(0, BandParamType::kBandMorphMode), 0.0},
+                   {makeBandParamId(0, BandParamType::kBandActiveNodes), listIndexToNorm(1, 4)},
+                   {makeBandParamId(0, BandParamType::kBandMorphX), 0.3},
+                   {makeNodeParamId(0, 0, NodeParamType::kNodeType), 0.0},  // Soft Clip
+                   {makeNodeParamId(0, 1, NodeParamType::kNodeType),
+                    static_cast<double>(static_cast<int>(DistortionType::FullRectify)) / 25.0}});
+        if (moveB) {
+            rig.apply({{nodeLine(0, 1), 0.3}});  // node B under the cursor
+        }
+        std::vector<float> in(24000);
+        for (size_t i = 0; i < in.size(); ++i) {
+            in[i] = 0.5f * std::sin(2.0f * 3.14159265f * 220.0f * static_cast<float>(i) / 48000.0f);
+        }
+        std::vector<float> outL;
+        std::vector<float> outR;
+        rig.render(in, in, outL, outR);
+        return outL;
+    };
+    const std::vector<float> near = renderWith(false);
+    const std::vector<float> far = renderWith(true);
+    double diff = 0.0;
+    double ref = 0.0;
+    for (size_t i = near.size() / 2; i < near.size(); ++i) {
+        diff += (near[i] - far[i]) * (near[i] - far[i]);
+        ref += near[i] * near[i];
+    }
+    std::printf("1D line move: RMS difference / RMS = %.4f\n", std::sqrt(diff / std::max(ref, 1e-12)));
+    CHECK(std::sqrt(diff / std::max(ref, 1e-12)) > 0.1);
+}
+
+TEST_CASE("Moving a MorphPad node changes the sound", "[disrumpo][morph][nodes][audio]") {
+    // One band, two nodes of very different types, 2D Planar, the cursor near node B's corner (1, 0)
+    const auto setup = [](Rig& rig) {
+        rig.apply({{kBandCountId, 0.0},
+                   {makeBandParamId(0, BandParamType::kBandMorphMode), 0.5},
+                   {makeBandParamId(0, BandParamType::kBandActiveNodes), listIndexToNorm(1, 4)},
+                   {makeBandParamId(0, BandParamType::kBandMorphX), 0.9},
+                   {makeBandParamId(0, BandParamType::kBandMorphY), 0.1},
+                   {makeNodeParamId(0, 0, NodeParamType::kNodeType), 0.0},                                   // Soft Clip
+                   {makeNodeParamId(0, 1, NodeParamType::kNodeType),
+                    static_cast<double>(static_cast<int>(DistortionType::FullRectify)) / 25.0}});
+    };
+    const auto renderWith = [&setup](bool moveB) {
+        Rig rig(48000.0);
+        setup(rig);
+        if (moveB) {
+            rig.apply({{nodePos(0, 1, false), 0.0}, {nodePos(0, 1, true), 1.0}});  // node B to the far corner
+        }
+        std::vector<float> in(24000);
+        for (size_t i = 0; i < in.size(); ++i) {
+            in[i] = 0.5f * std::sin(2.0f * 3.14159265f * 220.0f * static_cast<float>(i) / 48000.0f);
+        }
+        std::vector<float> outL;
+        std::vector<float> outR;
+        rig.render(in, in, outL, outR);
+        return outL;
+    };
+    const std::vector<float> corner = renderWith(false);
+    const std::vector<float> moved = renderWith(true);
+    double diff = 0.0;
+    double ref = 0.0;
+    for (size_t i = corner.size() / 2; i < corner.size(); ++i) {
+        diff += (corner[i] - moved[i]) * (corner[i] - moved[i]);
+        ref += corner[i] * corner[i];
+    }
+    std::printf("node move: RMS difference / RMS = %.4f\n", std::sqrt(diff / std::max(ref, 1e-12)));
+    CHECK(std::sqrt(diff / std::max(ref, 1e-12)) > 0.1);
+}
+
+// The custom sweep curve's host parameters (Curve Point Count, Curve P0 X .. Curve P7 Y) reached the processor and were
+// dropped: the "handled below" rebuild the code promised did not exist, so automating the curve changed nothing
+// (2026-11). Point i of the count is parameter P<i>; the first point sits at x = 0 and the last at x = 1.
+TEST_CASE("Custom sweep curve parameters reshape the processor's curve", "[disrumpo][sweep][curve][state]") {
+    Rig rig(48000.0);
+    const auto point = [](int index, bool y) {
+        const auto base = static_cast<uint8_t>(y ? SweepParamType::kSweepCustomCurveP0Y : SweepParamType::kSweepCustomCurveP0X);
+        return makeSweepParamId(static_cast<SweepParamType>(base + index * 2));
+    };
+    rig.apply({{makeSweepParamId(SweepParamType::kSweepCustomCurvePointCount), 1.0 / 6.0},  // 3 points
+               {point(0, true), 0.2},
+               {point(1, false), 0.5},
+               {point(1, true), 0.9},
+               {point(2, true), 0.4}});
+    const std::vector<uint8_t> b = getStateBytes(*rig.p);
+    REQUIRE(readAt<int32_t>(b, kCurveCountOffset) == 3);
+    const auto at = [&b](int index, int coord) {
+        return readAt<float>(b, kCurveCountOffset + 4 + static_cast<size_t>(index) * 8 + static_cast<size_t>(coord) * 4);
+    };
+    CHECK(at(0, 0) == 0.0f);
+    CHECK(std::fabs(at(0, 1) - 0.2f) < 1e-6f);
+    CHECK(std::fabs(at(1, 0) - 0.5f) < 1e-6f);
+    CHECK(std::fabs(at(1, 1) - 0.9f) < 1e-6f);
+    CHECK(at(2, 0) == 1.0f);
+    CHECK(std::fabs(at(2, 1) - 0.4f) < 1e-6f);
+
+    // A later change of one point keeps the others
+    rig.apply({{point(1, true), 0.7}});
+    const std::vector<uint8_t> b2 = getStateBytes(*rig.p);
+    REQUIRE(readAt<int32_t>(b2, kCurveCountOffset) == 3);
+    CHECK(std::fabs(readAt<float>(b2, kCurveCountOffset + 4 + 1 * 8 + 4) - 0.7f) < 1e-6f);
+    CHECK(std::fabs(readAt<float>(b2, kCurveCountOffset + 4 + 0 * 8 + 4) - 0.2f) < 1e-6f);
+}
+
+// Sweep Falloff was registered with Hard (index 0) while the sweep starts Soft, and LFO 1 / LFO 2 Retrigger off while a
+// fresh processor runs them on (2026-11): a host's "reset to default" changed the sound of an untouched instance.
+TEST_CASE("Sweep Falloff and LFO Retrigger: the registered defaults are what a fresh processor runs",
+          "[disrumpo][controller][state][defaults]") {
+    Controller c;
+    REQUIRE(c.initialize(nullptr) == Steinberg::kResultOk);
+    const auto registered = [&c](Steinberg::Vst::ParamID id) {
+        Steinberg::Vst::Parameter* param = c.getParameterObject(id);
+        REQUIRE(param != nullptr);
+        return param->getInfo().defaultNormalizedValue;
+    };
+
+    // Falloff: index 1 of {Hard, Soft} is Soft, the sweep's own starting mode
+    CHECK(SweepProcessor{}.getFalloffMode() == SweepFalloff::Smooth);
+    CHECK(registered(makeSweepParamId(SweepParamType::kSweepFalloff)) == 1.0);
+
+    // Retrigger: the int8 flags at bytes 12 (LFO 1) and 25 (LFO 2) of the mod-source block
+    Rig rig(48000.0);
+    const std::vector<uint8_t> bytes = getStateBytes(*rig.p);
+    const size_t mod = modSourcesOffset(bytes);
+    CHECK(readAt<int8_t>(bytes, mod + 12) == 1);
+    CHECK(readAt<int8_t>(bytes, mod + 25) == 1);
+    CHECK(registered(makeModParamId(ModParamType::kLFO1Retrigger)) == 1.0);
+    CHECK(registered(makeModParamId(ModParamType::kLFO2Retrigger)) == 1.0);
     c.terminate();
 }
 

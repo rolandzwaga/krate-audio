@@ -17,6 +17,7 @@
 // ==============================================================================
 
 #include "dsp/distortion_types.h"
+#include "dsp/morph_node.h"
 
 #include "base/source/fobject.h"
 #include "pluginterfaces/base/ftypes.h"
@@ -126,6 +127,12 @@ public:
     /// @param outY Output Y position
     void getNodePosition(int nodeIndex, float& outX, float& outY) const;
 
+    /// @brief Set a node's position on the 1D Linear line [0, 1] (apart from its 2-D position).
+    void setNodeLinePos(int nodeIndex, float pos);
+
+    /// @brief A node's position on the 1D Linear line (negative: unplaced, spread evenly).
+    [[nodiscard]] float getNodeLinePos(int nodeIndex) const;
+
     /// @brief Set a node's distortion type (for color rendering).
     /// @param nodeIndex Node index (0-3)
     /// @param type The distortion type
@@ -163,6 +170,19 @@ public:
     /// The pad also watches both parameters so automation and preset loads move
     /// the cursor (not while the user drags it).
     void bindMorphParams(Steinberg::Vst::ParamID morphXId, Steinberg::Vst::ParamID morphYId);
+
+    /// @brief Bind the pad to its band's Morph Mode and Selected Node (call once): the pad
+    /// draws and weighs in the mode the engine blends in, and a click on a node selects it
+    /// for the band's type, drive, mix, tone, bias and shape controls.
+    void bindBandParams(Steinberg::Vst::ParamID morphModeId, Steinberg::Vst::ParamID selectedNodeId);
+
+    /// @brief Bind the pad to its nodes' position parameters (call once): dragging a node writes them
+    /// (the engine weighs the nodes by where they sit), and the pad follows them when automation or a
+    /// preset moves a node. In 1D Linear a node sits and slides on the line at its Line Pos (@p lineIds);
+    /// in the 2-D modes at its Pos X / Pos Y.
+    void bindNodePositionParams(const std::array<Steinberg::Vst::ParamID, kMaxMorphNodes>& xIds,
+                                const std::array<Steinberg::Vst::ParamID, kMaxMorphNodes>& yIds,
+                                const std::array<Steinberg::Vst::ParamID, kMaxMorphNodes>& lineIds);
 
     // =========================================================================
     // Coordinate Conversion
@@ -303,6 +323,7 @@ private:
     struct NodeState {
         float posX = 0.0f;
         float posY = 0.0f;
+        float linePos = -1.0f;  ///< On the 1D line; negative: unplaced, spread evenly (as MorphNode::linePos)
         DistortionType type = DistortionType::SoftClip;
         float weight = 0.0f;
     };
@@ -337,6 +358,25 @@ private:
     // Watched MorphX / MorphY parameters (bindMorphParams)
     Steinberg::Vst::Parameter* morphXParam_ = nullptr;
     Steinberg::Vst::Parameter* morphYParam_ = nullptr;
+
+    // Watched Morph Mode and written Selected Node (bindBandParams)
+    Steinberg::Vst::Parameter* morphModeParam_ = nullptr;
+    Steinberg::Vst::ParamID selectedNodeParamId_ = 0;
+
+    // Watched and written node positions (bindNodePositionParams)
+    std::array<Steinberg::Vst::Parameter*, kMaxMorphNodes> nodePosXParams_{};
+    std::array<Steinberg::Vst::Parameter*, kMaxMorphNodes> nodePosYParams_{};
+    std::array<Steinberg::Vst::Parameter*, kMaxMorphNodes> nodeLineParams_{};
+
+    /// @brief True while a node drag edits its Line Pos (began in 1D Linear), false while it edits Pos X / Y.
+    bool dragNodeOnLine_ = false;
+
+    /// @brief Where node @p i is drawn and hit: on the line at its line position in 1D Linear (unplaced: spread
+    /// evenly over the active nodes), at (posX, posY) otherwise.
+    void nodeDisplayPosition(int i, float& outX, float& outY) const;
+
+    /// @brief The mode morphModeParam_ holds (Planar2D without one).
+    [[nodiscard]] MorphMode morphModeFromParam() const;
 
     /// @brief Get the current active node count from the parameter.
     int getActiveNodeCountFromParam() const;

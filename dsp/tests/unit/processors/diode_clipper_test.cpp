@@ -1039,7 +1039,7 @@ TEST_CASE("DiodeClipper noexcept verification (FR-022)", "[diode_clipper][safety
                   "getKneeSharpness() must be noexcept");
     static_assert(noexcept(std::declval<DiodeClipper>().getOutputLevel()),
                   "getOutputLevel() must be noexcept");
-    static_assert(noexcept(std::declval<DiodeClipper>().getLatency()),
+    static_assert(noexcept(DiodeClipper::getLatency()),
                   "getLatency() must be noexcept");
 
     // Compile-time check passed

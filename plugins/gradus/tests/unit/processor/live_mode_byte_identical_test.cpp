@@ -30,6 +30,7 @@
 #include <cstdio>
 #include <cstring>
 #include <filesystem>
+#include <cstdlib>
 #include <fstream>
 #include <sstream>
 #include <string>
@@ -334,6 +335,12 @@ void runFixture(const std::string& fixtureName)
     proc->terminate();
 
     auto actual = formatCaptured(captured);
+
+    // Re-harvesting a golden after an intended change: GRADUS_GOLDEN_OUT=<dir> writes the capture there under the
+    // fixture's file name (review the diff, then copy it into tests/fixtures). Never set in CI.
+    if (const char* outDir = std::getenv("GRADUS_GOLDEN_OUT"); outDir != nullptr && *outDir != '\0') {
+        std::ofstream(std::filesystem::path(outDir) / txtPath.filename(), std::ios::binary) << actual;
+    }
 
     // Compare portably rather than byte-for-byte. Every sample offset in the
     // golden is FP arithmetic truncated to an integer, and the GCC/Clang legs

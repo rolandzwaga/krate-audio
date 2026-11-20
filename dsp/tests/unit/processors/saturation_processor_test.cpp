@@ -157,7 +157,7 @@ TEST_CASE("SaturationProcessor getLatency is zero (no internal oversampling)", "
     sat.prepare(44100.0, 512);
 
     // No internal oversampling = zero latency
-    size_t latency = sat.getLatency();
+    size_t latency = SaturationProcessor::getLatency();
     REQUIRE(latency == 0);
 }
 
@@ -883,7 +883,7 @@ TEST_CASE("US7: All public methods are noexcept", "[saturation][US7][SC-006]") {
     static_assert(noexcept(std::declval<SaturationProcessor>().getInputGain()));
     static_assert(noexcept(std::declval<SaturationProcessor>().getOutputGain()));
     static_assert(noexcept(std::declval<SaturationProcessor>().getMix()));
-    static_assert(noexcept(std::declval<SaturationProcessor>().getLatency()));
+    static_assert(noexcept(SaturationProcessor::getLatency()));
 
     SUCCEED("All public methods verified noexcept via static_assert");
 }

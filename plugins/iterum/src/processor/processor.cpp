@@ -13,6 +13,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <utility>
 
 namespace Iterum {
 
@@ -69,8 +70,17 @@ Steinberg::tresult PLUGIN_API Processor::setupProcessing(
     // Prepare GranularDelay (spec 034)
     granularDelay_.prepare(sampleRate_);
 
-    // Prepare SpectralDelay (spec 033)
-    spectralDelay_.prepare(sampleRate_, static_cast<size_t>(maxBlockSize_));
+    // Prepare SpectralDelay (spec 033): one engine per FFT Size, so the FFT Size parameter switches between prepared
+    // engines while running
+    for (size_t i = 0; i < kSpectralFftSizes.size(); ++i) {
+        spectralDelays_[i].setFFTSize(kSpectralFftSizes[i]);
+        spectralDelays_[i].prepare(sampleRate_, static_cast<size_t>(maxBlockSize_));
+    }
+    spectralActive_ = spectralIndexOf(spectralParams_.fftSize.load(std::memory_order_relaxed));
+    spectralFadingOut_ = spectralActive_;
+    spectralFadePos_ = 1.0f;
+    spectralFadeL_.assign(static_cast<size_t>(maxBlockSize_), 0.0f);
+    spectralFadeR_.assign(static_cast<size_t>(maxBlockSize_), 0.0f);
 
     // Prepare ShimmerDelay (spec 029)
     shimmerDelay_.prepare(sampleRate_, static_cast<size_t>(maxBlockSize_), 5000.0f);
@@ -106,6 +116,9 @@ Steinberg::tresult PLUGIN_API Processor::setupProcessing(
     crossfadeBufferR_.resize(static_cast<size_t>(maxBlockSize_));
     std::fill(crossfadeBufferL_.begin(), crossfadeBufferL_.end(), 0.0f);
     std::fill(crossfadeBufferR_.begin(), crossfadeBufferR_.end(), 0.0f);
+    // A copy of the input for both modes of a crossfade (a host may process in place: input == output)
+    crossfadeInputL_.assign(static_cast<size_t>(maxBlockSize_), 0.0f);
+    crossfadeInputR_.assign(static_cast<size_t>(maxBlockSize_), 0.0f);
 
     // Calculate crossfade increment for 50ms transition
     crossfadeIncrement_ = Krate::DSP::crossfadeIncrement(kCrossfadeTimeMs, sampleRate_);
@@ -123,7 +136,10 @@ Steinberg::tresult PLUGIN_API Processor::setActive(Steinberg::TBool state) {
     if (state) {
         // Activating: reset any processing state
         granularDelay_.reset();
-        spectralDelay_.reset();
+        for (auto& engine : spectralDelays_) {
+            engine.reset();
+        }
+        spectralFadePos_ = 1.0f;
         patternFreezeMode_.reset();
         reverseDelay_.reset();
         shimmerDelay_.reset();
@@ -248,11 +264,17 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
         // Crossfade Active: Process both modes and blend (T022-T024)
         // =======================================================================
 
+        // Both modes read a copy of the input: a host processing in place hands the same buffer as input and
+        // output, and the new mode's output would otherwise become the old mode's input
+        std::copy_n(inputL, numSamples, crossfadeInputL_.data());
+        std::copy_n(inputR, numSamples, crossfadeInputR_.data());
+
         // Process the NEW mode into the output buffers
-        processMode(currentProcessingMode_, inputL, inputR, outputL, outputR, numSamples, ctx);
+        processMode(currentProcessingMode_, crossfadeInputL_.data(), crossfadeInputR_.data(), outputL, outputR,
+                    numSamples, ctx);
 
         // Process the OLD mode into the crossfade work buffers
-        processMode(previousMode_, inputL, inputR,
+        processMode(previousMode_, crossfadeInputL_.data(), crossfadeInputR_.data(),
                    crossfadeBufferL_.data(), crossfadeBufferR_.data(), numSamples, ctx);
 
         // Apply equal-power crossfade sample-by-sample
@@ -540,27 +562,40 @@ void Processor::processMode(int mode, const float* inputL, const float* inputR,
             granularDelay_.process(inputL, inputR, outputL, outputR, numSamples, ctx);
             break;
 
-        case DelayMode::Spectral:
-            // Update Spectral parameters
-            spectralDelay_.setFFTSize(static_cast<size_t>(
-                spectralParams_.fftSize.load(std::memory_order_relaxed)));
-            spectralDelay_.setBaseDelayMs(spectralParams_.baseDelay.load(std::memory_order_relaxed));
-            spectralDelay_.setSpreadMs(spectralParams_.spread.load(std::memory_order_relaxed));
-            spectralDelay_.setSpreadDirection(static_cast<Krate::DSP::SpreadDirection>(
-                spectralParams_.spreadDirection.load(std::memory_order_relaxed)));
-            spectralDelay_.setFeedback(spectralParams_.feedback.load(std::memory_order_relaxed));
-            spectralDelay_.setFeedbackTilt(spectralParams_.feedbackTilt.load(std::memory_order_relaxed));
-            spectralDelay_.setFreezeEnabled(spectralParams_.freeze.load(std::memory_order_relaxed));
-            spectralDelay_.setDiffusion(spectralParams_.diffusion.load(std::memory_order_relaxed));
-            spectralDelay_.setDryWetMix(spectralParams_.dryWet.load(std::memory_order_relaxed));
-            spectralDelay_.setSpreadCurve(static_cast<Krate::DSP::SpreadCurve>(
-                spectralParams_.spreadCurve.load(std::memory_order_relaxed)));
-            spectralDelay_.setStereoWidth(spectralParams_.stereoWidth.load(std::memory_order_relaxed));
-            // Tempo Sync (spec 041)
-            spectralDelay_.setTimeMode(spectralParams_.timeMode.load(std::memory_order_relaxed));
-            spectralDelay_.setNoteValue(spectralParams_.noteValue.load(std::memory_order_relaxed));
-            spectralDelay_.process(outputL, outputR, numSamples, ctx);
+        case DelayMode::Spectral: {
+            // FFT Size picks one of the prepared engines; a change crossfades from the old one to the new one
+            const size_t wanted = spectralIndexOf(spectralParams_.fftSize.load(std::memory_order_relaxed));
+            if (wanted != spectralActive_) {
+                spectralFadingOut_ = spectralActive_;
+                spectralActive_ = wanted;
+                spectralDelays_[spectralActive_].reset();
+                spectralFadePos_ = 0.0f;
+            }
+            const bool fading = spectralFadePos_ < 1.0f;
+            if (fading) {
+                // outputL/R hold the input here (processMode copied it); the fading engine gets its own copy
+                std::copy_n(outputL, numSamples, spectralFadeL_.data());
+                std::copy_n(outputR, numSamples, spectralFadeR_.data());
+            }
+            applySpectralParams(spectralDelays_[spectralActive_]);
+            spectralDelays_[spectralActive_].process(outputL, outputR, numSamples, ctx);
+            if (fading) {
+                applySpectralParams(spectralDelays_[spectralFadingOut_]);
+                spectralDelays_[spectralFadingOut_].process(spectralFadeL_.data(), spectralFadeR_.data(), numSamples,
+                                                            ctx);
+                for (size_t i = 0; i < numSamples; ++i) {
+                    float fadeOut = 0.0f;
+                    float fadeIn = 1.0f;
+                    if (spectralFadePos_ < 1.0f) {
+                        Krate::DSP::equalPowerGains(spectralFadePos_, fadeOut, fadeIn);
+                        spectralFadePos_ = std::min(1.0f, spectralFadePos_ + crossfadeIncrement_);
+                    }
+                    outputL[i] = spectralFadeL_[i] * fadeOut + outputL[i] * fadeIn;
+                    outputR[i] = spectralFadeR_[i] * fadeOut + outputR[i] * fadeIn;
+                }
+            }
             break;
+        }
 
         case DelayMode::Shimmer:
             // Update Shimmer parameters
@@ -847,13 +882,47 @@ void Processor::processMode(int mode, const float* inputL, const float* inputR,
 }
 
 // ==============================================================================
+// Spectral engines (one per FFT Size)
+// ==============================================================================
+
+void Processor::applySpectralParams(Krate::DSP::SpectralDelay& engine) {
+    engine.setBaseDelayMs(spectralParams_.baseDelay.load(std::memory_order_relaxed));
+    engine.setSpreadMs(spectralParams_.spread.load(std::memory_order_relaxed));
+    engine.setSpreadDirection(static_cast<Krate::DSP::SpreadDirection>(
+        spectralParams_.spreadDirection.load(std::memory_order_relaxed)));
+    engine.setFeedback(spectralParams_.feedback.load(std::memory_order_relaxed));
+    engine.setFeedbackTilt(spectralParams_.feedbackTilt.load(std::memory_order_relaxed));
+    engine.setFreezeEnabled(spectralParams_.freeze.load(std::memory_order_relaxed));
+    engine.setDiffusion(spectralParams_.diffusion.load(std::memory_order_relaxed));
+    engine.setDryWetMix(spectralParams_.dryWet.load(std::memory_order_relaxed));
+    engine.setSpreadCurve(static_cast<Krate::DSP::SpreadCurve>(
+        spectralParams_.spreadCurve.load(std::memory_order_relaxed)));
+    engine.setStereoWidth(spectralParams_.stereoWidth.load(std::memory_order_relaxed));
+    // Tempo Sync (spec 041)
+    engine.setTimeMode(spectralParams_.timeMode.load(std::memory_order_relaxed));
+    engine.setNoteValue(spectralParams_.noteValue.load(std::memory_order_relaxed));
+}
+
+size_t Processor::spectralIndexOf(int fftSize) noexcept {
+    for (size_t i = 0; i < kSpectralFftSizes.size(); ++i) {
+        if (std::cmp_less_equal(fftSize, kSpectralFftSizes[i])) {
+            return i;
+        }
+    }
+    return kSpectralFftSizes.size() - 1;
+}
+
+// ==============================================================================
 // Mode Reset Helper
 // ==============================================================================
 
 void Processor::resetMode(int mode) noexcept {
     switch (static_cast<DelayMode>(mode)) {
         case DelayMode::Granular:  granularDelay_.reset();      break;
-        case DelayMode::Spectral:  spectralDelay_.reset();      break;
+        case DelayMode::Spectral:
+            spectralDelays_[spectralActive_].reset();
+            spectralFadePos_ = 1.0f;
+            break;
         case DelayMode::Shimmer:   shimmerDelay_.reset();        break;
         case DelayMode::Tape:      tapeDelay_.reset();           break;
         case DelayMode::BBD:       bbdDelay_.reset();            break;

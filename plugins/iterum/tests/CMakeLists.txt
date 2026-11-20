@@ -45,6 +45,7 @@ add_executable(plugin_tests
     # Processor::process driven through HostProcessData: the MultiTap Tempo output, the Custom Length tail and the
     # morph into Custom (specs/iterum-tap-editor/design.md row 4)
     unit/processor/multitap_tempo_output_test.cpp
+    unit/processor/spectral_fft_and_inplace_test.cpp
     # Freeze through Processor::process: the song position, the capture state tail, a restored Hold, the infinite
     # tail and the Drones CPU budget (specs/iterum-freeze/design.md rows P4, P10, P11)
     unit/processor/freeze_transport_test.cpp
@@ -82,6 +83,9 @@ add_executable(plugin_tests
     unit/vst/editor_screenshot_test.cpp
     unit/vst/tap_editor_screenshot_test.cpp
     unit/vst/freeze_screenshot_test.cpp
+
+    # MANUAL.md names every user-facing parameter, mode and factory preset ([iterum][docs]).
+    unit/vst/manual_coverage_test.cpp
 
     # Every control of every mode live and of the designed widget, the conditional groups and the Sync retag
     # ([iterum][ui]; specs/iterum-ui-redesign/design-system.md 9.4 step 3).

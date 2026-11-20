@@ -43,9 +43,9 @@ renderPoly, reference voice, E1 detuned by {-6, -2, +2, +6} cents, keyed by lowe
 
 == Limiter GR at note attacks (Mass 100, E1, 48 kHz; limiter in / out taps, |in| > 1e-4) ==
 fixture attackPeakGrDb attackDurationMs(GR < -0.01 dB, before 1 s) steadyMinGrDb(from 1 s)
-reference -7.8662 523.792 -0.000994595
-kSawAnchor -5.81168 502.688 -0.000994593
-kSineAnchor -6.70965 998.875 -0.178879
+reference -7.86436 523.771 -0.000994594
+kSawAnchor -5.81292 502.708 -0.000994594
+kSineAnchor -6.71031 998.875 -0.179093
 
 == Keytracked-corner contract (FR-018) ==
 call setDetectorKeyHz(lowestSoundingF0(voices)) once per 32-sample interval; 0 / non-finite = no voice -> 80 Hz

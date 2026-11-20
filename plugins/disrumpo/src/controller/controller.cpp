@@ -28,6 +28,7 @@
 #include "controller/custom_buttons.h"
 #include "dsp/sweep_morph_link.h"
 #include "dsp/custom_curve.h"
+#include "dsp/morph_node.h"
 #include "ui/preset_browser_view.h"
 #include "ui/save_preset_dialog_view.h"
 #include "ui/update_banner_view.h"
@@ -51,6 +52,7 @@
 #include "vstgui/uidescription/iuidescription.h"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstring>
 #include <atomic>
@@ -663,6 +665,60 @@ bool Controller::parseComponentState(Steinberg::IBStreamer& streamer, int32_t ve
     return true;
 }
 
+template <typename ParamSetter>
+void Controller::parseStateTrailer(Steinberg::IBStreamer& streamer, const ParamSetter& setter, bool adoptInstanceId) {
+    // Unless the state carries positions (every state written before them): the corners, and the line spot
+    // 1D Linear gave each node then (even spacing over the band's active nodes, which parseComponentState has set)
+    constexpr auto kNodes = static_cast<size_t>(kMaxMorphNodes);
+    const auto slot = [](int b, int n) { return (static_cast<size_t>(b) * kNodes) + static_cast<size_t>(n); };
+    std::array<std::array<float, 3>, static_cast<size_t>(kMaxBands) * kNodes> nodePositions{};
+    for (int b = 0; b < kMaxBands; ++b) {
+        const double activeNorm = getParamNormalized(makeBandParamId(static_cast<uint8_t>(b), BandParamType::kBandActiveNodes));
+        const int activeCount = static_cast<int>(std::lround(activeNorm * 3.0)) + 1;  // "1" .. "4"
+        for (int n = 0; n < kMaxMorphNodes; ++n) {
+            nodePositions[slot(b, n)] = {kDefaultNodePosX[n], kDefaultNodePosY[n], legacyNodeLinePos(n, activeCount)};
+        }
+    }
+    // Tagged blocks in either order: the instance ID ("KRAT") and the node positions ("NPOS"); a factory
+    // preset carries only the positions
+    for (int block = 0; block < 2; ++block) {
+        Steinberg::int32 marker = 0;
+        if (!streamer.readInt32(marker)) break;
+        if (marker == kInstanceIdMarker) {
+            Steinberg::int64 storedId = 0;
+            if (!streamer.readInt64(storedId)) break;
+            if (adoptInstanceId) {
+                instanceId_ = static_cast<uint64_t>(storedId);
+                sharedDisplay_ = static_cast<SharedDisplay*>(
+                    Krate::Plugins::SharedDisplayBridge::instance().lookupInstance(instanceId_));
+                KRATE_BRIDGE_LOG("Disrumpo::Controller::setComponentState() — id=0x%llx, bridge=%s",
+                    static_cast<unsigned long long>(instanceId_),
+                    sharedDisplay_ ? "found" : "NOT found");
+            }
+        } else if (marker == kNodePositionsMarker) {
+            for (auto& pos : nodePositions) {
+                float x = 0.0f;
+                float y = 0.0f;
+                float line = 0.0f;
+                if (!streamer.readFloat(x) || !streamer.readFloat(y) || !streamer.readFloat(line)) break;
+                pos = {std::clamp(x, 0.0f, 1.0f), std::clamp(y, 0.0f, 1.0f), std::clamp(line, 0.0f, 1.0f)};
+            }
+        } else {
+            break;
+        }
+    }
+    for (int b = 0; b < kMaxBands; ++b) {
+        for (int n = 0; n < kMaxMorphNodes; ++n) {
+            const auto& pos = nodePositions[slot(b, n)];
+            const auto band = static_cast<uint8_t>(b);
+            const auto node = static_cast<uint8_t>(n);
+            setter(makeNodeParamId(band, node, NodeParamType::kNodePosX), pos[0]);
+            setter(makeNodeParamId(band, node, NodeParamType::kNodePosY), pos[1]);
+            setter(makeNodeParamId(band, node, NodeParamType::kNodeLinePos), pos[2]);
+        }
+    }
+}
+
 Steinberg::tresult PLUGIN_API Controller::setComponentState(Steinberg::IBStream* state) {
     if (!state) return Steinberg::kResultFalse;
 
@@ -681,21 +737,8 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(Steinberg::IBStream*
     if (!parseComponentState(streamer, version, setter))
         return Steinberg::kResultFalse;
 
-    // SharedDisplayBridge: try to read instance ID from state trailer
-    {
-        Steinberg::int32 marker = 0;
-        Steinberg::int64 storedId = 0;
-        if (streamer.readInt32(marker) && marker == kInstanceIdMarker
-            && streamer.readInt64(storedId))
-        {
-            instanceId_ = static_cast<uint64_t>(storedId);
-            sharedDisplay_ = static_cast<SharedDisplay*>(
-                Krate::Plugins::SharedDisplayBridge::instance().lookupInstance(instanceId_));
-            KRATE_BRIDGE_LOG("Disrumpo::Controller::setComponentState() — id=0x%llx, bridge=%s",
-                static_cast<unsigned long long>(instanceId_),
-                sharedDisplay_ ? "found" : "NOT found");
-        }
-    }
+    // The state trailer: the MorphPad node positions, then the SharedDisplayBridge instance ID
+    parseStateTrailer(streamer, setter, true);
 
     bulkParamLoad_ = false;
     syncAllViews();
@@ -1164,6 +1207,21 @@ VSTGUI::CView* Controller::createCustomView(
         Steinberg::Vst::ParamID morphYParamId = makeBandParamId(
             static_cast<uint8_t>(bandIndex), BandParamType::kBandMorphY);
         morphPad->bindMorphParams(morphXParamId, morphYParamId);
+        morphPad->bindBandParams(
+            makeBandParamId(static_cast<uint8_t>(bandIndex), BandParamType::kBandMorphMode),
+            makeBandParamId(static_cast<uint8_t>(bandIndex), BandParamType::kBandSelectedNode));
+        std::array<Steinberg::Vst::ParamID, kMaxMorphNodes> nodePosXIds{};
+        std::array<Steinberg::Vst::ParamID, kMaxMorphNodes> nodePosYIds{};
+        std::array<Steinberg::Vst::ParamID, kMaxMorphNodes> nodeLineIds{};
+        for (int n = 0; n < kMaxMorphNodes; ++n) {
+            nodePosXIds[static_cast<size_t>(n)] = makeNodeParamId(
+                static_cast<uint8_t>(bandIndex), static_cast<uint8_t>(n), NodeParamType::kNodePosX);
+            nodePosYIds[static_cast<size_t>(n)] = makeNodeParamId(
+                static_cast<uint8_t>(bandIndex), static_cast<uint8_t>(n), NodeParamType::kNodePosY);
+            nodeLineIds[static_cast<size_t>(n)] = makeNodeParamId(
+                static_cast<uint8_t>(bandIndex), static_cast<uint8_t>(n), NodeParamType::kNodeLinePos);
+        }
+        morphPad->bindNodePositionParams(nodePosXIds, nodePosYIds, nodeLineIds);
 
         auto* morphXParam = getParameterObject(morphXParamId);
         auto* morphYParam = getParameterObject(makeBandParamId(
@@ -2022,6 +2080,20 @@ Steinberg::MemoryStream* Controller::createComponentStateStream() {
         }
     }
 
+    // The trailer, as Processor::getState writes it: the MorphPad node positions, then the instance ID
+    streamer.writeInt32(kNodePositionsMarker);
+    for (int b = 0; b < kMaxBands; ++b) {
+        for (int n = 0; n < kMaxMorphNodes; ++n) {
+            const auto band = static_cast<uint8_t>(b);
+            const auto node = static_cast<uint8_t>(n);
+            streamer.writeFloat(getParamNorm(makeNodeParamId(band, node, NodeParamType::kNodePosX)));
+            streamer.writeFloat(getParamNorm(makeNodeParamId(band, node, NodeParamType::kNodePosY)));
+            streamer.writeFloat(getParamNorm(makeNodeParamId(band, node, NodeParamType::kNodeLinePos)));
+        }
+    }
+    streamer.writeInt32(kInstanceIdMarker);
+    streamer.writeInt64(static_cast<Steinberg::int64>(instanceId_));
+
     return stream;
 }
 
@@ -2049,6 +2121,9 @@ bool Controller::loadComponentStateWithNotify(Steinberg::IBStream* state) {
     };
 
     bool ok = parseComponentState(streamer, version, setter);
+    if (ok) {
+        parseStateTrailer(streamer, setter, false);  // the MorphPad node positions (corners when absent)
+    }
 
     bulkParamLoad_ = false;
     syncAllViews();

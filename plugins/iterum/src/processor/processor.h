@@ -39,6 +39,7 @@
 #include "parameters/tape_params.h"
 #include "parameters/dropdown_mappings.h"
 
+#include <array>
 #include <atomic>
 #include <vector>
 
@@ -181,6 +182,10 @@ private:
     /// Work buffer for previous mode's right channel output during crossfade
     std::vector<float> crossfadeBufferR_;
 
+    /// A copy of the input that both modes of a crossfade read (a host may process in place: input == output)
+    std::vector<float> crossfadeInputL_;
+    std::vector<float> crossfadeInputR_;
+
     // ==========================================================================
     // Parameters (atomic for thread-safe access)
     // Constitution Principle VI: Use std::atomic for simple shared state
@@ -210,7 +215,19 @@ private:
     // ==========================================================================
 
     Krate::DSP::GranularDelay granularDelay_;
-    Krate::DSP::SpectralDelay spectralDelay_;
+
+    // Spectral: one engine per FFT Size, every one prepared in setupProcessing, so a new FFT Size takes effect while
+    // running (SpectralDelay sizes its STFT in prepare(), which must not run on the audio thread). A change crossfades
+    // from the old engine to the new one over the mode crossfade's 50 ms.
+    static constexpr std::array<size_t, 4> kSpectralFftSizes{512, 1024, 2048, 4096};
+    std::array<Krate::DSP::SpectralDelay, kSpectralFftSizes.size()> spectralDelays_;
+    size_t spectralActive_ = 1;      ///< The engine that plays (index into kSpectralFftSizes; 1 = 1024)
+    size_t spectralFadingOut_ = 1;   ///< The engine fading out while spectralFadePos_ < 1
+    float spectralFadePos_ = 1.0f;   ///< 0 -> 1 across an FFT Size change; 1 = no fade
+    std::vector<float> spectralFadeL_;  ///< The fading engine's own copy of the input
+    std::vector<float> spectralFadeR_;
+    void applySpectralParams(Krate::DSP::SpectralDelay& engine);
+    [[nodiscard]] static size_t spectralIndexOf(int fftSize) noexcept;
     Krate::DSP::PatternFreezeMode patternFreezeMode_;
     Krate::DSP::ReverseDelay reverseDelay_;
     Krate::DSP::ShimmerDelay shimmerDelay_;

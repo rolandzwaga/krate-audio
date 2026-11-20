@@ -53,14 +53,14 @@ static std::vector<ArpEvent> collectEchoes(MidiNoteDelay& delay, BlockContext& c
         // Only provide the initial event in block 0
         if (b == 0 && initialEvent != nullptr) {
             input[0] = *initialEvent;
+            input[0].delayStep = static_cast<uint8_t>(currentStep);
             inputCount = 1;
         }
 
         size_t count = delay.process(ctx,
             std::span<const ArpEvent>(input.data(), inputCount),
             inputCount,
-            std::span<ArpEvent>(output.data(), output.size()),
-            currentStep);
+            std::span<ArpEvent>(output.data(), output.size()));
 
         for (size_t i = 0; i < count; ++i) {
             ArpEvent evt = output[i];
@@ -97,7 +97,7 @@ TEST_CASE("MidiNoteDelay: no echoes when feedback is 0", "[MidiNoteDelay]")
 
     size_t count = delay.process(ctx,
         std::span<const ArpEvent>(&noteOn, 1), 1,
-        std::span<ArpEvent>(output.data(), output.size()), 0);
+        std::span<ArpEvent>(output.data(), output.size()));
 
     // Only the pass-through event
     REQUIRE(count == 1);
@@ -121,7 +121,7 @@ TEST_CASE("MidiNoteDelay: pass-through preserves all input events", "[MidiNoteDe
 
     size_t count = delay.process(ctx,
         std::span<const ArpEvent>(input.data(), input.size()), input.size(),
-        std::span<ArpEvent>(output.data(), output.size()), 0);
+        std::span<ArpEvent>(output.data(), output.size()));
 
     REQUIRE(count >= 3);
     CHECK(output[0].type == ArpEvent::Type::NoteOn);
@@ -149,7 +149,7 @@ TEST_CASE("MidiNoteDelay: NoteOff events do not generate echoes", "[MidiNoteDela
 
     size_t count = delay.process(ctx,
         std::span<const ArpEvent>(&noteOff, 1), 1,
-        std::span<ArpEvent>(output.data(), output.size()), 0);
+        std::span<ArpEvent>(output.data(), output.size()));
 
     CHECK(count == 1); // Only pass-through
     CHECK(delay.pendingCount() == 0);
@@ -589,7 +589,7 @@ TEST_CASE("MidiNoteDelay: reset clears pending echoes", "[MidiNoteDelay]")
     auto noteOn = makeNoteOn(60, 100, 0);
     std::array<ArpEvent, 64> output;
     delay.process(ctx, std::span<const ArpEvent>(&noteOn, 1), 1,
-        std::span<ArpEvent>(output.data(), output.size()), 0);
+        std::span<ArpEvent>(output.data(), output.size()));
 
     CHECK(delay.pendingCount() > 0);
 
@@ -619,7 +619,7 @@ TEST_CASE("MidiNoteDelay: overflow steals oldest echoes", "[MidiNoteDelay]")
     for (int i = 0; i < 20; ++i) {
         auto noteOn = makeNoteOn(60 + static_cast<uint8_t>(i % 12), 100, 0);
         delay.process(ctx, std::span<const ArpEvent>(&noteOn, 1), 1,
-            std::span<ArpEvent>(output.data(), output.size()), 0);
+            std::span<ArpEvent>(output.data(), output.size()));
     }
 
     // Should not exceed max capacity
@@ -660,7 +660,7 @@ TEST_CASE("MidiNoteDelay: empty input produces no output initially", "[MidiNoteD
 
     size_t count = delay.process(ctx,
         std::span<const ArpEvent>{}, 0,
-        std::span<ArpEvent>(output.data(), output.size()), 0);
+        std::span<ArpEvent>(output.data(), output.size()));
 
     CHECK(count == 0);
 }
@@ -724,7 +724,7 @@ TEST_CASE("MidiNoteDelay: kSkip events pass through without echoes", "[MidiNoteD
 
     size_t count = delay.process(ctx,
         std::span<const ArpEvent>(&skipEvent, 1), 1,
-        std::span<ArpEvent>(output.data(), output.size()), 0);
+        std::span<ArpEvent>(output.data(), output.size()));
 
     CHECK(count == 1);
     CHECK(output[0].type == ArpEvent::Type::kSkip);
@@ -871,7 +871,7 @@ TEST_CASE("MidiNoteDelay: output-span saturation never strands an echo NoteOff",
 
     auto runBlock = [&](std::span<const ArpEvent> input, size_t spanSize) {
         size_t count = delay.process(ctx, input, input.size(),
-                                     std::span<ArpEvent>(output.data(), spanSize), 0);
+                                     std::span<ArpEvent>(output.data(), spanSize));
         for (size_t i = 0; i < count; ++i) {
             if (output[i].type == ArpEvent::Type::NoteOn)  ++onCount[output[i].note];
             else if (output[i].type == ArpEvent::Type::NoteOff) ++offCount[output[i].note];
@@ -944,7 +944,7 @@ TEST_CASE("MidiNoteDelay: output events are non-decreasing in sampleOffset",
     // Block 0: a note at offset 0 schedules echoes at 441, 882, ...
     std::array<ArpEvent, 1> first{makeNoteOn(60, 100, 0)};
     (void)delay.process(ctx, std::span<const ArpEvent>(first.data(), 1), 1,
-                        std::span<ArpEvent>(output.data(), output.size()), 0);
+                        std::span<ArpEvent>(output.data(), output.size()));
 
     // Block 1: a pass-through arp event LATE in the block (offset 500) is
     // appended before the echo that is due EARLY in the same block (offset ~441
@@ -952,7 +952,7 @@ TEST_CASE("MidiNoteDelay: output events are non-decreasing in sampleOffset",
     std::array<ArpEvent, 1> second{makeNoteOn(64, 100, 500)};
     const size_t count = delay.process(
         ctx, std::span<const ArpEvent>(second.data(), 1), 1,
-        std::span<ArpEvent>(output.data(), output.size()), 0);
+        std::span<ArpEvent>(output.data(), output.size()));
 
     REQUIRE(count >= 2);
     for (size_t i = 1; i < count; ++i) {
@@ -999,7 +999,7 @@ TEST_CASE("GMF-003: overflow eviction of >16 sounded echoes never drops a NoteOf
     auto runBlock = [&](std::span<const ArpEvent> input) {
         const size_t count = delay.process(
             ctx, input, input.size(),
-            std::span<ArpEvent>(output.data(), output.size()), 0);
+            std::span<ArpEvent>(output.data(), output.size()));
         REQUIRE(delay.pendingCount() <= 256);
         for (size_t i = 0; i < count; ++i) {
             const auto& e = output[i];

@@ -55,6 +55,7 @@ add_executable(gradus_tests
 
     # Audition silence reporting + tempo validity (audit F18, F19)
     unit/processor/audition_and_tempo_test.cpp
+    unit/processor/retrigger_beat_and_echo_step_test.cpp
 
     # Velocity-0 NoteOn must release, not hold (MIDI-flow audit GMF-004)
     unit/processor/velocity_zero_noteon_test.cpp

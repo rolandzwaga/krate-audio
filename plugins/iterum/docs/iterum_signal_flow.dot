@@ -1,0 +1,243 @@
+digraph IterumSignalFlow {
+    rankdir=LR;
+    fontname="Helvetica";
+    fontsize=11;
+    node [fontname="Helvetica", fontsize=10, style=filled];
+    edge [fontname="Helvetica", fontsize=8];
+    compound=true;
+    newrank=true;
+    nodesep=0.25;
+    ranksep=0.45;
+
+    // Source of truth: plugins/iterum/src/processor/processor.cpp (process(): parameter intake, transport, mode
+    // switch and 50 ms crossfade, processMode, output gain) and the ten engines it runs, all under
+    // dsp/include/krate/dsp/: effects/granular_delay.h + systems/granular_engine.h, effects/spectral_delay.h,
+    // effects/shimmer_delay.h + systems/flexible_feedback_network.h, effects/tape_delay.h + systems/tap_manager.h +
+    // systems/character_processor.h, effects/bbd_delay.h + systems/feedback_network.h, effects/digital_delay.h,
+    // effects/ping_pong_delay.h, effects/reverse_delay.h + processors/reverse_feedback_processor.h,
+    // effects/multi_tap_delay.h, effects/pattern_freeze_mode.h.
+    // Every engine taps its own dry signal and mixes it back with its own Mix control; there is no global dry/wet.
+
+    // =========================================================================
+    // COLOR LEGEND
+    // =========================================================================
+    subgraph cluster_legend {
+        label="Legend";
+        style=rounded;
+        color="#888888";
+        fontsize=12;
+        fontcolor="#444444";
+        bgcolor="#FAFAFA";
+
+        node [shape=plaintext, fillcolor="#FAFAFA"];
+        leg [label=<
+            <TABLE BORDER="0" CELLBORDER="0" CELLSPACING="4">
+            <TR><TD BGCOLOR="#6366F1" WIDTH="20"> </TD><TD ALIGN="LEFT">Delay core / audio path</TD></TR>
+            <TR><TD BGCOLOR="#C7C8FA" WIDTH="20"> </TD><TD ALIGN="LEFT">Inside the feedback loop</TD></TR>
+            <TR><TD BGCOLOR="#E8A838" WIDTH="20"> </TD><TD ALIGN="LEFT">Modulation / clock</TD></TR>
+            <TR><TD BGCOLOR="#6BBF6B" WIDTH="20"> </TD><TD ALIGN="LEFT">Shared chain</TD></TR>
+            <TR><TD BGCOLOR="#AAAAAA" WIDTH="20"> </TD><TD ALIGN="LEFT">Host</TD></TR>
+            <TR><TD>───▶</TD><TD ALIGN="LEFT">Audio flow</TD></TR>
+            <TR><TD>- - ▶</TD><TD ALIGN="LEFT">Feedback / control</TD></TR>
+            </TABLE>
+        >];
+    }
+
+    // =========================================================================
+    // SHARED INPUT
+    // =========================================================================
+    audio_in [label="Stereo in", shape=house, fillcolor="#CCDDEE"];
+    tempo [label="Host tempo,\nposition, play state\n(120 BPM when absent)", shape=house, fillcolor="#CCDDEE"];
+    mode [label="Mode\n10 engines, one plays\nswitch: 50 ms equal-power\ncrossfade, old and new\nboth run on the input", shape=box, fillcolor="#6BBF6B"];
+    audio_in -> mode [penwidth=2];
+
+    // =========================================================================
+    // GRANULAR
+    // =========================================================================
+    subgraph cluster_granular {
+        label="Granular";
+        style=rounded; color="#4F46E5"; bgcolor="#F1F1FE";
+        gr_buf [label="Grain buffer\ninput + Feedback × output\nFreeze stops writing", shape=box, fillcolor="#C7C8FA"];
+        gr_grains [label="Grains\nDensity · Jitter · Grain Size · Envelope\nPitch + Pitch Spray → Pitch Quantize\nPosition Spray · Pan Spray\nReverse Probability · Texture", shape=box, fillcolor="#6366F1", fontcolor="white"];
+        gr_lim [label="Σ grains\n→ soft limit", shape=box, fillcolor="#6366F1", fontcolor="white"];
+        gr_mix [label="Mix\n→ Width\n(mid/side)", shape=box, fillcolor="#6366F1", fontcolor="white"];
+        gr_buf -> gr_grains -> gr_lim -> gr_mix [penwidth=2];
+        gr_lim -> gr_buf [style=dashed, color="#4F46E5", label="Feedback"];
+    }
+
+    // =========================================================================
+    // SPECTRAL
+    // =========================================================================
+    subgraph cluster_spectral {
+        label="Spectral";
+        style=rounded; color="#4F46E5"; bgcolor="#F1F1FE";
+        sp_fft [label="STFT\nFFT Size 512-4096", shape=box, fillcolor="#6366F1", fontcolor="white"];
+        sp_bins [label="Per-bin delay\nTime + Spread\nSpread Direction · Spread Curve", shape=box, fillcolor="#C7C8FA"];
+        sp_fb [label="Per-bin feedback\nFeedback × Feedback Tilt\nsoft limit; Freeze: no write", shape=box, fillcolor="#C7C8FA"];
+        sp_post [label="Freeze crossfade\n→ Width (phase)\n→ Diffusion (blur)", shape=box, fillcolor="#6366F1", fontcolor="white"];
+        sp_mix [label="Inverse STFT\n→ Mix", shape=box, fillcolor="#6366F1", fontcolor="white"];
+        sp_fft -> sp_bins -> sp_post -> sp_mix [penwidth=2];
+        sp_bins -> sp_fb [style=dashed, color="#4F46E5"];
+        sp_fb -> sp_bins [style=dashed, color="#4F46E5"];
+    }
+
+    // =========================================================================
+    // SHIMMER
+    // =========================================================================
+    subgraph cluster_shimmer {
+        label="Shimmer";
+        style=rounded; color="#4F46E5"; bgcolor="#F1F1FE";
+        sh_delay [label="Delay line\nTime", shape=box, fillcolor="#6366F1", fontcolor="white"];
+        sh_pitch [label="Pitch shift\nPitch ±24 st · Fine Pitch\n→ diffusion (Diffusion Size)", shape=box, fillcolor="#C7C8FA"];
+        sh_blend [label="Pitch Blend\nunpitched ↔ pitched", shape=box, fillcolor="#C7C8FA"];
+        sh_filter [label="Filter (low-pass)\nFilter Cutoff\n→ limiter above 100%", shape=box, fillcolor="#C7C8FA"];
+        sh_mix [label="Mix", shape=box, fillcolor="#6366F1", fontcolor="white"];
+        sh_delay -> sh_pitch -> sh_blend -> sh_filter [penwidth=2];
+        sh_delay -> sh_blend [penwidth=2, label="unpitched"];
+        sh_filter -> sh_mix [penwidth=2, label="wet"];
+        sh_filter -> sh_delay [style=dashed, color="#4F46E5", label="× Feedback"];
+    }
+
+    // =========================================================================
+    // TAPE
+    // =========================================================================
+    subgraph cluster_tape {
+        label="Tape";
+        style=rounded; color="#4F46E5"; bgcolor="#F1F1FE";
+        tp_motor [label="Motor\nTime, glided by Inertia", shape=box, fillcolor="#E8A838"];
+        tp_line [label="Tape (mono sum)", shape=box, fillcolor="#6366F1", fontcolor="white"];
+        tp_heads [label="Heads 1-3\nat 1×, 1.5×, 2× Time\neach: on/off, Level, Pan", shape=box, fillcolor="#6366F1", fontcolor="white"];
+        tp_char [label="Character\nwow / flutter (Wear)\nSaturation (2× oversampled)\nAge: high roll-off, hiss\n+ Splice clicks", shape=box, fillcolor="#6366F1", fontcolor="white"];
+        tp_mix [label="Mix", shape=box, fillcolor="#6366F1", fontcolor="white"];
+        tp_line -> tp_heads -> tp_char -> tp_mix [penwidth=2];
+        tp_heads -> tp_line [style=dashed, color="#4F46E5", label="each head\n× Feedback"];
+        tp_motor -> tp_heads [style=dashed, color="#C08020"];
+    }
+
+    // =========================================================================
+    // BBD
+    // =========================================================================
+    subgraph cluster_bbd {
+        label="BBD";
+        style=rounded; color="#4F46E5"; bgcolor="#F1F1FE";
+        bb_lfo [label="Triangle LFO\nMod Depth · Mod Rate", shape=box, fillcolor="#E8A838"];
+        bb_comp [label="Compander\n(compress, Age)", shape=box, fillcolor="#6366F1", fontcolor="white"];
+        bb_line [label="Bucket brigade\nTime", shape=box, fillcolor="#6366F1", fontcolor="white"];
+        bb_loop [label="Feedback loop\nlow-pass at the chip bandwidth\n(Era, Time, Age)\n→ saturation → DC blocker", shape=box, fillcolor="#C7C8FA"];
+        bb_char [label="Chip character\nlow-pass, chip drive, clock noise\n→ expander", shape=box, fillcolor="#6366F1", fontcolor="white"];
+        bb_mix [label="Mix", shape=box, fillcolor="#6366F1", fontcolor="white"];
+        bb_comp -> bb_line -> bb_char -> bb_mix [penwidth=2];
+        bb_line -> bb_loop [style=dashed, color="#4F46E5"];
+        bb_loop -> bb_line [style=dashed, color="#4F46E5", label="× Feedback"];
+        bb_lfo -> bb_line [style=dashed, color="#C08020"];
+    }
+
+    // =========================================================================
+    // DIGITAL
+    // =========================================================================
+    subgraph cluster_digital {
+        label="Digital";
+        style=rounded; color="#4F46E5"; bgcolor="#F1F1FE";
+        dg_lfo [label="LFO\nMod Waveform · Mod Depth · Mod Rate", shape=box, fillcolor="#E8A838"];
+        dg_line [label="Delay line\nTime", shape=box, fillcolor="#6366F1", fontcolor="white"];
+        dg_loop [label="Feedback loop\n80s Digital: low-pass (Age)\n→ DC blocker", shape=box, fillcolor="#C7C8FA"];
+        dg_fold [label="Wavefold\nAmount · Type · Symmetry", shape=box, fillcolor="#6366F1", fontcolor="white"];
+        dg_era [label="Era\nPristine · 80s Digital · Lo-Fi\nsample-rate and bit reduction", shape=box, fillcolor="#6366F1", fontcolor="white"];
+        dg_lim [label="Limiter\nSoft · Medium · Hard", shape=box, fillcolor="#6366F1", fontcolor="white"];
+        dg_mix [label="Width (mid/side)\n→ Mix", shape=box, fillcolor="#6366F1", fontcolor="white"];
+        dg_line -> dg_fold -> dg_era -> dg_lim -> dg_mix [penwidth=2];
+        dg_line -> dg_loop [style=dashed, color="#4F46E5"];
+        dg_loop -> dg_line [style=dashed, color="#4F46E5", label="× Feedback"];
+        dg_lfo -> dg_line [style=dashed, color="#C08020"];
+    }
+
+    // =========================================================================
+    // PINGPONG
+    // =========================================================================
+    subgraph cluster_pingpong {
+        label="PingPong";
+        style=rounded; color="#4F46E5"; bgcolor="#F1F1FE";
+        pp_lfo [label="Two LFOs, 90° apart\nMod Depth · Mod Rate", shape=box, fillcolor="#E8A838"];
+        pp_lines [label="Left and right lines\nTime × L/R Ratio", shape=box, fillcolor="#6366F1", fontcolor="white"];
+        pp_cross [label="Feedback\n× Feedback, soft limit\nCross-Feedback: 0 = dual mono,\n100% = full ping-pong", shape=box, fillcolor="#C7C8FA"];
+        pp_mix [label="Width (mid/side)\n→ Mix", shape=box, fillcolor="#6366F1", fontcolor="white"];
+        pp_lines -> pp_mix [penwidth=2];
+        pp_lines -> pp_cross [style=dashed, color="#4F46E5"];
+        pp_cross -> pp_lines [style=dashed, color="#4F46E5"];
+        pp_lfo -> pp_lines [style=dashed, color="#C08020"];
+    }
+
+    // =========================================================================
+    // REVERSE
+    // =========================================================================
+    subgraph cluster_reverse {
+        label="Reverse";
+        style=rounded; color="#4F46E5"; bgcolor="#F1F1FE";
+        rv_chunks [label="Reversed chunks\nChunk Size · Crossfade\nPlayback Mode: Full Reverse ·\nAlternating · Random", shape=box, fillcolor="#6366F1", fontcolor="white"];
+        rv_loop [label="Filter (on/off)\nLowPass · HighPass · BandPass\nFilter Cutoff\n→ limiter above 100%", shape=box, fillcolor="#C7C8FA"];
+        rv_mix [label="Mix", shape=box, fillcolor="#6366F1", fontcolor="white"];
+        rv_chunks -> rv_loop -> rv_mix [penwidth=2];
+        rv_loop -> rv_chunks [style=dashed, color="#4F46E5", label="× Feedback"];
+    }
+
+    // =========================================================================
+    // MULTITAP
+    // =========================================================================
+    subgraph cluster_multitap {
+        label="MultiTap";
+        style=rounded; color="#4F46E5"; bgcolor="#F1F1FE";
+        mt_line [label="Delay line (mono sum)", shape=box, fillcolor="#6366F1", fontcolor="white"];
+        mt_taps [label="2-16 taps\nTiming Pattern or the Custom editor\nNote Value · Note Modifier\nSpatial Pattern: level and pan\nMorph Time", shape=box, fillcolor="#6366F1", fontcolor="white"];
+        mt_fb [label="Feedback stage\nFeedback · LP Cutoff\nsaturation", shape=box, fillcolor="#6366F1", fontcolor="white"];
+        mt_mix [label="Mix", shape=box, fillcolor="#6366F1", fontcolor="white"];
+        mt_line -> mt_taps -> mt_fb -> mt_mix [penwidth=2];
+    }
+
+    // =========================================================================
+    // FREEZE
+    // =========================================================================
+    subgraph cluster_freeze {
+        label="Freeze";
+        style=rounded; color="#4F46E5"; bgcolor="#F1F1FE";
+        fz_clock [label="Bar clock\nhost position, or a free\nclock at the host tempo", shape=box, fillcolor="#E8A838"];
+        fz_cap [label="Capture\none window per Capture cycle\n(1/4 · 1/2 · 1/1 · 2/1)\nHold keeps the window", shape=box, fillcolor="#6366F1", fontcolor="white"];
+        fz_pat [label="Pattern\nEuclidean: Steps · Hits · Rotation · Pattern Rate\nGranular Scatter: Density · Grain Size · Jitter\nHarmonic Drones: Voices · Interval · Drift\nNoise Bursts: Noise Color · Burst Rate · Filter\nSlice Length · Slice Mode", shape=box, fillcolor="#6366F1", fontcolor="white"];
+        fz_env [label="Envelope\nAttack · Release · Shape", shape=box, fillcolor="#6366F1", fontcolor="white"];
+        fz_mix [label="Mix\nDry: Mix or Insert\n(Insert ducks the dry\nunder each voice)", shape=box, fillcolor="#6366F1", fontcolor="white"];
+        fz_cap -> fz_pat -> fz_env -> fz_mix [penwidth=2];
+        fz_clock -> fz_cap [style=dashed, color="#C08020"];
+        fz_clock -> fz_pat [style=dashed, color="#C08020"];
+    }
+
+    // =========================================================================
+    // ROUTING INTO AND OUT OF THE ENGINES
+    // =========================================================================
+    mode -> gr_buf [penwidth=2];
+    mode -> sp_fft [penwidth=2];
+    mode -> sh_delay [penwidth=2];
+    mode -> tp_line [penwidth=2];
+    mode -> bb_comp [penwidth=2];
+    mode -> dg_line [penwidth=2];
+    mode -> pp_lines [penwidth=2];
+    mode -> rv_chunks [penwidth=2];
+    mode -> mt_line [penwidth=2];
+    mode -> fz_cap [penwidth=2];
+
+    tempo -> mode [style=dashed, color="#888888", label="Sync: Note Value × tempo\n(Time knobs, Chunk Size,\nMultiTap patterns, Freeze)"];
+
+    xfade [label="Crossfade\n(only while switching)", shape=box, fillcolor="#6BBF6B"];
+    gr_mix -> xfade [penwidth=2];
+    sp_mix -> xfade [penwidth=2];
+    sh_mix -> xfade [penwidth=2];
+    tp_mix -> xfade [penwidth=2];
+    bb_mix -> xfade [penwidth=2];
+    dg_mix -> xfade [penwidth=2];
+    pp_mix -> xfade [penwidth=2];
+    rv_mix -> xfade [penwidth=2];
+    mt_mix -> xfade [penwidth=2];
+    fz_mix -> xfade [penwidth=2];
+
+    gain [label="Gain\n−∞ to +6 dB", shape=box, fillcolor="#6BBF6B"];
+    audio_out [label="Stereo out", shape=invhouse, fillcolor="#CCDDEE"];
+    xfade -> gain -> audio_out [penwidth=2];
+}

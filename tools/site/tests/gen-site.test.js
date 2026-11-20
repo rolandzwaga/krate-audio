@@ -55,7 +55,9 @@ function landingTemplate(dir, desc) {
 
 {{HERO}}
         <a href="https://github.com/{{REPO}}/releases/download/{{TAG}}/x.exe">Download</a>
-        ${dir === 'alpha' ? '<a href="manual.html">Manual</a>' : ''}
+        <section class="signal-flow">
+{{DOC_LINKS}}
+        </section>
 {{OTHER_PLUGINS}}
 
         <footer><p>{{PUBLISHER}}</p></footer>
@@ -65,25 +67,27 @@ function landingTemplate(dir, desc) {
 `;
 }
 
-const MANUAL_TEMPLATE = `<!DOCTYPE html>
+function manualTemplate(name, dir) {
+  return `<!DOCTYPE html>
 <html lang="en">
 <head>
-    <title>Alpha User Manual – Fixture Instrument | Krate Audio</title>
-    <meta name="description" content="User manual for Alpha, the fixture instrument of the gen-site tests: every section, every image.">
-    <link rel="canonical" href="https://krateaudio.com/alpha/manual.html">
-    <meta property="og:title" content="Alpha User Manual">
-    <meta property="og:description" content="User manual for Alpha.">
+    <title>${name} User Manual – Fixture Plugin | Krate Audio</title>
+    <meta name="description" content="User manual for ${name}, a fixture plugin of the gen-site tests: every section, every image.">
+    <link rel="canonical" href="https://krateaudio.com/${dir}/manual.html">
+    <meta property="og:title" content="${name} User Manual">
+    <meta property="og:description" content="User manual for ${name}.">
     <meta property="og:type" content="article">
-    <meta property="og:url" content="https://krateaudio.com/alpha/manual.html">
+    <meta property="og:url" content="https://krateaudio.com/${dir}/manual.html">
 {{HEAD_COMMON}}
 </head>
 <body>
-    <h1>Alpha — User Manual</h1>
+    <h1>${name} — User Manual</h1>
     $toc$
     $body$
 </body>
 </html>
 `;
+}
 
 function write(root, rel, content) {
   const p = path.join(root, ...rel.split('/'));
@@ -102,7 +106,7 @@ function fixture(edit) {
       groups: ['Instruments', 'Effects'],
       plugins: {
         alpha: { group: 'Instruments', summary: 'Alpha is the fixture instrument with a manual.' },
-        beta: { group: 'Effects', summary: 'Beta is the fixture effect & has no manual.' },
+        beta: { group: 'Effects', summary: 'Beta is the fixture effect & has no hero image.' },
         gamma: { group: 'Effects', summary: 'Gamma is never released.' },
       },
     }),
@@ -111,8 +115,8 @@ function fixture(edit) {
     JSON.stringify({ version: '9.9.9', name, description, publisher: 'Krate Audio', url: `https://krateaudio.com/${name.toLowerCase()}/` });
   write(root, 'plugins/alpha/version.json', meta('Alpha', 'Fixture Instrument'));
   write(root, 'plugins/alpha/docs/index.html', landingTemplate('alpha', 'Alpha is a free open-source fixture instrument used by the gen-site tests only.'));
-  write(root, 'plugins/alpha/docs/assets/style.css', 'body{}');
-  write(root, 'plugins/alpha/docs/manual-template.html', MANUAL_TEMPLATE);
+  write(root, 'plugins/alpha/docs/assets/style.css', 'body{}\n.signal-flow-link {\n    display: inline-block;\n}\n');
+  write(root, 'plugins/alpha/docs/manual-template.html', manualTemplate('Alpha', 'alpha'));
   write(root, 'plugins/alpha/MANUAL.md', '# Alpha\n\n## Section\n\n![The main page](images/editor-main.png)\n');
   write(root, 'plugins/alpha/docs/alpha_signal_flow.dot', 'digraph { a -> b }');
   write(root, 'plugins/alpha/CHANGELOG.md', '# Changelog');
@@ -122,6 +126,10 @@ function fixture(edit) {
   write(root, 'plugins/alpha/images/editor-main.png', png(1920, 1200));
   write(root, 'plugins/beta/version.json', meta('Beta', 'Fixture & Effect'));
   write(root, 'plugins/beta/docs/index.html', landingTemplate('beta', 'Beta is a free open-source fixture effect used by the gen-site tests and nothing else.'));
+  write(root, 'plugins/beta/docs/assets/style.css', '.signal-flow-link { display: inline-block; }\n');
+  write(root, 'plugins/beta/docs/manual-template.html', manualTemplate('Beta', 'beta'));
+  write(root, 'plugins/beta/MANUAL.md', '# Beta\n\n## Section\n\nNo images.\n');
+  write(root, 'plugins/beta/docs/beta_signal_flow.dot', 'digraph { c -> d }');
   write(root, 'plugins/gamma/version.json', meta('Gamma', 'Unreleased'));
   write(root, 'plugins/gamma/docs/index.html', landingTemplate('gamma', 'Gamma is an unreleased fixture plugin; no page of it may ever be written.'));
   if (edit) edit(root);
@@ -211,18 +219,27 @@ test('gen-site builds a lint-clean site from the plugin sources', async (t) => {
     assert.equal(read(out, 'beta/index.html').includes('<figure class="hero">'), false);
   });
 
+  await t.test('the documentation buttons are generated on every landing page, manual first, both the button class', () => {
+    for (const dir of ['alpha', 'beta']) {
+      const html = read(out, `${dir}/index.html`);
+      assert.ok(html.includes('<a href="manual.html" class="signal-flow-link">User Manual &rarr;</a>'), dir);
+      assert.ok(html.includes('<a href="signal-flow.html" class="signal-flow-link">Signal Flow Diagram &rarr;</a>'), dir);
+      assert.ok(html.indexOf('href="manual.html"') < html.indexOf('href="signal-flow.html"'), `${dir}: manual first`);
+    }
+  });
+
   await t.test('an untagged plugin gets no page and no sitemap entry', () => {
     assert.equal(fs.existsSync(path.join(out, 'gamma')), false);
     assert.equal(read(out, 'sitemap.xml').includes('/gamma/'), false);
   });
 
   await t.test('the manual: pandoc gets MANUAL.md without its H1, images get size and lazy loading', () => {
-    assert.equal(r.calls.pandoc.length, 1);
+    assert.equal(r.calls.pandoc.length, 2);
     assert.equal(r.calls.pandoc[0].startsWith('# Alpha'), false);
     const html = read(out, 'alpha/manual.html');
     assert.ok(html.includes('<img src="images/editor-main.png" alt="The main page" width="960" height="600" loading="lazy" decoding="async">'));
     const article = jsonLd(html).find((n) => n['@type'] === 'TechArticle');
-    assert.equal(article.headline, 'Alpha User Manual – Fixture Instrument');
+    assert.equal(article.headline, 'Alpha User Manual – Fixture Plugin');
     assert.deepEqual(article.about, { '@id': 'https://krateaudio.com/alpha/#software' });
   });
 
@@ -243,6 +260,8 @@ test('gen-site builds a lint-clean site from the plugin sources', async (t) => {
       'https://krateaudio.com/alpha/manual.html',
       'https://krateaudio.com/alpha/signal-flow.html',
       'https://krateaudio.com/beta/',
+      'https://krateaudio.com/beta/manual.html',
+      'https://krateaudio.com/beta/signal-flow.html',
     ]);
     assert.ok(xml.includes('<loc>https://krateaudio.com/alpha/manual.html</loc>\n    <lastmod>2026-08-01T00:00:00+00:00</lastmod>'));
     assert.ok(xml.includes('<image:loc>https://krateaudio.com/alpha/images/hero.png</image:loc>'));
@@ -256,7 +275,7 @@ test('gen-site builds a lint-clean site from the plugin sources', async (t) => {
     assert.ok(html.indexOf('<h2 class="group-heading">Instruments</h2>') < html.indexOf('<h3>Alpha</h3>'));
     assert.ok(html.indexOf('<h3>Alpha</h3>') < html.indexOf('<h2 class="group-heading">Effects</h2>'));
     assert.ok(html.includes('<img src="alpha/images/card.png" width="600" height="315"'));
-    assert.ok(html.includes('Beta is the fixture effect &amp; has no manual.'));
+    assert.ok(html.includes('Beta is the fixture effect &amp; has no hero image.'));
     assert.ok(html.includes('<span class="released">Released <time datetime="2026-10-01">1 Oct 2026</time></span>'));
     assert.ok(html.includes('<span class="released">Released <time datetime="2026-09-01">1 Sep 2026</time></span>'));
     const notFound = read(out, '404.html');
@@ -280,6 +299,22 @@ test('gen-site refuses what it cannot build correctly', async (t) => {
       const p = path.join(root, 'plugins/beta/docs/index.html');
       fs.writeFileSync(p, fs.readFileSync(p, 'utf8').replace('Free Fixture VST3 Plugin beta', 'Free Fixture VST3 Plugin beta with a title far too long'));
     }, 'E_SITE_LINT'],
+    ['a landing page without {{DOC_LINKS}}', (root) => {
+      const p = path.join(root, 'plugins/alpha/docs/index.html');
+      fs.writeFileSync(p, fs.readFileSync(p, 'utf8').replace('{{DOC_LINKS}}', ''));
+    }, 'E_SITE_DOCS'],
+    ['a landing page that hand-links the manual (the Gradus bare-text link)', (root) => {
+      const p = path.join(root, 'plugins/alpha/docs/index.html');
+      fs.writeFileSync(p, fs.readFileSync(p, 'utf8').replace('{{DOC_LINKS}}', '{{DOC_LINKS}}\n<a href="manual.html">User Manual</a>'));
+    }, 'E_SITE_DOCS'],
+    ['a landing page that hand-links the signal flow', (root) => {
+      const p = path.join(root, 'plugins/alpha/docs/index.html');
+      fs.writeFileSync(p, fs.readFileSync(p, 'utf8').replace('{{DOC_LINKS}}', "{{DOC_LINKS}}\n<a href='signal-flow.html'>Diagram</a>"));
+    }, 'E_SITE_DOCS'],
+    ['a stylesheet without the button rule', (root) => write(root, 'plugins/alpha/docs/assets/style.css', 'body{}'), 'E_SITE_DOCS'],
+    ['a released plugin without a manual (Iterum and Disrumpo shipped without one)', (root) => fs.rmSync(path.join(root, 'plugins/beta/MANUAL.md')), 'E_SITE_DOCS'],
+    ['a released plugin without a manual template', (root) => fs.rmSync(path.join(root, 'plugins/beta/docs/manual-template.html')), 'E_SITE_DOCS'],
+    ['a released plugin without a signal-flow source', (root) => fs.rmSync(path.join(root, 'plugins/beta/docs/beta_signal_flow.dot')), 'E_SITE_DOCS'],
   ];
   for (const [what, edit, code] of cases) {
     await t.test(what, async () => {

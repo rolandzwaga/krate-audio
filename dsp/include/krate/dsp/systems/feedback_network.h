@@ -112,6 +112,11 @@ public:
         // Prepare filter and saturation for each channel
         filterL_.prepare(sampleRate, maxBlockSize);
         filterR_.prepare(sampleRate, maxBlockSize);
+        for (MultimodeFilter* hp : {&highpassL_, &highpassR_}) {
+            hp->prepare(sampleRate, maxBlockSize);
+            hp->setType(FilterType::Highpass);
+            hp->setCutoff(highpassCutoffHz_);
+        }
         saturatorL_.prepare(sampleRate, maxBlockSize);
         saturatorR_.prepare(sampleRate, maxBlockSize);
 
@@ -142,6 +147,8 @@ public:
         inputMuteSmoother_.snapTo(frozen_ ? 0.0f : 1.0f);
         filterL_.reset();
         filterR_.reset();
+        highpassL_.reset();
+        highpassR_.reset();
         saturatorL_.reset();
         saturatorR_.reset();
         dcBlockerL_.reset();
@@ -191,6 +198,9 @@ public:
             if (filterEnabled_) {
                 feedbackSignal = filterL_.processSample(feedbackSignal);
             }
+            if (highpassEnabled_) {
+                feedbackSignal = highpassL_.processSample(feedbackSignal);
+            }
 
             // Apply saturation if enabled
             if (saturationEnabled_) {
@@ -199,6 +209,7 @@ public:
 
             // Apply DC blocking (prevents accumulation in feedback loop)
             feedbackSignal = dcBlockerL_.process(feedbackSignal);
+            const float processed = feedbackSignal;
 
             // Scale by feedback amount
             feedbackSignal *= feedback;
@@ -210,8 +221,9 @@ public:
             // Write mixed signal to delay line
             delayLineL_.write(toDelay);
 
-            // Output is the delayed signal (wet only for feedback network)
-            buffer[i] = delayed;
+            // Output is the delayed signal (wet only for feedback network), or with setOutputProcessed(true) that
+            // signal after the loop's filters, saturation and DC blocker
+            buffer[i] = outputProcessed_ ? processed : delayed;
         }
     }
 
@@ -249,6 +261,10 @@ public:
                 feedbackL = filterL_.processSample(feedbackL);
                 feedbackR = filterR_.processSample(feedbackR);
             }
+            if (highpassEnabled_) {
+                feedbackL = highpassL_.processSample(feedbackL);
+                feedbackR = highpassR_.processSample(feedbackR);
+            }
 
             // Apply saturation if enabled
             if (saturationEnabled_) {
@@ -259,6 +275,8 @@ public:
             // Apply DC blocking (prevents accumulation in feedback loop)
             feedbackL = dcBlockerL_.process(feedbackL);
             feedbackR = dcBlockerR_.process(feedbackR);
+            const float processedL = feedbackL;
+            const float processedR = feedbackR;
 
             // Apply cross-feedback (stereo routing)
             float crossedL;
@@ -279,9 +297,10 @@ public:
             delayLineL_.write(toDelayL);
             delayLineR_.write(toDelayR);
 
-            // Output is the delayed signal
-            left[i] = delayedL;
-            right[i] = delayedR;
+            // Output is the delayed signal, or with setOutputProcessed(true) that signal after the loop's filters,
+            // saturation and DC blocker (before the cross-feedback)
+            left[i] = outputProcessed_ ? processedL : delayedL;
+            right[i] = outputProcessed_ ? processedR : delayedR;
         }
     }
 
@@ -361,6 +380,21 @@ public:
         filterL_.setResonance(q);
         filterR_.setResonance(q);
     }
+
+    /// @brief A highpass in the loop after the main filter, off by default (MultiTap's Feedback HP)
+    void setHighpassEnabled(bool enabled) noexcept { highpassEnabled_ = enabled; }
+    [[nodiscard]] bool isHighpassEnabled() const noexcept { return highpassEnabled_; }
+
+    void setHighpassCutoff(float hz) noexcept {
+        highpassCutoffHz_ = hz;
+        highpassL_.setCutoff(hz);
+        highpassR_.setCutoff(hz);
+    }
+
+    /// @brief Output the loop's processed signal (after its filters, saturation and DC blocker) instead of the raw
+    /// delayed signal, so every pass through the network is filtered, the first included. Off by default.
+    void setOutputProcessed(bool enabled) noexcept { outputProcessed_ = enabled; }
+    [[nodiscard]] bool isOutputProcessed() const noexcept { return outputProcessed_; }
 
     // =========================================================================
     // Saturation Parameters (FR-004, FR-014) - US2, US4
@@ -446,6 +480,8 @@ private:
     // Layer 2 processors
     MultimodeFilter filterL_;
     MultimodeFilter filterR_;
+    MultimodeFilter highpassL_;
+    MultimodeFilter highpassR_;
     SaturationProcessor saturatorL_;
     SaturationProcessor saturatorR_;
 
@@ -469,6 +505,9 @@ private:
 
     // Feature enable flags
     bool filterEnabled_ = false;
+    bool highpassEnabled_ = false;
+    float highpassCutoffHz_ = 20.0f;
+    bool outputProcessed_ = false;
     bool saturationEnabled_ = false;
     bool frozen_ = false;
 

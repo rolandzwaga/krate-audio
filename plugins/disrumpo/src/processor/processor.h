@@ -341,9 +341,23 @@ private:
     SweepProcessor sweepProcessor_;
 
     /// @brief Custom curve for Custom morph link mode, evaluated by the sweep -> morph
-    /// link in process(). Restored from state; the custom-curve editor view is still
-    /// unregistered (D-069, T2.22), so it keeps its saved or default breakpoints.
+    /// link in process(). Restored from state, and rebuilt from the curve's host
+    /// parameters (Curve Point Count, Curve P<i> X / Y) whenever one of them changes;
+    /// the custom-curve editor view is still unregistered (D-069, T2.22).
     CustomCurve customCurve_;
+
+    /// @brief The curve's host parameters as last received (point i of the count is
+    /// P<i>, x then y), seeded from customCurve_ at initialize and on every state load,
+    /// so a change of one point keeps the others
+    std::array<std::pair<float, float>, 8> curvePoints_{};
+    int curvePointCount_ = 2;
+
+    /// @brief curvePoints_ / curvePointCount_ from customCurve_
+    void syncCurvePointsFromCurve() noexcept;
+
+    /// @brief customCurve_ from curvePoints_ / curvePointCount_: the first point at x = 0,
+    /// the last at x = 1, the ones between inserted by x (as a state load builds it)
+    void rebuildCustomCurve() noexcept;
 
     /// @brief Lock-free buffer for audio-UI sweep position synchronization (FR-046)
     Krate::DSP::SweepPositionBuffer sweepPositionBuffer_;
@@ -428,6 +442,8 @@ private:
 
     /// @brief Magic marker for instanceId in state stream
     static constexpr Steinberg::int32 kInstanceIdMarker = 0x4B524154; // "KRAT"
+    /// Tags the MorphPad node positions that follow the instance ID in the state
+    static constexpr Steinberg::int32 kNodePositionsMarker = 0x4E504F53; // "NPOS"
 
     /// @brief Send current audio block to controller via DataExchange
     void sendSpectrumBlock(const float* inputL, const float* inputR,

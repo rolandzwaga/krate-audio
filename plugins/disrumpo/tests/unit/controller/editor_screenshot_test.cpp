@@ -201,7 +201,9 @@ TEST_CASE("Disrumpo_EditorScreenshots", "[.][screenshots]") {
 }
 
 // The krateaudio.com images (hero.png, og-image.png, card.png; tests/test_helpers/editor_screenshot.h) of the
-// "Multi_Band_Bass" factory preset with the meters lit. Disrumpo has no manual, so these are all it commits.
+// "Multi_Band_Bass" factory preset with the meters lit. Then the images MANUAL.md links, from the same preset: the
+// header, the spectrum, the band area, the sweep row, Band 1 on its Shape tab, Band 1's expanded strip and the
+// modulation panel.
 // Regenerate: node tools/gen-screenshots.js disrumpo   (writes plugins/disrumpo/images/)
 TEST_CASE("Disrumpo_SiteScreenshots", "[.][screenshots][site]") {
     namespace Shots = ::Krate::TestSupport::Screenshots;
@@ -230,8 +232,37 @@ TEST_CASE("Disrumpo_SiteScreenshots", "[.][screenshots][site]") {
         CHECK(Shots::writeSiteShots(root, dir, editorRect) == 2);
         // The card: the band spectrum's low end with its crossovers, over the first two bands' headers.
         CHECK(Shots::writeCard(root, dir, VSTGUI::CRect(20, 55, 490, 302)) > 0u);
+
+        // ---- the manual's images (editor.uidesc: header 0,0-1000,50; spectrum 20,60-980,180; band area
+        // 20,190-980,530; Band 1 panel 20,190-255,530; sweep row 0,530-1000,600; mod panel 0,600-1000,830) ----
+        const auto setParam = [&](Steinberg::Vst::ParamID id, double normalized) {
+            controller->setParamNormalized(id, normalized);
+            Steinberg::UpdateHandler::instance()->triggerDeferedUpdates();
+        };
+        shoot(root, VSTGUI::CRect(0, 0, 1000, 50), dir / "header.png");
+        shoot(root, VSTGUI::CRect(20, 60, 980, 180), dir / "spectrum.png");
+        shoot(root, VSTGUI::CRect(20, 190, 980, 530), dir / "bands.png");
+        shoot(root, VSTGUI::CRect(0, 530, 1000, 600), dir / "sweep-row.png");
+
+        const auto band1TabId = Disrumpo::makeBandParamId(0, Disrumpo::BandParamType::kBandTabView);
+        setParam(band1TabId, 1.0);  // Shape
+        shoot(root, VSTGUI::CRect(20, 190, 255, 530), dir / "band-shape-tab.png");
+        setParam(band1TabId, 0.0);
+
+        setParam(Disrumpo::makeBandParamId(0, Disrumpo::BandParamType::kBandExpanded), 1.0);
+        VSTGUI::CControl* marker = findDisrumpoTaggedControl(root, 9100);  // Band1ExpandedContainer
+        REQUIRE(marker != nullptr);
+        REQUIRE(marker->getParentView() != nullptr);
+        REQUIRE(marker->getParentView()->isVisible());
+        shoot(root, rectInRoot(marker->getParentView(), root), dir / "band-expanded.png");
+        setParam(Disrumpo::makeBandParamId(0, Disrumpo::BandParamType::kBandExpanded), 0.0);
+
+        setParam(Disrumpo::makeGlobalParamId(Disrumpo::GlobalParamType::kGlobalModPanelVisible), 1.0);
+        REQUIRE(root->getViewSize().getHeight() >= 830.0);
+        shoot(root, VSTGUI::CRect(0, 600, 1000, 830), dir / "mod-panel.png");
+
         editor.close();
     }
     REQUIRE(controller->terminate() == Steinberg::kResultOk);
-    std::cout << "3 shots written to " << dir.string() << '\n';
+    std::cout << "site and manual shots written to " << dir.string() << '\n';
 }

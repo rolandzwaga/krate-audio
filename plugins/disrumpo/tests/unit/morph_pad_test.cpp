@@ -889,6 +889,8 @@ TEST_CASE("MorphPad Y drag updates the controller parameter", "[disrumpo][morph_
     MorphPadParamRecorder c;
     REQUIRE(c.initialize(nullptr) == Steinberg::kResultOk);
     Krate::TestSupport::ensureVstguiInitialized();  // mouse events read the platform factory's clock
+    // A Y drag needs a 2-D mode: the pad follows the band's Morph Mode, and 1D Linear (the default) uses X only
+    c.setParamNormalized(makeBandParamId(0, BandParamType::kBandMorphMode), 0.5);  // 2D Planar
     MorphPad* pad = createBand0Pad(c);
     REQUIRE(pad != nullptr);
     REQUIRE(pad->getActiveNodeCount() == 4);
@@ -949,5 +951,152 @@ TEST_CASE("MorphPad follows setParamNormalized on X and Y", "[disrumpo][morph_pa
     // The pad has gone: later parameter changes must not reach it.
     c.setParamNormalized(kPadMorphXId, 0.4);
     c.setParamNormalized(kPadMorphYId, 0.4);
+    c.terminate();
+}
+
+// The pad never heard the band's Morph Mode (2026-11): it always drew and weighed as 2D Planar, so in 1D Linear and
+// 2D Radial its blend lines and readout showed weights the engine was not using.
+TEST_CASE("MorphPad follows the band's Morph Mode", "[disrumpo][morph_pad][ui][mode]") {
+    Controller c;
+    REQUIRE(c.initialize(nullptr) == Steinberg::kResultOk);
+    const auto modeId = makeBandParamId(0, BandParamType::kBandMorphMode);
+    c.setParamNormalized(modeId, 1.0);  // 2D Radial before the pad exists
+    MorphPad* pad = createBand0Pad(c);
+    REQUIRE(pad != nullptr);
+    CHECK(pad->getMorphMode() == MorphMode::Radial2D);
+    c.setParamNormalized(modeId, 0.0);
+    CHECK(pad->getMorphMode() == MorphMode::Linear1D);
+    c.setParamNormalized(modeId, 0.5);
+    CHECK(pad->getMorphMode() == MorphMode::Planar2D);
+    pad->forget();
+    c.setParamNormalized(modeId, 1.0);  // the pad has gone
+    c.terminate();
+}
+
+// Dragging a node moved only the dot (2026-11): the engine kept its nodes at the corners. The drag now writes the
+// node's position parameters (B<b> N<n> Pos X / Pos Y), which the engine weighs by, and the pad follows them when
+// automation or a preset moves them.
+TEST_CASE("Dragging a MorphPad node writes its position parameters", "[disrumpo][morph_pad][ui][nodes]") {
+    Controller c;
+    REQUIRE(c.initialize(nullptr) == Steinberg::kResultOk);
+    Krate::TestSupport::ensureVstguiInitialized();  // mouse events read the platform factory's clock
+    c.setParamNormalized(makeBandParamId(0, BandParamType::kBandMorphMode), 0.5);  // 2D Planar
+    MorphPad* pad = createBand0Pad(c);
+    REQUIRE(pad != nullptr);
+    const auto posX = makeNodeParamId(0, 3, NodeParamType::kNodePosX);
+    const auto posY = makeNodeParamId(0, 3, NodeParamType::kNodePosY);
+    REQUIRE(c.getParamNormalized(posX) == 1.0);
+    REQUIRE(c.getParamNormalized(posY) == 1.0);
+
+    float px = 0.0f;
+    float py = 0.0f;
+    pad->positionToPixel(1.0f, 1.0f, px, py);  // Node D, top-right
+    VSTGUI::MouseDownEvent down(VSTGUI::CPoint(px, py), VSTGUI::MouseButton::Left);
+    down.clickCount = 1;
+    pad->onMouseDownEvent(down);
+    float tx = 0.0f;
+    float ty = 0.0f;
+    pad->positionToPixel(0.6f, 0.7f, tx, ty);
+    VSTGUI::MouseMoveEvent move(VSTGUI::CPoint(tx, ty), VSTGUI::MouseButton::Left);
+    pad->onMouseMoveEvent(move);
+    VSTGUI::MouseUpEvent up(VSTGUI::CPoint(tx, ty), VSTGUI::MouseButton::Left);
+    pad->onMouseUpEvent(up);
+
+    float nx = 0.0f;
+    float ny = 0.0f;
+    pad->getNodePosition(3, nx, ny);
+    CHECK(nx == Approx(0.6f).margin(0.01f));
+    CHECK(ny == Approx(0.7f).margin(0.01f));
+    CHECK(c.getParamNormalized(posX) == Approx(nx).margin(1e-6));
+    CHECK(c.getParamNormalized(posY) == Approx(ny).margin(1e-6));
+
+    // Automation or a preset moves the node on the pad
+    c.setParamNormalized(makeNodeParamId(0, 1, NodeParamType::kNodePosX), 0.25);
+    c.setParamNormalized(makeNodeParamId(0, 1, NodeParamType::kNodePosY), 0.4);
+    pad->getNodePosition(1, nx, ny);
+    CHECK(nx == Approx(0.25f).margin(1e-6f));
+    CHECK(ny == Approx(0.4f).margin(1e-6f));
+
+    pad->forget();
+    c.setParamNormalized(makeNodeParamId(0, 1, NodeParamType::kNodePosX), 0.5);  // the pad has gone
+    c.terminate();
+}
+
+// In 1D Linear the nodes sit on the line, each at its own Line Pos (A 0, B 1, C 1/2, D 3/4 by default), apart from
+// its 2-D corner: a node slides along the line only, the drag writes its Line Pos and leaves Pos X / Pos Y alone,
+// and the pad follows Line Pos automation.
+TEST_CASE("In 1D Linear a MorphPad node slides along the line and writes its Line Pos",
+          "[disrumpo][morph_pad][ui][nodes][line]") {
+    Controller c;
+    REQUIRE(c.initialize(nullptr) == Steinberg::kResultOk);
+    Krate::TestSupport::ensureVstguiInitialized();  // mouse events read the platform factory's clock
+    REQUIRE(c.getParamNormalized(makeBandParamId(0, BandParamType::kBandMorphMode)) == 0.0);  // 1D Linear
+    MorphPad* pad = createBand0Pad(c);
+    REQUIRE(pad != nullptr);
+    REQUIRE(pad->getMorphMode() == MorphMode::Linear1D);
+    const auto lineB = makeNodeParamId(0, 1, NodeParamType::kNodeLinePos);
+    const auto posXB = makeNodeParamId(0, 1, NodeParamType::kNodePosX);
+    const auto posYB = makeNodeParamId(0, 1, NodeParamType::kNodePosY);
+    REQUIRE(c.getParamNormalized(lineB) == 1.0);
+    CHECK(pad->getNodeLinePos(1) == 1.0f);
+
+    float px = 0.0f;
+    float py = 0.0f;
+    pad->positionToPixel(1.0f, 0.5f, px, py);  // Node B at the end of the line
+    VSTGUI::MouseDownEvent down(VSTGUI::CPoint(px, py), VSTGUI::MouseButton::Left);
+    down.clickCount = 1;
+    pad->onMouseDownEvent(down);
+    REQUIRE(pad->getSelectedNode() == 1);
+    float tx = 0.0f;
+    float ty = 0.0f;
+    pad->positionToPixel(0.6f, 0.9f, tx, ty);  // off the line: only X counts
+    VSTGUI::MouseMoveEvent move(VSTGUI::CPoint(tx, ty), VSTGUI::MouseButton::Left);
+    pad->onMouseMoveEvent(move);
+    VSTGUI::MouseUpEvent up(VSTGUI::CPoint(tx, ty), VSTGUI::MouseButton::Left);
+    pad->onMouseUpEvent(up);
+
+    CHECK(pad->getNodeLinePos(1) == Approx(0.6f).margin(0.01f));
+    CHECK(c.getParamNormalized(lineB) == Approx(pad->getNodeLinePos(1)).margin(1e-6));
+    CHECK(c.getParamNormalized(posXB) == 1.0);  // the 2-D corner is untouched
+    CHECK(c.getParamNormalized(posYB) == 0.0);
+    float nx = 0.0f;
+    float ny = 0.0f;
+    pad->getNodePosition(1, nx, ny);
+    CHECK(nx == 1.0f);
+    CHECK(ny == 0.0f);
+
+    // Line Pos automation moves the node on the line
+    c.setParamNormalized(makeNodeParamId(0, 2, NodeParamType::kNodeLinePos), 0.2);
+    CHECK(pad->getNodeLinePos(2) == Approx(0.2f).margin(1e-6f));
+
+    pad->forget();
+    c.setParamNormalized(makeNodeParamId(0, 2, NodeParamType::kNodeLinePos), 0.5);  // the pad has gone
+    c.terminate();
+}
+
+// Clicking a node only highlighted it on the pad (2026-11): the band's Selected Node, which the type, drive, mix,
+// tone, bias and shape controls edit, did not follow the click.
+TEST_CASE("Clicking a MorphPad node selects it for editing", "[disrumpo][morph_pad][ui][selection]") {
+    Controller c;
+    REQUIRE(c.initialize(nullptr) == Steinberg::kResultOk);
+    Krate::TestSupport::ensureVstguiInitialized();  // mouse events read the platform factory's clock
+    c.setParamNormalized(makeBandParamId(0, BandParamType::kBandMorphMode), 0.5);  // 2D Planar: nodes at the corners
+    MorphPad* pad = createBand0Pad(c);
+    REQUIRE(pad != nullptr);
+    const auto selectedId = makeBandParamId(0, BandParamType::kBandSelectedNode);
+    REQUIRE(c.getParamNormalized(selectedId) == 0.0);  // Node A
+
+    float px = 0.0f;
+    float py = 0.0f;
+    pad->positionToPixel(1.0f, 1.0f, px, py);  // Node D, top-right
+    VSTGUI::MouseDownEvent down(VSTGUI::CPoint(px, py), VSTGUI::MouseButton::Left);
+    down.clickCount = 1;
+    pad->onMouseDownEvent(down);
+    CHECK(pad->getSelectedNode() == 3);
+    CHECK(c.getParamNormalized(selectedId) == Approx(1.0));  // Node D of A..D
+    VSTGUI::MouseUpEvent up(VSTGUI::CPoint(px, py), VSTGUI::MouseButton::Left);
+    pad->onMouseUpEvent(up);
+
+    pad->forget();
     c.terminate();
 }

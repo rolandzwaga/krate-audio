@@ -107,6 +107,9 @@ add_executable(disrumpo_tests
     # Editor screenshots for layout review (hidden [.][screenshots])
     unit/controller/editor_screenshot_test.cpp
 
+    # MANUAL.md names every user-facing parameter, distortion type and factory preset ([disrumpo][docs]).
+    unit/manual_coverage_test.cpp
+
     # DSP sources (needed for tests)
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/dsp/distortion_adapter.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/dsp/morph_engine.cpp

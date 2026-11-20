@@ -19,6 +19,7 @@
 
 #include "public.sdk/source/vst/vstparameters.h"
 
+#include <cmath>
 #include <functional>
 
 using namespace Iterum;
@@ -103,6 +104,12 @@ TEST_CASE("Reverse starts synced, with feedback", "[reverse][defaults]") {
         REQUIRE(def(kReverseFeedbackId) * 1.2 == Approx(0.4).margin(0.001));
         REQUIRE(fresh.feedback.load() == Approx(0.4f));
     }
+
+    SECTION("Filter Cutoff defaults to 4 kHz, the processor's starting value") {
+        // The registered mapping is 20 * 1000^n Hz (reverse_params.h); 0.434 was 401 Hz.
+        REQUIRE(20.0 * std::pow(1000.0, def(kReverseFilterCutoffId)) == Approx(4000.0).margin(1.0));
+        REQUIRE(fresh.filterCutoff.load() == Approx(4000.0f));
+    }
 }
 
 TEST_CASE("Tape starts synced, with feedback", "[tape][defaults]") {
@@ -123,6 +130,17 @@ TEST_CASE("Tape starts synced, with feedback", "[tape][defaults]") {
     SECTION("Feedback defaults to 40%") {
         REQUIRE(def(kTapeFeedbackId) * 1.2 == Approx(0.4).margin(0.001));
         REQUIRE(fresh.feedback.load() == Approx(0.4f));
+    }
+
+    SECTION("Every head Level defaults to 0 dB, the processor's starting gain") {
+        // The registered mapping is -30 + n * 36 dB (tape_params.h); 0.941 was +3.9 dB.
+        for (const ParamID id : {kTapeHead1LevelId, kTapeHead2LevelId, kTapeHead3LevelId}) {
+            INFO("head level " << id);
+            REQUIRE(-30.0 + def(id) * 36.0 == Approx(0.0).margin(0.01));
+        }
+        REQUIRE(fresh.head1Level.load() == Approx(1.0f));
+        REQUIRE(fresh.head2Level.load() == Approx(1.0f));
+        REQUIRE(fresh.head3Level.load() == Approx(1.0f));
     }
 }
 

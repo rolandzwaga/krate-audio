@@ -38,6 +38,7 @@
 #include <krate/dsp/systems/feedback_network.h>
 
 #include <algorithm>
+#include <array>
 #include <cstddef>
 
 #include <cstdint>
@@ -187,12 +188,16 @@ public:
         character_.prepare(sampleRate, maxBlockSize);
         character_.setMode(CharacterMode::Clean);
 
-        // Prepare DynamicsProcessor as limiter (high ratio + low threshold)
-        limiter_.prepare(sampleRate, maxBlockSize);
-        limiter_.setThreshold(kLimiterThresholdDb);
-        limiter_.setRatio(kLimiterRatio);  // 100:1 = true limiting
-        limiter_.setKneeWidth(kSoftKneeDb); // Default soft
-        limiter_.setDetectionMode(DynamicsDetectionMode::Peak);
+        // Prepare DynamicsProcessor as limiter (high ratio + low threshold), one per channel so a loud channel's gain
+        // reduction never reaches the other
+        for (auto& limiter : limiter_) {
+            limiter.prepare(sampleRate, maxBlockSize);
+            limiter.setThreshold(kLimiterThresholdDb);
+            limiter.setRatio(kLimiterRatio);  // 100:1 = true limiting
+            limiter.setKneeWidth(kSoftKneeDb); // Default soft
+            limiter.setDetectionMode(DynamicsDetectionMode::Peak);
+        }
+        feedbackNetwork_.setSaturationEnabled(feedback_ > 1.0f);
 
         // Prepare EnvelopeFollower for noise modulation
         // Amplitude mode for fast, responsive dynamics with asymmetric attack/release
@@ -268,7 +273,9 @@ public:
     void reset() noexcept {
         feedbackNetwork_.reset();
         character_.reset();
-        limiter_.reset();
+        for (auto& limiter : limiter_) {
+            limiter.reset();
+        }
         noiseEnvelope_.reset();
         wavefolderL_.reset();
         wavefolderR_.reset();
@@ -362,6 +369,10 @@ public:
     void setFeedback(float amount) noexcept {
         feedback_ = std::clamp(amount, 0.0f, 1.2f);
         feedbackSmoother_.setTarget(feedback_);
+        // Above 100 % the loop needs a bound inside it (the output limiter sits after the loop and cannot stop the
+        // delay line from growing): the feedback network's saturator, only then, so Pristine stays clean below 100 %
+        // (as Shimmer and Reverse limit their loops only above 100 %)
+        feedbackNetwork_.setSaturationEnabled(feedback_ > 1.0f);
     }
 
     /// @brief Get current feedback amount
@@ -373,16 +384,20 @@ public:
     /// @param character Limiter knee type
     void setLimiterCharacter(LimiterCharacter character) noexcept {
         limiterCharacter_ = character;
+        float kneeDb = kSoftKneeDb;
         switch (character) {
             case LimiterCharacter::Soft:
-                limiter_.setKneeWidth(kSoftKneeDb);
+                kneeDb = kSoftKneeDb;
                 break;
             case LimiterCharacter::Medium:
-                limiter_.setKneeWidth(kMediumKneeDb);
+                kneeDb = kMediumKneeDb;
                 break;
             case LimiterCharacter::Hard:
-                limiter_.setKneeWidth(kHardKneeDb);
+                kneeDb = kHardKneeDb;
                 break;
+        }
+        for (auto& limiter : limiter_) {
+            limiter.setKneeWidth(kneeDb);
         }
     }
 
@@ -714,8 +729,8 @@ public:
         // this only ran when feedback_ > 1.0f, but the instant feedback_ drops,
         // the limiter would stop while the delay line still contains high-amplitude
         // self-oscillating signal, causing distorted noise during the transition.
-        limiter_.process(left, numSamples);
-        limiter_.process(right, numSamples);
+        limiter_[0].process(left, numSamples);
+        limiter_[1].process(right, numSamples);
 
         // Apply stereo width to wet signal (spec 036, FR-013, FR-016)
         // Width processing uses Mid/Side: mid = (L+R)/2, side = (L-R)/2 * widthFactor
@@ -849,7 +864,7 @@ private:
     CharacterProcessor character_;
 
     // Layer 2 components
-    DynamicsProcessor limiter_;
+    std::array<DynamicsProcessor, 2> limiter_;  ///< [0] left, [1] right
     EnvelopeFollower noiseEnvelope_;  ///< Tracks input amplitude for noise modulation
     WavefolderProcessor wavefolderL_; ///< Left channel wavefolder (primary)
     WavefolderProcessor wavefolderR_; ///< Right channel wavefolder (primary)

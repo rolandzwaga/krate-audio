@@ -11,6 +11,7 @@
 #include "controller/format_helpers.h"
 #include "controller/log_range_parameter.h"
 #include "dsp/distortion_types.h"
+#include "dsp/morph_node.h"
 #include "state_codec.h"
 #include "ui/note_value_ui.h"
 #include <krate/dsp/core/modulation_types.h>
@@ -290,6 +291,9 @@ void Controller::registerSweepParams() {
     );
     falloffParam->appendString(STR16("Hard"));
     falloffParam->appendString(STR16("Soft"));
+    // Soft, the sweep's own starting mode (SweepProcessor: SweepFalloff::Smooth)
+    falloffParam->getInfo().defaultNormalizedValue = 1.0;
+    falloffParam->setNormalized(1.0);
     parameters.addParameter(falloffParam);
 
     // Sweep LFO Parameters (FR-024, FR-025)
@@ -438,7 +442,8 @@ void Controller::registerModulationParams() {
 
     parameters.addParameter(STR16("LFO 1 Unipolar"), nullptr, 1, 0.0,
         Steinberg::Vst::ParameterInfo::kCanAutomate, makeModParamId(ModParamType::kLFO1Unipolar));
-    parameters.addParameter(STR16("LFO 1 Retrigger"), nullptr, 1, 0.0,
+    // On, as a fresh processor runs it (processor.h ModLfoState::retrigger)
+    parameters.addParameter(STR16("LFO 1 Retrigger"), nullptr, 1, 1.0,
         Steinberg::Vst::ParameterInfo::kCanAutomate, makeModParamId(ModParamType::kLFO1Retrigger));
 
     // LFO 2 Parameters
@@ -466,7 +471,8 @@ void Controller::registerModulationParams() {
 
     parameters.addParameter(STR16("LFO 2 Unipolar"), nullptr, 1, 0.0,
         Steinberg::Vst::ParameterInfo::kCanAutomate, makeModParamId(ModParamType::kLFO2Unipolar));
-    parameters.addParameter(STR16("LFO 2 Retrigger"), nullptr, 1, 0.0,
+    // On, as a fresh processor runs it (processor.h ModLfoState::retrigger)
+    parameters.addParameter(STR16("LFO 2 Retrigger"), nullptr, 1, 1.0,
         Steinberg::Vst::ParameterInfo::kCanAutomate, makeModParamId(ModParamType::kLFO2Retrigger));
 
     // Envelope Follower Parameters: plain ranges are the processor's decode (D-169), defaults its own
@@ -961,6 +967,37 @@ void Controller::registerNodeParams() {
                 makeNodeParamId(static_cast<uint8_t>(b), static_cast<uint8_t>(n), NodeParamType::kNodeBitDepth),
                 STR16("bit"), 4.0, 24.0, 16.0, 20, Steinberg::Vst::ParameterInfo::kCanAutomate);
             parameters.addParameter(bitDepthParam);
+
+            // MorphPad node position (the reserved node types 0x07 / 0x08): where the node sits on the
+            // pad, which the engine weighs it by; the corners until it is dragged
+            for (const bool isY : {false, true}) {
+                Steinberg::UString128 posName("B");
+                posName.append(Steinberg::UString128(std::to_string(b + 1).c_str()));
+                posName.append(Steinberg::UString128(" N"));
+                posName.append(Steinberg::UString128(std::to_string(n + 1).c_str()));
+                posName.append(Steinberg::UString128(isY ? " Pos Y" : " Pos X"));
+                const double defaultPos = isY ? kDefaultNodePosY[n] : kDefaultNodePosX[n];
+                auto* posParam = new Steinberg::Vst::RangeParameter(
+                    posName,
+                    makeNodeParamId(static_cast<uint8_t>(b), static_cast<uint8_t>(n),
+                                    isY ? NodeParamType::kNodePosY : NodeParamType::kNodePosX),
+                    STR16(""), 0.0, 1.0, defaultPos, 0, Steinberg::Vst::ParameterInfo::kCanAutomate);
+                parameters.addParameter(posParam);
+            }
+            {
+                // Its place on the 1D Linear line (0x09), apart from the 2-D corner: A 0, B 1, C 1/2, D 3/4
+                Steinberg::UString128 lineName("B");
+                lineName.append(Steinberg::UString128(std::to_string(b + 1).c_str()));
+                lineName.append(Steinberg::UString128(" N"));
+                lineName.append(Steinberg::UString128(std::to_string(n + 1).c_str()));
+                lineName.append(Steinberg::UString128(" Line Pos"));
+                auto* lineParam = new Steinberg::Vst::RangeParameter(
+                    lineName,
+                    makeNodeParamId(static_cast<uint8_t>(b), static_cast<uint8_t>(n), NodeParamType::kNodeLinePos),
+                    STR16(""), 0.0, 1.0, static_cast<double>(kDefaultNodeLinePos[n]), 0,
+                    Steinberg::Vst::ParameterInfo::kCanAutomate);
+                parameters.addParameter(lineParam);
+            }
 
             for (int s = 0; s < 10; ++s) {
                 auto shapeType = static_cast<NodeParamType>(

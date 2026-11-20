@@ -196,6 +196,10 @@ section h2 {
     transition: all 0.2s ease;
 }
 
+.signal-flow-link + .signal-flow-link {
+    margin-left: 1rem;
+}
+
 .signal-flow-link:hover {
     border-color: var(--color-accent);
     transform: translateY(-2px);

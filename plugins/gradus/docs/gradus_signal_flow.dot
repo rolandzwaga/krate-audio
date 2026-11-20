@@ -1,0 +1,125 @@
+digraph GradusSignalFlow {
+    rankdir=TB;
+    fontname="Helvetica";
+    fontsize=11;
+    node [fontname="Helvetica", fontsize=10, style=filled];
+    edge [fontname="Helvetica", fontsize=8];
+    compound=true;
+    newrank=true;
+
+    // Source of truth: plugins/gradus/src/processor/processor.cpp (process(): note input, transport, arp core,
+    // MIDI delay, event output, audition), dsp/include/krate/dsp/processors/arpeggiator_core.{h,cpp} (processBlock,
+    // fireStep: the per-step order below), dsp/include/krate/dsp/primitives/held_note_buffer.h (latch, pattern
+    // modes, octaves, Markov), dsp/include/krate/dsp/processors/midi_note_delay.h (echoes) and
+    // plugins/gradus/src/dsp/audition_voice.h (the built-in monitor).
+
+    // =========================================================================
+    // COLOR LEGEND
+    // =========================================================================
+    subgraph cluster_legend {
+        label="Legend";
+        style=rounded;
+        color="#888888";
+        fontsize=12;
+        fontcolor="#444444";
+        bgcolor="#FAFAFA";
+
+        node [shape=plaintext, fillcolor="#FAFAFA"];
+        leg [label=<
+            <TABLE BORDER="0" CELLBORDER="0" CELLSPACING="4">
+            <TR><TD BGCOLOR="#C87850" WIDTH="20"> </TD><TD ALIGN="LEFT">MIDI note / event path</TD></TR>
+            <TR><TD BGCOLOR="#E8A838" WIDTH="20"> </TD><TD ALIGN="LEFT">Step lanes (read once per step)</TD></TR>
+            <TR><TD BGCOLOR="#4A90D9" WIDTH="20"> </TD><TD ALIGN="LEFT">Audition audio</TD></TR>
+            <TR><TD BGCOLOR="#AAAAAA" WIDTH="20"> </TD><TD ALIGN="LEFT">Host / editor</TD></TR>
+            <TR><TD>───▶</TD><TD ALIGN="LEFT">Event / audio flow</TD></TR>
+            <TR><TD>- - ▶</TD><TD ALIGN="LEFT">Control / timing</TD></TR>
+            </TABLE>
+        >];
+    }
+
+    // =========================================================================
+    // INPUT
+    // =========================================================================
+    subgraph cluster_input {
+        label="Input";
+        style=rounded;
+        color="#666666";
+        bgcolor="#F0F0F0";
+
+        midi_in [label="MIDI notes in", shape=house, fillcolor="#CCDDEE"];
+        transport [label="Host tempo, position, play state\n(120 BPM when absent)", shape=house, fillcolor="#CCDDEE"];
+    }
+
+    // =========================================================================
+    // HELD NOTES
+    // =========================================================================
+    held [label="Held notes (up to 32)\nLatch: Off · Hold · Add\nQuantize In (to Scale / Root)\nRetrigger Note: restart on a new key", shape=box, fillcolor="#C87850", fontcolor="white"];
+    midi_in -> held [penwidth=2, label="note on/off"];
+
+    // =========================================================================
+    // STEP CLOCK
+    // =========================================================================
+    clock [label="Step clock\nSync: Note Value × tempo, or Rate (0.5-50 Hz)\nSwing (0-75%)\nRetrigger Beat: restart on the bar", shape=box, fillcolor="#C87850", fontcolor="white"];
+    transport -> clock [style=dashed, color="#888888"];
+
+    // =========================================================================
+    // ONE STEP
+    // =========================================================================
+    subgraph cluster_step {
+        label="Each step, in this order";
+        style=rounded;
+        color="#8C5030";
+        bgcolor="#FBF1EB";
+
+        source [label="1  Note source\nLIVE: Pattern (Up · Down · UpDown · DownUp · Converge\nDiverge · Random · Walk · AsPlayed · Chord · Gravity\nMarkov Chain) × Octaves / Oct Mode\nSEQUENCER: Seq Note lane, transposed by the last key", shape=box, fillcolor="#C87850", fontcolor="white"];
+        lanes [label="2  Read every lane, then advance it\nVEL · GATE · PITCH · MOD · RATCH · COND\nCHORD · INV · DELAY (+ Seq Note)\nper lane: steps (≤32), Speed 0.25-4×,\nspeed curve, lane swing, jitter", shape=box, fillcolor="#E8A838"];
+        spice [label="3  Spice\nblends the Dice variation into\nvelocity, gate, ratchet, condition", shape=box, fillcolor="#E8A838"];
+        gates [label="4  Gating\nEuclidean (Hits / Steps / Rotation)\nCondition lane (probability, A:B, First, Fill)\nmiss = rest", shape=diamond, fillcolor="#E8A838"];
+        modifier [label="5  Modifier lane\nRest > Tie > Slide > Accent", shape=box, fillcolor="#E8A838"];
+        velocity [label="6  Velocity\n× VEL lane → Velocity Curve\n+ Accent", shape=box, fillcolor="#C87850", fontcolor="white"];
+        pitch [label="7  Pitch\nCHORD + INV lanes + Voicing\n+ PITCH lane + Transpose\n(scale degrees unless Chromatic)\n→ Range Low / High (Wrap · Clamp · Skip)", shape=box, fillcolor="#C87850", fontcolor="white"];
+        humanize [label="8  Humanize\n±20 ms timing, ±15 velocity, ±10% gate", shape=box, fillcolor="#C87850", fontcolor="white"];
+        emit [label="9  Note events\ngate = step × Gate Length × GATE lane\nRatchet 1-4 (Shuffle, Decay)\nStrum for chords\nTie / Slide hold the note", shape=box, fillcolor="#C87850", fontcolor="white"];
+
+        source -> lanes [style=dashed, color="#8C5030"];
+        lanes -> spice -> gates [style=dashed, color="#8C5030"];
+        gates -> modifier [penwidth=2, label="plays"];
+        modifier -> velocity -> pitch -> humanize -> emit [penwidth=2];
+    }
+
+    held -> source [penwidth=2, lhead=cluster_step, label="held set"];
+    clock -> source [style=dashed, color="#888888", lhead=cluster_step, label="step"];
+
+    // =========================================================================
+    // ECHOES AND OUTPUT
+    // =========================================================================
+    echo [label="MIDI Delay echoes\nsteps with the DELAY lane active\nFeedback ≤16 repeats, Time (Free 10-2000 ms\nor Synced), Vel Decay, Pitch Shift, Gate Scale", shape=box, fillcolor="#C87850", fontcolor="white"];
+    emit -> echo [penwidth=2, label="arp notes\n(passed through)"];
+
+    midi_out [label="MIDI notes out\nchannel 1", shape=invhouse, fillcolor="#CCDDEE"];
+    echo -> midi_out [penwidth=2, label="arp notes + echoes"];
+
+    // =========================================================================
+    // AUDITION
+    // =========================================================================
+    subgraph cluster_audition {
+        label="Audition (built-in monitor, not saved)";
+        style=rounded;
+        color="#2E5E8C";
+        bgcolor="#EEF4FB";
+
+        allocator [label="8 voices\noldest stolen first", shape=box, fillcolor="#D6E4F2"];
+        voice [label="Voice\nWaveform: Sine · Saw · Square\nenvelope: 2 ms attack, Decay to 0.6,\n30 ms release; × velocity × Volume", shape=box, fillcolor="#4A90D9", fontcolor="white"];
+        allocator -> voice [penwidth=2];
+    }
+
+    echo -> allocator [penwidth=2, label="when Audition\nis on", lhead=cluster_audition];
+    audio_out [label="Stereo out\n(audition only)", shape=invhouse, fillcolor="#CCDDEE"];
+    voice -> audio_out [penwidth=2, color="#2E5E8C", ltail=cluster_audition, label="mono to L and R"];
+
+    // =========================================================================
+    // EDITOR FEEDBACK
+    // =========================================================================
+    playheads [label="Lane playheads → editor\nring display and lane editors", shape=box, fillcolor="#CCCCCC"];
+    lanes -> playheads [style=dashed, color="#888888"];
+}

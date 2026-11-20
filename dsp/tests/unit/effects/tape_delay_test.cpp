@@ -1359,3 +1359,32 @@ TEST_CASE("TapeDelay spectral analysis: zero saturation is cleaner",
         REQUIRE(fundDb > harmDb + 15.0f);
     }
 }
+
+// TapeDelay saved its dry signal in a 4096-sample stack buffer and mixed only those samples (until 2026-11): every
+// sample of a longer block stayed 100 % wet whatever the Mix.
+TEST_CASE("TapeDelay mixes every sample of a block longer than 4096", "[features][tape-delay][mix]") {
+    constexpr size_t kLong = 8192;
+    TapeDelay delay;
+    delay.prepare(44100.0, kLong, 2000.0f);
+    delay.setMotorSpeed(300.0f);
+    delay.setFeedback(0.5f);
+    delay.setMix(0.0f);
+    delay.reset();
+
+    std::vector<float> left(kLong);
+    std::vector<float> right(kLong);
+    for (size_t i = 0; i < kLong; ++i) {
+        left[i] = 0.5f * std::sin(0.01f * static_cast<float>(i));
+        right[i] = 0.5f * std::cos(0.013f * static_cast<float>(i));
+    }
+    const std::vector<float> inL = left;
+    const std::vector<float> inR = right;
+    delay.process(left.data(), right.data(), kLong);
+
+    float worst = 0.0f;
+    for (size_t i = 0; i < kLong; ++i) {
+        worst = std::max({worst, std::abs(left[i] - inL[i]), std::abs(right[i] - inR[i])});
+    }
+    INFO("largest |out - dry| at Mix 0 " << worst);
+    CHECK(worst < 1e-4f);
+}

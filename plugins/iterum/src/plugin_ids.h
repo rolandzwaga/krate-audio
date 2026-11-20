@@ -133,9 +133,9 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     kTapeHead1EnabledId = 410,     // on/off
     kTapeHead2EnabledId = 411,     // on/off
     kTapeHead3EnabledId = 412,     // on/off
-    kTapeHead1LevelId = 413,       // -96 to +6 dB
-    kTapeHead2LevelId = 414,       // -96 to +6 dB
-    kTapeHead3LevelId = 415,       // -96 to +6 dB
+    kTapeHead1LevelId = 413,       // -30 to +6 dB
+    kTapeHead2LevelId = 414,       // -30 to +6 dB
+    kTapeHead3LevelId = 415,       // -30 to +6 dB
     kTapeHead1PanId = 416,         // L100-R100
     kTapeHead2PanId = 417,         // L100-R100
     kTapeHead3PanId = 418,         // L100-R100

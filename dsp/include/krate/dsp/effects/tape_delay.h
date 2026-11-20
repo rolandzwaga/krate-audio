@@ -497,6 +497,16 @@ public:
     void process(float* left, float* right, size_t numSamples) noexcept {
         if (!prepared_ || numSamples == 0) return;
 
+        // The dry signal is saved in a 4096-sample stack buffer below: a longer block runs as chunks of that size, so
+        // every sample gets the mix (a block over 4096 used to leave its tail 100 % wet)
+        constexpr size_t kMaxChunk = 4096;
+        if (numSamples > kMaxChunk) {
+            for (size_t offset = 0; offset < numSamples; offset += kMaxChunk) {
+                process(left + offset, right + offset, std::min(kMaxChunk, numSamples - offset));
+            }
+            return;
+        }
+
         // Calculate splice click duration in samples
         const size_t spliceClickSamples = static_cast<size_t>(
             kSpliceClickDurationMs * 0.001 * sampleRate_);

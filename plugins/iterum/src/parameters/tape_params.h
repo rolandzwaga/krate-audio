@@ -203,6 +203,10 @@ inline float tapeDelayTimeMs(const TapeParams& params, double tempoBPM) noexcept
 // Parameter Registration (for Controller)
 // ==============================================================================
 
+/// 0 dB on the head Level mapping -30 + n * 36 dB (the processor's starting gain; 0.941, a leftover of the old
+/// -96..+6 dB range, read +3.9 dB)
+inline constexpr double kTapeHeadLevelDefaultNorm = 30.0 / 36.0;
+
 inline void registerTapeParams(Steinberg::Vst::ParameterContainer& parameters) {
     using namespace Steinberg;
     using namespace Steinberg::Vst;
@@ -335,7 +339,7 @@ inline void registerTapeParams(Steinberg::Vst::ParameterContainer& parameters) {
         STR16("Tape Head 1 Level"),
         STR16("dB"),
         0,
-        0.941,  // default: 0dB
+        kTapeHeadLevelDefaultNorm,  // 0 dB
         ParameterInfo::kCanAutomate,
         kTapeHead1LevelId);
 
@@ -344,7 +348,7 @@ inline void registerTapeParams(Steinberg::Vst::ParameterContainer& parameters) {
         STR16("Tape Head 2 Level"),
         STR16("dB"),
         0,
-        0.941,
+        kTapeHeadLevelDefaultNorm,
         ParameterInfo::kCanAutomate,
         kTapeHead2LevelId);
 
@@ -353,7 +357,7 @@ inline void registerTapeParams(Steinberg::Vst::ParameterContainer& parameters) {
         STR16("Tape Head 3 Level"),
         STR16("dB"),
         0,
-        0.941,
+        kTapeHeadLevelDefaultNorm,
         ParameterInfo::kCanAutomate,
         kTapeHead3LevelId);
 

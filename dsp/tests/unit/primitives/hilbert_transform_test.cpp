@@ -781,7 +781,7 @@ TEST_CASE("HilbertTransform noexcept guarantees", "[hilbert][US2][noexcept]") {
                   "processBlock() must be noexcept");
     static_assert(noexcept(std::declval<const HilbertTransform>().getSampleRate()),
                   "getSampleRate() must be noexcept");
-    static_assert(noexcept(std::declval<const HilbertTransform>().getLatencySamples()),
+    static_assert(noexcept(HilbertTransform::getLatencySamples()),
                   "getLatencySamples() must be noexcept");
 
     REQUIRE(true);  // Test passes if compilation succeeds

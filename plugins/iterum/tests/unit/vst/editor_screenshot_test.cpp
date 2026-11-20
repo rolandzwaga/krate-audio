@@ -177,7 +177,9 @@ TEST_CASE("Iterum_EditorScreenshots", "[.][screenshots]") {
 }
 
 // The krateaudio.com images (hero.png, og-image.png, card.png; tests/test_helpers/editor_screenshot.h): the editor in
-// Tape mode at its defaults. Iterum has no manual, so these are all it commits.
+// Tape mode at its defaults. Then the images MANUAL.md links: the header and footer, one panel per mode
+// (mode-<name>.png; Digital with Era on 80s Digital so its Age control shows), MultiTap on its Custom pattern
+// (multitap-custom.png) and the three other Freeze pattern groups (freeze-<pattern>.png).
 // Regenerate: node tools/gen-screenshots.js iterum   (writes plugins/iterum/images/)
 TEST_CASE("Iterum_SiteScreenshots", "[.][screenshots][site]") {
     namespace Shots = ::Krate::TestSupport::Screenshots;
@@ -215,9 +217,55 @@ TEST_CASE("Iterum_SiteScreenshots", "[.][screenshots][site]") {
         // The card: the logo, the first delay modes and the Time / Feedback controls.
         CHECK(Shots::writeCard(root, dir, VSTGUI::CRect(0, 0, 480, 252)) > 0u);
 
+        // ---- the manual's images (editor.uidesc: header 0,0-940,52; mode panel 20,64-920,544; footer 0,556-940,608) ----
+        const VSTGUI::CRect header(0, 0, 940, 52);
+        const VSTGUI::CRect panel(20, 64, 920, 544);
+        const VSTGUI::CRect footer(0, 556, 940, 608);
+        // Freeze's pattern group (fieldset at 308,96 580x372 inside the panel)
+        const VSTGUI::CRect freezePattern(panel.left + 308, panel.top + 96, panel.left + 888, panel.top + 468);
+        int manualShots = 0;
+        const auto shoot = [&](const VSTGUI::CRect& rect, const char* file) {
+            INFO("shot " << file);
+            const std::size_t bytes = Shots::writeShot(root, rect, dir / file);
+            CHECK(bytes > 0u);
+            manualShots += bytes > 0u ? 1 : 0;
+        };
+        // The mode: through the Mode control, which the panel switcher listens to (as above).
+        const auto setMode = [&](Iterum::DelayMode mode) {
+            modeControl->setValueNormalized(static_cast<float>(static_cast<int>(mode)) / kLastMode);
+            modeControl->valueChanged();
+            Steinberg::UpdateHandler::instance()->triggerDeferedUpdates();
+        };
+        // Any other value: through the parameter, which the visibility controllers depend on.
+        const auto setParam = [&](Steinberg::Vst::ParamID id, double normalized) {
+            controller->setParamNormalized(id, normalized);
+            Steinberg::UpdateHandler::instance()->triggerDeferedUpdates();
+        };
+
+        shoot(header, "header.png");
+        shoot(footer, "footer.png");
+        for (std::size_t mode = 0; mode < kModeNames.size(); ++mode) {
+            setMode(static_cast<Iterum::DelayMode>(mode));
+            if (mode == static_cast<std::size_t>(Iterum::DelayMode::Digital)) {
+                setParam(Iterum::kDigitalEraId, 0.5);  // 80s Digital: the Age control shows
+            }
+            shoot(panel, ("mode-" + std::string(kModeNames[mode]) + ".png").c_str());
+        }
+        setMode(Iterum::DelayMode::MultiTap);
+        setParam(Iterum::kMultiTapTimingPatternId, 1.0);  // Custom, the last of the 20 patterns
+        shoot(panel, "multitap-custom.png");
+        setMode(Iterum::DelayMode::Freeze);
+        constexpr std::array<const char*, 3> kFreezePatternFiles{
+            "freeze-granular-scatter.png", "freeze-harmonic-drones.png", "freeze-noise-bursts.png"};
+        for (std::size_t p = 0; p < kFreezePatternFiles.size(); ++p) {
+            setParam(Iterum::kFreezePatternTypeId, static_cast<double>(p + 1) / 3.0);
+            shoot(freezePattern, kFreezePatternFiles[p]);
+        }
+        CHECK(manualShots == 2 + static_cast<int>(kModeNames.size()) + 1 + 3);
+
         view->removed();
         view->release();
     }
     REQUIRE(controller->terminate() == Steinberg::kResultOk);
-    std::cout << "3 shots written to " << dir.string() << '\n';
+    std::cout << "site and manual shots written to " << dir.string() << '\n';
 }

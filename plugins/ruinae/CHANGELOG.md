@@ -5,6 +5,16 @@ All notable changes to Ruinae will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.12.6] - 2026-11-20
+
+### Fixed
+
+- **The modulation heatmap lit random cells and hid some routes** — The heatmap kept a grid smaller than the Global tab's 14 sources by 15 destinations, so its bottom rows showed cells that were not routed (a different pattern each time), and routes from Tran or ArpP, or to AGat, AOct, ASwg or ASpc, never appeared. Every source and destination now has its own cell.
+- **The Digital delay's feedback above 100 % grew without limit** — Nothing inside the Digital delay's feedback loop held it back, so above 100 % the repeats grew louder inside the delay line on every pass and only the output limiter hid it. The loop now saturates above 100 %, so self-oscillation stays bounded. Below 100 % the Digital delay stays clean.
+- **The Digital delay's limiter let one channel duck the other** — One limiter ran over the left channel and then the right, so a loud left channel turned the right channel down too. Each channel now has its own limiter.
+- **The Tape delay's two channels ran through one shared transport** — The left and right channels shared one set of wow and flutter oscillators, oversampler and roll-off filter, so the wow and flutter ran twice as fast as set and the right channel started from the left channel's filter state. Both channels now share one tape transport and keep their own filters, so identical input gives identical output.
+- **The Tape delay mixed only part of a very large block** — In host blocks longer than 4096 samples, everything after the first 4096 samples stayed 100 % wet whatever the delay's Mix. Every sample is now mixed.
+
 ## [0.12.5] - 2026-11-10
 
 ### Fixed
