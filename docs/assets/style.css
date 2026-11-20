@@ -47,6 +47,25 @@ header h1 {
     background-clip: text;
 }
 
+/* The logo mark (the Krate Manager icon, also the favicon) beside the title, centred together */
+header .brand {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    margin-bottom: 0.5rem;
+}
+
+header .brand img {
+    flex: none;
+    width: 56px;
+    height: 56px;
+}
+
+header .brand h1 {
+    margin-bottom: 0;
+}
+
 header .tagline {
     font-size: 1.25rem;
     color: var(--color-text-muted);
@@ -252,6 +271,11 @@ footer .copyright {
 
     header h1 {
         font-size: 2.5rem;
+    }
+
+    header .brand img {
+        width: 44px;
+        height: 44px;
     }
 
     .plugin-grid {

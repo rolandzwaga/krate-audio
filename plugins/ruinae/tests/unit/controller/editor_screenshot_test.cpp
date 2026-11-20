@@ -178,7 +178,7 @@ TEST_CASE("Ruinae_EditorScreenshots", "[.][screenshots][site]") {
 
         // SOUND
         setTab(*controller, root, Tab::Sound);
-        CHECK(Shots::writeSiteShots(root, dir) == 3);
+        CHECK(Shots::writeSiteShots(root, dir) == 2);
         shoot(root, kTopBarRect, dir / "top-bar.png");
         shoot(root, kTabAreaRect, dir / "sound-tab.png");
 
@@ -190,6 +190,9 @@ TEST_CASE("Ruinae_EditorScreenshots", "[.][screenshots][site]") {
         // MOD: the whole tab, each modulation source, the heatmap
         setTab(*controller, root, Tab::Mod);
         shoot(root, root->getViewSize(), dir / "mod-tab.png");
+        // The card: LFO 1's second knob row over its whole waveform (the SOUND tab at card size is mostly the empty
+        // Clean distortion box).
+        CHECK(Shots::writeCard(root, dir, VSTGUI::CRect(8, 165, 560, 462)) > 0u);
         for (std::size_t i = 0; i < kModSourceShots.size(); ++i) {
             setList(*controller, root, Ruinae::kModSourceViewModeTag, static_cast<int>(i),
                     static_cast<int>(kModSourceShots.size()));

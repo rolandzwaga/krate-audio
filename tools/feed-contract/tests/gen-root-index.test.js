@@ -188,7 +188,8 @@ test('root index renders the plugin cards and the manager card', async (t) => {
     assert.ok(at('<h3>Alpha</h3>') < at('<h2 class="group-heading">Effects</h2>'));
     assert.ok(at('<h2 class="group-heading">Effects</h2>') < at('<h3>Beta</h3>'));
     assert.ok(EXPECTED.includes('<img src="alpha/images/card.png" width="600" height="315" alt="Alpha plugin editor"'));
-    assert.equal(EXPECTED.split('<img ').length - 1, 1, 'only alpha has images/card.png');
+    assert.equal(EXPECTED.match(/<img src="[^"]*\/images\/card\.png"/gu).length, 1, 'only alpha has images/card.png');
+    assert.ok(EXPECTED.includes('<img src="/assets/favicon.svg" width="56" height="56" alt="Krate Audio logo">'), 'the logo');
     assert.ok(EXPECTED.includes('escapes &amp; and &lt;b&gt;'));
     assert.ok(EXPECTED.includes("Alpha's summary escapes &amp; and &lt;i&gt; too."));
     assert.equal(/\{\{[A-Z_]+\}\}/.test(EXPECTED), false, 'a placeholder is left');

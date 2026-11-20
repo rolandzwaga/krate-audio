@@ -104,7 +104,9 @@ TEST_CASE("Gradus_EditorScreenshots", "[.][screenshots][site]") {
         REQUIRE(ring != nullptr);
         REQUIRE(strip != nullptr);
 
-        CHECK(Shots::writeSiteShots(root, dir) == 3);
+        CHECK(Shots::writeSiteShots(root, dir) == 2);
+        // The card: the ring and the lane strip beside it, whole (a cropped ring reads as a mistake).
+        CHECK(Shots::writeCard(root, dir, rectOf(root, ring).unite(rectOf(root, strip)), Shots::CardFit::Contain) > 0u);
         shoot(root, kControlRow1Rect, dir / "control-row-1.png");
         shoot(root, kControlRow2Rect, dir / "control-row-2.png");
         shoot(root, rectOf(root, ring), dir / "ring-display.png");

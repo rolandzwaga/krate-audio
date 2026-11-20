@@ -227,7 +227,9 @@ TEST_CASE("Disrumpo_SiteScreenshots", "[.][screenshots][site]") {
         // The editor opens at the base height; the mod panel below it is closed.
         const VSTGUI::CRect editorRect(0.0, 0.0, root->getViewSize().getWidth(),
                                        Disrumpo::ModPanelToggleController::kBaseHeight);
-        CHECK(Shots::writeSiteShots(root, dir, editorRect) == 3);
+        CHECK(Shots::writeSiteShots(root, dir, editorRect) == 2);
+        // The card: the band spectrum's low end with its crossovers, over the first two bands' headers.
+        CHECK(Shots::writeCard(root, dir, VSTGUI::CRect(20, 55, 490, 302)) > 0u);
         editor.close();
     }
     REQUIRE(controller->terminate() == Steinberg::kResultOk);

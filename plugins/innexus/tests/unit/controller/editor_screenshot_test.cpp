@@ -161,7 +161,9 @@ TEST_CASE("Innexus_EditorScreenshots", "[.][screenshots][site]") {
         Innexus::DisplayData frame = cello();
         deliver(*controller, frame);
 
-        CHECK(Shots::writeSiteShots(root, dir) == 3);
+        CHECK(Shots::writeSiteShots(root, dir) == 2);
+        // The card: the analysis spectrum from its low end, at the card's shape.
+        CHECK(Shots::writeCard(root, dir, Shots::fromLeftAtCardShape(fieldsets(root, "Analysis"))) > 0u);
         shoot(root, kHeaderRect, dir / "header.png");
         shoot(root, fieldsets(root, "Analysis").unite(fieldsets(root, "Pitch Detection")), dir / "analysis.png");
         for (const GroupShot& shot : kGroupShots) {

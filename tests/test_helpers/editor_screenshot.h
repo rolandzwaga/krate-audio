@@ -3,13 +3,16 @@
 // Offscreen editor screenshots for krateaudio.com and the user manuals
 // ==============================================================================
 // Shared by every plugin's hidden `[.][screenshots][site]` test case. A case builds its editor headlessly, then calls
-// writeSiteShots() once (the three images every plugin page uses) and writeShot() for each manual image. The PNGs
+// writeSiteShots() and writeCard() once (the three images every plugin page uses) and writeShot() for each manual
+// image. The PNGs
 // are committed under plugins/<plugin>/images/ by `node tools/gen-screenshots.js <plugin>`; tools/gen-site.js reads
 // them. They are documentation, not goldens: nothing asserts on pixels.
 //
 //   hero.png       the whole editor at 2x: the landing page's main image and its structured-data screenshot
 //   og-image.png   1200 x 630: the social card (og:image / twitter:image), the editor fitted and letterboxed
-//   card.png       600 x 315: the root page's plugin card (tools/gen-root-index.js writes that size into the HTML)
+//   card.png       600 x 315: the root page's plugin card (tools/gen-root-index.js writes that size into the HTML).
+//                  Not the whole editor: on the card it shows about 336 px wide, where a whole editor is unreadable,
+//                  so each case picks its plugin's signature display (the spectrum, the ring, the cloud) for writeCard.
 //
 // A headless frame has no window and reads 0 x 0, so a case draws the template root (the frame's first child), not the
 // frame; overlays the controller adds to the frame (preset browsers, popups) are therefore never in a shot.
@@ -212,10 +215,7 @@ inline std::size_t writeFitted(VSTGUI::CViewContainer* root, const VSTGUI::CRect
     return writePng(bitmap, file);
 }
 
-/// hero.png, og-image.png and card.png of the editor (see the file header); returns how many were written.
-/// @p rect is the editor area to show: the whole root unless a plugin's root holds more than the visible editor
-/// (Disrumpo's closed mod panel).
-/// The part of @p rect a wide (1.9 : 1) card shows: all of it, unless the editor is portrait-like (Innexus,
+/// The part of @p rect a wide (1.9 : 1) social card shows: all of it, unless the editor is portrait-like (Innexus,
 /// 800 x 1035), whose letterboxed card would be a thin strip; then its top at the card's aspect, full width.
 [[nodiscard]] inline VSTGUI::CRect cardArea(const VSTGUI::CRect& rect) {
     constexpr double kCardAspect = static_cast<double>(kOgWidth) / kOgHeight;
@@ -227,18 +227,52 @@ inline std::size_t writeFitted(VSTGUI::CViewContainer* root, const VSTGUI::CRect
     return top;
 }
 
+/// hero.png and og-image.png of the editor (see the file header); returns how many were written. @p rect is the
+/// editor area to show: the whole root unless a plugin's root holds more than the visible editor (Disrumpo's closed
+/// mod panel). card.png is writeCard's.
 inline int writeSiteShots(VSTGUI::CViewContainer* root, const std::filesystem::path& dir, const VSTGUI::CRect& rect) {
-    const VSTGUI::CColor bg = backgroundOf(root);
-    const VSTGUI::CRect card = cardArea(rect);
     int written = 0;
     written += writeShot(root, rect, dir / "hero.png") > 0 ? 1 : 0;
-    written += writeFitted(root, card, kOgWidth, kOgHeight, bg, dir / "og-image.png") > 0 ? 1 : 0;
-    written += writeFitted(root, card, kCardWidth, kCardHeight, bg, dir / "card.png") > 0 ? 1 : 0;
+    written += writeFitted(root, cardArea(rect), kOgWidth, kOgHeight, backgroundOf(root), dir / "og-image.png") > 0 ? 1 : 0;
     return written;
 }
 
 inline int writeSiteShots(VSTGUI::CViewContainer* root, const std::filesystem::path& dir) {
     return writeSiteShots(root, dir, root->getViewSize());
+}
+
+/// How card.png frames its region: Cover fills the card, centre-cropping the region to the card's aspect; Contain
+/// shows all of it, letterboxed in the editor's background (for a region that must not be cut, such as a ring).
+enum class CardFit : std::uint8_t { Cover, Contain };
+
+/// The largest rectangle of @p rect at @p aspect (width / height), centred.
+[[nodiscard]] inline VSTGUI::CRect coverArea(const VSTGUI::CRect& rect, double aspect) {
+    VSTGUI::CRect area = rect;
+    if (rect.getWidth() / rect.getHeight() > aspect) {
+        const double width = rect.getHeight() * aspect;
+        area.left = rect.left + (rect.getWidth() - width) / 2.0;
+        area.right = area.left + width;
+    } else {
+        const double height = rect.getWidth() / aspect;
+        area.top = rect.top + (rect.getHeight() - height) / 2.0;
+        area.bottom = area.top + height;
+    }
+    return area;
+}
+
+/// @p rect cut (or extended) to the card's shape from its left edge: for a wide display whose left end matters (an
+/// anchor bar, a spectrum's low end) where a centred crop would cut it off.
+[[nodiscard]] inline VSTGUI::CRect fromLeftAtCardShape(VSTGUI::CRect rect) {
+    rect.right = rect.left + rect.getHeight() * kCardWidth / kCardHeight;
+    return rect;
+}
+
+/// card.png: @p region of the editor (in root coordinates, as currently shown) at 600 x 315. Returns the PNG's size.
+inline std::size_t writeCard(VSTGUI::CViewContainer* root, const std::filesystem::path& dir,
+                             const VSTGUI::CRect& region, CardFit fit = CardFit::Cover) {
+    constexpr double kAspect = static_cast<double>(kCardWidth) / kCardHeight;
+    const VSTGUI::CRect area = fit == CardFit::Cover ? coverArea(region, kAspect) : region;
+    return writeFitted(root, area, kCardWidth, kCardHeight, backgroundOf(root), dir / "card.png");
 }
 
 }  // namespace Krate::TestSupport::Screenshots

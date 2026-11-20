@@ -211,7 +211,9 @@ TEST_CASE("Iterum_SiteScreenshots", "[.][screenshots][site]") {
         modeControl->valueChanged();
         Steinberg::UpdateHandler::instance()->triggerDeferedUpdates();
 
-        CHECK(Shots::writeSiteShots(root, dir) == 3);
+        CHECK(Shots::writeSiteShots(root, dir) == 2);
+        // The card: the logo, the first delay modes and the Time / Feedback controls.
+        CHECK(Shots::writeCard(root, dir, VSTGUI::CRect(0, 0, 480, 252)) > 0u);
 
         view->removed();
         view->release();

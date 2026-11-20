@@ -118,7 +118,10 @@ TEST_CASE("Membrum_EditorScreenshots", "[.][screenshots][site]") {
         panel->setAnimationTime(0);
 
         setMode(*controller, root, 0);
-        CHECK(Shots::writeSiteShots(root, dir) == 3);
+        CHECK(Shots::writeSiteShots(root, dir) == 2);
+        // The card: the right half of the pad grid beside the selected pad's Macros, Body and Pitch Envelope (the
+        // pads alone are a field of grey squares at card size).
+        CHECK(Shots::writeCard(root, dir, VSTGUI::CRect(321, 0, 1031, 374)) > 0u);
         shoot(root, kPadGridRect, dir / "pad-grid.png");
         shoot(root, kSelectedPadRect, dir / "selected-pad-acoustic.png");
         setMode(*controller, root, 1);

@@ -177,7 +177,12 @@ void renderShotsFor(std::string_view preset, const std::filesystem::path& dir) {
         if (preset == kShowcase) {
             select(frame, P::UI::kPageStripTag, 0);
             tickDisplays(frame);
-            CHECK(Shots::writeSiteShots(root, dir) == 3);
+            CHECK(Shots::writeSiteShots(root, dir) == 2);
+            // The card: the Mass display from its left edge, at the card's shape (the anchor, the partials, the
+            // knobs below them).
+            VSTGUI::CRect mass;
+            REQUIRE(Shots::findLabelled(frame, "mass-group", mass));
+            CHECK(Shots::writeCard(root, dir, Shots::fromLeftAtCardShape(mass)) > 0u);
         }
         for (const Shot& shot : kShots) {
             if (shot.preset != preset) {

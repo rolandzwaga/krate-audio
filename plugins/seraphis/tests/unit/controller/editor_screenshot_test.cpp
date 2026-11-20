@@ -141,7 +141,10 @@ TEST_CASE("Seraphis_EditorScreenshots", "[.][screenshots][site]") {
         REQUIRE(drawer != nullptr);
         drawer->setOpen(false);
 
-        CHECK(Shots::writeSiteShots(root, dir) == 3);
+        CHECK(Shots::writeSiteShots(root, dir) == 2);
+        // The card: the logo, the DREAM ring and the upper cloud, where the partials gather (the whole cloud at card
+        // size is a black field with a few dots).
+        CHECK(Shots::writeCard(root, dir, VSTGUI::CRect(0, 0, 700, 368)) > 0u);
         shoot(root, kHeaderRect, dir / "header.png");
         shoot(root, rectOf(root, cloud), dir / "cloud-view.png");
 

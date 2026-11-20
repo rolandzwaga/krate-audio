@@ -162,7 +162,10 @@ TEST_CASE("Vorago_EditorScreenshots", "[.][screenshots][site]") {
         }
 
         selectPage(root, 0);
-        CHECK(Shots::writeSiteShots(root, dir) == 3);
+        CHECK(Shots::writeSiteShots(root, dir) == 2);
+        // The card: the logo, the left macro bank and the edge of the habitat (the habitat alone is near-black at
+        // card size: the colony is drawn dim by design).
+        CHECK(Shots::writeCard(root, dir, VSTGUI::CRect(0, 0, 750, 395)) > 0u);
         for (const Shot& shot : kShots) {
             INFO("shot " << shot.file);
             selectPage(root, shot.page);
