@@ -61,9 +61,11 @@
 #include <krate/dsp/core/db_utils.h>
 
 #include <algorithm>
+#include <array>
 #include <bit>
 #include <cmath>
 #include <cstddef>
+#include <numbers>
 #include <vector>
 
 
@@ -204,11 +206,33 @@ public:
         outputWriteIndex_ = 0;
         outputReadIndex_ = 0;
         samplesInBuffer_ = 0;
+        partialCount_ = 0;
     }
 
     /// @brief Check if prepare() has been called successfully (FR-003).
     [[nodiscard]] bool isPrepared() const noexcept {
         return prepared_;
+    }
+
+    /// @brief Opt into partial resynthesis instead of bin remapping (R-148).
+    ///
+    /// Off (the default), pitch shift remaps magnitudes between bins and every
+    /// bin advances at its bin-centre rate, so a shifted partial always lands
+    /// on a bin centre: a note-tracking caller hears up to a semitone of error.
+    ///
+    /// On, freeze() keeps the spectral peaks (local maxima within 60 dB of the
+    /// loudest, at most kMaxPartials, lowest first) with the peak bin's centre as
+    /// each partial's true frequency, and every frame synthesises each partial as
+    /// an exact sinusoid at frequency * ratio: the frame spectrum is the exact
+    /// DFT of the sinusoid's segment, and its phase advances at the shifted
+    /// frequency. Exact in pitch for bin-centred input (what a note-tracking
+    /// caller freezes); an off-centre partial plays at its bin centre * ratio.
+    /// Spectral tilt is applied at each partial's shifted frequency, formant
+    /// shift through the envelope at its nearest bin.
+    ///
+    /// @note Takes effect at the next freeze(); call it before freezing.
+    void setPartialResynthesis(bool enabled) noexcept {
+        partialMode_ = enabled;
     }
 
     // =========================================================================
@@ -257,6 +281,10 @@ public:
         // Initialize phase accumulators from captured phases (FR-009)
         std::copy(initialPhases_.begin(), initialPhases_.end(),
                   phaseAccumulators_.begin());
+
+        if (partialMode_) {
+            capturePartials();
+        }
 
         // Reset output buffer for clean start
         std::fill(outputBuffer_.begin(), outputBuffer_.end(), 0.0f);
@@ -544,6 +572,186 @@ private:
     /// constructs the complex spectrum with accumulated phases, runs IFFT,
     /// applies Hann synthesis window, and overlap-adds to output buffer.
     void synthesizeFrame() noexcept {
+        if (partialMode_) {
+            synthesizePartialSpectrum();
+        } else {
+            synthesizeBinSpectrum();
+        }
+
+        // Inverse FFT
+        fft_.inverse(workingSpectrum_.data(), ifftBuffer_.data());
+
+        // Apply Hann synthesis window and COLA normalization, then overlap-add
+        for (size_t i = 0; i < fftSize_; ++i) {
+            const float windowed = ifftBuffer_[i] * synthesisWindow_[i]
+                                 * colaNormalization_;
+            const size_t outIdx = (outputWriteIndex_ + i) & outputMask_;
+            outputBuffer_[outIdx] += windowed;
+        }
+
+        // Advance write index by hop size
+        outputWriteIndex_ = (outputWriteIndex_ + hopSize_) & outputMask_;
+        samplesInBuffer_ += hopSize_;
+
+        if (partialMode_) return;  // partial phases advance in synthesizePartialSpectrum()
+
+        // Advance phase accumulators for next frame (FR-008, FR-014)
+        for (size_t k = 0; k < numBins_; ++k) {
+            phaseAccumulators_[k] += phaseIncrements_[k];
+            phaseAccumulators_[k] = wrapPhaseFast(phaseAccumulators_[k]);
+        }
+    }
+
+    /// @brief Keep the frozen spectral peaks as partials (R-148).
+    ///
+    /// Each local maximum within 60 dB of the loudest bin becomes a partial whose
+    /// true frequency is its bin centre, with the time-domain amplitude and phase
+    /// of a bin-centred sinusoid (the unwindowed FFT puts N/2 * amplitude there).
+    void capturePartials() noexcept {
+        partialCount_ = 0;
+        const float threshold = maxFrozenMagnitude_ * 1e-3f;
+        if (!(threshold > 0.0f)) return;
+        const double toAmplitude = 2.0 / static_cast<double>(fftSize_);
+        for (size_t k = 1; k + 1 < numBins_ && partialCount_ < kMaxPartials; ++k) {
+            const float m = frozenMagnitudes_[k];
+            if (m > threshold && m > frozenMagnitudes_[k - 1] && m >= frozenMagnitudes_[k + 1]) {
+                auto& p = partials_[partialCount_++];
+                p.bin = static_cast<double>(k);
+                p.amplitude = static_cast<double>(m) * toAmplitude;
+                p.phase = static_cast<double>(initialPhases_[k]);
+                p.gain = 1.0f;
+            }
+        }
+    }
+
+    /// @brief Frame spectrum of the shifted partials (R-148).
+    ///
+    /// For each partial at angular frequency w = 2 pi bin ratio / N, writes the
+    /// exact N-point DFT of its frame segment A cos(w n + phi), n = 0..N-1, so the
+    /// inverse FFT returns that segment and the overlap-add continues it without
+    /// a seam: phi advances by w * hop per frame. With D(d) = sum_n e^{j d n}
+    /// = (1 - e^{j N d}) / (1 - e^{j d}), bin k holds
+    /// A/2 (e^{j phi} D(w - 2 pi k / N) + e^{-j phi} D(-w - 2 pi k / N)).
+    /// Partials at or above Nyquist are dropped.
+    void synthesizePartialSpectrum() noexcept {
+        Complex* spectrum = workingSpectrum_.data();
+        std::fill_n(spectrum, numBins_, Complex{});
+        if (partialCount_ == 0) return;
+
+        constexpr double kTwoPiD = 2.0 * std::numbers::pi;
+        constexpr double kPiD = std::numbers::pi;
+        const double n = static_cast<double>(fftSize_);
+        const double ratio = static_cast<double>(semitonesToRatio(pitchShiftSemitones_));
+        const double binOmega = kTwoPiD / n;
+
+        // Spectral tilt at each partial's shifted frequency (same law as
+        // applySpectralTilt: gain_dB = tilt * log2(f / bin-1 frequency)).
+        for (size_t i = 0; i < partialCount_; ++i) {
+            auto& p = partials_[i];
+            const double shiftedBin = p.bin * ratio;
+            p.gain = (spectralTiltDbPerOctave_ != 0.0f && shiftedBin > 0.0)
+                ? std::pow(10.0f, spectralTiltDbPerOctave_
+                                  * static_cast<float>(std::log2(shiftedBin)) / 20.0f)
+                : 1.0f;
+        }
+
+        // Formant shift: the same envelope ratio the bin path applies, read at
+        // each partial's nearest bin of a spectrum holding only the partials.
+        if (formantShiftSemitones_ != 0.0f) {
+            std::fill(workingMagnitudes_.begin(), workingMagnitudes_.end(), 0.0f);
+            for (size_t i = 0; i < partialCount_; ++i) {
+                const auto& p = partials_[i];
+                const auto dest = static_cast<size_t>(std::lround(p.bin * ratio));
+                if (dest < numBins_) {
+                    workingMagnitudes_[dest] += static_cast<float>(p.amplitude) * p.gain;
+                }
+            }
+            float* before = ifftBuffer_.data();  // scratch: overwritten by the IFFT
+            std::copy_n(workingMagnitudes_.data(), numBins_, before);
+            applyFormantShift(workingMagnitudes_.data());
+            for (size_t i = 0; i < partialCount_; ++i) {
+                auto& p = partials_[i];
+                const auto dest = static_cast<size_t>(std::lround(p.bin * ratio));
+                if (dest < numBins_ && before[dest] > 0.0f) {
+                    p.gain *= workingMagnitudes_[dest] / before[dest];
+                }
+            }
+        }
+
+        // e^{-j 2 pi / N}: steps the bin twiddle e^{-j 2 pi k / N} from k = 0.
+        const double stepRe = std::cos(binOmega);
+        const double stepIm = -std::sin(binOmega);
+        const double hop = static_cast<double>(hopSize_);
+
+        for (size_t i = 0; i < partialCount_; ++i) {
+            auto& p = partials_[i];
+            const double w = binOmega * p.bin * ratio;
+            if (w > 0.0 && w < kPiD) {
+                const double halfAmp = 0.5 * p.amplitude * static_cast<double>(p.gain);
+                // Coefficients of the two exponentials: (A/2) e^{+-j phi}.
+                const double cRe = halfAmp * std::cos(p.phase);
+                const double cIm = halfAmp * std::sin(p.phase);
+                // Numerators 1 - e^{+-j N w} (bin independent: e^{-j 2 pi k} = 1).
+                const double nwRe = std::cos(n * w);
+                const double nwIm = std::sin(n * w);
+                const double zRe = std::cos(w);
+                const double zIm = std::sin(w);
+
+                double tRe = 1.0;  // e^{-j 2 pi k / N}
+                double tIm = 0.0;
+                for (size_t k = 0; k < numBins_; ++k) {
+                    const double binAngle = binOmega * static_cast<double>(k);
+                    // Positive-frequency term: d = w - 2 pi k / N, e^{j d} = z t.
+                    double posRe = 0.0;
+                    double posIm = 0.0;
+                    dirichlet(w - binAngle, n, 1.0 - nwRe, -nwIm,
+                              zRe * tRe - zIm * tIm, zRe * tIm + zIm * tRe, posRe, posIm);
+                    // Negative-frequency term: d = -w - 2 pi k / N, e^{j d} = conj(z) t.
+                    double negRe = 0.0;
+                    double negIm = 0.0;
+                    dirichlet(-w - binAngle, n, 1.0 - nwRe, nwIm,
+                              zRe * tRe + zIm * tIm, zRe * tIm - zIm * tRe, negRe, negIm);
+
+                    // c * pos + conj(c) * neg
+                    const double re = (cRe * posRe - cIm * posIm) + (cRe * negRe + cIm * negIm);
+                    const double im = (cRe * posIm + cIm * posRe) + (cRe * negIm - cIm * negRe);
+                    spectrum[k].real += static_cast<float>(re);
+                    spectrum[k].imag += static_cast<float>(im);
+
+                    const double nextRe = tRe * stepRe - tIm * stepIm;
+                    tIm = tRe * stepIm + tIm * stepRe;
+                    tRe = nextRe;
+                }
+            }
+            // Advance to the next frame's start even while silent above Nyquist,
+            // so a glide back down stays continuous.
+            p.phase += w * hop;
+            p.phase -= kTwoPiD * std::floor(p.phase / kTwoPiD);
+        }
+    }
+
+    /// @brief D(d) = sum_{n<N} e^{j d n} given its numerator 1 - e^{j N d} and
+    ///        e^{j d}; the removable singularity at d = 0 (mod 2 pi) is N e^{j d (N-1)/2}.
+    static void dirichlet(double d, double n, double numRe, double numIm,
+                          double edRe, double edIm, double& outRe, double& outIm) noexcept {
+        constexpr double kTwoPiD = 2.0 * std::numbers::pi;
+        const double wrapped = d - kTwoPiD * std::round(d / kTwoPiD);
+        if (std::abs(wrapped) < 1e-6) {
+            const double a = 0.5 * wrapped * (n - 1.0);
+            outRe = n * std::cos(a);
+            outIm = n * std::sin(a);
+            return;
+        }
+        const double denRe = 1.0 - edRe;
+        const double denIm = -edIm;
+        const double inv = 1.0 / (denRe * denRe + denIm * denIm);
+        outRe = (numRe * denRe + numIm * denIm) * inv;
+        outIm = (numIm * denRe - numRe * denIm) * inv;
+    }
+
+    /// @brief Default frame spectrum: bin-remapped frozen magnitudes with
+    ///        bin-centre phase accumulators.
+    void synthesizeBinSpectrum() noexcept {
         // Start with frozen magnitudes (FR-007: constant)
         std::copy(frozenMagnitudes_.begin(), frozenMagnitudes_.end(),
                   workingMagnitudes_.begin());
@@ -587,27 +795,6 @@ private:
         reconstructCartesianBulk(workingMagnitudes_.data(), phaseAccumulators_.data(),
                                  numBins_,
                                  reinterpret_cast<float*>(workingSpectrum_.data()));
-
-        // Inverse FFT
-        fft_.inverse(workingSpectrum_.data(), ifftBuffer_.data());
-
-        // Apply Hann synthesis window and COLA normalization, then overlap-add
-        for (size_t i = 0; i < fftSize_; ++i) {
-            const float windowed = ifftBuffer_[i] * synthesisWindow_[i]
-                                 * colaNormalization_;
-            const size_t outIdx = (outputWriteIndex_ + i) & outputMask_;
-            outputBuffer_[outIdx] += windowed;
-        }
-
-        // Advance write index by hop size
-        outputWriteIndex_ = (outputWriteIndex_ + hopSize_) & outputMask_;
-        samplesInBuffer_ += hopSize_;
-
-        // Advance phase accumulators for next frame (FR-008, FR-014)
-        for (size_t k = 0; k < numBins_; ++k) {
-            phaseAccumulators_[k] += phaseIncrements_[k];
-            phaseAccumulators_[k] = wrapPhaseFast(phaseAccumulators_[k]);
-        }
     }
 
     // =========================================================================
@@ -663,6 +850,18 @@ private:
     // Constants
     static constexpr size_t kMinFFTSize = 256;
     static constexpr size_t kMaxFFTSize = 8192;
+    static constexpr size_t kMaxPartials = 16;
+
+    // Partial resynthesis (setPartialResynthesis, R-148)
+    struct FrozenPartial {
+        double bin = 0.0;        ///< true frequency in bins (the peak bin's centre)
+        double amplitude = 0.0;  ///< time-domain amplitude
+        double phase = 0.0;      ///< phase at the start of the next frame
+        float gain = 1.0f;       ///< tilt * formant gain of the current frame
+    };
+    std::array<FrozenPartial, kMaxPartials> partials_{};
+    size_t partialCount_ = 0;
+    bool partialMode_ = false;
 };
 
 } // namespace Krate::DSP

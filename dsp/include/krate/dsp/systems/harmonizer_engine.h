@@ -264,10 +264,36 @@ public:
     /// @param numSamples Number of samples to process (must be <= maxBlockSize)
     void process(const float* input, float* outputL, float* outputR,
                  std::size_t numSamples) noexcept {
+        processBlock<true>(input, outputL, outputR, nullptr, numSamples);
+    }
+
+    /// @brief Process one block, writing the harmony (wet) bus only.
+    ///
+    /// Identical to process() except that the dry term is left out: outputL/R
+    /// receive the scaled voices alone. The smoothed dry gain of each sample is
+    /// written to dryGainOut, so a caller can add its own (e.g. stereo) dry
+    /// signal at the same, ramped Dry Level.
+    /// @param input Pointer to mono input samples (numSamples)
+    /// @param outputL Pointer to left wet output (numSamples, zeroed + written)
+    /// @param outputR Pointer to right wet output (numSamples, zeroed + written)
+    /// @param dryGainOut Per-sample smoothed dry gain (numSamples)
+    /// @param numSamples Number of samples to process (must be <= maxBlockSize)
+    void processWetOnly(const float* input, float* outputL, float* outputR,
+                        float* dryGainOut, std::size_t numSamples) noexcept {
+        processBlock<false>(input, outputL, outputR, dryGainOut, numSamples);
+    }
+
+private:
+    template <bool kAddDry>
+    void processBlock(const float* input, float* outputL, float* outputR,
+                      float* dryGainOut, std::size_t numSamples) noexcept {
         // FR-015: Pre-condition guard -- if not prepared, zero-fill and return
         if (!prepared_) {
             std::fill(outputL, outputL + numSamples, 0.0f);
             std::fill(outputR, outputR + numSamples, 0.0f);
+            if constexpr (!kAddDry) {
+                std::fill(dryGainOut, dryGainOut + numSamples, 0.0f);
+            }
             return;
         }
 
@@ -470,8 +496,14 @@ public:
             }
             const float wetScale = wetGain * countScale * modeSwitchGain_;
 
-            outputL[s] = wetScale * outputL[s] + dryGain * input[s];
-            outputR[s] = wetScale * outputR[s] + dryGain * input[s];
+            if constexpr (kAddDry) {
+                outputL[s] = wetScale * outputL[s] + dryGain * input[s];
+                outputR[s] = wetScale * outputR[s] + dryGain * input[s];
+            } else {
+                outputL[s] *= wetScale;
+                outputR[s] *= wetScale;
+                dryGainOut[s] = dryGain;
+            }
         }
 
         bool anyRendered = false;
@@ -490,6 +522,7 @@ public:
         }
     }
 
+public:
     // =========================================================================
     // Global Configuration (T027)
     // =========================================================================

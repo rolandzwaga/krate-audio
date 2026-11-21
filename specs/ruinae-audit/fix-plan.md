@@ -16,6 +16,11 @@ These tasks change how existing presets or projects sound, or pick between two d
 
 | Task | Question | Default assumed here | Ruling (user, 2026-11-16) |
 |------|----------|----------------------|---------------------------|
+| T1.33 | (added 2026-11-21; T1.33 stopped on it) Clearing `dcBlocker_` on an idle note-on makes `RuinaeVoice_IdleVoiceStartsClean` pass (kept state leaves 0.00256 RMS vs 1e-4) but raises the poly-1 CrossfadeMix fast-retrigger probe from 1.0529 to 1.0575 (bar 1.05): the zeroed estimate adds a ~2.3 % offset decaying over 16 ms under the 1 ms attack. No DC treatment passes both. Accept 1.06 and keep the reset, or drop the reset and relax the idle test? | Accept 1.06 | **Accept 1.06 (user, 2026-11-21).** Keep `dcBlocker_.reset()` on an idle note-on; the fast-retrigger acceptance bar is <= 1.06 (measured 1.0575 poly 1, 1.0356 poly 8); `RuinaeVoice_IdleVoiceStartsClean` keeps 1e-4. Onset DC zeroed vs kept differs < 1 % of RMS across clean/chaos/wavefolder/tape drive+bias. |
+| T1.31 | (added 2026-11-21; T1.31 stopped on it) ArpeggiatorCore runs step k for dur(k+1) (R-199): free-run swing is short-first (reverse) while gates and ratchet sub-steps use dur(k). Keep today's short-first orientation in the DAW sync (A), or fix the core so step k lasts dur(k) and swing is long-first (B)? | B | **B: fix the core (user, 2026-11-21).** Step k lasts dur(k) in free-run and in the DAW; the sync pair is long-first as step 2 says; gates and ratchets match their step. Every swung Ruinae and Gradus preset changes direction; the core tests that pin the old gap order are rewritten to the corrected order. |
+| T1.22a | (added 2026-11-21) Ruinae has two preset-load paths (R-196); T1.22 patched the browser one with 16 route messages. Unify or keep? | Unify | **Unify now, before T1.26 (user, 2026-11-21):** a browser load sends the stream to the processor, which runs the same parse and apply as `setState`; T1.22's route-message loop is removed. |
+| T1.20a | (added 2026-11-21; T1.20 stopped on it) With real feedback, the spectral delay's missing synthesis window steps the output at every hop edge (R-195); Seraphis's click-free case goes red. How should it be fixed? | sqrt-Hann both sides | **sqrt-Hann analysis and synthesis windows at 50 % overlap (user, 2026-11-21)**, with Seraphis's per-slice return-gain staircase interpolated per sample in the same task. Not 75 % overlap (2× CPU). |
+| T1.17 | (added 2026-11-21; the T1.17 implementer and its Fable escalation stopped on it) "max per-sample \|Δoutput\| < 0.2 during the sweep" cannot hold at resonance 1.0: the self-oscillating tone itself (peak 0.63 at 2.8 kHz) steps 0.249 per sample at 44.1 kHz. Fixed code reads 0.246, unfixed 1.18 | none | **Resonance 0.95 keeps \|Δ\| < 0.2; resonance 1.0 uses \|Δ\| < 0.4 (user, 2026-11-21).** Still catches the reset kicks (1.18 unfixed). The self-oscillation level and the sweep workload are unchanged. |
 | T1.26 | LFO 1/2 Depth and Chaos Depth never reached the audio. Once wired, should states saved before the fix keep their old (full-depth) sound? | Yes: states with version < 9 load depth 1.0 for all three; the generator's authored depths are rewritten to 1.0 so factory sound is unchanged | **Default confirmed** |
 | T1.27 | Velocity never reached the VCA. Add a "Velocity → Amp" amount; what do old states get? | New parameter, default 1.0 for new instances; states with version < 9 load 0.0 (old sound); factory presets regenerated at 1.0 | **Default confirmed** |
 | T2.7 | Formant Morph becomes an offset from Vowel (position = clamp(vowel + morph, 0, 4)). Today the vowel is ignored, so 11 factory presets and every project with a non-A vowel would move. Keep their sound? | (added 2026-11-18; the T2.7 implementer stopped because the plan's PRESET-IMPACT line understated this) Keep the sound | **Keep current sound (user, 2026-11-18).** States with version < 9 load each Formant Vowel as A and keep Morph, which is exact because the vowel had no effect before. The generator re-authors every Formant preset to vowel = floor(today's position), morph = the fraction. Exceptions that take the new sound on purpose, as their comments say: Vowel Descent oscB (E/0, "pure E") and Vocal Bass oscA (O/0.6 = 3.6, "just past O toward U"). See the T2.7 ruling bullet. |
@@ -82,7 +87,11 @@ Verdict: C = CONFIRMED, P = PLAUSIBLE (verify first). Severity is the final seve
 | R-135 | OSC Phase Mod / Freq Mod act on one sample per block | high | C | T1.14 | 1 |
 | R-131 | Pointer nulling hits the INCOMING template | high | C | T1.3 | 1 |
 | R-129 | F002 partial: group pointers (same as R-193) | high | C | T1.3 | 1 |
-| R-124 | Browser preset load never sends voice routes | high | C | T1.22 | 1 |
+| R-124 | Browser preset load never sends voice routes | high | C | T1.22, T1.22a | 1 |
+| R-196 | Two preset-load paths: a browser load bypasses `setState` / `applyPresetSnapshot` (no engine or arp reset, no T1.7 note-off flush, non-parameter data dropped). Found 2026-11-21 | high | C | T1.22a | 1 |
+| R-197 | `applyPresetSnapshot` parses the saved state a second time on the audio thread (`processor_state.cpp:316-363` mirrors `setState`'s parse prefix to skip to the voice routes, re-storing every parameter atomic) and uses none of it. Found by the parallel-paths sweep, 2026-11-21 | medium | C | T1.22a | 1 |
+| R-199 | `ArpeggiatorCore::fireStep` increments `swingStepCounter_` and then recomputes `currentStepDuration_` (also on the rest/tie/skip early returns), so step k lasts dur(k+1): free-run swing plays short-first (reverse) while `calculateGateDuration` (`arpeggiator_core.cpp:1005`) and ratchet sub-steps (`:1047`) are sized from dur(k) (Stab_Machine ratchets 2112/2112/462 in a 4686-sample step). Tests pin it (`arpeggiator_core_core_test.cpp` swing 50 % even=16537, odd=5512). Found by T1.31, 2026-11-21 | high | C (measured) | T1.31 | 1 |
+| R-198 | The "reset what is playing" sequence (engine reset, arp reset, the three note ledgers, MIDI-out flush flag) is written out twice: `Processor::setActive` (`processor.cpp:265-273`) and `applyPresetSnapshot` (`processor_state.cpp:368-375`). T1.7 had to add the flush to both. Found by the parallel-paths sweep, 2026-11-21 | medium | C | T1.22a | 1 |
 | R-121 | Mono portamento time overwritten by arp slide time | high | C | T1.12 | 1 |
 | R-119 | Poly/Mono and polyphony tests assert nothing | high | C | T1.9 | 1 |
 | R-118 | No test for SpectralFreeze after reset | high | C | T1.15 | 1 |
@@ -97,7 +106,8 @@ Verdict: C = CONFIRMED, P = PLAUSIBLE (verify first). Severity is the final seve
 | R-067 | Single-note gate > 100 % cut by stale NoteOff | high | C | T1.30 | 1 |
 | R-066 | Per-block sync destroys swing | high | C | T1.31 | 1 |
 | R-065 | Key releases while arp Off not forwarded to the core | high | C | T1.6 | 1 |
-| R-057 | Spectral delay feedback crushed by unscaled `tanh` | high | C | T1.20 | 1 |
+| R-057 | Spectral delay feedback crushed by unscaled `tanh` | high | C | T1.20, T1.20a | 1 |
+| R-195 | Spectral delay overlap-adds with no synthesis window: output steps at every hop edge (found by T1.20, 2026-11-21) | high | C (measured) | T1.20a | 1 |
 | R-056 | Reverb crossfade never completes (same as R-134) | high | C | T1.4 | 1 |
 | R-055 | Non-spectral echoes 139 ms late | high | C | T1.18 | 1 |
 | R-043 | Mod-matrix curve labels do not match the DSP enum | high | C | T1.25 | 1 |
@@ -510,7 +520,7 @@ Add one helper `flushArpLedger(Steinberg::Vst::IEventList* out, int32 offset)`; 
 
 Note from verification: disabling the kick alone does NOT fix R-020; the ladder loses oscillation near the top of the cutoff range and nothing re-excites it. A watchdog is required.
 
-1. **Failing tests:** `dsp/tests/unit/processors/self_oscillating_filter_test.cpp`: `TEST_CASE("SelfOscillatingFilter keeps oscillating through a fast cutoff sweep", "[processors][self-osc]")`: resonance 0.95 and 1.0, zero input, per-sample cutoff `1000 * 2^(48*env/12)` with a 0.1 ms attack / 400 ms decay envelope; REQUIRE RMS of [0.5 s, 1 s) > 0.1 (baseline 0.000) and max per-sample |Δoutput| < 0.2 during the sweep. `ruinae/tests/unit/ruinae_engine_test.cpp`: `TEST_CASE("RuinaeEngine: self-osc filter with key tracking is not re-kicked per sub-block", "[ruinae-engine][filter]")`: SelfOscillating, Q 20, key track 1, note C5, osc levels 0, render 1 s at block 64 and 512; REQUIRE RMS within 1 dB of a voice-only render with the same effective cutoff and no spectral line at `sampleRate/64` above −40 dB re the tone (baseline −14.8 dB level loss, 689 Hz buzz).
+1. **Failing tests:** `dsp/tests/unit/processors/self_oscillating_filter_test.cpp`: `TEST_CASE("SelfOscillatingFilter keeps oscillating through a fast cutoff sweep", "[processors][self-osc]")`: resonance 0.95 and 1.0, zero input, per-sample cutoff `1000 * 2^(48*env/12)` with a 0.1 ms attack / 400 ms decay envelope; REQUIRE RMS of [0.5 s, 1 s) > 0.1 (baseline 0.000) and max per-sample |Δoutput| during the sweep < 0.2 at resonance 0.95 and < 0.4 at resonance 1.0 (ruling 2026-11-21: at 1.0 the oscillating tone itself steps ~0.25; baseline 0.653 and 1.18). `ruinae/tests/unit/ruinae_engine_test.cpp`: `TEST_CASE("RuinaeEngine: self-osc filter with key tracking is not re-kicked per sub-block", "[ruinae-engine][filter]")`: SelfOscillating, Q 20, key track 1, note C5, osc levels 0, render 1 s at block 64 and 512; REQUIRE RMS within 1 dB of a voice-only render with the same effective cutoff and no spectral line at `sampleRate/64` above −40 dB re the tone (baseline −14.8 dB level loss, 689 Hz buzz).
 2. **Fix:**
    - `self_oscillating_filter.h`: add `void setCutoffModulated(float hz) noexcept` that updates the ladder cutoff (through the existing ramp/clamp) WITHOUT touching `needsKick_`; keep `setFrequency` (430-441) for note pitch. Add an energy watchdog in `process()` (near 273-303): track a one-pole envelope of the ladder output; when `resonance_ > 0.9` and the envelope stays below 1e-4 for 64 consecutive samples, inject a single impulse of 1e-2 WITHOUT `filter_.reset()`. Keep the kick (with reset) only for `noteOn`, `prepare`, `reset` and the resonance threshold crossing (454-456).
    - `ruinae/src/engine/ruinae_voice.h:1408-1409` (`setActiveFilterCutoff`, SelfOscillating case): call `setCutoffModulated(hz)`. Line 279-283 (`noteOn`) keeps `filterSelfOsc_->noteOn`.
@@ -555,6 +565,52 @@ Note from verification: disabling the kick alone does NOT fix R-020; the ladder 
 
 **Acceptance:** both cases pass; Iterum approvals re-approved only where the diff is spectral-delay feedback.
 
+**Outcome (2026-11-21):** T1.20 stopped with `needs_user` and its change unstaged in the working tree; T1.20a completes it. Steps 1–2 were done with an accepted deviation: the per-bin formula above failed the boundedness case (peak 6.93), so the limiter is one soft-limit gain per frame in time-domain units. The frame RMS comes from Parseval (half spectrum, `max(L, R)`; Hann gives sum|X|² ≈ N²·rms²·3/16) and is limited by `C * tanh(rms / C) / rms` with `C = kFeedbackLimitRms = 0.70710678`. Measured: echo2/echo1 −1.47 dB, echo3/echo2 −1.36 dB (baseline −34.8 dB), and a 10 s peak at feedback 1.2 of 1.402 (bar 2.0). Every gate suite was green except `seraphis_tests` "Effects transitions are click-free" (see R-195 in T1.20a).
+
+### T1.20a — Spectral delay windows: no hop-edge steps; completes T1.20 (R-195, R-057)
+
+**Ruling (user, 2026-11-21):** sqrt-Hann analysis and synthesis windows at 50 % overlap. Not Hann at 75 % overlap: that doubles CPU, the cost declined for R-160. Not shipping T1.20 alone.
+
+**Flags:**
+- CROSS-PLUGIN IMPACT:
+  - `dsp/effects/spectral_delay.h`: Ruinae, Iterum spectral mode, Seraphis.
+  - `dsp/core/window_functions.h`: new enum value. Grep every `switch` over `WindowType`, and every exhaustiveness lint, and handle the new value.
+- Plugin-local Seraphis edit (step 3).
+- PRESET-IMPACT (audio): every Spectral-delay preset in Ruinae, Iterum and Seraphis loses its hop clicks and smears slightly more (window sidelobes about −23 dB instead of −31 dB). Re-approve Iterum `approval_tests` only where the diff is the spectral delay.
+
+**Estimate:** 150 min. **Prerequisites:** T1.20 (its change in the working tree).
+
+**Finding R-195 (not in report.md; measured by the T1.20 implementer).**
+- The cause: SpectralDelay prepares its OverlapAdd with Hann analysis only (`overlapAddL_.prepare(kMaxFFTSize, kMaxFFTSize / 2, WindowType::Hann)`; `applySynthesisWindow` defaults to false). Fractional per-bin reads and recirculation leave non-zero frame edges, so the output steps at every hop boundary.
+- Probe: 0.5-amplitude 440 Hz burst, 300 ms delay, feedback 0.9, FFT 1024. The largest |2nd difference| is 0.277, at hop residue 0. The median is 0.00196. At HEAD it was 0.044, because the old tanh crushed the feedback.
+- In Seraphis, `seraphis_tests` "Effects transitions are click-free" reads 0.0789 against a bound of 0.0445 with T1.20, in the window "wander-bypass disengage". The step is +0.079 on R at sample 531904, which is 448 mod 512, a hop edge. At HEAD the same case reads 0.0454 against 0.0542.
+- A second, Seraphis-local contributor: `fxReturnGainSm_.getCurrentValue()` is read once per slice, so the 20 ms return ramp is a staircase. That gives the −0.050 step on L at the send-bypass write (sample 531926).
+
+1. **Keep T1.20's change** (frame limiter, both T1.20 cases). Its acceptance still applies.
+2. **Failing test:** `spectral_delay_test.cpp`: `TEST_CASE("SpectralDelay output has no hop-edge steps", "[effects][spectral-delay]")`.
+   - Input: the probe above, at FFT 1024 and 2048.
+   - Measure: the max |2nd difference| per residue mod hop, over the echo region only. Exclude ±2 ms around the dry burst's own onset and offset and around each echo's onset and offset.
+   - REQUIRE: the largest per-residue max is ≤ 3× the median of the per-residue maxima. A hop-edge defect concentrates at one residue; with the fix every residue reads alike.
+   - Record the measured values. See it fail on T1.20's tree.
+3. **Fix:**
+   - (a) `core/window_functions.h`: add `WindowType::SqrtHann` (the periodic Hann's square root) and its generator.
+   - (b) `spectral_delay.h`, for L and R: analysis and synthesis windows both SqrtHann, synthesis windowing enabled. Confirm the OverlapAdd normalisation gives unity passthrough: with feedback 0 and a frame left unmodified, the output equals the input delayed, within 1e-4. Add that as a case.
+   - (c) T1.20's Parseval constant changes from 3/16 to 1/4, since mean(w²) is 1/2 for sqrt-Hann.
+   - (d) Seraphis: where `fxReturnGainSm_` is read once per slice, interpolate the gain per sample from its value at the slice start to its value at the slice end.
+4. **Build, gate and pluginval:**
+   - Build: `dsp_effects_tests` + every executable `header-consumers.js` names for `window_functions.h` and `spectral_delay.h`, plus `ruinae_tests Ruinae plugin_tests approval_tests Iterum seraphis_tests Seraphis`.
+   - Gate: all of them.
+   - pluginval: Ruinae, Iterum and Seraphis.
+   - clang-tidy: `dsp`, `ruinae`, `seraphis`.
+
+**Acceptance:**
+- T1.20's two cases pass.
+- The hop-edge case passes.
+- The passthrough case passes.
+- `seraphis_tests` "Effects transitions are click-free" passes with its bound and positive controls unchanged.
+- Seraphis SC-005 "Spectral delay decays at registered max feedback" stays green.
+- Iterum approvals are re-approved only where the diff is the spectral delay.
+
 ### T1.21 — Dice button reaches the processor (R-142)
 
 **Flags:** none. **Estimate:** 45 min. **Prerequisites:** T0.1.
@@ -574,6 +630,65 @@ Note from verification: disabling the kick alone does NOT fix R-020; the ladder 
 3–6. **Build:** `ruinae_tests Ruinae`. **Gate:** `ruinae_tests`. pluginval: yes. clang-tidy: `ruinae`. Commit.
 
 **Acceptance:** case passes for A then B.
+
+**Outcome (2026-11-21):** done and staged. Its fix sends the 16 cached voice routes as `VoiceModRouteUpdate` messages after `loadStateCore`; it patched the second load path instead of removing it. T1.22a replaces that loop.
+
+### T1.22a — One preset-load path: a browser load runs the processor's setState (R-196, R-197, R-198, R-124, R-040)
+
+**Ruling (user, 2026-11-21):** unify now, as its own task, before T1.26. Its state-version-9 work then lands on one load path.
+
+**Flags:** none outside Ruinae (controller + processor only). **Estimate:** 240 min. **Prerequisites:** T1.7, T1.22.
+
+**Finding R-196.** Ruinae has two ways a preset reaches the audio.
+
+1. **Host load.** `Processor::setState` (`processor_state.cpp`) reads the stream into a `PresetSnapshot`, stores the parameter packs into atomics, and hands the snapshot to the audio thread (`stateTransfer_.transferObject_ui`). `applyPresetSnapshot` then sets the voice routes, resets the engine and the arp, and (T1.7) sets `pendingArpMidiOutFlush_`.
+2. **Browser load.** `Controller::loadComponentStateWithNotify` (`controller_presets.cpp`; called from `controller.cpp` with `arpOnly = info.subcategory.starts_with("Arp")`) parses the stream in the controller (`loadStateCore`) and pushes every parameter through `editParamWithNotify`. The processor never sees the stream.
+
+Consequences of the browser path:
+- No engine or arp reset.
+- No arp note-off flush, so a browser switch between MIDI-mode arp presets can leave notes hanging. T1.7 covered only host loads.
+- Anything in the stream that is not a host parameter is lost. The voice routes were the known case: T1.22 patched them with 16 extra messages.
+- Every later load-time rule has to be written twice; T4.8's truncation check already is.
+
+1. **Failing tests first** (build `ruinae_tests`; run each by name; see each fail on the current tree):
+   - **Same bytes on both paths.** `preset_browser_test.cpp`: `TEST_CASE("Browser load leaves the processor in the same state as a host load", "[controller][presets][state]")`.
+     - Setup: a connected Controller + Processor pair. Reuse the `IConnectionPoint` shim from T1.22's case `"Controller browser load sends voice routes to the processor"`.
+     - States: A is a non-default synth state with ≥ 1 active voice route, non-default arp lanes and a non-default voice LFO. B is a different one.
+     - Run: load A then B through `loadComponentStateWithNotify(.., false)`. On a second, fresh processor, load the same stream through `setState`.
+     - REQUIRE: the two processors' `getState` bytes are identical after each load.
+   - **Arp-only loads replace only the arp.** Same file: `TEST_CASE("Arp-only browser load replaces only the arp section in the processor", "[controller][presets][state]")`.
+     - Run: start from A, then make a browser load of B with `arpOnly = true`.
+     - REQUIRE: the processor's `getState` equals A with B's arp section, byte for byte, and the processor's synth packs and voice routes are unchanged.
+   - **Browser loads flush the arp.** `arp_integration_test.cpp` `ArpMidiOut_ResetPaths_BalanceNoteOffs`: add a 4th SECTION, "browser load of another MIDI-mode arp preset".
+     - Through the controller path, with the processor connected; load both a full preset and an arp-only one.
+     - REQUIRE: as in the existing SECTIONs, the next block has a NoteOff for every open pitch.
+   - Keep T1.22's case. It must stay green with its 16-message loop removed.
+2. **Fix:**
+   - **(a) Processor.**
+     - Move the body of `setState` into `tresult Processor::loadStateBytes(std::vector<char> bytes, bool arpOnly)`. It does the parse into atomics plus the `stateTransfer_` hand-off.
+     - `setState` reads the stream and calls it with `arpOnly = false`. There is ONE parser and ONE apply.
+     - With `arpOnly`, `loadStateBytes` parses the whole stream into scratch storage, stores only the arp packs, and marks the snapshot arp-only. `applyPresetSnapshot` then applies the arp lanes and resets only the arp, keeping the T1.7 flush. The engine, synth packs and voice routes are untouched.
+     - `PresetSnapshot` gains `bool arpOnly`.
+     - Runs on the message thread (as `setState` does). Allocation is fine there; never on the audio thread.
+   - **(b) Processor `notify`.**
+     - New message `"LoadPresetState"`, with the binary attribute `"bytes"` (the whole component state, read from the preset stream before the controller parses it) and the int attribute `"arpOnly"`.
+     - It calls `loadStateBytes`, then `sendVoiceModRouteState()` as `setState` does.
+   - **(c) Controller `loadComponentStateWithNotify`.**
+     - Read the stream into a `std::vector<char>` first; an `IBStream` may not seek. This also serves T4.8, which validates the same buffer.
+     - Send `"LoadPresetState"` with it.
+     - Then run `loadStateCore` over a `MemoryStream` on the buffer, as today, for the UI and the host. `editParamWithNotify` stays: the host must learn the new parameter values (automation, undo, dirty flag). Those edits carry the same values the processor already holds, so they change nothing audible.
+     - Remove T1.22's 16-message `sendVoiceRouteToProcessor` loop. Keep `sendVoiceRouteToProcessor` for grid edits.
+   - **(d)** No other caller may apply preset data to the processor. Grep `editParamWithNotify` and `VoiceModRouteUpdate` callers and list them in notes.
+   - **(e) The audio thread does not parse (R-197).** `applyPresetSnapshot` today re-reads `snapshot.bytes` through the same 17 pack loaders as `setState` only to skip to the voice routes (which `setState` already restored), re-storing every atomic on the audio thread; it then uses only `reverbParams_.reverbType`, an atomic `setState` already set. Remove the re-parse: `PresetSnapshot` carries no bytes, only what the audio thread needs (`arpOnly`). `applyPresetSnapshot` resets (per (f)), calls `engine_.setReverbTypeDirect(reverbParams_.reverbType.load())` on a full load, and sets the arp sentinels. Do this first: the arp-only work in (a) must not extend the re-parse.
+   - **(f) One reset sequence (R-198).** Extract `void Processor::resetPlayingState(bool engineToo)`: when `engineToo`, `engine_.reset()` and `engineDirectOpen_.fill(0)`, `arpEngineOpen_.fill(0)`; always `arpCore_.reset()`, `arpCoreKeysOpen_.fill(0)` and `pendingArpMidiOutFlush_ = true`. `setActive(true)` and `applyPresetSnapshot` both call it (an arp-only load passes `false`; check which ledgers an arp-only reset must clear by reading what each ledger tracks, and say so in notes). Keep each call site's comments on why.
+3. **Build:** `ruinae_tests Ruinae`. **Gate:** `ruinae_tests` (no shared header changes; if one is touched, its consumers). pluginval: Ruinae (it exercises `setState` / `getState`). clang-tidy: `ruinae`.
+
+**Acceptance:**
+- All three new tests pass, and T1.22's case stays green.
+- `setState` and the browser path call the same `loadStateBytes`; there is no second parse of the stream into processor state.
+- `PresetSnapshot` has no byte buffer; `applyPresetSnapshot` reads no stream (R-197).
+- `engine_.reset()` / `arpCore_.reset()` appear in exactly one function, `resetPlayingState` (R-198): `grep -n "engine_.reset()\|arpCore_.reset()" plugins/ruinae/src/processor/` shows only it.
+- The 168 factory presets still load: the existing preset sweeps stay green.
 
 ### T1.23 — Global mod-route add/remove/detail edits keep all seven slot parameters in sync (R-082, R-143, R-083)
 
@@ -673,15 +788,17 @@ Note from verification: disabling the kick alone does NOT fix R-020; the ladder 
 
 **Acceptance:** case passes; all regenerated goldens balanced (T1.8 invariant).
 
-### T1.31 — Per-block musical sync preserves swing (R-066)
+### T1.31 — Per-block musical sync preserves swing (R-066, R-199)
 
 **Flags:** GRADUS IMPACT, CROSS-PLUGIN IMPACT, macOS-SENSITIVE (`std::llround` everywhere; run `tools/macos-fastmath-repro.sh`), PRESET-IMPACT (every swung arp golden in Ruinae and Gradus, e.g. `ruinae_factory_Tape_Shuffle_golden_midi.txt`; justification = onsets alternate long/short within 2 samples and the 128–142-sample double hits disappear). **Estimate:** 180 min. **Prerequisites:** T1.30.
 
 1. **Failing test:** `dsp/tests/unit/processors/arpeggiator_core_dawloop_test.cpp`: `TEST_CASE("syncToMusicalPosition keeps swing timing at every block size", "[processors][arp][swing]")`: 1/16 at 120 BPM, swing 50 %, ppq-driven blocks of 64 / 512 / 4096 with sync every block, 4 bars; REQUIRE NoteOn intervals alternate `base*(1+swing)` / `base*(1−swing)` within 2 samples and the onset list is identical across block sizes within 2 samples (baseline intervals 5060, 6101, 5044, 409, …).
 2. **Fix:** `arpeggiator_core.h:1029-1052` `syncToMusicalPosition`: compute the position modulo a TWO-step period: `calculateMusicalStepPosition(projectTimeMusic, noteValue_, noteModifier_, 2)` (or derive pair phase from the step index parity); let `pairFrac` be the fraction within the pair; with `longDur = base*(1+swing)` and `shortDur = 2*base − longDur`, if `pairFrac*2*base < longDur` the arp is in the long half: set `swingStepCounter_` parity even, `currentStepDuration_ = longDur`, `sampleCounter_ = llround(pairFrac*2*base)`; else odd parity, `currentStepDuration_ = shortDur`, `sampleCounter_ = llround(pairFrac*2*base) − longDur`. With swing 0 this reduces to today's behaviour (assert with the existing 370-418 test).
-3–6. **Build:** `ruinae_tests Ruinae dsp_processors_tests gradus_tests` + consumers. **Gate:** matching. pluginval: both. clang-tidy: `dsp`. macOS proxies. Commit (with golden diff summaries).
+2a. **Core timing fix (R-199, ruling B, user 2026-11-21):** in `ArpeggiatorCore::fireStep` and every early-return path (rest, tie, skip), stop recomputing `currentStepDuration_` after the `swingStepCounter_` increment for the RUNNING step: step k's boundary is dur(k), so the first step after a transport start / reset is the LONG one. Keep bar-boundary and setMode/reset handling consistent with that (the counter's parity at reset selects the long half). Gate length and ratchet sub-steps then match their own step. Rewrite the core tests that pin the old gap order to the corrected order (at least: swing 50 % / 25 % / 75 %, "setMode resets swing counter", GMF-014, EuclideanSwing_Orthogonal); each rewrite states the old and new expected values in its comment.
+2b. **Working tree at the stop (2026-11-21):** option A (`syncSwingPair`, short-first, `syncTempoBPM_` / `syncSampleRate_`, `exactBaseStepSamples` / `stepDurationFor` split) plus the new dawloop test are unstaged in `arpeggiator_core.h/.cpp` and `arpeggiator_core_dawloop_test.cpp`. Keep the test; flip `syncSwingPair` to long-first; add 2a. Scratch captures in `f:/tmp/ruinae-fix/T1.31/` were made under option A and must be regenerated.
+3–6. **Build:** `ruinae_tests Ruinae dsp_processors_tests dsp_systems_tests dsp_ieee_tests gradus_tests Gradus` + consumers. **Gate:** matching. pluginval: both. clang-tidy: `dsp`. macOS proxies. Regenerate every swung Ruinae AND Gradus golden (SC-004b and the Gradus golden MIDI cases); the swing-0 goldens must not change. Commit (with golden diff summaries).
 
-**Acceptance:** case passes; swung goldens regenerated and justified.
+**Acceptance:** case passes at 64 / 512 / 4096 with long-first pairs; free-run and DAW-synced onsets match; a swung step's gate and ratchet sub-steps are sized from that step's own duration (assert one ratchet case); swung goldens regenerated and justified; swing-0 goldens byte-identical.
 
 ### T1.32 — Arp skip highlights leave the audio thread and carry each lane's own step (R-069, R-002)
 
@@ -708,7 +825,7 @@ Note from verification: disabling the kick alone does NOT fix R-020; the ladder 
    - `setFilterType` (748-763) and `setDistortionType` (925-929): reset the incoming filter/distortion before it becomes active (T2.24 adds the crossfade).
 3–6. **Build:** `ruinae_tests Ruinae`. **Gate:** `ruinae_tests`. pluginval: yes. clang-tidy: `ruinae`. Commit.
 
-**Acceptance:** three cases pass; fast-retrigger probe (`AuditProbe fast retrigger`) stays ≤ 1.05 jump ratio.
+**Acceptance:** three cases pass; fast-retrigger probe (`AuditProbe fast retrigger`) stays ≤ 1.06 jump ratio (user ruling 2026-11-21: the idle-note-on DC reset costs 1.0529 -> 1.0575 on poly 1; see the rulings table).
 
 ### T1.34 — Envelope curve tables are rebuilt only when their inputs change (R-001)
 

@@ -7,6 +7,8 @@
 
 #include "midi/midi_event_dispatcher.h"
 
+#include <krate/dsp/core/db_utils.h>
+
 #include "pluginterfaces/vst/ivstnoteexpression.h"
 
 #include <algorithm>
@@ -111,6 +113,15 @@ void Processor::applyTimedEvent(const TimedEvent& event) noexcept {
             break;
         case TimedEventKind::PitchBend:
             engine_.setPitchBend(static_cast<float>(event.value));
+            break;
+        case TimedEventKind::Aftertouch:
+            engine_.setAftertouch(static_cast<float>(event.value));
+            break;
+        case TimedEventKind::ModWheel:
+            if (!Krate::DSP::detail::isFinite(static_cast<float>(event.value))) break;
+            modWheelValue_ = std::clamp(static_cast<float>(event.value), 0.0f, 1.0f);
+            modWheelOwnsMacro1_ = true;
+            engine_.setModWheel(modWheelValue_);
             break;
     }
 }

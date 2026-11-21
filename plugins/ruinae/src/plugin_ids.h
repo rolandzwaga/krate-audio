@@ -367,6 +367,8 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     kAmpEnvReleaseCurveId = 706,
     // Bezier mode flag (0 or 1)
     kAmpEnvBezierEnabledId = 707,
+    // Velocity > Amp amount [0, 1]: how far note velocity scales the VCA (state v9, after the voice LFO)
+    kAmpEnvVelocityAmountId = 708,
     // Bezier control points [0, 1] (3 segments x 2 handles x 2 axes = 12)
     kAmpEnvBezierAttackCp1XId = 710,
     kAmpEnvBezierAttackCp1YId = 711,
@@ -1263,9 +1265,32 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     // the range and colliding with kArpVelocityCurveAmountId.
     kSidechainActiveId        = 3500,   // hidden: 0.0 = inactive, 1.0 = active
 
+    // --- MIDI performance controllers (hidden, not persisted; R-030, R-042) ---
+    // The controller's IMidiMapping maps pitch bend, channel aftertouch and
+    // CC 1 to these, which is how VST3 hosts and the AU wrapper deliver them.
+    // Outside kArpBaseId..kArpEndId for the same reason as kSidechainActiveId.
+    kMidiPitchBendId          = 3510,   // 0.5 = centre; bipolar = 2v - 1
+    kMidiAftertouchId         = 3511,   // channel pressure [0, 1] -> voice Aftertouch source
+    kMidiModWheelId           = 3512,   // CC 1 [0, 1] -> Macro 1
+
+    // --- Arp skip highlights (output parameters, hidden, not persisted; R-069) ---
+    // One per lane in the editor's lane order: velocity, gate, pitch, ratchet,
+    // modifier, condition, chord, inversion. The processor writes the step each
+    // lane was on when the arp skipped a step; the controller's 30 fps poll reads
+    // them. Encoding (step + 1 + 33 * (seq & 3)) / 132: seq counts skips so a
+    // repeated step still changes the value; 0 means none.
+    kArpSkipLane0Id           = 3520,
+    kArpSkipLane1Id           = 3521,
+    kArpSkipLane2Id           = 3522,
+    kArpSkipLane3Id           = 3523,
+    kArpSkipLane4Id           = 3524,
+    kArpSkipLane5Id           = 3525,
+    kArpSkipLane6Id           = 3526,
+    kArpSkipLane7Id           = 3527,
+
     // ==========================================================================
     // One past the highest ID above.
-    kNumParameters = 3501,
+    kNumParameters = 3528,
 
     // ==========================================================================
     // UI Action Button Tags (NOT VST parameters - UI-only triggers)

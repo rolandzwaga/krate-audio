@@ -98,6 +98,9 @@ public:
 
     static constexpr float kMinFeedback = 0.0f;
     static constexpr float kMaxFeedback = 1.2f;  // Allow slight overdrive
+    /// Soft-limit scale of the fed-back frame's RMS (time-domain units), the RMS
+    /// of a full-scale sine: the loop settles near 0.66x this at kMaxFeedback.
+    static constexpr float kFeedbackLimitRms = 0.70710678f;
 
     static constexpr float kMinTilt = -1.0f;
     static constexpr float kMaxTilt = 1.0f;
@@ -143,12 +146,21 @@ public:
         // a transform for each smaller one, the spectra hold the largest bin
         // count, and each per-bin delay line holds the frames of the smallest
         // FFT size that has that bin (the highest frame rate it can run at).
-        stftL_.prepare(kMaxFFTSize, kMaxFFTSize / 2, WindowType::Hann);
-        stftR_.prepare(kMaxFFTSize, kMaxFFTSize / 2, WindowType::Hann);
+        //
+        // sqrt-Hann at analysis AND synthesis (R-195). Fractional per-bin reads
+        // and recirculated feedback leave a frame whose IFFT no longer tapers to
+        // zero; with Hann analysis only, every hop boundary of the output then
+        // stepped. The synthesis window tapers each modified frame, and an
+        // unmodified one still reconstructs exactly (sqrt-Hann^2 = Hann, COLA
+        // at 50 % overlap; OverlapAdd's normalisation is then 1).
+        stftL_.prepare(kMaxFFTSize, kMaxFFTSize / 2, WindowType::SqrtHann);
+        stftR_.prepare(kMaxFFTSize, kMaxFFTSize / 2, WindowType::SqrtHann);
         stftL_.prepareActiveSizes(kMinFFTSize);
         stftR_.prepareActiveSizes(kMinFFTSize);
-        overlapAddL_.prepare(kMaxFFTSize, kMaxFFTSize / 2, WindowType::Hann);
-        overlapAddR_.prepare(kMaxFFTSize, kMaxFFTSize / 2, WindowType::Hann);
+        overlapAddL_.prepare(kMaxFFTSize, kMaxFFTSize / 2, WindowType::SqrtHann,
+                             kDefaultKaiserBeta, /*applySynthesisWindow=*/true);
+        overlapAddR_.prepare(kMaxFFTSize, kMaxFFTSize / 2, WindowType::SqrtHann,
+                             kDefaultKaiserBeta, /*applySynthesisWindow=*/true);
         overlapAddL_.prepareActiveSizes(kMinFFTSize);
         overlapAddR_.prepareActiveSizes(kMinFFTSize);
 
@@ -771,7 +783,7 @@ private:
     /// the phase advance between the two frames, as a phase vocoder does. The
     /// advance is measured at each spectral peak and shared by every bin in the
     /// peak's region (phase locking): 50 % overlap only resolves a component within
-    /// one bin of a bin's centre, and a Hann main lobe spans four, so per-bin
+    /// one bin of a bin's centre, and a window's main lobe spans three or more, so per-bin
     /// estimates came out +1.3 dB on a steady tone. Locked, the bins around a
     /// component turn together, which is a time shift of that component. A
     /// whole-frame delay reads the newer frame unchanged.
@@ -980,6 +992,34 @@ private:
         readDelayedSpectrum(binRealDelaysL_, binImagDelaysL_, delayedL_, numBins);
         readDelayedSpectrum(binRealDelaysR_, binImagDelaysR_, delayedR_, numBins);
 
+        // Feedback soft limiter, in the signal's own (time-domain) scale (R-057).
+        // tanh() on raw FFT magnitudes (FFT::forward is unnormalised: a sine of
+        // amplitude A peaks near A * fftSize / 4) clamped every strong bin to ~1
+        // and put echo 2 ~33 dB below echo 1 at 90 % feedback. A per-bin limiter
+        // cannot bound feedback above unity either: every weak bin keeps growing
+        // until it saturates on its own, flattening the echo into broadband noise.
+        // So the whole frame gets one gain: its RMS (Parseval, sqrt-Hann window,
+        // mean(w^2) = 1/2, so sum|X|^2 over the half spectrum ~= fftSize^2 *
+        // rms^2 / 4) is soft-limited with C * tanh(rms / C). Near-linear at
+        // normal levels, smooth (always applied, so no switch when feedback
+        // drops), spectrum preserved.
+        float feedbackPowL = 0.0f;
+        float feedbackPowR = 0.0f;
+        for (std::size_t bin = 0; bin < numBins; ++bin) {
+            const float binFeedback = calculateTiltedFeedback(bin, numBins,
+                                                              feedback, tilt);
+            const float fbL = delayedL_.mag[bin] * binFeedback;
+            const float fbR = delayedR_.mag[bin] * binFeedback;
+            feedbackPowL += fbL * fbL;
+            feedbackPowR += fbR * fbR;
+        }
+        const float feedbackRms = std::sqrt(std::max(feedbackPowL, feedbackPowR) * 4.0f) /
+                                  static_cast<float>(fftSize_);
+        const float feedbackLimitGain =
+            feedbackRms > 1e-9f
+                ? kFeedbackLimitRms * std::tanh(feedbackRms / kFeedbackLimitRms) / feedbackRms
+                : 1.0f;
+
         // Process each bin
         for (std::size_t bin = 0; bin < numBins; ++bin) {
             // Calculate tilted feedback for this bin
@@ -1004,12 +1044,9 @@ private:
             const float delayedPhaseL = delayedL_.phase[bin];
             const float delayedPhaseR = delayedR_.phase[bin];
 
-            // Apply feedback: calculate feedback magnitude with soft limiting
-            // Always apply tanh() to prevent distortion during feedback transitions
-            // Previously only ran when feedback > 100%, but when feedback drops, limiting
-            // stopped instantly while delay line still contained high-amplitude signal
-            float feedbackMagL = std::tanh(delayedMagL * binFeedback);
-            float feedbackMagR = std::tanh(delayedMagR * binFeedback);
+            // Apply feedback with the frame-wide soft limit computed above
+            const float feedbackMagL = delayedMagL * binFeedback * feedbackLimitGain;
+            const float feedbackMagR = delayedMagR * binFeedback * feedbackLimitGain;
 
             // Convert feedback to complex using delayed phase
             const float feedbackRealL = feedbackMagL * std::cos(delayedPhaseL);

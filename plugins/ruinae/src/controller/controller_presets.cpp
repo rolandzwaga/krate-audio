@@ -62,6 +62,7 @@
 
 #include <cstring>
 #include <functional>
+#include <vector>
 
 namespace {
 
@@ -366,15 +367,45 @@ bool Controller::loadComponentStateWithNotify(Steinberg::IBStream* state, bool a
     if (!state)
         return false;
 
-    Steinberg::IBStreamer streamer(state, kLittleEndian);
+    // Read the whole stream first (an IBStream may not seek): the processor
+    // gets these bytes, and loadStateCore below reads the same buffer.
+    std::vector<char> bytes;
+    {
+        constexpr Steinberg::int32 kChunkSize = 4096;
+        char chunk[kChunkSize];
+        Steinberg::int32 bytesRead = 0;
+        while (state->read(chunk, kChunkSize, &bytesRead) == Steinberg::kResultTrue &&
+               bytesRead > 0) {
+            bytes.insert(bytes.end(), chunk, chunk + bytesRead);
+        }
+    }
+    if (bytes.empty())
+        return false;
+
+    Steinberg::MemoryStream memStream(bytes.data(), static_cast<Steinberg::TSize>(bytes.size()));
+    Steinberg::IBStreamer streamer(&memStream, kLittleEndian);
 
     Steinberg::int32 version = 0;
     if (!streamer.readInt32(version) || version < 1 || version > Ruinae::kCurrentStateVersion)
         return false;
 
+    // One preset-load path (R-196): the processor parses and applies these
+    // bytes exactly as in setState (parameters, voice routes, engine and arp
+    // reset, arp MIDI-out NoteOffs); arpOnly replaces only its arp pack.
+    if (auto msg = Steinberg::owned(allocateMessage())) {
+        msg->setMessageID("LoadPresetState");
+        if (auto* attrs = msg->getAttributes()) {
+            attrs->setBinary("bytes", bytes.data(), static_cast<Steinberg::uint32>(bytes.size()));
+            attrs->setInt("arpOnly", arpOnly ? 1 : 0);
+            sendMessage(msg);
+        }
+    }
+
     bulkParamLoad_ = true;
     FrameInvalidationGuard frameGuard(activeEditor_);
 
+    // The edits tell the host (automation, undo, dirty flag) and the UI the new
+    // values; they carry the values the processor already holds.
     SetParamFunc setParam = [this](Steinberg::Vst::ParamID id, double value) {
         editParamWithNotify(id, value);
     };
@@ -411,6 +442,13 @@ bool Controller::loadStateCore(Steinberg::IBStreamer& streamer,
     loadLFO1ParamsToController(streamer, synthSetter);
     loadLFO2ParamsToController(streamer, synthSetter);
     loadChaosModParamsToController(streamer, synthSetter);
+    // Before v9 the LFO and Chaos depths never reached the audio (R-041, R-183):
+    // these states load full depth, as Processor::setState does.
+    if (version < 9) {
+        synthSetter(kLFO1DepthId, 1.0);
+        synthSetter(kLFO2DepthId, 1.0);
+        synthSetter(kChaosModDepthId, 1.0);
+    }
     loadModMatrixParamsToController(streamer, synthSetter, version);
     loadGlobalFilterParamsToController(streamer, synthSetter);
     loadDelayParamsToController(streamer, synthSetter);
@@ -524,6 +562,9 @@ bool Controller::loadStateCore(Steinberg::IBStreamer& streamer,
 
     // Voice LFO (version 9+); older states load 1 Hz Sine, as Processor::setState does
     loadVoiceLfoParamsToController(streamer, synthSetter, version);
+
+    // Velocity > Amp (version 9+); older states load 0, as Processor::setState does
+    loadAmpVelocityAmountToController(streamer, synthSetter, version);
 
     return true;
 }

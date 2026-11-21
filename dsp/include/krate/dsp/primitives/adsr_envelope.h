@@ -112,15 +112,22 @@ public:
     // Parameter Setters (FR-011, FR-012, FR-023, FR-024, FR-025)
     // =========================================================================
 
+    // An unchanged time returns early: hosts push every parameter on every block
+    // (Ruinae audit R-001). Before the first recalcAllCoefficients() the stored
+    // time has no coefficients behind it yet, so it is always computed then.
     ITERUM_NOINLINE void setAttack(float ms) noexcept {
         if (detail::isNaN(ms)) return;
-        attackTimeMs_ = std::clamp(ms, kMinEnvelopeTimeMs, kMaxEnvelopeTimeMs);
+        const float clamped = std::clamp(ms, kMinEnvelopeTimeMs, kMaxEnvelopeTimeMs);
+        if (coefficientsValid_ && clamped == attackTimeMs_) return;
+        attackTimeMs_ = clamped;
         calcAttackCoefficients();
     }
 
     ITERUM_NOINLINE void setDecay(float ms) noexcept {
         if (detail::isNaN(ms)) return;
-        decayTimeMs_ = std::clamp(ms, kMinEnvelopeTimeMs, kMaxEnvelopeTimeMs);
+        const float clamped = std::clamp(ms, kMinEnvelopeTimeMs, kMaxEnvelopeTimeMs);
+        if (coefficientsValid_ && clamped == decayTimeMs_) return;
+        decayTimeMs_ = clamped;
         calcDecayCoefficients();
     }
 
@@ -131,7 +138,9 @@ public:
 
     ITERUM_NOINLINE void setRelease(float ms) noexcept {
         if (detail::isNaN(ms)) return;
-        releaseTimeMs_ = std::clamp(ms, kMinEnvelopeTimeMs, kMaxEnvelopeTimeMs);
+        const float clamped = std::clamp(ms, kMinEnvelopeTimeMs, kMaxEnvelopeTimeMs);
+        if (coefficientsValid_ && clamped == releaseTimeMs_) return;
+        releaseTimeMs_ = clamped;
         calcReleaseCoefficients();
     }
 
@@ -157,23 +166,35 @@ public:
     // Continuous curve amount overloads (048-adsr-display)
     // curveAmount: [-1, +1], 0=linear, -1=logarithmic, +1=exponential
 
+    // Each table remembers what built it (family + inputs); a setter called again
+    // with the same inputs keeps the table instead of rebuilding it (R-001).
+
     void setAttackCurve(float amount) noexcept {
-        attackCurveAmount_ = std::clamp(amount, -1.0f, 1.0f);
-        generatePowerCurveTable(attackTable_, attackCurveAmount_, 0.0f, 1.0f);
+        const float curveAmount = std::clamp(amount, -1.0f, 1.0f);
+        if (!claimTable(attackTableSource_, attackTableInputs_, CurveTableSource::Power, curveAmount))
+            return;
+        generatePowerCurveTable(attackTable_, curveAmount, 0.0f, 1.0f);
+        ++tableGenerations_;
         useTableProcessing_ = true;
         calcAttackCoefficients();
     }
 
     void setDecayCurve(float amount) noexcept {
-        decayCurveAmount_ = std::clamp(amount, -1.0f, 1.0f);
-        generatePowerCurveTable(decayTable_, decayCurveAmount_, 1.0f, 0.0f);
+        const float curveAmount = std::clamp(amount, -1.0f, 1.0f);
+        if (!claimTable(decayTableSource_, decayTableInputs_, CurveTableSource::Power, curveAmount))
+            return;
+        generatePowerCurveTable(decayTable_, curveAmount, 1.0f, 0.0f);
+        ++tableGenerations_;
         useTableProcessing_ = true;
         calcDecayCoefficients();
     }
 
     void setReleaseCurve(float amount) noexcept {
-        releaseCurveAmount_ = std::clamp(amount, -1.0f, 1.0f);
-        generatePowerCurveTable(releaseTable_, releaseCurveAmount_, 1.0f, 0.0f);
+        const float curveAmount = std::clamp(amount, -1.0f, 1.0f);
+        if (!claimTable(releaseTableSource_, releaseTableInputs_, CurveTableSource::Power, curveAmount))
+            return;
+        generatePowerCurveTable(releaseTable_, curveAmount, 1.0f, 0.0f);
+        ++tableGenerations_;
         useTableProcessing_ = true;
         calcReleaseCoefficients();
     }
@@ -191,7 +212,11 @@ public:
     void setAttackBezierCurve(float cp1x, float cp1y,
                                float cp2x, float cp2y) noexcept {
         if (!bezierPointsFinite(cp1x, cp1y, cp2x, cp2y)) return;
+        if (!claimTable(attackTableSource_, attackTableInputs_, CurveTableSource::Bezier,
+                        cp1x, cp1y, cp2x, cp2y))
+            return;
         generateBezierCurveTable(attackTable_, cp1x, cp1y, cp2x, cp2y, 0.0f, 1.0f);
+        ++tableGenerations_;
         useTableProcessing_ = true;
         calcAttackCoefficients();
     }
@@ -200,7 +225,11 @@ public:
     void setDecayBezierCurve(float cp1x, float cp1y,
                               float cp2x, float cp2y) noexcept {
         if (!bezierPointsFinite(cp1x, cp1y, cp2x, cp2y)) return;
+        if (!claimTable(decayTableSource_, decayTableInputs_, CurveTableSource::Bezier,
+                        cp1x, cp1y, cp2x, cp2y))
+            return;
         generateBezierCurveTable(decayTable_, cp1x, cp1y, cp2x, cp2y, 1.0f, 0.0f);
+        ++tableGenerations_;
         useTableProcessing_ = true;
         calcDecayCoefficients();
     }
@@ -209,7 +238,11 @@ public:
     void setReleaseBezierCurve(float cp1x, float cp1y,
                                 float cp2x, float cp2y) noexcept {
         if (!bezierPointsFinite(cp1x, cp1y, cp2x, cp2y)) return;
+        if (!claimTable(releaseTableSource_, releaseTableInputs_, CurveTableSource::Bezier,
+                        cp1x, cp1y, cp2x, cp2y))
+            return;
         generateBezierCurveTable(releaseTable_, cp1x, cp1y, cp2x, cp2y, 1.0f, 0.0f);
+        ++tableGenerations_;
         useTableProcessing_ = true;
         calcReleaseCoefficients();
     }
@@ -278,6 +311,9 @@ public:
     [[nodiscard]] bool isActive() const noexcept { return stage_ != ADSRStage::Idle; }
     [[nodiscard]] bool isReleasing() const noexcept { return stage_ == ADSRStage::Release; }
     [[nodiscard]] float getOutput() const noexcept { return output_; }
+
+    /// Number of curve-table rebuilds so far (test hook: unchanged curves must not rebuild).
+    [[nodiscard]] uint32_t tableGenerationCountForTest() const noexcept { return tableGenerations_; }
 
 private:
     // =========================================================================
@@ -449,6 +485,27 @@ private:
         calcAttackCoefficients();
         calcDecayCoefficients();
         calcReleaseCoefficients();
+        coefficientsValid_ = true;
+    }
+
+    // =========================================================================
+    // Curve table cache key
+    // =========================================================================
+
+    /// Which setter family last built a segment's curve table.
+    enum class CurveTableSource : uint8_t { None = 0, Power, Bezier };
+
+    /// Records @p family and its inputs (the power amount, or the four Bezier
+    /// control-point coordinates) as the segment's table source. Returns false
+    /// when the table already holds exactly that curve (no rebuild needed).
+    static bool claimTable(CurveTableSource& source, std::array<float, 4>& storedInputs,
+                           CurveTableSource family, float a, float b = 0.0f,
+                           float c = 0.0f, float d = 0.0f) noexcept {
+        const std::array<float, 4> inputs{a, b, c, d};
+        if (source == family && storedInputs == inputs) return false;
+        source = family;
+        storedInputs = inputs;
+        return true;
     }
 
     void updatePeakLevel() noexcept {
@@ -529,6 +586,11 @@ private:
     float sampleRate_ = 44100.0f;
     float output_ = 0.0f;
     ADSRStage stage_ = ADSRStage::Idle;
+    // What each curve table was built from (R-001); kept beside stage_ so the
+    // three bytes fill its padding.
+    CurveTableSource attackTableSource_ = CurveTableSource::None;
+    CurveTableSource decayTableSource_ = CurveTableSource::None;
+    CurveTableSource releaseTableSource_ = CurveTableSource::None;
 
     float attackTimeMs_ = 10.0f;
     float decayTimeMs_ = 50.0f;
@@ -539,16 +601,18 @@ private:
     EnvCurve decayCurve_ = EnvCurve::Exponential;
     EnvCurve releaseCurve_ = EnvCurve::Exponential;
 
-    // Continuous curve amounts (048-adsr-display)
-    float attackCurveAmount_ = 0.7f;   // Default matches EnvCurve::Exponential
-    float decayCurveAmount_ = 0.7f;
-    float releaseCurveAmount_ = 0.7f;
+    // Inputs each curve table was built from: the continuous curve amount
+    // (048-adsr-display) in [0], or the four Bezier control-point coordinates.
+    std::array<float, 4> attackTableInputs_{};
+    std::array<float, 4> decayTableInputs_{};
+    std::array<float, 4> releaseTableInputs_{};
 
     // Curve lookup tables (256 entries each)
     std::array<float, kCurveTableSize> attackTable_{};
     std::array<float, kCurveTableSize> decayTable_{};
     std::array<float, kCurveTableSize> releaseTable_{};
     bool useTableProcessing_ = false;  // Set to true when float curve overloads used
+    bool coefficientsValid_ = false;   // true once recalcAllCoefficients() has run
 
     RetriggerMode retriggerMode_ = RetriggerMode::Hard;
 
@@ -569,6 +633,8 @@ private:
     float logPhase_ = 0.0f;
     float logPhaseInc_ = 0.0f;
     float logStartLevel_ = 0.0f;
+
+    uint32_t tableGenerations_ = 0;  // curve-table rebuild count (test hook)
 
     bool gateOn_ = false;
 };

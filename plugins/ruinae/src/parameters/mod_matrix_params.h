@@ -25,7 +25,7 @@ struct ModMatrixSlot {
     std::atomic<int> source{0};       // ModSource enum (0-12)
     std::atomic<int> dest{0};         // RuinaeModDest index (0-6)
     std::atomic<float> amount{0.0f};  // -1 to +1
-    std::atomic<int> curve{0};        // 0=Linear, 1=Exponential, 2=Logarithmic, 3=S-Curve
+    std::atomic<int> curve{0};        // Krate::DSP::ModCurve: 0=Linear, 1=Exponential, 2=S-Curve, 3=Stepped
     std::atomic<float> smoothMs{0.0f};// 0-100ms
     std::atomic<int> scale{2};        // 0=x0.25, 1=x0.5, 2=x1, 3=x2, 4=x4
     std::atomic<int> bypass{0};       // 0 or 1
@@ -45,8 +45,8 @@ inline constexpr int kModScaleCount = 5;
 inline const Steinberg::Vst::TChar* const kModCurveStrings[] = {
     STR16("Linear"),
     STR16("Exponential"),
-    STR16("Logarithmic"),
     STR16("S-Curve"),
+    STR16("Stepped"),
 };
 
 inline const Steinberg::Vst::TChar* const kModScaleStrings[] = {
@@ -356,25 +356,31 @@ inline void saveModMatrixParams(const ModMatrixParams& params, Steinberg::IBStre
 }
 
 inline bool loadModMatrixParams(ModMatrixParams& params, Steinberg::IBStreamer& streamer) {
+    // Every index is clamped to the range handleModMatrixParamChange produces: a
+    // source past kModSourceCount wrote past ModulationEngine::sourceActive_ (R-003).
     Steinberg::int32 iv = 0; float fv = 0.0f;
     for (int i = 0; i < 8; ++i) {
         auto& slot = params.slots[static_cast<size_t>(i)];
         // Base
         if (!streamer.readInt32(iv)) return false;
-        slot.source.store(iv, std::memory_order_relaxed);
+        slot.source.store(std::clamp(static_cast<int>(iv), 0, kModSourceCount - 1),
+                          std::memory_order_relaxed);
         if (!streamer.readInt32(iv)) return false;
-        slot.dest.store(iv, std::memory_order_relaxed);
+        slot.dest.store(std::clamp(static_cast<int>(iv), 0, kModDestCount - 1),
+                        std::memory_order_relaxed);
         if (!streamer.readFloat(fv)) return false;
         slot.amount.store(fv, std::memory_order_relaxed);
         // Detail
         if (!streamer.readInt32(iv)) return false;
-        slot.curve.store(iv, std::memory_order_relaxed);
+        slot.curve.store(std::clamp(static_cast<int>(iv), 0, kModCurveCount - 1),
+                         std::memory_order_relaxed);
         if (!streamer.readFloat(fv)) return false;
         slot.smoothMs.store(fv, std::memory_order_relaxed);
         if (!streamer.readInt32(iv)) return false;
-        slot.scale.store(iv, std::memory_order_relaxed);
+        slot.scale.store(std::clamp(static_cast<int>(iv), 0, kModScaleCount - 1),
+                         std::memory_order_relaxed);
         if (!streamer.readInt32(iv)) return false;
-        slot.bypass.store(iv, std::memory_order_relaxed);
+        slot.bypass.store(iv != 0 ? 1 : 0, std::memory_order_relaxed);
     }
     return true;
 }

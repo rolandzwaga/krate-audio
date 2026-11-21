@@ -72,6 +72,7 @@ namespace Ruinae {
 // ==============================================================================
 
 class Controller : public Steinberg::Vst::EditControllerEx1,
+                   public Steinberg::Vst::IMidiMapping,
                    public VSTGUI::VST3EditorDelegate,
                    public VSTGUI::IControlListener {
 public:
@@ -132,6 +133,17 @@ public:
     /// Receive IMessage from processor (playback position, transport state)
     Steinberg::tresult PLUGIN_API notify(
         Steinberg::Vst::IMessage* message) override;
+
+    // ===========================================================================
+    // IMidiMapping (R-030, R-042)
+    // ===========================================================================
+
+    /// Bus 0, every channel: pitch bend -> kMidiPitchBendId, channel aftertouch
+    /// -> kMidiAftertouchId, CC 1 -> kMidiModWheelId; anything else kResultFalse.
+    Steinberg::tresult PLUGIN_API getMidiControllerAssignment(
+        Steinberg::int32 busIndex, Steinberg::int16 channel,
+        Steinberg::Vst::CtrlNumber midiControllerNumber,
+        Steinberg::Vst::ParamID& id) override;
 
     // ===========================================================================
     // VST3EditorDelegate (VSTGUI)
@@ -222,6 +234,7 @@ public:
     DEFINE_INTERFACES
         DEF_INTERFACE(Steinberg::Vst::IEditController)
         DEF_INTERFACE(Steinberg::Vst::IEditController2)
+        DEF_INTERFACE(Steinberg::Vst::IMidiMapping)
     END_DEFINE_INTERFACES(EditController)  // NOLINT(bugprone-parent-virtual-call): SDK macro, forwards to the base on purpose
 
     DELEGATE_REFCOUNT(EditController)  // NOLINT(bugprone-parent-virtual-call): SDK macro, forwards to the base on purpose
@@ -279,8 +292,21 @@ private:
     /// Sync ModMatrixGrid route data from current parameter state
     void syncModMatrixGrid();
 
-    /// Push all global route slot parameters from grid state to VST params
+    /// Push all seven parameters of every global route slot from grid state to VST params
     void pushAllGlobalRouteParams();
+
+    /// Push the seven parameters of one global route slot: setParamNormalized, then
+    /// performEdit. With onlyIfChanged, a value equal to the controller's current one
+    /// is not sent.
+    void pushGlobalRouteSlot(int slot, const Krate::Plugins::ModRoute& route, bool onlyIfChanged);
+
+    /// Push one global route parameter: setParamNormalized, then performEdit inside its
+    /// own gesture, or inside the grid's gesture when one is open for that ID.
+    void pushGlobalRouteParam(Steinberg::Vst::ParamID id, double value, bool onlyIfChanged);
+
+    /// Send one voice route slot to the processor (VoiceModRouteUpdate IMessage).
+    /// An inactive route clears the slot there.
+    void sendVoiceRouteToProcessor(int slot, const Krate::Plugins::ModRoute& route);
 
     /// Wire a ModRingIndicator instance found in verifyView()
     void wireModRingIndicator(Krate::Plugins::ModRingIndicator* indicator);
@@ -304,6 +330,8 @@ private:
     Krate::Plugins::XYMorphPad* xyMorphPad_ = nullptr;
     Krate::Plugins::ModMatrixGrid* modMatrixGrid_ = nullptr;
     bool suppressModMatrixSync_ = false;  // Reentrancy guard for grid→param→sync loop
+    /// The global route parameter whose gesture the grid holds open (amount or smooth drag).
+    Steinberg::Vst::ParamID openGridGestureId_ = Steinberg::Vst::kNoParamId;
     bool suppressVoiceRouteSync_ = false; // Reentrancy guard for voice route IMessage round-trip
 
     /// Cached voice routes for applying when the mod matrix grid is wired.
@@ -495,8 +523,12 @@ private:
     // Arp Interaction Polish (Phase 11c)
     // ==========================================================================
 
-    /// Handle an arp skip event received via IMessage from the processor
+    /// Mark a lane's skipped step (UI thread; called from pollArpLanePlayheads)
     void handleArpSkipEvent(int lane, int step);
+
+    /// The raw code of a lane's skip output parameter (kArpSkipLane0Id + lane):
+    /// step + 1 + 33 * (seq & 3), or 0 for none (R-069)
+    long readArpSkipCode(int lane);
 
     /// Copy lane values to clipboard (Phase 11c, T059)
     void onLaneCopy(int laneIndex);
@@ -525,6 +557,7 @@ private:
     static constexpr int kArpLaneCount = 8;
     std::array<Krate::Plugins::PlayheadTrailState, 8> laneTrailStates_{};
     std::array<int32_t, 8> lastPolledSteps_{-1, -1, -1, -1, -1, -1, -1, -1};
+    std::array<long, 8> lastSkipCodes_{};  ///< Last readArpSkipCode() per lane; a change is a new skip
     bool wasTransportPlaying_ = false;  ///< Track transport state for stop→clear
 
     // ==========================================================================
@@ -586,7 +619,9 @@ protected:
     Steinberg::MemoryStream* createComponentStateStream();
 
     /// Load component state from stream with host notification
-    /// Mirrors setComponentState() deserialization, but calls editParamWithNotify
+    /// Hands the bytes to the processor ("LoadPresetState": the same parse and
+    /// apply as Processor::setState, R-196), then mirrors setComponentState()
+    /// deserialization, but calls editParamWithNotify
     /// @param state Stream containing component state in Processor::getState() format
     /// @param arpOnly If true, only arp parameters are applied; all others are read but discarded
     /// @return true on success

@@ -458,6 +458,8 @@ Each envelope provides:
 | **S (Sustain)** | 0–100% | Level held while the note is sustained |
 | **R (Release)** | 0–10,000 ms | Time from note-off to silence |
 
+The AMP envelope has a fifth knob, **VEL (Velocity > Amp)**, 0–100 %, default 100 %: how far note velocity sets the level. At 100 % a note's level is proportional to its velocity (after the Velocity Curve, so the arp Velocity lane, Accent and Humanize are audible); at 0 % every note plays at full level. Projects saved before this control existed load it at 0 %, the level they were made with.
+
 Each envelope also supports **curve shaping** for the attack, decay, and release segments (accessible via right-click or the envelope display), ranging from logarithmic (fast initial response) to exponential (slow initial response). An optional **Bezier mode** provides even finer control over the envelope shape with draggable control points on the visual display.
 
 **Tip:** For snappy plucks, use very short attack (0–5 ms) and decay (50–200 ms) with zero sustain. For pads, use longer attack (100–500 ms) and high sustain.

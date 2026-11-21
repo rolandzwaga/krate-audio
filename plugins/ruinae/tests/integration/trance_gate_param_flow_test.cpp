@@ -253,38 +253,81 @@ TEST_CASE("TranceGate depth parameter propagates",
     CHECK(energyDepthZero > energyDepthFull * 1.05);
 }
 
-TEST_CASE("TranceGate rate parameter propagates in free-run mode",
-          "[trance_gate][param_flow][integration]") {
+// R-140 / R-038: the free-run Rate knob must set the gate's step period. The
+// engine used to overwrite every sounding voice's rate with a constant 4 Hz each
+// sub-block, so this case measures the period itself (rising-edge spacing of the
+// output envelope), not an energy ratio a 4 Hz gate also satisfies.
+TEST_CASE("TranceGate free-run rate sets the step period",
+          "[integration][trance-gate]") {
+    float rateHz = 0.0f;
+    double captureSeconds = 0.0;
+    SECTION("0.5 Hz") {
+        rateHz = 0.5f;
+        captureSeconds = 10.0;  // period 4 s: at least two rising edges
+    }
+    SECTION("20 Hz") {
+        rateHz = 20.0f;
+        captureSeconds = 1.0;   // period 0.1 s: about ten rising edges
+    }
+
     TranceGateFixture f;
     f.startNote();
     f.processBlocksAndMeasureEnergy(30);
 
-    // Enable gate in free-run mode with step 0 = 1.0, all others = 0.0.
-    // At slow rate, the gate lingers on step 0 (full signal) for a long time.
-    // At fast rate, step 0 passes quickly → much less energy overall.
-    TGParamChanges slowRate;
-    slowRate.addChange(Ruinae::kTranceGateEnabledId, 1.0);
-    slowRate.addChange(Ruinae::kTranceGateDepthId, 1.0);
-    slowRate.addChange(Ruinae::kTranceGateTempoSyncId, 0.0);
-    slowRate.addChange(Ruinae::kTranceGateRateId, 0.0); // 0.0 → 0.1 Hz (very slow)
-    // numSteps=16, step 0 = 1.0, all others = 0.0
-    slowRate.addChange(Ruinae::kTranceGateNumStepsId, 14.0 / 30.0); // 16 steps
-    slowRate.addChange(Ruinae::kTranceGateStepLevel0Id, 1.0);
-    for (int i = 1; i < 32; ++i) {
-        slowRate.addChange(
-            static_cast<Steinberg::Vst::ParamID>(Ruinae::kTranceGateStepLevel0Id + i),
-            0.0);
+    // Free run, 2 steps (1, 0), depth 1.
+    TGParamChanges gate;
+    gate.addChange(Ruinae::kTranceGateEnabledId, 1.0);
+    gate.addChange(Ruinae::kTranceGateDepthId, 1.0);
+    gate.addChange(Ruinae::kTranceGateTempoSyncId, 0.0);
+    gate.addChange(Ruinae::kTranceGateRateId,
+                   (static_cast<double>(rateHz) - 0.1) / 99.9);  // 0-1 -> 0.1-100 Hz
+    gate.addChange(Ruinae::kTranceGateNumStepsId, 0.0);           // 2 steps
+    gate.addChange(Ruinae::kTranceGateStepLevel0Id, 1.0);
+    gate.addChange(
+        static_cast<Steinberg::Vst::ParamID>(Ruinae::kTranceGateStepLevel0Id + 1), 0.0);
+
+    constexpr double kSampleRate = 44100.0;
+    const int numBlocks = static_cast<int>(
+        captureSeconds * kSampleRate / static_cast<double>(TranceGateFixture::kBlockSize));
+    std::vector<float> capture;
+    capture.reserve(static_cast<size_t>(numBlocks) * TranceGateFixture::kBlockSize);
+    TGParamChanges empty;
+    for (int b = 0; b < numBlocks; ++b) {
+        f.processWithParams(b == 0 ? gate : empty);
+        capture.insert(capture.end(), f.outL.begin(), f.outL.end());
     }
-    double energySlow = f.applyParamsAndMeasureEnergy(slowRate, 50);
 
-    // Now switch to fast rate (100 Hz) — step 0 flashes past, rest is silence
-    TGParamChanges fastRate;
-    fastRate.addChange(Ruinae::kTranceGateRateId, 1.0); // 1.0 → 100 Hz
-    double energyFast = f.applyParamsAndMeasureEnergy(fastRate, 50);
+    // Envelope: peak |x| over 128-sample windows (shorter than the 2205-sample
+    // step at 20 Hz, longer than one cycle of the held C4).
+    constexpr size_t kWin = 128;
+    std::vector<float> env;
+    for (size_t i = 0; i + kWin <= capture.size(); i += kWin) {
+        float peak = 0.0f;
+        for (size_t s = i; s < i + kWin; ++s) peak = std::max(peak, std::abs(capture[s]));
+        env.push_back(peak);
+    }
+    REQUIRE_FALSE(env.empty());
+    const float envMax = *std::max_element(env.begin(), env.end());
+    REQUIRE(envMax > 0.01f);
+    const float threshold = 0.5f * envMax;
 
-    // Slow rate keeps the high step much longer → more energy
-    INFO("Energy slow rate: " << energySlow << ", fast rate: " << energyFast);
-    CHECK(energySlow > energyFast * 1.05);
+    std::vector<size_t> risingEdges;  // window index of each rising edge
+    bool above = env[0] >= threshold;
+    for (size_t w = 1; w < env.size(); ++w) {
+        const bool nowAbove = env[w] >= threshold;
+        if (nowAbove && !above) risingEdges.push_back(w);
+        above = nowAbove;
+    }
+
+    const double expectedPeriodS = 2.0 / static_cast<double>(rateHz);
+    INFO("rate " << rateHz << " Hz, rising edges " << risingEdges.size()
+         << ", expected period " << expectedPeriodS << " s");
+    REQUIRE(risingEdges.size() >= 2);
+    const double measuredPeriodS =
+        static_cast<double>(risingEdges.back() - risingEdges.front()) * kWin
+        / static_cast<double>(risingEdges.size() - 1) / kSampleRate;
+    INFO("measured period " << measuredPeriodS << " s");
+    REQUIRE(std::abs(measuredPeriodS - expectedPeriodS) <= 0.05 * expectedPeriodS);
 }
 
 TEST_CASE("TranceGate step levels propagate",

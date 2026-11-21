@@ -9,7 +9,7 @@
 // - Stereo phaser with tempo sync
 // - Five selectable delay types with click-free crossfade switching (25-50ms)
 // - Dattorro plate reverb
-// - Constant worst-case latency reporting with per-delay compensation
+// - No added latency: every delay type's first echo lands at the set delay time
 // - Fully real-time safe (all runtime methods noexcept, zero allocations)
 //
 // Feature: 043-effects-section
@@ -29,7 +29,6 @@
 #include <krate/dsp/effects/reverb.h>
 #include <krate/dsp/effects/spectral_delay.h>
 #include <krate/dsp/effects/tape_delay.h>
-#include <krate/dsp/primitives/delay_line.h>
 #include <krate/dsp/primitives/smoother.h>
 #include <krate/dsp/processors/chorus.h>
 #include <krate/dsp/processors/flanger.h>
@@ -38,7 +37,6 @@
 #include "ruinae_types.h"
 
 #include <algorithm>
-#include <array>
 #include <cmath>
 #include <cstddef>
 #include <cstring>
@@ -68,7 +66,9 @@ enum class ModulationType : std::uint8_t {
 /// Features:
 /// - Five selectable delay types with click-free crossfade switching
 /// - Dattorro plate reverb
-/// - Constant worst-case latency reporting with per-delay compensation
+/// - No added latency (getLatencySamples() is 0): the dry path is never delayed
+///   and every delay type's first echo lands at the set delay time. Spectral
+///   takes its FFT latency off its base delay (R-055).
 /// - Fully real-time safe (all runtime methods noexcept, zero allocations)
 ///
 /// @par Constitution Compliance
@@ -110,8 +110,8 @@ public:
 
     /// @brief Prepare all internal effects for processing (FR-002).
     ///
-    /// Allocates all temporary buffers and prepares all five delay types,
-    /// the reverb, and latency compensation delays.
+    /// Allocates all temporary buffers and prepares all five delay types
+    /// and the reverb.
     /// May allocate memory. NOT real-time safe.
     ///
     /// @param sampleRate Sample rate in Hz
@@ -144,25 +144,7 @@ public:
         harmonizerMonoScratch_.resize(maxBlockSize, 0.0f);
         harmonizerDryL_.resize(maxBlockSize, 0.0f);
         harmonizerDryR_.resize(maxBlockSize, 0.0f);
-
-        // Query worst-case harmonizer latency by temporarily setting PhaseVocoder mode
-        // (FR-019: must query after setting PV mode for worst-case, FR-020: constant)
-        harmonizer_.setPitchShiftMode(PitchMode::PhaseVocoder);
-        const size_t harmonizerLatency = harmonizer_.getLatencySamples();
-        harmonizer_.setPitchShiftMode(PitchMode::Simple); // Reset to default
-
-        // Combined worst-case: spectral delay + harmonizer PhaseVocoder
-        targetLatencySamples_ = spectralDelay_.getLatencySamples() + harmonizerLatency;
-
-        // Prepare compensation delays (2 shared pairs: active + standby)
-        if (targetLatencySamples_ > 0) {
-            float compDelaySec = static_cast<float>(targetLatencySamples_) /
-                                 static_cast<float>(sampleRate);
-            for (size_t i = 0; i < 2; ++i) {
-                compDelayL_[i].prepare(sampleRate, compDelaySec + 0.001f);
-                compDelayR_[i].prepare(sampleRate, compDelaySec + 0.001f);
-            }
-        }
+        harmonizerDryGain_.resize(maxBlockSize, 0.0f);
 
         // Allocate temp buffers
         tempL_.resize(maxBlockSize, 0.0f);
@@ -181,8 +163,8 @@ public:
         reverbDryR_.resize(maxBlockSize, 0.0f);
 
         // Force each delay processor's internal mix to 100% wet. The chain
-        // performs the dry/wet mix externally so that the latency-compensation
-        // delay only delays the wet signal, not the dry signal.
+        // performs the dry/wet mix externally (smoothed, with the slot fade
+        // scaling the wet only).
         digitalDelay_.setMix(1.0f);
         tapeDelay_.setMix(1.0f);
         pingPongDelay_.setMix(1.0f);
@@ -235,18 +217,12 @@ public:
         std::fill(harmonizerMonoScratch_.begin(), harmonizerMonoScratch_.end(), 0.0f);
         std::fill(harmonizerDryL_.begin(), harmonizerDryL_.end(), 0.0f);
         std::fill(harmonizerDryR_.begin(), harmonizerDryR_.end(), 0.0f);
+        std::fill(harmonizerDryGain_.begin(), harmonizerDryGain_.end(), 0.0f);
         harmonizerFadeState_ = HarmonizerFadeState::Off;
         harmonizerFadeAlpha_ = 0.0f;
         harmonizerFadeIncrement_ = 0.0f;
         harmonizerEnabled_ = false;
         harmonizerNeedsPrime_ = false;
-
-        // Reset compensation delays
-        for (size_t i = 0; i < 2; ++i) {
-            compDelayL_[i].reset();
-            compDelayR_[i].reset();
-        }
-        activeCompIdx_ = 0;
 
         // Rebuild the slot fades from the enable flags. setDelayEnabled() and
         // setReverbEnabled() ignore a flag that did not change, so forcing Off
@@ -456,10 +432,10 @@ public:
         }
 
         // Start pre-warming the incoming delay before crossfade.
-        // Duration = max(delay_time, kMinPreWarmMs) + comp delay latency.
-        // The extra comp delay duration ensures the standby compensation
-        // delay has stable incoming output (past the delay-line-fill step)
-        // when the crossfade starts.
+        // Duration = max(delay_time, kMinPreWarmMs): the incoming delay's
+        // first echo of anything it was fed lands at the delay time, so it
+        // has stable output (past the delay-line-fill step) when the
+        // crossfade starts and drops no echo of the input it was fed.
         incomingDelayType_ = type;
         resetDelayType(type);  // Clear stale buffers before pre-warm
         preWarming_ = true;
@@ -491,7 +467,11 @@ public:
         tapeDelay_.setMotorSpeed(ms);
         pingPongDelay_.setDelayTimeMs(ms);
         granularDelay_.setDelayTime(ms);
-        spectralDelay_.setBaseDelayMs(ms);
+        // The spectral delay's echo carries its FFT latency on top of the base delay; take
+        // it off so its echo also lands at the set time (R-055).
+        const float spectralLatencyMs = static_cast<float>(
+            1000.0 * static_cast<double>(spectralDelay_.getLatencySamples()) / sampleRate_);
+        spectralDelay_.setBaseDelayMs(std::max(SpectralDelay::kMinDelayMs, ms - spectralLatencyMs));
 
         // A pre-warm in progress needs the new time's duration, less what it has already run.
         // The processor re-applies the delay time every block, so this must never restart the
@@ -502,11 +482,10 @@ public:
         }
     }
 
-    /// @brief Pre-warm length for the current delay time: max(time, kMinPreWarmMs) plus the
-    /// compensation delay latency.
+    /// @brief Pre-warm length for the current delay time: max(time, kMinPreWarmMs).
     [[nodiscard]] size_t preWarmTotalSamples() const noexcept {
         const float preWarmMs = std::max(currentDelayTimeMs_, kMinPreWarmMs);
-        return static_cast<size_t>(preWarmMs * sampleRate_ / 1000.0) + targetLatencySamples_;
+        return static_cast<size_t>(preWarmMs * sampleRate_ / 1000.0);
     }
 
     /// @brief Set delay feedback amount (FR-015).
@@ -520,9 +499,8 @@ public:
     }
 
     /// @brief Set delay dry/wet mix (FR-015).
-    /// The mix is applied EXTERNALLY by the chain (after latency compensation
-    /// of the wet path) so that the dry signal is not delayed by the
-    /// compensation delay. The per-type delay processors always run at 100% wet.
+    /// The mix is applied EXTERNALLY by the chain, so the slot's enable fade
+    /// scales the wet only. The per-type delay processors always run at 100% wet.
     /// A short smoother prevents zipper noise when the mix value changes.
     void setDelayMix(float mix) noexcept {
         userDelayMix_ = std::clamp(mix, 0.0f, 1.0f);
@@ -881,10 +859,12 @@ public:
 
     /// @brief Get total processing latency in samples (FR-026).
     ///
-    /// Returns the worst-case latency (spectral delay FFT size),
-    /// constant regardless of active delay type (FR-027).
-    [[nodiscard]] size_t getLatencySamples() const noexcept {
-        return targetLatencySamples_;
+    /// Always 0, whatever the delay type (FR-027): the dry path is never
+    /// delayed, and the echoes land at the set delay time. The chain used to
+    /// delay only the wet path by 6144 samples and report that, which put
+    /// every echo 139 ms late at 44.1 kHz (R-055).
+    [[nodiscard]] static constexpr size_t getLatencySamples() noexcept {
+        return 0;
     }
 
 private:
@@ -910,11 +890,8 @@ private:
         // Slot 1: Delay (FR-005) with crossfade (FR-010)
         //
         // The delay processors run at 100% wet. We save the dry input here
-        // and mix it back with the wet (and comp-delayed) output below so
-        // that the dry signal is NOT affected by the latency compensation
-        // delay -- otherwise the dry portion of the user's mix would be
-        // pushed back by ~6144 samples (~140 ms), which is audible as a
-        // late synth onset relative to MIDI input.
+        // and mix it back with the wet output below. Neither path carries
+        // any added latency, so the echoes land at the set delay time.
         // ---------------------------------------------------------------
         if (delayFadeState_ == SlotFadeState::Off) {
             // Skip delay processing entirely
@@ -934,29 +911,11 @@ private:
             // Active delay produces output normally
             processDelayTypeRaw(activeDelayType_, left, right, numSamples, ctx);
 
-            // Incoming delay processes same input (output discarded, fills buffer)
+            // Incoming delay processes same input (output discarded, fills buffer).
+            // The pre-warm lasts the delay time, so nothing the incoming delay was
+            // fed has reached its output yet: no echo is dropped here.
             processDelayTypeRaw(incomingDelayType_, crossfadeOutL_.data(),
                                 crossfadeOutR_.data(), numSamples, ctx);
-
-            // Compensation delay handling during pre-warm.
-            // For non-spectral active: keep both comp delays in sync with
-            // active output (same as normal processing). The crossfade will
-            // use blend-then-compensate, so both comp delays need matching history.
-            // For spectral active: write active output to active comp delay,
-            // incoming output to standby (needed for per-path crossfade).
-            if (activeDelayType_ != RuinaeDelayType::Spectral) {
-                applyCompensation(left, right, numSamples);
-            } else {
-                if (targetLatencySamples_ > 0) {
-                    const size_t standbyIdx = 1 - activeCompIdx_;
-                    for (size_t i = 0; i < numSamples; ++i) {
-                        compDelayL_[activeCompIdx_].write(left[i]);
-                        compDelayR_[activeCompIdx_].write(right[i]);
-                        compDelayL_[standbyIdx].write(crossfadeOutL_[i]);
-                        compDelayR_[standbyIdx].write(crossfadeOutR_[i]);
-                    }
-                }
-            }
 
             // Check if pre-warm is complete
             if (numSamples >= preWarmRemaining_) {
@@ -973,12 +932,6 @@ private:
             std::memcpy(delayDryL_.data(), left, numSamples * sizeof(float));
             std::memcpy(delayDryR_.data(), right, numSamples * sizeof(float));
 
-            const bool outIsSpectral =
-                (activeDelayType_ == RuinaeDelayType::Spectral);
-            const bool inIsSpectral =
-                (incomingDelayType_ == RuinaeDelayType::Spectral);
-            const bool spectralInvolved = outIsSpectral || inIsSpectral;
-
             // Process OUTGOING delay into crossfade buffers
             std::memcpy(crossfadeOutL_.data(), left, numSamples * sizeof(float));
             std::memcpy(crossfadeOutR_.data(), right, numSamples * sizeof(float));
@@ -987,20 +940,6 @@ private:
 
             // Process INCOMING delay into left/right in-place
             processDelayTypeRaw(incomingDelayType_, left, right, numSamples, ctx);
-
-            // Per-path compensation only when spectral is involved
-            // (spectral has intrinsic 1024 latency, can't blend-then-compensate)
-            if (spectralInvolved) {
-                if (!outIsSpectral) {
-                    applyCompensationSingle(activeCompIdx_,
-                                            crossfadeOutL_.data(),
-                                            crossfadeOutR_.data(), numSamples);
-                }
-                if (!inIsSpectral) {
-                    applyCompensationSingle(1 - activeCompIdx_,
-                                            left, right, numSamples);
-                }
-            }
 
             // Linear crossfade blend (per-sample)
             for (size_t i = 0; i < numSamples; ++i) {
@@ -1018,14 +957,6 @@ private:
                     break;
                 }
             }
-
-            // For non-spectral transitions, compensate the blended output.
-            // This avoids the per-path comp delay step discontinuity because
-            // the comp delay sees a smooth blend transition, not an abrupt
-            // switch from outgoing to incoming delay output.
-            if (!spectralInvolved) {
-                applyCompensation(left, right, numSamples);
-            }
         } else {
             // Save dry input before any delay processing for external mix.
             std::memcpy(delayDryL_.data(), left, numSamples * sizeof(float));
@@ -1033,15 +964,10 @@ private:
 
             // Normal processing: active delay only
             processDelayTypeRaw(activeDelayType_, left, right, numSamples, ctx);
-            if (activeDelayType_ != RuinaeDelayType::Spectral) {
-                applyCompensation(left, right, numSamples);
-            } else {
-                warmBothCompDelays(left, right, numSamples);
-            }
         }
 
         // External dry/wet mix for the delay slot. left/right currently hold
-        // the 100%-wet (and latency-compensated) delay output; delayDryL_/R_
+        // the 100%-wet delay output; delayDryL_/R_
         // hold the dry input captured before delay processing. Smoothed
         // per-sample to avoid zipper noise on mix changes.
         if (delayFadeState_ != SlotFadeState::Off) {
@@ -1064,10 +990,6 @@ private:
                 pingPongDelay_.reset();
                 granularDelay_.reset();
                 spectralDelay_.reset();
-                for (size_t i = 0; i < 2; ++i) {
-                    compDelayL_[i].reset();
-                    compDelayR_[i].reset();
-                }
             }
         }
 
@@ -1082,23 +1004,24 @@ private:
                 harmonizer_.applyVoiceFadeIn();
                 harmonizerNeedsPrime_ = false;
             }
-            if (harmonizerFadeState_ == HarmonizerFadeState::On) {
-                // Steady state: just process
-                for (size_t i = 0; i < numSamples; ++i) {
-                    harmonizerMonoScratch_[i] = (left[i] + right[i]) * 0.5f;
-                }
-                harmonizer_.process(harmonizerMonoScratch_.data(),
-                                    left, right, numSamples);
-            } else if (harmonizerFadeState_ == HarmonizerFadeState::FadingIn) {
-                // Save dry signal
-                std::memcpy(harmonizerDryL_.data(), left, numSamples * sizeof(float));
-                std::memcpy(harmonizerDryR_.data(), right, numSamples * sizeof(float));
-                // Process harmonizer
-                for (size_t i = 0; i < numSamples; ++i) {
-                    harmonizerMonoScratch_[i] = (left[i] + right[i]) * 0.5f;
-                }
-                harmonizer_.process(harmonizerMonoScratch_.data(),
-                                    left, right, numSamples);
+            // The dry path stays stereo (R-175): the engine renders only the
+            // harmony bus, from the mono sum, and the chain adds the stereo
+            // input at the engine's smoothed Dry Level. The soft limit that
+            // keeps the stacked voices from overdriving the reverb acts on the
+            // harmony alone (R-177), so the dry mix passes linearly.
+            std::memcpy(harmonizerDryL_.data(), left, numSamples * sizeof(float));
+            std::memcpy(harmonizerDryR_.data(), right, numSamples * sizeof(float));
+            for (size_t i = 0; i < numSamples; ++i) {
+                harmonizerMonoScratch_[i] = (left[i] + right[i]) * 0.5f;
+            }
+            harmonizer_.processWetOnly(harmonizerMonoScratch_.data(), left, right,
+                                       harmonizerDryGain_.data(), numSamples);
+            for (size_t i = 0; i < numSamples; ++i) {
+                const float dryGain = harmonizerDryGain_[i];
+                left[i] = dryGain * harmonizerDryL_[i] + Sigmoid::softLimit(left[i]);
+                right[i] = dryGain * harmonizerDryR_[i] + Sigmoid::softLimit(right[i]);
+            }
+            if (harmonizerFadeState_ == HarmonizerFadeState::FadingIn) {
                 // Crossfade: dry -> harmonizer
                 for (size_t i = 0; i < numSamples; ++i) {
                     float alpha = harmonizerFadeAlpha_;
@@ -1111,15 +1034,6 @@ private:
                     }
                 }
             } else if (harmonizerFadeState_ == HarmonizerFadeState::FadingOut) {
-                // Save dry signal
-                std::memcpy(harmonizerDryL_.data(), left, numSamples * sizeof(float));
-                std::memcpy(harmonizerDryR_.data(), right, numSamples * sizeof(float));
-                // Process harmonizer
-                for (size_t i = 0; i < numSamples; ++i) {
-                    harmonizerMonoScratch_[i] = (left[i] + right[i]) * 0.5f;
-                }
-                harmonizer_.process(harmonizerMonoScratch_.data(),
-                                    left, right, numSamples);
                 // Crossfade: harmonizer -> dry
                 for (size_t i = 0; i < numSamples; ++i) {
                     float alpha = harmonizerFadeAlpha_;
@@ -1137,21 +1051,6 @@ private:
                 if (harmonizerFadeState_ == HarmonizerFadeState::Off) {
                     harmonizer_.reset();
                 }
-            }
-        }
-
-        // ---------------------------------------------------------------
-        // Inter-stage protection: soft limit before reverb
-        // ---------------------------------------------------------------
-        // When the harmonizer is active, its multi-voice accumulation can
-        // push the signal well above unity. Soft-limiting before the reverb
-        // prevents overdriving the reverb's feedback network, which would
-        // amplify distortion artifacts. Only active when the harmonizer is
-        // enabled to preserve transparent pass-through otherwise.
-        if (harmonizerEnabled_) {
-            for (size_t i = 0; i < numSamples; ++i) {
-                left[i] = Sigmoid::softLimit(left[i]);
-                right[i] = Sigmoid::softLimit(right[i]);
             }
         }
 
@@ -1254,7 +1153,7 @@ private:
         reverbCrossfadeIncrement_ = 0.0f;
     }
 
-    /// @brief Process audio through a specific delay type (no compensation).
+    /// @brief Process audio through a specific delay type (100% wet).
     void processDelayTypeRaw(RuinaeDelayType type, float* left, float* right,
                              size_t numSamples, const BlockContext& ctx) noexcept {
         switch (type) {
@@ -1287,51 +1186,6 @@ private:
         }
     }
 
-    /// @brief Apply latency compensation, writing to both shared delay pairs.
-    /// Used during normal (non-crossfade) processing. Keeps the standby
-    /// pair warm so it has valid history when a crossfade starts.
-    void applyCompensation(float* left, float* right,
-                           size_t numSamples) noexcept {
-        if (targetLatencySamples_ == 0) return;
-        const size_t a = activeCompIdx_;
-        const size_t b = 1 - a;
-        for (size_t i = 0; i < numSamples; ++i) {
-            compDelayL_[a].write(left[i]);
-            compDelayR_[a].write(right[i]);
-            compDelayL_[b].write(left[i]);
-            compDelayR_[b].write(right[i]);
-            left[i] = compDelayL_[a].read(targetLatencySamples_);
-            right[i] = compDelayR_[a].read(targetLatencySamples_);
-        }
-    }
-
-    /// @brief Apply latency compensation using a single delay pair.
-    /// Used during crossfade for the outgoing or incoming path.
-    void applyCompensationSingle(size_t idx, float* left, float* right,
-                                 size_t numSamples) noexcept {
-        if (targetLatencySamples_ == 0) return;
-        for (size_t i = 0; i < numSamples; ++i) {
-            compDelayL_[idx].write(left[i]);
-            compDelayR_[idx].write(right[i]);
-            left[i] = compDelayL_[idx].read(targetLatencySamples_);
-            right[i] = compDelayR_[idx].read(targetLatencySamples_);
-        }
-    }
-
-    /// @brief Write to both compensation delays without reading (keep warm).
-    /// Used when spectral delay is active to maintain valid history for
-    /// future crossfades to non-spectral types.
-    void warmBothCompDelays(const float* left, const float* right,
-                            size_t numSamples) noexcept {
-        if (targetLatencySamples_ == 0) return;
-        for (size_t i = 0; i < numSamples; ++i) {
-            compDelayL_[0].write(left[i]);
-            compDelayR_[0].write(right[i]);
-            compDelayL_[1].write(left[i]);
-            compDelayR_[1].write(right[i]);
-        }
-    }
-
     /// @brief Start a crossfade after pre-warming completes.
     void startCrossfade() noexcept {
         crossfading_ = true;
@@ -1347,7 +1201,6 @@ private:
 
         // Incoming becomes active
         activeDelayType_ = incomingDelayType_;
-        activeCompIdx_ = 1 - activeCompIdx_;  // Swap compensation delay pair
         crossfading_ = false;
         crossfadeAlpha_ = 0.0f;
         crossfadeIncrement_ = 0.0f;
@@ -1540,12 +1393,6 @@ private:
     float crossfadeAlpha_ = 0.0f;
     float crossfadeIncrement_ = 0.0f;
 
-    // Latency compensation (2 shared pairs: active + standby)
-    size_t targetLatencySamples_ = 0;
-    std::array<DelayLine, 2> compDelayL_;
-    std::array<DelayLine, 2> compDelayR_;
-    size_t activeCompIdx_ = 0;
-
     // Pre-warm state (delay-line-fill artifact elimination)
     bool preWarming_ = false;
     size_t preWarmRemaining_ = 0;
@@ -1557,6 +1404,7 @@ private:
     std::vector<float> harmonizerMonoScratch_;
     std::vector<float> harmonizerDryL_;
     std::vector<float> harmonizerDryR_;
+    std::vector<float> harmonizerDryGain_;  // per-sample smoothed Dry Level
 
     // Delay / reverb enable-disable crossfade. Same four-state shape as the
     // harmonizer's, applied to the wet gain of each slot's external dry/wet mix.
@@ -1635,8 +1483,7 @@ private:
     std::vector<float> crossfadeOutR_;
 
     // Dry input captured before delay processing, used to perform the
-    // dry/wet mix externally so the dry signal bypasses the latency
-    // compensation delay.
+    // dry/wet mix externally.
     std::vector<float> delayDryL_;
     std::vector<float> delayDryR_;
     float userDelayMix_ = 1.0f;

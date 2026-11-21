@@ -11,12 +11,20 @@
 #include <catch2/catch_approx.hpp>
 
 #include "engine/ruinae_voice.h"
+#include "processor/processor.h"
+#include "plugin_ids.h"
 #include <krate/dsp/core/pitch_utils.h>
 #include <krate/dsp/systems/voice_mod_types.h>
+
+#include "public.sdk/source/vst/hosting/hostclasses.h"
+#include "test_helpers/reverb_metrics.h"
+#include "vst_event_list.h"
+#include "vst_param_changes.h"
 
 #include <algorithm>
 #include <cmath>
 #include <functional>
+#include <memory>
 #include <numeric>
 #include <vector>
 
@@ -246,6 +254,129 @@ TEST_CASE("Voice mod route Env3 -> OscBPitch affects audio output",
         });
 
     REQUIRE(outputsDiffer(baseline, modulated));
+}
+
+// =============================================================================
+// R-039: the voice-tab UI index 7 ("Spectral Tilt") reaches the spectral tilt
+// =============================================================================
+// The controller sends the UI's ModDestination index; VoiceModDest has
+// OscALevel at 7 and SpectralTilt at 9. A raw cast turned "Spectral Tilt" into
+// an OSC A level route.
+
+namespace {
+
+/// Render a fresh processor through the same IMessage path the controller uses:
+/// optional Velocity -> UI destination 7 route, then C4 held for kBlocks blocks.
+/// Returns the left channel.
+std::vector<float> renderProcessorWithUiDest7(bool routed, double mixModeNorm,
+                                              double oscALevelNorm) {
+    constexpr size_t kProcBlock = 512;
+    constexpr int kBlocks = 40;
+
+    auto proc = std::make_unique<Ruinae::Processor>();
+    proc->initialize(nullptr);
+    Steinberg::Vst::ProcessSetup setup{};
+    setup.processMode = Steinberg::Vst::kRealtime;
+    setup.symbolicSampleSize = Steinberg::Vst::kSample32;
+    setup.sampleRate = kSampleRate;
+    setup.maxSamplesPerBlock = static_cast<Steinberg::int32>(kProcBlock);
+    proc->setupProcessing(setup);
+    proc->setActive(true);
+
+    if (routed) {
+        auto msg = Steinberg::owned(new Steinberg::Vst::HostMessage());
+        msg->setMessageID("VoiceModRouteUpdate");
+        auto* attrs = msg->getAttributes();
+        attrs->setInt("slotIndex", 0);
+        attrs->setInt("source", static_cast<Steinberg::int64>(VoiceModSource::Velocity));
+        attrs->setInt("destination", 7);  // UI index 7 = "Spectral Tilt"
+        attrs->setFloat("amount", 1.0);
+        attrs->setInt("curve", 0);
+        attrs->setFloat("smoothMs", 0.0);
+        attrs->setInt("scale", 2);
+        attrs->setInt("bypass", 0);
+        attrs->setInt("active", 1);
+        proc->notify(msg);
+    }
+
+    Krate::Test::ParameterChanges params;
+    params.addChange(Ruinae::kMixerModeId, mixModeNorm);
+    params.addChange(Ruinae::kMixerPositionId, 0.5);
+    params.addChange(Ruinae::kOscALevelId, oscALevelNorm);
+    Krate::Test::ParameterChanges noParams;
+    Krate::Test::EventList events;
+    events.addNoteOn(60, 0.8f);
+
+    std::vector<float> outL(kProcBlock, 0.0f);
+    std::vector<float> outR(kProcBlock, 0.0f);
+    float* channels[2] = {outL.data(), outR.data()};
+    Steinberg::Vst::AudioBusBuffers outBus{};
+    outBus.numChannels = 2;
+    outBus.channelBuffers32 = channels;
+
+    Steinberg::Vst::ProcessData data{};
+    data.processMode = Steinberg::Vst::kRealtime;
+    data.symbolicSampleSize = Steinberg::Vst::kSample32;
+    data.numSamples = static_cast<Steinberg::int32>(kProcBlock);
+    data.numOutputs = 1;
+    data.outputs = &outBus;
+    data.inputParameterChanges = &params;
+    data.inputEvents = &events;
+
+    std::vector<float> rendered;
+    rendered.reserve(kProcBlock * kBlocks);
+    for (int b = 0; b < kBlocks; ++b) {
+        std::fill(outL.begin(), outL.end(), 0.0f);
+        std::fill(outR.begin(), outR.end(), 0.0f);
+        proc->process(data);
+        rendered.insert(rendered.end(), outL.begin(), outL.end());
+        if (b == 0) {
+            events.clear();
+            data.inputParameterChanges = &noParams;
+        }
+    }
+    proc->setActive(false);
+    proc->terminate();
+    return rendered;
+}
+
+}  // namespace
+
+TEST_CASE("Voice route UI destination 7 modulates spectral tilt, not OSC A level",
+          "[integration][modmatrix][voice]") {
+    using Krate::DSP::TestUtils::spectralCentroidHz;
+
+    SECTION("SpectralMorph: the route moves the spectral centroid") {
+        constexpr double kSpectralMorph = 1.0;
+        const auto unrouted = renderProcessorWithUiDest7(false, kSpectralMorph, 1.0);
+        const auto routed = renderProcessorWithUiDest7(true, kSpectralMorph, 1.0);
+
+        // Measure the held tail, well past the morph filter's FFT latency.
+        const size_t tailStart = unrouted.size() / 2;
+        const std::vector<float> tailUnrouted(unrouted.begin() + static_cast<std::ptrdiff_t>(tailStart),
+                                              unrouted.end());
+        const std::vector<float> tailRouted(routed.begin() + static_cast<std::ptrdiff_t>(tailStart),
+                                            routed.end());
+        REQUIRE(computeRMS(tailUnrouted) > 1e-4f);
+        REQUIRE(computeRMS(tailRouted) > 1e-4f);
+
+        const double centroidUnrouted = spectralCentroidHz(tailUnrouted, kSampleRate);
+        const double centroidRouted = spectralCentroidHz(tailRouted, kSampleRate);
+        INFO("centroid unrouted " << centroidUnrouted << " Hz, routed " << centroidRouted << " Hz");
+        // Velocity 0.8 x 12 dB/oct = +9.6 dB/oct of tilt: the spectrum brightens.
+        CHECK(centroidRouted > centroidUnrouted * 1.1);
+    }
+
+    SECTION("CrossfadeMix with OSC A level 0.5: the route leaves the level alone") {
+        constexpr double kCrossfade = 0.0;
+        const auto unrouted = renderProcessorWithUiDest7(false, kCrossfade, 0.5);
+        const auto routed = renderProcessorWithUiDest7(true, kCrossfade, 0.5);
+        const float rmsUnrouted = computeRMS(unrouted);
+        const float rmsRouted = computeRMS(routed);
+        INFO("RMS unrouted " << rmsUnrouted << ", routed " << rmsRouted);
+        REQUIRE(rmsUnrouted > 1e-4f);
+        CHECK(rmsRouted == Catch::Approx(rmsUnrouted).epsilon(1e-4));
+    }
 }
 
 // =============================================================================

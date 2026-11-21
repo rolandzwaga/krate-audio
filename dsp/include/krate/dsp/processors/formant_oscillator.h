@@ -290,6 +290,11 @@ public:
     ///
     /// @param vowel Vowel to select (A, E, I, O, U)
     void setVowel(Vowel vowel) noexcept {
+        // An index past the table (a damaged preset) is clamped before
+        // applyVowelPreset() reads kVowelFormants5 with it (R-003).
+        if (static_cast<size_t>(vowel) >= kNumVowels) {
+            vowel = static_cast<Vowel>(kNumVowels - 1);
+        }
         currentVowel_ = vowel;
         applyVowelPreset(vowel);
         useMorphMode_ = false;

@@ -5,9 +5,8 @@
 // These tests verify the complete signal chain from MIDI input through all
 // processing stages to stereo output.
 //
-// Note: The effects chain includes a spectral delay (1024-sample FFT) plus
-// harmonizer PhaseVocoder (5120-sample) latency = 6144 total. Tests must
-// process multiple blocks before expecting audio output.
+// Note: The effects chain adds no latency (R-055), but tests still process
+// warm-up blocks so smoothers and envelopes settle before expecting audio.
 //
 // Reference: specs/044-engine-composition/spec.md
 // ==============================================================================
@@ -39,9 +38,8 @@ using Catch::Approx;
 
 static constexpr size_t kBlockSize = 512;
 
-/// Number of warm-up blocks to process before expecting audio.
-/// The effects chain has latency compensation (spectral delay FFT 1024 +
-/// harmonizer PhaseVocoder 5120 = 6144 samples = 12 blocks of 512).
+/// Number of warm-up blocks to process before expecting audio (smoothers and
+/// envelopes settle; the effects chain itself adds no latency).
 static constexpr int kWarmUpBlocks = 16;
 
 static float findPeak(const float* buffer, size_t numSamples) {
@@ -298,7 +296,7 @@ TEST_CASE("RuinaeEngine integration: portamento",
     RuinaeEngine engine;
     engine.prepare(44100.0, kBlockSize);
     engine.setMode(VoiceMode::Mono);
-    engine.setPortamentoTime(200.0f); // 200ms glide
+    engine.setMonoPortamentoTime(200.0f); // 200ms glide
     engine.setSoftLimitEnabled(false);
 
     SECTION("portamento glides smoothly between notes") {
@@ -831,7 +829,7 @@ TEST_CASE("RuinaeEngine integration: portamento frequency at midpoint",
     RuinaeEngine engine;
     engine.prepare(kSampleRate, kSmallBlock);
     engine.setMode(VoiceMode::Mono);
-    engine.setPortamentoTime(100.0f); // 100ms glide
+    engine.setMonoPortamentoTime(100.0f); // 100ms glide
     engine.setPortamentoMode(PortaMode::Always);
     engine.setSoftLimitEnabled(false);
     engine.setGlobalFilterEnabled(false);

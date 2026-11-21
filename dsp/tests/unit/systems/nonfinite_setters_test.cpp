@@ -120,6 +120,23 @@ TEST_CASE("DSP setters ignore non-finite input", "[ieee][robustness]") {
             REQUIRE(engine->getModulationOffset(0) > 0.5f);
         }
 
+        DYNAMIC_SECTION(name << ": ModulationEngine LFO and Chaos depth setters keep the previous depth") {
+            for (const ModSource source : {ModSource::LFO1, ModSource::LFO2, ModSource::Chaos}) {
+                auto engine = nfsEngineRouting(source);
+                engine->setLFO1Depth(0.0f);
+                engine->setLFO2Depth(0.0f);
+                engine->setChaosDepth(0.0f);
+                engine->setLFO1Depth(bad);
+                engine->setLFO2Depth(bad);
+                engine->setChaosDepth(bad);
+                const BlockContext ctx = nfsContext();
+                for (int b = 0; b < 20; ++b) {
+                    engine->process(ctx, nullptr, nullptr, kNfsBlock);
+                    REQUIRE(engine->getModulationOffset(0) == 0.0f);
+                }
+            }
+        }
+
         DYNAMIC_SECTION(name << ": ModulationEngine::evaluateRoutings maps a non-finite source value to 0") {
             auto engine = nfsEngineRouting(ModSource::External0);
             engine->setExternalSourceValue(0, bad);

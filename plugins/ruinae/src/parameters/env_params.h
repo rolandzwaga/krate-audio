@@ -85,7 +85,13 @@ struct EnvParams {
 };
 
 struct AmpEnvParams : EnvParams {
+    static constexpr float kDefaultVelocityAmount = 1.0f;
+
     AmpEnvParams() : EnvParams(10.0f, 100.0f, 0.8f, 200.0f) {}
+
+    // Velocity > Amp [0, 1] (R-018). Not one of the envFields(): it is saved
+    // after the voice LFO (state v9), not inside the envelope pack.
+    std::atomic<float> velocityAmount{kDefaultVelocityAmount};
 };
 
 struct FilterEnvParams : EnvParams {
@@ -354,15 +360,29 @@ inline void loadEnvParamsToController(Steinberg::Vst::ParamID base,
 // ---- Amp envelope ----
 inline void handleAmpEnvParamChange(AmpEnvParams& params, Steinberg::Vst::ParamID id,
                                     Steinberg::Vst::ParamValue value) {
+    if (id == kAmpEnvVelocityAmountId) {
+        params.velocityAmount.store(std::clamp(static_cast<float>(value), 0.0f, 1.0f),
+                                    std::memory_order_relaxed);
+        return;
+    }
     handleEnvParamChange(params, kAmpEnvBaseId, id, value);
 }
 inline void registerAmpEnvParams(Steinberg::Vst::ParameterContainer& parameters) {
     registerEnvParams(parameters, kAmpEnvBaseId, STR16("Amp "), STR16("Amp Env "),
                       STR16("Amp "), 0.215, 0.8, 0.271);
+    parameters.addParameter(STR16("Velocity > Amp"), STR16("%"), 0,
+                            AmpEnvParams::kDefaultVelocityAmount,
+                            Steinberg::Vst::ParameterInfo::kCanAutomate, kAmpEnvVelocityAmountId);
 }
 inline Steinberg::tresult formatAmpEnvParam(Steinberg::Vst::ParamID id,
                                             Steinberg::Vst::ParamValue value,
                                             Steinberg::Vst::String128 string) {
+    if (id == kAmpEnvVelocityAmountId) {
+        Steinberg::char8 text[32];
+        snprintf(text, sizeof(text), "%.0f%%", value * 100.0);
+        Steinberg::UString(string, 128).fromAscii(text);
+        return Steinberg::kResultOk;
+    }
     return formatEnvParam(kAmpEnvBaseId, id, value, string);
 }
 inline void saveAmpEnvParams(const AmpEnvParams& params, Steinberg::IBStreamer& streamer) {
@@ -374,6 +394,30 @@ inline bool loadAmpEnvParams(AmpEnvParams& params, Steinberg::IBStreamer& stream
 template <typename SetParamFunc>
 inline void loadAmpEnvParamsToController(Steinberg::IBStreamer& streamer, const SetParamFunc& setParam) {
     loadEnvParamsToController(kAmpEnvBaseId, streamer, std::move(setParam));
+}
+
+// Velocity > Amp: appended after the voice LFO (state version 9)
+inline void saveAmpVelocityAmount(const AmpEnvParams& params, Steinberg::IBStreamer& streamer) {
+    streamer.writeFloat(params.velocityAmount.load(std::memory_order_relaxed));
+}
+/// A state older than v9, or one that ends before the field, loads 0: velocity
+/// never reached the VCA before (R-018), so the state keeps its sound.
+inline void loadAmpVelocityAmount(AmpEnvParams& params, Steinberg::IBStreamer& streamer,
+                                  Steinberg::int32 version) {
+    float v = 0.0f;
+    const bool present = version >= 9 && streamer.readFloat(v);
+    params.velocityAmount.store(
+        present ? finiteClamp(v, 0.0f, 1.0f, AmpEnvParams::kDefaultVelocityAmount) : 0.0f,
+        std::memory_order_relaxed);
+}
+template <typename SetParamFunc>
+inline void loadAmpVelocityAmountToController(Steinberg::IBStreamer& streamer,
+                                              const SetParamFunc& setParam,
+                                              Steinberg::int32 version) {
+    AmpEnvParams params;
+    loadAmpVelocityAmount(params, streamer, version);
+    setParam(kAmpEnvVelocityAmountId,
+             static_cast<double>(params.velocityAmount.load(std::memory_order_relaxed)));
 }
 
 // ---- Filter envelope ----

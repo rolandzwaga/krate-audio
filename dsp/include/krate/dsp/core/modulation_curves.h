@@ -27,7 +27,7 @@ namespace Krate::DSP {
 /// - Linear: y = x (transparent)
 /// - Exponential: y = x^2 (slow start, fast end)
 /// - S-Curve: y = x^2 * (3 - 2x) (smoothstep)
-/// - Stepped: y = floor(x * 4) / 3 (4 discrete levels)
+/// - Stepped: y = min(floor(x * 4), 3) / 3 (4 discrete levels: 0, 1/3, 2/3, 1)
 ///
 /// @param curve The curve shape to apply
 /// @param x Input value, expected in [0, 1]
@@ -49,7 +49,7 @@ namespace Krate::DSP {
             return x * x * (3.0f - 2.0f * x);
 
         case ModCurve::Stepped:
-            return std::floor(x * 4.0f) / 3.0f;
+            return std::min(std::floor(x * 4.0f), 3.0f) / 3.0f;
     }
 
     return x;  // Fallback for invalid enum

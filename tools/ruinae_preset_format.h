@@ -451,7 +451,7 @@ struct LFOExtState {
 struct ChaosModState {
     float rateHz = 1.0f;
     int32_t type = 0;
-    float depth = 0.0f;
+    float depth = 1.0f;
     int32_t sync = 0; // false
     int32_t noteValue = kNoteValueDefaultIndex;
 
@@ -1187,6 +1187,9 @@ struct RuinaePresetState {
     // Voice LFO (v9+)
     VoiceLfoState voiceLfo;
 
+    // Velocity > Amp [0, 1] (v9+, after the voice LFO)
+    float ampVelocityAmount = 1.0f;
+
     std::vector<uint8_t> serialize() const {
         BinaryWriter w;
 
@@ -1259,6 +1262,9 @@ struct RuinaePresetState {
 
         // 35. Voice LFO rate + shape (v9+)
         voiceLfo.serialize(w);
+
+        // 36. Velocity > Amp (v9+)
+        w.writeFloat(ampVelocityAmount);
 
         return w.data;
     }

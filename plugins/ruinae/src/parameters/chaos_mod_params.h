@@ -16,7 +16,7 @@ namespace Ruinae {
 struct ChaosModParams {
     std::atomic<float> rateHz{1.0f};   // 0.01-50 Hz (same mapping as LFO)
     std::atomic<int> type{0};          // 0=Lorenz, 1=Rossler
-    std::atomic<float> depth{0.0f};    // 0-1
+    std::atomic<float> depth{1.0f};    // 0-1
     std::atomic<bool> sync{false};     // tempo sync on/off
     std::atomic<int> noteValue{Parameters::kNoteValueDefaultIndex}; // default 1/8 note
 };
@@ -50,7 +50,7 @@ inline void registerChaosModParams(Steinberg::Vst::ParameterContainer& parameter
         STR16("Chaos Type"), kChaosModTypeId,
         {STR16("Lorenz"), STR16("Rossler")}
     ));
-    parameters.addParameter(STR16("Chaos Depth"), STR16("%"), 0, 0.0,
+    parameters.addParameter(STR16("Chaos Depth"), STR16("%"), 0, 1.0,
         ParameterInfo::kCanAutomate, kChaosModDepthId);
     parameters.addParameter(STR16("Chaos Sync"), STR16(""), 1, 0.0,
         ParameterInfo::kCanAutomate, kChaosModSyncId);

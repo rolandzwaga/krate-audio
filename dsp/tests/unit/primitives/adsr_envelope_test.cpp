@@ -1320,3 +1320,64 @@ TEST_CASE("ADSR: Regression - default exponential decay is much faster than line
     // This documents the dramatic difference that caused the original bug.
     REQUIRE(expDecaySamples < linDecaySamples / 4);
 }
+
+// =============================================================================
+// Regression (Ruinae audit R-001): an unchanged curve is not rebuilt
+// =============================================================================
+// Ruinae pushes every envelope parameter down on every block; each curve setter
+// rebuilt its 256-entry table (std::pow per entry, or a 1025-point Bezier
+// evaluation) even when the value had not changed: 144 rebuilds per block.
+
+TEST_CASE("ADSREnvelope does not regenerate an unchanged curve table",
+          "[primitives][adsr]") {
+    auto env = makeDefaultEnvelope();
+
+    SECTION("power curve amount") {
+        const uint32_t before = env.tableGenerationCountForTest();
+        env.setAttackCurve(0.5f);
+        env.setAttackCurve(0.5f);
+        REQUIRE(env.tableGenerationCountForTest() == before + 1);
+        env.setAttackCurve(0.25f);
+        REQUIRE(env.tableGenerationCountForTest() == before + 2);
+        env.setDecayCurve(-0.3f);
+        env.setDecayCurve(-0.3f);
+        env.setReleaseCurve(0.8f);
+        env.setReleaseCurve(0.8f);
+        REQUIRE(env.tableGenerationCountForTest() == before + 4);
+    }
+
+    SECTION("Bezier control points") {
+        const uint32_t before = env.tableGenerationCountForTest();
+        env.setAttackBezierCurve(0.2f, 0.8f, 0.6f, 0.9f);
+        env.setAttackBezierCurve(0.2f, 0.8f, 0.6f, 0.9f);
+        REQUIRE(env.tableGenerationCountForTest() == before + 1);
+        // Changing one control point rebuilds.
+        env.setAttackBezierCurve(0.2f, 0.8f, 0.6f, 0.95f);
+        REQUIRE(env.tableGenerationCountForTest() == before + 2);
+        env.setDecayBezierCurve(0.1f, 0.2f, 0.3f, 0.4f);
+        env.setDecayBezierCurve(0.1f, 0.2f, 0.3f, 0.4f);
+        env.setReleaseBezierCurve(0.5f, 0.6f, 0.7f, 0.8f);
+        env.setReleaseBezierCurve(0.5f, 0.6f, 0.7f, 0.8f);
+        REQUIRE(env.tableGenerationCountForTest() == before + 4);
+    }
+
+    SECTION("switching between the power and Bezier families rebuilds") {
+        const uint32_t before = env.tableGenerationCountForTest();
+        env.setAttackCurve(0.5f);
+        env.setAttackBezierCurve(0.0f, 1.0f, 0.0f, 1.0f);
+        env.setAttackCurve(0.5f);  // same amount as before, but the table holds the Bezier
+        REQUIRE(env.tableGenerationCountForTest() == before + 3);
+
+        // The last call wins: the attack follows the power curve, not the convex Bezier.
+        ADSREnvelope ref = makeDefaultEnvelope();
+        ref.setAttackCurve(0.5f);
+        env.setAttack(50.0f);
+        ref.setAttack(50.0f);
+        env.gate(true);
+        ref.gate(true);
+        const auto out = processAndCollect(env, 2205);
+        const auto refOut = processAndCollect(ref, 2205);
+        for (size_t i = 0; i < out.size(); ++i)
+            REQUIRE(out[i] == refOut[i]);
+    }
+}

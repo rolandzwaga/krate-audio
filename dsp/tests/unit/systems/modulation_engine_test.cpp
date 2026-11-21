@@ -346,6 +346,32 @@ TEST_CASE("Single routing with LFO to destination applies amount and curve", "[s
     REQUIRE(maxOffset > 0.3f);
 }
 
+TEST_CASE("Stepped route with a full-scale source gives exactly its amount",
+          "[systems][modulation_engine][us2]") {
+    // R-013: Stepped returned 4/3 at |source| == 1, so a 0.5 route gave 0.667.
+    auto engine = createEngine(44100.0);
+    engine.setMacroValue(0, 1.0f);
+
+    ModRouting routing;
+    routing.source = ModSource::Macro1;
+    routing.destParamId = 100;
+    routing.amount = 0.5f;
+    routing.curve = ModCurve::Stepped;
+    routing.active = true;
+    engine.setRouting(0, routing);
+
+    BlockContext ctx;
+    ctx.sampleRate = 44100.0;
+    ctx.blockSize = 512;
+    std::array<float, 512> silenceL = {};
+    std::array<float, 512> silenceR = {};
+    for (size_t b = 0; b < 20; ++b) {
+        engine.process(ctx, silenceL.data(), silenceR.data(), 512);
+    }
+
+    REQUIRE(engine.getModulationOffset(100) == Approx(0.5f).margin(1e-6));
+}
+
 TEST_CASE("Bipolar modulation: negative amount inverts", "[systems][modulation_engine][us2]") {
     auto engine = createEngine(44100.0);
     engine.setLFO1Rate(10.0f);
@@ -616,6 +642,36 @@ TEST_CASE("setRouting snaps the amount when source or destination changes",
         engine.getModulationOffsetInterp(kDestB, start, end);
         REQUIRE(start == Approx(1.0f).margin(1e-4f));
         REQUIRE(end > 0.5f);
+    }
+}
+
+// R-003 / R-095: a source index from a damaged state blob was stored active and
+// indexed sourceActive_ (kModSourceCount entries) out of bounds on every block.
+TEST_CASE("ModulationEngine drops a routing with an invalid source",
+          "[systems][modulation]") {
+    auto engine = createEngine(44100.0);
+
+    ModRouting routing;
+    routing.source = static_cast<ModSource>(200);
+    routing.destParamId = 100;
+    routing.amount = 1.0f;
+    routing.curve = ModCurve::Linear;
+    routing.active = true;
+    engine.setRouting(0, routing);
+
+    BlockContext ctx;
+    ctx.sampleRate = 44100.0;
+    ctx.blockSize = 512;
+    std::array<float, 512> silenceL = {};
+    std::array<float, 512> silenceR = {};
+    engine.process(ctx, silenceL.data(), silenceR.data(), 512);
+
+    const ModRouting& stored = engine.getRouting(0);
+    REQUIRE_FALSE(stored.active);
+    REQUIRE(stored.source == ModSource::None);
+    for (uint32_t id = 0; id < static_cast<uint32_t>(kMaxModDestinations); ++id) {
+        INFO("destination " << id);
+        REQUIRE(engine.getModulationOffset(id) == 0.0f);
     }
 }
 

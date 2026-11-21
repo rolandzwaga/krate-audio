@@ -101,7 +101,11 @@ public:
             }
         }
 
-        // Set active pointer to default type
+        // Set active pointer to the selected type (an out-of-range type never
+        // reaches activeType_, but prepare() must not index slots_ with one)
+        if (static_cast<size_t>(activeType_) >= kNumOscTypes) {
+            activeType_ = OscType::PolyBLEP;
+        }
         active_ = slots_[static_cast<size_t>(activeType_)].get();
         prepared_ = true;
 
@@ -135,21 +139,27 @@ public:
             return;
         }
 
+        // An out-of-range type (a damaged state) changes nothing: latching it
+        // made the next prepare() index slots_ out of bounds (R-169).
+        const auto idx = static_cast<size_t>(type);
+        if (idx >= kNumOscTypes) {
+            return;
+        }
+
         activeType_ = type;
 
         if (!prepared_) {
             return;
         }
 
-        const auto idx = static_cast<size_t>(type);
-        if (idx >= kNumOscTypes || !slots_[idx]) {
+        if (!slots_[idx]) {
             return;
         }
 
         active_ = slots_[idx].get();
 
-        // Optionally reset phase (but NOT for SpectralFreeze, which was
-        // freeze-initialized in prepare and reset() would clear its frozen state)
+        // Optionally reset phase (but NOT for SpectralFreeze, which has no
+        // phase to reset: its reset() re-captures the whole frozen spectrum)
         if (phaseMode_ == PhaseMode::Reset && type != OscType::SpectralFreeze) {
             active_->reset();
         }

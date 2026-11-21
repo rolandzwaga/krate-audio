@@ -12,7 +12,11 @@
 
 #include "parameters/dropdown_mappings.h"
 
+#include <algorithm>
 #include <cstdint>
+#include <memory>
+#include <utility>
+#include <vector>
 
 namespace Ruinae {
 
@@ -106,27 +110,17 @@ Steinberg::tresult PLUGIN_API Processor::getState(Steinberg::IBStream* state) {
     // Voice LFO rate + shape (version 9+), appended after the arp pack
     saveVoiceLfoParams(voiceLfoParams_, streamer);
 
+    // Velocity > Amp (version 9+), after the voice LFO
+    saveAmpVelocityAmount(ampEnvParams_, streamer);
+
     return Steinberg::kResultTrue;
 }
 
 Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
-    // =========================================================================
-    // Hybrid crash-proof preset loading:
-    //
-    // 1. Apply all ATOMIC parameters immediately on the UI thread, so that
-    //    getState() returns the correct values right away (host compatibility).
-    //    Individual atomic writes are safe — worst case is one process() block
-    //    with mixed old/new params (brief audio glitch, not a crash).
-    //
-    // 2. Defer engine/arp reset and voice route deserialization to the
-    //    audio thread via RTTransferT. Voice routes use per-field atomics
-    //    (AtomicVoiceModRoute) so writes are safe from any thread.
-    // =========================================================================
-
     if (!state) return Steinberg::kResultTrue;
 
     // Read all bytes from the IBStream into a contiguous buffer.
-    auto snapshot = std::make_unique<PresetSnapshot>();
+    std::vector<char> bytes;
     constexpr Steinberg::int32 kChunkSize = 4096;
     char chunk[kChunkSize];
     Steinberg::int32 bytesRead = 0;
@@ -134,157 +128,244 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
     while (true) {
         auto result = state->read(chunk, kChunkSize, &bytesRead);
         if (result != Steinberg::kResultTrue || bytesRead <= 0) break;
-        snapshot->bytes.insert(snapshot->bytes.end(), chunk, chunk + bytesRead);
+        bytes.insert(bytes.end(), chunk, chunk + bytesRead);
     }
 
-    if (snapshot->bytes.empty()) return Steinberg::kResultTrue;
+    return loadStateBytes(std::move(bytes), false);
+}
 
-    // --- Phase 1: Apply atomic params immediately (UI thread) ---
-    // This preserves the host's setState/getState contract: after setState()
-    // returns, getState() must reflect the new values.
+namespace {
+
+/// Scratch target of an arp-only load: the stream's other packs are parsed into
+/// it, only to reach the arp pack, and dropped. The member names are the
+/// Processor's, so Processor::readStatePacks serves both.
+struct DiscardedStatePacks {
+    GlobalParams globalParams_;
+    OscAParams oscAParams_;
+    OscBParams oscBParams_;
+    MixerParams mixerParams_;
+    RuinaeFilterParams filterParams_;
+    RuinaeDistortionParams distortionParams_;
+    RuinaeTranceGateParams tranceGateParams_;
+    AmpEnvParams ampEnvParams_;
+    FilterEnvParams filterEnvParams_;
+    ModEnvParams modEnvParams_;
+    LFO1Params lfo1Params_;
+    LFO2Params lfo2Params_;
+    ChaosModParams chaosModParams_;
+    ModMatrixParams modMatrixParams_;
+    GlobalFilterParams globalFilterParams_;
+    std::atomic<bool> delayEnabled_{false};
+    std::atomic<bool> reverbEnabled_{false};
+    std::atomic<int> modulationType_{0};
+    std::atomic<bool> harmonizerEnabled_{false};
+    RuinaeDelayParams delayParams_;
+    RuinaeReverbParams reverbParams_;
+    RuinaePhaserParams phaserParams_;
+    RuinaeFlangerParams flangerParams_;
+    RuinaeChorusParams chorusParams_;
+    RuinaeHarmonizerParams harmonizerParams_;
+    MonoModeParams monoModeParams_;
+    MacroParams macroParams_;
+    RunglerParams runglerParams_;
+    SettingsParams settingsParams_;
+    EnvFollowerParams envFollowerParams_;
+    SampleHoldParams sampleHoldParams_;
+    RandomParams randomParams_;
+    PitchFollowerParams pitchFollowerParams_;
+    TransientParams transientParams_;
+    VoiceLfoParams voiceLfoParams_;
+    std::array<AtomicVoiceModRoute, Krate::Plugins::kMaxVoiceRoutes> voiceRoutes_{};
+};
+
+} // namespace
+
+Steinberg::tresult Processor::loadStateBytes(std::vector<char> bytes, bool arpOnly) {
+    // =========================================================================
+    // Hybrid crash-proof preset loading, one path for host and browser loads:
+    //
+    // 1. Parse into the ATOMIC parameters right here on the message thread, so
+    //    that getState() returns the new values at once (host contract).
+    //    Individual atomic writes are safe: worst case is one process() block
+    //    with mixed old/new params (brief audio glitch, not a crash). Voice
+    //    routes use per-field atomics (AtomicVoiceModRoute), safe from here,
+    //    and their controller notification (setBinary allocates) stays off the
+    //    audio thread.
+    //
+    // 2. Hand the engine/arp reset to the audio thread via RTTransferT.
+    // =========================================================================
+
+    if (bytes.empty()) return Steinberg::kResultTrue;
+
     {
-        Steinberg::MemoryStream memStream(
-            snapshot->bytes.data(),
-            static_cast<Steinberg::TSize>(snapshot->bytes.size()));
+        Steinberg::MemoryStream memStream(bytes.data(),
+                                          static_cast<Steinberg::TSize>(bytes.size()));
         Steinberg::IBStreamer streamer(&memStream, kLittleEndian);
 
-        Steinberg::int32 version = 0;
-        if (!streamer.readInt32(version))
-            return Steinberg::kResultTrue;
-        if (version < 1 || version > kCurrentStateVersion)
-            return Steinberg::kResultTrue;
-
-        // Load all parameter packs into atomics (safe from any thread)
-        if (!loadGlobalParams(globalParams_, streamer)) return Steinberg::kResultTrue;
-        if (!loadOscAParams(oscAParams_, streamer, version)) return Steinberg::kResultTrue;
-        if (!loadOscBParams(oscBParams_, streamer, version)) return Steinberg::kResultTrue;
-        if (!loadMixerParams(mixerParams_, streamer, version)) return Steinberg::kResultTrue;
-        if (!loadFilterParams(filterParams_, streamer)) return Steinberg::kResultTrue;
-        if (!loadDistortionParams(distortionParams_, streamer)) return Steinberg::kResultTrue;
-        if (!loadTranceGateParams(tranceGateParams_, streamer)) return Steinberg::kResultTrue;
-        if (!loadAmpEnvParams(ampEnvParams_, streamer)) return Steinberg::kResultTrue;
-        if (!loadFilterEnvParams(filterEnvParams_, streamer)) return Steinberg::kResultTrue;
-        if (!loadModEnvParams(modEnvParams_, streamer)) return Steinberg::kResultTrue;
-        if (!loadLFO1Params(lfo1Params_, streamer)) return Steinberg::kResultTrue;
-        if (!loadLFO2Params(lfo2Params_, streamer)) return Steinberg::kResultTrue;
-        if (!loadChaosModParams(chaosModParams_, streamer)) return Steinberg::kResultTrue;
-        if (!loadModMatrixParams(modMatrixParams_, streamer)) return Steinberg::kResultTrue;
-        // Before v9 the Scale saturated the amount (R-053): keep the saved depth
-        if (version < 9) migratePreV9ModMatrixAmounts(modMatrixParams_);
-        if (!loadGlobalFilterParams(globalFilterParams_, streamer)) return Steinberg::kResultTrue;
-        if (!loadDelayParams(delayParams_, streamer)) return Steinberg::kResultTrue;
-        if (!loadReverbParams(reverbParams_, streamer)) return Steinberg::kResultTrue;
-        // Reverb type (125-dual-reverb, state version 5)
-        if (version >= 5) {
-            Steinberg::int32 reverbType = 0;
-            if (streamer.readInt32(reverbType)) {
-                reverbParams_.reverbType.store(
-                    static_cast<int32_t>(reverbType), std::memory_order_relaxed);
-            }
+        if (arpOnly) {
+            // The arp pack comes last but one: the packs before it are read
+            // into scratch, so the synth, the voice routes and the voice LFO
+            // keep the loaded synth preset's values.
+            const auto scratch = std::make_unique<DiscardedStatePacks>();
+            if (!readStatePacks(*scratch, arpParams_, streamer)) return Steinberg::kResultTrue;
         } else {
-            // Backward compat: version < 5 defaults to Plate (FR-028)
-            reverbParams_.reverbType.store(0, std::memory_order_relaxed);
+            if (!readStatePacks(*this, arpParams_, streamer)) return Steinberg::kResultTrue;
+            sendVoiceModRouteState();
         }
-        if (!loadMonoModeParams(monoModeParams_, streamer)) return Steinberg::kResultTrue;
-
-        // Voice routes — per-field atomic stores, safe from this (message)
-        // thread, and restored here alongside the rest of the preset's
-        // parameters. Keeping them off the audio thread also keeps the
-        // controller notification below off it: that send calls setBinary,
-        // which allocates on every call.
-        for (auto& ar : voiceRoutes_) {
-            Krate::Plugins::VoiceModRoute r{};
-            Steinberg::int8 i8 = 0;
-            float f = 0.0f;
-            if (!streamer.readInt8(i8)) break;
-            r.source = static_cast<uint8_t>(i8);
-            if (!streamer.readInt8(i8)) break;
-            r.destination = static_cast<uint8_t>(i8);
-            if (!streamer.readFloat(f)) break;
-            r.amount = f;
-            if (!streamer.readInt8(i8)) break;
-            r.curve = static_cast<uint8_t>(i8);
-            if (!streamer.readFloat(f)) break;
-            r.smoothMs = f;
-            if (!streamer.readInt8(i8)) break;
-            r.scale = static_cast<uint8_t>(i8);
-            if (!streamer.readInt8(i8)) break;
-            r.bypass = static_cast<uint8_t>(i8);
-            if (!streamer.readInt8(i8)) break;
-            r.active = static_cast<uint8_t>(i8);
-            // Before v9: Scale saturated the amount and Filter Resonance spanned 1 Q
-            if (version < 9) r.amount = preV9VoiceRouteAmount(r.amount, r.destination, r.scale);
-            ar.store(r);
-        }
-
-        sendVoiceModRouteState();
-
-        // FX enable flags
-        Steinberg::int8 i8 = 0;
-        if (streamer.readInt8(i8))
-            delayEnabled_.store(i8 != 0, std::memory_order_relaxed);
-        if (streamer.readInt8(i8))
-            reverbEnabled_.store(i8 != 0, std::memory_order_relaxed);
-
-        // Phaser params + enable flag
-        loadPhaserParams(phaserParams_, streamer);
-        // Legacy format: 0 = disabled (None), 1 = enabled (Phaser)
-        // New format: 0 = None, 1 = Phaser, 2 = Flanger
-        // Default to Phaser (1) for very old presets with no byte (FR-011)
-        const int modType = streamer.readInt8(i8) ? static_cast<int>(i8) : 1;
-        modulationType_.store(modType, std::memory_order_relaxed);
-
-        // Flanger params (version 6+)
-        if (version >= 6) {
-            loadFlangerParams(flangerParams_, streamer);
-        } else {
-            // Old preset: no flanger data, reset to defaults (the controller
-            // loads the same registered defaults, loadStateCore)
-            resetModEffectParams(kFlangerConfig, flangerParams_);
-        }
-
-        // Chorus params (version 7+)
-        if (version >= 7) {
-            loadChorusParams(chorusParams_, streamer);
-        } else {
-            // Old preset: no chorus data, reset to defaults
-            resetModEffectParams(kChorusConfig, chorusParams_);
-        }
-
-        // Extended LFO params
-        loadLFO1ExtendedParams(lfo1Params_, streamer);
-        loadLFO2ExtendedParams(lfo2Params_, streamer);
-
-        // Macro and Rungler params
-        loadMacroParams(macroParams_, streamer);
-        loadRunglerParams(runglerParams_, streamer);
-
-        // Settings params
-        loadSettingsParams(settingsParams_, streamer);
-
-        // Mod source params
-        loadEnvFollowerParams(envFollowerParams_, streamer);
-        loadSampleHoldParams(sampleHoldParams_, streamer);
-        loadRandomParams(randomParams_, streamer);
-        loadPitchFollowerParams(pitchFollowerParams_, streamer);
-        loadTransientParams(transientParams_, streamer);
-
-        // Harmonizer params + enable flag
-        loadHarmonizerParams(harmonizerParams_, streamer);
-        if (streamer.readInt8(i8))
-            harmonizerEnabled_.store(i8 != 0, std::memory_order_relaxed);
-
-        // Arpeggiator params
-        loadArpParams(arpParams_, streamer, version);
-
-        // Voice LFO (version 9+); older states load 1 Hz Sine, their sound
-        loadVoiceLfoParams(voiceLfoParams_, streamer, version);
     }
 
-    // --- Phase 2: Defer voiceRoutes + engine/arp reset to audio thread ---
+    auto snapshot = std::make_unique<PresetSnapshot>();
+    snapshot->arpOnly = arpOnly;
     stateTransfer_.transferObject_ui(std::move(snapshot));
 
     return Steinberg::kResultTrue;
+}
+
+template <typename Packs>
+bool Processor::readStatePacks(Packs& packs, ArpeggiatorParams& arp,
+                               Steinberg::IBStreamer& streamer) {
+    Steinberg::int32 version = 0;
+    if (!streamer.readInt32(version))
+        return false;
+    if (version < 1 || version > kCurrentStateVersion)
+        return false;
+
+    // Load all parameter packs into atomics (safe from any thread)
+    if (!loadGlobalParams(packs.globalParams_, streamer)) return false;
+    if (!loadOscAParams(packs.oscAParams_, streamer, version)) return false;
+    if (!loadOscBParams(packs.oscBParams_, streamer, version)) return false;
+    if (!loadMixerParams(packs.mixerParams_, streamer, version)) return false;
+    if (!loadFilterParams(packs.filterParams_, streamer)) return false;
+    if (!loadDistortionParams(packs.distortionParams_, streamer)) return false;
+    if (!loadTranceGateParams(packs.tranceGateParams_, streamer)) return false;
+    if (!loadAmpEnvParams(packs.ampEnvParams_, streamer)) return false;
+    if (!loadFilterEnvParams(packs.filterEnvParams_, streamer)) return false;
+    if (!loadModEnvParams(packs.modEnvParams_, streamer)) return false;
+    if (!loadLFO1Params(packs.lfo1Params_, streamer)) return false;
+    if (!loadLFO2Params(packs.lfo2Params_, streamer)) return false;
+    if (!loadChaosModParams(packs.chaosModParams_, streamer)) return false;
+    // Before v9 the LFO and Chaos depths never reached the audio (R-041, R-183):
+    // every source modulated at full depth, which these states keep.
+    if (version < 9) {
+        packs.lfo1Params_.depth.store(1.0f, std::memory_order_relaxed);
+        packs.lfo2Params_.depth.store(1.0f, std::memory_order_relaxed);
+        packs.chaosModParams_.depth.store(1.0f, std::memory_order_relaxed);
+    }
+    if (!loadModMatrixParams(packs.modMatrixParams_, streamer)) return false;
+    // Before v9 the Scale saturated the amount (R-053): keep the saved depth
+    if (version < 9) migratePreV9ModMatrixAmounts(packs.modMatrixParams_);
+    if (!loadGlobalFilterParams(packs.globalFilterParams_, streamer)) return false;
+    if (!loadDelayParams(packs.delayParams_, streamer)) return false;
+    if (!loadReverbParams(packs.reverbParams_, streamer)) return false;
+    // Reverb type (125-dual-reverb, state version 5)
+    if (version >= 5) {
+        Steinberg::int32 reverbType = 0;
+        if (streamer.readInt32(reverbType)) {
+            packs.reverbParams_.reverbType.store(
+                std::clamp(static_cast<int32_t>(reverbType), 0, 1), std::memory_order_relaxed);
+        }
+    } else {
+        // Backward compat: version < 5 defaults to Plate (FR-028)
+        packs.reverbParams_.reverbType.store(0, std::memory_order_relaxed);
+    }
+    if (!loadMonoModeParams(packs.monoModeParams_, streamer)) return false;
+
+    // Voice routes. Indices are clamped to the voice tab's ranges (R-003): a
+    // damaged state must not hand the voice router an index past its tables.
+    const auto clampedIndex = [](Steinberg::int8 v, int hi) {
+        return static_cast<uint8_t>(std::clamp(static_cast<int>(static_cast<uint8_t>(v)), 0, hi));
+    };
+    for (auto& ar : packs.voiceRoutes_) {
+        Krate::Plugins::VoiceModRoute r{};
+        Steinberg::int8 i8 = 0;
+        float f = 0.0f;
+        if (!streamer.readInt8(i8)) break;
+        r.source = clampedIndex(
+            i8, static_cast<int>(Krate::DSP::VoiceModSource::NumSources) - 1);
+        if (!streamer.readInt8(i8)) break;
+        r.destination = clampedIndex(i8, Krate::Plugins::kNumVoiceDestinations - 1);
+        if (!streamer.readFloat(f)) break;
+        r.amount = f;
+        if (!streamer.readInt8(i8)) break;
+        r.curve = clampedIndex(i8, 3);
+        if (!streamer.readFloat(f)) break;
+        r.smoothMs = f;
+        if (!streamer.readInt8(i8)) break;
+        r.scale = clampedIndex(i8, 4);
+        if (!streamer.readInt8(i8)) break;
+        r.bypass = static_cast<uint8_t>(i8 != 0 ? 1 : 0);
+        if (!streamer.readInt8(i8)) break;
+        r.active = static_cast<uint8_t>(i8 != 0 ? 1 : 0);
+        // Before v9: Scale saturated the amount and Filter Resonance spanned 1 Q
+        if (version < 9) r.amount = preV9VoiceRouteAmount(r.amount, r.destination, r.scale);
+        ar.store(r);
+    }
+
+    // FX enable flags
+    Steinberg::int8 i8 = 0;
+    if (streamer.readInt8(i8))
+        packs.delayEnabled_.store(i8 != 0, std::memory_order_relaxed);
+    if (streamer.readInt8(i8))
+        packs.reverbEnabled_.store(i8 != 0, std::memory_order_relaxed);
+
+    // Phaser params + enable flag
+    loadPhaserParams(packs.phaserParams_, streamer);
+    // Legacy format: 0 = disabled (None), 1 = enabled (Phaser)
+    // New format: 0 = None, 1 = Phaser, 2 = Flanger
+    // Default to Phaser (1) for very old presets with no byte (FR-011)
+    const int modType = streamer.readInt8(i8) ? std::clamp(static_cast<int>(i8), 0, 3) : 1;
+    packs.modulationType_.store(modType, std::memory_order_relaxed);
+
+    // Flanger params (version 6+)
+    if (version >= 6) {
+        loadFlangerParams(packs.flangerParams_, streamer);
+    } else {
+        // Old preset: no flanger data, reset to defaults (the controller
+        // loads the same registered defaults, loadStateCore)
+        resetModEffectParams(kFlangerConfig, packs.flangerParams_);
+    }
+
+    // Chorus params (version 7+)
+    if (version >= 7) {
+        loadChorusParams(packs.chorusParams_, streamer);
+    } else {
+        // Old preset: no chorus data, reset to defaults
+        resetModEffectParams(kChorusConfig, packs.chorusParams_);
+    }
+
+    // Extended LFO params
+    loadLFO1ExtendedParams(packs.lfo1Params_, streamer);
+    loadLFO2ExtendedParams(packs.lfo2Params_, streamer);
+
+    // Macro and Rungler params
+    loadMacroParams(packs.macroParams_, streamer);
+    loadRunglerParams(packs.runglerParams_, streamer);
+
+    // Settings params
+    loadSettingsParams(packs.settingsParams_, streamer);
+
+    // Mod source params
+    loadEnvFollowerParams(packs.envFollowerParams_, streamer);
+    loadSampleHoldParams(packs.sampleHoldParams_, streamer);
+    loadRandomParams(packs.randomParams_, streamer);
+    loadPitchFollowerParams(packs.pitchFollowerParams_, streamer);
+    loadTransientParams(packs.transientParams_, streamer);
+
+    // Harmonizer params + enable flag
+    loadHarmonizerParams(packs.harmonizerParams_, streamer);
+    if (streamer.readInt8(i8))
+        packs.harmonizerEnabled_.store(i8 != 0, std::memory_order_relaxed);
+
+    // Arpeggiator params
+    loadArpParams(arp, streamer, version);
+
+    // Voice LFO (version 9+); older states load 1 Hz Sine, their sound
+    loadVoiceLfoParams(packs.voiceLfoParams_, streamer, version);
+
+    // Velocity > Amp (version 9+); older states load 0, the level they were saved with
+    loadAmpVelocityAmount(packs.ampEnvParams_, streamer, version);
+
+    return true;
 }
 
 // ==============================================================================
@@ -293,81 +374,21 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
 
 void Processor::applyPresetSnapshot(const PresetSnapshot& snapshot) {
     // =========================================================================
-    // Audio-thread-only operations for preset loading:
-    //   1. engine_.reset() + arpCore_.reset() (kill stale voices)
-    //   2. Force arp tracking re-application
-    //
-    // Atomic parameter writes are done immediately in setState() for host
-    // compatibility. This method only handles the unsafe/deferred operations.
+    // Audio-thread-only operations for preset loading. The parameters and the
+    // voice routes were stored by loadStateBytes on the message thread; no
+    // stream is read here (R-197).
     // =========================================================================
 
-    if (snapshot.bytes.empty()) return;
-
-    Steinberg::MemoryStream memStream(
-        const_cast<char*>(snapshot.bytes.data()), // NOLINT(cppcoreguidelines-pro-type-const-cast): Steinberg::MemoryStream API requires non-const char* for read-only access
-        static_cast<Steinberg::TSize>(snapshot.bytes.size()));
-    Steinberg::IBStreamer streamer(&memStream, kLittleEndian);
-
-    Steinberg::int32 version = 0;
-    if (!streamer.readInt32(version)) return;
-    if (version < 1 || version > kCurrentStateVersion) return;
-
-    // Skip past all atomic parameter packs to reach voiceRoutes_
-    // (params were already applied in setState on the UI thread)
-    if (!loadGlobalParams(globalParams_, streamer)) return;
-    if (!loadOscAParams(oscAParams_, streamer, version)) return;
-    if (!loadOscBParams(oscBParams_, streamer, version)) return;
-    if (!loadMixerParams(mixerParams_, streamer, version)) return;
-    if (!loadFilterParams(filterParams_, streamer)) return;
-    if (!loadDistortionParams(distortionParams_, streamer)) return;
-    if (!loadTranceGateParams(tranceGateParams_, streamer)) return;
-    if (!loadAmpEnvParams(ampEnvParams_, streamer)) return;
-    if (!loadFilterEnvParams(filterEnvParams_, streamer)) return;
-    if (!loadModEnvParams(modEnvParams_, streamer)) return;
-    if (!loadLFO1Params(lfo1Params_, streamer)) return;
-    if (!loadLFO2Params(lfo2Params_, streamer)) return;
-    if (!loadChaosModParams(chaosModParams_, streamer)) return;
-    if (!loadModMatrixParams(modMatrixParams_, streamer)) return;
-    if (version < 9) migratePreV9ModMatrixAmounts(modMatrixParams_);
-    if (!loadGlobalFilterParams(globalFilterParams_, streamer)) return;
-    if (!loadDelayParams(delayParams_, streamer)) return;
-    if (!loadReverbParams(reverbParams_, streamer)) return;
-    // Reverb type (125-dual-reverb, state version 5)
-    if (version >= 5) {
-        Steinberg::int32 reverbType = 0;
-        if (streamer.readInt32(reverbType)) {
-            reverbParams_.reverbType.store(
-                static_cast<int32_t>(reverbType), std::memory_order_relaxed);
-        }
-    }
-    if (!loadMonoModeParams(monoModeParams_, streamer)) return;
-
-    // Voice routes were already restored (and the controller notified) in
-    // setState() on the message thread. Only skip past their bytes here.
-    for (int i = 0; i < Krate::Plugins::kMaxVoiceRoutes; ++i) {
-        Steinberg::int8 i8 = 0;
-        float f = 0.0f;
-        if (!streamer.readInt8(i8)) break; // source
-        if (!streamer.readInt8(i8)) break; // dest
-        if (!streamer.readFloat(f)) break; // amount
-        if (!streamer.readInt8(i8)) break; // curve
-        if (!streamer.readFloat(f)) break; // smoothMs
-        if (!streamer.readInt8(i8)) break; // scale
-        if (!streamer.readInt8(i8)) break; // bypass
-        if (!streamer.readInt8(i8)) break; // active
-    }
-
-    // Reset DSP state to prevent stale voices/state from the old preset
-    engine_.reset();
-    arpCore_.reset();
-    engineDirectOpen_.fill(0);
-    arpCoreKeysOpen_.fill(0);
-    arpEngineOpen_.fill(0);
+    // Drop the old preset's voices and arp state; an arp-only preset leaves
+    // the synth (and the notes it holds outside the arp) alone.
+    resetPlayingState(!snapshot.arpOnly);
 
     // Restore reverb type from loaded state (125-dual-reverb)
     // Use setReverbTypeDirect to avoid triggering a crossfade on state load.
-    engine_.setReverbTypeDirect(
-        reverbParams_.reverbType.load(std::memory_order_relaxed));
+    if (!snapshot.arpOnly) {
+        engine_.setReverbTypeDirect(
+            reverbParams_.reverbType.load(std::memory_order_relaxed));
+    }
 
     // Force arp tracking variables to sentinel values so that
     // applyParamsToEngine() will unconditionally re-apply all arp setters.

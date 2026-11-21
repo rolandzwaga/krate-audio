@@ -14,6 +14,8 @@ size_t ArpeggiatorCore::processBlock(const BlockContext& ctx,
         if (ctx.blockSize == 0) {
             return 0;
         }
+        syncTempoBPM_ = ctx.tempoBPM;
+        syncSampleRate_ = ctx.sampleRate;
 
         // Cap event emission to output span size
         const size_t maxEvents = (outputEvents.size() < kMaxEvents)
@@ -261,15 +263,18 @@ size_t ArpeggiatorCore::processBlock(const BlockContext& ctx,
                     fireStep(ctx, sampleOffset, outputEvents, eventCount,
                              maxEvents, samplesProcessed, blockSize);
                 } else {
-                    // Recalculate current step duration with reset swing counter.
+                    // The bar line falls inside the running step: that step
+                    // becomes the LONG half (step 0) of the bar's first swing
+                    // pair and the next step is the short half (counter 1), so
+                    // the long/short alternation continues across the bar line
+                    // (R-199: step k lasts dur(k)).
                     // sampleCounter_ is intentionally left alone: the elapsed
                     // count carries over against the new duration. That is safe
-                    // because swingStepCounter_ was just reset to 0, so the
-                    // recomputed duration is the LONG half of the swing pair and
-                    // therefore >= the duration the counter was accumulating
-                    // against -- samplesUntilStep (currentStepDuration_ -
-                    // sampleCounter_) cannot underflow.
+                    // because the LONG half is >= the duration the counter was
+                    // accumulating against -- samplesUntilStep
+                    // (currentStepDuration_ - sampleCounter_) cannot underflow.
                     currentStepDuration_ = calculateStepDuration(ctx);
+                    swingStepCounter_ = 1;
                 }
             } else if (next == NextEvent::NoteOff) {
                 // Emit all pending NoteOffs that are due at this sample
@@ -295,10 +300,10 @@ size_t ArpeggiatorCore::processBlock(const BlockContext& ctx,
                 // Step boundary reached
                 sampleCounter_ = 0;
                 // 074-ratcheting: Recalculate step duration before fireStep.
-                // The previous step's fireStep() already incremented swingStepCounter_
-                // but may have deferred the recalculation (when ratchetCount > 1).
-                // This ensures fireStep() sees the correct base duration for
-                // sub-step calculations. (FR-025)
+                // The previous step's fireStep() already advanced swingStepCounter_
+                // to this step and left the recalculation to here, so this step
+                // lasts its own swung duration and fireStep() sizes its gate and
+                // sub-steps from it. (FR-025, R-199)
                 currentStepDuration_ = calculateStepDuration(ctx);
 
                 // First emit any pending NoteOffs that are also due at this sample
@@ -418,7 +423,7 @@ void ArpeggiatorCore::fireSubStep([[maybe_unused]] const BlockContext& ctx,
         ratchetIsLastSubStep_ = (ratchetSubStepsRemaining_ == 1);
     }
 
-void ArpeggiatorCore::fireStep(const BlockContext& ctx,
+void ArpeggiatorCore::fireStep([[maybe_unused]] const BlockContext& ctx,
                           int32_t sampleOffset,
                           std::span<ArpEvent> outputEvents,
                           size_t& eventCount,
@@ -493,6 +498,15 @@ void ArpeggiatorCore::fireStep(const BlockContext& ctx,
             const size_t gateStep = gateLane_.currentStep();
             const size_t ratchetStep = ratchetLane_.currentStep();
             const size_t condStep = conditionLane_.currentStep();
+
+            // Every lane's own step, for a skip highlight (R-069); setLaneSpeed() lane order
+            const std::array<uint8_t, 8> firedLaneSteps{
+                static_cast<uint8_t>(velStep), static_cast<uint8_t>(gateStep),
+                static_cast<uint8_t>(pitchStepIdx),
+                static_cast<uint8_t>(modifierLane_.currentStep()),
+                static_cast<uint8_t>(ratchetStep), static_cast<uint8_t>(condStep),
+                static_cast<uint8_t>(chordLane_.currentStep()),
+                static_cast<uint8_t>(inversionLane_.currentStep())};
 
             // Read current lane values BEFORE speed-based advancement
             float velScale = velocityLane_.currentValue();
@@ -660,9 +674,9 @@ void ArpeggiatorCore::fireStep(const BlockContext& ctx,
                     // Break any active tie chain (FR-007)
                     tieActive_ = false;
 
-                    // Increment swing step counter and recalculate duration
+                    // Advance the swing counter to the next step; the running step keeps its own
+                    // duration (R-199)
                     ++swingStepCounter_;
-                    currentStepDuration_ = calculateStepDuration(ctx);
 
                     // 076-conditional-trigs: deferred loopCount_ increment (FR-011)
                     // Must happen even on Euclidean rest (condition not evaluated but
@@ -680,6 +694,7 @@ void ArpeggiatorCore::fireStep(const BlockContext& ctx,
                         outputEvents[eventCount++] = ArpEvent{
                             .type = ArpEvent::Type::kSkip,
                             .note = static_cast<uint8_t>(velStep), .velocity = 0, .sampleOffset = sampleOffset};
+                        lastSkipLaneSteps_ = firedLaneSteps;
                     }
                     return;
                 }
@@ -702,9 +717,9 @@ void ArpeggiatorCore::fireStep(const BlockContext& ctx,
                 // Break any active tie chain (FR-029)
                 tieActive_ = false;
 
-                // Increment swing step counter and recalculate duration
+                // Advance the swing counter to the next step; the running step keeps its own
+                // duration (R-199)
                 ++swingStepCounter_;
-                currentStepDuration_ = calculateStepDuration(ctx);
 
                 // 076-conditional-trigs: deferred loopCount_ increment (FR-011)
                 if (conditionLaneWrapped) {
@@ -720,6 +735,7 @@ void ArpeggiatorCore::fireStep(const BlockContext& ctx,
                     outputEvents[eventCount++] = ArpEvent{
                         .type = ArpEvent::Type::kSkip,
                         .note = static_cast<uint8_t>(velStep), .velocity = 0, .sampleOffset = sampleOffset};
+                    lastSkipLaneSteps_ = firedLaneSteps;
                 }
                 return;
             }
@@ -751,9 +767,9 @@ void ArpeggiatorCore::fireStep(const BlockContext& ctx,
                 currentArpNoteCount_ = 0;
                 tieActive_ = false;
 
-                // Increment swing step counter and recalculate duration
+                // Advance the swing counter to the next step; the running step keeps its own
+                // duration (R-199)
                 ++swingStepCounter_;
-                currentStepDuration_ = calculateStepDuration(ctx);
                 // 077-spice-dice-humanize: consume humanize PRNG on skipped step (FR-023)
                 (void)humanizeRng_.nextFloat();  // timing (discarded)
                 (void)humanizeRng_.nextFloat();  // velocity (discarded)
@@ -764,6 +780,7 @@ void ArpeggiatorCore::fireStep(const BlockContext& ctx,
                     outputEvents[eventCount++] = ArpEvent{
                         .type = ArpEvent::Type::kSkip,
                         .note = static_cast<uint8_t>(velStep), .velocity = 0, .sampleOffset = sampleOffset};
+                    lastSkipLaneSteps_ = firedLaneSteps;
                 }
                 return;
             }
@@ -775,9 +792,9 @@ void ArpeggiatorCore::fireStep(const BlockContext& ctx,
                     cancelPendingNoteOffsForCurrentNotes();
                     tieActive_ = true;
 
-                    // Increment swing step counter and recalculate duration
+                    // Advance the swing counter to the next step; the running step keeps its own
+                    // duration (R-199)
                     ++swingStepCounter_;
-                    currentStepDuration_ = calculateStepDuration(ctx);
                     // 077-spice-dice-humanize: consume humanize PRNG on skipped step (FR-023, FR-024)
                     (void)humanizeRng_.nextFloat();  // timing (discarded)
                     (void)humanizeRng_.nextFloat();  // velocity (discarded)
@@ -787,7 +804,6 @@ void ArpeggiatorCore::fireStep(const BlockContext& ctx,
                 // No preceding note -> behaves as rest (FR-013)
                 tieActive_ = false;
                 ++swingStepCounter_;
-                currentStepDuration_ = calculateStepDuration(ctx);
                 // 077-spice-dice-humanize: consume humanize PRNG on skipped step (FR-023, FR-024)
                 (void)humanizeRng_.nextFloat();  // timing (discarded)
                 (void)humanizeRng_.nextFloat();  // velocity (discarded)
@@ -1243,6 +1259,24 @@ void ArpeggiatorCore::fireStep(const BlockContext& ctx,
                 // the cap dropped never sounded, so scheduling its release would
                 // emit a phantom NoteOff to the host and the audition voice.
                 if (eventCount < maxEvents) {
+                    // Re-striking a pitch that is still sounding (gate > 100%):
+                    // release it here, as the chord path does. Its pending off
+                    // outlives this step and addPendingNoteOff does not dedup,
+                    // so left alone it would fire mid-step and cut the note
+                    // this step strikes (R-067). Other pitches keep their
+                    // overlapping gate.
+                    const uint8_t note = result.notes[0];
+                    bool sounding = cancelPendingNoteOffsFor(note);
+                    for (size_t i = 0; i < currentArpNoteCount_ && !sounding; ++i) {
+                        sounding = currentArpNotes_[i] == note;
+                    }
+                    if (sounding) {
+                        outputEvents[eventCount++] = ArpEvent{
+                            .type = ArpEvent::Type::NoteOff, .note = note, .velocity = 0, .sampleOffset = humanizedSampleOffset};
+                        removeFromCurrentArpNotes(note);
+                    }
+                }
+                if (eventCount < maxEvents) {
                     outputEvents[eventCount++] = ArpEvent{
                         .type = ArpEvent::Type::NoteOn,
                         .note = result.notes[0],
@@ -1326,18 +1360,13 @@ void ArpeggiatorCore::fireStep(const BlockContext& ctx,
             (void)humanizeRng_.nextFloat();  // gate (discarded)
         }
 
-        // Increment swing step counter
+        // Advance the swing counter to the NEXT step. currentStepDuration_ is not
+        // recomputed here: the running step lasts its own swung duration, the
+        // one the processBlock() Step handler computed before calling fireStep()
+        // and that sized this step's gate and ratchet sub-steps (FR-025). Re-sizing
+        // it from the advanced counter made step k last dur(k+1), so free-run swing
+        // played short-first while its gates were long (R-199).
         ++swingStepCounter_;
-
-        // Recalculate step duration for next step (with swing).
-        // 074-ratcheting: When ratchet sub-steps are pending (ratchetCount > 1),
-        // do NOT recalculate. Keep currentStepDuration_ at the CURRENT step's
-        // value so the step boundary timer fires at the correct time (end of
-        // the current ratcheted step). The processBlock() Step handler
-        // recalculates before calling fireStep() for the next step. (FR-025)
-        if (ratchetSubStepsRemaining_ == 0) {
-            currentStepDuration_ = calculateStepDuration(ctx);
-        }
     }
 
 }  // namespace Krate::DSP

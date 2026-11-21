@@ -373,6 +373,7 @@
         <control-tag name="AmpEnvDecay" tag="701"/>
         <control-tag name="AmpEnvSustain" tag="702"/>
         <control-tag name="AmpEnvRelease" tag="703"/>
+        <control-tag name="AmpEnvVelocityAmount" tag="708"/>
 
         <!-- Envelopes: Filter (ENV 2) -->
         <control-tag name="FilterEnvAttack" tag="800"/>
@@ -1980,7 +1981,7 @@
               text-alignment="center" transparent="true" title="Shape"/>
         <!-- Depth -->
         <view class="ArcKnob" origin="140, 8" size="36, 36"
-              control-tag="LFO1Depth" default-value="0.5"
+              control-tag="LFO1Depth" default-value="1.0"
               arc-color="modulation" guide-color="knob-guide"/>
         <view class="CTextLabel" origin="134, 46" size="48, 12"
               font="~ NormalFontSmaller" font-color="text-secondary"
@@ -2075,7 +2076,7 @@
               text-alignment="center" transparent="true" title="Shape"/>
         <!-- Depth -->
         <view class="ArcKnob" origin="140, 8" size="36, 36"
-              control-tag="LFO2Depth" default-value="0.5"
+              control-tag="LFO2Depth" default-value="1.0"
               arc-color="modulation" guide-color="knob-guide"/>
         <view class="CTextLabel" origin="134, 46" size="48, 12"
               font="~ NormalFontSmaller" font-color="text-secondary"
@@ -2171,7 +2172,7 @@
               text-alignment="center" transparent="true" title="Type"/>
         <!-- Depth -->
         <view class="ArcKnob" origin="168, 8" size="36, 36"
-              control-tag="ChaosDepth" default-value="0.0"
+              control-tag="ChaosDepth" default-value="1.0"
               arc-color="modulation" guide-color="knob-guide"/>
         <view class="CTextLabel" origin="162, 46" size="48, 12"
               font="~ NormalFontSmaller" font-color="text-secondary"
@@ -4201,6 +4202,14 @@
                 <view class="CTextLabel" origin="369, 171" size="28, 10"
                       font="~ NormalFontSmaller" font-color="amp-env"
                       text-alignment="center" transparent="true" title="R"/>
+                <!-- Velocity > Amp: how far note velocity sets the level -->
+                <view class="ArcKnob" origin="410, 143" size="28, 28"
+                      control-tag="AmpEnvVelocityAmount" default-value="1.0"
+                      tooltip="Velocity &gt; Amp: how far note velocity sets the level"
+                      arc-color="amp-env" guide-color="knob-guide"/>
+                <view class="CTextLabel" origin="406, 171" size="28, 10"
+                      font="~ NormalFontSmaller" font-color="amp-env"
+                      text-alignment="center" transparent="true" title="VEL"/>
             </view>
 
             <!-- FILTER Envelope -->

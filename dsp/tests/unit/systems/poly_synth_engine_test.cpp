@@ -845,6 +845,61 @@ TEST_CASE("PolySynthEngine pitch bend and config", "[poly-engine][config]") {
     }
 }
 
+// R-010: the 5 ms bend smoother was advanced one sample per processBlock call,
+// so a full bend took seconds to settle at large blocks. It must advance by the
+// samples rendered and settle within 25 ms at any block size.
+TEST_CASE("PolySynthEngine pitch bend settles within 25 ms at every block size",
+          "[poly-engine][config][pitch-bend]") {
+    constexpr double kRate = 48000.0;
+    for (size_t blockSize : {size_t{64}, size_t{512}, size_t{2048}}) {
+        PolySynthEngine engine;
+        engine.prepare(kRate, blockSize);
+        engine.setOsc1Waveform(OscWaveform::Sine);
+        engine.setOsc2Waveform(OscWaveform::Sine);
+        engine.setOscMix(0.0f);
+        engine.setOsc2Detune(0.0f);
+        engine.setOsc2Octave(0);
+        engine.setFilterCutoff(20000.0f);
+        engine.setFilterEnvAmount(0.0f);
+        engine.setAmpSustain(1.0f);
+        engine.setPitchBendRange(2.0f);
+        engine.noteOn(69, 100);
+
+        std::vector<float> out;
+        std::vector<float> block(blockSize);
+        auto render = [&](size_t total) {
+            for (size_t done = 0; done < total; done += blockSize) {
+                const size_t n = std::min(blockSize, total - done);
+                engine.processBlock(block.data(), n);
+                out.insert(out.end(), block.begin(), block.begin() + static_cast<std::ptrdiff_t>(n));
+            }
+        };
+        render(24000);  // 0.5 s: the note has settled
+        const size_t bendAt = out.size();
+        engine.setPitchBend(1.0f);
+        render(4800);   // 100 ms
+
+        // Mean frequency from interpolated rising zero crossings, 50-100 ms after the bend.
+        double first = -1.0;
+        double last = -1.0;
+        int periods = -1;
+        for (size_t i = bendAt + 2400; i < out.size(); ++i) {
+            if (out[i - 1] < 0.0f && out[i] >= 0.0f) {
+                const double t = static_cast<double>(i - 1)
+                    + static_cast<double>(-out[i - 1]) / static_cast<double>(out[i] - out[i - 1]);
+                if (first < 0.0) first = t;
+                last = t;
+                ++periods;
+            }
+        }
+        REQUIRE(periods > 10);  // not vacuous: the note sounds
+        const double hz = kRate * static_cast<double>(periods) / (last - first);
+        const double cents = 1200.0 * std::log2(hz / 440.0);
+        INFO("block " << blockSize << ": " << cents << " cents 50 ms after a full-up bend");
+        CHECK(std::abs(cents - 200.0) <= 3.0);
+    }
+}
+
 // T081: Allocator config tests (FR-015)
 TEST_CASE("PolySynthEngine allocator config", "[poly-engine][config]") {
     PolySynthEngine engine;

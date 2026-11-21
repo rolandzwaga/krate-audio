@@ -183,6 +183,28 @@ struct HarmonizerFixture {
         return totalEnergy;
     }
 
+    // Process N blocks (params on the first block only, when given) and return the left
+    // channel's zero crossings per sample, a pitch proxy.
+    double applyParamsAndMeasureZeroCrossingRate(HarmParamChanges* params, int numBlocks) {
+        HarmParamChanges empty;
+        size_t crossings = 0;
+        float prev = 0.0f;
+        for (int i = 0; i < numBlocks; ++i) {
+            std::fill(outL.begin(), outL.end(), 0.0f);
+            std::fill(outR.begin(), outR.end(), 0.0f);
+            data.inputParameterChanges = (i == 0 && params != nullptr) ? params : &empty;
+            processor.process(data);
+            for (size_t s = 0; s < kBlockSize; ++s) {
+                if ((prev < 0.0f && outL[s] >= 0.0f) || (prev >= 0.0f && outL[s] < 0.0f)) {
+                    ++crossings;
+                }
+                prev = outL[s];
+            }
+        }
+        return static_cast<double>(crossings)
+             / static_cast<double>(static_cast<size_t>(numBlocks) * kBlockSize);
+    }
+
     // Measure L and R energy separately (for pan tests)
     std::pair<double, double> processBlocksAndMeasureStereoEnergy(int numBlocks) {
         HarmParamChanges empty;
@@ -378,19 +400,22 @@ TEST_CASE("Harmonizer voice interval propagates",
     f.processBlocksAndMeasureEnergy(50);
 
     // Measure with unison interval
-    double energyUnison = f.processBlocksAndMeasureEnergy(50);
+    const double zcrUnison = f.applyParamsAndMeasureZeroCrossingRate(nullptr, 50);
 
     // Change to +12 semitones (octave up): norm = (12+24)/48 = 0.75
     HarmParamChanges octaveUp;
     octaveUp.addChange(Ruinae::kHarmonizerVoice1IntervalId, 0.75);
-    double energyOctave = f.applyParamsAndMeasureEnergy(octaveUp, 50);
+    f.applyParamsAndMeasureZeroCrossingRate(&octaveUp, 10);  // let the interval change settle
+    const double zcrOctave = f.applyParamsAndMeasureZeroCrossingRate(nullptr, 50);
 
-    // Different pitch interval should produce a different energy profile.
-    // Octave-up shortens the signal period → different energy distribution.
-    INFO("Energy unison: " << energyUnison << ", octave: " << energyOctave);
-    bool differs = std::abs(energyUnison - energyOctave) >
-                   0.02 * std::max(energyUnison, energyOctave);
-    CHECK(differs);
+    // With the dry path at -60 dB the output is the shifted voice, so an octave up raises its
+    // zero-crossing rate (measured 1.53x; with the interval left at unison the same windows
+    // read 0.64x, as the delay/reverb tails grow). This used to compare energies, which a
+    // pitch shift keeps: the 2 % difference it needed came from the delay's feedback echoes
+    // building up between the two windows, not from the interval.
+    INFO("Zero crossings per sample, unison: " << zcrUnison << ", octave: " << zcrOctave);
+    REQUIRE(zcrUnison > 0.0);
+    CHECK(zcrOctave > 1.25 * zcrUnison);
 }
 
 TEST_CASE("Harmonizer voice pan propagates",

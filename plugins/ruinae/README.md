@@ -80,7 +80,7 @@ Processing order: **Phaser -> Delay -> Harmonizer -> Reverb**
 
 **8 voice-local sources**: Amp Env, Filter Env, Mod Env, Voice LFO, Gate, Velocity, Key Track, Aftertouch
 
-**8-slot modulation matrix** with per-slot curve (Linear/Exp/Log/S-Curve), smoothing, and scaling
+**8-slot modulation matrix** with per-slot curve (Linear/Exp/S-Curve/Stepped), smoothing, and scaling
 
 ## Signal Flow
 

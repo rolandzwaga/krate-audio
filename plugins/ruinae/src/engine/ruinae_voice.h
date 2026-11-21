@@ -28,6 +28,7 @@
 #include <krate/dsp/primitives/comb_filter.h>
 #include <krate/dsp/primitives/dc_blocker.h>
 #include <krate/dsp/primitives/lfo.h>
+#include <krate/dsp/primitives/smoother.h>
 
 // Layer 1 (Distortion primitives)
 #include <krate/dsp/primitives/chaos_waveshaper.h>
@@ -152,6 +153,7 @@ public:
         spectralMorph_->prepare(sampleRate, 1024);
         spectralMorph_->setMorphAmount(mixPosition_);
         spectralMorph_->setSpectralShift(mixShiftSemitones_);
+        vcaGainDelay_.assign(spectralMorph_->getLatencySamples(), 0.0f);
 
         // Initialize TranceGate (FR-016)
         tranceGate_.prepare(sampleRate);
@@ -162,6 +164,8 @@ public:
         ampEnv_.setDecay(50.0f);
         ampEnv_.setSustain(1.0f);
         ampEnv_.setRelease(100.0f);
+        velocityGain_.configure(kVelocityGainSmoothMs, static_cast<float>(sampleRate));
+        velocityGain_.snapTo(1.0f);
 
         // Initialize filter envelope (ENV 2)
         filterEnv_.prepare(static_cast<float>(sampleRate));
@@ -192,6 +196,7 @@ public:
         resetActiveDistortion();
         dcBlocker_.reset();
         if (spectralMorph_) (*spectralMorph_).reset();
+        clearVcaGainDelay();
         tranceGate_.reset();
 
         noteFrequency_ = 0.0f;
@@ -209,6 +214,7 @@ public:
         resetActiveDistortion();
         dcBlocker_.reset();
         if (spectralMorph_) (*spectralMorph_).reset();
+        clearVcaGainDelay();
         tranceGate_.reset();
         ampEnv_.reset();
         filterEnv_.reset();
@@ -240,6 +246,25 @@ public:
         noteFrequency_ = (frequency < 0.0f) ? 0.0f : frequency;
         velocity_ = std::clamp(velocity, 0.0f, 1.0f);
 
+        // An idle voice has nothing to stay continuous with, so it starts clean:
+        // otherwise the filter, distortion, DC blocker and morph FIFO replay the
+        // previous note under this note's attack (R-026, R-017). A sounding
+        // voice, including a SpectralMorph voice still draining its delayed VCA
+        // gain, keeps its state (see the filter snap below).
+        if (!isActive()) {
+            resetActiveFilter();
+            resetActiveDistortion();
+            dcBlocker_.reset();
+            if (spectralMorph_) (*spectralMorph_).reset();
+            clearVcaGainDelay();
+        }
+
+        // Velocity reaches the VCA (R-018). A voice starting from silence takes
+        // the new gain at once; a sounding voice retriggers its amp envelope
+        // from the current level, so its gain glides there too (no step).
+        velocityGain_.setTarget(velocityGainTarget());
+        if (!ampEnv_.isActive()) velocityGain_.snapToTarget();
+
         // Clear stale pitch modulation offsets from previous note
         oscAPitchModSemitones_ = 0.0f;
         oscBPitchModSemitones_ = 0.0f;
@@ -261,8 +286,8 @@ public:
         // Update oscillator frequencies (with per-osc tuning)
         updateOscFrequencies();
 
-        // Snap filter coefficients to new note's cutoff without zeroing state.
-        // The amp envelope retriggers from its current level (not zero), so
+        // Snap filter coefficients to new note's cutoff without zeroing state
+        // (an idle voice was reset above). The amp envelope retriggers from its current level (not zero), so
         // zeroing the filter's integrators would create an output discontinuity
         // (signal → ~0) that the VCA passes straight through as a click.
         // The TPT SVF is unconditionally stable, so stale resonant energy
@@ -340,8 +365,12 @@ public:
     }
 
     /// @brief Check if the voice is producing audio (FR-021).
+    ///
+    /// In SpectralMorph mode the voice stays active after its amp envelope
+    /// ends until the delayed VCA gain has played out (R-017).
     [[nodiscard]] bool isActive() const noexcept {
-        return ampEnv_.isActive();
+        return ampEnv_.isActive()
+            || (mixMode_ == MixMode::SpectralMorph && vcaGainDelayPending_ > 0);
     }
 
     // =========================================================================
@@ -374,7 +403,7 @@ public:
         numSamples = std::min(numSamples, maxBlockSize_);
 
         // Early-out when voice is inactive
-        if (!ampEnv_.isActive()) {
+        if (!isActive()) {
             std::fill(output, output + numSamples, 0.0f);
             return;
         }
@@ -437,6 +466,16 @@ public:
                 * modDestScales_[static_cast<size_t>(VoiceModDest::MorphPosition)];
             spectralMorph_->setMorphAmount(
                 std::clamp(mixPosition_ + blockMorphOffset, 0.0f, 1.0f));
+
+            // Per-voice SpectralTilt modulation (R-025): the same block-rate
+            // scheme. Applied here, before the frames run, on top of the base
+            // tilt; setMixTilt() only stores the base, so the engine's
+            // per-sub-block base forward cannot discard the offset.
+            const float blockTiltOffset =
+                modRouter_.getOffset(VoiceModDest::SpectralTilt)
+                * modDestScales_[static_cast<size_t>(VoiceModDest::SpectralTilt)];
+            spectralMorph_->setSpectralTilt(
+                std::clamp(mixTilt_ + blockTiltOffset, -12.0f, 12.0f));
 
             // SpectralMorph mode: FFT-based spectral interpolation (FR-006)
             spectralMorph_->processBlock(oscABuffer_.data(), oscBBuffer_.data(),
@@ -556,17 +595,6 @@ public:
             output[i] = ampEnvVal;
         }
 
-        // Apply per-voice spectral tilt modulation (takes effect on next SpectralMorph block)
-        {
-            const float tiltModOffset =
-                modRouter_.getOffset(VoiceModDest::SpectralTilt)
-                * modDestScales_[static_cast<size_t>(VoiceModDest::SpectralTilt)];
-            if (tiltModOffset != 0.0f && spectralMorph_) {
-                const float modulatedTilt = std::clamp(mixTilt_ + tiltModOffset, -12.0f, 12.0f);
-                spectralMorph_->setSpectralTilt(modulatedTilt);
-            }
-        }
-
         // Store OscAPitch/OscBPitch modulation offsets for next block
         // (applied via updateOscFrequencies() which is called before oscillator rendering)
         {
@@ -642,7 +670,13 @@ public:
             }
         }
 
-        // Step 6-8: DC Blocker + TranceGate + VCA per sample
+        // Step 6-8: DC Blocker + TranceGate + VCA per sample.
+        // The morph output is the oscillator mix delayed by the morph latency,
+        // so in SpectralMorph mode the VCA reads its gain from that long ago
+        // (R-017). The delay line is written in every mode, so a mode switch
+        // on a sounding voice finds the recent gain history.
+        const bool alignVcaToMorph = mixMode_ == MixMode::SpectralMorph
+            && spectralMorph_ && !vcaGainDelay_.empty();
         for (size_t i = 0; i < numSamples; ++i) {
             // DC blocking (post-distortion)
             float sample = dcBlocker_.process(mixBuffer_[i]);
@@ -653,8 +687,10 @@ public:
             }
 
             // Apply amplitude envelope (VCA) (FR-020) with MPE expression volume
-            const float ampLevel = output[i] * expressionVolume_;
-            output[i] = sample * ampLevel;
+            // and the note velocity (R-018)
+            const float ampLevel = output[i] * expressionVolume_ * velocityGain_.process();
+            const float delayedAmpLevel = delayVcaGain(ampLevel);
+            output[i] = sample * (alignVcaToMorph ? delayedAmpLevel : ampLevel);
 
             // NaN/Inf safety flush (FR-036)
             if (detail::isNaN(output[i]) || detail::isInf(output[i])) {
@@ -750,6 +786,9 @@ public:
     ///
     /// Real-time safe: SpectralMorphFilter is always pre-allocated (SC-004).
     void setMixMode(MixMode mode) noexcept {
+        // A voice whose envelope has ended must not come back to drain gain
+        // left in the delay line by the other mode.
+        if (mode != mixMode_ && !ampEnv_.isActive()) vcaGainDelayPending_ = 0;
         mixMode_ = mode;
     }
 
@@ -765,10 +804,11 @@ public:
     /// @brief Set the spectral tilt (brightness control) for SpectralMorph mode.
     ///
     /// Range: -12.0 to +12.0 dB/octave. Pivot at 1 kHz.
+    /// Stores the base only: processBlock() applies base + the per-voice
+    /// SpectralTilt offset to the morph filter before each block (R-025).
     void setMixTilt(float tiltDb) noexcept {
         if (detail::isNaN(tiltDb) || detail::isInf(tiltDb)) return;
         mixTilt_ = std::clamp(tiltDb, -12.0f, 12.0f);
-        if (spectralMorph_) spectralMorph_->setSpectralTilt(mixTilt_);
     }
 
     /// @brief Set the spectral shift for SpectralMorph mode from the knob's
@@ -838,10 +878,14 @@ public:
     }
 
     /// @brief Set the base filter cutoff frequency in Hz.
+    ///
+    /// Only stores the base: processBlock writes the effective cutoff (base
+    /// plus envelope, key track and modulation) before every filtered sample,
+    /// and noteOn writes the note's initial cutoff. Writing the bare base here
+    /// as well gave the filter two alternating writers (R-008).
     void setFilterCutoff(float hz) noexcept {
         if (detail::isNaN(hz) || detail::isInf(hz)) return;
         filterCutoffHz_ = std::clamp(hz, 20.0f, 20000.0f);
-        setActiveFilterCutoff(filterCutoffHz_);
     }
 
     /// @brief Set the filter resonance Q factor.
@@ -996,10 +1040,13 @@ public:
 
     /// @brief Set the distortion type (FR-013, SC-004: zero allocations).
     ///
-    /// Switches between pre-allocated distortion instances.
+    /// Switches between pre-allocated distortion instances. The incoming one
+    /// is reset first, so state left from the last time it ran is not
+    /// replayed (R-026).
     void setDistortionType(RuinaeDistortionType type) noexcept {
         if (type == distortionType_) return;
         distortionType_ = type;
+        resetActiveDistortion();
         setActiveDistortionDrive(distortionDrive_);
     }
 
@@ -1283,6 +1330,14 @@ public:
     // Envelope/LFO Access (FR-022, FR-023)
     // =========================================================================
 
+    /// @brief How far note velocity scales the VCA: gain = 1 + amount * (velocity - 1).
+    /// 0 = every note at full level, 1 = level proportional to velocity.
+    void setAmpVelocityAmount(float amount) noexcept {
+        if (!detail::isFinite(amount)) return;
+        ampVelocityAmount_ = std::clamp(amount, 0.0f, 1.0f);
+        velocityGain_.setTarget(velocityGainTarget());
+    }
+
     ADSREnvelope& getAmpEnvelope() noexcept { return ampEnv_; }
     ADSREnvelope& getFilterEnvelope() noexcept { return filterEnv_; }
     ADSREnvelope& getModEnvelope() noexcept { return modEnv_; }
@@ -1541,7 +1596,10 @@ private:
                 }
                 break;
             case RuinaeFilterType::SelfOscillating:
-                if (filterSelfOsc_) filterSelfOsc_->setFrequency(hz);
+                // Every cutoff write here is modulation (per-sample envelope,
+                // key track, routes), so it must not re-arm the kick that
+                // resets the ladder (R-008, R-020, R-091).
+                if (filterSelfOsc_) filterSelfOsc_->setCutoffModulated(hz);
                 break;
             default: break;
         }
@@ -1687,6 +1745,29 @@ private:
             if (++spectralDryPos_ >= len) spectralDryPos_ = 0;
             if (out) out[s] = delayed;
         }
+    }
+
+    /// @brief Push @p gain into the VCA gain delay line and return the gain
+    /// written getLatencySamples() samples ago (R-017).
+    float delayVcaGain(float gain) noexcept {
+        const size_t len = vcaGainDelay_.size();
+        if (len == 0) return gain;
+        const float delayed = vcaGainDelay_[vcaGainDelayPos_];
+        vcaGainDelay_[vcaGainDelayPos_] = gain;
+        if (++vcaGainDelayPos_ >= len) vcaGainDelayPos_ = 0;
+        if (gain != 0.0f) {
+            vcaGainDelayPending_ = len;
+        } else if (vcaGainDelayPending_ > 0) {
+            --vcaGainDelayPending_;
+        }
+        return delayed;
+    }
+
+    /// @brief Zero the VCA gain delay line.
+    void clearVcaGainDelay() noexcept {
+        std::fill(vcaGainDelay_.begin(), vcaGainDelay_.end(), 0.0f);
+        vcaGainDelayPos_ = 0;
+        vcaGainDelayPending_ = 0;
     }
 
     /// @brief Reset the currently active distortion.
@@ -1903,6 +1984,12 @@ private:
     float mixTilt_{0.0f};   // Base spectral tilt in dB/octave [-12, +12]
     float mixShiftSemitones_{0.0f};  // Spectral shift in semitones [-24, +24]
     std::unique_ptr<SpectralMorphFilter> spectralMorph_;  // Pre-allocated at prepare() (SC-004)
+    /// VCA gain delayed by the morph latency, so in SpectralMorph mode the gain
+    /// meets the samples it was computed for (R-017). Written in every mode.
+    std::vector<float> vcaGainDelay_;
+    size_t vcaGainDelayPos_ = 0;
+    /// Samples until every nonzero gain in vcaGainDelay_ has been read out.
+    size_t vcaGainDelayPending_ = 0;
 
     // Pre-allocated filters (FR-010: all types alive simultaneously)
     SVF filterSvf_;
@@ -1969,6 +2056,15 @@ private:
     float noteFrequency_{0.0f};
     float velocity_{0.0f};
     float aftertouch_{0.0f};  ///< Channel aftertouch [0, 1] (FR-010, 042-ext-modulation-system)
+
+    // Velocity > Amp (R-018): the VCA gain the note velocity sets, ramped while a voice sounds
+    static constexpr float kVelocityGainSmoothMs = 5.0f;
+    float ampVelocityAmount_{1.0f};
+    OnePoleSmoother velocityGain_{1.0f};
+
+    [[nodiscard]] float velocityGainTarget() const noexcept {
+        return 1.0f + ampVelocityAmount_ * (velocity_ - 1.0f);
+    }
 
     // MPE per-note expression fields
     int32_t noteId_{-1};                 ///< VST3 noteId for MPE NoteExpression routing

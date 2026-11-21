@@ -48,9 +48,6 @@ public:
     Steinberg::Vst::IMessage* getMorphPadModMsg() const {
         return morphPadModMsg_.get();
     }
-    Steinberg::Vst::IMessage* getSkipMsg(int lane) const {
-        return skipMessages_[static_cast<size_t>(lane)].get();
-    }
 };
 
 std::unique_ptr<TestableProcessor> makeTestableProcessor() {
@@ -335,6 +332,42 @@ TEST_CASE("Voice route update after preset load preserves both",
 }
 
 // =============================================================================
+// R-109: the notify clamp uses the voice enums' bounds
+// =============================================================================
+
+TEST_CASE("VoiceModRouteUpdate clamps to the voice enums", "[vst][modmatrix]") {
+    // A host context makes initialize() allocate the VoiceModRouteState message,
+    // so the echo sendVoiceModRouteState() writes can be read back from it.
+    Steinberg::Vst::HostApplication host;
+    auto proc = std::make_unique<TestableProcessor>();
+    REQUIRE(proc->initialize(&host) == Steinberg::kResultOk);
+
+    proc->notify(makeRouteUpdateMsg(/*slot=*/4, /*source=*/9, /*dest=*/14,
+                                    /*amount=*/0.5));
+
+    // Echoed state (the message the controller receives)
+    auto* syncMsg = proc->getVoiceRouteSyncMsg();
+    REQUIRE(syncMsg != nullptr);
+    const void* data = nullptr;
+    Steinberg::uint32 size = 0;
+    REQUIRE(syncMsg->getAttributes()->getBinary("routeData", data, size)
+            == Steinberg::kResultOk);
+    REQUIRE(size == 14u * Krate::Plugins::kMaxVoiceRoutes);
+    const auto* echoed = static_cast<const uint8_t*>(data) + 4 * 14;
+    CHECK(echoed[0] <= 7);  // source: VoiceModSource::NumSources - 1
+    CHECK(echoed[1] <= 7);  // destination: kNumVoiceDestinations - 1
+    CHECK(echoed[13] == 1); // active
+
+    // Saved state carries the same clamped values
+    const auto routes = extractRoutes(captureState(proc.get()));
+    REQUIRE(routes.size() == Krate::Plugins::kMaxVoiceRoutes);
+    CHECK(routes[4].source <= 7);
+    CHECK(routes[4].destination <= 7);
+
+    proc->terminate();
+}
+
+// =============================================================================
 // Issue 1 & 3: Pre-allocated message verification
 // =============================================================================
 // NOTE: allocateMessage() requires a host connection and returns nullptr in the
@@ -444,35 +477,6 @@ TEST_CASE("Preset routes are restored by setState without running the audio thre
 // =============================================================================
 // Audio-thread message hygiene
 // =============================================================================
-
-TEST_CASE("Skip-event attribute keys are pre-warmed by initialize",
-          "[voice-route][rt-safety]") {
-    // allocateMessage() needs a host context; the other tests here pass nullptr
-    // and get null messages back, which would make this assertion vacuous.
-    Steinberg::Vst::HostApplication host;
-    auto proc = std::make_unique<TestableProcessor>();
-    REQUIRE(proc->initialize(&host) == Steinberg::kResultOk);
-
-    // sendSkipEvent() runs inside the arp loop on the audio thread and only
-    // overwrites these attributes. If the keys do not exist yet, the first send
-    // per lane inserts a new node into the attribute map -- an allocation on the
-    // audio thread. Creating them up front makes every runtime setInt an
-    // overwrite.
-    for (int lane = 0; lane < 6; ++lane) {
-        auto* msg = proc->getSkipMsg(lane);
-        REQUIRE(msg != nullptr);
-        auto* attrs = msg->getAttributes();
-        REQUIRE(attrs != nullptr);
-
-        Steinberg::int64 value = -1;
-        CHECK(attrs->getInt("lane", value) == Steinberg::kResultOk);
-        CHECK(attrs->getInt("step", value) == Steinberg::kResultOk);
-
-        // Negative control: a key that was never set must not report kResultOk,
-        // otherwise the two checks above would hold for any message at all.
-        CHECK(attrs->getInt("neverSetKey", value) != Steinberg::kResultOk);
-    }
-}
 
 TEST_CASE("One-time controller handshakes are sent from setActive, not process",
           "[voice-route][rt-safety]") {

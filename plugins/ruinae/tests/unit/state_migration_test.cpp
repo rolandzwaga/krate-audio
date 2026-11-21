@@ -843,9 +843,9 @@ TEST_CASE("State v8 loads the voice LFO as 1 Hz sine", "[state][migration]") {
     const auto saved = stateWithChanges({{kVoiceLfoRateId, kRateNorm}, {kVoiceLfoShapeId, kSquare}});
     const double defaultRateNorm = lfoRateToNormalized(1.0f);
 
-    // The v9 tail is float rate + int32 shape.
-    REQUIRE(saved.size() > 8);
-    const size_t tail = saved.size() - 8;
+    // The v9 tail is float rate + int32 shape, then the float Velocity > Amp amount.
+    REQUIRE(saved.size() > 12);
+    const size_t tail = saved.size() - 12;
     Steinberg::int32 savedShape = 0;
     std::memcpy(&savedShape, saved.data() + tail + 4, sizeof(savedShape));
     CHECK(floatAt(saved, tail) == Approx(lfoRateFromNormalized(kRateNorm)).margin(1e-6));
@@ -895,4 +895,226 @@ TEST_CASE("State v8 loads the voice LFO as 1 Hz sine", "[state][migration]") {
             CHECK(values[1] == Approx(kSquare).margin(1e-9));
         }
     }
+}
+
+// =============================================================================
+// R-018: since state v9 note velocity reaches the VCA through Velocity > Amp,
+// appended after the voice LFO. Older states load amount 0: the level they
+// were saved with, which ignored velocity.
+// =============================================================================
+
+TEST_CASE("State v8 loads amp velocity amount 0", "[state][migration]") {
+    using namespace Ruinae;
+    using Catch::Approx;
+    const auto saved = stateWithChanges({{kAmpEnvVelocityAmountId, 0.6}});
+
+    // The amount is the last float of the stream.
+    REQUIRE(saved.size() > 12);
+    const size_t amountOffset = saved.size() - 4;
+    CHECK(floatAt(saved, amountOffset) == Approx(0.6f).margin(1e-6));
+
+    SECTION("version 8: amount 0 on the processor and the controller, whatever played before") {
+        // A v8 stream ends at the arp pack: no voice LFO (8 bytes), no amount (4 bytes).
+        auto v8 = saved;
+        v8.resize(saved.size() - 12);
+        const Steinberg::int32 version8 = 8;
+        std::memcpy(v8.data(), &version8, sizeof(version8));
+
+        auto proc = makeProcessor();
+        loadBlob(*proc, saved);
+        loadBlob(*proc, v8);
+        Steinberg::MemoryStream out;
+        REQUIRE(proc->getState(&out) == Steinberg::kResultTrue);
+        const auto fromProcessor = streamBytes(out);
+        proc->terminate();
+        REQUIRE(fromProcessor.size() == saved.size());
+        CHECK(floatAt(fromProcessor, amountOffset) == 0.0f);
+
+        auto* ctrl = new Controller();
+        REQUIRE(ctrl->initialize(nullptr) == Steinberg::kResultTrue);
+        const std::vector<uint8_t>* blobs[] = {&saved, &v8};
+        for (const auto* blob : blobs) {
+            Steinberg::MemoryStream in;
+            Steinberg::int32 written = 0;
+            in.write(const_cast<uint8_t*>(blob->data()), static_cast<Steinberg::int32>(blob->size()),
+                     &written);
+            in.seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
+            REQUIRE(ctrl->setComponentState(&in) == Steinberg::kResultTrue);
+        }
+        CHECK(ctrl->getParamNormalized(kAmpEnvVelocityAmountId) == 0.0);
+        ctrl->terminate();
+        ctrl->release();
+    }
+
+    SECTION("the current version keeps the stored amount") {
+        const std::vector<Steinberg::Vst::ParamID> ids = {kAmpEnvVelocityAmountId};
+        const auto fromProcessor = controllerParamsAfterLoad(processorStateAfterLoad(saved), ids);
+        const auto fromController = controllerParamsAfterLoad(saved, ids);
+        for (const auto& values : {fromProcessor, fromController}) {
+            CHECK(values[0] == Approx(0.6).margin(1e-6));
+        }
+    }
+}
+
+// =============================================================================
+// R-041 / R-183: before state v9 LFO 1/2 Depth and Chaos Depth never reached the
+// audio, so every source modulated at full depth. Older states load depth 1.0.
+// =============================================================================
+
+TEST_CASE("State v8 loads LFO and Chaos depth as 1.0", "[state][migration]") {
+    using namespace Ruinae;
+    using Catch::Approx;
+    const std::vector<Steinberg::Vst::ParamID> ids = {kLFO1DepthId, kLFO2DepthId, kChaosModDepthId};
+    const auto saved = stateWithChanges(
+        {{kLFO1DepthId, 0.3}, {kLFO2DepthId, 0.6}, {kChaosModDepthId, 0.0}});
+
+    SECTION("version 8: depth 1.0 on the processor and the controller") {
+        auto v8 = saved;
+        const Steinberg::int32 version8 = 8;
+        std::memcpy(v8.data(), &version8, sizeof(version8));
+
+        // The processor's loaded atomics, read back through a current-version save.
+        const auto fromProcessor = controllerParamsAfterLoad(processorStateAfterLoad(v8), ids);
+        const auto fromController = controllerParamsAfterLoad(v8, ids);
+        for (const auto& values : {fromProcessor, fromController}) {
+            CHECK(values[0] == 1.0);
+            CHECK(values[1] == 1.0);
+            CHECK(values[2] == 1.0);
+        }
+    }
+
+    SECTION("the current version keeps the stored depths") {
+        const auto fromProcessor = controllerParamsAfterLoad(processorStateAfterLoad(saved), ids);
+        const auto fromController = controllerParamsAfterLoad(saved, ids);
+        for (const auto& values : {fromProcessor, fromController}) {
+            CHECK(values[0] == Approx(0.3).margin(1e-6));
+            CHECK(values[1] == Approx(0.6).margin(1e-6));
+            CHECK(values[2] == 0.0);
+        }
+    }
+}
+
+// =============================================================================
+// R-003 / R-169 / R-095: an enum or index loaded from a damaged state must land
+// in range before it reaches the DSP (mod source 200 wrote past sourceActive_;
+// an OSC type of 200 indexed SelectableOscillator::slots_ at the next prepare).
+// =============================================================================
+
+namespace {
+
+Steinberg::int32 int32At(const std::vector<uint8_t>& bytes, size_t offset) {
+    Steinberg::int32 v = 0;
+    std::memcpy(&v, bytes.data() + offset, sizeof(v));
+    return v;
+}
+
+void putInt32(std::vector<uint8_t>& bytes, size_t offset, Steinberg::int32 v) {
+    std::memcpy(bytes.data() + offset, &v, sizeof(v));
+}
+
+/// The one stream offset whose int32 reads `storedA` after `base` + {id, normA} and
+/// `storedB` after `base` + {id, normB}.
+size_t locateInt32(const ParamList& base, Steinberg::Vst::ParamID id,
+                   double normA, Steinberg::int32 storedA, double normB, Steinberg::int32 storedB) {
+    ParamList a = base;
+    a.emplace_back(id, normA);
+    ParamList b = base;
+    b.emplace_back(id, normB);
+    const auto blobA = stateWithChanges(a);
+    const auto blobB = stateWithChanges(b);
+    REQUIRE(blobA.size() == blobB.size());
+    size_t offset = 0;
+    int matches = 0;
+    for (size_t i = 4; i + sizeof(Steinberg::int32) <= blobA.size(); ++i) {
+        if (int32At(blobA, i) == storedA && int32At(blobB, i) == storedB) {
+            offset = i;
+            ++matches;
+        }
+    }
+    INFO("param " << id);
+    REQUIRE(matches == 1);
+    return offset;
+}
+
+}  // namespace
+
+TEST_CASE("setState clamps out-of-range enum indices", "[state][robustness]") {
+    using namespace Ruinae;
+    // OSC B plays Chaos, so its attractor index reaches ChaosOscillator.
+    const ParamList base = {{kOscBTypeId, 5.0 / 9.0}};
+    const size_t modSrc = locateInt32(base, kModMatrixSlot0SourceId, 1.0 / 14.0, 1, 2.0 / 14.0, 2);
+    const size_t modDst = locateInt32(base, kModMatrixSlot0DestId, 1.0 / 14.0, 1, 2.0 / 14.0, 2);
+    const size_t oscAType = locateInt32(base, kOscATypeId, 1.0 / 9.0, 1, 2.0 / 9.0, 2);
+    const size_t oscBAttractor = locateInt32(base, kOscBChaosAttractorId, 0.25, 1, 0.5, 2);
+    const size_t oscAVowel = locateInt32(base, kOscAFormantVowelId, 0.25, 1, 0.5, 2);
+    const size_t reverbType = locateInt32(base, kReverbTypeId, 0.0, 0, 1.0, 1);
+
+    // The source blob: base + voice route 0 (amount 0.609375 marks its bytes:
+    // int8 source, int8 destination, float amount, ...).
+    std::vector<uint8_t> blob;
+    {
+        auto proc = makeProcessor();
+        Krate::Test::ParameterChanges pc;
+        for (const auto& [id, value] : base) pc.addChange(id, value);
+        Steinberg::Vst::ProcessData data{};
+        data.numSamples = 0;
+        data.inputParameterChanges = &pc;
+        proc->process(data);
+        sendVoiceRoute(*proc, 0, 5, 0, 0.609375, 2);
+        Steinberg::MemoryStream out;
+        REQUIRE(proc->getState(&out) == Steinberg::kResultTrue);
+        blob = streamBytes(out);
+        proc->terminate();
+    }
+    const size_t routeAmount = uniqueFloatOffset(blob, 0.609375f);
+    REQUIRE(routeAmount >= 2);
+    const size_t routeSrc = routeAmount - 2;
+    const size_t routeDst = routeAmount - 1;
+
+    const Steinberg::int32 version8 = 8;
+    putInt32(blob, 0, version8);
+    putInt32(blob, modSrc, 200);
+    putInt32(blob, modDst, -5);
+    putInt32(blob, oscAType, 200);
+    putInt32(blob, oscBAttractor, 99);
+    putInt32(blob, oscAVowel, 99);
+    putInt32(blob, reverbType, 99);
+    blob[routeSrc] = 200;
+    blob[routeDst] = 200;
+
+    auto proc = makeProcessor();
+    REQUIRE(proc->setActive(true) == Steinberg::kResultTrue);
+    loadBlob(*proc, blob);
+
+    const RenderResult at44k = renderChord(*proc, 10);
+    CHECK(at44k.nonFinite == 0);
+
+    // A re-setup (sample-rate change) re-prepares every voice's oscillators.
+    REQUIRE(proc->setActive(static_cast<Steinberg::TBool>(false)) == Steinberg::kResultTrue);
+    Steinberg::Vst::ProcessSetup setup{};
+    setup.processMode = Steinberg::Vst::kRealtime;
+    setup.symbolicSampleSize = Steinberg::Vst::kSample32;
+    setup.sampleRate = 96000.0;
+    setup.maxSamplesPerBlock = 512;
+    REQUIRE(proc->setupProcessing(setup) == Steinberg::kResultTrue);
+    REQUIRE(proc->setActive(true) == Steinberg::kResultTrue);
+    const RenderResult at96k = renderChord(*proc, 10);
+    CHECK(at96k.nonFinite == 0);
+
+    Steinberg::MemoryStream out;
+    REQUIRE(proc->getState(&out) == Steinberg::kResultTrue);
+    const auto saved = streamBytes(out);
+    proc->setActive(static_cast<Steinberg::TBool>(false));
+    proc->terminate();
+
+    REQUIRE(saved.size() == blob.size());
+    const auto inRange = [](Steinberg::int32 v, int lo, int hi) { return v >= lo && v <= hi; };
+    CHECK(inRange(int32At(saved, modSrc), 0, kModSourceCount - 1));
+    CHECK(inRange(int32At(saved, modDst), 0, kModDestCount - 1));
+    CHECK(inRange(int32At(saved, oscAType), 0, kOscTypeCount - 1));
+    CHECK(inRange(int32At(saved, oscBAttractor), 0, 4));
+    CHECK(inRange(int32At(saved, oscAVowel), 0, 4));
+    CHECK(inRange(int32At(saved, reverbType), 0, 1));
+    CHECK(saved[routeSrc] < static_cast<uint8_t>(Krate::DSP::VoiceModSource::NumSources));
+    CHECK(saved[routeDst] < static_cast<uint8_t>(Krate::Plugins::kNumVoiceDestinations));
 }

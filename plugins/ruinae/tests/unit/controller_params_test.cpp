@@ -14,6 +14,7 @@
 #include "plugin_ids.h"
 
 #include "pluginterfaces/vst/ivsteditcontroller.h"
+#include "pluginterfaces/vst/ivstmidicontrollers.h"
 
 #include <set>
 #include "parameters/osc_params.h"
@@ -577,6 +578,73 @@ TEST_CASE("Voice LFO rate and shape are registered and automatable with 1 Hz sin
     REQUIRE(ctrl->getParamStringByValue(Ruinae::kVoiceLfoRateId, Ruinae::lfoRateToNormalized(5.0f), text)
             == kResultOk);
     CHECK(to_string(text) == "5.00 Hz");
+
+    ctrl->terminate();
+    ctrl->release();
+}
+
+TEST_CASE("Velocity > Amp is registered and automatable with default 1.0",
+          "[controller][params][defaults][velocity]") {
+    auto* ctrl = makeControllerRaw();
+
+    auto* param = ctrl->getParameterObject(Ruinae::kAmpEnvVelocityAmountId);
+    REQUIRE(param != nullptr);
+    const auto& info = param->getInfo();
+    CHECK(to_string(info.title) == "Velocity > Amp");
+    CHECK((info.flags & ParameterInfo::kCanAutomate) != 0);
+    CHECK((info.flags & ParameterInfo::kIsHidden) == 0);
+    CHECK(info.defaultNormalizedValue == 1.0);
+
+    String128 text{};
+    REQUIRE(ctrl->getParamStringByValue(Ruinae::kAmpEnvVelocityAmountId, 0.5, text) == kResultOk);
+    CHECK(to_string(text) == "50%");
+
+    ctrl->terminate();
+    ctrl->release();
+}
+
+// =============================================================================
+// MIDI controllers through IMidiMapping (Ruinae audit R-030, R-042)
+// =============================================================================
+
+// VST3 hosts and the AU wrapper deliver pitch bend, channel pressure and CCs only as parameter
+// changes on the IDs IMidiMapping names; without the mapping they never reach the plugin.
+TEST_CASE("Controller maps pitch bend, aftertouch and mod wheel", "[controller][midi]") {
+    auto* ctrl = makeControllerRaw();
+
+    FUnknownPtr<IMidiMapping> mapping(static_cast<IEditController*>(ctrl));
+    REQUIRE(mapping);
+
+    struct Expected {
+        CtrlNumber controller;
+        ParamID id;
+        ParamValue defaultValue;
+    };
+    for (const auto& e : {Expected{kPitchBend, Ruinae::kMidiPitchBendId, 0.5},
+                          Expected{kAfterTouch, Ruinae::kMidiAftertouchId, 0.0},
+                          Expected{kCtrlModWheel, Ruinae::kMidiModWheelId, 0.0}}) {
+        INFO("controller " << e.controller);
+        ParamID id = 0;
+        REQUIRE(mapping->getMidiControllerAssignment(0, 0, e.controller, id) == kResultOk);
+        CHECK(id == e.id);
+        // Every channel maps the same way.
+        ParamID idCh15 = 0;
+        REQUIRE(mapping->getMidiControllerAssignment(0, 15, e.controller, idCh15) == kResultOk);
+        CHECK(idCh15 == e.id);
+
+        auto* param = ctrl->getParameterObject(id);
+        REQUIRE(param != nullptr);
+        const auto& info = param->getInfo();
+        CHECK((info.flags & ParameterInfo::kIsHidden) != 0);
+        CHECK((info.flags & ParameterInfo::kCanAutomate) != 0);
+        CHECK(info.defaultNormalizedValue == e.defaultValue);
+        // Outside the arp routing span (processParameterChanges routes it whole to the arp).
+        CHECK((id < Ruinae::kArpBaseId || id > Ruinae::kArpEndId));
+    }
+
+    ParamID unused = 0;
+    CHECK(mapping->getMidiControllerAssignment(1, 0, kPitchBend, unused) == kResultFalse);
+    CHECK(mapping->getMidiControllerAssignment(0, 0, kCtrlVolume, unused) == kResultFalse);
 
     ctrl->terminate();
     ctrl->release();

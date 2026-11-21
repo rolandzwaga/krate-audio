@@ -2734,10 +2734,17 @@ void Processor::runSendStage(float* busL, float* busR, std::size_t n) noexcept {
     // click. It is false on every shipping path.
     if (effectsReturnRampSnap_) {
         fxReturnGainSm_.snapToTarget();  // smoother.h:257
+        fxReturnGainSliceStart_ = fxReturnGainSm_.getCurrentValue();
     }
-    const float g = fxReturnGainSm_.getCurrentValue();  // smoother.h:191
+    // Per sample from the value at the slice start to the value at its end:
+    // one read per slice made the 20 ms ramp a staircase, a step at every
+    // slice boundary (R-195).
+    const float gEnd = fxReturnGainSm_.getCurrentValue();  // smoother.h:191
+    const float gStart = fxReturnGainSliceStart_;
+    const float gStep = (gEnd - gStart) / static_cast<float>(n);
     for (std::size_t i = 0; i < n; ++i) {
         const std::size_t r = (fxOutRead_ + i) & kMask;
+        const float g = gStart + (gStep * static_cast<float>(i + 1));
         busL[i] += fxOutL_[r] * g;
         busR[i] += fxOutR_[r] * g;
     }
@@ -4010,9 +4017,11 @@ void Processor::advanceParamSmoothers(std::size_t sliceSamples) noexcept {
         for (Krate::DSP::OnePoleSmoother* s : classBSmoothers()) {
             s->snapToTarget();  // smoother.h:257
         }
+        fxReturnGainSliceStart_ = fxReturnGainSm_.getCurrentValue();  // a snap is a step
         snapParamSmoothers_ = false;
         return;
     }
+    fxReturnGainSliceStart_ = fxReturnGainSm_.getCurrentValue();
     for (Krate::DSP::OnePoleSmoother* s : classBSmoothers()) {
         s->advanceSamples(sliceSamples);
     }

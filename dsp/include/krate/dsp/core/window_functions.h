@@ -55,7 +55,9 @@ enum class WindowType : uint8_t {
     Hamming,        ///< Hamming window - COLA at 50%/75% overlap
     Blackman,       ///< Blackman window - COLA at 50%/75% overlap
     Kaiser,         ///< Kaiser window - requires 90% overlap for COLA
-    BlackmanHarris  ///< 4-term Blackman-Harris window - ~92 dB sidelobe rejection
+    BlackmanHarris, ///< 4-term Blackman-Harris window - ~92 dB sidelobe rejection
+    SqrtHann        ///< Square root of the periodic Hann - analysis AND synthesis
+                    ///< window; its square (Hann) is COLA at 50% overlap
 };
 
 // =============================================================================
@@ -194,6 +196,23 @@ inline void generateBlackmanHarris(float* output, size_t size) noexcept {
     }
 }
 
+/// @brief Fill buffer with the square root of the periodic Hann window
+/// @param output Destination buffer
+/// @param size Window size
+/// @note Formula: sin(pi*n/N), which is sqrt(0.5 - 0.5*cos(2*pi*n/N)) (periodic
+///       variant). Applied at analysis AND synthesis, the product is the Hann,
+///       so a frame modified in between is tapered to zero at both edges while
+///       an unmodified one still overlap-adds to a constant at 50 % overlap.
+/// @note Real-time safe if buffer is pre-allocated
+inline void generateSqrtHann(float* output, size_t size) noexcept {
+    if (output == nullptr || size == 0) return;
+
+    const float N = static_cast<float>(size);
+    for (size_t n = 0; n < size; ++n) {
+        output[n] = std::sin(kPi * static_cast<float>(n) / N);
+    }
+}
+
 // -----------------------------------------------------------------------------
 // COLA Verification
 // -----------------------------------------------------------------------------
@@ -301,6 +320,9 @@ inline void generateInto(
         case WindowType::BlackmanHarris:
             generateBlackmanHarris(output, size);
             break;
+        case WindowType::SqrtHann:
+            generateSqrtHann(output, size);
+            break;
     }
 }
 
@@ -334,6 +356,7 @@ inline void generateInto(
         case WindowType::Hamming:        return 0.54f;
         case WindowType::Blackman:       return 0.42f;
         case WindowType::BlackmanHarris: return 0.35875f;
+        case WindowType::SqrtHann:       return 0.63661977f; // 2 / pi
         case WindowType::Kaiser:         return 1.0f; // approximate; depends on beta
     }
     return 1.0f;

@@ -84,6 +84,7 @@
 #include "base/source/fstreamer.h"
 #include "pluginterfaces/base/ibstream.h"
 #include "pluginterfaces/vst/ivstcomponent.h"
+#include "pluginterfaces/vst/ivstmidicontrollers.h"
 #include "vstgui/lib/cviewcontainer.h"
 #include "vstgui/lib/controls/cbuttons.h"
 #include "vstgui/lib/controls/coptionmenu.h"
@@ -221,6 +222,31 @@ Steinberg::tresult PLUGIN_API Controller::initialize(FUnknown* context) {
         Steinberg::Vst::ParameterInfo::kIsHidden | Steinberg::Vst::ParameterInfo::kIsReadOnly,
         kSidechainActiveId);
 
+    // Arp skip highlights (hidden, read-only output parameters; R-069)
+    {
+        static const Steinberg::Vst::TChar* const kSkipTitles[kArpLaneCount] = {
+            STR16("Arp Skip Velocity"), STR16("Arp Skip Gate"), STR16("Arp Skip Pitch"),
+            STR16("Arp Skip Ratchet"), STR16("Arp Skip Modifier"), STR16("Arp Skip Condition"),
+            STR16("Arp Skip Chord"), STR16("Arp Skip Inversion")};
+        for (int lane = 0; lane < kArpLaneCount; ++lane) {
+            parameters.addParameter(kSkipTitles[lane], STR16(""), 0, 0.0,
+                Steinberg::Vst::ParameterInfo::kIsHidden | Steinberg::Vst::ParameterInfo::kIsReadOnly,
+                kArpSkipLane0Id + static_cast<Steinberg::Vst::ParamID>(lane));
+        }
+    }
+
+    // MIDI performance controllers, reached through IMidiMapping (R-030, R-042).
+    // Hidden and not part of the state: the host owns the wheel positions.
+    parameters.addParameter(STR16("Pitch Bend"), STR16(""), 0, 0.5,
+        Steinberg::Vst::ParameterInfo::kCanAutomate | Steinberg::Vst::ParameterInfo::kIsHidden,
+        kMidiPitchBendId);
+    parameters.addParameter(STR16("Aftertouch"), STR16(""), 0, 0.0,
+        Steinberg::Vst::ParameterInfo::kCanAutomate | Steinberg::Vst::ParameterInfo::kIsHidden,
+        kMidiAftertouchId);
+    parameters.addParameter(STR16("Mod Wheel"), STR16(""), 0, 0.0,
+        Steinberg::Vst::ParameterInfo::kCanAutomate | Steinberg::Vst::ParameterInfo::kIsHidden,
+        kMidiModWheelId);
+
     // ==========================================================================
     // Initialize Preset Manager
     // ==========================================================================
@@ -336,6 +362,33 @@ Steinberg::IPlugView* PLUGIN_API Controller::createView(Steinberg::FIDString nam
 }
 
 // ==============================================================================
+// IMidiMapping (R-030, R-042)
+// ==============================================================================
+// VST3 hosts and the AU wrapper deliver pitch bend, channel pressure and CCs only
+// as parameter changes on the IDs named here (model: Profundum's controller).
+
+Steinberg::tresult PLUGIN_API Controller::getMidiControllerAssignment(
+    Steinberg::int32 busIndex, Steinberg::int16 /*channel*/,
+    Steinberg::Vst::CtrlNumber midiControllerNumber, Steinberg::Vst::ParamID& id) {
+    if (busIndex != 0) {
+        return Steinberg::kResultFalse;
+    }
+    switch (midiControllerNumber) {
+        case Steinberg::Vst::kPitchBend:
+            id = kMidiPitchBendId;
+            return Steinberg::kResultOk;
+        case Steinberg::Vst::kAfterTouch:
+            id = kMidiAftertouchId;
+            return Steinberg::kResultOk;
+        case Steinberg::Vst::kCtrlModWheel:
+            id = kMidiModWheelId;
+            return Steinberg::kResultOk;
+        default:
+            return Steinberg::kResultFalse;
+    }
+}
+
+// ==============================================================================
 // IMessage: Receive processor messages
 // ==============================================================================
 
@@ -420,23 +473,6 @@ Steinberg::tresult PLUGIN_API Controller::notify(Steinberg::Vst::IMessage* messa
                 static_cast<intptr_t>(val));
         }
 
-        return Steinberg::kResultOk;
-    }
-
-    // 081-interaction-polish: Arp skip event from processor (FR-007, FR-008)
-    if (strcmp(message->getMessageID(), "ArpSkipEvent") == 0) {
-        auto* attrs = message->getAttributes();
-        if (!attrs)
-            return Steinberg::kResultFalse;
-
-        Steinberg::int64 lane = 0;
-        Steinberg::int64 step = 0;
-        if (attrs->getInt("lane", lane) == Steinberg::kResultOk &&
-            attrs->getInt("step", step) == Steinberg::kResultOk) {
-            if (lane >= 0 && lane < kArpLaneCount && step >= 0 && step < 32) {
-                handleArpSkipEvent(static_cast<int>(lane), static_cast<int>(step));
-            }
-        }
         return Steinberg::kResultOk;
     }
 
@@ -537,6 +573,9 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
     // Reset trail states on editor open
     for (auto& ts : laneTrailStates_) ts.clear();
     lastPolledSteps_.fill(-1);
+    // A skip published before the editor opened is not a new one (R-069)
+    for (int lane = 0; lane < kArpLaneCount; ++lane)
+        lastSkipCodes_[static_cast<size_t>(lane)] = readArpSkipCode(lane);
 
     // Notify processor that editor is open (FR-012)
     {
@@ -647,6 +686,16 @@ void Controller::pollArpLanePlayheads() {
     pollLanePlayhead(conditionLane_, kArpConditionPlayheadId, 5);
     pollLanePlayhead(chordLane_, kArpChordPlayheadId, 6);
     pollLanePlayhead(inversionLane_, kArpInversionPlayheadId, 7);
+
+    // Skip highlights (R-069): each lane's own skipped step, published as an output
+    // parameter; a changed code is a new skip.
+    for (int lane = 0; lane < kArpLaneCount; ++lane) {
+        const long code = readArpSkipCode(lane);
+        auto& last = lastSkipCodes_[static_cast<size_t>(lane)];
+        if (code == last) continue;
+        last = code;
+        if (code > 0) handleArpSkipEvent(lane, static_cast<int>((code - 1) % 33));
+    }
 }
 
 std::vector<std::pair<const char*, VSTGUI::CView*>> Controller::cachedViewPointerInventoryForTest() const {
@@ -800,10 +849,11 @@ void Controller::valueChanged(VSTGUI::CControl* control) {
         default: break;
     }
 
-    // Dice trigger button
+    // Dice trigger button: VST3Editor already sent the host performEdit(1.0).
+    // Reset only the controller's own parameter; a performEdit(0.0) here would
+    // land in the same block and cancel the trigger (R-142).
     if (tag == static_cast<int32_t>(kArpDiceTriggerId) &&
         control->getValue() >= 0.5f) {
-        performEdit(kArpDiceTriggerId, 0.0);
         setParamNormalized(kArpDiceTriggerId, 0.0);
         return;
     }

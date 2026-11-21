@@ -1341,8 +1341,12 @@ TEST_CASE("EuclideanSwing_Orthogonal",
         // With swing, the gaps between hit steps 0->3 and 3->6 differ
         // because swing alternates even/odd step durations
         // gap1 (steps 0-3) = long+short+long = 16537+5512+16537 = 38586
-        // gap2 (steps 3-6) = short+long+short = 5512+16537+5512 = 27562
+        // gap2 (steps 3-6) = short+long+short = 5512+16537+5512 = 27561
+        // R-199: step k lasts its own duration, long first. Before the fix the
+        // order was reversed (gap1 = 27561, gap2 = 38586).
         CHECK(gap1 != gap2);
+        CHECK(gap1 == 38586);
+        CHECK(gap2 == 27561);
     }
 
     // Count total noteOns per 8-step cycle to confirm Euclidean gating is correct.

@@ -14,10 +14,19 @@
 #include "ui/arp_chord_lane.h"
 #include "ui/arp_inversion_lane.h"
 
+#include <cmath>
+
 namespace Ruinae {
 
+long Controller::readArpSkipCode(int lane) {
+    if (lane < 0 || lane >= kArpLaneCount) return 0;
+    auto* param = getParameterObject(kArpSkipLane0Id + static_cast<Steinberg::Vst::ParamID>(lane));
+    return param ? std::lround(param->getNormalized() * 132.0) : 0;
+}
+
 void Controller::handleArpSkipEvent(int lane, int step) {
-    // 081-interaction-polish (FR-007, FR-008): route skip event to the lane
+    // 081-interaction-polish (FR-007, FR-008): route skip event to the lane.
+    // UI thread only: pollArpLanePlayheads() reads the skip output parameters (R-069).
     if (lane < 0 || lane >= kArpLaneCount) return;
     if (step < 0 || step >= 32) return;
 

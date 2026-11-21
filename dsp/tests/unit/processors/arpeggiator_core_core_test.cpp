@@ -1884,9 +1884,13 @@ TEST_CASE("ArpeggiatorCore: Retrigger Note -- resets pattern on noteOn",
         // First NoteOn fires immediately at 0
         CHECK(noteOns[0].sampleOffset == 0);
         int32_t gap01 = noteOns[1].sampleOffset - noteOns[0].sampleOffset;
-        CHECK(gap01 == 5512);  // Odd step (shortened by swing)
+        // R-199: step 0 lasts its own (even, lengthened) duration. Was 5512: step k
+        // lasted dur(k+1), so free-run swing played short-first.
+        CHECK(gap01 == 16537);
 
-        // After 2 NoteOns, swingStepCounter_=2 (even again).
+        // 500 blocks = 256000 samples: steps 0..22 have fired (step 22, even and
+        // long, started at 11 * 22049 = 242539), so swingStepCounter_ = 23 (odd):
+        // without a reset the next step would be short.
         // Send a noteOn to retrigger -- should reset swingStepCounter_ to 0.
         arp.noteOn(57, 100);  // A3 -- triggers retrigger Note
 
@@ -1905,13 +1909,12 @@ TEST_CASE("ArpeggiatorCore: Retrigger Note -- resets pattern on noteOn",
         }
 
         REQUIRE(offsets.size() >= 2);
-        // After retrigger: swingStepCounter_ = 0.
-        // The first step fires after even-step duration (16537).
-        // After it fires, swingStepCounter_ becomes 1.
-        // The next step fires after odd-step duration (5512).
-        // Gap between NoteOn[0] and NoteOn[1] = 5512 (odd step after even).
+        // After retrigger: swingStepCounter_ = 0, so the first step fired after it
+        // is step 0 of a pair and lasts the even (long) duration, 16537. Without the
+        // reset it would be step 23 (odd, 5512).
+        // R-199 rewrite: was 5512, when the step fired with counter 0 lasted dur(1).
         int32_t gapAfterRetrigger = offsets[1] - offsets[0];
-        CHECK(gapAfterRetrigger == 5512);
+        CHECK(gapAfterRetrigger == 16537);
     }
 }
 
@@ -2227,30 +2230,27 @@ TEST_CASE("ArpeggiatorCore: swing 50% -- even=16537, odd=5512",
     REQUIRE(noteOns.size() >= 20);
 
     // Verify even/odd step durations.
-    // The gap from noteOn[i-1] to noteOn[i] uses the step duration calculated
-    // AFTER step (i-1) fired. fireStep() increments swingStepCounter_ then
-    // recalculates the duration. So:
-    //   gap index 0 (noteOn[0]->noteOn[1]): counter was 0 when step fired,
-    //     incremented to 1 (odd), duration = odd (short).
-    //   gap index 1 (noteOn[1]->noteOn[2]): counter was 1, incremented to 2
-    //     (even), duration = even (long).
+    // The gap from noteOn[k] to noteOn[k+1] is step k's OWN duration (R-199):
+    // gap 0 (step 0, even) = long, gap 1 (step 1, odd) = short, and so on.
+    // R-199 rewrite: the old expectation was short-first (gap 0 = 5512, gap 1 =
+    // 16537), because fireStep re-sized the running step from the advanced
+    // counter, so step k lasted dur(k+1).
     for (size_t i = 1; i < noteOns.size(); ++i) {
         int32_t gap = noteOns[i].sampleOffset - noteOns[i - 1].sampleOffset;
 
-        // After step (i-1) fires, counter = (i-1)+1 = i. Even/odd of counter i
-        // determines the gap duration.
-        bool isEvenCounter = (i % 2 == 0);
-        int32_t expected = isEvenCounter ? expectedEven : expectedOdd;
+        // Gap (i-1) is step (i-1)'s duration.
+        bool isEvenStep = ((i - 1) % 2 == 0);
+        int32_t expected = isEvenStep ? expectedEven : expectedOdd;
 
-        INFO("Gap " << (i - 1) << " (counter=" << i
-             << ", even=" << isEvenCounter
+        INFO("Gap " << (i - 1) << " (step=" << (i - 1)
+             << ", even=" << isEvenStep
              << "): gap = " << gap << ", expected = " << expected);
         CHECK(gap >= expected - 1);
         CHECK(gap <= expected + 1);
     }
 
-    // Verify pair sums (odd + even) are within 1 of 22050.
-    // First pair: gap[0] (odd) + gap[1] (even). Pairs start at odd gaps.
+    // Verify pair sums (even + odd) are within 1 of 22050.
+    // First pair: gap[0] (even) + gap[1] (odd).
     for (size_t i = 1; i + 1 < noteOns.size(); i += 2) {
         int32_t firstGap = noteOns[i].sampleOffset - noteOns[i - 1].sampleOffset;
         int32_t secondGap = noteOns[i + 1].sampleOffset - noteOns[i].sampleOffset;
@@ -2295,14 +2295,15 @@ TEST_CASE("ArpeggiatorCore: swing 25% -- even=13781, odd=8268",
 
     REQUIRE(noteOns.size() >= 20);
 
-    // Same parity logic as the 50% test: gap index (i-1) uses counter value i.
+    // Same parity logic as the 50% test: gap (i-1) is step (i-1)'s own duration, long
+    // first. R-199 rewrite: was short-first (gap 0 = 8268, gap 1 = 13781).
     for (size_t i = 1; i < noteOns.size(); ++i) {
         int32_t gap = noteOns[i].sampleOffset - noteOns[i - 1].sampleOffset;
-        bool isEvenCounter = (i % 2 == 0);
-        int32_t expected = isEvenCounter ? expectedEven : expectedOdd;
+        bool isEvenStep = ((i - 1) % 2 == 0);
+        int32_t expected = isEvenStep ? expectedEven : expectedOdd;
 
-        INFO("Gap " << (i - 1) << " (counter=" << i
-             << ", even=" << isEvenCounter
+        INFO("Gap " << (i - 1) << " (step=" << (i - 1)
+             << ", even=" << isEvenStep
              << "): gap = " << gap << ", expected = " << expected);
         CHECK(gap >= expected - 1);
         CHECK(gap <= expected + 1);
@@ -2352,14 +2353,15 @@ TEST_CASE("ArpeggiatorCore: swing 75% -- even=19293, odd=2756",
 
     REQUIRE(noteOns.size() >= 20);
 
-    // Same parity logic: gap index (i-1) uses counter value i.
+    // Same parity logic: gap (i-1) is step (i-1)'s own duration, long first.
+    // R-199 rewrite: was short-first (gap 0 = 2756, gap 1 = 19293).
     for (size_t i = 1; i < noteOns.size(); ++i) {
         int32_t gap = noteOns[i].sampleOffset - noteOns[i - 1].sampleOffset;
-        bool isEvenCounter = (i % 2 == 0);
-        int32_t expected = isEvenCounter ? expectedEven : expectedOdd;
+        bool isEvenStep = ((i - 1) % 2 == 0);
+        int32_t expected = isEvenStep ? expectedEven : expectedOdd;
 
-        INFO("Gap " << (i - 1) << " (counter=" << i
-             << ", even=" << isEvenCounter
+        INFO("Gap " << (i - 1) << " (step=" << (i - 1)
+             << ", even=" << isEvenStep
              << "): gap = " << gap << ", expected = " << expected);
         CHECK(gap >= expected - 1);
         CHECK(gap <= expected + 1);
@@ -2379,42 +2381,72 @@ TEST_CASE("ArpeggiatorCore: swing 75% -- even=19293, odd=2756",
 }
 
 
+// R-199: fireStep advanced swingStepCounter_ and then re-sized the RUNNING step, so step k lasted dur(k+1) while its
+// gate and ratchet sub-steps were sized from dur(k). A plain step followed by a ratcheted one played 0, 5512, 8268,
+// 11024 (both steps short, the swing pair lost) with step 0's NoteOff at 8268, after the next step's NoteOn. Step k
+// must last dur(k): the long half first, and every gate and sub-step inside its own step.
+TEST_CASE("R-199: a swung step lasts its own duration; gate and ratchet sub-steps match it",
+          "[processors][arp][swing]") {
+    ArpeggiatorCore arp;
+    arp.prepare(44100.0, 512);
+    arp.setEnabled(true);
+    arp.setMode(ArpMode::Up);
+    arp.setNoteValue(NoteValue::Eighth, NoteModifier::None);
+    arp.setSwing(50.0f);
+    arp.setGateLength(50.0f);
+    arp.ratchetLane().setLength(2);
+    arp.ratchetLane().setStep(0, static_cast<uint8_t>(1));
+    arp.ratchetLane().setStep(1, static_cast<uint8_t>(2));
+    arp.noteOn(60, 100);
+
+    BlockContext ctx;
+    ctx.sampleRate = 44100.0;
+    ctx.blockSize = 512;
+    ctx.tempoBPM = 120.0;
+    ctx.isPlaying = true;
+    ctx.transportPositionSamples = 0;
+
+    const auto events = collectEvents(arp, ctx, 100);
+    const auto noteOns = filterNoteOns(events);
+    const auto noteOffs = filterNoteOffs(events);
+    REQUIRE(noteOns.size() >= 5);
+    REQUIRE(noteOffs.size() >= 3);
+
+    // 1/8 at 120 BPM: long = floor(11025 * 1.5) = 16537, short = floor(11025 * 0.5) = 5512.
+    // Step 0 (long, no ratchet): NoteOn 0, gate 50 % of 16537 = 8268.
+    // Step 1 (short, ratchet 2): NoteOn 16537, sub-steps of 5512 / 2 = 2756 with gate 1378: 16537 / 17915, 19293 /
+    // 20671. Step 2 (long): NoteOn 16537 + 5512 = 22049, then step 3 (short, ratchet 2) at 22049 + 16537 = 38586.
+    CHECK(noteOns[0].sampleOffset == 0);
+    CHECK(noteOns[1].sampleOffset == 16537);
+    CHECK(noteOns[2].sampleOffset == 19293);
+    CHECK(noteOns[3].sampleOffset == 22049);
+    CHECK(noteOns[4].sampleOffset == 38586);
+    CHECK(noteOffs[0].sampleOffset == 8268);
+    CHECK(noteOffs[1].sampleOffset == 17915);
+    CHECK(noteOffs[2].sampleOffset == 20671);
+}
+
+
 // T056: setMode() reset test (SC-006 additional requirement)
 TEST_CASE("ArpeggiatorCore: setMode resets swing counter -- next step gets even timing",
           "[processors][arpeggiator_core]") {
-    // Strategy: Run the arp with swing until we reach a point where the next
-    // step would normally be calculated with an even counter (giving long duration).
-    // Then call setMode() to reset the counter to 0. After the reset, the next
-    // fireStep() will increment counter from 0 to 1 (odd) and calculate an odd
-    // (short) duration. Without the reset, counter would be at an even value and
-    // the gap would be long. With the reset, the gap is short.
+    // Step k lasts its own swung duration (R-199): even steps long (16537), odd
+    // steps short (5512), long first. swingStepCounter_ holds the index of the
+    // step fired next.
     //
-    // Concretely: after 2 steps fire (counter=2), the current step duration
-    // was calculated with counter=2 (even=long=16537). Without setMode, the
-    // next fireStep increments to 3 (odd) and sets duration to 5512.
-    // The gap after step 2 is 5512 (odd), and after step 3 is 16537 (even).
+    // After 3 NoteOns (steps 0, 1, 2) step 2 (even, long) is running and the
+    // counter is 3 (odd). Without a reset the next step is step 3 and lasts
+    // 5512. setMode() resets the counter to 0, so the next step fired is step 0
+    // of a new pair and lasts 16537 (even timing).
     //
-    // With setMode after 2 steps: counter resets to 0. The current step
-    // duration (16537) remains. When the step fires, fireStep increments to 1
-    // (odd) and sets duration to 5512. Gap after this step is 5512. Then
-    // counter goes to 2 (even), duration = 16537. So the pattern is 5512,
-    // 16537, 5512, 16537 -- the SAME as without reset.
-    //
-    // To see a real difference, call setMode after 3 steps (counter=3).
-    // Without reset: next fireStep increments to 4 (even), duration=16537.
-    //   So gap after step 3 = 16537 (even).
-    // With reset (counter=0): next fireStep increments to 1 (odd),
-    //   duration=5512. So gap after this step = 5512 (odd).
-    //
-    // Observable difference: without reset -> gap=16537, with reset -> gap=5512.
-    // This proves the counter was reset.
+    // R-199 rewrite: the old expectation was the reverse (control 16537, after
+    // setMode 5512), because fireStep re-sized the running step from the
+    // advanced counter, so step k lasted dur(k+1).
 
-    constexpr int32_t expectedOdd = 5512;    // counter=1 (odd) duration
-    constexpr int32_t expectedEven = 16537;  // counter=2/4 (even) duration
+    constexpr int32_t expectedOdd = 5512;    // odd step (short)
+    constexpr int32_t expectedEven = 16537;  // even step (long)
 
-    // --- Run 1: WITHOUT setMode (control) ---
-    {
-        ArpeggiatorCore arp;
+    auto makeArp = [](ArpeggiatorCore& arp) {
         arp.prepare(44100.0, 512);
         arp.setEnabled(true);
         arp.setMode(ArpMode::Up);
@@ -2424,6 +2456,12 @@ TEST_CASE("ArpeggiatorCore: setMode resets swing counter -- next step gets even 
         arp.noteOn(48, 100);
         arp.noteOn(52, 100);
         arp.noteOn(55, 100);
+    };
+
+    // --- Run 1: WITHOUT setMode (control) ---
+    {
+        ArpeggiatorCore arp;
+        makeArp(arp);
 
         BlockContext ctx;
         ctx.sampleRate = 44100.0;
@@ -2436,103 +2474,18 @@ TEST_CASE("ArpeggiatorCore: setMode resets swing counter -- next step gets even 
         auto noteOns = filterNoteOns(events);
         REQUIRE(noteOns.size() >= 5);
 
-        // Gap after step 3 (index 3): noteOn[3]->noteOn[4].
-        // Step 3 fired at counter=3. fireStep increments to 4 (even),
-        // duration = 16537. So gap = 16537.
+        // Gap after step 3 (noteOn[3] -> noteOn[4]) is step 3's own (odd) duration.
         int32_t gapAfterStep3 = noteOns[4].sampleOffset -
                                  noteOns[3].sampleOffset;
         INFO("Control (no setMode): gap after step 3 = " << gapAfterStep3);
-        CHECK(gapAfterStep3 >= expectedEven - 1);
-        CHECK(gapAfterStep3 <= expectedEven + 1);
+        CHECK(gapAfterStep3 >= expectedOdd - 1);
+        CHECK(gapAfterStep3 <= expectedOdd + 1);
     }
 
-    // --- Run 2: WITH setMode after step 3 ---
+    // --- Run 2: setMode while step 2 runs (counter = 3, odd) ---
     {
         ArpeggiatorCore arp;
-        arp.prepare(44100.0, 512);
-        arp.setEnabled(true);
-        arp.setMode(ArpMode::Up);
-        arp.setNoteValue(NoteValue::Eighth, NoteModifier::None);
-        arp.setSwing(50.0f);
-        arp.setGateLength(50.0f);
-        arp.noteOn(48, 100);
-        arp.noteOn(52, 100);
-        arp.noteOn(55, 100);
-
-        BlockContext ctx;
-        ctx.sampleRate = 44100.0;
-        ctx.blockSize = 512;
-        ctx.tempoBPM = 120.0;
-        ctx.isPlaying = true;
-        ctx.transportPositionSamples = 0;
-
-        std::array<ArpEvent, 64> buf;
-        std::vector<ArpEvent> allNoteOns;
-
-        // Advance until 4 NoteOns have fired (steps 0-3 complete).
-        size_t blocksRun = 0;
-        while (allNoteOns.size() < 4 && blocksRun < 200) {
-            size_t count = arp.processBlock(ctx, buf);
-            for (size_t i = 0; i < count; ++i) {
-                if (buf[i].type == ArpEvent::Type::NoteOn) {
-                    ArpEvent evt = buf[i];
-                    evt.sampleOffset +=
-                        static_cast<int32_t>(blocksRun * ctx.blockSize);
-                    allNoteOns.push_back(evt);
-                }
-            }
-            ctx.transportPositionSamples +=
-                static_cast<int64_t>(ctx.blockSize);
-            ++blocksRun;
-        }
-        REQUIRE(allNoteOns.size() >= 4);
-
-        // At this point, swingStepCounter_ = 4 (even). The current step
-        // duration was calculated with counter=4 (even=16537).
-        // WITHOUT reset, the next fireStep increments to 5 (odd), sets 5512.
-        //
-        // Call setMode to reset counter to 0.
-        arp.setMode(ArpMode::Down);
-
-        // Now counter = 0. The current step duration (16537) is still in
-        // effect. When this step fires, fireStep increments to 1 (odd),
-        // sets next duration to 5512. So the gap after the first
-        // post-mode-change NoteOn is 5512 (odd). Without reset, the gap
-        // after step 4 would also be 5512 (counter=5, odd). So the first
-        // gap doesn't distinguish.
-        //
-        // The SECOND gap after the mode change is the telling one:
-        // With reset: counter=1 after first post-change step. Next fires,
-        //   counter goes to 2 (even), duration=16537. Gap = 16537.
-        // Without reset: counter=5 after step 4. Next fires, counter goes
-        //   to 6 (even), duration=16537. Gap = 16537.
-        //
-        // Hmm, this produces the same pattern regardless! The issue is that
-        // the alternating pattern is phase-independent: 0->odd, 1->even,
-        // 2->odd, etc. Whether counter is 0 or 4, the next values are both
-        // odd then even.
-        //
-        // The real difference is when we call setMode at an ODD counter value.
-        // If counter was 3 (odd), the next step fires with counter 3, then
-        // counter becomes 4 (even), duration=16537. Without reset, gap=16537.
-        // With reset (counter=0), next step fires, counter becomes 1 (odd),
-        // duration=5512. Gap=5512. THAT is different.
-
-        // Let me restart with the right approach below.
-    }
-
-    // --- Run 3: setMode at counter=3 (odd), proving the gap changes ---
-    {
-        ArpeggiatorCore arp;
-        arp.prepare(44100.0, 512);
-        arp.setEnabled(true);
-        arp.setMode(ArpMode::Up);
-        arp.setNoteValue(NoteValue::Eighth, NoteModifier::None);
-        arp.setSwing(50.0f);
-        arp.setGateLength(50.0f);
-        arp.noteOn(48, 100);
-        arp.noteOn(52, 100);
-        arp.noteOn(55, 100);
+        makeArp(arp);
 
         BlockContext ctx;
         ctx.sampleRate = 44100.0;
@@ -2545,8 +2498,6 @@ TEST_CASE("ArpeggiatorCore: setMode resets swing counter -- next step gets even 
         std::vector<ArpEvent> allNoteOns;
 
         // Advance until 3 NoteOns have fired (steps 0, 1, 2).
-        // After step 2 fires, swingStepCounter_ = 3 (odd). The current step
-        // duration was calculated with counter=3 (odd=5512).
         size_t blocksRun = 0;
         while (allNoteOns.size() < 3 && blocksRun < 200) {
             size_t count = arp.processBlock(ctx, buf);
@@ -2564,23 +2515,8 @@ TEST_CASE("ArpeggiatorCore: setMode resets swing counter -- next step gets even 
         }
         REQUIRE(allNoteOns.size() >= 3);
 
-        // swingStepCounter_ = 3 (odd). currentStepDuration_ = 5512 (odd).
-        // Without setMode: next step fires after 5512 samples. fireStep
-        //   increments to 4 (even), sets duration=16537. So:
-        //   gap[3->4] = 16537 (LONG).
-        //
-        // Call setMode to reset counter to 0.
+        // Reset the counter to 0 while step 2 runs.
         arp.setMode(ArpMode::Down);
-        //
-        // With reset: counter = 0. currentStepDuration_ = 5512 (unchanged).
-        //   Next step fires after remaining samples of the 5512-sample step.
-        //   fireStep increments to 1 (odd), sets duration=5512 (SHORT).
-        //   So gap from first post-change NoteOn to second = 5512.
-        //
-        // Without reset: gap from step 3 to step 4 = 16537 (LONG).
-        // With reset: gap from first post-change step to second = 5512 (SHORT).
-        //
-        // This is the observable difference.
 
         std::vector<ArpEvent> postChangeNoteOns;
         while (postChangeNoteOns.size() < 2 && blocksRun < 500) {
@@ -2599,23 +2535,16 @@ TEST_CASE("ArpeggiatorCore: setMode resets swing counter -- next step gets even 
         }
         REQUIRE(postChangeNoteOns.size() >= 2);
 
+        // The first post-change step fires with counter 0 and lasts the even
+        // (long) duration. Without the reset it would be step 3 (5512).
         int32_t gapAfterModeChange =
             postChangeNoteOns[1].sampleOffset -
             postChangeNoteOns[0].sampleOffset;
-
-        // With reset: first post-change step fires with counter=0.
-        // fireStep increments to 1 (odd), sets duration=5512.
-        // Gap = 5512 (odd, SHORT).
-        //
-        // WITHOUT reset (counter=3), first gap after step 3 would be
-        // calculated at counter=4 (even) = 16537 (LONG).
-        //
-        // So we expect the gap to be 5512, not 16537. This proves reset.
         INFO("Gap after setMode() (counter reset): " << gapAfterModeChange
-             << ", expected odd (short) = " << expectedOdd
-             << " (NOT even/long = " << expectedEven << ")");
-        CHECK(gapAfterModeChange >= expectedOdd - 1);
-        CHECK(gapAfterModeChange <= expectedOdd + 1);
+             << ", expected even (long) = " << expectedEven
+             << " (NOT odd/short = " << expectedOdd << ")");
+        CHECK(gapAfterModeChange >= expectedEven - 1);
+        CHECK(gapAfterModeChange <= expectedEven + 1);
     }
 }
 
@@ -3833,6 +3762,69 @@ TEST_CASE("GMF-005: ratchet replace with gate>100% emits one NoteOff per NoteOn"
         INFO("pitch 48 note " << i << " sounded for " << durations[i]
              << " samples, expected ~" << reference);
         CHECK(std::abs(durations[i] - reference) <= 2);
+    }
+}
+
+// The single-note path had the same hole (R-067): with one held key every step
+// re-strikes the same pitch, and with gate > 100% the previous instance's
+// pending off fired mid-step (old onset + gate), cutting the new note to
+// gate - stepDuration. A re-struck pitch must be released at the new onset,
+// exactly like the chord and ratchet replace paths.
+TEST_CASE("GMF-005 single note: repeated pitch with gate > 100% is released at the next onset",
+          "[processors][arp][gate]")
+{
+    ArpeggiatorCore arp;
+    BlockContext ctx{};
+    ctx.sampleRate = 44100.0;
+    ctx.blockSize = 512;
+    ctx.tempoBPM = 120.0;
+    ctx.isPlaying = true;
+
+    arp.prepare(ctx.sampleRate, ctx.blockSize);
+    arp.setEnabled(true);
+    arp.setMode(ArpMode::Up);
+    arp.setNoteValue(NoteValue::Eighth, NoteModifier::None);
+    arp.setGateLength(150.0f);
+    arp.setSwing(0.0f);
+
+    arp.noteOn(60, 100);
+
+    // 1/8 at 120 BPM, 44.1 kHz = 11025 samples per step; 180 blocks ~ 8 steps.
+    constexpr int32_t kStep = 11025;
+    const auto events = collectEvents(arp, ctx, 180);
+
+    std::vector<int32_t> onsets;
+    std::vector<int32_t> releases;
+    bool open = false;
+    for (size_t i = 0; i < events.size(); ++i) {
+        const auto& e = events[i];
+        if (e.type == ArpEvent::Type::kSkip) continue;
+        REQUIRE(e.note == 60);
+        if (e.type == ArpEvent::Type::NoteOn) {
+            // Every re-strike is preceded, at the same sample, by the NoteOff
+            // of the instance still sounding: never two overlapping NoteOns.
+            if (!onsets.empty()) {
+                INFO("NoteOn #" << onsets.size() << " at " << e.sampleOffset);
+                REQUIRE_FALSE(open);
+                REQUIRE(!releases.empty());
+                CHECK(releases.back() == e.sampleOffset);
+            }
+            onsets.push_back(e.sampleOffset);
+            open = true;
+        } else if (e.type == ArpEvent::Type::NoteOff) {
+            INFO("NoteOff at " << e.sampleOffset);
+            REQUIRE(open);
+            releases.push_back(e.sampleOffset);
+            open = false;
+        }
+    }
+
+    REQUIRE(onsets.size() >= 6);
+    // Every instance but the last (still sounding at the end of the run) lasts
+    // exactly one step: no NoteOff falls mid-step.
+    for (size_t i = 0; i + 1 < onsets.size(); ++i) {
+        INFO("note " << i << " on at " << onsets[i] << ", off at " << releases[i]);
+        CHECK(releases[i] - onsets[i] == kStep);
     }
 }
 

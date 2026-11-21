@@ -15,7 +15,10 @@
 #include "drain_preset_transfer.h"
 #include "controller/mod_ring_dest_ids.h"
 
+#include <krate/dsp/core/modulation_types.h>
+
 #include <set>
+#include <string>
 
 #include "public.sdk/source/common/memorystream.h"
 #include "base/source/fstreamer.h"
@@ -150,7 +153,7 @@ TEST_CASE("handleModMatrixParamChange handles detail params", "[modmatrix][unit]
     SECTION("Slot 7 detail params work") {
         // Slot 7 Curve: ID 1352
         Ruinae::handleModMatrixParamChange(params, 1352, 0.667);
-        REQUIRE(params.slots[7].curve.load() == 2); // Logarithmic
+        REQUIRE(params.slots[7].curve.load() == 2); // S-Curve
 
         // Slot 7 Bypass: ID 1355
         Ruinae::handleModMatrixParamChange(params, 1355, 1.0);
@@ -285,4 +288,37 @@ TEST_CASE("Voice destination ParamID map covers every destination",
     const std::set<Steinberg::Vst::ParamID> distinct(
         kVoiceDestParamIds.begin(), kVoiceDestParamIds.end());
     CHECK(distinct.size() == kVoiceDestParamIds.size());
+}
+
+// =============================================================================
+// Curve labels name the DSP ModCurve at the same index (R-043, R-081)
+// =============================================================================
+// The processor casts the curve index straight to Krate::DSP::ModCurve, so the
+// parameter strings and the grid's label table must follow the enum order.
+
+TEST_CASE("Mod curve list entries name the DSP ModCurve at the same index",
+          "[modmatrix][params]") {
+    using Krate::DSP::ModCurve;
+    const auto label = [](int i) {
+        return std::u16string(
+            reinterpret_cast<const char16_t*>(Ruinae::kModCurveStrings[i]));
+    };
+
+    REQUIRE(Ruinae::kModCurveCount == 4);
+    REQUIRE(Krate::Plugins::kCurveTypeNames.size() == 4);
+
+    CHECK(label(static_cast<int>(ModCurve::Linear)) == u"Linear");
+    CHECK(label(static_cast<int>(ModCurve::Exponential)) == u"Exponential");
+    CHECK(label(static_cast<int>(ModCurve::SCurve)) == u"S-Curve");
+    CHECK(label(static_cast<int>(ModCurve::Stepped)) == u"Stepped");
+    CHECK(label(2) == u"S-Curve");
+    CHECK(label(3) == u"Stepped");
+
+    const auto& names = Krate::Plugins::kCurveTypeNames;
+    CHECK(std::string(names[static_cast<size_t>(ModCurve::Linear)]) == "Linear");
+    CHECK(std::string(names[static_cast<size_t>(ModCurve::Exponential)]) == "Exponential");
+    CHECK(std::string(names[static_cast<size_t>(ModCurve::SCurve)]) == "S-Curve");
+    CHECK(std::string(names[static_cast<size_t>(ModCurve::Stepped)]) == "Stepped");
+    CHECK(std::string(names[2]) == "S-Curve");
+    CHECK(std::string(names[3]) == "Stepped");
 }

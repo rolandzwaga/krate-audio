@@ -20,6 +20,7 @@
 #include <krate/dsp/primitives/smoother.h> // OnePoleSmoother
 
 #include <algorithm>  // std::clamp
+#include <cstddef>    // size_t
 #include <cstdint>
 
 
@@ -45,7 +46,9 @@ struct VelocityOutput {
 /// Usage pattern (polyphonic context):
 ///   1. prepare(sampleRate) -- once at init or sample rate change
 ///   2. setPitchBend(bipolar) -- when MIDI pitch bend received
-///   3. processPitchBend() -- once per audio block (shared by all voices)
+///   3. processPitchBend(numSamples) -- once per block or sub-block, with the
+///      samples rendered (shared by all voices); processPitchBend() advances
+///      one sample and is for per-sample callers
 ///   4. getFrequency(note) -- per voice per block
 ///   5. mapVelocity(velocity) -- per note-on event
 class NoteProcessor {
@@ -96,15 +99,24 @@ public:
         bendSmoother_.setTarget(bipolar);
     }
 
-    /// Advance the pitch bend smoother by one sample.
-    /// Call once per audio block (shared state for all voices).
+    /// Advance the pitch bend smoother by ONE sample.
+    /// Call once per rendered sample (a per-sample caller). A caller that runs
+    /// once per block must use processPitchBend(numSamples) instead: stepping
+    /// one sample per block makes the bend settle in blocks, not milliseconds.
     /// Updates internal cached bend ratio.
     /// @return Current smoothed pitch bend (bipolar, before range scaling)
     [[nodiscard]] float processPitchBend() noexcept {
-        float smoothedBend = bendSmoother_.process();
-        currentBendSemitones_ = smoothedBend * pitchBendRange_;
-        currentBendRatio_ = semitonesToRatio(currentBendSemitones_);
-        return smoothedBend;
+        return updateBend(bendSmoother_.process());
+    }
+
+    /// Advance the pitch bend smoother by `numSamples` samples (closed form).
+    /// Call once per block or sub-block with the number of samples rendered,
+    /// so the bend settles in the configured time whatever the block size.
+    /// Updates internal cached bend ratio (shared state for all voices).
+    /// @return Current smoothed pitch bend (bipolar, before range scaling)
+    [[nodiscard]] float processPitchBend(size_t numSamples) noexcept {
+        bendSmoother_.advanceSamples(numSamples);
+        return updateBend(bendSmoother_.getCurrentValue());
     }
 
     // =====================================================================
@@ -202,6 +214,13 @@ public:
     }
 
 private:
+    /// Refresh the cached bend from a smoothed bipolar value; returns it.
+    float updateBend(float smoothedBend) noexcept {
+        currentBendSemitones_ = smoothedBend * pitchBendRange_;
+        currentBendRatio_ = semitonesToRatio(currentBendSemitones_);
+        return smoothedBend;
+    }
+
     OnePoleSmoother bendSmoother_;       ///< Smooths bipolar pitch bend input
     float a4Reference_{kA4FrequencyHz};                  ///< A4 tuning reference in Hz [400, 480]
     float pitchBendRange_{2.0f};               ///< Pitch bend range in semitones [0, 24]

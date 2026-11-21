@@ -88,6 +88,9 @@ add_executable(ruinae_tests
     # Arp Performance & Stress Tests (082-presets-polish)
     unit/arp_performance_test.cpp
 
+    # Parameter-apply cost with unchanged envelope curves (ruinae audit R-001)
+    unit/params_apply_performance_test.cpp
+
     # Arp End-to-End Preset Playback Test (082-presets-polish)
     unit/arp_preset_e2e_test.cpp
 

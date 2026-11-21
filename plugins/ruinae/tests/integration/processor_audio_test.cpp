@@ -9,6 +9,7 @@
 
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/catch_approx.hpp>
+#include <catch2/generators/catch_generators.hpp>
 
 #include "processor/processor.h"
 #include "parameters/env_params.h"
@@ -710,11 +711,11 @@ constexpr float kFxDelayMs = 200.0f;
 constexpr int kFxPassBlocks = 48;
 constexpr int kFxNoteOffBlock = 4;
 // Dry note ends at block ~5 (note-off at 4, 5 ms release). The first echo
-// arrives at the 6144-sample latency compensation + 200 ms, i.e. block ~29.
-constexpr int kFxReverbWindowBegin = 10;
-constexpr int kFxReverbWindowEnd = 25;
-constexpr int kFxEchoWindowBegin = 27;
-constexpr int kFxEchoWindowEnd = 42;
+// arrives at 200 ms (8820 samples), i.e. block ~17.
+constexpr int kFxReverbWindowBegin = 7;
+constexpr int kFxReverbWindowEnd = 17;
+constexpr int kFxEchoWindowBegin = 17;
+constexpr int kFxEchoWindowEnd = 32;
 
 struct FxTailLevels {
     float reverbRms = 0.0f; // after the dry note, before the echo arrives
@@ -857,6 +858,198 @@ TEST_CASE("Delay and reverb survive setActive cycle and a delay-on preset load",
     CHECK(after.reverbRms > 0.5f * before.reverbRms);
     CHECK(after.echoRms > 0.5f * before.echoRms);
 
+    processor.setActive(false);
+    processor.terminate();
+}
+
+// =============================================================================
+// R-016 / R-118: a SpectralFreeze patch survives an engine reset
+// =============================================================================
+// setActive(true) and every host preset load reset the engine. The
+// SpectralFreeze oscillator dropped its frozen spectrum on reset and was only
+// frozen again by a sample-rate change, so the patch went silent.
+
+namespace {
+
+constexpr int kFreezeNoteBlocks = 24;
+constexpr int kFreezeReleaseBlocks = 8;
+
+/// Holds one note for kFreezeNoteBlocks blocks, returns the RMS of its second
+/// half, then releases it.
+float playSpectralFreezeNote(Ruinae::Processor& proc) {
+    std::vector<float> outL(kFxBlockSize, 0.0f);
+    std::vector<float> outR(kFxBlockSize, 0.0f);
+    std::vector<float> captured;
+    captured.reserve(static_cast<size_t>(kFreezeNoteBlocks) * kFxBlockSize);
+
+    MockParameterChanges noParams;
+    for (int block = 0; block < kFreezeNoteBlocks; ++block) {
+        MockEventList events;
+        if (block == 0) events.addNoteOn(69, 1.0f);
+        processFxBlock(proc, noParams, events, outL, outR);
+        captured.insert(captured.end(), outL.begin(), outL.end());
+    }
+    for (int block = 0; block < kFreezeReleaseBlocks; ++block) {
+        MockEventList events;
+        if (block == 0) events.addNoteOff(69);
+        processFxBlock(proc, noParams, events, outL, outR);
+    }
+    return windowRms(captured, kFreezeNoteBlocks / 2, kFreezeNoteBlocks);
+}
+
+} // namespace
+
+TEST_CASE("SpectralFreeze patch survives setActive cycle and preset reload",
+          "[integration][lifecycle]") {
+    Ruinae::Processor processor;
+    REQUIRE(processor.initialize(nullptr) == Steinberg::kResultTrue);
+
+    Steinberg::Vst::ProcessSetup setup{};
+    setup.processMode = Steinberg::Vst::kRealtime;
+    setup.symbolicSampleSize = Steinberg::Vst::kSample32;
+    setup.sampleRate = 44100.0;
+    setup.maxSamplesPerBlock = static_cast<Steinberg::int32>(kFxBlockSize);
+    REQUIRE(processor.setupProcessing(setup) == Steinberg::kResultTrue);
+    REQUIRE(processor.setActive(true) == Steinberg::kResultTrue);
+
+    // OSC A = SpectralFreeze (type 8 of 10), mixer fully on OSC A.
+    {
+        MockParamChangesWithData params;
+        params.addChange(Ruinae::kOscATypeId, 8.0 / 9.0);
+        params.addChange(Ruinae::kMixerPositionId, 0.0);
+        params.addChange(Ruinae::kAmpEnvAttackId, Ruinae::envTimeToNormalized(1.0f));
+        params.addChange(Ruinae::kAmpEnvSustainId, 1.0);
+        params.addChange(Ruinae::kAmpEnvReleaseId, Ruinae::envTimeToNormalized(5.0f));
+        MockEventList noEvents;
+        std::vector<float> outL(kFxBlockSize, 0.0f);
+        std::vector<float> outR(kFxBlockSize, 0.0f);
+        processFxBlock(processor, params, noEvents, outL, outR);
+    }
+
+    const float before = playSpectralFreezeNote(processor);
+    INFO("SpectralFreeze note RMS before reset: " << before);
+    REQUIRE(before > 1e-2f);
+
+    SECTION("setActive(false), setupProcessing, setActive(true)") {
+        REQUIRE(processor.setActive(false) == Steinberg::kResultTrue);
+        REQUIRE(processor.setupProcessing(setup) == Steinberg::kResultTrue);
+        REQUIRE(processor.setActive(true) == Steinberg::kResultTrue);
+    }
+
+    SECTION("setState of the same state twice") {
+        const auto bytes = captureProcessorState(processor);
+        REQUIRE_FALSE(bytes.empty());
+        loadProcessorState(processor, bytes);
+        loadProcessorState(processor, bytes);
+    }
+
+    const float after = playSpectralFreezeNote(processor);
+    INFO("SpectralFreeze note RMS after reset: " << after);
+    REQUIRE(after > 0.5f * before);
+
+    processor.setActive(false);
+    processor.terminate();
+}
+
+// =============================================================================
+// R-116: the reported latency matches the measured dry path
+// =============================================================================
+// The effects chain used to delay the delay slot's wet path by 6144 samples
+// while the processor reported 0, so every echo landed 139 ms late. The dry
+// path must start exactly getLatencySamples() after the note, with any delay type.
+
+namespace {
+
+/// Plays one note at sample 0 of the first measured block and returns the
+/// index of the first left output sample above -60 dBFS (or the window
+/// length). The note's first sample is ~0.1 at mix 0.5; the threshold sits
+/// above the Tape delay's wet noise floor (~2e-5), which is not a dry onset.
+size_t dryOnsetSample(Ruinae::Processor& proc) {
+    constexpr int kBlocks = 8;
+    std::vector<float> outL(kFxBlockSize, 0.0f);
+    std::vector<float> outR(kFxBlockSize, 0.0f);
+    MockParameterChanges noParams;
+    for (int block = 0; block < kBlocks; ++block) {
+        MockEventList events;
+        if (block == 0) events.addNoteOn(81, 0.9f);
+        processFxBlock(proc, noParams, events, outL, outR);
+        for (size_t i = 0; i < kFxBlockSize; ++i) {
+            if (std::abs(outL[i]) > 1e-3f) {
+                return static_cast<size_t>(block) * kFxBlockSize + i;
+            }
+        }
+    }
+    return static_cast<size_t>(kBlocks) * kFxBlockSize;
+}
+
+} // namespace
+
+TEST_CASE("Processor_ReportedLatency_MatchesMeasuredDryPath", "[integration][fx][latency]") {
+    const int delayType = GENERATE(-1, 0, 1, 2, 3, 4); // -1 = delay slot off
+    CAPTURE(delayType);
+
+    Ruinae::Processor processor;
+    REQUIRE(processor.initialize(nullptr) == Steinberg::kResultTrue);
+    Steinberg::Vst::ProcessSetup setup{};
+    setup.processMode = Steinberg::Vst::kRealtime;
+    setup.symbolicSampleSize = Steinberg::Vst::kSample32;
+    setup.sampleRate = 44100.0;
+    setup.maxSamplesPerBlock = static_cast<Steinberg::int32>(kFxBlockSize);
+    REQUIRE(processor.setupProcessing(setup) == Steinberg::kResultTrue);
+    REQUIRE(processor.setActive(true) == Steinberg::kResultTrue);
+
+    {
+        MockParamChangesWithData params;
+        params.addChange(Ruinae::kAmpEnvAttackId, 0.0);
+        params.addChange(Ruinae::kAmpEnvSustainId, 1.0);
+        params.addChange(Ruinae::kDelayEnabledId, delayType >= 0 ? 1.0 : 0.0);
+        params.addChange(Ruinae::kDelayTypeId, delayType >= 0 ? delayType / 4.0 : 0.0);
+        params.addChange(Ruinae::kDelaySyncId, 0.0);
+        params.addChange(Ruinae::kDelayTimeId, 249.0 / 4999.0); // 250 ms
+        params.addChange(Ruinae::kDelayFeedbackId, 0.0);
+        params.addChange(Ruinae::kDelayMixId, 0.5);
+        MockEventList noEvents;
+        std::vector<float> outL(kFxBlockSize, 0.0f);
+        std::vector<float> outR(kFxBlockSize, 0.0f);
+        processFxBlock(processor, params, noEvents, outL, outR);
+        MockParameterChanges noParams;
+        // Let the type switch and the slot fade-in finish (pre-warm 250 ms + 30 ms crossfade).
+        for (int block = 0; block < 40; ++block) {
+            processFxBlock(processor, noParams, noEvents, outL, outR);
+        }
+    }
+
+    const size_t onset = dryOnsetSample(processor);
+    const auto reported = static_cast<size_t>(processor.getLatencySamples());
+    INFO("dry onset at sample " << onset << ", reported latency " << reported);
+    // The voice starts within the first block with a 0 ms attack.
+    REQUIRE(onset < kFxBlockSize);
+    REQUIRE(reported == 0);
+
+    // Same note through a processor whose delay slot is off: the dry path is identical.
+    Ruinae::Processor plain;
+    REQUIRE(plain.initialize(nullptr) == Steinberg::kResultTrue);
+    REQUIRE(plain.setupProcessing(setup) == Steinberg::kResultTrue);
+    REQUIRE(plain.setActive(true) == Steinberg::kResultTrue);
+    {
+        MockParamChangesWithData params;
+        params.addChange(Ruinae::kAmpEnvAttackId, 0.0);
+        params.addChange(Ruinae::kAmpEnvSustainId, 1.0);
+        MockEventList noEvents;
+        std::vector<float> outL(kFxBlockSize, 0.0f);
+        std::vector<float> outR(kFxBlockSize, 0.0f);
+        processFxBlock(plain, params, noEvents, outL, outR);
+        MockParameterChanges noParams;
+        for (int block = 0; block < 40; ++block) {
+            processFxBlock(plain, noParams, noEvents, outL, outR);
+        }
+    }
+    const size_t plainOnset = dryOnsetSample(plain);
+    INFO("dry onset with the delay slot off at sample " << plainOnset);
+    REQUIRE(onset - plainOnset == reported);
+
+    plain.setActive(false);
+    plain.terminate();
     processor.setActive(false);
     processor.terminate();
 }

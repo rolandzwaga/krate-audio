@@ -16,12 +16,14 @@
 #include <catch2/catch_approx.hpp>
 
 #include "processor/processor.h"
+#include "controller/controller.h"
 #include "plugin_ids.h"
 #include "drain_preset_transfer.h"
 
 #include "base/source/fstreamer.h"
 #include "public.sdk/source/common/memorystream.h"
 #include "public.sdk/source/vst/vstparameters.h"
+#include "public.sdk/source/vst/hosting/hostclasses.h"
 #include "pluginterfaces/vst/ivstevents.h"
 #include "pluginterfaces/vst/ivstparameterchanges.h"
 #include "pluginterfaces/vst/ivstprocesscontext.h"
@@ -31,6 +33,7 @@
 #include <cmath>
 #include <map>
 #include <set>
+#include <string>
 #include <vector>
 #include "vst_param_changes.h"
 #include "vst_event_list.h"
@@ -815,9 +818,10 @@ TEST_CASE("ArpIntegration_DisableWhilePlaying_NoStuckNotes",
 //
 // Enable arp with latch mode Hold, send notes, release keys (latch preserves
 // them), process blocks with transport playing. Then stop transport -- the
-// processor calls arpCore_.reset() which clears timing and sends note-offs for
-// sounding notes, but preserves the held-note/latch buffer. When transport
-// restarts, the arp should resume producing audio from the latched notes.
+// processor passes the stopped transport to the arp core (it does not reset the
+// core; a reset would send no note-offs), and the held-note/latch buffer is
+// preserved. When transport restarts, the arp should resume producing audio
+// from the latched notes.
 TEST_CASE("ArpIntegration_TransportStop_PreservesLatch", "[arp][integration][transition]") {
     // In a DAW host (kPlaying reported), transport stop causes the arp to
     // pause, but latched notes are preserved. When transport restarts, the
@@ -1066,6 +1070,125 @@ TEST_CASE("ArpIntegration_LatchedDisable_NoStuckNotes", "[arp][integration][stuc
     REQUIRE(blocks > 0);
     REQUIRE(r.nextBlocksSilent(10));
     REQUIRE(r.tally.unbalancedPitches() == 0);
+}
+
+namespace {
+
+/// Exposes the preset browser's load path (the PresetManager's load provider).
+class ArpBrowserLoadController : public Ruinae::Controller {
+public:
+    using Ruinae::Controller::loadComponentStateWithNotify;
+};
+
+/// Load `stream` into `processor` through a connected controller's preset
+/// browser path, as the PresetManager does (R-196).
+void browserLoad(Ruinae::Processor& processor, Steinberg::IBStream* stream, bool arpOnly) {
+    Steinberg::Vst::HostApplication hostApp;
+    ArpBrowserLoadController controller;
+    REQUIRE(controller.initialize(&hostApp) == Steinberg::kResultOk);
+    REQUIRE(controller.connect(&processor) == Steinberg::kResultOk);
+    REQUIRE(controller.loadComponentStateWithNotify(stream, arpOnly));
+    controller.disconnect(&processor);
+    controller.terminate();
+}
+
+} // anonymous namespace
+
+// R-070, R-136: a preset load, a host reconfigure (setActive(false) ->
+// setupProcessing -> setActive(true)) and a plain deactivate/activate cycle all
+// reset the arp core, which forgets the notes it put on the MIDI output. The
+// next process() must send their NoteOffs, or they hang downstream. R-196: a
+// preset-browser load, full or arp-only, is a preset load too.
+TEST_CASE("ArpMidiOut_ResetPaths_BalanceNoteOffs", "[arp][integration][stuck-notes]") {
+    StuckNoteRig r;
+    {
+        ArpTestParamChanges params;
+        params.addChange(Ruinae::kArpOperatingModeId, 1.0 / 3.0); // MIDI
+        params.addChange(Ruinae::kArpGateLengthId, 1.0);          // 200 %: always mid-gate
+        params.addChange(Ruinae::kArpMidiOutId, 1.0);
+        r.blockWithParams(params);
+    }
+
+    r.f.events.addNoteOn(60, 0.8f);
+    r.f.events.addNoteOn(64, 0.8f);
+    r.f.events.addNoteOn(67, 0.8f);
+    r.block();
+    r.f.clearEvents();
+
+    REQUIRE(r.runUntilNextStepPlusTwoBlocks());
+
+    std::array<int, 128> openBefore{};
+    int openPitches = 0;
+    for (size_t p = 0; p < 128; ++p) {
+        openBefore[p] = r.tally.on[p] - r.tally.off[p];
+        if (openBefore[p] > 0) ++openPitches;
+    }
+    REQUIRE(openPitches > 0);
+
+    SECTION("setState of another arp preset") {
+        // Another MIDI-mode arp preset (mode Down): the mode does not change,
+        // so no operating-mode flush can release the notes by accident.
+        Steinberg::IPtr<Steinberg::MemoryStream> stream;
+        {
+            ArpIntegrationFixture other;
+            ArpTestParamChanges params;
+            params.addChange(Ruinae::kArpOperatingModeId, 1.0 / 3.0); // MIDI
+            params.addChange(Ruinae::kArpModeId, 1.0 / 9.0);          // Down
+            params.addChange(Ruinae::kArpMidiOutId, 1.0);
+            other.processBlockWithParams(params);
+            stream = Steinberg::owned(new Steinberg::MemoryStream());
+            REQUIRE(other.processor.getState(stream) == Steinberg::kResultTrue);
+        }
+        stream->seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
+        REQUIRE(r.f.processor.setState(stream) == Steinberg::kResultTrue);
+    }
+
+    SECTION("setActive(false), setupProcessing, setActive(true)") {
+        REQUIRE(r.f.processor.setActive(false) == Steinberg::kResultTrue);
+        Steinberg::Vst::ProcessSetup setup{};
+        setup.processMode = Steinberg::Vst::kRealtime;
+        setup.symbolicSampleSize = Steinberg::Vst::kSample32;
+        setup.sampleRate = 44100.0;
+        setup.maxSamplesPerBlock = static_cast<Steinberg::int32>(ArpIntegrationFixture::kBlockSize);
+        REQUIRE(r.f.processor.setupProcessing(setup) == Steinberg::kResultTrue);
+        REQUIRE(r.f.processor.setActive(true) == Steinberg::kResultTrue);
+    }
+
+    SECTION("setActive(false), setActive(true)") {
+        REQUIRE(r.f.processor.setActive(false) == Steinberg::kResultTrue);
+        REQUIRE(r.f.processor.setActive(true) == Steinberg::kResultTrue);
+    }
+
+    // Browser loads of another MIDI-mode arp preset (mode Down), through the
+    // controller connected to the processor: a full preset and an arp-only one.
+    for (const bool arpOnly : {false, true}) {
+        DYNAMIC_SECTION("browser load of another MIDI-mode arp preset, arpOnly " << arpOnly) {
+            Steinberg::IPtr<Steinberg::MemoryStream> stream;
+            {
+                ArpIntegrationFixture other;
+                ArpTestParamChanges params;
+                params.addChange(Ruinae::kArpOperatingModeId, 1.0 / 3.0); // MIDI
+                params.addChange(Ruinae::kArpModeId, 1.0 / 9.0);          // Down
+                params.addChange(Ruinae::kArpMidiOutId, 1.0);
+                other.processBlockWithParams(params);
+                stream = Steinberg::owned(new Steinberg::MemoryStream());
+                REQUIRE(other.processor.getState(stream) == Steinberg::kResultTrue);
+            }
+            stream->seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
+            browserLoad(r.f.processor, stream, arpOnly);
+        }
+    }
+
+    // The very next block carries a NoteOff for every open pitch.
+    MidiOutTally next;
+    r.f.processBlock();
+    next.collect(r.out);
+    for (size_t p = 0; p < 128; ++p) {
+        if (openBefore[p] <= 0) continue;
+        INFO("pitch " << p << ": open " << openBefore[p] << ", NoteOffs in the next block "
+                      << next.off[p]);
+        CHECK(next.off[p] >= openBefore[p]);
+    }
 }
 
 // =============================================================================
@@ -4217,4 +4340,154 @@ TEST_CASE("ArpCore_PresetChange_AllNoteOnsHaveMatchingNoteOffs",
         }
     }
     CHECK(totalUnmatched == 0);
+}
+
+// =============================================================================
+// R-142: the Dice trigger survives a 1.0-then-0.0 pair in one block
+// =============================================================================
+// A click on the Dice button can reach the processor as two points in one
+// queue, 1.0 then 0.0 (the editor's edit and a reset). Reading only the last
+// point dropped the trigger, so Dice did nothing. With Spice at 1.0 the dice
+// overlay changes the arp's velocities, so the MIDI-out note sequence of a
+// diced run differs from an undiced one.
+TEST_CASE("ArpDice_TriggerSurvivesOnOffPairInOneBlock", "[arp][params]") {
+    using NoteSeq = std::vector<std::pair<int, float>>;
+
+    // `dicePoints` are the points of the kArpDiceTriggerId queue delivered in
+    // one block (empty = no queue at all).
+    auto render = [](const std::vector<double>& dicePoints) {
+        ArpIntegrationFixture f;
+        ArpTestEventList out;
+        f.data.outputEvents = &out;
+
+        f.enableArp();
+        {
+            ArpTestParamChanges params;
+            params.addChange(Ruinae::kArpMidiOutId, 1.0);
+            params.addChange(Ruinae::kArpSpiceId, 1.0);
+            f.processBlockWithParams(params);
+        }
+        {
+            ArpOutputParamChanges dice;
+            if (!dicePoints.empty()) {
+                Steinberg::int32 index = 0;
+                auto* queue = dice.addParameterData(Ruinae::kArpDiceTriggerId, index);
+                for (const double v : dicePoints) queue->addPoint(0, v, index);
+            }
+            f.data.inputParameterChanges = &dice;
+            f.processBlock();
+            f.data.inputParameterChanges = &f.emptyParams;
+        }
+        out.clear();
+
+        f.events.addNoteOn(60, 0.8f);
+        f.events.addNoteOn(64, 0.8f);
+        f.events.addNoteOn(67, 0.8f);
+
+        // One bar at 120 BPM is 2 s, about 173 blocks of 512.
+        NoteSeq seq;
+        auto collect = [&] {
+            for (Steinberg::int32 i = 0; i < out.getEventCount(); ++i) {
+                Steinberg::Vst::Event e{};
+                if (out.getEvent(i, e) != Steinberg::kResultTrue) continue;
+                if (e.type == Steinberg::Vst::Event::kNoteOnEvent && e.noteOn.velocity > 0.0f)
+                    seq.emplace_back(e.noteOn.pitch, e.noteOn.velocity);
+            }
+            out.clear();
+        };
+        f.processBlock();
+        f.clearEvents();
+        collect();
+        for (int b = 0; b < 180; ++b) {
+            f.processBlock();
+            collect();
+        }
+        return seq;
+    };
+
+    const NoteSeq baseline = render({});
+    const NoteSeq singleOn = render({1.0});
+    const NoteSeq onOffPair = render({1.0, 0.0});
+
+    REQUIRE(baseline.size() >= 4);
+    // Positive control: a lone 1.0 dices, so the test can see a dice.
+    REQUIRE(singleOn != baseline);
+    // The 1.0-then-0.0 pair in one block must dice exactly like the lone 1.0.
+    REQUIRE(onOffPair != baseline);
+    CHECK(onOffPair == singleOn);
+}
+
+// =============================================================================
+// R-068: Retrigger Beat without host musical time
+// =============================================================================
+// Without kProjectTimeMusicValid the arp context's transport position stayed
+// at 0, so Retrigger Beat found a bar boundary at offset 0 of every block and
+// reset the pattern each block: the arp repeated its first note (60 60 60 ...).
+TEST_CASE("ArpIntegration_RetriggerBeat_WithoutPpq_StillWalksThePattern",
+          "[arp][integration]") {
+    ArpIntegrationFixture f;
+    ArpTestEventList out;
+    f.data.outputEvents = &out;
+
+    SECTION("context with kPlaying | kTempoValid and no musical position") {
+        f.processContext.state = Steinberg::Vst::ProcessContext::kPlaying
+                               | Steinberg::Vst::ProcessContext::kTempoValid;
+    }
+    SECTION("null processContext") {
+        f.data.processContext = nullptr;
+    }
+
+    {
+        ArpTestParamChanges params;
+        params.addChange(Ruinae::kArpOperatingModeId, 1.0 / 3.0);  // MIDI
+        params.addChange(Ruinae::kArpModeId, 0.0);                 // Up
+        params.addChange(Ruinae::kArpTempoSyncId, 1.0);
+        params.addChange(Ruinae::kArpNoteValueId,
+                         7.0 / static_cast<double>(Krate::DSP::kNoteValueDropdownCount - 1));  // 1/16
+        params.addChange(Ruinae::kArpRetriggerId, 1.0);            // Beat
+        params.addChange(Ruinae::kArpMidiOutId, 1.0);
+        f.processBlockWithParams(params);
+    }
+    out.clear();
+
+    std::vector<int> pitches;
+    auto collect = [&] {
+        for (Steinberg::int32 i = 0; i < out.getEventCount(); ++i) {
+            Steinberg::Vst::Event e{};
+            if (out.getEvent(i, e) != Steinberg::kResultTrue) continue;
+            if (e.type == Steinberg::Vst::Event::kNoteOnEvent && e.noteOn.velocity > 0.0f)
+                pitches.push_back(e.noteOn.pitch);
+        }
+        out.clear();
+    };
+
+    f.events.addNoteOn(60, 0.8f);
+    f.events.addNoteOn(64, 0.8f);
+    f.events.addNoteOn(67, 0.8f);
+    f.processBlock();
+    f.clearEvents();
+    collect();
+
+    // 2 s at 44.1 kHz in blocks of 512.
+    const int blocks = static_cast<int>(2.0 * 44100.0 / static_cast<double>(f.kBlockSize));
+    for (int b = 1; b < blocks; ++b) {
+        f.processBlock();
+        collect();
+    }
+
+    std::string seqText;
+    for (const int p : pitches) seqText += std::to_string(p) + " ";
+    INFO("NoteOns: " << seqText);
+
+    const std::set<int> distinct(pitches.begin(), pitches.end());
+    REQUIRE(distinct.size() > 1);
+
+    // 1/16 at 120 BPM: 16 steps per 2 s bar. The first 12 all fall inside the
+    // first bar, so no Beat retrigger may interrupt Up over 60 64 67.
+    REQUIRE(pitches.size() >= 12);
+    constexpr std::array<int, 3> kUp{60, 64, 67};
+    for (size_t i = 0; i < 12; ++i) {
+        INFO("step " << i);
+        CHECK(pitches[i] == kUp[i % 3]);
+    }
 }

@@ -313,3 +313,28 @@ TEST_CASE("WindowType::BlackmanHarris enum compiles and dispatches via generate(
     // Center should be near 1.0
     REQUIRE(window[256] == Approx(1.0f).margin(0.01f));
 }
+
+TEST_CASE("SqrtHann squares to the periodic Hann and is COLA squared at 50% overlap",
+          "[window][sqrthann]") {
+    const auto sqrtHann = Window::generate(WindowType::SqrtHann, kTestWindowSize);
+    const auto hann = Window::generate(WindowType::Hann, kTestWindowSize);
+    REQUIRE(sqrtHann.size() == kTestWindowSize);
+
+    std::vector<float> squared(kTestWindowSize);
+    float maxErr = 0.0f;
+    float sum = 0.0f;
+    for (size_t n = 0; n < kTestWindowSize; ++n) {
+        REQUIRE(sqrtHann[n] >= 0.0f);
+        squared[n] = sqrtHann[n] * sqrtHann[n];
+        maxErr = std::max(maxErr, std::abs(squared[n] - hann[n]));
+        sum += sqrtHann[n];
+    }
+    INFO("max |sqrtHann^2 - Hann| = " << maxErr);
+    REQUIRE(maxErr < 1e-6f);
+    REQUIRE(sqrtHann[0] == 0.0f);
+    REQUIRE(sqrtHann[kTestWindowSize / 2] == Approx(1.0f).margin(1e-6f));
+    // Analysis x synthesis = Hann, which overlap-adds to a constant at 50 %
+    REQUIRE(Window::verifyCOLA(squared.data(), squared.size(), squared.size() / 2));
+    REQUIRE(sum / static_cast<float>(kTestWindowSize)
+            == Approx(Window::coherentGain(WindowType::SqrtHann)).margin(1e-4f));
+}

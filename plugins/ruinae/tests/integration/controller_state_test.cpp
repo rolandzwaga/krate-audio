@@ -290,10 +290,11 @@ LegacyStateLayout layoutOf(std::vector<char>& v8) {
 /// Arp pack tail of a current state: chord lane (length + 32), inversion lane
 /// (length + 32) and voicing mode are int32s written from version 4; the eight
 /// lane speeds are floats written from version 8. After the arp pack, the
-/// Voice LFO rate (float) and shape (int32) written from version 9 end the state.
+/// Voice LFO rate (float) and shape (int32) and the Velocity > Amp amount
+/// (float), written from version 9, end the state.
 constexpr Steinberg::int64 kArpLaneSpeedBytes = 8 * 4;
 constexpr Steinberg::int64 kArpChordBlockBytes = (1 + 32 + 1 + 32 + 1) * 4;
-constexpr Steinberg::int64 kVoiceLfoBytes = 4 + 4;
+constexpr Steinberg::int64 kV9TailBytes = 4 + 4 + 4;
 
 /// A genuine older state: the current bytes minus every field `version` never
 /// wrote, with the version patched. v5 also carries a marker-2 trance-gate pack
@@ -301,8 +302,8 @@ constexpr Steinberg::int64 kVoiceLfoBytes = 4 + 4;
 std::vector<char> legacyStateFrom(std::vector<char> v8, Steinberg::int32 version) {
     const LegacyStateLayout l = layoutOf(v8);
     std::vector<std::pair<Steinberg::int64, Steinberg::int64>> cut;  // [begin, end)
-    const Steinberg::int64 arpEnd = l.total - kVoiceLfoBytes;
-    cut.emplace_back(arpEnd, l.total);                               // voice LFO (v9)
+    const Steinberg::int64 arpEnd = l.total - kV9TailBytes;
+    cut.emplace_back(arpEnd, l.total);                               // voice LFO, Velocity > Amp (v9)
     cut.emplace_back(arpEnd - kArpLaneSpeedBytes, arpEnd);           // lane speeds (v8)
     if (version < 7)
         cut.emplace_back(l.flangerStart, l.chorusEnd);               // flanger (v6), chorus (v7)
@@ -508,7 +509,7 @@ TEST_CASE("Legacy state loads identical values via setState and via the browser 
         INFO(name << " processor");
         for (size_t i = 0; i < 8; ++i) {
             float speed = 0.0f;
-            std::memcpy(&speed, bytes->data() + bytes->size() - kVoiceLfoBytes - kArpLaneSpeedBytes + 4 * i,
+            std::memcpy(&speed, bytes->data() + bytes->size() - kV9TailBytes - kArpLaneSpeedBytes + 4 * i,
                         sizeof(speed));
             CHECK(speed == 1.0f);
         }
@@ -522,10 +523,17 @@ TEST_CASE("Legacy state loads identical values via setState and via the browser 
 
     // The legacy file was cut from a fresh instance: every field it carries is a
     // default and every field it lacks must load as one, so the host path ends
-    // in a fresh instance's state, byte for byte.
+    // in a fresh instance's state, byte for byte. The one exception is the
+    // Velocity > Amp amount that ends the state: a pre-v9 state loads 0 (its
+    // sound: velocity never reached the VCA), not the registered default 1.
+    std::vector<char> expectedA = defaultBytes;
+    const float preV9VelocityAmount = 0.0f;
+    std::memcpy(expectedA.data() + expectedA.size() - sizeof(float), &preV9VelocityAmount, sizeof(float));
+    for (auto* ctrl : {static_cast<Ruinae::Controller*>(ctrlA), static_cast<Ruinae::Controller*>(ctrlB)})
+        CHECK(ctrl->getParamNormalized(Ruinae::kAmpEnvVelocityAmountId) == 0.0);
     INFO("first byte differing from a fresh instance (host path): "
-         << firstDifference(bytesA, defaultBytes) << " of " << bytesA.size());
-    CHECK(bytesA == defaultBytes);
+         << firstDifference(bytesA, expectedA) << " of " << bytesA.size());
+    CHECK(bytesA == expectedA);
 
     // The browser path does not depend on what was loaded before: byte for byte
     // what the same browser load gives a fresh pair.

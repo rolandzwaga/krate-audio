@@ -77,7 +77,7 @@ struct ModRoute {
     uint8_t source = 0;
     ModDestination destination = ModDestination::FilterCutoff;
     float amount = 0.0f;           // [-1.0, +1.0] bipolar
-    uint8_t curve = 0;             // 0=Linear, 1=Exponential, 2=Logarithmic, 3=S-Curve
+    uint8_t curve = 0;             // Krate::DSP::ModCurve: 0=Linear, 1=Exponential, 2=S-Curve, 3=Stepped
     float smoothMs = 0.0f;         // 0-100ms
     uint8_t scale = 2;             // 0=x0.25, 1=x0.5, 2=x1, 3=x2, 4=x4
     bool bypass = false;
@@ -113,8 +113,8 @@ inline constexpr int kMaxVoiceRoutes = 16;
 inline constexpr std::array<const char*, 4> kCurveTypeNames = {{
     "Linear",
     "Exponential",
-    "Logarithmic",
     "S-Curve",
+    "Stepped",
 }};
 
 // Scale multiplier names for StringListParameter (FR-018)

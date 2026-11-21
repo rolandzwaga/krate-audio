@@ -277,13 +277,13 @@ public:
         if (lfo1Unipolar_) {
             lfo1Output = (lfo1Output + 1.0f) * 0.5f;
         }
-        lfo1CurrentOutput_ = lfo1Output;
+        lfo1CurrentOutput_ = lfo1Output * lfo1Depth_;
 
         float lfo2Output = lfo2LastValue_;
         if (lfo2Unipolar_) {
             lfo2Output = (lfo2Output + 1.0f) * 0.5f;
         }
-        lfo2CurrentOutput_ = lfo2Output;
+        lfo2CurrentOutput_ = lfo2Output * lfo2Depth_;
 
         // Evaluate all routings
         evaluateRoutings(numSamples);
@@ -359,12 +359,19 @@ public:
         if (index >= kMaxModRoutings) {
             return;
         }
+        // A source outside the enum (a damaged preset) is stored as an inactive
+        // None route: it indexed sourceActive_ out of bounds (R-003).
+        ModRouting accepted = routing;
+        if (static_cast<size_t>(accepted.source) >= kModSourceCount) {
+            accepted.source = ModSource::None;
+            accepted.active = false;
+        }
         const ModRouting& old = routings_[index];
-        const bool sameRoute = old.active && routing.active
-                               && old.source == routing.source
-                               && old.destParamId == routing.destParamId
-                               && old.curve == routing.curve;
-        routings_[index] = routing;
+        const bool sameRoute = old.active && accepted.active
+                               && old.source == accepted.source
+                               && old.destParamId == accepted.destParamId
+                               && old.curve == accepted.curve;
+        routings_[index] = accepted;
         if (sameRoute) {
             // Amount change on existing route: smooth transition
             amountSmoothers_[index].setTarget(routing.amount);
@@ -436,6 +443,8 @@ public:
         lfo1_.setNoteValue(value, modifier);
     }
     void setLFO1Unipolar(bool enabled) noexcept { lfo1Unipolar_ = enabled; }
+    /// @brief Scale of LFO 1's output, after the unipolar mapping. [0, 1], default 1.
+    void setLFO1Depth(float depth) noexcept { setDepth(lfo1Depth_, depth); }
     void setLFO1Retrigger(bool enabled) noexcept { lfo1_.setRetriggerEnabled(enabled); }
 
     void setLFO1FadeIn(float ms) noexcept { lfo1_.setFadeInTime(ms); }
@@ -454,6 +463,8 @@ public:
         lfo2_.setNoteValue(value, modifier);
     }
     void setLFO2Unipolar(bool enabled) noexcept { lfo2Unipolar_ = enabled; }
+    /// @brief Scale of LFO 2's output, after the unipolar mapping. [0, 1], default 1.
+    void setLFO2Depth(float depth) noexcept { setDepth(lfo2Depth_, depth); }
     void setLFO2Retrigger(bool enabled) noexcept { lfo2_.setRetriggerEnabled(enabled); }
 
     void setLFO2FadeIn(float ms) noexcept { lfo2_.setFadeInTime(ms); }
@@ -521,6 +532,8 @@ public:
     void setChaosNoteValue(NoteValue value, NoteModifier modifier = NoteModifier::None) noexcept {
         chaos_.setNoteValue(value, modifier);
     }
+    /// @brief Scale of the Chaos source's output. [0, 1], default 1.
+    void setChaosDepth(float depth) noexcept { setDepth(chaosDepth_, depth); }
 
     // =========================================================================
     // Sample & Hold Parameters (FR-036 to FR-040)
@@ -676,12 +689,20 @@ private:
     // Internal Methods
     // =========================================================================
 
+    /// @brief Store a source depth clamped to [0, 1]; a non-finite value keeps the previous one.
+    static void setDepth(float& target, float depth) noexcept {
+        if (detail::isFinite(depth)) {
+            target = std::clamp(depth, 0.0f, 1.0f);
+        }
+    }
+
     /// @brief Update flags indicating which sources have active routings.
     void updateActiveSourceFlags() noexcept {
         sourceActive_.fill(false);
         for (const auto& r : routings_) {
-            if (r.active && r.source != ModSource::None) {
-                sourceActive_[static_cast<size_t>(r.source)] = true;
+            const auto src = static_cast<size_t>(r.source);
+            if (r.active && r.source != ModSource::None && src < kModSourceCount) {
+                sourceActive_[src] = true;
             }
         }
     }
@@ -709,7 +730,7 @@ private:
             case ModSource::Macro4:
                 return getMacroOutput(3);
             case ModSource::Chaos:
-                return chaos_.getCurrentValue();
+                return chaos_.getCurrentValue() * chaosDepth_;
             case ModSource::Rungler:
                 return rungler_.getCurrentValue();
             case ModSource::SampleHold:
@@ -867,6 +888,11 @@ private:
     // LFO unipolar flags
     bool lfo1Unipolar_ = false;
     bool lfo2Unipolar_ = false;
+
+    // Source depths (scale of each source's output, [0, 1])
+    float lfo1Depth_ = 1.0f;
+    float lfo2Depth_ = 1.0f;
+    float chaosDepth_ = 1.0f;
 
     // Envelope follower configuration
     EnvFollowerSourceType envFollowerSourceType_ = EnvFollowerSourceType::InputSum;

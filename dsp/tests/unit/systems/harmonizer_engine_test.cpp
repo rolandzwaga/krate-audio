@@ -291,6 +291,75 @@ static void setupChromaticEngine(Krate::DSP::HarmonizerEngine& engine,
     engine.setWetLevel(0.0f);     // Wet at unity
 }
 
+// processWetOnly() is process() without the dry term: its wet bus plus the
+// reported per-sample dry gain times the input equals process()'s output, also
+// while the Dry Level ramps (a caller adds its own stereo dry, Ruinae R-175).
+TEST_CASE("HarmonizerEngine processWetOnly plus dry gain equals process",
+          "[systems][harmonizer]") {
+    constexpr double kSR = 44100.0;
+    constexpr std::size_t kBlock = 512;
+    constexpr std::size_t kBlocks = 20;
+
+    auto configure = [&](Krate::DSP::HarmonizerEngine& engine) {
+        engine.prepare(kSR, kBlock);
+        engine.setHarmonyMode(Krate::DSP::HarmonyMode::Chromatic);
+        engine.setPitchShiftMode(Krate::DSP::PitchMode::Simple);
+        engine.setNumVoices(2);
+        engine.setVoiceInterval(0, 7);
+        engine.setVoiceInterval(1, -5);
+        engine.setVoicePan(0, -0.5f);
+        engine.setVoicePan(1, 0.7f);
+        engine.setDryLevel(-6.0f);
+        engine.setWetLevel(-3.0f);
+        engine.snapParameters();
+    };
+    Krate::DSP::HarmonizerEngine full;
+    Krate::DSP::HarmonizerEngine wetOnly;
+    configure(full);
+    configure(wetOnly);
+
+    std::vector<float> input(kBlock);
+    std::vector<float> fullL(kBlock), fullR(kBlock);
+    std::vector<float> wetL(kBlock), wetR(kBlock), dryGain(kBlock);
+    float maxErr = 0.0f;
+    float maxDryGain = 0.0f;
+    for (std::size_t b = 0; b < kBlocks; ++b) {
+        for (std::size_t i = 0; i < kBlock; ++i) {
+            const auto n = static_cast<float>(b * kBlock + i);
+            input[i] = 0.5f * std::sin(2.0f * 3.14159265f * 440.0f * n /
+                                       static_cast<float>(kSR));
+        }
+        if (b == kBlocks / 2) {  // a Dry Level step mid-run: the gain ramps
+            full.setDryLevel(0.0f);
+            wetOnly.setDryLevel(0.0f);
+        }
+        full.process(input.data(), fullL.data(), fullR.data(), kBlock);
+        wetOnly.processWetOnly(input.data(), wetL.data(), wetR.data(),
+                               dryGain.data(), kBlock);
+        for (std::size_t i = 0; i < kBlock; ++i) {
+            maxErr = std::max(maxErr,
+                std::abs(wetL[i] + dryGain[i] * input[i] - fullL[i]));
+            maxErr = std::max(maxErr,
+                std::abs(wetR[i] + dryGain[i] * input[i] - fullR[i]));
+            maxDryGain = std::max(maxDryGain, dryGain[i]);
+        }
+    }
+    INFO("max |wet + dryGain * input - process| " << maxErr
+         << ", final dry gain " << dryGain[kBlock - 1]);
+    REQUIRE(maxErr < 1e-5f);
+    REQUIRE(dryGain[kBlock - 1] == Catch::Approx(1.0f).margin(1e-3));
+    REQUIRE(maxDryGain <= 1.0f + 1e-6f);
+
+    SECTION("before prepare() the dry gain is zero-filled too") {
+        Krate::DSP::HarmonizerEngine unprepared;
+        std::vector<float> gains(64, 999.0f);
+        std::vector<float> l(64, 999.0f), r(64, 999.0f);
+        unprepared.processWetOnly(input.data(), l.data(), r.data(), gains.data(), 64);
+        REQUIRE(std::all_of(gains.begin(), gains.end(), [](float g) { return g == 0.0f; }));
+        REQUIRE(std::all_of(l.begin(), l.end(), [](float s) { return s == 0.0f; }));
+    }
+}
+
 // T018: SC-001 -- Chromatic mode, 1 voice at +7 semitones, 440Hz input,
 // output peak within 2Hz of 659.3Hz
 TEST_CASE("HarmonizerEngine SC-001 chromatic +7 semitones 440Hz produces 659Hz",

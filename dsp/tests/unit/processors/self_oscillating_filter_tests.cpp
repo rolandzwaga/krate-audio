@@ -1804,3 +1804,85 @@ TEST_CASE("SelfOscillatingFilter strict frequency accuracy",
         }
     }
 }
+
+// T1.17: between resonance 0.9 (where the kick and the watchdog arm) and the
+// point where the ladder sustains on its own (~0.93, and higher near the top
+// of the range), the filter cannot keep ringing. The energy watchdog keeps
+// re-seeding it there, so its re-seed must stay inaudible: Ruinae's Q 12
+// (resonance 0.91) was silent before the watchdog existed. A 1e-2 re-seed
+// measured a -44 dBFS ping train at 15 kHz here.
+TEST_CASE("SelfOscillatingFilter watchdog re-seed is inaudible below the oscillation threshold",
+          "[processors][self-osc]") {
+    for (const float fc : {880.0f, 5000.0f, 15000.0f}) {
+        SECTION("cutoff " + std::to_string(static_cast<int>(fc))) {
+            SelfOscillatingFilter filter;
+            filter.prepare(kTestSampleRate, kTestBlockSize);
+            filter.setResonance(0.91f);
+            filter.setFrequency(fc);
+            float latePeak = 0.0f;
+            for (int n = 0; n < 88200; ++n) {  // 2 s
+                const float y = filter.process(0.0f);
+                if (n >= 66150) latePeak = std::max(latePeak, std::abs(y));
+            }
+            INFO("cutoff " << fc << " Hz: peak in [1.5 s, 2 s) = " << latePeak);
+            REQUIRE(latePeak < 1e-4f);  // -80 dBFS
+        }
+    }
+}
+
+// R-020 / R-091 (Ruinae audit T1.17): a fast per-sample cutoff sweep, as a
+// synth voice's filter envelope drives it, must neither reset the ladder on
+// every sample (a train of full-scale kicks) nor leave the filter silent once
+// the sweep has passed the top of the range, where the ladder stops
+// oscillating and nothing re-excited it.
+TEST_CASE("SelfOscillatingFilter keeps oscillating through a fast cutoff sweep",
+          "[processors][self-osc]") {
+    for (const float resonance : {0.95f, 1.0f}) {
+        SECTION("resonance " + std::to_string(resonance)) {
+            SelfOscillatingFilter filter;
+            filter.prepare(kTestSampleRate, kTestBlockSize);
+            filter.setResonance(resonance);
+            filter.setFrequency(1000.0f);
+
+            // Envelope: 0.1 ms linear attack, then an exponential decay that
+            // reaches -60 dB at 400 ms. Cutoff = 1000 Hz * 2^(48 st * env / 12).
+            const size_t attackSamples =
+                static_cast<size_t>(0.0001 * kTestSampleRate) + 1;
+            const double decayTau = 0.4 / std::log(1000.0);
+            const size_t sweepEnd = static_cast<size_t>(0.4 * kTestSampleRate);
+            const size_t numSamples = static_cast<size_t>(kTestSampleRate);  // 1 s
+
+            std::vector<float> output(numSamples);
+            for (size_t n = 0; n < numSamples; ++n) {
+                double env = 0.0;
+                if (n < attackSamples) {
+                    env = static_cast<double>(n + 1) / static_cast<double>(attackSamples);
+                } else {
+                    const double t = static_cast<double>(n - attackSamples) / kTestSampleRate;
+                    env = std::exp(-t / decayTau);
+                }
+                const float cutoff =
+                    1000.0f * static_cast<float>(std::exp2(48.0 * env / 12.0));
+                filter.setCutoffModulated(cutoff);
+                output[n] = filter.process(0.0f);
+            }
+
+            float maxStep = 0.0f;
+            for (size_t n = 1; n < sweepEnd; ++n) {
+                maxStep = std::max(maxStep, std::abs(output[n] - output[n - 1]));
+            }
+            const std::vector<float> tail(output.begin() + static_cast<std::ptrdiff_t>(numSamples / 2),
+                                          output.end());
+            const float tailRms = calculateRMS(tail);
+
+            INFO("resonance " << resonance << ": rms[0.5 s, 1 s) = " << tailRms
+                              << ", max |dOut| during sweep = " << maxStep);
+            // At resonance 1.0 the oscillating tone itself (peak ~0.63 at
+            // ~2.8 kHz) steps ~0.25 per sample at 44.1 kHz, so its bound is 0.4
+            // (user ruling 2026-11-21); the reset kicks read 0.65 / 1.18.
+            const float maxStepBound = resonance < 1.0f ? 0.2f : 0.4f;
+            REQUIRE(tailRms > 0.1f);
+            REQUIRE(maxStep < maxStepBound);
+        }
+    }
+}

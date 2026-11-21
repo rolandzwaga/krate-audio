@@ -840,3 +840,64 @@ TEST_CASE("LFO1 rate at normalized 1.0 runs at 50 Hz", "[integration][lfo]") {
     INFO("expected " << expectedHz << " Hz, measured " << measuredHz << " Hz");
     REQUIRE(measuredHz == Approx(expectedHz).epsilon(0.02));
 }
+
+// =============================================================================
+// R-041 / R-183: LFO 1/2 Depth and Chaos Depth scale what the source routes
+// =============================================================================
+
+namespace {
+
+/// Largest |Global Filter Cutoff offset| over 3 s (one read per 512-sample block, after
+/// 0.25 s of settling) with `source` routed there at amount +1 and its depth at `depth`.
+float peakRoutedCutoffOffset(ModSource source, Steinberg::Vst::ParamID depthId, double depth) {
+    ModSourcePipelineFixture f;
+    PipelineParamChanges params;
+    params.addChange(Ruinae::kModMatrixSlot0SourceId, sourceToNormalized(source));
+    params.addChange(Ruinae::kModMatrixSlot0DestId, destToNormalized(0));
+    params.addChange(Ruinae::kModMatrixSlot0AmountId, amountToNormalized(1.0f));
+    params.addChange(depthId, depth);
+    f.processWithParams(params);
+
+    for (int i = 0; i < 22; ++i) f.processEmpty();
+    float peak = 0.0f;
+    for (int i = 0; i < 258; ++i) {
+        f.processEmpty();
+        peak = std::max(peak, std::abs(f.processor.engine().getGlobalModOffset(
+                                  Krate::DSP::RuinaeModDest::GlobalFilterCutoff)));
+    }
+    return peak;
+}
+
+} // namespace
+
+TEST_CASE("LFO depth scales the routed modulation", "[integration][modmatrix][lfo]") {
+    struct LfoCase {
+        ModSource source;
+        Steinberg::Vst::ParamID depthId;
+        const char* name;
+    };
+    for (const auto& c : {LfoCase{ModSource::LFO1, Ruinae::kLFO1DepthId, "LFO1"},
+                          LfoCase{ModSource::LFO2, Ruinae::kLFO2DepthId, "LFO2"}}) {
+        DYNAMIC_SECTION(c.name) {
+            const float peak0 = peakRoutedCutoffOffset(c.source, c.depthId, 0.0);
+            const float peakHalf = peakRoutedCutoffOffset(c.source, c.depthId, 0.5);
+            const float peak1 = peakRoutedCutoffOffset(c.source, c.depthId, 1.0);
+            INFO("peak offset at depth 0 / 0.5 / 1: " << peak0 << " / " << peakHalf << " / " << peak1);
+            CHECK(peak0 == 0.0f);
+            CHECK(peakHalf == Approx(0.5f).margin(0.02f));
+            CHECK(peak1 == Approx(1.0f).margin(0.02f));
+        }
+    }
+
+    SECTION("Chaos") {
+        // The attractor's peak is not a fixed 1.0, so depth 0.5 is checked against
+        // half the depth-1 peak of the same (deterministic) trajectory.
+        const float peak0 = peakRoutedCutoffOffset(ModSource::Chaos, Ruinae::kChaosModDepthId, 0.0);
+        const float peakHalf = peakRoutedCutoffOffset(ModSource::Chaos, Ruinae::kChaosModDepthId, 0.5);
+        const float peak1 = peakRoutedCutoffOffset(ModSource::Chaos, Ruinae::kChaosModDepthId, 1.0);
+        INFO("peak offset at depth 0 / 0.5 / 1: " << peak0 << " / " << peakHalf << " / " << peak1);
+        CHECK(peak0 == 0.0f);
+        CHECK(peak1 > 0.1f);
+        CHECK(peakHalf == Approx(0.5f * peak1).margin(0.02f));
+    }
+}

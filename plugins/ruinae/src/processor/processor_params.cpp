@@ -21,6 +21,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <iterator>
 
 namespace Ruinae {
 
@@ -147,6 +148,19 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
             continue;
         }
 
+        // Dice is a trigger: a 1.0 anywhere in the block fires it, even when a
+        // later point resets it to 0.0 (R-142).
+        if (paramId == kArpDiceTriggerId) {
+            for (Steinberg::int32 p = 0; p < numPoints - 1 && value < 0.5; ++p) {
+                Steinberg::int32 pointOffset = 0;
+                Steinberg::Vst::ParamValue pointValue = 0.0;
+                if (paramQueue->getPoint(p, pointOffset, pointValue) == Steinberg::kResultTrue
+                    && pointValue >= 0.5) {
+                    value = 1.0;
+                }
+            }
+        }
+
         // =======================================================================
         // Route parameter changes by ID range
         // =======================================================================
@@ -211,6 +225,7 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
         } else if (paramId >= kMonoBaseId && paramId <= kMonoEndId) {
             handleMonoModeParamChange(monoModeParams_, paramId, value);
         } else if (paramId >= kMacroBaseId && paramId <= kMacroEndId) {
+            if (paramId == kMacro1ValueId) modWheelOwnsMacro1_ = false;  // the knob takes Macro 1 back
             handleMacroParamChange(macroParams_, paramId, value);
         } else if (paramId >= kRunglerBaseId && paramId <= kRunglerEndId) {
             handleRunglerParamChange(runglerParams_, paramId, value);
@@ -232,6 +247,24 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
             handleVoiceLfoParamChange(voiceLfoParams_, paramId, value);
         } else if (paramId >= kArpBaseId && paramId <= kArpEndId) {
             handleArpParamChange(arpParams_, paramId, value);
+        } else if (paramId == kMidiPitchBendId || paramId == kMidiAftertouchId
+                   || paramId == kMidiModWheelId) {
+            // MIDI controllers from IMidiMapping (R-030, R-042): every point
+            // reaches the engine at its own sample, like the note events. Not
+            // stored, so not saved.
+            TimedEventKind kind = TimedEventKind::ModWheel;
+            if (paramId == kMidiPitchBendId) kind = TimedEventKind::PitchBend;
+            else if (paramId == kMidiAftertouchId) kind = TimedEventKind::Aftertouch;
+            const uint32_t lastSample = currentBlockSamples_ > 0 ? currentBlockSamples_ - 1 : 0;
+            for (Steinberg::int32 p = 0; p < numPoints; ++p) {
+                Steinberg::int32 pointOffset = 0;
+                Steinberg::Vst::ParamValue pointValue = 0.0;
+                if (paramQueue->getPoint(p, pointOffset, pointValue) != Steinberg::kResultTrue) continue;
+                const auto offset = std::min(static_cast<uint32_t>(std::max<Steinberg::int32>(pointOffset, 0)),
+                                             lastSample);
+                const double v = (kind == TimedEventKind::PitchBend) ? 2.0 * pointValue - 1.0 : pointValue;
+                queueTimedEvent({.offset = offset, .kind = kind, .value = v});
+            }
         }
     }
 }
@@ -423,6 +456,9 @@ void Processor::applyEnvelopeParams() {
     RUINAE_APPLY_ENVELOPE(modEnvParams_, Mod)
 
 #undef RUINAE_APPLY_ENVELOPE
+
+    // --- Velocity > Amp (R-018) ---
+    engine_.setAmpVelocityAmount(ampEnvParams_.velocityAmount.load(std::memory_order_relaxed));
 }
 
 /// Apply the LFOs and the chaos generator.
@@ -442,6 +478,7 @@ void Processor::applyModSourceParams() {
         engine_.setGlobalLFO1NoteValue(mapping.note, mapping.modifier);
     }
     engine_.setGlobalLFO1Unipolar(lfo1Params_.unipolar.load(std::memory_order_relaxed));
+    engine_.setGlobalLFO1Depth(lfo1Params_.depth.load(std::memory_order_relaxed));
     engine_.setGlobalLFO1FadeIn(lfo1Params_.fadeInMs.load(std::memory_order_relaxed));
     engine_.setGlobalLFO1Symmetry(lfo1Params_.symmetry.load(std::memory_order_relaxed));
     engine_.setGlobalLFO1Quantize(lfo1Params_.quantizeSteps.load(std::memory_order_relaxed));
@@ -459,6 +496,7 @@ void Processor::applyModSourceParams() {
         engine_.setGlobalLFO2NoteValue(mapping.note, mapping.modifier);
     }
     engine_.setGlobalLFO2Unipolar(lfo2Params_.unipolar.load(std::memory_order_relaxed));
+    engine_.setGlobalLFO2Depth(lfo2Params_.depth.load(std::memory_order_relaxed));
     engine_.setGlobalLFO2FadeIn(lfo2Params_.fadeInMs.load(std::memory_order_relaxed));
     engine_.setGlobalLFO2Symmetry(lfo2Params_.symmetry.load(std::memory_order_relaxed));
     engine_.setGlobalLFO2Quantize(lfo2Params_.quantizeSteps.load(std::memory_order_relaxed));
@@ -473,6 +511,7 @@ void Processor::applyModSourceParams() {
     engine_.setChaosModel(static_cast<ChaosModel>(
         chaosModParams_.type.load(std::memory_order_relaxed)));
     engine_.setChaosTempoSync(chaosModParams_.sync.load(std::memory_order_relaxed));
+    engine_.setChaosDepth(chaosModParams_.depth.load(std::memory_order_relaxed));
     {
         auto mapping = getNoteValueFromDropdown(
             chaosModParams_.noteValue.load(std::memory_order_relaxed));
@@ -487,8 +526,11 @@ void Processor::applyModRoutingParams() {
     // --- Mod Matrix (8 slots) ---
     for (int i = 0; i < 8; ++i) {
         const auto& slot = modMatrixParams_.slots[static_cast<size_t>(i)];
-        int srcInt = slot.source.load(std::memory_order_relaxed);
-        int dstInt = slot.dest.load(std::memory_order_relaxed);
+        // Clamped again here, at the cast (R-095): the loader and the handler clamp too
+        const int srcInt = std::clamp(slot.source.load(std::memory_order_relaxed), 0,
+                                      Ruinae::kModSourceCount - 1);
+        const int dstInt = std::clamp(slot.dest.load(std::memory_order_relaxed), 0,
+                                      Ruinae::kModDestCount - 1);
         auto src = static_cast<ModSource>(srcInt);
         auto dst = modDestFromIndex(dstInt);
         float amt = slot.amount.load(std::memory_order_relaxed);
@@ -520,12 +562,24 @@ void Processor::applyModRoutingParams() {
         engine_.setVoiceModRouteScale(VoiceModDest::OscBLevel, 1.0f);         // linear
         engine_.setVoiceModRouteScale(VoiceModDest::SpectralTilt, 12.0f);     // dB/octave
 
+        // Voice routes carry the voice tab's UI index (Krate::Plugins::ModDestination),
+        // which is not the DSP enum: UI 7 is Spectral Tilt, DSP 7 is OscALevel (R-039).
+        static constexpr VoiceModDest kUiVoiceDestToDsp[] = {
+            VoiceModDest::FilterCutoff,    VoiceModDest::FilterResonance,
+            VoiceModDest::MorphPosition,   VoiceModDest::DistortionDrive,
+            VoiceModDest::TranceGateDepth, VoiceModDest::OscAPitch,
+            VoiceModDest::OscBPitch,       VoiceModDest::SpectralTilt,
+        };
+        static_assert(std::size(kUiVoiceDestToDsp)
+                      == static_cast<size_t>(Krate::Plugins::kNumVoiceDestinations));
+
         for (int i = 0; i < Krate::Plugins::kMaxVoiceRoutes; ++i) {
             auto r = voiceRoutes_[static_cast<size_t>(i)].load();
 
             Krate::DSP::VoiceModRoute dspRoute;
             dspRoute.source = static_cast<VoiceModSource>(r.source);
-            dspRoute.destination = static_cast<VoiceModDest>(r.destination);
+            dspRoute.destination = kUiVoiceDestToDsp[std::min(
+                static_cast<size_t>(r.destination), std::size(kUiVoiceDestToDsp) - 1)];
 
             dspRoute.amount = r.amount;
             dspRoute.curve = static_cast<ModCurve>(std::clamp(static_cast<int>(r.curve), 0, 3));
@@ -687,7 +741,7 @@ void Processor::applyModulationEffectParams() {
     // --- Flanger ---
     // Re-applied from the atomics every block, like every other effect. Driving
     // the DSP only from live change-points left it at reset defaults after a
-    // preset load, since applyPresetSnapshot() calls engine_.reset(). The
+    // preset load, since applyPresetSnapshot() resets the engine. The
     // atomics are already denormalized and clamped by handleFlangerParamChange,
     // so nothing is rescaled here.
     {
@@ -756,10 +810,11 @@ void Processor::applyHarmonizerParams() {
 void Processor::applyAuxModSourceParams() {
     using namespace Krate::DSP;
 
-    // --- Macros ---
+    // --- Macros --- (Macro 1 follows the mod wheel while the wheel owns it)
     for (int i = 0; i < 4; ++i) {
         engine_.setMacroValue(static_cast<size_t>(i),
-            macroParams_.values[i].load(std::memory_order_relaxed));
+            (i == 0 && modWheelOwnsMacro1_) ? modWheelValue_
+                                            : macroParams_.values[i].load(std::memory_order_relaxed));
     }
 
     // --- Rungler ---
@@ -785,7 +840,7 @@ void Processor::applyAuxModSourceParams() {
     engine_.setMonoPriority(static_cast<MonoMode>(
         monoModeParams_.priority.load(std::memory_order_relaxed)));
     engine_.setLegato(monoModeParams_.legato.load(std::memory_order_relaxed));
-    engine_.setPortamentoTime(monoModeParams_.portamentoTimeMs.load(std::memory_order_relaxed));
+    engine_.setMonoPortamentoTime(monoModeParams_.portamentoTimeMs.load(std::memory_order_relaxed));
     engine_.setPortamentoMode(static_cast<PortaMode>(
         monoModeParams_.portaMode.load(std::memory_order_relaxed)));
 
@@ -1025,8 +1080,8 @@ void Processor::applyArpParams() {
     }
     arpCore_.setAccentVelocity(arpParams_.accentVelocity.load(std::memory_order_relaxed));
     arpCore_.setSlideTime(arpParams_.slideTime.load(std::memory_order_relaxed));
-    // Forward slide time to engine for both Poly and Mono portamento (FR-034)
-    engine_.setPortamentoTime(arpParams_.slideTime.load(std::memory_order_relaxed));
+    // Slide time: the glide of arp slide steps, Poly and Mono (FR-034)
+    engine_.setSlideTime(arpParams_.slideTime.load(std::memory_order_relaxed));
     // --- Ratchet Lane (074-ratcheting, FR-035) ---
     {
         const auto ratchetLen = arpParams_.ratchetLaneLength.load(std::memory_order_relaxed);

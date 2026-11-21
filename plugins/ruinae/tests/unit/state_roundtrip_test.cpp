@@ -24,8 +24,9 @@ using Catch::Approx;
 #include <cstring>  // std::memcmp
 #include "vst_param_changes.h"
 
-// Bytes the state carries after the arp pack: Voice LFO rate (float) + shape (int32), v9.
-constexpr size_t kAfterArpSize = 8;
+// Bytes the state carries after the arp pack: Voice LFO rate (float) + shape (int32)
+// and the Velocity > Amp amount (float), v9.
+constexpr size_t kAfterArpSize = 12;
 
 // =============================================================================
 // Helper: create and initialize a Processor

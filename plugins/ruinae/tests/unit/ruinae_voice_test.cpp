@@ -2322,6 +2322,36 @@ TEST_CASE("RuinaeVoice: all 10 OSC B types produce output at mix=1.0",
 }
 
 // =============================================================================
+// R-016 / R-118: SpectralFreeze survives a voice reset
+// =============================================================================
+// setActive(true) and every host preset load reset the engine, which resets
+// each voice and its active oscillator. The SpectralFreeze oscillator's reset()
+// drops its frozen spectrum, and the adapter only froze it at prepare(), so the
+// slot stayed silent until the next sample-rate change.
+
+TEST_CASE("RuinaeVoice: SpectralFreeze survives reset", "[ruinae-voice][spectral-freeze]") {
+    auto voice = createPreparedVoice();
+    voice.setFilterCutoff(20000.0f);
+    voice.setOscAType(OscType::SpectralFreeze);
+    voice.setMixPosition(0.0f); // OSC A only
+    voice.getAmpEnvelope().setAttack(0.1f);
+    voice.getAmpEnvelope().setSustain(1.0f);
+
+    voice.noteOn(440.0f, 1.0f);
+    const auto before = processNSamples(voice, 44100);
+    const float rmsBefore = computeRMS(before.data(), before.size());
+
+    voice.reset();
+    voice.noteOn(440.0f, 1.0f);
+    const auto after = processNSamples(voice, 44100);
+    const float rmsAfter = computeRMS(after.data(), after.size());
+
+    INFO("SpectralFreeze RMS before reset = " << rmsBefore << ", after reset = " << rmsAfter);
+    REQUIRE(rmsBefore > 0.1f);
+    REQUIRE(rmsAfter > 0.1f);
+}
+
+// =============================================================================
 // Formant filter output level integration test
 // =============================================================================
 
@@ -2992,4 +3022,186 @@ TEST_CASE("RuinaeVoice: voice LFO rate is configurable", "[ruinae-voice][lfo]") 
         INFO("time in the middle of the sweep: sine " << sineMid << ", square " << squareMid);
         CHECK(squareMid < 0.5f * sineMid);
     }
+}
+
+// =============================================================================
+// R-018: note velocity reaches the VCA, scaled by the Velocity > Amp amount
+// =============================================================================
+
+namespace {
+
+/// Steady-state RMS of one held note (0.5 s, after 0.2 s of settling).
+float steadyStateRms(float velocityAmount, float velocity) {
+    auto voice = createPreparedVoice();
+    voice.setFilterCutoff(20000.0f);
+    voice.getAmpEnvelope().setAttack(1.0f);
+    voice.getAmpEnvelope().setSustain(1.0f);
+    voice.setAmpVelocityAmount(velocityAmount);
+    voice.noteOn(440.0f, velocity);
+    processNSamples(voice, 8820);
+    const auto held = processNSamples(voice, 22050);
+    return computeRMS(held.data(), held.size());
+}
+
+} // namespace
+
+TEST_CASE("RuinaeVoice: velocity scales the VCA by the amp-velocity amount", "[ruinae-voice][velocity]") {
+    constexpr float kSoft = 32.0f / 127.0f;
+    constexpr float kHard = 127.0f / 127.0f;
+
+    SECTION("amount 1: the level follows the velocity") {
+        const float soft = steadyStateRms(1.0f, kSoft);
+        const float hard = steadyStateRms(1.0f, kHard);
+        REQUIRE(hard > 0.01f);
+        const double diffDb = 20.0 * std::log10(static_cast<double>(soft) / static_cast<double>(hard));
+        const double expectedDb = 20.0 * std::log10(32.0 / 127.0);
+        INFO("soft " << soft << ", hard " << hard << ", difference " << diffDb << " dB, expected " << expectedDb);
+        CHECK(diffDb == Approx(expectedDb).margin(0.5));
+    }
+
+    SECTION("amount 0: the level ignores the velocity") {
+        const float soft = steadyStateRms(0.0f, kSoft);
+        const float hard = steadyStateRms(0.0f, kHard);
+        REQUIRE(hard > 0.01f);
+        const double diffDb = 20.0 * std::log10(static_cast<double>(soft) / static_cast<double>(hard));
+        INFO("soft " << soft << ", hard " << hard << ", difference " << diffDb << " dB");
+        CHECK(std::abs(diffDb) < 0.1);
+    }
+}
+
+// =============================================================================
+// R-017 / R-026: SpectralMorph VCA alignment, no replay of the previous note,
+// idle voices start clean
+// =============================================================================
+
+namespace {
+
+constexpr double kLifecycleSampleRate = 44100.0;
+constexpr size_t kLifecycleBlock = 512;
+
+/// Short attack, full sustain, 5 ms release.
+void setLifecycleEnvelope(RuinaeVoice& voice, float attackMs) {
+    voice.getAmpEnvelope().setAttack(attackMs);
+    voice.getAmpEnvelope().setDecay(50.0f);
+    voice.getAmpEnvelope().setSustain(1.0f);
+    voice.getAmpEnvelope().setRelease(5.0f);
+}
+
+/// Release the note and process until the voice reports idle.
+void releaseToIdle(RuinaeVoice& voice) {
+    voice.noteOff();
+    std::array<float, kLifecycleBlock> buf{};
+    for (int i = 0; i < 1000 && voice.isActive(); ++i) {
+        voice.processBlock(buf.data(), buf.size());
+    }
+}
+
+struct MorphNoteRender {
+    std::vector<float> out;
+    bool activeAtEnd = true;
+};
+
+/// SpectralMorph note (OSC A only), released at @p noteOffAt (a block multiple).
+MorphNoteRender renderMorphNote(float attackMs, size_t noteOffAt, size_t total) {
+    auto voice = createPreparedVoice(kLifecycleSampleRate, kLifecycleBlock);
+    voice.setMixMode(MixMode::SpectralMorph);
+    voice.setMixPosition(0.0f);
+    setLifecycleEnvelope(voice, attackMs);
+    voice.noteOn(440.0f, 1.0f);
+    MorphNoteRender r;
+    r.out = processNSamples(voice, noteOffAt, kLifecycleBlock);
+    voice.noteOff();
+    const auto tail = processNSamples(voice, total - noteOffAt, kLifecycleBlock);
+    r.out.insert(r.out.end(), tail.begin(), tail.end());
+    r.activeAtEnd = voice.isActive();
+    return r;
+}
+
+} // namespace
+
+TEST_CASE("RuinaeVoice_SpectralMorph_NoStaleTailAtNextNote", "[ruinae-voice][spectral-morph]") {
+    auto voice = createPreparedVoice(kLifecycleSampleRate, kLifecycleBlock);
+    voice.setMixMode(MixMode::SpectralMorph);
+    setLifecycleEnvelope(voice, 1.0f);
+
+    voice.noteOn(220.0f, 1.0f);
+    const auto note1 = processNSamples(voice, 8820, kLifecycleBlock);
+    REQUIRE(computeRMS(note1.data() + 4410, 4410) > 0.05f);
+    releaseToIdle(voice);
+    REQUIRE_FALSE(voice.isActive());
+
+    // The second note has silent inputs: anything it outputs is the first note.
+    voice.setOscALevel(0.0f);
+    voice.setOscBLevel(0.0f);
+    voice.noteOn(220.0f, 1.0f);
+    const auto note2 = processNSamples(voice, 1024, kLifecycleBlock);
+    const float rms = computeRMS(note2.data(), note2.size());
+    INFO("note 2 (silent inputs) RMS over its first 1024 samples: " << rms);
+    REQUIRE(rms < 1e-3f);
+}
+
+TEST_CASE("RuinaeVoice_SpectralMorph_AttackShapesTheOnset", "[ruinae-voice][spectral-morph]") {
+    // The pre-VCA signal is identical in both renders, so out / ref is the
+    // attack render's VCA gain over the reference's near-instant one, read on
+    // the output timeline. The ratio is exact wherever ref is not 0, so the
+    // gate is tiny: the morph's own first hop after a reset is window-weighted
+    // (its first frame has no earlier frame to overlap), which would hide the
+    // onset from a coarser gate.
+    constexpr size_t kNoteOffAt = 16 * kLifecycleBlock;  // 8192
+    constexpr size_t kTotal = kNoteOffAt + 16 * kLifecycleBlock;
+    const auto attack = renderMorphNote(1.0f, kNoteOffAt, kTotal);
+    const auto ref = renderMorphNote(0.0f, kNoteOffAt, kTotal);
+
+    float refPeak = 0.0f;
+    for (size_t n = 4096; n < kNoteOffAt; ++n) refPeak = std::max(refPeak, std::abs(ref.out[n]));
+    REQUIRE(refPeak > 0.05f);
+
+    long t10 = -1;
+    long t90 = -1;
+    for (size_t n = 0; n < kNoteOffAt && t90 < 0; ++n) {
+        if (std::abs(ref.out[n]) < 1e-6f * refPeak) continue;
+        const float gain = attack.out[n] / ref.out[n];
+        if (t10 < 0 && gain >= 0.1f) t10 = static_cast<long>(n);
+        if (gain >= 0.9f) t90 = static_cast<long>(n);
+    }
+    REQUIRE(t10 >= 0);
+    REQUIRE(t90 >= 0);
+    const double riseMs = static_cast<double>(t90 - t10) * 1000.0 / kLifecycleSampleRate;
+    INFO("10 % gain at sample " << t10 << ", 90 % at " << t90 << ": rise " << riseMs << " ms");
+    CHECK(riseMs >= 0.5);
+    CHECK(riseMs <= 1.5);
+
+    // The last 1024 samples of oscillator content before noteOff are heard at
+    // the sustain level: the release starts 1024 samples after noteOff.
+    const float steady = computeRMS(attack.out.data() + kNoteOffAt - 1024, 512);
+    const float lastContent = computeRMS(attack.out.data() + kNoteOffAt + 512, 512);
+    const float afterRelease = computeRMS(attack.out.data() + kNoteOffAt + 2048, 512);
+    INFO("steady " << steady << ", [off+512, off+1024) " << lastContent
+         << ", [off+2048, off+2560) " << afterRelease);
+    REQUIRE(steady > 0.05f);
+    CHECK(lastContent > 0.9f * steady);
+    CHECK(afterRelease < 0.01f * steady);
+    CHECK_FALSE(attack.activeAtEnd);
+}
+
+TEST_CASE("RuinaeVoice_IdleVoiceStartsClean", "[ruinae-voice][idle]") {
+    auto voice = createPreparedVoice(kLifecycleSampleRate, kLifecycleBlock);
+    voice.setMixMode(MixMode::CrossfadeMix);
+    voice.setFilterType(RuinaeFilterType::Comb);
+    voice.setFilterResonance(30.0f);
+    setLifecycleEnvelope(voice, 1.0f);
+
+    voice.noteOn(220.0f, 1.0f);
+    const auto note1 = processNSamples(voice, 8820, kLifecycleBlock);
+    REQUIRE(computeRMS(note1.data() + 4410, 4410) > 0.01f);
+    releaseToIdle(voice);
+    REQUIRE_FALSE(voice.isActive());
+
+    voice.setOscALevel(0.0f);
+    voice.setOscBLevel(0.0f);
+    voice.noteOn(220.0f, 1.0f);
+    const auto note2 = processNSamples(voice, 1024, kLifecycleBlock);
+    const float rms = computeRMS(note2.data(), note2.size());
+    INFO("note 2 (silent inputs) RMS over its first 1024 samples: " << rms);
+    REQUIRE(rms < 1e-4f);
 }

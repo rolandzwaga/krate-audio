@@ -68,10 +68,11 @@
 
 namespace Ruinae {
 
-/// Serialized preset bytes for lock-free transfer from UI thread to audio thread.
-/// Used by RTTransferT to atomically hand off an entire preset state.
+/// What the audio thread needs from a preset load, handed over by RTTransferT.
+/// The stream was already parsed into the parameter atomics on the message
+/// thread (Processor::loadStateBytes); the audio thread only resets (R-197).
 struct PresetSnapshot {
-    std::vector<char> bytes;
+    bool arpOnly{false};  ///< an "Arp" browser preset: only the arp was replaced
 };
 
 // ==============================================================================
@@ -165,7 +166,7 @@ public:
     // IMessage (Voice Route Communication, T085-T086)
     // ===========================================================================
 
-    /// Receive messages from controller (VoiceModRouteUpdate)
+    /// Receive messages from controller (VoiceModRouteUpdate, LoadPresetState)
     Steinberg::tresult PLUGIN_API notify(
         Steinberg::Vst::IMessage* message) override;
 
@@ -214,7 +215,9 @@ protected:
     // queued with their offset and the engine renders the buffer in segments
     // split at those offsets (renderEngineSegments). The arpeggiator still sees
     // host notes at the buffer start, since it builds its pattern there.
-    enum class TimedEventKind : uint8_t { NoteOn, NoteOff, ArpNoteOn, ArpNoteOff, Expression, PitchBend };
+    enum class TimedEventKind : uint8_t {
+        NoteOn, NoteOff, ArpNoteOn, ArpNoteOff, Expression, PitchBend, Aftertouch, ModWheel
+    };
     struct TimedEvent {
         uint32_t offset{0};
         TimedEventKind kind{TimedEventKind::NoteOn};
@@ -264,9 +267,6 @@ protected:
     Steinberg::IPtr<Steinberg::Vst::IMessage> playbackMsg_;
     Steinberg::IPtr<Steinberg::Vst::IMessage> envDisplayMsg_;
     Steinberg::IPtr<Steinberg::Vst::IMessage> morphPadModMsg_;
-
-    /// Pre-allocated IMessages for arp skip events (one per lane, 6 total)
-    std::array<Steinberg::IPtr<Steinberg::Vst::IMessage>, 6> skipMessages_{};
 
     /// Read-only engine access for tests that need to assert on DSP state
     /// rather than infer it from rendered audio.
@@ -339,10 +339,19 @@ private:
     uint64_t engineRenderCalls_ = 0;    ///< engine_.processBlock calls (test hook)
     uint32_t currentEventOffset_ = 0;   ///< sampleOffset of the event being dispatched
     uint32_t currentBlockSamples_ = 0;  ///< numSamples of the buffer being processed
+    // The mod wheel (kMidiModWheelId) drives Macro 1. The last writer wins: the
+    // wheel holds Macro 1 until the Macro 1 knob changes or a full reset
+    // (activation, preset load) hands it back to the knob (R-042).
+    float modWheelValue_ = 0.0f;
+    bool modWheelOwnsMacro1_ = false;
     float lastSidechainActive_ = -1.0f;  ///< Tracks sidechain state for output param changes
     bool wasTransportPlaying_{false};
     bool hostSupportsTransport_{false}; ///< True once host reports kPlaying
     double prevProjectTimeMusic_{-1.0}; ///< For detecting backward PPQ jumps (DAW loop)
+    /// The arp's transport position when the host gives no musical time
+    /// (R-068): samples since activation or since the arp started running,
+    /// advanced by each block the arp runs.
+    int64_t arpFreeRunSamples_{0};
 
     // Previous arp param values -- only call setters that reset internal state
     // (step index, swing counter) when the value actually changes.
@@ -361,6 +370,10 @@ private:
     std::array<uint8_t, 128> arpEngineOpen_{};     ///< arp NoteOns queued to the engine
     std::array<uint8_t, 128> arpMidiOutOpen_{};    ///< arp NoteOns added to the MIDI output
     int prevArpOpMode_{kArpOff};  ///< operating mode of the previous block
+    /// The arp core was reset (setupProcessing, setActive(true), preset load)
+    /// and forgot the notes it put on the MIDI output; the next process() with
+    /// an output list sends their NoteOffs from arpMidiOutOpen_ (R-070, R-136).
+    bool pendingArpMidiOutFlush_{false};
 
     /// Release every arp note still open on the engine and the MIDI output, at
     /// `offset`, and zero both ledgers. With `out` null the MIDI-out ledger is
@@ -447,24 +460,46 @@ private:
     void sendVoiceModRouteState();
 
     // ==========================================================================
-    // Arp Skip Event State (Phase 11c - FR-012)
+    // Arp Skip Highlight State (Phase 11c - FR-012, R-069)
     // ==========================================================================
 
-    /// Send a skip event to the controller (no allocations)
-    void sendSkipEvent(int lane, int step);
-
-    /// Whether the editor is open (gating skip event sends)
+    /// Whether the editor is open (gating the skip-highlight output parameters)
     std::atomic<bool> editorOpen_{false};
+
+    /// Counts published skips; its low two bits go into kArpSkipLane*Id so a
+    /// repeated step still changes the parameter value (audio thread only)
+    uint32_t skipPublishSeq_{0};
 
     // ==========================================================================
     // Crash-Proof Preset Loading (RTTransferT)
     // ==========================================================================
 
-    /// Lock-free triple-buffer for transferring preset bytes from UI to audio thread
+    /// Lock-free triple-buffer handing a preset load to the audio thread
     Steinberg::Vst::RTTransferT<PresetSnapshot> stateTransfer_;
 
-    /// Apply a serialized preset snapshot on the audio thread (RT-safe)
+    /// The one preset-load path (R-196): setState and the controller's
+    /// "LoadPresetState" message both call it. Parses a whole component state
+    /// into the parameter atomics and the voice routes, then hands the reset to
+    /// the audio thread. With `arpOnly` only the arp pack is stored; the rest
+    /// is parsed into scratch and dropped. Message thread only (allocates).
+    Steinberg::tresult loadStateBytes(std::vector<char> bytes, bool arpOnly);
+
+    /// The parser behind loadStateBytes: reads every pack of a component state
+    /// into `packs` (this processor, or scratch with the same member names),
+    /// the arp pack into `arp`. False when the stream is not a state this
+    /// version reads or ends before the voice routes; nothing is handed on then.
+    template <typename Packs>
+    static bool readStatePacks(Packs& packs, ArpeggiatorParams& arp,
+                               Steinberg::IBStreamer& streamer);
+
+    /// Apply a preset load on the audio thread: resets only, no stream (R-197)
     void applyPresetSnapshot(const PresetSnapshot& snapshot);
+
+    /// Drop what is playing (R-198): with `engineToo` the engine and the arp
+    /// (activation, full preset load), otherwise the arp alone (arp-only
+    /// preset load). The arp's MIDI-out notes are sent their NoteOffs by the
+    /// next process() with an output list.
+    void resetPlayingState(bool engineToo) noexcept;
 };
 
 } // namespace Ruinae

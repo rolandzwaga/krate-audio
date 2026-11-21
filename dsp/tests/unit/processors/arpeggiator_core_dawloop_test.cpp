@@ -4,6 +4,9 @@
 // arpeggiator_core_test_helpers.h.
 #include "arpeggiator_core_test_helpers.h"
 
+#include <cstdlib>
+#include <string>
+
 
 
 TEST_CASE("ArpeggiatorCore: ratchet on step 0 stays aligned after DAW loop",
@@ -413,6 +416,131 @@ TEST_CASE("ArpeggiatorCore: PPQ resync puts every step on its grid sample at any
         for (size_t k = 0; k < onsets.size(); ++k) {
             INFO("block " << blockSize << ", step " << k << " at sample " << onsets[k]);
             CHECK(onsets[k] == static_cast<int32_t>(k) * kStep);
+        }
+    }
+}
+
+// R-066: the per-block PPQ resync re-anchored the counter on a straight one-step grid and scaled the fraction onto the
+// SWUNG duration, so a swung arp in a playing DAW lost its long/short alternation and played flams 290-443 samples
+// apart (1/16, 120 BPM, swing 50 %, 512-sample blocks: intervals 5060, 6101, 5044, 409, ...). With swing the grid
+// period is a pair of steps; the onsets must alternate long/short (long first, as free-run plays them), keep every
+// pair on the host's 1/8 grid, and not depend on the buffer size.
+TEST_CASE("syncToMusicalPosition keeps swing timing at every block size",
+          "[processors][arp][swing]") {
+    constexpr double kSampleRate = 44100.0;
+    constexpr double kTempo = 120.0;
+    constexpr size_t kTotal = 4 * 4 * 22050;  // 4 bars of 4/4 at 120 BPM
+
+    struct SwingRate {
+        const char* name;
+        NoteValue value;
+        NoteModifier modifier;
+        double beats;  // quarter notes per step
+        double swing;
+        std::vector<size_t> blockSizes;  // the first one is the reference
+    };
+    // The plan's case (1/16, swing 50 %, 64/512/4096), then Tape_Shuffle's rate (1/8T, swing 22 %) at uneven sizes so
+    // block starts fall on and beside the swung onsets.
+    const std::vector<SwingRate> rates = {
+        {"1/16 swing 50%", NoteValue::Sixteenth, NoteModifier::None, 0.25, 0.5, {64, 512, 4096}},
+        {"1/8T swing 22%", NoteValue::Eighth, NoteModifier::Triplet, 1.0 / 3.0, 0.22, {64, 61, 97, 333, 1000, 2048}},
+    };
+
+    for (const auto& rate : rates) {
+        const double base = 60.0 / kTempo * rate.beats * kSampleRate;  // 5512.5 / 7350 samples
+        const double longStep = base * (1.0 + rate.swing);
+        const double shortStep = base * (1.0 - rate.swing);
+
+        auto stepOnsets = [&](size_t blockSize, bool sync = true) {
+            ArpeggiatorCore arp;
+            arp.prepare(kSampleRate, blockSize);
+            arp.setEnabled(true);
+            arp.setMode(ArpMode::Up);
+            arp.setTempoSync(true);
+            arp.setNoteValue(rate.value, rate.modifier);
+            arp.setSwing(static_cast<float>(rate.swing * 100.0));
+            arp.noteOn(60, 100);
+            arp.noteOn(64, 100);
+            arp.noteOn(67, 100);
+            std::vector<int64_t> onsets;
+            std::array<ArpEvent, 128> events{};
+            for (size_t pos = 0; pos < kTotal; pos += blockSize) {
+                BlockContext ctx;
+                ctx.sampleRate = kSampleRate;
+                ctx.blockSize = std::min(blockSize, kTotal - pos);
+                ctx.tempoBPM = kTempo;
+                ctx.isPlaying = true;
+                ctx.transportPositionSamples = static_cast<int64_t>(pos);
+                ctx.projectTimeMusic = static_cast<double>(pos) / kSampleRate * (kTempo / 60.0);
+                ctx.projectTimeMusicValid = true;
+                if (sync) arp.syncToMusicalPosition(ctx.projectTimeMusic);  // as Ruinae and Gradus call it, every block
+                const size_t count = arp.processBlock(ctx, events);
+                for (size_t i = 0; i < count; ++i) {
+                    if (events[i].type == ArpEvent::Type::NoteOn) {
+                        onsets.push_back(events[i].sampleOffset + static_cast<int64_t>(pos));
+                    }
+                }
+            }
+            return onsets;
+        };
+
+        // Intervals alternate long/short, LONG first (R-199 ruling B: step k lasts dur(k), and step 0 of a pair is
+        // the even, lengthened one).
+        auto countBadIntervals = [&](const std::vector<int64_t>& onsets, std::string& firstBad) {
+            size_t badIntervals = 0;
+            for (size_t k = 1; k < onsets.size(); ++k) {
+                const double interval = static_cast<double>(onsets[k] - onsets[k - 1]);
+                const double expected = ((k - 1) % 2 == 0) ? longStep : shortStep;
+                if (std::abs(interval - expected) > 2.0) {
+                    if (badIntervals++ == 0) {
+                        firstBad = "interval " + std::to_string(k - 1) + " (" + std::to_string(onsets[k - 1])
+                                 + " -> " + std::to_string(onsets[k]) + ") = " + std::to_string(interval)
+                                 + ", expected " + std::to_string(expected);
+                    }
+                }
+            }
+            return badIntervals;
+        };
+
+        const auto minOnsets = static_cast<size_t>(static_cast<double>(kTotal) / base) - 2;
+
+        // Free-run (no PPQ sync) plays the same long-first order as the DAW sync.
+        {
+            const auto freeRun = stepOnsets(512, false);
+            std::string firstBad;
+            INFO(rate.name << ", free-run, " << freeRun.size() << " onsets");
+            REQUIRE(freeRun.size() >= minOnsets);
+            const size_t bad = countBadIntervals(freeRun, firstBad);
+            INFO("first bad: " << firstBad);
+            REQUIRE(bad == 0);
+        }
+
+        const auto reference = stepOnsets(rate.blockSizes.front());
+        for (const size_t blockSize : rate.blockSizes) {
+            const auto onsets = stepOnsets(blockSize);
+            INFO(rate.name << ", block size " << blockSize << ", " << onsets.size() << " onsets");
+            REQUIRE(onsets.size() >= minOnsets);  // not vacuous: every step of 4 bars
+
+            std::string firstBad;
+            const size_t badIntervals = countBadIntervals(onsets, firstBad);
+            INFO("first bad: " << firstBad);
+            REQUIRE(badIntervals == 0);
+
+            // Every pair starts on the host's two-step grid.
+            size_t offGrid = 0;
+            for (size_t k = 0; k < onsets.size(); k += 2) {
+                const double grid = static_cast<double>(k / 2) * 2.0 * base;
+                if (std::abs(static_cast<double>(onsets[k]) - grid) > 2.0) ++offGrid;
+            }
+            REQUIRE(offGrid == 0);
+
+            // The onset list does not depend on the buffer size.
+            REQUIRE(onsets.size() == reference.size());
+            size_t moved = 0;
+            for (size_t k = 0; k < onsets.size(); ++k) {
+                if (std::abs(onsets[k] - reference[k]) > 2) ++moved;
+            }
+            REQUIRE(moved == 0);
         }
     }
 }

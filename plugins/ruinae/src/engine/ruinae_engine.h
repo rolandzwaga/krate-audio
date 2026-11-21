@@ -512,6 +512,7 @@ public:
         globalModEngine_.setLFO1NoteValue(value, modifier);
     }
     void setGlobalLFO1Unipolar(bool enabled) noexcept { globalModEngine_.setLFO1Unipolar(enabled); }
+    void setGlobalLFO1Depth(float depth) noexcept { globalModEngine_.setLFO1Depth(depth); }
     void setGlobalLFO1FadeIn(float ms) noexcept { globalModEngine_.setLFO1FadeIn(ms); }
     void setGlobalLFO1Symmetry(float value) noexcept { globalModEngine_.setLFO1Symmetry(value); }
     void setGlobalLFO1Quantize(int steps) noexcept { globalModEngine_.setLFO1Quantize(steps); }
@@ -523,12 +524,14 @@ public:
         globalModEngine_.setLFO2NoteValue(value, modifier);
     }
     void setGlobalLFO2Unipolar(bool enabled) noexcept { globalModEngine_.setLFO2Unipolar(enabled); }
+    void setGlobalLFO2Depth(float depth) noexcept { globalModEngine_.setLFO2Depth(depth); }
     void setGlobalLFO2FadeIn(float ms) noexcept { globalModEngine_.setLFO2FadeIn(ms); }
     void setGlobalLFO2Symmetry(float value) noexcept { globalModEngine_.setLFO2Symmetry(value); }
     void setGlobalLFO2Quantize(int steps) noexcept { globalModEngine_.setLFO2Quantize(steps); }
     void setChaosSpeed(float speed) noexcept { globalModEngine_.setChaosSpeed(speed); }
     void setChaosModel(ChaosModel model) noexcept { globalModEngine_.setChaosModel(model); }
     void setChaosTempoSync(bool enabled) noexcept { globalModEngine_.setChaosTempoSync(enabled); }
+    void setChaosDepth(float depth) noexcept { globalModEngine_.setChaosDepth(depth); }
     void setChaosNoteValue(NoteValue value, NoteModifier modifier = NoteModifier::None) noexcept {
         globalModEngine_.setChaosNoteValue(value, modifier);
     }
@@ -742,9 +745,9 @@ public:
     void setHarmonizerVoiceDelay(int voiceIndex, float ms) noexcept { effectsChain_.setHarmonizerVoiceDelay(voiceIndex, ms); }
     void setHarmonizerVoiceDetune(int voiceIndex, float cents) noexcept { effectsChain_.setHarmonizerVoiceDetune(voiceIndex, cents); }
 
-    /// @brief Get total processing latency from effects chain (FR-028).
-    [[nodiscard]] size_t getLatencySamples() const noexcept {
-        return effectsChain_.getLatencySamples();
+    /// @brief Get total processing latency from effects chain (FR-028): 0 (R-055).
+    [[nodiscard]] static constexpr size_t getLatencySamples() noexcept {
+        return RuinaeEffectsChain::getLatencySamples();
     }
 
     // =========================================================================
@@ -858,15 +861,17 @@ public:
         }
         pendingTransientLevel_ = 0.0f;
 
-        // Step 6: Process pitch bend smoother once per block
-        [[maybe_unused]] auto bendValue = noteProcessor_.processPitchBend();
-
         size_t subCount = 0;
         float effectMixOffset = 0.0f;
         for (size_t start = 0; start < numSamples;) {
             const size_t len = std::min(kModSubBlock - modGridPhase_, numSamples - start);
             BlockContext subCtx = ctx;
             subCtx.blockSize = len;
+
+            // Step 6: Advance the pitch bend smoother by this sub-block's samples
+            // before the voices read getFrequency, so the bend settles in its
+            // configured time whatever the host block size (R-010).
+            [[maybe_unused]] auto bendValue = noteProcessor_.processPitchBend(len);
 
             // Step 3: Process global modulation for this sub-block
             globalModEngine_.process(subCtx, modAudioL + start, modAudioR + start, len);
@@ -1350,6 +1355,10 @@ public:
     }
 
     void setTranceGateParams(const TranceGateParams& params) noexcept {
+        // The block loop re-applies baseTranceGateRateHz_ (+ AllVoice offset) to
+        // every sounding voice, so the free-run rate must land in the base too.
+        if (detail::isFinite(params.rateHz))
+            baseTranceGateRateHz_ = std::clamp(params.rateHz, 0.1f, 100.0f);
         for (auto& voice : voices_) { voice.setTranceGateParams(params); }
     }
 
@@ -1626,6 +1635,11 @@ public:
         for (auto& voice : voices_) { voice.getVoiceLFO().setWaveform(shape); }
     }
 
+    /// Velocity > Amp amount [0, 1] for every voice (R-018).
+    void setAmpVelocityAmount(float amount) noexcept {
+        for (auto& voice : voices_) { voice.setAmpVelocityAmount(amount); }
+    }
+
     // =========================================================================
     // Mono Mode Configuration (FR-036)
     // =========================================================================
@@ -1639,10 +1653,20 @@ public:
         monoHandler_.setLegato(enabled);
     }
 
-    void setPortamentoTime(float ms) noexcept {
+    /// @brief Mono Portamento Time: the MonoHandler's glide for every mono note
+    ///        except an arp slide step (R-031).
+    void setMonoPortamentoTime(float ms) noexcept {
         if (detail::isNaN(ms) || detail::isInf(ms)) return;
-        monoHandler_.setPortamentoTime(ms);
-        // For Poly slide: set portamento time on each voice (FR-034)
+        monoPortamentoTimeMs_ = ms;
+        if (!monoSlideGlide_) applyMonoGlideTime(ms);
+    }
+
+    /// @brief Arp Slide Time: the glide of an arp slide step, in Poly (each
+    ///        voice's portamento, FR-034) and in Mono (startNote's legato path).
+    void setSlideTime(float ms) noexcept {
+        if (detail::isNaN(ms) || detail::isInf(ms)) return;
+        slideTimeMs_ = ms;
+        if (monoSlideGlide_) applyMonoGlideTime(ms);
         for (size_t i = 0; i < kMaxPolyphony; ++i) {
             voices_[i].setPortamentoTime(ms);
         }
@@ -1786,6 +1810,9 @@ private:
             }
             // Mono mode: route through MonoHandler with legato behavior.
             // Temporarily enable legato on the MonoHandler, dispatch, restore.
+            // The slide glides with the Slide Time until the next non-slide note.
+            monoSlideGlide_ = true;
+            applyMonoGlideTime(slideTimeMs_);
             monoHandler_.setLegato(true);
             const int voice = dispatchMonoNoteOn(note, velocity);
             monoHandler_.setLegato(userLegato_);
@@ -1801,7 +1828,19 @@ private:
         if (mode_ == VoiceMode::Poly) {
             return dispatchPolyNoteOn(note, velocity);
         }
+        monoSlideGlide_ = false;
+        applyMonoGlideTime(monoPortamentoTimeMs_);
         return dispatchMonoNoteOn(note, velocity);
+    }
+
+    /// @brief Give the MonoHandler glide time @p ms. Writes only on a change:
+    ///        MonoHandler::setPortamentoTime re-derives a running glide from its
+    ///        current position, so a per-block rewrite of the same value would
+    ///        stretch the glide far past the set time.
+    void applyMonoGlideTime(float ms) noexcept {
+        if (ms == monoGlideTimeMs_) return;
+        monoGlideTimeMs_ = ms;
+        monoHandler_.setPortamentoTime(ms);
     }
 
     // =========================================================================
@@ -2030,6 +2069,13 @@ private:
             }
             monoVoiceNote_ = winner;
         }
+    }
+
+    /// MonoHandler glides at a fixed A4 = 440 Hz with no bend. This ratio carries
+    /// the tuning reference and the smoothed pitch bend from noteProcessor_, so
+    /// mono plays at the same pitch as poly (R-141, R-011).
+    [[nodiscard]] float monoPitchScale() const noexcept {
+        return noteProcessor_.getFrequency(69) / kA4FrequencyHz;
     }
 
     /// The held key the MonoHandler sounds after @p event (its priority winner),
@@ -2400,7 +2446,7 @@ private:
                 for (size_t s = 0; s < chunk; ++s) {
                     glidingFreq = monoHandler_.processPortamento();
                 }
-                voices_[0].setFrequency(glidingFreq);
+                voices_[0].setFrequency(glidingFreq * monoPitchScale());
 
                 voices_[0].processBlock(monoChunkBuffer_.data(), chunk);
 
@@ -2528,6 +2574,10 @@ private:
     /// reset() fill it with -1.
     std::array<int32_t, 128> monoNoteIds_{};
     bool userLegato_{false};    ///< Cached user legato setting for save/restore during arp slide
+    float monoPortamentoTimeMs_{0.0f};  ///< Mono Portamento Time (R-031)
+    float slideTimeMs_{0.0f};           ///< Arp Slide Time
+    float monoGlideTimeMs_{0.0f};       ///< The time monoHandler_ holds now
+    bool monoSlideGlide_{false};        ///< The last mono note-on was an arp slide step
     bool tranceGateEnabled_{false}; ///< Cached trance gate enabled state for processBlock sync
     BlockContext blockContext_{};
     float globalFilterCutoffHz_{1000.0f};
