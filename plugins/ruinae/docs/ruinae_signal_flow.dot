@@ -310,7 +310,7 @@ digraph RuinaeSignalFlow {
             color="#9B6BBF";
             bgcolor="#EAE0F2";
 
-            delay [label="Active Delay Type\n• Digital (era/age/limiter/mod/wavefold)\n• Tape (motor/wear/saturation/splice/3 heads)\n• PingPong (L/R ratio, cross-feedback, width)\n• Granular (size/density/pitch spray/reverse)\n• Spectral (FFT per-bin, spread/tilt/freeze)\n\nLatency: 1024 samples (compensated)", shape=box, fillcolor="#C49EE0"];
+            delay [label="Active Delay Type\n• Digital (era/age/limiter/mod/wavefold)\n• Tape (motor/wear/saturation/splice/3 heads)\n• PingPong (L/R ratio, cross-feedback, width)\n• Granular (size/density/pitch spray/reverse)\n• Spectral (FFT per-bin, spread/tilt/freeze)\n\nSpectral latency: FFT size + hop\n(1536 samples at 1024, compensated)", shape=box, fillcolor="#C49EE0"];
         }
 
         harmonizer [label="Harmonizer\nPitch-shifted voices (up to 4)\nHarmony modes, scale-aware\nFormant preserve, per-voice\ninterval/level/pan/delay/detune\n\nMono-in → Stereo-out\n30ms crossfade on enable", shape=box, fillcolor="#C49EE0"];

@@ -25,7 +25,7 @@
       "scope": "Krate::DSP::OscillatorAdapter",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/oscillator_adapters.h",
-      "line": 635
+      "line": 637
     },
     {
       "name": "AdditiveOscillator",
@@ -33,7 +33,7 @@
       "scope": "Krate::DSP",
       "layer": "processors",
       "header": "dsp/include/krate/dsp/processors/additive_oscillator.h",
-      "line": 62
+      "line": 63
     },
     {
       "name": "ADSREnvelope",
@@ -89,7 +89,7 @@
       "scope": "Krate::DSP::DelayLine",
       "layer": "primitives",
       "header": "dsp/include/krate/dsp/primitives/delay_line.h",
-      "line": 162
+      "line": 178
     },
     {
       "name": "AmountRow",
@@ -721,7 +721,7 @@
       "scope": "Krate::DSP::SpectralDelay",
       "layer": "effects",
       "header": "dsp/include/krate/dsp/effects/spectral_delay.h",
-      "line": 766
+      "line": 806
     },
     {
       "name": "DelayEngine",
@@ -1049,7 +1049,7 @@
       "scope": "Krate::DSP",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/feedback_network.h",
-      "line": 58
+      "line": 59
     },
     {
       "name": "FeedforwardComb",
@@ -1161,7 +1161,7 @@
       "scope": "Krate::DSP",
       "layer": "processors",
       "header": "dsp/include/krate/dsp/processors/formant_oscillator.h",
-      "line": 96
+      "line": 103
     },
     {
       "name": "FoldBranch",
@@ -1185,7 +1185,7 @@
       "scope": "Krate::DSP",
       "layer": "processors",
       "header": "dsp/include/krate/dsp/processors/formant_oscillator.h",
-      "line": 47
+      "line": 49
     },
     {
       "name": "FormantDistortion",
@@ -1209,7 +1209,7 @@
       "scope": "Krate::DSP",
       "layer": "processors",
       "header": "dsp/include/krate/dsp/processors/formant_oscillator.h",
-      "line": 123
+      "line": 132
     },
     {
       "name": "FormantOscillator",
@@ -1217,7 +1217,7 @@
       "scope": "Krate::DSP",
       "layer": "processors",
       "header": "dsp/include/krate/dsp/processors/formant_oscillator.h",
-      "line": 182
+      "line": 197
     },
     {
       "name": "FormantPosition",
@@ -1225,7 +1225,7 @@
       "scope": "Krate::DSP::OscillatorAdapter",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/oscillator_adapters.h",
-      "line": 650
+      "line": 652
     },
     {
       "name": "FormantPreserver",
@@ -1377,7 +1377,7 @@
       "scope": "Krate::DSP",
       "layer": "effects",
       "header": "dsp/include/krate/dsp/effects/granular_delay.h",
-      "line": 32
+      "line": 34
     },
     {
       "name": "GranularDistortion",
@@ -1393,7 +1393,7 @@
       "scope": "Krate::DSP",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/granular_engine.h",
-      "line": 31
+      "line": 33
     },
     {
       "name": "GranularFilter",
@@ -1705,7 +1705,7 @@
       "scope": "Krate::DSP::DelayLine",
       "layer": "primitives",
       "header": "dsp/include/krate/dsp/primitives/delay_line.h",
-      "line": 170
+      "line": 186
     },
     {
       "name": "Loop",
@@ -2049,7 +2049,7 @@
       "scope": "Krate::DSP::OscillatorAdapter",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/oscillator_adapters.h",
-      "line": 646
+      "line": 648
     },
     {
       "name": "NoFormantPosition",
@@ -2057,7 +2057,7 @@
       "scope": "Krate::DSP::OscillatorAdapter",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/oscillator_adapters.h",
-      "line": 655
+      "line": 657
     },
     {
       "name": "NoiseColorFilter",
@@ -2353,7 +2353,7 @@
       "scope": "Krate::DSP::ArpeggiatorCore",
       "layer": "processors",
       "header": "dsp/include/krate/dsp/processors/arpeggiator_core.h",
-      "line": 1139
+      "line": 1141
     },
     {
       "name": "PeriodPeakDetector",

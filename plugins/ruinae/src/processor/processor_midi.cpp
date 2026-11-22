@@ -14,6 +14,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <span>
 
 
 namespace Ruinae {
@@ -167,6 +168,74 @@ void Processor::renderEngineSegments(float* left, float* right, size_t numSample
 }
 
 // ==============================================================================
+// Arp key timing (R-072)
+// ==============================================================================
+
+void Processor::queueArpKey(const ArpKeyEvent& key) noexcept {
+    if (arpKeyEventCount_ >= kMaxArpKeyEvents) {
+        // Queue full: apply what is queued, then this key, at the buffer start
+        // (the order holds, so a key-off never runs before its key-on).
+        flushArpKeys();
+        applyArpKey(key);
+        return;
+    }
+    size_t i = arpKeyEventCount_;
+    while (i > 0 && arpKeyEvents_[i - 1].offset > key.offset) {
+        arpKeyEvents_[i] = arpKeyEvents_[i - 1];
+        --i;
+    }
+    arpKeyEvents_[i] = key;
+    ++arpKeyEventCount_;
+}
+
+void Processor::applyArpKey(const ArpKeyEvent& key) noexcept {
+    if (key.on) arpCore_.noteOn(key.pitch, key.velocity);
+    else arpCore_.noteOff(key.pitch);
+}
+
+void Processor::flushArpKeys() noexcept {
+    for (size_t i = 0; i < arpKeyEventCount_; ++i) applyArpKey(arpKeyEvents_[i]);
+    arpKeyEventCount_ = 0;
+}
+
+size_t Processor::runArpSegments(const Krate::DSP::BlockContext& arpCtx, bool hostSync) noexcept {
+    const size_t numSamples = arpCtx.blockSize;
+    size_t total = 0;
+    size_t next = 0;
+    size_t pos = 0;
+    while (pos < numSamples) {
+        while (next < arpKeyEventCount_ && arpKeyEvents_[next].offset <= pos) {
+            applyArpKey(arpKeyEvents_[next++]);
+        }
+        const size_t end = (next < arpKeyEventCount_)
+            ? std::min(static_cast<size_t>(arpKeyEvents_[next].offset), numSamples)
+            : numSamples;
+        // Each segment carries the position of its first sample, as the
+        // engine's render segments do.
+        Krate::DSP::BlockContext segment = arpCtx;
+        segment.blockSize = end - pos;
+        if (pos > 0) {
+            segment.transportPositionSamples += static_cast<int64_t>(pos);
+            if (segment.projectTimeMusicValid) {
+                segment.projectTimeMusic += static_cast<double>(pos) / arpCtx.sampleRate
+                                          * (arpCtx.tempoBPM / 60.0);
+            }
+        }
+        if (hostSync) arpCore_.syncToMusicalPosition(segment.projectTimeMusic);
+        const size_t count = arpCore_.processBlock(segment, std::span(arpEvents_).subspan(total));
+        for (size_t i = total; i < total + count; ++i) {
+            arpEvents_[i].sampleOffset += static_cast<int32_t>(pos);
+        }
+        total += count;
+        pos = end;
+    }
+    // Keys of an empty buffer (and any past its end, none after clamping).
+    while (next < arpKeyEventCount_) applyArpKey(arpKeyEvents_[next++]);
+    arpKeyEventCount_ = 0;
+    return total;
+}
+
+// ==============================================================================
 // MIDI Dispatcher Callbacks (FR-006)
 // ==============================================================================
 // The plain overloads are the noteId-aware ones with no id (-1), which the
@@ -200,8 +269,8 @@ void Processor::onNoteOn(int16_t pitch, float velocity, int32_t noteId) {
     const bool arpDispatchesNotes = (opMode == kArpMIDI || opMode == kArpMIDIMod);
 
     if (arpRunning) {
-        // Feed note to arp core for pattern building
-        arpCore_.noteOn(midiPitch, midiVelocity);
+        // Feed note to arp core for pattern building, at its offset (R-072)
+        queueArpKey({.offset = currentEventOffset_, .pitch = midiPitch, .velocity = midiVelocity, .on = true});
         if (arpCoreKeysOpen_[midiPitch] < UINT8_MAX) ++arpCoreKeysOpen_[midiPitch];
     }
     if (!arpDispatchesNotes) {
@@ -223,7 +292,7 @@ void Processor::onNoteOff(int16_t pitch, int32_t noteId) {
 
     if (arpCoreKeysOpen_[midiPitch] > 0) {
         --arpCoreKeysOpen_[midiPitch];
-        arpCore_.noteOff(midiPitch);
+        queueArpKey({.offset = currentEventOffset_, .pitch = midiPitch, .on = false});
     }
     if (engineDirectOpen_[midiPitch] > 0) {
         --engineDirectOpen_[midiPitch];

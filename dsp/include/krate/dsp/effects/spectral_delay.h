@@ -78,7 +78,7 @@ enum class SpreadCurve : std::uint8_t {
 /// - Frequency-dependent feedback with tilt
 /// - Spectral diffusion/blur
 ///
-/// @note Latency equals FFT size samples (analysis window fill time)
+/// @note Latency is FFT size + hop samples (getLatencySamples()) at any buffer size
 class SpectralDelay {
 public:
     // =========================================================================
@@ -196,6 +196,9 @@ public:
         tempBufferR_.resize(maxBlockSize, 0.0f);
         dryBufferL_.resize(maxBlockSize, 0.0f);
         dryBufferR_.resize(maxBlockSize, 0.0f);
+        // Wet FIFO: the fftSize latency plus one hop plus one block at most
+        wetFifoL_.assign(2 * kMaxFFTSize + maxBlockSize, 0.0f);
+        wetFifoR_.assign(2 * kMaxFFTSize + maxBlockSize, 0.0f);
         blurredMag_.assign(kMaxBins, 0.0f);
         binDelayFrames_.assign(kMaxBins, 0.0f);
         peaks_.assign(kMaxBins, 0);
@@ -210,6 +213,7 @@ public:
 
         // Activate the requested size inside that storage
         applyFFTSize(requestedFFTSize_);
+        resetWetFifo();
         wetSwitchGain_ = 1.0f;
         wetSwitchStep_ = 1.0f / std::max(1.0f, kFFTSwitchFadeMs * 0.001f
                                                    * static_cast<float>(sampleRate));
@@ -249,6 +253,18 @@ public:
     /// @note Applies a pending setFFTSize() request at once: everything it would
     ///       clear is cleared here anyway, so no fade is needed.
     void reset() noexcept {
+        startIncrementalReset();
+        std::size_t unlimited = SIZE_MAX;
+        (void)continueIncrementalReset(unlimited);
+    }
+
+    /// @brief Start a reset() whose per-bin delay-line clear is left to
+    ///        continueIncrementalReset(), so it fits a real-time callback (the
+    ///        lines hold up to 5 s of frames per bin). Do not process until
+    ///        that has returned true.
+    /// @note A pending setFFTSize() is still applied here, and re-preparing the
+    ///       lines it activates clears them in this call.
+    void startIncrementalReset() noexcept {
         if (prepared_ && requestedFFTSize_ != fftSize_) {
             applyFFTSize(requestedFFTSize_);
         }
@@ -270,16 +286,17 @@ public:
         frozenSpectrumL_.reset();
         frozenSpectrumR_.reset();
 
-        // Reset the active bins' complex delay lines (real + imaginary parts).
-        // The lines above the active bin count are not read, and applyFFTSize()
-        // clears each one it activates.
+        // Reset the active bins' complex delay lines (real + imaginary parts);
+        // continueIncrementalReset() clears them. The lines above the active
+        // bin count are not read, and applyFFTSize() clears each one it activates.
         const std::size_t numBins = std::min(activeNumBins(), binRealDelaysL_.size());
         for (std::size_t i = 0; i < numBins; ++i) {
-            binRealDelaysL_[i].reset();
-            binRealDelaysR_[i].reset();
-            binImagDelaysL_[i].reset();
-            binImagDelaysR_[i].reset();
+            binRealDelaysL_[i].startIncrementalReset();
+            binRealDelaysR_[i].startIncrementalReset();
+            binImagDelaysL_[i].startIncrementalReset();
+            binImagDelaysR_[i].startIncrementalReset();
         }
+        resetLineBin_ = 0;
 
         // Reset freeze state
         wasFrozen_ = false;
@@ -297,6 +314,23 @@ public:
         std::fill(tempBufferR_.begin(), tempBufferR_.end(), 0.0f);
         std::fill(dryBufferL_.begin(), dryBufferL_.end(), 0.0f);
         std::fill(dryBufferR_.begin(), dryBufferR_.end(), 0.0f);
+        resetWetFifo();
+    }
+
+    /// @brief Clear up to @p budget more delay-line samples (deducted from it).
+    /// @return true once the started reset is complete.
+    bool continueIncrementalReset(std::size_t& budget) noexcept {
+        const std::size_t numBins = std::min(activeNumBins(), binRealDelaysL_.size());
+        for (; resetLineBin_ < numBins; ++resetLineBin_) {
+            const std::size_t i = resetLineBin_;
+            if (!binRealDelaysL_[i].continueIncrementalReset(budget) ||
+                !binRealDelaysR_[i].continueIncrementalReset(budget) ||
+                !binImagDelaysL_[i].continueIncrementalReset(budget) ||
+                !binImagDelaysR_[i].continueIncrementalReset(budget)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /// @brief Seed the internal RNG for deterministic testing
@@ -372,33 +406,18 @@ public:
 
         // Process spectral frames, DRAINING THE ACCUMULATOR AFTER EVERY FRAME.
         //
-        // OverlapAdd::synthesize always accumulates the new frame at offset 0 and
-        // the accumulator only advances when pullSamples() shifts it
-        // (primitives/stft.h:300-311, :328-347). Synthesizing twice without an
-        // intervening pull therefore (a) stacks the second frame on top of the
-        // first instead of one hop later, and (b) lets samplesReady_ claim more
-        // samples than outputBuffer_ (2 * fftSize) physically holds. A pull of
-        // that size reads past the end AND its "zero the freed portion" fill
-        // writes BEFORE the buffer - heap corruption, reachable from any single
-        // process() call long enough to make three or more frames ready (4096
-        // samples at the 1024-point default produces seven).
-        //
-        // One hop pulled per frame is the contract every other spectral component
-        // in this library already observes: processors/spectral_gate.h:319-330,
+        // OverlapAdd::synthesize accumulates the new frame at the read position
+        // (primitives/stft.h:375-401), so a frame lands one hop after the last
+        // one only if that one's whole hop was pulled first. Synthesizing onto
+        // an undrained accumulator (a) stacks the frame early and (b) lets
+        // samplesReady_ claim more samples than outputBuffer_ (2 * fftSize)
+        // physically holds. Every synthesized hop is therefore moved whole into
+        // the wet FIFO, which is the contract every other spectral component in
+        // this library observes: processors/spectral_gate.h:319-330,
         // processors/spectral_distortion.h:293-305,
         // processors/spectral_morph_filter.h:290-307 and
         // effects/aether_reverb.h:4062-4093.
-        //
-        // The `samplesAvailable() < hopSize_` guard closes the remaining door: a
-        // block SHORTER than one hop cannot take a whole hop away, so the loop
-        // must stop analyzing rather than synthesize onto an undrained
-        // accumulator. The unconsumed samples stay in the STFT (whose input ring
-        // is 8 * fftSize, stft.h:78) and are analyzed on a later call, so nothing
-        // is lost and the occupancy stays below 2 * hopSize == fftSize.
-        std::size_t produced = 0;
-        while (stftL_.canAnalyze() && stftR_.canAnalyze()
-               && overlapAddL_.samplesAvailable() < hopSize_
-               && overlapAddR_.samplesAvailable() < hopSize_) {
+        while (stftL_.canAnalyze() && stftR_.canAnalyze()) {
             // Analyze
             stftL_.analyze(inputSpectrumL_);
             stftR_.analyze(inputSpectrumR_);
@@ -411,59 +430,29 @@ public:
             overlapAddL_.synthesize(outputSpectrumL_);
             overlapAddR_.synthesize(outputSpectrumR_);
 
-            const std::size_t ready = std::min(overlapAddL_.samplesAvailable(),
-                                               overlapAddR_.samplesAvailable());
-            if (produced < numSamples && ready > 0) {
-                const std::size_t take = std::min({hopSize_, ready, numSamples - produced});
-                overlapAddL_.pullSamples(tempBufferL_.data() + produced, take);
-                overlapAddR_.pullSamples(tempBufferR_.data() + produced, take);
-                produced += take;
-            }
+            drainHopIntoWetFifo();
         }
 
-        // Whatever an earlier call left behind: a block shorter than one hop pulls
-        // only part of a frame, so the remainder is still owed to this stream.
-        if (produced < numSamples) {
-            const std::size_t ready = std::min(overlapAddL_.samplesAvailable(),
-                                               overlapAddR_.samplesAvailable());
-            const std::size_t take = std::min(ready, numSamples - produced);
-            if (take > 0) {
-                overlapAddL_.pullSamples(tempBufferL_.data() + produced, take);
-                overlapAddR_.pullSamples(tempBufferR_.data() + produced, take);
-                produced += take;
-            }
-        }
+        // The wet stream leaves the FIFO exactly fftSize samples after its
+        // input, whatever lengths the caller cuts its buffers into: the FIFO
+        // starts with fftSize samples of silence and the frame holding a
+        // sample is always complete fftSize - 1 samples after it (R-150).
+        // Pulled straight from the accumulator, the wet stream started at the
+        // start of the call in which the first frame completed, so its delay
+        // was fftSize minus up to one buffer and depended on the buffer size,
+        // and a call that found too little left a gap of silence.
+        popWetFifo(numSamples);
 
         if (requestedFFTSize_ != fftSize_ || wetSwitchGain_ < 1.0f) {
-            applyWetSwitchFade(produced, numSamples);
+            applyWetSwitchFade(numSamples, numSamples);
         }
 
-        const std::size_t toPull = produced;
-
-        if (toPull > 0) {
-            // Already pulled, one hop at a time, by the frame loop above.
-
-            // Apply dry/wet mix (smoothed per sample)
-            for (std::size_t i = 0; i < toPull; ++i) {
-                const float wetMix = dryWetSmoother_.process();
-                const float dryMix = 1.0f - wetMix;
-                left[i] = dryBufferL_[i] * dryMix + tempBufferL_[i] * wetMix;
-                right[i] = dryBufferR_[i] * dryMix + tempBufferR_[i] * wetMix;
-            }
-
-            // Zero remaining samples if we didn't get enough
-            for (std::size_t i = toPull; i < numSamples; ++i) {
-                const float dryMix = 1.0f - dryWetSmoother_.process();
-                left[i] = dryBufferL_[i] * dryMix;
-                right[i] = dryBufferR_[i] * dryMix;
-            }
-        } else {
-            // No processed samples available yet (latency filling)
-            for (std::size_t i = 0; i < numSamples; ++i) {
-                const float dryMix = 1.0f - dryWetSmoother_.process();
-                left[i] = dryBufferL_[i] * dryMix;
-                right[i] = dryBufferR_[i] * dryMix;
-            }
+        // Apply dry/wet mix (smoothed per sample)
+        for (std::size_t i = 0; i < numSamples; ++i) {
+            const float wetMix = dryWetSmoother_.process();
+            const float dryMix = 1.0f - wetMix;
+            left[i] = dryBufferL_[i] * dryMix + tempBufferL_[i] * wetMix;
+            right[i] = dryBufferR_[i] * dryMix + tempBufferR_[i] * wetMix;
         }
     }
 
@@ -615,9 +604,12 @@ public:
     // Query
     // =========================================================================
 
-    /// @brief Get latency in samples (equals the FFT size in use)
+    /// @brief Get latency in samples: the wet FIFO's fftSize plus the one
+    ///        frame (hop) the per-bin delay loop costs, so at base delay 0 the
+    ///        wet output is the input delayed by exactly this many samples,
+    ///        whatever lengths the caller's buffers have (R-150)
     [[nodiscard]] std::size_t getLatencySamples() const noexcept {
-        return fftSize_;
+        return fftSize_ + hopSize_;
     }
 
     /// @brief Check if prepared for processing
@@ -707,6 +699,54 @@ private:
         freezeCrossfadeIncrement_ = static_cast<float>(hopSize_) /
                                     (kFreezeCrossfadeTimeMs * 0.001f *
                                      static_cast<float>(sampleRate_));
+    }
+
+    /// @brief Empty the wet FIFO and fill it with fftSize samples of silence:
+    ///        the fixed pipeline part of getLatencySamples().
+    void resetWetFifo() noexcept {
+        std::fill(wetFifoL_.begin(), wetFifoL_.end(), 0.0f);
+        std::fill(wetFifoR_.begin(), wetFifoR_.end(), 0.0f);
+        wetFifoRead_ = 0;
+        wetFifoCount_ = std::min(fftSize_, wetFifoL_.size());
+    }
+
+    /// @brief Move the hop the last synthesize() completed into the wet FIFO.
+    void drainHopIntoWetFifo() noexcept {
+        const std::size_t capacity = wetFifoL_.size();
+        const std::size_t ready = std::min(overlapAddL_.samplesAvailable(),
+                                           overlapAddR_.samplesAvailable());
+        // Occupancy stays below fftSize + hop + one block (see process()),
+        // inside the capacity prepare() allocated; the bound keeps an
+        // impossible overflow inert.
+        const std::size_t n = std::min(ready, capacity - wetFifoCount_);
+        std::size_t write = wetFifoRead_ + wetFifoCount_;
+        if (write >= capacity) write -= capacity;
+        const std::size_t first = std::min(n, capacity - write);
+        overlapAddL_.pullSamples(wetFifoL_.data() + write, first);
+        overlapAddR_.pullSamples(wetFifoR_.data() + write, first);
+        if (n > first) {
+            overlapAddL_.pullSamples(wetFifoL_.data(), n - first);
+            overlapAddR_.pullSamples(wetFifoR_.data(), n - first);
+        }
+        wetFifoCount_ += n;
+    }
+
+    /// @brief Take the next @p numSamples of the wet stream into tempBuffer.
+    void popWetFifo(std::size_t numSamples) noexcept {
+        const std::size_t capacity = wetFifoL_.size();
+        // The FIFO always holds a block by construction; silence pads the
+        // impossible shortfall rather than reading stale samples.
+        const std::size_t n = std::min(numSamples, wetFifoCount_);
+        const std::size_t first = std::min(n, capacity - wetFifoRead_);
+        std::copy_n(wetFifoL_.data() + wetFifoRead_, first, tempBufferL_.data());
+        std::copy_n(wetFifoR_.data() + wetFifoRead_, first, tempBufferR_.data());
+        std::copy_n(wetFifoL_.data(), n - first, tempBufferL_.data() + first);
+        std::copy_n(wetFifoR_.data(), n - first, tempBufferR_.data() + first);
+        std::fill(tempBufferL_.data() + n, tempBufferL_.data() + numSamples, 0.0f);
+        std::fill(tempBufferR_.data() + n, tempBufferR_.data() + numSamples, 0.0f);
+        wetFifoRead_ += n;
+        if (wetFifoRead_ >= capacity) wetFifoRead_ -= capacity;
+        wetFifoCount_ -= n;
     }
 
     /// @brief Ramp the wet output (tempBuffer) toward silence while an FFT size
@@ -1178,6 +1218,7 @@ private:
     std::vector<DelayLine> binRealDelaysR_;
     std::vector<DelayLine> binImagDelaysL_;
     std::vector<DelayLine> binImagDelaysR_;
+    std::size_t resetLineBin_ = 0;  ///< first bin continueIncrementalReset() has not finished
 
     // Parameters
     float maxDelayMs_ = kMaxDelayMs;  ///< prepare()'s maxDelayMs
@@ -1238,6 +1279,13 @@ private:
     std::vector<float> dryBufferL_;
     std::vector<float> dryBufferR_;
     std::vector<float> blurredMag_;
+
+    // Wet stream FIFO (ring): synthesized hops in, one block out per call,
+    // fftSize samples behind the input
+    std::vector<float> wetFifoL_;
+    std::vector<float> wetFifoR_;
+    std::size_t wetFifoRead_ = 0;
+    std::size_t wetFifoCount_ = 0;
 
     // Fractional-frame read (readDelayedSpectrum)
     std::vector<float> binDelayFrames_;

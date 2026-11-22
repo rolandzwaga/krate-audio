@@ -744,7 +744,7 @@ VSTGUI::CView* Controller::verifyView(
                     } else {
                         auto* rateParam = getParameterObject(kChaosModRateId);
                         if (rateParam)
-                            chaosDisplay->setSpeed(lfoRateFromNormalized(rateParam->getNormalized()));
+                            chaosDisplay->setSpeed(chaosSpeedFromNormalized(rateParam->getNormalized()));
                     }
                 }
                 auto* depthParam = getParameterObject(kChaosModDepthId);
@@ -796,7 +796,7 @@ VSTGUI::CView* Controller::verifyView(
                     } else {
                         auto* rateParam = getParameterObject(kSampleHoldRateId);
                         if (rateParam)
-                            shDisp->setRate(lfoRateFromNormalized(rateParam->getNormalized()));
+                            shDisp->setRate(sampleHoldRateFromNormalized(rateParam->getNormalized()));
                     }
                 }
                 auto* slewParam = getParameterObject(kSampleHoldSlewId);
@@ -823,7 +823,7 @@ VSTGUI::CView* Controller::verifyView(
                     } else {
                         auto* rateParam = getParameterObject(kRandomRateId);
                         if (rateParam)
-                            rndDisp->setRate(lfoRateFromNormalized(rateParam->getNormalized()));
+                            rndDisp->setRate(sampleHoldRateFromNormalized(rateParam->getNormalized()));
                     }
                 }
                 auto* smoothParam = getParameterObject(kRandomSmoothnessId);

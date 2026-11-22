@@ -78,8 +78,8 @@
 [213756] noteOff 60
 [214761] noteOn  72 87
 [219238] noteOff 72
-[220419] noteOn  64 96
-[224850] noteOff 64
+[220500] noteOn  64 96
+[224931] noteOff 64
 [225796] noteOn  76 85
 [230114] noteOff 76
 [231424] noteOn  64 93
@@ -158,8 +158,8 @@
 [434524] noteOff 64
 [435356] noteOn  76 89
 [439770] noteOff 76
-[440972] noteOn  67 99
-[445452] noteOff 67
+[441000] noteOn  67 99
+[445480] noteOff 67
 [446601] noteOn  79 87
 [450946] noteOff 79
 [451966] noteOn  67 99
@@ -238,8 +238,8 @@
 [654759] noteOff 67
 [656025] noteOn  79 93
 [660371] noteOff 79
-[661305] noteOn  60 98
-[665586] noteOff 60
+[661500] noteOn  60 98
+[665781] noteOff 60
 [666771] noteOn  64 89
 [671048] noteOff 64
 [672561] noteOn  67 100

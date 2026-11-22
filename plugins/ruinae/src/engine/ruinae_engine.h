@@ -162,7 +162,7 @@ public:
         // Modulation sets cutoff and resonance once per sub-block: the SVF
         // glides its coefficients per sample instead of stepping them (R-047).
         snapGlobalFilterCoefficients();
-        prevMasterVolOffset_ = 0.0f;
+        heldMod_ = HeldModulation{};
 
         // Initialize global modulation engine. The LFO Rate parameter spans
         // 0.01-50 Hz (lfo_params.h), above the LFO's default 20 Hz clamp.
@@ -176,9 +176,8 @@ public:
         voiceScratchBuffer_.resize(maxBlockSize, 0.0f);
         mixBufferL_.resize(maxBlockSize, 0.0f);
         mixBufferR_.resize(maxBlockSize, 0.0f);
-        previousOutputL_.resize(maxBlockSize, 0.0f);
-        previousOutputR_.resize(maxBlockSize, 0.0f);
-        modSubBlocks_.resize(maxBlockSize / kModSubBlock + 2);
+        analysisL_.fill(0.0f);
+        analysisR_.fill(0.0f);
         modGridPhase_ = 0;
 
         // Reset state
@@ -212,14 +211,14 @@ public:
         globalFilterR_.reset();
         globalModEngine_.reset();
         effectsChain_.reset();
-        prevMasterVolOffset_ = 0.0f;
+        heldMod_ = HeldModulation{};
 
         // Clear scratch buffers
         std::fill(voiceScratchBuffer_.begin(), voiceScratchBuffer_.end(), 0.0f);
         std::fill(mixBufferL_.begin(), mixBufferL_.end(), 0.0f);
         std::fill(mixBufferR_.begin(), mixBufferR_.end(), 0.0f);
-        std::fill(previousOutputL_.begin(), previousOutputL_.end(), 0.0f);
-        std::fill(previousOutputR_.begin(), previousOutputR_.end(), 0.0f);
+        analysisL_.fill(0.0f);
+        analysisR_.fill(0.0f);
         modGridPhase_ = 0;
 
         // Reset state tracking
@@ -645,6 +644,7 @@ public:
     void setReverbEnabled(bool enabled) noexcept { effectsChain_.setReverbEnabled(enabled); }
 
     void setDelayType(RuinaeDelayType type) noexcept { effectsChain_.setDelayType(type); }
+    void setDelayTypeDirect(RuinaeDelayType type) noexcept { effectsChain_.setDelayTypeDirect(type); }
     void setDelayTime(float ms) noexcept { effectsChain_.setDelayTime(ms); }
     void setDelayFeedback(float amount) noexcept { effectsChain_.setDelayFeedback(amount); }
     void setDelayMix(float mix) noexcept {
@@ -782,7 +782,9 @@ public:
     /// Processing flow:
     /// 1.  Clear mix buffers
     /// 2.  Build BlockContext, set tempo on components
-    /// 3.  Process global modulation with previous block's output
+    /// Steps 3-15 run per piece of a fixed kModSubBlock grid counted across
+    /// buffers; steps 3-6 only at the start of a grid cell:
+    /// 3.  Process global modulation with the previous cell's analysis signal
     /// 4.  Read global modulation offsets for engine-level params
     /// 5.  Apply global modulation to filter cutoff, master volume, etc.
     /// 6.  Process pitch bend smoother
@@ -794,7 +796,7 @@ public:
     /// 12. Apply soft limiter (if enabled)
     /// 13. Flush NaN/Inf to 0.0
     /// 14. Write to output
-    /// 15. Copy output to previousOutput buffers
+    /// 15. Copy output (or sidechain) to the analysis buffers for the next cell
     /// 16. Deferred voiceFinished notifications
     ///
     /// @param left Pointer to left channel output buffer
@@ -839,199 +841,69 @@ public:
             }
         }
 
-        // Steps 3-7 run on a fixed grid of kModSubBlock samples inside the buffer:
-        // the global modulation engine, the offsets it produces and the voices
-        // (whose own routes are evaluated per call) all advance one sub-block at
-        // a time. Run once per buffer, a 2048-sample buffer held every modulation
-        // value for 46 ms and stepped it at the next buffer (a click on a
-        // morph route). The grid is counted across buffers (modGridPhase_), so
-        // every buffer size cuts the same sub-blocks and renders the same audio.
-
-        // Step 3 (setup): modulation audio input.
-        // Use sidechain if connected, otherwise fall back to previous block's output.
+        // The whole chain runs on a fixed grid of kModSubBlock samples counted
+        // across buffers (modGridPhase_). At the start of every grid cell the
+        // global modulation engine advances one full cell and its offsets are
+        // held for the cell; a buffer or note-event cut inside a cell renders
+        // the pieces with those held offsets. The voices, the effects and the
+        // output stages then run piece by piece, so every buffer size renders
+        // the same audio (R-151). Evaluated at every cut instead, a 32-sample
+        // buffer updated modulation every 32 samples and a 512 one every 64.
+        //
+        // Self-analysis (Env Follower, Pitch Follower, chaos coupling) reads
+        // the analysis signal one cell late from analysisL_/R_: the synth's
+        // own output, or a connected sidechain. A cell starts only after the
+        // previous cell's output is final, so the delay is exactly
+        // kModSubBlock samples at any buffer size (R-051). It read the
+        // previous call's output by index, a splice whose delay was the
+        // previous call's length.
         // The Transient source detects a connected sidechain's audio; without one it fires on the
         // block's non-legato note-ons (a chord struck over the previous one's release is too small
         // a level rise in the synth's own output to detect).
         const bool sidechainConnected = sidechainL_ != nullptr;
-        const float* modAudioL = sidechainConnected ? sidechainL_ : previousOutputL_.data();
-        const float* modAudioR = sidechainConnected ? sidechainR_ : previousOutputR_.data();
         globalModEngine_.setTransientAudioDetection(sidechainConnected);
         if (!sidechainConnected && pendingTransientLevel_ > 0.0f) {
             globalModEngine_.triggerTransient(pendingTransientLevel_);
         }
         pendingTransientLevel_ = 0.0f;
 
-        size_t subCount = 0;
-        float effectMixOffset = 0.0f;
         for (size_t start = 0; start < numSamples;) {
-            const size_t len = std::min(kModSubBlock - modGridPhase_, numSamples - start);
-            BlockContext subCtx = ctx;
-            subCtx.blockSize = len;
+            const size_t phase = modGridPhase_;
+            const size_t len = std::min(kModSubBlock - phase, numSamples - start);
 
-            // Step 6: Advance the pitch bend smoother by this sub-block's samples
-            // before the voices read getFrequency, so the bend settles in its
-            // configured time whatever the host block size (R-010).
-            [[maybe_unused]] auto bendValue = noteProcessor_.processPitchBend(len);
-
-            // Step 3: Process global modulation for this sub-block
-            globalModEngine_.process(subCtx, modAudioL + start, modAudioR + start, len);
-
-            // Step 4: Read global modulation offsets (FR-020)
-            const float cutoffOffset = globalModEngine_.getModulationOffset(
-                static_cast<uint32_t>(RuinaeModDest::GlobalFilterCutoff));
-            const float resonanceOffset = globalModEngine_.getModulationOffset(
-                static_cast<uint32_t>(RuinaeModDest::GlobalFilterResonance));
-            const float masterVolOffset = globalModEngine_.getModulationOffset(
-                static_cast<uint32_t>(RuinaeModDest::MasterVolume));
-            effectMixOffset = globalModEngine_.getModulationOffset(
-                static_cast<uint32_t>(RuinaeModDest::EffectMix));
-
-            // AllVoice offsets for forwarding to voices (FR-021)
-            const float allVoiceFilterCutoffOffset = globalModEngine_.getModulationOffset(
-                static_cast<uint32_t>(RuinaeModDest::AllVoiceFilterCutoff));
-            const float allVoiceMorphOffset = globalModEngine_.getModulationOffset(
-                static_cast<uint32_t>(RuinaeModDest::AllVoiceMorphPosition));
-            const float allVoiceTranceGateOffset = globalModEngine_.getModulationOffset(
-                static_cast<uint32_t>(RuinaeModDest::AllVoiceTranceGateRate));
-            const float allVoiceTiltOffset = globalModEngine_.getModulationOffset(
-                static_cast<uint32_t>(RuinaeModDest::AllVoiceSpectralTilt));
-            const float allVoiceResonanceOffset = globalModEngine_.getModulationOffset(
-                static_cast<uint32_t>(RuinaeModDest::AllVoiceResonance));
-            const float allVoiceFilterEnvAmtOffset = globalModEngine_.getModulationOffset(
-                static_cast<uint32_t>(RuinaeModDest::AllVoiceFilterEnvAmt));
-
-            // Step 5: Global modulation of engine-level params, applied per
-            // sub-block below (global filter, master volume).
-            // Global filter: exponential semitone scaling (±48 semitones = ±4 octaves)
-            constexpr float kFilterModSemitones = 48.0f;
-            auto& sub = modSubBlocks_[subCount];
-            sub.start = start;
-            sub.length = len;
-            sub.globalCutoffHz = std::clamp(
-                globalFilterCutoffHz_ * semitonesToRatio(cutoffOffset * kFilterModSemitones),
-                20.0f, 20000.0f);
-            sub.globalResonance = std::clamp(
-                globalFilterResonance_ + resonanceOffset * 10.0f,
-                0.1f, 30.0f);
-            // Master volume modulation (ramped per sample at step 11)
-            sub.masterVolOffset = masterVolOffset;
-
-            // Step 7: Process all voices (poly or mono) for this sub-block
-            if (mode_ == VoiceMode::Poly) {
-                processBlockPoly(start, len, allVoiceFilterCutoffOffset,
-                                 allVoiceMorphOffset, allVoiceTranceGateOffset,
-                                 allVoiceTiltOffset, allVoiceResonanceOffset,
-                                 allVoiceFilterEnvAmtOffset);
-            } else {
-                processBlockMono(start, len, allVoiceFilterCutoffOffset,
-                                 allVoiceMorphOffset, allVoiceTranceGateOffset,
-                                 allVoiceTiltOffset, allVoiceResonanceOffset,
-                                 allVoiceFilterEnvAmtOffset);
+            // Steps 3-6: a new cell evaluates the modulation it holds.
+            if (phase == 0) {
+                evaluateModulationCell(ctx);
             }
 
-            modGridPhase_ = (modGridPhase_ + len) % kModSubBlock;
+            // Step 7: Process all voices (poly or mono) for this piece
+            if (mode_ == VoiceMode::Poly) {
+                processBlockPoly(start, len, heldMod_.voiceCutoff,
+                                 heldMod_.voiceMorph, heldMod_.voiceTranceGate,
+                                 heldMod_.voiceTilt, heldMod_.voiceResonance,
+                                 heldMod_.voiceFilterEnvAmt);
+            } else {
+                processBlockMono(start, len, phase, heldMod_.voiceCutoff,
+                                 heldMod_.voiceMorph, heldMod_.voiceTranceGate,
+                                 heldMod_.voiceTilt, heldMod_.voiceResonance,
+                                 heldMod_.voiceFilterEnvAmt);
+            }
+
+            // Steps 8-14: the output stages for this piece.
+            renderOutputPiece(left, right, start, len, phase);
+
+            // Step 15: the piece's analysis signal, read one cell later.
+            const float* srcL = sidechainConnected ? sidechainL_ + start : left + start;
+            const float* srcR = sidechainConnected ? sidechainR_ + start : right + start;
+            std::copy(srcL, srcL + len, analysisL_.begin() + static_cast<std::ptrdiff_t>(phase));
+            std::copy(srcR, srcR + len, analysisR_.begin() + static_cast<std::ptrdiff_t>(phase));
+
+            modGridPhase_ = (phase + len) % kModSubBlock;
             start += len;
-            ++subCount;
         }
         // Clear sidechain pointers (must be re-set each block by processor)
         sidechainL_ = nullptr;
         sidechainR_ = nullptr;
-
-        // Effect mix modulation (FR-032 step 5). Applied unconditionally, like
-        // the global filter and master gain: a zero offset must write the
-        // base value back, otherwise removing a route (or dropping its depth to
-        // zero) leaves the last modulated mix stuck until the user touches the
-        // parameter. The effects chain runs once per buffer, so it takes the
-        // buffer's last sub-block value (its delay mix glides per sample).
-        effectsChain_.setDelayMix(std::clamp(baseDelayMix_ + effectMixOffset, 0.0f, 1.0f));
-
-        // Step 8: Apply stereo width (Mid/Side) (FR-014)
-        if (stereoWidth_ != 1.0f) {
-            for (size_t s = 0; s < numSamples; ++s) {
-                const float mid = (mixBufferL_[s] + mixBufferR_[s]) * 0.5f;
-                const float side = (mixBufferL_[s] - mixBufferR_[s]) * 0.5f;
-                mixBufferL_[s] = mid + side * stereoWidth_;
-                mixBufferR_[s] = mid - side * stereoWidth_;
-            }
-        }
-
-        // Step 9: Apply global filter if enabled (FR-015)
-        if (globalFilterEnabled_) {
-            for (size_t k = 0; k < subCount; ++k) {
-                const auto& sub = modSubBlocks_[k];
-                globalFilterL_.setCutoff(sub.globalCutoffHz);
-                globalFilterR_.setCutoff(sub.globalCutoffHz);
-                globalFilterL_.setResonance(sub.globalResonance);
-                globalFilterR_.setResonance(sub.globalResonance);
-                globalFilterL_.processBlock(mixBufferL_.data() + sub.start, sub.length);
-                globalFilterR_.processBlock(mixBufferR_.data() + sub.start, sub.length);
-            }
-        } else if (subCount > 0) {
-            // Keep the filter's targets current so enabling it starts from them.
-            const auto& last = modSubBlocks_[subCount - 1];
-            globalFilterL_.setCutoff(last.globalCutoffHz);
-            globalFilterR_.setCutoff(last.globalCutoffHz);
-            globalFilterL_.setResonance(last.globalResonance);
-            globalFilterR_.setResonance(last.globalResonance);
-        }
-
-        // Step 10: Process effects chain in-place (FR-026)
-        effectsChain_.processBlock(mixBufferL_.data(), mixBufferR_.data(), numSamples);
-
-        // Step 11-13: Apply master gain, soft limiter, NaN/Inf flush
-        // No dynamic voice-count gain compensation — voices are summed
-        // naturally (like Surge and most professional synths). The soft
-        // limiter (tanh) at step 12 prevents clipping when many voices
-        // overlap. This avoids audible gain pumping artifacts that occur
-        // with 1/sqrt(N) compensation when releasing voices finish.
-        // Master gain per sample, ahead of the per-sample loop below. The
-        // Master Volume modulation offset ramps linearly across each sub-block,
-        // from the previous sub-block's value to this one's: held constant per
-        // sub-block it stepped every 64 samples (R-047). The base gain applies
-        // at once, as before.
-        for (size_t k = 0; k < subCount; ++k) {
-            const auto& sub = modSubBlocks_[k];
-            const float offsetStep = (sub.masterVolOffset - prevMasterVolOffset_)
-                                   / static_cast<float>(sub.length);
-            for (size_t i = 0; i < sub.length; ++i) {
-                // Step 11: Master gain with compensation
-                const float offset = (i + 1 == sub.length)
-                    ? sub.masterVolOffset
-                    : prevMasterVolOffset_ + offsetStep * static_cast<float>(i + 1);
-                const float effectiveGain = std::clamp(
-                    masterGain_ + offset * 2.0f, kMinMasterGain, kMaxMasterGain);
-                mixBufferL_[sub.start + i] *= effectiveGain;
-                mixBufferR_[sub.start + i] *= effectiveGain;
-            }
-            prevMasterVolOffset_ = sub.masterVolOffset;
-        }
-        for (size_t s = 0; s < numSamples; ++s) {
-            // Step 12: Soft limiter (FR-030)
-            // Uses threshold-based soft limiting: linear below 0.85,
-            // tanh saturation above. Transparent for normal signals,
-            // only compresses peaks that would otherwise clip.
-            if (softLimitEnabled_) {
-                mixBufferL_[s] = Sigmoid::softLimit(mixBufferL_[s]);
-                mixBufferR_[s] = Sigmoid::softLimit(mixBufferR_[s]);
-            }
-
-            // Step 13: NaN/Inf flush (FR-031)
-            if (detail::isNaN(mixBufferL_[s]) || detail::isInf(mixBufferL_[s])) {
-                mixBufferL_[s] = 0.0f;
-            }
-            if (detail::isNaN(mixBufferR_[s]) || detail::isInf(mixBufferR_[s])) {
-                mixBufferR_[s] = 0.0f;
-            }
-        }
-
-        // Step 14: Write to output
-        std::copy(mixBufferL_.begin(), mixBufferL_.begin() + numSamples, left);
-        std::copy(mixBufferR_.begin(), mixBufferR_.begin() + numSamples, right);
-
-        // Step 15: Copy output to previousOutput buffers for next block's
-        // global modulation audio input
-        std::copy(left, left + numSamples, previousOutputL_.begin());
-        std::copy(right, right + numSamples, previousOutputR_.begin());
     }
 
     // =========================================================================
@@ -2230,6 +2102,127 @@ private:
     // Block Processing - Poly Mode
     // =========================================================================
 
+    /// @brief Start a modulation grid cell: advance the pitch bend smoother and
+    /// the global modulation engine by one cell and hold their values for it.
+    ///
+    /// The engine reads the cell's kModSubBlock analysis samples (the previous
+    /// cell's output or sidechain) and ends on the values at the cell's last
+    /// sample, which the whole cell renders with.
+    void evaluateModulationCell(const BlockContext& ctx) noexcept {
+        // Step 6: the bend settles in its configured time whatever the host
+        // block size (R-010); voices read it through getFrequency.
+        [[maybe_unused]] auto bendValue = noteProcessor_.processPitchBend(kModSubBlock);
+
+        // Step 3: global modulation for this cell
+        BlockContext cellCtx = ctx;
+        cellCtx.blockSize = kModSubBlock;
+        globalModEngine_.process(cellCtx, analysisL_.data(), analysisR_.data(), kModSubBlock);
+
+        // Step 4: read the global modulation offsets (FR-020, FR-021)
+        const auto offset = [this](RuinaeModDest dest) {
+            return globalModEngine_.getModulationOffset(static_cast<uint32_t>(dest));
+        };
+        heldMod_.globalCutoff = offset(RuinaeModDest::GlobalFilterCutoff);
+        heldMod_.globalResonance = offset(RuinaeModDest::GlobalFilterResonance);
+        heldMod_.masterVolumeFrom = heldMod_.masterVolume;
+        heldMod_.masterVolume = offset(RuinaeModDest::MasterVolume);
+        heldMod_.effectMix = offset(RuinaeModDest::EffectMix);
+        heldMod_.voiceCutoff = offset(RuinaeModDest::AllVoiceFilterCutoff);
+        heldMod_.voiceMorph = offset(RuinaeModDest::AllVoiceMorphPosition);
+        heldMod_.voiceTranceGate = offset(RuinaeModDest::AllVoiceTranceGateRate);
+        heldMod_.voiceTilt = offset(RuinaeModDest::AllVoiceSpectralTilt);
+        heldMod_.voiceResonance = offset(RuinaeModDest::AllVoiceResonance);
+        heldMod_.voiceFilterEnvAmt = offset(RuinaeModDest::AllVoiceFilterEnvAmt);
+    }
+
+    /// @brief Steps 8-14 for one piece of a grid cell: width, global filter,
+    /// effects, master gain, soft limiter, NaN flush, output.
+    /// @param phase Samples into the grid cell at the piece's first sample.
+    void renderOutputPiece(float* left, float* right, size_t start, size_t len,
+                           size_t phase) noexcept {
+        float* mixL = mixBufferL_.data() + start;
+        float* mixR = mixBufferR_.data() + start;
+
+        // Step 8: Apply stereo width (Mid/Side) (FR-014)
+        if (stereoWidth_ != 1.0f) {
+            for (size_t s = 0; s < len; ++s) {
+                const float mid = (mixL[s] + mixR[s]) * 0.5f;
+                const float side = (mixL[s] - mixR[s]) * 0.5f;
+                mixL[s] = mid + side * stereoWidth_;
+                mixR[s] = mid - side * stereoWidth_;
+            }
+        }
+
+        // Step 9: Apply global filter if enabled (FR-015). Global filter:
+        // exponential semitone scaling (±48 semitones = ±4 octaves). Disabled,
+        // its targets are kept current so enabling it starts from them.
+        constexpr float kFilterModSemitones = 48.0f;
+        const float cutoffHz = std::clamp(
+            globalFilterCutoffHz_ * semitonesToRatio(heldMod_.globalCutoff * kFilterModSemitones),
+            20.0f, 20000.0f);
+        const float resonance = std::clamp(
+            globalFilterResonance_ + heldMod_.globalResonance * 10.0f, 0.1f, 30.0f);
+        globalFilterL_.setCutoff(cutoffHz);
+        globalFilterR_.setCutoff(cutoffHz);
+        globalFilterL_.setResonance(resonance);
+        globalFilterR_.setResonance(resonance);
+        if (globalFilterEnabled_) {
+            globalFilterL_.processBlock(mixL, len);
+            globalFilterR_.processBlock(mixR, len);
+        }
+
+        // Step 10: Process effects chain in-place (FR-026). Effect mix
+        // modulation (FR-032 step 5) is applied unconditionally, like the
+        // global filter and master gain: a zero offset must write the base
+        // value back, otherwise removing a route (or dropping its depth to
+        // zero) leaves the last modulated mix stuck until the user touches
+        // the parameter. The delay mix glides per sample from it.
+        effectsChain_.setDelayMix(std::clamp(baseDelayMix_ + heldMod_.effectMix, 0.0f, 1.0f));
+        effectsChain_.processBlock(mixL, mixR, len);
+
+        // Steps 11-13: master gain, soft limiter, NaN/Inf flush.
+        // No dynamic voice-count gain compensation — voices are summed
+        // naturally (like Surge and most professional synths). The soft
+        // limiter (tanh) at step 12 prevents clipping when many voices
+        // overlap. This avoids audible gain pumping artifacts that occur
+        // with 1/sqrt(N) compensation when releasing voices finish.
+        // The Master Volume modulation offset ramps linearly across each grid
+        // cell, from the previous cell's value to this one's: held constant
+        // per cell it stepped every 64 samples (R-047). The base gain applies
+        // at once, as before.
+        const float from = heldMod_.masterVolumeFrom;
+        const float to = heldMod_.masterVolume;
+        const float offsetStep = (to - from) / static_cast<float>(kModSubBlock);
+        for (size_t s = 0; s < len; ++s) {
+            // Step 11: Master gain
+            const size_t cellPos = phase + s + 1;
+            const float offset = (cellPos == kModSubBlock)
+                ? to
+                : from + offsetStep * static_cast<float>(cellPos);
+            const float effectiveGain = std::clamp(
+                masterGain_ + offset * 2.0f, kMinMasterGain, kMaxMasterGain);
+            float l = mixL[s] * effectiveGain;
+            float r = mixR[s] * effectiveGain;
+
+            // Step 12: Soft limiter (FR-030)
+            // Uses threshold-based soft limiting: linear below 0.85,
+            // tanh saturation above. Transparent for normal signals,
+            // only compresses peaks that would otherwise clip.
+            if (softLimitEnabled_) {
+                l = Sigmoid::softLimit(l);
+                r = Sigmoid::softLimit(r);
+            }
+
+            // Step 13: NaN/Inf flush (FR-031)
+            if (detail::isNaN(l) || detail::isInf(l)) l = 0.0f;
+            if (detail::isNaN(r) || detail::isInf(r)) r = 0.0f;
+
+            // Step 14: Write to output
+            left[start + s] = l;
+            right[start + s] = r;
+        }
+    }
+
     void processBlockPoly(size_t start, size_t numSamples,
                           float allVoiceFilterCutoffOffset,
                           float allVoiceMorphOffset,
@@ -2370,7 +2363,7 @@ private:
     // Block Processing - Mono Mode
     // =========================================================================
 
-    void processBlockMono(size_t blockStart, size_t numSamples,
+    void processBlockMono(size_t blockStart, size_t numSamples, size_t gridPhase,
                           float allVoiceFilterCutoffOffset,
                           float allVoiceMorphOffset,
                           float allVoiceTranceGateOffset,
@@ -2420,7 +2413,7 @@ private:
         // Track if voice 0 was active
         bool wasActive = voices_[0].isActive();
 
-        if (voices_[0].isActive()) {
+        {
             // Step 7b: portamento (FR-009).
             //
             // The glide ramp is advanced once per sample, but the voice renders
@@ -2431,20 +2424,36 @@ private:
             // boundary, about 0.7 ms at 44.1 kHz, which is well below the
             // threshold where a glide stops sounding continuous. Going to full
             // block-rate portamento would reintroduce audible zipper.
+            // The chunks lie on a grid counted across calls (kPortamentoChunk
+            // divides the modulation cell, so the cell phase places it): a
+            // chunk started at every call or event cut stepped the glide at
+            // buffer-size-dependent points (R-150). A piece that starts inside
+            // a chunk renders at the glide's current frequency, which a new
+            // note may have just set.
             // The single mono voice stays centred; spread only distributes
             // several voices (R-012).
             const float panPosition = 0.5f;
             const float leftGain = std::cos(panPosition * kPi * 0.5f);
             const float rightGain = std::sin(panPosition * kPi * 0.5f);
 
-            for (size_t start = 0; start < numSamples; start += kPortamentoChunk) {
-                const size_t chunk = std::min(kPortamentoChunk, numSamples - start);
+            static_assert(kModSubBlock % kPortamentoChunk == 0);
+            for (size_t start = 0; start < numSamples;) {
+                const size_t chunkPhase = (gridPhase + start) % kPortamentoChunk;
+                const size_t chunk = std::min(kPortamentoChunk - chunkPhase, numSamples - start);
+                // Checked per chunk, not per call: the glide state must not
+                // depend on where the calls cut.
+                if (!voices_[0].isActive()) {
+                    start += chunk;
+                    continue;
+                }
 
-                // Advance the glide across the whole chunk and render at the
-                // frequency it ends on.
-                float glidingFreq = 0.0f;
-                for (size_t s = 0; s < chunk; ++s) {
-                    glidingFreq = monoHandler_.processPortamento();
+                // A chunk start advances the glide across the whole chunk and
+                // renders at the frequency it ends on.
+                float glidingFreq = monoHandler_.getCurrentFrequency();
+                if (chunkPhase == 0) {
+                    for (size_t s = 0; s < kPortamentoChunk; ++s) {
+                        glidingFreq = monoHandler_.processPortamento();
+                    }
                 }
                 voices_[0].setFrequency(glidingFreq * monoPitchScale());
 
@@ -2454,6 +2463,7 @@ private:
                     mixBufferL_[blockStart + start + s] += monoChunkBuffer_[s] * leftGain;
                     mixBufferR_[blockStart + start + s] += monoChunkBuffer_[s] * rightGain;
                 }
+                start += chunk;
             }
         }
 
@@ -2509,21 +2519,29 @@ private:
     std::vector<float> voiceScratchBuffer_;
     std::vector<float> mixBufferL_;
     std::vector<float> mixBufferR_;
-    std::vector<float> previousOutputL_;
-    std::vector<float> previousOutputR_;
-
-    /// Modulation sub-block: the engine evaluates modulation and renders the
-    /// voices kModSubBlock samples at a time, on a grid counted across buffers.
+    /// Modulation grid cell: the engine evaluates modulation once per
+    /// kModSubBlock samples, on a grid counted across buffers.
     static constexpr size_t kModSubBlock = 64;
-    struct ModSubBlock {
-        size_t start{0};
-        size_t length{0};
-        float globalCutoffHz{1000.0f};
-        float globalResonance{0.707f};
-        float masterVolOffset{0.0f};
+    /// The global modulation offsets a grid cell renders with.
+    struct HeldModulation {
+        float globalCutoff{0.0f};
+        float globalResonance{0.0f};
+        float masterVolume{0.0f};
+        float masterVolumeFrom{0.0f};  ///< the previous cell's (ramp start)
+        float effectMix{0.0f};
+        float voiceCutoff{0.0f};
+        float voiceMorph{0.0f};
+        float voiceTranceGate{0.0f};
+        float voiceTilt{0.0f};
+        float voiceResonance{0.0f};
+        float voiceFilterEnvAmt{0.0f};
     };
-    std::vector<ModSubBlock> modSubBlocks_;  ///< one buffer's sub-blocks (sized in prepare)
-    size_t modGridPhase_{0};                 ///< samples into the current grid cell
+    HeldModulation heldMod_{};
+    size_t modGridPhase_{0};  ///< samples into the current grid cell
+    /// The last cell's analysis signal (own output or sidechain), indexed by
+    /// grid phase: the next cell's modulation input (R-051).
+    std::array<float, kModSubBlock> analysisL_{};
+    std::array<float, kModSubBlock> analysisR_{};
 
     // Sidechain input pointers (set per block, cleared after use)
     const float* sidechainL_ = nullptr;
@@ -2538,7 +2556,6 @@ private:
     VoiceMode mode_{VoiceMode::Poly};
     size_t polyphonyCount_{8};
     float masterGain_{1.0f};
-    float prevMasterVolOffset_{0.0f};  ///< last sub-block's Master Volume offset (ramp start)
     bool softLimitEnabled_{true};
     bool globalFilterEnabled_{false};
     float stereoSpread_{0.0f};

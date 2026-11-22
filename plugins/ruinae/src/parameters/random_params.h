@@ -34,7 +34,7 @@ inline void handleRandomParamChange(
     switch (id) {
         case kRandomRateId:
             params.rateHz.store(
-                std::clamp(lfoRateFromNormalized(value), 0.1f, 50.0f),
+                sampleHoldRateFromNormalized(value),
                 std::memory_order_relaxed);
             break;
         case kRandomSyncId:
@@ -61,8 +61,8 @@ inline void handleRandomParamChange(
 
 inline void registerRandomParams(Steinberg::Vst::ParameterContainer& parameters) {
     using namespace Steinberg::Vst;
-    // Rate: continuous, log mapping [0.1, 50] Hz, default 4 Hz (norm ~0.702)
-    parameters.addParameter(STR16("Rnd Rate"), STR16("Hz"), 0, 0.702,
+    // Rate: continuous, log mapping [0.1, 50] Hz, default 4 Hz
+    parameters.addParameter(STR16("Rnd Rate"), STR16("Hz"), 0, sampleHoldRateToNormalized(4.0f),
         ParameterInfo::kCanAutomate, kRandomRateId);
     // Sync: boolean toggle, default off
     parameters.addParameter(STR16("Rnd Sync"), STR16(""), 1, 0.0,
@@ -90,7 +90,7 @@ inline Steinberg::tresult formatRandomParam(
     switch (id) {
         case kRandomRateId:
             snprintf(text, sizeof(text), "%.2f Hz",
-                static_cast<double>(std::clamp(lfoRateFromNormalized(value), 0.1f, 50.0f)));
+                static_cast<double>(sampleHoldRateFromNormalized(value)));
             UString(string, 128).fromAscii(text);
             return kResultOk;
         case kRandomSmoothnessId:
@@ -143,7 +143,7 @@ inline void loadRandomParamsToController(
 
     // Rate: read Hz, convert back to normalized
     if (streamer.readFloat(fv))
-        setParam(kRandomRateId, lfoRateToNormalized(fv));
+        setParam(kRandomRateId, sampleHoldRateToNormalized(fv));
     // Sync: read int32, convert to 0.0/1.0
     if (streamer.readInt32(iv))
         setParam(kRandomSyncId, iv != 0 ? 1.0 : 0.0);

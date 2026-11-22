@@ -122,15 +122,20 @@ public:
     /// @brief Reset all state to silence.
     void reset() noexcept {
         delayLine_.reset();
+        resetTaps();
+    }
 
-        tapADelaySamples_ = targetDelaySamples_;
-        tapBDelaySamples_ = targetDelaySamples_;
-        tapAGain_ = 1.0f;
-        tapBGain_ = 0.0f;
-        activeIsTapA_ = true;
-        crossfading_ = false;
-        crossfadePosition_ = 0.0f;
-        refreshActiveTap();
+    /// @brief Start a reset() whose buffer clear is left to
+    /// continueIncrementalReset() (see DelayLine::startIncrementalReset).
+    void startIncrementalReset() noexcept {
+        delayLine_.startIncrementalReset();
+        resetTaps();
+    }
+
+    /// @brief Clear up to @p budget more samples (deducted from it).
+    /// @return true once the started reset is complete.
+    bool continueIncrementalReset(std::size_t& budget) noexcept {
+        return delayLine_.continueIncrementalReset(budget);
     }
 
     // =========================================================================
@@ -355,6 +360,18 @@ public:
     }
 
 private:
+    /// The non-buffer part of reset(): taps back on the target, no crossfade.
+    void resetTaps() noexcept {
+        tapADelaySamples_ = targetDelaySamples_;
+        tapBDelaySamples_ = targetDelaySamples_;
+        tapAGain_ = 1.0f;
+        tapBGain_ = 0.0f;
+        activeIsTapA_ = true;
+        crossfading_ = false;
+        crossfadePosition_ = 0.0f;
+        refreshActiveTap();
+    }
+
     /// Re-derive activeTap_ from the live tap's position. Every write to
     /// activeIsTapA_, to the live tap's position, or to the buffer's maximum
     /// delay (prepare) is followed by a call.

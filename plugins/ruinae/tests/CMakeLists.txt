@@ -54,6 +54,8 @@ add_executable(ruinae_tests
     # process() runs with FTZ / DAZ whatever the caller's floating-point mode ([ruinae][numerics][denormal])
     integration/denormal_mode_test.cpp
     integration/midi_events_test.cpp
+    # Output does not depend on the host buffer size (T2.31: R-150, R-151, R-051, R-052)
+    integration/block_size_invariance_test.cpp
     integration/tempo_sync_test.cpp
     integration/param_flow_test.cpp
     integration/trance_gate_param_flow_test.cpp

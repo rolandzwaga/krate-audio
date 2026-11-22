@@ -5,6 +5,14 @@ All notable changes to Gradus will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- **Speed-curve depth was 0 after reopening a project** — After a project reload the arpeggiator played every lane's speed curve at depth 0 until a speed-curve control was touched. The saved depths now apply as soon as the project loads.
+- **The Ratchet and Condition lanes swapped their speed-curve depths** — Each lane's depth knob drove the other lane. Each now drives its own. In older projects a curve drawn on the Ratchet tab may now show on the Condition tab, the lane it always played on.
+- **A preset loaded from the browser and one restored by the host could play differently** — Loading from the preset browser did not run the same code as a host restore, so ratchet shuffle, lane speeds and a few clamped values could differ between the two. Both now load identically. The factory presets now store the ratchet shuffle they play (50, 66.67 or 75 %).
+
 ## [1.10.6] - 2026-11-20
 
 ### Added

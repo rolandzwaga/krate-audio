@@ -32,6 +32,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <numbers>
 #include <vector>
 
 
@@ -430,6 +431,20 @@ public:
 
 private:
     // =========================================================================
+    // Partial placement kernel (R-158)
+    // =========================================================================
+
+    /// Bins per partial: the main lobe of the Blackman window (+-3 bins).
+    static constexpr size_t kKernelBins = 6;
+
+    /// Fourier coefficients c_m (m = -2..2) of the periodic Blackman window
+    /// 0.42 - 0.5 cos(2 pi n / N) + 0.08 cos(4 pi n / N).
+    static constexpr std::array<double, 5> kKernelCoeffs{0.04, -0.25, 0.42, -0.25, 0.04};
+
+    /// Overlap-add gain of Blackman times Hann at 75 % overlap: 4 * (0.42 * 0.5 + 2 * 0.25 * 0.25).
+    static constexpr float kKernelOlaGain = 1.34f;
+
+    // =========================================================================
     // Private Methods
     // =========================================================================
 
@@ -494,13 +509,30 @@ private:
             spectrum_[i] = {.real = 0.0f, .imag = 0.0f};
         }
 
-        // Amplitude scaling factor:
-        // - FFT inverse already applies 1/N normalization
-        // - Hann window at 75% overlap has COLA gain of approximately 1.5
-        // - We need to scale up by N/2 for correct sinusoid amplitude from IFFT
-        // - Empirical adjustment factor for peak ~1.0 with single partial at amp 1.0
-        // Combined factor: (N/2) / 1.5 * adjustment = N/3.5
-        float ampScale = static_cast<float>(fftSize_) / 3.5f;
+        // Amplitude scaling factor (SC-007: one partial at amplitude 1.0 peaks at 1.0):
+        // - the inverse FFT applies 1/N, and a real partial of weight g gives
+        //   (2 g / N) cos(...) times the kernel's window
+        // - the Blackman kernel times the Hann synthesis window overlap-adds to
+        //   kKernelOlaGain at 75% overlap
+        // so g = N / (2 * kKernelOlaGain). (The single rounded bin this replaced
+        // used an empirical N / 3.5: 1.14 on a bin centre, down to 0.97 half a bin off.)
+        const float ampScale = static_cast<float>(fftSize_) / (2.0f * kKernelOlaGain);
+
+        // Each partial is placed as the spectrum of a Blackman-windowed sinusoid at
+        // its exact (fractional) bin: the 6 bins of the main lobe, so the IFFT frame
+        // holds the partial at its true frequency (R-158). Rounding it to one bin
+        // played every frame at the bin centre, up to half a bin off; the overlap-add
+        // of those frames modulated each partial at the hop rate, a -42 dBc
+        // inharmonic floor. Truncated to the main lobe and multiplied by the Hann
+        // window below, the sidebands stay under -70 dBc at every fractional offset.
+        //
+        // The periodic Blackman window w(n) = sum_m c_m e^{j 2 pi m n / N}
+        // (m = -2..2) times e^{j 2 pi b n / N} has, at bin k, the DFT
+        //   X_k / N = e^{j pi b} sin(pi b) / N * sum_m c_m cot(pi (b - k + m) / N)
+        // (the -j parts of e^{-jx} / sin(x) = cot(x) - j cancel since sum_m c_m = 0,
+        // and the (-1)^k of e^{j pi (b - k)} and sin(pi (b - k)) cancel each other).
+        const double binScale = static_cast<double>(fftSize_) / sampleRate_;
+        const double piOverN = std::numbers::pi / static_cast<double>(fftSize_);
 
         // Add each active partial to spectrum (FR-019)
         for (size_t p = 1; p <= numPartials_; ++p) {
@@ -524,27 +556,79 @@ private:
             float tiltFactor = calculateTiltFactor(p);
             float effectiveAmp = amplitude * tiltFactor * ampScale;
 
-            // Calculate FFT bin (FR-019: partials mapping to same bin are summed)
-            float binFloat = freq * static_cast<float>(fftSize_) / static_cast<float>(sampleRate_);
-            auto bin = static_cast<size_t>(std::round(binFloat));
+            // Fractional FFT bin of the partial
+            const double b = static_cast<double>(freq) * binScale;
+            const double bFloor = std::floor(b);
+            const auto kFirst = static_cast<long>(bFloor) - 2;  // main lobe: floor(b) - 2 .. floor(b) + 3
 
-            if (bin >= numBins_) {
-                continue;
+            // Real kernel weights S_k = sum_m c_m cot(pi (b - k + m) / N) / N times
+            // sin(pi b); on an exact bin the limit is c_{k - b}.
+            std::array<double, kKernelBins> weight{};
+            const double frac = b - bFloor;
+            if (frac < 1e-9 || frac > 1.0 - 1e-9) {
+                const auto centre = static_cast<long>(std::llround(b));
+                for (size_t i = 0; i < kKernelBins; ++i) {
+                    const long c = kFirst + static_cast<long>(i) - centre + 2;  // index of c_{k - b}
+                    weight[i] = (c >= 0 && c <= 4) ? kKernelCoeffs[static_cast<size_t>(c)] : 0.0;
+                }
+            } else {
+                // e^{j pi b} sin(pi b) = e^{j pi frac} sin(pi frac): the (-1)^floor(b)
+                // of the two factors cancel.
+                const double sinPiB = std::sin(std::numbers::pi * frac);
+                // cot(pi (b - j) / N) for j = kFirst - 2 .. kFirst + kKernelBins + 1
+                std::array<double, kKernelBins + 4> cotTab{};
+                for (size_t t = 0; t < cotTab.size(); ++t) {
+                    const long j = kFirst - 2 + static_cast<long>(t);
+                    const double x = piOverN * (b - static_cast<double>(j));
+                    cotTab[t] = std::cos(x) / std::sin(x);
+                }
+                const double scale = sinPiB / static_cast<double>(fftSize_);
+                for (size_t i = 0; i < kKernelBins; ++i) {
+                    // j = k - m, m = -2..2  ->  cotTab index i + 2 - m
+                    double sum = 0.0;
+                    for (size_t c = 0; c < kKernelCoeffs.size(); ++c) {
+                        sum += kKernelCoeffs[c] * cotTab[i + 4 - c];
+                    }
+                    weight[i] = scale * sum;
+                }
             }
 
-            // Get phase for this partial (FR-023: phase continuity)
-            double phase = accumulatedPhases_[index];
+            // Partial phase at the frame start (FR-023: phase continuity), plus the
+            // e^{j pi b} of the kernel on a fractional bin (on an exact bin that
+            // factor is already in the limit c_{k - b}).
+            const double phaseRad = accumulatedPhases_[index] * 2.0 * std::numbers::pi
+                                  + ((frac < 1e-9 || frac > 1.0 - 1e-9)
+                                         ? 0.0
+                                         : std::numbers::pi * frac);
+            const auto re = static_cast<float>(static_cast<double>(effectiveAmp) * std::cos(phaseRad));
+            const auto im = static_cast<float>(static_cast<double>(effectiveAmp) * std::sin(phaseRad));
 
-            // Convert phase to complex (phase is in [0, 1), convert to radians)
-            // For IFFT: to get cos(2*pi*f*t + phi), we need:
-            // X[k] = A * e^(j*phi) = A * (cos(phi) + j*sin(phi))
-            float phaseRad = static_cast<float>(phase) * kTwoPi;
-            float real = effectiveAmp * std::cos(phaseRad);
-            float imag = effectiveAmp * std::sin(phaseRad);
-
-            // Add to spectrum (FR-019: sum partials in same bin)
-            spectrum_[bin].real += real;
-            spectrum_[bin].imag += imag;
+            // Add to the half spectrum (FR-019: partials sharing bins are summed).
+            // Bins below 0 or above N/2 hold the partial's negative-frequency image:
+            // they fold onto bin |k| (or N - k) conjugated; DC and Nyquist are real
+            // and take both images.
+            const auto n = static_cast<long>(fftSize_);
+            for (size_t i = 0; i < kKernelBins; ++i) {
+                const float w = static_cast<float>(weight[i]);
+                if (w == 0.0f) continue;
+                long k = kFirst + static_cast<long>(i);
+                float sign = 1.0f;  // +1: as is, -1: conjugated
+                if (k < 0) {
+                    k = -k;
+                    sign = -1.0f;
+                } else if (k > n / 2) {
+                    k = n - k;
+                    sign = -1.0f;
+                }
+                if (k < 0 || k > n / 2) continue;
+                auto& bin = spectrum_[static_cast<size_t>(k)];
+                if (k == 0 || k == n / 2) {
+                    bin.real += 2.0f * w * re;
+                } else {
+                    bin.real += w * re;
+                    bin.imag += sign * w * im;
+                }
+            }
         }
     }
 

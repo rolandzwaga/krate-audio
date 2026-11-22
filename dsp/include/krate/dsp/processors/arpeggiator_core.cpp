@@ -10,6 +10,11 @@ namespace Krate::DSP {
 
 size_t ArpeggiatorCore::processBlock(const BlockContext& ctx,
                                std::span<ArpEvent> outputEvents) noexcept {
+        // Whether syncToMusicalPosition drove the step clock for this call: it
+        // holds for one processBlock, the call it was made for (R-071).
+        const bool hostSynced = hostSyncedThisBlock_;
+        hostSyncedThisBlock_ = false;
+
         // (a) Zero blockSize guard (FR-032) -- no state change
         if (ctx.blockSize == 0) {
             return 0;
@@ -119,7 +124,22 @@ size_t ArpeggiatorCore::processBlock(const BlockContext& ctx,
             if (needsDisableNoteOff_) {
                 emitPanicNoteOffs(outputEvents, eventCount, maxEvents);
             }
+            idle_ = true;
             return eventCount;
+        }
+
+        // R-071: the first held key after an idle gap restarts the step clock
+        // with an immediate step. The early return above never advanced the
+        // counter, so it still held its value from the last release, and the
+        // first step waited out the rest of that old step. When the host's
+        // musical position drives the clock (tempo sync + PPQ), the counter is
+        // already on the grid and the step waits for its grid point.
+        if (idle_) {
+            idle_ = false;
+            if (!hostSynced) {
+                currentStepDuration_ = calculateStepDuration(ctx);
+                sampleCounter_ = currentStepDuration_;
+            }
         }
 
         // Retrigger Beat: detect bar boundary within this block (FR-023)

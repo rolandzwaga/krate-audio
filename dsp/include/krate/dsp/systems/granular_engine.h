@@ -22,6 +22,8 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstddef>
+#include <cstdint>
 
 namespace Krate::DSP {
 
@@ -67,8 +69,24 @@ public:
 
     /// Reset engine state
     void reset() noexcept {
-        delayL_.reset();
-        delayR_.reset();
+        startIncrementalReset();
+        std::size_t unlimited = SIZE_MAX;
+        (void)continueIncrementalReset(unlimited);
+    }
+
+    /// @brief Clear up to @p budget more delay-line samples (deducted from it).
+    /// @return true once the reset started by startIncrementalReset() is complete.
+    bool continueIncrementalReset(std::size_t& budget) noexcept {
+        return delayL_.continueIncrementalReset(budget) &&
+               delayR_.continueIncrementalReset(budget);
+    }
+
+    /// @brief Start a reset() whose delay-line clear is left to
+    /// continueIncrementalReset() (see DelayLine::startIncrementalReset).
+    /// Do not process until that has returned true.
+    void startIncrementalReset() noexcept {
+        delayL_.startIncrementalReset();
+        delayR_.startIncrementalReset();
         pool_.reset();
         scheduler_.reset();
         processor_.reset();

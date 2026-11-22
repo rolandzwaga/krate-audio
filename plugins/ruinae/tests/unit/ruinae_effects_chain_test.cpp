@@ -2845,3 +2845,111 @@ TEST_CASE("Delay time 3000 ms is honoured by every delay type", "[ruinae-fx][del
         REQUIRE(std::abs(spacing - expected) <= static_cast<double>(SpectralDelay::kDefaultFFTSize / 2));
     }
 }
+
+// =============================================================================
+// R-004: delay lines are cleared a slice per block, not inside one callback
+// =============================================================================
+// A reset (preset load) or a completed disable fade starts the clear of every
+// delay type that holds audio, spread over the next blocks. With 64-sample
+// blocks every type's clear spans several of them. A type whose clear is still
+// running must not be heard (its stale echoes replayed), and what is played
+// meanwhile must still echo, on time.
+
+TEST_CASE("Delay lines cleared over several blocks replay no stale echo and echo again",
+          "[ruinae-fx][delay][lifecycle]") {
+    constexpr double kRate = 48000.0;
+    constexpr size_t kBlock = 64;
+    constexpr float kTimeMs = 100.0f;
+    const int typeIndex = GENERATE(0, 1, 2, 3, 4);
+    const auto type = static_cast<RuinaeDelayType>(typeIndex);
+    CAPTURE(typeIndex);
+
+    RuinaeEffectsChain chain;
+    chain.prepare(kRate, kBlock);
+    chain.setDelayEnabled(true);
+    chain.setDelayMix(1.0f);
+    chain.setDelayFeedback(0.8f);
+    chain.setDelayTime(kTimeMs);
+    chain.setModulationType(ModulationType::None);
+    chain.setHarmonizerEnabled(false);
+    ReverbParams reverbParams;
+    reverbParams.mix = 0.0f;
+    chain.setReverbParams(reverbParams);
+    chain.setReverbEnabled(false);
+    chain.reset();
+    chain.setDelayType(type);
+
+    std::vector<float> left(kBlock);
+    std::vector<float> right(kBlock);
+    const auto run = [&](size_t samples, bool sine) {
+        std::vector<float> out;
+        for (size_t done = 0; done < samples; done += kBlock) {
+            if (sine) {
+                fillSine(left.data(), kBlock, 440.0f, kRate, 0.5f);
+                fillSine(right.data(), kBlock, 440.0f, kRate, 0.5f);
+            } else {
+                std::fill(left.begin(), left.end(), 0.0f);
+                std::fill(right.begin(), right.end(), 0.0f);
+            }
+            chain.processBlock(left.data(), right.data(), kBlock);
+            for (size_t i = 0; i < kBlock; ++i) {
+                out.push_back(std::max(std::abs(left[i]), std::abs(right[i])));
+            }
+        }
+        return out;  // the louder channel per sample
+    };
+    const auto ms = [&](double t) { return static_cast<size_t>(t * kRate / 1000.0); };
+
+    // Switch (pre-warm 100 ms + 30 ms crossfade), then fill the lines with a
+    // loud tail: longer than the 5 s lines, so whatever part of a line is read
+    // before its clear reaches it is old audio.
+    (void)run(ms(400.0), false);
+    REQUIRE(chain.getActiveDelayType() == type);
+    (void)run(ms(5600.0), true);
+    const std::vector<float> tail = run(ms(150.0), false);
+    REQUIRE(peakAbsolute(tail.data(), tail.size()) > 0.05f);
+
+    // Output from the reset on, while only silence goes in.
+    std::vector<float> silentIn;
+    SECTION("reset, as a preset load does") {
+        chain.reset();
+    }
+    SECTION("disable, re-enabled as soon as the fade-out completes") {
+        chain.setDelayEnabled(false);
+        (void)run(ms(21.0), false);
+        chain.setDelayEnabled(true);
+        // Silence through the 20 ms fade-in, which passes the dry signal
+        silentIn = run(ms(25.0), false);
+    }
+
+    // Play while the clear is still running (after a reset): a 440 Hz burst
+    // as long as the delay time (the Granular grains sample it sparsely). Its
+    // input is kept and recorded once the line is clean, so its echo lands on time.
+    std::vector<float> out = run(ms(kTimeMs), true);
+    const std::vector<float> rest = run(ms(500.0), false);
+    out.insert(out.end(), rest.begin(), rest.end());
+
+    // Nothing of the old tail comes out before the first echo (Spectral's
+    // windowed frames start it up to a few hops early).
+    const float stalePeak = std::max(peakAbsolute(silentIn.data(), silentIn.size()),
+                                     peakAbsolute(out.data(), ms(kTimeMs * 0.5)));
+    INFO("peak before the first echo: " << stalePeak);
+    CHECK(stalePeak < 1e-3f);
+
+    // The burst echoes.
+    const size_t from = ms(kTimeMs * 0.5);
+    const float echoPeak = peakAbsolute(out.data() + from, out.size() - from);
+    INFO("echo peak: " << echoPeak);
+    CHECK(echoPeak > 0.05f);
+
+    // Digital and PingPong echo the burst's first sample at the delay time: the
+    // input played during the clear was not dropped.
+    if (type == RuinaeDelayType::Digital || type == RuinaeDelayType::PingPong) {
+        const auto onset = static_cast<size_t>(
+            std::find_if(out.begin(), out.end(), [](float v) { return v > 0.02f; }) - out.begin());
+        INFO("first echo at " << static_cast<double>(onset) * 1000.0 / kRate << " ms");
+        // +/- 0.5 ms: dropping one 64-sample block of it moves the echo 1.33 ms
+        CHECK(onset >= ms(kTimeMs - 0.5));
+        CHECK(onset <= ms(kTimeMs + 0.5));
+    }
+}

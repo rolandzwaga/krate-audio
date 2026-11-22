@@ -13,8 +13,18 @@
 
 namespace Ruinae {
 
+// Chaos speed: 0-1 -> 0.05-20, the range ChaosModSource honours (kMinSpeed / kMaxSpeed). It is a
+// dimensionless multiplier on the attractor step, not a frequency (R-184).
+inline float chaosSpeedFromNormalized(double value) {
+    return static_cast<float>(logMapFromNormalized(value, 0.05, 20.0));
+}
+
+inline double chaosSpeedToNormalized(float speed) {
+    return logMapToNormalized(static_cast<double>(speed), 0.05, 20.0);
+}
+
 struct ChaosModParams {
-    std::atomic<float> rateHz{1.0f};   // 0.01-50 Hz (same mapping as LFO)
+    std::atomic<float> rateHz{1.0f};   // 0.05-20 speed multiplier (log map)
     std::atomic<int> type{0};          // 0=Lorenz, 1=Rossler
     std::atomic<float> depth{1.0f};    // 0-1
     std::atomic<bool> sync{false};     // tempo sync on/off
@@ -26,7 +36,7 @@ inline void handleChaosModParamChange(
     Steinberg::Vst::ParamValue value) {
     switch (id) {
         case kChaosModRateId:
-            params.rateHz.store(lfoRateFromNormalized(value), std::memory_order_relaxed); break;
+            params.rateHz.store(chaosSpeedFromNormalized(value), std::memory_order_relaxed); break;
         case kChaosModTypeId:
             params.type.store(std::clamp(static_cast<int>(value * (kChaosTypeCount - 1) + 0.5), 0, kChaosTypeCount - 1), std::memory_order_relaxed); break;
         case kChaosModDepthId:
@@ -44,7 +54,7 @@ inline void handleChaosModParamChange(
 
 inline void registerChaosModParams(Steinberg::Vst::ParameterContainer& parameters) {
     using namespace Steinberg::Vst;
-    parameters.addParameter(STR16("Chaos Rate"), STR16("Hz"), 0, 0.540,
+    parameters.addParameter(STR16("Chaos Rate"), STR16("x"), 0, chaosSpeedToNormalized(1.0f),
         ParameterInfo::kCanAutomate, kChaosModRateId);
     parameters.addParameter(createDropdownParameter(
         STR16("Chaos Type"), kChaosModTypeId,
@@ -68,7 +78,7 @@ inline Steinberg::tresult formatChaosModParam(
     switch (id) {
         case kChaosModRateId: {
             char8 text[32];
-            snprintf(text, sizeof(text), "%.2f Hz", lfoRateFromNormalized(value));
+            snprintf(text, sizeof(text), "%.2fx", chaosSpeedFromNormalized(value));
             UString(string, 128).fromAscii(text);
             return kResultOk;
         }
@@ -106,7 +116,7 @@ template<typename SetParamFunc>
 inline void loadChaosModParamsToController(
     Steinberg::IBStreamer& streamer, const SetParamFunc& setParam) {
     float fv = 0.0f; Steinberg::int32 iv = 0;
-    if (streamer.readFloat(fv)) setParam(kChaosModRateId, lfoRateToNormalized(fv));
+    if (streamer.readFloat(fv)) setParam(kChaosModRateId, chaosSpeedToNormalized(fv));
     if (streamer.readInt32(iv)) setParam(kChaosModTypeId, static_cast<double>(iv) / (kChaosTypeCount - 1));
     if (streamer.readFloat(fv)) setParam(kChaosModDepthId, static_cast<double>(fv));
     // New fields - optional for backward compat

@@ -23,6 +23,8 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstddef>
+#include <cstdint>
 
 namespace Krate::DSP {
 
@@ -54,7 +56,16 @@ public:
 
     /// Reset effect state
     void reset() noexcept {
-        engine_.reset();
+        startIncrementalReset();
+        std::size_t unlimited = SIZE_MAX;
+        (void)continueIncrementalReset(unlimited);
+    }
+
+    /// Start a reset() whose grain-buffer clear is left to continueIncrementalReset(),
+    /// so it fits a real-time callback (the buffer holds up to 5 s). Do not process
+    /// until that has returned true.
+    void startIncrementalReset() noexcept {
+        engine_.startIncrementalReset();
 
         // Reset feedback state
         feedbackL_ = 0.0f;
@@ -63,6 +74,12 @@ public:
         // Snap smoothers to current values
         feedbackSmoother_.snapTo(feedback_);
         dryWetSmoother_.snapTo(dryWet_);
+    }
+
+    /// Clear up to @p budget more grain-buffer samples (deducted from it).
+    /// @return true once the started reset is complete.
+    bool continueIncrementalReset(std::size_t& budget) noexcept {
+        return engine_.continueIncrementalReset(budget);
     }
 
     // === Core Parameters ===

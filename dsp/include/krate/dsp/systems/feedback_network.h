@@ -36,6 +36,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
 #include <vector>
 
 
@@ -139,8 +140,17 @@ public:
 
     /// @brief Reset all internal state
     void reset() noexcept {
-        delayLineL_.reset();
-        delayLineR_.reset();
+        startIncrementalReset();
+        std::size_t unlimited = SIZE_MAX;
+        (void)continueIncrementalReset(unlimited);
+    }
+
+    /// @brief Start a reset() whose delay-line clear is left to
+    /// continueIncrementalReset() (see DelayLine::startIncrementalReset).
+    /// Do not process until that has returned true.
+    void startIncrementalReset() noexcept {
+        delayLineL_.startIncrementalReset();
+        delayLineR_.startIncrementalReset();
         feedbackSmoother_.snapTo(feedbackAmount_);
         delaySmoother_.snapTo(targetDelayMs_);  // Snap to current target, not 0
         crossFeedbackSmoother_.snapTo(crossFeedbackAmount_);
@@ -160,6 +170,13 @@ public:
 
         // Reset processing state so parameters can snap again
         hasProcessed_ = false;
+    }
+
+    /// @brief Clear up to @p budget more delay-line samples (deducted from it).
+    /// @return true once the started reset is complete.
+    bool continueIncrementalReset(std::size_t& budget) noexcept {
+        return delayLineL_.continueIncrementalReset(budget) &&
+               delayLineR_.continueIncrementalReset(budget);
     }
 
     /// @brief Check if prepared

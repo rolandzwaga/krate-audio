@@ -383,11 +383,14 @@ void Processor::applyPresetSnapshot(const PresetSnapshot& snapshot) {
     // the synth (and the notes it holds outside the arp) alone.
     resetPlayingState(!snapshot.arpOnly);
 
-    // Restore reverb type from loaded state (125-dual-reverb)
-    // Use setReverbTypeDirect to avoid triggering a crossfade on state load.
+    // Restore reverb and delay types from loaded state (125-dual-reverb)
+    // Set directly to avoid a crossfade on state load: the engine reset above
+    // emptied both slots, so there is nothing to fade from (T2.31).
     if (!snapshot.arpOnly) {
         engine_.setReverbTypeDirect(
             reverbParams_.reverbType.load(std::memory_order_relaxed));
+        engine_.setDelayTypeDirect(static_cast<Krate::DSP::RuinaeDelayType>(
+            delayParams_.type.load(std::memory_order_relaxed)));
     }
 
     // Force arp tracking variables to sentinel values so that

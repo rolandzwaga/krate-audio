@@ -297,6 +297,7 @@ public:
         wasPlaying_ = false;
         firstStepPending_ = true;
         transportLoopPending_ = false;
+        idle_ = false;
         currentArpNoteCount_ = 0;
         pendingNoteOffCount_ = 0;
         needsDisableNoteOff_ = false;
@@ -1084,6 +1085,7 @@ public:
             syncedRateScale_ = rateScale_;
         }
         if (!tempoSync_ || currentStepDuration_ == 0) return;
+        hostSyncedThisBlock_ = true;
 
         // For the arp, we only care about position within a single step
         // (not a multi-step pattern), because the arp doesn't have a fixed
@@ -1928,6 +1930,12 @@ private:
     bool wasPlaying_ = false;
     bool firstStepPending_ = true;
     bool transportLoopPending_ = false;
+    /// syncToMusicalPosition aligned the counter since the last processBlock:
+    /// the host's musical position drives the step clock this block (R-071).
+    bool hostSyncedThisBlock_ = false;
+    /// processBlock returned on an empty held buffer: the step clock is idle,
+    /// and the next held key restarts it with an immediate step (R-071).
+    bool idle_ = false;
 
     // =========================================================================
     // Latch State

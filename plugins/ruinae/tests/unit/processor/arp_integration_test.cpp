@@ -14,6 +14,7 @@
 
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/catch_approx.hpp>
+#include <catch2/generators/catch_generators.hpp>
 
 #include "processor/processor.h"
 #include "controller/controller.h"
@@ -859,10 +860,11 @@ TEST_CASE("ArpIntegration_TransportStop_PreservesLatch", "[arp][integration][tra
     }
     REQUIRE(audioFoundWhilePlaying);
 
-    // Stop transport -- arp continues running (processor forces isPlaying=true)
+    // Stop transport -- the tempo-synced arp pauses (R-073: only a free-rate
+    // arp runs while stopped)
     f.setTransportPlaying(false);
 
-    // Arp should still produce audio (it doesn't pause on transport stop)
+    // Audio continues from the amp release tail of the last arp note
     bool audioAfterStop = false;
     for (int i = 0; i < 60; ++i) {
         f.processBlock();
@@ -1233,6 +1235,149 @@ TEST_CASE("ArpIntegration_FreeRate_WorksWithoutTransport",
     }
 
     REQUIRE(audioFound);  // Free-rate arp must produce sound without transport
+}
+
+// R-073 (ruling 2026-11-16): a free-rate arp runs whatever the DAW transport
+// does, as Gradus Live does; a tempo-synced arp stays transport-gated. Before
+// the fix, one block with kPlaying latched hostSupportsTransport_ and the
+// free-rate arp then went silent whenever the transport stopped.
+TEST_CASE("ArpFreeRate_RunsWithTransportStopped", "[arp][integration][transport]") {
+    StuckNoteRig r;
+    const bool freeRate = GENERATE(true, false);
+    {
+        ArpTestParamChanges params;
+        params.addChange(Ruinae::kArpOperatingModeId, 1.0 / 3.0);  // MIDI
+        params.addChange(Ruinae::kArpMidiOutId, 1.0);
+        params.addChange(Ruinae::kArpTempoSyncId, freeRate ? 0.0 : 1.0);
+        params.addChange(Ruinae::kArpFreeRateId, (8.0 - 0.5) / 49.5);  // 8 Hz
+        r.blockWithParams(params);  // kPlaying is set: the host supports transport
+    }
+    r.f.setTransportPlaying(false);
+    r.block();
+
+    r.f.events.addNoteOn(60, 0.8f);
+    r.block();
+    r.f.clearEvents();
+    // 30 blocks of 512 = 15360 samples: three 8 Hz steps (5512 samples each).
+    for (int i = 0; i < 30; ++i) r.block();
+
+    INFO("free rate " << freeRate << ": arp NoteOns with the transport stopped: " << r.tally.totalOn);
+    if (freeRate) {
+        CHECK(r.tally.totalOn >= 3);
+    } else {
+        CHECK(r.tally.totalOn == 0);
+    }
+}
+
+namespace {
+
+/// A processor at a chosen block size, arp NoteOns read off its MIDI output.
+/// The transport plays at 120 BPM with a musical position.
+struct ArpTapRig {
+    Ruinae::Processor processor;
+    ArpTestEventList in;
+    ArpTestEventList out;
+    ArpEmptyParamChanges emptyParams;
+    size_t blockSize;
+    std::vector<float> outL;
+    std::vector<float> outR;
+    float* channelBuffers[2]{};
+    Steinberg::Vst::AudioBusBuffers outputBus{};
+    Steinberg::Vst::ProcessData data{};
+    Steinberg::Vst::ProcessContext pc{};
+
+    explicit ArpTapRig(size_t n) : blockSize(n), outL(n, 0.0f), outR(n, 0.0f) {
+        channelBuffers[0] = outL.data();
+        channelBuffers[1] = outR.data();
+        outputBus.numChannels = 2;
+        outputBus.channelBuffers32 = channelBuffers;
+        data.processMode = Steinberg::Vst::kRealtime;
+        data.symbolicSampleSize = Steinberg::Vst::kSample32;
+        data.numSamples = static_cast<Steinberg::int32>(n);
+        data.numOutputs = 1;
+        data.outputs = &outputBus;
+        data.inputParameterChanges = &emptyParams;
+        data.inputEvents = &in;
+        data.outputEvents = &out;
+        pc.state = Steinberg::Vst::ProcessContext::kPlaying | Steinberg::Vst::ProcessContext::kTempoValid
+                 | Steinberg::Vst::ProcessContext::kTimeSigValid
+                 | Steinberg::Vst::ProcessContext::kProjectTimeMusicValid;
+        pc.tempo = 120.0;
+        pc.timeSigNumerator = 4;
+        pc.timeSigDenominator = 4;
+        pc.sampleRate = 44100.0;
+        data.processContext = &pc;
+        processor.initialize(nullptr);
+        Steinberg::Vst::ProcessSetup setup{};
+        setup.processMode = Steinberg::Vst::kRealtime;
+        setup.symbolicSampleSize = Steinberg::Vst::kSample32;
+        setup.sampleRate = 44100.0;
+        setup.maxSamplesPerBlock = static_cast<Steinberg::int32>(n);
+        processor.setupProcessing(setup);
+        processor.setActive(true);
+    }
+
+    ~ArpTapRig() {
+        processor.setActive(false);
+        processor.terminate();
+    }
+
+    ArpTapRig(const ArpTapRig&) = delete;
+    ArpTapRig& operator=(const ArpTapRig&) = delete;
+
+    /// One block; returns the offsets of the arp NoteOns it sent out.
+    std::vector<Steinberg::int32> block(Steinberg::Vst::IParameterChanges* params = nullptr) {
+        out.clear();
+        data.inputParameterChanges = params ? params : &emptyParams;
+        processor.process(data);
+        data.inputParameterChanges = &emptyParams;
+        in.clear();
+        pc.projectTimeSamples += static_cast<Steinberg::int64>(blockSize);
+        pc.projectTimeMusic += static_cast<double>(blockSize) / 44100.0 * 2.0;
+        std::vector<Steinberg::int32> ons;
+        for (Steinberg::int32 i = 0; i < out.getEventCount(); ++i) {
+            Steinberg::Vst::Event e{};
+            if (out.getEvent(i, e) == Steinberg::kResultTrue && e.type == Steinberg::Vst::Event::kNoteOnEvent
+                && e.noteOn.velocity > 0.0f) {
+                ons.push_back(e.sampleOffset);
+            }
+        }
+        return ons;
+    }
+};
+
+} // anonymous namespace
+
+// R-072: arp input keeps its sample offsets. The processor used to apply every
+// key to the arp at the buffer start and run the arp once over the buffer, so a
+// key pressed and released inside one buffer never played, and the first step
+// fired at offset 0, before the key existed.
+TEST_CASE("ArpInput_TapInsideOneBlock_StillPlays", "[arp][integration][timing]") {
+    ArpTapRig r(2048);
+    {
+        ArpTestParamChanges params;
+        params.addChange(Ruinae::kArpOperatingModeId, 1.0 / 3.0);  // MIDI
+        params.addChange(Ruinae::kArpMidiOutId, 1.0);
+        params.addChange(Ruinae::kArpTempoSyncId, 0.0);
+        params.addChange(Ruinae::kArpFreeRateId, (8.0 - 0.5) / 49.5);  // 8 Hz
+        REQUIRE(r.block(&params).empty());
+    }
+
+    SECTION("a tap from offset 100 to 600 plays one step inside it") {
+        r.in.addNoteOn(60, 0.8f, 100);
+        r.in.addNoteOff(60, 600);
+        const auto ons = r.block();
+        REQUIRE(ons.size() == 1);
+        CHECK(ons[0] >= 100);
+        CHECK(ons[0] < 600);
+    }
+
+    SECTION("a key held from offset 1500 plays its first step at 1500, not before") {
+        r.in.addNoteOn(60, 0.8f, 1500);
+        const auto ons = r.block();
+        REQUIRE(ons.size() == 1);
+        CHECK(ons[0] == 1500);
+    }
 }
 
 TEST_CASE("ArpCore_SetModeEveryBlock_PreventsNoteAdvance",

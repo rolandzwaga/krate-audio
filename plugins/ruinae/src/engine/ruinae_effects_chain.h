@@ -37,6 +37,7 @@
 #include "ruinae_types.h"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstddef>
 #include <cstring>
@@ -182,6 +183,16 @@ public:
         pingPongDelay_.snapParameters();
         spectralDelay_.snapParameters();
 
+        // prepare() left every delay line silent
+        delayClearPending_.fill(false);
+        delayDirty_.fill(false);
+        const auto backlog = static_cast<size_t>(kDelayBacklogMs * sampleRate / 1000.0) + maxBlockSize;
+        activeDelayBacklogL_.assign(backlog, 0.0f);
+        activeDelayBacklogR_.assign(backlog, 0.0f);
+        activeDelayBacklogStart_ = 0;
+        activeDelayBacklog_ = 0;
+        harmonizerRanSinceReset_ = true;  // the next reset() resets it once
+
         prepared_ = true;
     }
 
@@ -199,11 +210,13 @@ public:
         modTypePending_ = false;
         modPreWarming_ = false;
         modPreWarmRemaining_ = 0;
-        digitalDelay_.reset();
-        tapeDelay_.reset();
-        pingPongDelay_.reset();
-        granularDelay_.reset();
-        spectralDelay_.reset();
+        // The delay lines hold up to 5 s each (tens of MB at 192 kHz): clearing
+        // them here, inside one process() call, overran the block (R-004).
+        // Each type that holds audio is cleared a slice per chunk instead, and
+        // is not heard until it is clean; a type that was not run since its
+        // last clear is silent already.
+        scheduleDirtyDelayClears();
+        activeDelayBacklog_ = 0;
         reverb_.reset();
         fdnReverb_.reset();
 
@@ -212,8 +225,12 @@ public:
         reverbCrossfadeAlpha_ = 0.0f;
         reverbCrossfadeIncrement_ = 0.0f;
 
-        // Reset harmonizer
-        harmonizer_.reset();
+        // Reset harmonizer: ~80 us at 192 kHz, so only when it ran since its
+        // last reset (R-004); otherwise it is still in its reset state.
+        if (harmonizerRanSinceReset_) {
+            harmonizer_.reset();
+            harmonizerRanSinceReset_ = false;
+        }
         std::fill(harmonizerMonoScratch_.begin(), harmonizerMonoScratch_.end(), 0.0f);
         std::fill(harmonizerDryL_.begin(), harmonizerDryL_.end(), 0.0f);
         std::fill(harmonizerDryR_.begin(), harmonizerDryR_.end(), 0.0f);
@@ -419,7 +436,7 @@ public:
         if (preWarming_) {
             preWarming_ = false;
             preWarmRemaining_ = 0;
-            resetDelayType(incomingDelayType_);
+            scheduleDelayClear(incomingDelayType_);
         }
 
         if (crossfading_) {
@@ -436,11 +453,32 @@ public:
         // first echo of anything it was fed lands at the delay time, so it
         // has stable output (past the delay-line-fill step) when the
         // crossfade starts and drops no echo of the input it was fed.
+        // The pre-warm waits for the clear of stale buffers (R-004).
         incomingDelayType_ = type;
-        resetDelayType(type);  // Clear stale buffers before pre-warm
+        scheduleDelayClear(type);
         preWarming_ = true;
         preWarmElapsed_ = 0;
         preWarmRemaining_ = preWarmTotalSamples();
+    }
+
+    /// @brief Make a delay type active at once, without pre-warm or crossfade.
+    ///
+    /// Used ONLY on state load, after the engine reset cleared (or scheduled the
+    /// clear of) every line:
+    /// there is no old type's sound to fade from, and a switch would play the
+    /// preset's first echoes through the previous type (and start its
+    /// crossfade at a buffer-size-dependent sample).
+    void setDelayTypeDirect(RuinaeDelayType type) noexcept {
+        preWarming_ = false;
+        preWarmRemaining_ = 0;
+        crossfading_ = false;
+        crossfadeAlpha_ = 0.0f;
+        crossfadeIncrement_ = 0.0f;
+        if (type != activeDelayType_) {
+            activeDelayType_ = type;
+            activeDelayBacklog_ = 0;
+            if (delayDirty_[delayIndex(type)]) scheduleDelayClear(type);
+        }
     }
 
     /// @brief Get the currently active delay type.
@@ -892,7 +930,36 @@ private:
         // The delay processors run at 100% wet. We save the dry input here
         // and mix it back with the wet output below. Neither path carries
         // any added latency, so the echoes land at the set delay time.
+        //
+        // Pending delay-line clears advance first, a bounded slice per chunk
+        // (R-004), the types this chunk runs before the others. A type whose
+        // clear is still running is not run: its wet output is silence, as a
+        // cleared line's is. The active type's input is kept meanwhile and fed
+        // to it once it is clean, so no echo is lost to the clear.
         // ---------------------------------------------------------------
+        const bool delayTransition = preWarming_ || crossfading_;
+        std::size_t clearBudget = numSamples * kDelayClearSamplesPerSample;
+        const bool activeClean = advanceDelayClear(activeDelayType_, clearBudget);
+        const bool incomingClean = !delayTransition
+            || advanceDelayClear(incomingDelayType_, clearBudget);
+        for (std::size_t i = 0; i < kNumDelayTypes && clearBudget > 0; ++i) {
+            (void)advanceDelayClear(static_cast<RuinaeDelayType>(i), clearBudget);
+        }
+        bool activeRuns = activeClean;
+        if (delayFadeState_ != SlotFadeState::Off) {
+            if (activeClean && activeDelayBacklog_ <= numSamples) {
+                // The rest of the kept input, then this chunk live: at most
+                // two chunks' worth of delay processing.
+                catchUpActiveDelay(activeDelayBacklog_, ctx);
+            } else {
+                // Still clearing, or more kept input than one chunk: keep this
+                // chunk as well, and once clean work two chunks' worth off.
+                keepActiveDelayInput(left, right, numSamples);
+                if (activeClean) catchUpActiveDelay(2 * numSamples, ctx);
+                activeRuns = false;
+            }
+        }
+
         if (delayFadeState_ == SlotFadeState::Off) {
             // Skip delay processing entirely
         } else if (preWarming_) {
@@ -909,16 +976,19 @@ private:
             std::memcpy(crossfadeOutR_.data(), right, numSamples * sizeof(float));
 
             // Active delay produces output normally
-            processDelayTypeRaw(activeDelayType_, left, right, numSamples, ctx);
+            processDelayTypeOrSilence(activeDelayType_, activeRuns, left, right, numSamples, ctx);
 
             // Incoming delay processes same input (output discarded, fills buffer).
             // The pre-warm lasts the delay time, so nothing the incoming delay was
-            // fed has reached its output yet: no echo is dropped here.
-            processDelayTypeRaw(incomingDelayType_, crossfadeOutL_.data(),
-                                crossfadeOutR_.data(), numSamples, ctx);
+            // fed has reached its output yet: no echo is dropped here. It starts
+            // once the incoming type's clear is done.
+            processDelayTypeOrSilence(incomingDelayType_, incomingClean, crossfadeOutL_.data(),
+                                      crossfadeOutR_.data(), numSamples, ctx);
 
             // Check if pre-warm is complete
-            if (numSamples >= preWarmRemaining_) {
+            if (!incomingClean) {
+                // Waiting for the clear: the pre-warm has not started
+            } else if (numSamples >= preWarmRemaining_) {
                 preWarming_ = false;
                 preWarmRemaining_ = 0;
                 // Start the actual crossfade
@@ -935,11 +1005,12 @@ private:
             // Process OUTGOING delay into crossfade buffers
             std::memcpy(crossfadeOutL_.data(), left, numSamples * sizeof(float));
             std::memcpy(crossfadeOutR_.data(), right, numSamples * sizeof(float));
-            processDelayTypeRaw(activeDelayType_, crossfadeOutL_.data(),
-                                crossfadeOutR_.data(), numSamples, ctx);
+            processDelayTypeOrSilence(activeDelayType_, activeRuns, crossfadeOutL_.data(),
+                                      crossfadeOutR_.data(), numSamples, ctx);
 
             // Process INCOMING delay into left/right in-place
-            processDelayTypeRaw(incomingDelayType_, left, right, numSamples, ctx);
+            processDelayTypeOrSilence(incomingDelayType_, incomingClean, left, right,
+                                      numSamples, ctx);
 
             // Linear crossfade blend (per-sample)
             for (size_t i = 0; i < numSamples; ++i) {
@@ -963,7 +1034,7 @@ private:
             std::memcpy(delayDryR_.data(), right, numSamples * sizeof(float));
 
             // Normal processing: active delay only
-            processDelayTypeRaw(activeDelayType_, left, right, numSamples, ctx);
+            processDelayTypeOrSilence(activeDelayType_, activeRuns, left, right, numSamples, ctx);
         }
 
         // External dry/wet mix for the delay slot. left/right currently hold
@@ -983,13 +1054,11 @@ private:
             }
 
             // Clear the lines only once the fade-out has finished, so the next
-            // enable does not replay stale buffer content.
+            // enable does not replay stale buffer content. The clear runs a
+            // slice per chunk while the slot is off (R-004).
             if (delayFadeState_ == SlotFadeState::Off) {
-                digitalDelay_.reset();
-                tapeDelay_.reset();
-                pingPongDelay_.reset();
-                granularDelay_.reset();
-                spectralDelay_.reset();
+                scheduleDirtyDelayClears();
+                activeDelayBacklog_ = 0;  // nothing is recorded while the slot is off
             }
         }
 
@@ -1016,6 +1085,7 @@ private:
             }
             harmonizer_.processWetOnly(harmonizerMonoScratch_.data(), left, right,
                                        harmonizerDryGain_.data(), numSamples);
+            harmonizerRanSinceReset_ = true;
             for (size_t i = 0; i < numSamples; ++i) {
                 const float dryGain = harmonizerDryGain_[i];
                 left[i] = dryGain * harmonizerDryL_[i] + Sigmoid::softLimit(left[i]);
@@ -1050,6 +1120,7 @@ private:
                 // next enable does not replay stale audio.
                 if (harmonizerFadeState_ == HarmonizerFadeState::Off) {
                     harmonizer_.reset();
+                    harmonizerRanSinceReset_ = false;
                 }
             }
         }
@@ -1196,40 +1267,130 @@ private:
 
     /// @brief Complete a crossfade transition (FR-013).
     void completeCrossfade() noexcept {
-        // Reset outgoing delay
-        resetDelayType(activeDelayType_);
+        // Reset outgoing delay (a slice per chunk, R-004)
+        scheduleDelayClear(activeDelayType_);
 
         // Incoming becomes active
         activeDelayType_ = incomingDelayType_;
+        activeDelayBacklog_ = 0;
         crossfading_ = false;
         crossfadeAlpha_ = 0.0f;
         crossfadeIncrement_ = 0.0f;
     }
 
-    /// @brief Reset a specific delay type (FR-013).
-    void resetDelayType(RuinaeDelayType type) noexcept {
-        switch (type) {
-            case RuinaeDelayType::Digital:
-                digitalDelay_.reset();
-                digitalDelay_.snapParameters();
-                break;
-            case RuinaeDelayType::Tape:
-                tapeDelay_.reset();
-                break;
-            case RuinaeDelayType::PingPong:
-                pingPongDelay_.reset();
-                pingPongDelay_.snapParameters();
-                break;
-            case RuinaeDelayType::Granular:
-                granularDelay_.reset();
-                break;
-            case RuinaeDelayType::Spectral:
-                spectralDelay_.reset();
-                spectralDelay_.snapParameters();
-                break;
-            default:
-                break;
+    /// @brief Process one delay type (100% wet), or output silence while it
+    /// does not run: its line clear is still running (advanceDelayClear), or
+    /// it is still working off the input kept meanwhile (catchUpActiveDelay).
+    /// A cleared line's wet output is silence too.
+    void processDelayTypeOrSilence(RuinaeDelayType type, bool runs, float* left, float* right,
+                                   size_t numSamples, const BlockContext& ctx) noexcept {
+        if (!runs) {
+            std::fill(left, left + numSamples, 0.0f);
+            std::fill(right, right + numSamples, 0.0f);
+            return;
         }
+        processDelayTypeRaw(type, left, right, numSamples, ctx);
+        delayDirty_[delayIndex(type)] = true;
+    }
+
+    [[nodiscard]] static constexpr size_t delayIndex(RuinaeDelayType type) noexcept {
+        return static_cast<size_t>(type);
+    }
+
+    /// @brief Reset a delay type (FR-013) with its line clear spread over the
+    /// following chunks (R-004). The type must not run until advanceDelayClear()
+    /// reports it clean. A clear already running is kept: the type has not
+    /// run since it started.
+    void scheduleDelayClear(RuinaeDelayType type) noexcept {
+        const size_t index = delayIndex(type);
+        if (index >= kNumDelayTypes || delayClearPending_[index]) return;
+        switch (type) {
+            case RuinaeDelayType::Digital: digitalDelay_.startIncrementalReset(); break;
+            case RuinaeDelayType::Tape: tapeDelay_.startIncrementalReset(); break;
+            case RuinaeDelayType::PingPong: pingPongDelay_.startIncrementalReset(); break;
+            case RuinaeDelayType::Granular: granularDelay_.startIncrementalReset(); break;
+            case RuinaeDelayType::Spectral: spectralDelay_.startIncrementalReset(); break;
+            default: return;
+        }
+        delayClearPending_[index] = true;
+        // The active type's kept input starts again at its reset
+        if (type == activeDelayType_) activeDelayBacklog_ = 0;
+    }
+
+    /// @brief Schedule the clear of every delay type that ran since its last clear.
+    void scheduleDirtyDelayClears() noexcept {
+        for (size_t i = 0; i < kNumDelayTypes; ++i) {
+            if (delayDirty_[i]) scheduleDelayClear(static_cast<RuinaeDelayType>(i));
+        }
+    }
+
+    /// @brief Advance @p type's pending line clear by up to @p budget samples.
+    /// @return true when the type is clean (no clear pending) and may run.
+    bool advanceDelayClear(RuinaeDelayType type, size_t& budget) noexcept {
+        const size_t index = delayIndex(type);
+        if (index >= kNumDelayTypes || !delayClearPending_[index]) return true;
+        bool done = false;
+        switch (type) {
+            case RuinaeDelayType::Digital: done = digitalDelay_.continueIncrementalReset(budget); break;
+            case RuinaeDelayType::Tape: done = tapeDelay_.continueIncrementalReset(budget); break;
+            case RuinaeDelayType::PingPong: done = pingPongDelay_.continueIncrementalReset(budget); break;
+            case RuinaeDelayType::Granular: done = granularDelay_.continueIncrementalReset(budget); break;
+            case RuinaeDelayType::Spectral: done = spectralDelay_.continueIncrementalReset(budget); break;
+            default: return true;
+        }
+        if (!done) return false;
+
+        delayClearPending_[index] = false;
+        delayDirty_[index] = false;
+        if (type == RuinaeDelayType::Digital) digitalDelay_.snapParameters();
+        if (type == RuinaeDelayType::PingPong) pingPongDelay_.snapParameters();
+        if (type == RuinaeDelayType::Spectral) spectralDelay_.snapParameters();
+        return true;
+    }
+
+    /// @brief Keep the slot input while the active type's clear runs, so the
+    /// type records it once it is clean (catchUpActiveDelay). A ring of the
+    /// most recent kDelayBacklogMs; the clear of any type takes less.
+    void keepActiveDelayInput(const float* left, const float* right, size_t numSamples) noexcept {
+        const size_t capacity = activeDelayBacklogL_.size();
+        if (capacity == 0) return;
+        for (size_t i = 0; i < numSamples; ++i) {
+            const size_t slot = (activeDelayBacklogStart_ + activeDelayBacklog_) % capacity;
+            activeDelayBacklogL_[slot] = left[i];
+            activeDelayBacklogR_[slot] = right[i];
+            if (activeDelayBacklog_ < capacity) {
+                ++activeDelayBacklog_;
+            } else {
+                activeDelayBacklogStart_ = (activeDelayBacklogStart_ + 1) % capacity;
+            }
+        }
+    }
+
+    /// @brief Feed up to @p maxSamples of the input kept during the active
+    /// type's clear to it, oldest first, output discarded: the wet of those
+    /// samples went out as silence, which is what the line produced then
+    /// unless the delay time is shorter than the clear and the catch-up. Once
+    /// all of it is fed, the type holds the audio it would hold had it been
+    /// cleared at once.
+    void catchUpActiveDelay(size_t maxSamples, const BlockContext& ctx) noexcept {
+        const size_t capacity = activeDelayBacklogL_.size();
+        size_t remaining = std::min(maxSamples, activeDelayBacklog_);
+        while (remaining > 0) {
+            const size_t n = std::min(maxBlockSize_, remaining);
+            for (size_t i = 0; i < n; ++i) {
+                const size_t slot = (activeDelayBacklogStart_ + i) % capacity;
+                crossfadeOutL_[i] = activeDelayBacklogL_[slot];
+                crossfadeOutR_[i] = activeDelayBacklogR_[slot];
+            }
+            BlockContext piece = ctx;
+            piece.blockSize = n;
+            processDelayTypeOrSilence(activeDelayType_, true, crossfadeOutL_.data(),
+                                      crossfadeOutR_.data(), n, piece);
+            activeDelayBacklogStart_ = (activeDelayBacklogStart_ + n) % capacity;
+            activeDelayBacklog_ -= n;
+            remaining -= n;
+        }
+        if (activeDelayBacklog_ == 0) activeDelayBacklogStart_ = 0;
     }
 
     // =========================================================================
@@ -1360,6 +1521,7 @@ private:
     bool reverbEnabled_ = false;
     bool harmonizerEnabled_ = false;
     bool harmonizerNeedsPrime_ = false; // Apply voice fade-in on first process
+    bool harmonizerRanSinceReset_ = false; // reset() skips a harmonizer still in its reset state
 
     // Modulation slot (Phaser/Flanger/Chorus/None)
     Phaser phaser_;
@@ -1385,6 +1547,23 @@ private:
     PingPongDelay pingPongDelay_;
     GranularDelay granularDelay_;
     SpectralDelay spectralDelay_;
+
+    // Line clears spread over chunks (R-004). The budget scales with the chunk
+    // length, so the cost stays a fixed share of the deadline: ~1 MB per 64
+    // samples. A 5 s stereo line pair (2 x 2^18 floats at 48 kHz) clears in
+    // 128 samples, under 3 ms at any rate; the Spectral bin lines in under 6 ms
+    // at any FFT size.
+    static constexpr size_t kNumDelayTypes = static_cast<size_t>(RuinaeDelayType::NumTypes);
+    static constexpr size_t kDelayClearSamplesPerSample = 4096;
+    std::array<bool, kNumDelayTypes> delayClearPending_{};  ///< clear started, not finished
+    std::array<bool, kNumDelayTypes> delayDirty_{};         ///< ran since its last clear
+    // Slot input kept while the active type's clear runs (catchUpActiveDelay).
+    // The longest clear (Spectral, under 6 ms) fits several times over.
+    static constexpr double kDelayBacklogMs = 20.0;
+    std::vector<float> activeDelayBacklogL_;
+    std::vector<float> activeDelayBacklogR_;
+    size_t activeDelayBacklogStart_ = 0;  ///< oldest kept sample in the ring
+    size_t activeDelayBacklog_ = 0;       ///< samples kept
 
     // Crossfade state
     RuinaeDelayType activeDelayType_ = RuinaeDelayType::Digital;

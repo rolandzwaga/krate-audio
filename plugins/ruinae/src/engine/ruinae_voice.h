@@ -213,7 +213,10 @@ public:
         resetActiveFilter();
         resetActiveDistortion();
         dcBlocker_.reset();
-        if (spectralMorph_) (*spectralMorph_).reset();
+        // The morph filter is left to noteOn(): a reset voice is idle, so its
+        // next note resets the filter before it runs again. Its 1024-point FFT
+        // state made up 36 of the 40 us 16 voices took to reset at 192 kHz,
+        // inside the preset-load callback (R-004).
         clearVcaGainDelay();
         tranceGate_.reset();
         ampEnv_.reset();

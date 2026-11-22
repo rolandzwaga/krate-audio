@@ -51,9 +51,9 @@ inline void registerGlobalFilterParams(Steinberg::Vst::ParameterContainer& param
         STR16("Global Filter Type"), kGlobalFilterTypeId,
         {STR16("Lowpass"), STR16("Highpass"), STR16("Bandpass"), STR16("Notch")}
     ));
-    parameters.addParameter(STR16("Global Filter Cutoff"), STR16("Hz"), 0, 0.574,
+    parameters.addParameter(STR16("Global Filter Cutoff"), STR16("Hz"), 0, 0.5663,
         ParameterInfo::kCanAutomate, kGlobalFilterCutoffId);
-    parameters.addParameter(STR16("Global Filter Reso"), STR16(""), 0, 0.020,
+    parameters.addParameter(STR16("Global Filter Reso"), STR16(""), 0, 0.0203,
         ParameterInfo::kCanAutomate, kGlobalFilterResonanceId);
 }
 

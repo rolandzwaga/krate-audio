@@ -91,6 +91,22 @@ public:
     /// Faster than prepare() when buffer size doesn't need to change.
     void reset() noexcept;
 
+    /// @brief Start a reset() whose buffer clear is spread over several calls.
+    ///
+    /// reset() zeroes the whole buffer at once, which costs O(buffer size): a
+    /// 5 s line at 192 kHz is 4 MB, too much for one real-time callback. This
+    /// resets the write head and the allpass state now and leaves the buffer to
+    /// continueIncrementalReset(). Neither write nor read the line until that
+    /// has returned true; the line is then exactly as reset() leaves it.
+    void startIncrementalReset() noexcept;
+
+    /// @brief Zero up to @p budget more samples of a started incremental reset.
+    ///
+    /// @param budget Samples this call may clear; what it clears is deducted.
+    /// @return true once the whole buffer is clear (at once if no reset is
+    ///         running), false while samples remain.
+    bool continueIncrementalReset(std::size_t& budget) noexcept;
+
     // =========================================================================
     // Processing Methods (real-time safe)
     // =========================================================================
@@ -282,6 +298,7 @@ private:
     float allpassState_ = 0.0f;      ///< Previous output for allpass interpolation
     double sampleRate_ = 0.0;        ///< Current sample rate
     size_t maxDelaySamples_ = 0;     ///< Maximum delay (user-requested, not buffer size)
+    size_t clearCursor_ = 0;         ///< Next sample an incremental reset clears; buffer size = none running
 };
 
 // =============================================================================
@@ -306,6 +323,22 @@ inline void DelayLine::reset() noexcept {
     std::fill(buffer_.begin(), buffer_.end(), 0.0f);
     writeIndex_ = 0;
     allpassState_ = 0.0f;
+    clearCursor_ = buffer_.size();
+}
+
+inline void DelayLine::startIncrementalReset() noexcept {
+    writeIndex_ = 0;
+    allpassState_ = 0.0f;
+    clearCursor_ = 0;
+}
+
+inline bool DelayLine::continueIncrementalReset(std::size_t& budget) noexcept {
+    const std::size_t count = std::min(budget, buffer_.size() - clearCursor_);
+    const auto first = buffer_.begin() + static_cast<std::ptrdiff_t>(clearCursor_);
+    std::fill(first, first + static_cast<std::ptrdiff_t>(count), 0.0f);
+    clearCursor_ += count;
+    budget -= count;
+    return clearCursor_ == buffer_.size();
 }
 
 inline void DelayLine::write(float sample) noexcept {

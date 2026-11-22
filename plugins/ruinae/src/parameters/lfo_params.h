@@ -75,6 +75,16 @@ inline double lfoRateToNormalized(float hz) {
     return logMapToNormalized(static_cast<double>(hz), 0.01, 50.0);
 }
 
+// Sample & Hold and Random rate: 0-1 -> 0.1-50 Hz, the range their sources honour. Using the LFO's
+// 0.01-50 Hz map and clamping at 0.1 Hz left the bottom 27 % of the knob dead (R-097).
+inline float sampleHoldRateFromNormalized(double value) {
+    return static_cast<float>(logMapFromNormalized(value, 0.1, 50.0));
+}
+
+inline double sampleHoldRateToNormalized(float hz) {
+    return logMapToNormalized(static_cast<double>(hz), 0.1, 50.0);
+}
+
 // Exponential fade-in: 0-1 -> 0-5000 ms (0 = off)
 inline float lfoFadeInFromNormalized(double value) {
     if (value < 0.001) return 0.0f;

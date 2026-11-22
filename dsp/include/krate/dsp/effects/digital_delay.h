@@ -265,13 +265,24 @@ public:
         std::fill(wavefoldTempL_.begin(), wavefoldTempL_.end(), 0.0f);
         std::fill(wavefoldTempR_.begin(), wavefoldTempR_.end(), 0.0f);
 
+        networkPrimed_ = false;
         prepared_ = true;
     }
 
     /// @brief Reset all internal state
     /// @post Delay lines cleared, smoothers snapped to current values
     void reset() noexcept {
-        feedbackNetwork_.reset();
+        startIncrementalReset();
+        std::size_t unlimited = SIZE_MAX;
+        (void)continueIncrementalReset(unlimited);
+    }
+
+    /// @brief Start a reset() whose delay-line clear is left to
+    /// continueIncrementalReset(), so it fits a real-time callback (the lines
+    /// hold up to 5 s each). Do not process until that has returned true.
+    void startIncrementalReset() noexcept {
+        feedbackNetwork_.startIncrementalReset();
+        networkPrimed_ = false;
         character_.reset();
         for (auto& limiter : limiter_) {
             limiter.reset();
@@ -293,6 +304,12 @@ public:
         modulationDepthSmoother_.snapTo(modulationDepth_);
         ageSmoother_.snapTo(age_);
         widthSmoother_.snapTo(width_);
+    }
+
+    /// @brief Clear up to @p budget more delay-line samples (deducted from it).
+    /// @return true once the started reset is complete.
+    bool continueIncrementalReset(std::size_t& budget) noexcept {
+        return feedbackNetwork_.continueIncrementalReset(budget);
     }
 
     /// @brief Snap all parameters to current values (skip smoothing, for testing)
@@ -628,7 +645,22 @@ public:
         }
         timeSmoother_.setTarget(baseDelayMs);
 
-        // Sample-by-sample processing for parameter smoothing
+        // Before the network's first sample it snaps to the delay time and
+        // feedback it is given (it holds no audio yet). Give it the targets, as
+        // the whole first call once did, not the first sample of a glide from
+        // the defaults: that glide left the crossfading line's live tap up to
+        // 100 samples off the set time (R-150).
+        if (!networkPrimed_) {
+            timeSmoother_.snapToTarget();
+            feedbackSmoother_.snapToTarget();
+            networkPrimed_ = true;
+        }
+
+        // Sample-by-sample processing for parameter smoothing. The network
+        // runs one sample at a time with that sample's delay time and
+        // feedback: run once per call, it only ever saw the call's last
+        // values, so the delay-time trajectory stepped at the caller's buffer
+        // boundaries and the output depended on the buffer size (R-150).
         for (size_t i = 0; i < numSamples; ++i) {
             // Get smoothed parameters
             const float currentDelayMs = timeSmoother_.process();
@@ -647,13 +679,12 @@ public:
                 (void)modulationLfo_.process(); // Keep LFO running
             }
 
-            // Update feedback network with modulated delay
+            // Update feedback network with modulated delay, then run it for
+            // this sample (it has the delay + feedback built in)
             feedbackNetwork_.setDelayTimeMs(modulatedDelay);
             feedbackNetwork_.setFeedbackAmount(currentFeedback);
+            feedbackNetwork_.process(left + i, right + i, 1, ctx);
         }
-
-        // Process through feedback network (has delay + feedback built-in)
-        feedbackNetwork_.process(left, right, numSamples, ctx);
 
         // Apply wavefold distortion to feedback output (before era character)
         // WavefolderProcessor has internal DC blocking and parameter smoothing
@@ -879,6 +910,7 @@ private:
 
     // Parameters
     float delayTimeMs_ = kDefaultDelayMs;        ///< Delay time (FR-001)
+    bool networkPrimed_ = false;  ///< the network has run since prepare() / reset()
     float feedback_ = kDefaultFeedback;          ///< Feedback amount (FR-014)
     float modulationDepth_ = 0.0f;               ///< Modulation depth (FR-021)
     float modulationRate_ = kDefaultModRate;     ///< Modulation rate (FR-022)

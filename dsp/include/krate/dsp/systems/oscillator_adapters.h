@@ -91,10 +91,10 @@ class OscillatorAdapter final : public OscillatorSlot {
 public:
     /// Additive only (see "Additive level normalisation" below): the RMS of the
     /// normalised partial sum inside the oscillator, relative to one full-amplitude
-    /// partial (RMS 0.806, peak 1.14). -5.7 dB, so the worst crest factor measured
-    /// (4.52) peaks at 4.52 * 0.806 * 0.52 = 1.89, 5 % under the oscillator's +-2
+    /// partial (RMS 0.707, peak 1.0). -6.2 dB, so the worst crest factor measured
+    /// (5.40) peaks at 5.40 * 0.707 * 0.49 = 1.87, 6 % under the oscillator's +-2
     /// clamp. processBlock multiplies the output back up by 1 / kAdditiveLevel.
-    static constexpr float kAdditiveLevel = 0.52f;
+    static constexpr float kAdditiveLevel = 0.49f;
 
     OscillatorAdapter() noexcept = default;
 
@@ -536,9 +536,11 @@ private:
     // The partials start at quadratic phases (phi_n = frac(n^2 * golden / 2)),
     // which spread their peaks instead of lining them up at the start of each
     // cycle as zero phases do. Over 1-128 partials, tilt -24..+12 dB/oct and
-    // 65-1047 Hz, the worst crest factor measured over 2 s was 3.5 for harmonic
-    // partials and 4.52 with inharmonicity (whose drifting phases tend to random
-    // ones); with zero phases it was 6.9.
+    // 65-1047 Hz, the worst crest factor measured over 2 s was 5.40, with
+    // inharmonicity at 65 Hz (drifting phases tend to random ones); harmonic
+    // partials at 65 Hz reached 3.05. (Before partials were placed at their exact
+    // frequency (R-158) the hop-rate modulation blurred the peaks: 3.5 and 4.52;
+    // with zero phases it was 6.9.)
 
     /// Tilt clamp of AdditiveOscillator::setSpectralTilt / setInharmonicity.
     static constexpr float kAdditiveMinTilt = -24.0f;

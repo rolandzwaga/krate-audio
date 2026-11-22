@@ -222,8 +222,8 @@ inline void registerFilterParams(Steinberg::Vst::ParameterContainer& parameters)
     parameters.addParameter(STR16("Filter Key Track"), STR16("%"), 0, 0.0,
         ParameterInfo::kCanAutomate, kFilterKeyTrackId);
     // Ladder-specific
-    parameters.addParameter(createDropdownParameter(
-        STR16("Ladder Slope"), kFilterLadderSlopeId,
+    parameters.addParameter(createDropdownParameterWithDefault(
+        STR16("Ladder Slope"), kFilterLadderSlopeId, 3,
         {STR16("6 dB"), STR16("12 dB"), STR16("18 dB"), STR16("24 dB")}
     ));
     parameters.addParameter(STR16("Ladder Drive"), STR16("dB"), 0, 0.0,
@@ -254,7 +254,7 @@ inline void registerFilterParams(Steinberg::Vst::ParameterContainer& parameters)
         ParameterInfo::kCanAutomate, kFilterEnvFltSensitivityId);
     parameters.addParameter(STR16("Env Depth"), STR16(""), 0, 1.0,
         ParameterInfo::kCanAutomate, kFilterEnvFltDepthId);
-    parameters.addParameter(STR16("Env Attack"), STR16("ms"), 0, 0.35,
+    parameters.addParameter(STR16("Env Attack"), STR16("ms"), 0, 0.5407,
         ParameterInfo::kCanAutomate, kFilterEnvFltAttackId);
     parameters.addParameter(STR16("Env Release"), STR16("ms"), 0, 0.54,
         ParameterInfo::kCanAutomate, kFilterEnvFltReleaseId);
@@ -269,7 +269,7 @@ inline void registerFilterParams(Steinberg::Vst::ParameterContainer& parameters)
         ParameterInfo::kCanAutomate, kFilterSelfOscExtMixId);
     parameters.addParameter(STR16("Self-Osc Shape"), STR16(""), 0, 0.0,
         ParameterInfo::kCanAutomate, kFilterSelfOscShapeId);
-    parameters.addParameter(STR16("Self-Osc Release"), STR16("ms"), 0, 0.47,
+    parameters.addParameter(STR16("Self-Osc Release"), STR16("ms"), 0, 0.7384,
         ParameterInfo::kCanAutomate, kFilterSelfOscReleaseId);
     // UI-only: Filter view mode tab (General/Type), ephemeral, not persisted; hidden, not automatable
     auto* viewModeParam = new StringListParameter(

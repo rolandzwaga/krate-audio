@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **The Chaos, S&H and Random rate knobs showed and defaulted to the wrong rates** — The three knobs used the LFO's 0.01–50 Hz scale, while the sources run at 0.05–20x (Chaos) and 0.1–50 Hz (S&H, Random), so the displayed value and the default did not match what played. Each knob now uses its source's own range, and the defaults are the rates the processor starts at. Saved projects and presets keep their rates. Host automation recorded on these three knobs now maps to different rates, so re-check any automation lanes on them.
 - **The modulation heatmap lit random cells and hid some routes** — The heatmap kept a grid smaller than the Global tab's 14 sources by 15 destinations, so its bottom rows showed cells that were not routed (a different pattern each time), and routes from Tran or ArpP, or to AGat, AOct, ASwg or ASpc, never appeared. Every source and destination now has its own cell.
 - **The Digital delay's feedback above 100 % grew without limit** — Nothing inside the Digital delay's feedback loop held it back, so above 100 % the repeats grew louder inside the delay line on every pass and only the output limiter hid it. The loop now saturates above 100 %, so self-oscillation stays bounded. Below 100 % the Digital delay stays clean.
 - **The Digital delay's limiter let one channel duck the other** — One limiter ran over the left channel and then the right, so a loud left channel turned the right channel down too. Each channel now has its own limiter.

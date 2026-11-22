@@ -21,6 +21,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <complex>
 #include <cstddef>
 #include <numbers>
 #include <numeric>
@@ -1205,4 +1206,221 @@ TEST_CASE("SelectableOscillator ignores an out-of-range type",
         REQUIRE(detail::isFinite(s));
     }
     REQUIRE(computeRMS(buffer.data(), kBlockSize) > 0.001f);
+}
+
+// =============================================================================
+// Formant pitch range and jitter, Additive inharmonic floor (R-149, R-159, R-158)
+// =============================================================================
+// R-149: the Formant oscillator clamped its fundamental at 2 kHz, so C7 played
+// 78.7 cents flat and every higher key at the same pitch. R-159: its grains
+// started on whole samples, so the FOF period jittered by a sample and spread
+// non-harmonic lines around every harmonic (+3.0 dBc at A1, -20.7 dBc at A4,
+// audit probe at 48 kHz). R-158: the Additive oscillator rounded every partial to
+// one FFT bin, so the overlap-add modulated each partial at the hop rate
+// (-42 dBc at A1, A4 and C7). The floor is measured as the audit probe measures
+// it: a 65536-point Blackman-Harris spectrum, +-6 bins around each harmonic count
+// as harmonic, and the loudest other bin above 25 Hz is read against the
+// fundamental's peak.
+namespace {
+
+/// In-place iterative radix-2 complex FFT; the size must be a power of two.
+void qualityFft(std::vector<std::complex<double>>& a) {
+    const size_t n = a.size();
+    for (size_t i = 1, j = 0; i < n; ++i) {
+        size_t bit = n >> 1;
+        for (; (j & bit) != 0; bit >>= 1) j ^= bit;
+        j ^= bit;
+        if (i < j) std::swap(a[i], a[j]);
+    }
+    for (size_t len = 2; len <= n; len <<= 1) {
+        const double ang = -2.0 * std::numbers::pi / static_cast<double>(len);
+        const std::complex<double> wl(std::cos(ang), std::sin(ang));
+        for (size_t i = 0; i < n; i += len) {
+            std::complex<double> w(1.0, 0.0);
+            for (size_t k = 0; k < len / 2; ++k) {
+                const auto u = a[i + k];
+                const auto v = a[i + k + len / 2] * w;
+                a[i + k] = u + v;
+                a[i + k + len / 2] = u - v;
+                w *= wl;
+            }
+        }
+    }
+}
+
+/// Blackman-Harris windowed power spectrum of the whole capture, bins 0..n/2.
+std::vector<double> qualityPowerSpectrum(const std::vector<float>& x) {
+    std::vector<std::complex<double>> a(x.size());
+    for (size_t i = 0; i < x.size(); ++i) {
+        a[i] = {static_cast<double>(x[i]) * blackmanHarris4(i, x.size()), 0.0};
+    }
+    qualityFft(a);
+    std::vector<double> p(x.size() / 2 + 1);
+    for (size_t k = 0; k < p.size(); ++k) p[k] = std::norm(a[k]);
+    return p;
+}
+
+/// Render `numSamples` (a power of two) after `warmup` samples of settling.
+std::vector<float> renderQualityCapture(SelectableOscillator& osc, size_t warmup,
+                                        size_t numSamples) {
+    std::array<float, kBlockSize> block{};
+    for (size_t done = 0; done < warmup; done += kBlockSize) {
+        osc.processBlock(block.data(), std::min(kBlockSize, warmup - done));
+    }
+    std::vector<float> capture(numSamples);
+    for (size_t i = 0; i < numSamples; i += kBlockSize) {
+        const size_t n = std::min(kBlockSize, numSamples - i);
+        osc.processBlock(block.data(), n);
+        std::copy_n(block.data(), n, capture.data() + i);
+    }
+    return capture;
+}
+
+/// Frequency of the strongest component in [lo, hi] Hz, refined to well under a
+/// cent by a golden-section search of the windowed DTFT magnitude.
+double refinedPeakHz(const std::vector<float>& x, double sampleRate, double lo, double hi) {
+    const auto p = qualityPowerSpectrum(x);
+    const double binHz = sampleRate / static_cast<double>(x.size());
+    size_t peak = 0;
+    double peakPow = 0.0;
+    for (size_t k = 1; k + 1 < p.size(); ++k) {
+        const double f = static_cast<double>(k) * binHz;
+        if (f < lo || f > hi) continue;
+        if (p[k] > peakPow) {
+            peakPow = p[k];
+            peak = k;
+        }
+    }
+    if (peak == 0) return 0.0;
+
+    const auto magAt = [&](double hz) {
+        const double w = 2.0 * std::numbers::pi * hz / sampleRate;
+        const double cw = std::cos(w);
+        const double sw = std::sin(w);
+        double c = 1.0, s = 0.0, re = 0.0, im = 0.0;
+        for (size_t n = 0; n < x.size(); ++n) {
+            const double v = blackmanHarris4(n, x.size()) * static_cast<double>(x[n]);
+            re += v * c;
+            im -= v * s;
+            const double cn = c * cw - s * sw;
+            s = s * cw + c * sw;
+            c = cn;
+        }
+        return std::hypot(re, im);
+    };
+    const double golden = 0.5 * (std::sqrt(5.0) - 1.0);
+    double a0 = (static_cast<double>(peak) - 0.75) * binHz;
+    double b0 = (static_cast<double>(peak) + 0.75) * binHz;
+    double a = b0 - golden * (b0 - a0);
+    double b = a0 + golden * (b0 - a0);
+    double fa = magAt(a);
+    double fb = magAt(b);
+    for (int it = 0; it < 48; ++it) {
+        if (fa < fb) {
+            a0 = a; a = b; fa = fb;
+            b = a0 + golden * (b0 - a0);
+            fb = magAt(b);
+        } else {
+            b0 = b; b = a; fb = fa;
+            a = b0 - golden * (b0 - a0);
+            fa = magAt(a);
+        }
+    }
+    return 0.5 * (a0 + b0);
+}
+
+/// Loudest non-harmonic bin against the fundamental's peak, in dBc.
+double worstNonHarmonicVsFundamentalDbc(const std::vector<float>& x, double sampleRate,
+                                        double f0) {
+    const auto p = qualityPowerSpectrum(x);
+    const double binHz = sampleRate / static_cast<double>(x.size());
+    constexpr long kGuard = 6;
+    std::vector<char> harmonic(p.size(), 0);
+    double fundamentalPeak = 0.0;
+    for (int h = 1; static_cast<double>(h) * f0 < sampleRate / 2.0; ++h) {
+        const auto c = static_cast<long>(std::llround(static_cast<double>(h) * f0 / binHz));
+        for (long k = c - kGuard; k <= c + kGuard; ++k) {
+            if (k < 0 || std::cmp_greater_equal(k, p.size())) continue;
+            harmonic[static_cast<size_t>(k)] = 1;
+            if (h == 1) fundamentalPeak = std::max(fundamentalPeak, p[static_cast<size_t>(k)]);
+        }
+    }
+    const auto dcBins = static_cast<size_t>(std::ceil(25.0 / binHz));
+    double worst = 0.0;
+    for (size_t k = dcBins; k < p.size(); ++k) {
+        if (harmonic[k] == 0) worst = std::max(worst, p[k]);
+    }
+    if (fundamentalPeak <= 0.0) return 0.0;
+    return 10.0 * std::log10(std::max(worst, 1e-300) / fundamentalPeak);
+}
+
+double midiToHz(int note) { return 440.0 * std::pow(2.0, (note - 69) / 12.0); }
+
+} // namespace
+
+TEST_CASE("Formant and Additive oscillators: pitch range and inharmonic floor",
+          "[systems][oscillator][quality]") {
+    constexpr std::array<double, 2> kRates{44100.0, 48000.0};
+    constexpr size_t kWarmup = 4096;
+
+    SECTION("Formant tracks MIDI 93-108 within 5 cents (R-149)") {
+        constexpr size_t kCapture = 16384;
+        for (const double sampleRate : kRates) {
+            for (int note = 93; note <= 108; ++note) {
+                SelectableOscillator osc;
+                osc.prepare(sampleRate, kBlockSize);
+                osc.setType(OscType::Formant);
+                const double expectedHz = midiToHz(note);
+                osc.setFrequency(static_cast<float>(expectedHz));
+                const auto capture = renderQualityCapture(osc, kWarmup, kCapture);
+                const double hz = refinedPeakHz(capture, sampleRate, 0.9 * expectedHz,
+                                                1.1 * expectedHz);
+                const double cents = hz > 0.0 ? 1200.0 * std::log2(hz / expectedHz) : 1.0e6;
+                INFO("rate " << sampleRate << ", MIDI " << note << ": expected " << expectedHz
+                     << " Hz, measured " << hz << " Hz (" << cents << " cents)");
+                CHECK(std::abs(cents) <= 5.0);
+            }
+        }
+    }
+
+    SECTION("Formant worst non-harmonic <= -40 dBc at A2-A5 (R-159)") {
+        constexpr size_t kCapture = 65536;
+        for (const double sampleRate : kRates) {
+            for (const int note : {45, 57, 69, 81}) {
+                SelectableOscillator osc;
+                osc.prepare(sampleRate, kBlockSize);
+                osc.setType(OscType::Formant);
+                const double expectedHz = midiToHz(note);
+                osc.setFrequency(static_cast<float>(expectedHz));
+                const auto capture = renderQualityCapture(osc, kWarmup, kCapture);
+                const double f0 = refinedPeakHz(capture, sampleRate, 0.97 * expectedHz,
+                                                1.03 * expectedHz);
+                const double dbc = worstNonHarmonicVsFundamentalDbc(capture, sampleRate, f0);
+                INFO("rate " << sampleRate << ", MIDI " << note << ": f0 " << f0
+                     << " Hz, worst non-harmonic " << dbc << " dBc");
+                CHECK(dbc <= -40.0);
+            }
+        }
+    }
+
+    SECTION("Additive worst non-harmonic <= -60 dBc at A1, A4, C7 (R-158)") {
+        constexpr size_t kCapture = 65536;
+        for (const double sampleRate : kRates) {
+            for (const int note : {33, 69, 96}) {
+                SelectableOscillator osc;
+                osc.prepare(sampleRate, kBlockSize);
+                osc.setType(OscType::Additive);
+                osc.setParam(OscParam::AdditiveNumPartials, 16.0f);  // Ruinae's default
+                const double expectedHz = midiToHz(note);
+                osc.setFrequency(static_cast<float>(expectedHz));
+                const auto capture = renderQualityCapture(osc, kWarmup, kCapture);
+                const double f0 = refinedPeakHz(capture, sampleRate, 0.97 * expectedHz,
+                                                1.03 * expectedHz);
+                const double dbc = worstNonHarmonicVsFundamentalDbc(capture, sampleRate, f0);
+                INFO("rate " << sampleRate << ", MIDI " << note << ": f0 " << f0
+                     << " Hz, worst non-harmonic " << dbc << " dBc");
+                CHECK(dbc <= -60.0);
+            }
+        }
+    }
 }

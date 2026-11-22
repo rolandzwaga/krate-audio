@@ -1307,7 +1307,7 @@
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="Dir"/>
         <view class="ArcKnob" origin="72, 54" size="36, 36"
-              control-tag="FilterEnvFltAttack" default-value="0.35"
+              control-tag="FilterEnvFltAttack" default-value="0.5407"
               arc-color="filter" guide-color="knob-guide"/>
         <view class="CTextLabel" origin="64, 93" size="52, 12"
               font="~ NormalFontSmaller" font-color="text-secondary"
@@ -1343,7 +1343,7 @@
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="Shape"/>
         <view class="ArcKnob" origin="84, 58" size="36, 36"
-              control-tag="FilterSelfOscRelease" default-value="0.47"
+              control-tag="FilterSelfOscRelease" default-value="0.7384"
               arc-color="filter" guide-color="knob-guide"/>
         <view class="CTextLabel" origin="76, 97" size="52, 12"
               font="~ NormalFontSmaller" font-color="text-secondary"
@@ -2302,7 +2302,7 @@
         <view class="CViewContainer" origin="12, 0" size="44, 60"
               custom-view-name="SHRateGroup" transparent="true">
             <view class="ArcKnob" origin="4, 8" size="36, 36"
-                  control-tag="SampleHoldRate" default-value="0.702"
+                  control-tag="SampleHoldRate" default-value="0.5936"
                   arc-color="modulation" guide-color="knob-guide"/>
             <view class="CTextLabel" origin="0, 46" size="44, 12"
                   font="~ NormalFontSmaller" font-color="text-secondary"
@@ -2348,7 +2348,7 @@
         <view class="CViewContainer" origin="12, 0" size="44, 60"
               custom-view-name="RandomRateGroup" transparent="true">
             <view class="ArcKnob" origin="4, 8" size="36, 36"
-                  control-tag="RandomRate" default-value="0.702"
+                  control-tag="RandomRate" default-value="0.5936"
                   arc-color="modulation" guide-color="knob-guide"/>
             <view class="CTextLabel" origin="0, 46" size="44, 12"
                   font="~ NormalFontSmaller" font-color="text-secondary"
@@ -2543,13 +2543,13 @@
                   font="~ NormalFontSmaller" font-color="text-menu"
                   back-color="bg-dropdown" frame-color="frame-dropdown"/>
             <view class="ArcKnob" origin="184, 8" size="28, 28"
-                  control-tag="GlobalFilterCutoff" default-value="0.574"
+                  control-tag="GlobalFilterCutoff" default-value="0.5663"
                   arc-color="global-filter" guide-color="knob-guide"/>
             <view class="CTextLabel" origin="178, 36" size="40, 10"
                   font="~ NormalFontSmaller" font-color="text-secondary"
                   text-alignment="center" transparent="true" title="Cutoff"/>
             <view class="ArcKnob" origin="240, 8" size="28, 28"
-                  control-tag="GlobalFilterResonance" default-value="0.020"
+                  control-tag="GlobalFilterResonance" default-value="0.0203"
                   arc-color="global-filter" guide-color="knob-guide"/>
             <view class="CTextLabel" origin="234, 36" size="40, 10"
                   font="~ NormalFontSmaller" font-color="text-secondary"

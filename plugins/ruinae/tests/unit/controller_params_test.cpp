@@ -17,6 +17,19 @@
 #include "pluginterfaces/vst/ivstmidicontrollers.h"
 
 #include <set>
+#include <vector>
+#include <memory>
+#include <cstring>
+#include <cmath>
+#include <algorithm>
+#include <utility>
+#include "processor/processor.h"
+#include "parameters/sample_hold_params.h"
+#include "parameters/random_params.h"
+#include "parameters/chaos_mod_params.h"
+#include "vst_param_changes.h"
+#include "vst_event_list.h"
+#include "public.sdk/source/common/memorystream.h"
 #include "parameters/osc_params.h"
 #include "parameters/delay_params.h"
 #include "parameters/voice_lfo_params.h"
@@ -674,4 +687,109 @@ TEST_CASE("UI-only view parameters are hidden and not automatable", "[controller
 
     ctrl->terminate();
     ctrl->release();
+}
+
+// =============================================================================
+// Registered defaults agree with the processor (Ruinae audit R-184/185/186/188/097)
+// =============================================================================
+
+TEST_CASE("Every registered default denormalises to the processor default",
+          "[controller][params][defaults]") {
+    // The processor's untouched state, read back through the controller, must put every parameter on its
+    // registered default: otherwise a fresh instance sounds one way and a host "reset to default" another.
+    auto stream = Steinberg::owned(new Steinberg::MemoryStream());
+    {
+        auto processor = std::make_unique<Ruinae::Processor>();
+        processor->initialize(nullptr);
+        Steinberg::Vst::ProcessSetup setup{};
+        setup.processMode = Steinberg::Vst::kRealtime;
+        setup.symbolicSampleSize = Steinberg::Vst::kSample32;
+        setup.sampleRate = 44100.0;
+        setup.maxSamplesPerBlock = 512;
+        processor->setupProcessing(setup);
+        processor->setActive(true);
+        REQUIRE(processor->getState(stream) == Steinberg::kResultTrue);
+        processor->setActive(false);
+        processor->terminate();
+    }
+
+    auto* ctrl = makeControllerRaw();
+    stream->seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
+    REQUIRE(ctrl->setComponentState(stream) == Steinberg::kResultOk);
+
+    // Hand-typed defaults carry rounding of a few thousandths; the audited errors are 0.008 and larger.
+    constexpr double kTolerance = 0.005;
+    std::vector<std::string> offenders;
+    for (int32 i = 0; i < ctrl->getParameterCount(); ++i) {
+        ParameterInfo info{};
+        ctrl->getParameterInfo(i, info);
+        if (info.flags & (ParameterInfo::kIsHidden | ParameterInfo::kIsReadOnly |
+                          ParameterInfo::kIsProgramChange))
+            continue;
+        const double processorSide = ctrl->getParamNormalized(info.id);
+        if (std::abs(processorSide - info.defaultNormalizedValue) > kTolerance) {
+            char line[200];
+            std::snprintf(line, sizeof(line), "%u %s: registered default %.4f, processor starts at %.4f",
+                          static_cast<unsigned>(info.id), to_string(info.title).c_str(),
+                          info.defaultNormalizedValue, processorSide);
+            offenders.emplace_back(line);
+        }
+    }
+
+    std::string list;
+    for (const auto& o : offenders)
+        list += "\n  " + o;
+    INFO("registered default differs from the processor default for:" << list);
+    CHECK(offenders.empty());
+
+    ctrl->terminate();
+    ctrl->release();
+}
+
+TEST_CASE("S&H and Random rate map [0,1] onto 0.1-50 Hz monotonically", "[params]") {
+    Ruinae::SampleHoldParams sh;
+    Ruinae::RandomParams rnd;
+
+    float prevSh = 0.0f;
+    float prevRnd = 0.0f;
+    for (int i = 0; i <= 100; ++i) {
+        const double n = i / 100.0;
+        Ruinae::handleSampleHoldParamChange(sh, Ruinae::kSampleHoldRateId, n);
+        Ruinae::handleRandomParamChange(rnd, Ruinae::kRandomRateId, n);
+        const float s = sh.rateHz.load();
+        const float r = rnd.rateHz.load();
+        INFO("normalized " << n);
+        if (i == 0) {
+            CHECK(s == Catch::Approx(0.1f).margin(1e-4));
+            CHECK(r == Catch::Approx(0.1f).margin(1e-4));
+        } else {
+            CHECK(s > prevSh);
+            CHECK(r > prevRnd);
+        }
+        if (i == 100) {
+            CHECK(s == Catch::Approx(50.0f).margin(1e-3));
+            CHECK(r == Catch::Approx(50.0f).margin(1e-3));
+        }
+        prevSh = s;
+        prevRnd = r;
+    }
+}
+
+TEST_CASE("Chaos speed maps [0,1] onto 0.05-20 monotonically", "[params]") {
+    Ruinae::ChaosModParams chaos;
+
+    float prev = 0.0f;
+    for (int i = 0; i <= 100; ++i) {
+        const double n = i / 100.0;
+        Ruinae::handleChaosModParamChange(chaos, Ruinae::kChaosModRateId, n);
+        const float v = chaos.rateHz.load();
+        INFO("normalized " << n);
+        if (i == 0)
+            CHECK(v == Catch::Approx(0.05f).margin(1e-4));
+        else
+            CHECK(v > prev);
+        if (i == 100)
+            CHECK(v == Catch::Approx(20.0f).margin(1e-3));
+        prev = v;
+    }
 }

@@ -195,8 +195,17 @@ public:
     /// @brief Reset all internal state
     /// @post Delay lines cleared, smoothers snapped to current values
     void reset() noexcept {
-        delayLineL_.reset();
-        delayLineR_.reset();
+        startIncrementalReset();
+        std::size_t unlimited = SIZE_MAX;
+        (void)continueIncrementalReset(unlimited);
+    }
+
+    /// @brief Start a reset() whose delay-line clear is left to
+    /// continueIncrementalReset(), so it fits a real-time callback (the lines
+    /// hold up to 5 s each). Do not process until that has returned true.
+    void startIncrementalReset() noexcept {
+        delayLineL_.startIncrementalReset();
+        delayLineR_.startIncrementalReset();
         lfoL_.reset();
         lfoR_.reset();
         limiter_.reset();
@@ -208,6 +217,13 @@ public:
         widthSmoother_.snapTo(width_);
         mixSmoother_.snapTo(mix_);
         modulationDepthSmoother_.snapTo(modulationDepth_);
+    }
+
+    /// @brief Clear up to @p budget more delay-line samples (deducted from it).
+    /// @return true once the started reset is complete.
+    bool continueIncrementalReset(std::size_t& budget) noexcept {
+        return delayLineL_.continueIncrementalReset(budget) &&
+               delayLineR_.continueIncrementalReset(budget);
     }
 
     /// @brief Snap all smoothers to current targets (for immediate parameter application)

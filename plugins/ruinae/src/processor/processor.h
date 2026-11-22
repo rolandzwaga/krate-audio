@@ -213,8 +213,9 @@ protected:
     // --- Sample-accurate note timing ---
     // Note and expression events reach the engine at their own sample: they are
     // queued with their offset and the engine renders the buffer in segments
-    // split at those offsets (renderEngineSegments). The arpeggiator still sees
-    // host notes at the buffer start, since it builds its pattern there.
+    // split at those offsets (renderEngineSegments). Keys for the arpeggiator
+    // are queued the same way and the arp runs in segments split at them
+    // (runArpSegments, R-072).
     enum class TimedEventKind : uint8_t {
         NoteOn, NoteOff, ArpNoteOn, ArpNoteOff, Expression, PitchBend, Aftertouch, ModWheel
     };
@@ -236,6 +237,24 @@ protected:
     void renderEngineSegments(float* left, float* right, size_t numSamples,
                               const Krate::DSP::BlockContext& blockCtx,
                               const float* sidechainL, const float* sidechainR) noexcept;
+
+    /// A host key for the arp core, applied at its offset by runArpSegments.
+    struct ArpKeyEvent {
+        uint32_t offset{0};
+        uint8_t pitch{0};
+        uint8_t velocity{0};
+        bool on{false};
+    };
+    static constexpr size_t kMaxArpKeyEvents = 256;
+    void queueArpKey(const ArpKeyEvent& key) noexcept;
+    void applyArpKey(const ArpKeyEvent& key) noexcept;
+    void flushArpKeys() noexcept;
+    /// Run the arp core over the buffer in segments split at the queued keys'
+    /// offsets, applying each key between segments; writes arpEvents_ with
+    /// offsets from the buffer start and returns their count. `hostSync`
+    /// re-aligns the step clock to each segment's musical position.
+    size_t runArpSegments(const Krate::DSP::BlockContext& arpCtx, bool hostSync) noexcept;
+
     void applyParamsToEngine();
 
     // applyParamsToEngine() is split into one helper per parameter section,
@@ -332,6 +351,9 @@ private:
     Krate::DSP::ArpeggiatorCore arpCore_;
     std::array<Krate::DSP::ArpEvent, 128> arpEvents_{};
     float lastArpPitch_ = 0.0f;  ///< Last arp NoteOn pitch, normalized 0-1 (for mod source)
+    // Host keys for the arp core in the current buffer, sorted by offset (stable)
+    std::array<ArpKeyEvent, kMaxArpKeyEvents> arpKeyEvents_{};
+    size_t arpKeyEventCount_ = 0;
 
     // Timed note queue for the current buffer, sorted by offset (stable)
     std::array<TimedEvent, kMaxTimedEvents> timedEvents_{};

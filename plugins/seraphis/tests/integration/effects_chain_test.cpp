@@ -2168,11 +2168,12 @@ TEST_CASE("Effects defaults are a no-op on the same build", "[seraphis][effects]
 // SC-017 - THE EFFECTS SEND IS BLOCK-SIZE INVARIANT
 // =============================================================================
 // This is the criterion FR-003a's fixed-size accumulator exists to make
-// satisfiable. SpectralDelay::process is NOT partition-invariant: its output
-// stream position depends on how many analysis frames happened to be ready when
-// the call was made, so the SAME audio delivered as one 2048-sample call and as
-// four 512-sample calls comes back a whole hop apart - PERMANENTLY, not as a
-// start-up transient. The accumulator removes that entirely by calling the
+// satisfiable. SpectralDelay::process was NOT partition-invariant until T2.31
+// (Ruinae audit, R-150; it now holds its wet stream a fixed latency behind the
+// input): its output stream position depended on how many analysis frames
+// happened to be ready when the call was made, so the SAME audio delivered as
+// one 2048-sample call and as four 512-sample calls came back a whole hop apart
+// - PERMANENTLY, not as a start-up transient. The accumulator removes that entirely by calling the
 // component with a constant kFxSendChunkSamples = 512 and never with a slice
 // length, at the cost of a fixed 512-sample pipeline delay that is identical in
 // every partition (plan section 3.1's invariant, fxChunkFill_ + fxOutFill_ ==
@@ -2227,10 +2228,15 @@ TEST_CASE("The effects send is block-size invariant", "[seraphis][effects]") {
     }
 
     // =========================================================================
-    // THE MANDATORY NEGATIVE CONTROL, FIRST - so a vacuous criterion is caught
-    // before the expensive sweep runs.
+    // THE COMPONENT ITSELF, FIRST. This was the negative control: fed raw slice
+    // lengths, SpectralDelay failed the gate the accumulator makes the plugin
+    // pass (its wet stream started at the start of the call in which the first
+    // frame completed). Since T2.31 (Ruinae audit, R-150) the component holds
+    // its wet stream in a FIFO a fixed getLatencySamples() behind the input, so
+    // raw slice lengths render the same send; the accumulator is kept and the
+    // criterion below still gates it.
     // =========================================================================
-    SECTION("negative control: without the accumulator the partition matters") {
+    SECTION("the raw component is partition-invariant too") {
         const RawSendRender reference =
             renderRawSend(std::span<const std::size_t>(kRawSendConstantCall));
         const RawSendRender ragged =
@@ -2252,10 +2258,9 @@ TEST_CASE("The effects send is block-size invariant", "[seraphis][effects]") {
         INFO("raw-send partition divergence: L=" << rawDiffL << " R=" << rawDiffR
                                                  << " (tolerance "
                                                  << Krate::DSP::TestUtils::kSampleTolerance << ")");
-        // THE CONTROL: fed raw slice lengths, the component fails the very gate
-        // the accumulator makes the plugin pass.
-        CHECK(rawDiffL > Krate::DSP::TestUtils::kSampleTolerance);
-        CHECK(rawDiffR > Krate::DSP::TestUtils::kSampleTolerance);
+        // Fed raw slice lengths, the component passes the gate on its own.
+        CHECK(rawDiffL <= Krate::DSP::TestUtils::kSampleTolerance);
+        CHECK(rawDiffR <= Krate::DSP::TestUtils::kSampleTolerance);
     }
 
     // =========================================================================
@@ -3436,11 +3441,13 @@ static_assert(kFreezePrimeBlocks == 4u,
 /// is one 512-sample block, so the crossfade is 8 blocks - NOT one hop.
 constexpr std::size_t kFreezeCrossfadeBlocks = 8;
 
-/// The send's own output latency: fftSize (1024) plus the accumulator's fixed
-/// one-chunk pipeline delay (512), i.e. three blocks.
+/// The send's own output latency: SpectralDelay's fftSize + hop (1536, T2.31)
+/// plus the accumulator's fixed one-chunk pipeline delay (512), i.e. four blocks.
 constexpr std::size_t kFreezePipelineBlocks =
-    (Krate::DSP::SpectralDelay::kDefaultFFTSize + Seraphis::kFxSendChunkSamples) / kBlockSamples;
-static_assert(kFreezePipelineBlocks == 3u, "(1024 + 512) / 512");
+    (Krate::DSP::SpectralDelay::kDefaultFFTSize + (Krate::DSP::SpectralDelay::kDefaultFFTSize / 2u)
+     + Seraphis::kFxSendChunkSamples)
+    / kBlockSamples;
+static_assert(kFreezePipelineBlocks == 4u, "(1024 + 512 + 512) / 512");
 
 // -----------------------------------------------------------------------------
 // FR-009a's window in samples, at this file's 48 kHz - so the geometry below is
@@ -3471,7 +3478,7 @@ static_assert(kFreezePostEngageBlocks * kBlockSamples * 1000u >= std::size_t{200
               "SC-007: the measurement point must be at least 200 ms after the engage");
 /// AND it must sit past the whole engage pipeline, or the window would straddle a
 /// crossfade that is still running: priming + capture frame + crossfade + the
-/// send's own output latency = 4 + 1 + 8 + 3 = 16 blocks.
+/// send's own output latency = 4 + 1 + 8 + 4 = 17 blocks.
 static_assert(kFreezePostEngageBlocks
                   > kFreezePrimeBlocks + 1u + kFreezeCrossfadeBlocks + kFreezePipelineBlocks,
               "SC-007: 200 ms must clear priming + capture + crossfade + pipeline");
@@ -4525,7 +4532,10 @@ TEST_CASE("Effects renders are seed-deterministic", "[seraphis][effects]") {
 //
 //     centre = event + AetherReverb::getLatencySamples() (1024)
 //                    + kFxSendChunkSamples               (512)
-//                    + SpectralDelay::kDefaultFFTSize    (1024)   = event + 2560
+//                    + SpectralDelay::getLatencySamples() (1536)  = event + 3072
+//
+// (SpectralDelay's latency was fftSize = 1024, i.e. event + 2560, until T2.31
+// fixed its wet stream a constant fftSize + hop behind the input.)
 //
 // i.e. +/- 10 ms POSITIONED IN THE OUTPUT DOMAIN. Phase 10 stacks the
 // accumulator's fixed one-chunk pipeline delay and the send's FFT latency on top
@@ -4534,7 +4544,7 @@ TEST_CASE("Effects renders are seed-deterministic", "[seraphis][effects]") {
 // entirely - the same defect Phase 9 recorded for the reverb alone
 // (specs/seraphis-phase9-parameters/spec.md:2100-2104). The shift is DERIVED
 // here from the three shipped constants and cross-checked against the plugin's
-// own reported latency at runtime, never transcribed as 2560.
+// own reported latency at runtime, never transcribed as 3072.
 //
 // WHY THE SEND-BYPASS IS SCHEDULED EXACTLY kClickWindowShiftSamples AFTER THE
 // WANDER DISENGAGE - and this is the one non-obvious thing in the layout, so it
@@ -4543,7 +4553,7 @@ TEST_CASE("Effects renders are seed-deterministic", "[seraphis][effects]") {
 //   The 20 ms return-gain ramp of FR-008/FR-009 is a gain on the send's RETURN,
 //   applied to the FIFO's output in the same slice the host's write lands in
 //   (processor.cpp:2033-2039). Its edge is therefore at the WRITE sample, while
-//   the window this criterion mandates sits 2560 samples LATER. Positive control
+//   the window this criterion mandates sits 3072 samples LATER. Positive control
 //   (b) - the mandatory one that snaps that ramp to instant - can only fail
 //   clause 3 if a return-gain edge falls inside a MEASURED window at all, and
 //   with a freely-spaced schedule not one of the six does. Placing the
@@ -4576,11 +4586,15 @@ namespace {
 /// plugin reports a CONSTANT 1024 (processor.cpp:1258-1270) - which the render
 /// helper REQUIREs against this value rather than trusting the comment.
 constexpr std::size_t kClickReverbLatency = 1024;
+/// SpectralDelay::getLatencySamples() at the default size: fftSize + hop (the
+/// fixed wet FIFO plus the one frame the per-bin loop costs, T2.31).
+constexpr std::size_t kClickSendSpectralLatency =
+    Krate::DSP::SpectralDelay::kDefaultFFTSize + (Krate::DSP::SpectralDelay::kDefaultFFTSize / 2u);
 constexpr std::size_t kClickWindowShiftSamples = kClickReverbLatency
                                                 + Seraphis::kFxSendChunkSamples
-                                                + Krate::DSP::SpectralDelay::kDefaultFFTSize;
-static_assert(kClickWindowShiftSamples == 2560u,
-              "SC-008 clause 1: 1024 (reverb) + 512 (accumulator) + 1024 (fftSize)");
+                                                + kClickSendSpectralLatency;
+static_assert(kClickWindowShiftSamples == 3072u,
+              "SC-008 clause 1: 1024 (reverb) + 512 (accumulator) + 1536 (fftSize + hop)");
 
 /// +/- 10 ms at 48 kHz, i.e. a 20 ms window - the same geometry Phase 9's SC-005
 /// uses (param_continuity_test.cpp:613-615).
@@ -4608,7 +4622,7 @@ constexpr std::size_t kClickSecondBlocks = kIndepBlocksPerSecond;   // ~1 s
 constexpr std::size_t kClickStepBlocks = 2u * kClickSecondBlocks;   // ~2 s
 /// The shift, in whole blocks. The schedule is expressed in blocks, so the
 /// pairing below is only exact because the shift divides the block length.
-constexpr std::size_t kClickShiftBlocks = kClickWindowShiftSamples / kBlockSamples;  // 5
+constexpr std::size_t kClickShiftBlocks = kClickWindowShiftSamples / kBlockSamples;  // 6
 static_assert(kClickWindowShiftSamples % kBlockSamples == 0u,
               "the schedule places transitions on block boundaries, so the shift must be "
               "a whole number of blocks for the bypass/disengage pairing to be exact");
@@ -4624,7 +4638,7 @@ constexpr std::size_t kClickWanderOnBlock = 4u * kClickStepBlocks + kClickSecond
 constexpr std::size_t kClickWanderOffBlock = 5u * kClickStepBlocks + kClickSecondBlocks;    // 1034
 /// See the banner: one shift after the disengage, so its return-gain edge lands
 /// at the centre of the disengage's measured window.
-constexpr std::size_t kClickSendBypassBlock = kClickWanderOffBlock + kClickShiftBlocks;     // 1039
+constexpr std::size_t kClickSendBypassBlock = kClickWanderOffBlock + kClickShiftBlocks;     // 1040
 /// 1222 x 512 = 625 664 samples = 13.03 s. The last reference window ends at
 /// 578 496, so the render outlasts every measured span by ~1 s.
 constexpr std::size_t kClickTotalBlocks = 6u * kClickStepBlocks + kClickSecondBlocks;       // 1222

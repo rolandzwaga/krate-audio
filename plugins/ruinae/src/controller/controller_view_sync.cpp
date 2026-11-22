@@ -262,7 +262,8 @@ Steinberg::tresult PLUGIN_API Controller::setParamNormalized(
     // Helper: compute LFO frequency from sync state, rate, and note value params
     auto computeLfoFreq = [this](Steinberg::Vst::ParamID syncId,
                                   Steinberg::Vst::ParamID rateId,
-                                  Steinberg::Vst::ParamID noteValueId) -> float {
+                                  Steinberg::Vst::ParamID noteValueId,
+                                  float (*rateFromNormalized)(double) = nullptr) -> float {
         auto* syncParam = getParameterObject(syncId);
         bool synced = syncParam && syncParam->getNormalized() >= 0.5;
         if (synced) {
@@ -275,7 +276,8 @@ Steinberg::tresult PLUGIN_API Controller::setParamNormalized(
             return bps / beats;
         }
         auto* rateParam = getParameterObject(rateId);
-        return rateParam ? lfoRateFromNormalized(rateParam->getNormalized()) : 1.0f;
+        auto* mapRate = rateFromNormalized ? rateFromNormalized : &lfoRateFromNormalized;
+        return rateParam ? mapRate(rateParam->getNormalized()) : 1.0f;
     };
 
     if (lfo1WaveformDisplay_) {
@@ -326,7 +328,8 @@ Steinberg::tresult PLUGIN_API Controller::setParamNormalized(
             chaosModDisplay_->setModel(static_cast<int>(value * (kChaosTypeCount - 1) + 0.5));
         if (tag == kChaosModRateId || tag == kChaosModSyncId || tag == kChaosModNoteValueId)
             chaosModDisplay_->setSpeed(
-                computeLfoFreq(kChaosModSyncId, kChaosModRateId, kChaosModNoteValueId));
+                computeLfoFreq(kChaosModSyncId, kChaosModRateId, kChaosModNoteValueId,
+                               &chaosSpeedFromNormalized));
         if (tag == kChaosModDepthId)
             chaosModDisplay_->setDepth(static_cast<float>(value));
     }
@@ -349,7 +352,8 @@ Steinberg::tresult PLUGIN_API Controller::setParamNormalized(
     if (sampleHoldDisplay_) {
         if (tag == kSampleHoldRateId || tag == kSampleHoldSyncId || tag == kSampleHoldNoteValueId)
             sampleHoldDisplay_->setRate(
-                computeLfoFreq(kSampleHoldSyncId, kSampleHoldRateId, kSampleHoldNoteValueId));
+                computeLfoFreq(kSampleHoldSyncId, kSampleHoldRateId, kSampleHoldNoteValueId,
+                               &sampleHoldRateFromNormalized));
         if (tag == kSampleHoldSlewId)
             sampleHoldDisplay_->setSlew(sampleHoldSlewFromNormalized(value));
     }
@@ -357,7 +361,8 @@ Steinberg::tresult PLUGIN_API Controller::setParamNormalized(
     if (randomModDisplay_) {
         if (tag == kRandomRateId || tag == kRandomSyncId || tag == kRandomNoteValueId)
             randomModDisplay_->setRate(
-                computeLfoFreq(kRandomSyncId, kRandomRateId, kRandomNoteValueId));
+                computeLfoFreq(kRandomSyncId, kRandomRateId, kRandomNoteValueId,
+                               &sampleHoldRateFromNormalized));
         if (tag == kRandomSmoothnessId)
             randomModDisplay_->setSmoothness(static_cast<float>(value));
     }
@@ -747,7 +752,7 @@ void Controller::syncAllViews() {
             float bps = 120.0f / 60.0f;
             chaosModDisplay_->setSpeed(bps / beats);
         } else {
-            chaosModDisplay_->setSpeed(lfoRateFromNormalized(paramNorm(kChaosModRateId)));
+            chaosModDisplay_->setSpeed(chaosSpeedFromNormalized(paramNorm(kChaosModRateId)));
         }
         chaosModDisplay_->setDepth(static_cast<float>(paramNorm(kChaosModDepthId)));
     }
@@ -771,7 +776,7 @@ void Controller::syncAllViews() {
             float bps = 120.0f / 60.0f;
             sampleHoldDisplay_->setRate(bps / beats);
         } else {
-            sampleHoldDisplay_->setRate(lfoRateFromNormalized(paramNorm(kSampleHoldRateId)));
+            sampleHoldDisplay_->setRate(sampleHoldRateFromNormalized(paramNorm(kSampleHoldRateId)));
         }
         sampleHoldDisplay_->setSlew(sampleHoldSlewFromNormalized(paramNorm(kSampleHoldSlewId)));
     }
@@ -786,7 +791,7 @@ void Controller::syncAllViews() {
             float bps = 120.0f / 60.0f;
             randomModDisplay_->setRate(bps / beats);
         } else {
-            randomModDisplay_->setRate(lfoRateFromNormalized(paramNorm(kRandomRateId)));
+            randomModDisplay_->setRate(sampleHoldRateFromNormalized(paramNorm(kRandomRateId)));
         }
         randomModDisplay_->setSmoothness(static_cast<float>(paramNorm(kRandomSmoothnessId)));
     }

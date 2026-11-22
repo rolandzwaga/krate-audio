@@ -173,38 +173,40 @@ TEST_CASE("SpectralDelay FFT size configuration", "[spectral-delay][foundational
         delay.setFFTSize(512);
         delay.prepare(44100.0, 512);
         REQUIRE(delay.getFFTSize() == 512);
-        REQUIRE(delay.getLatencySamples() == 512);
+        REQUIRE(delay.getLatencySamples() == 512 + 256);  // fftSize + hop
     }
 
     SECTION("1024") {
         delay.setFFTSize(1024);
         delay.prepare(44100.0, 512);
         REQUIRE(delay.getFFTSize() == 1024);
-        REQUIRE(delay.getLatencySamples() == 1024);
+        REQUIRE(delay.getLatencySamples() == 1024 + 512);  // fftSize + hop
     }
 
     SECTION("2048") {
         delay.setFFTSize(2048);
         delay.prepare(44100.0, 512);
         REQUIRE(delay.getFFTSize() == 2048);
-        REQUIRE(delay.getLatencySamples() == 2048);
+        REQUIRE(delay.getLatencySamples() == 2048 + 1024);  // fftSize + hop
     }
 
     SECTION("4096") {
         delay.setFFTSize(4096);
         delay.prepare(44100.0, 512);
         REQUIRE(delay.getFFTSize() == 4096);
-        REQUIRE(delay.getLatencySamples() == 4096);
+        REQUIRE(delay.getLatencySamples() == 4096 + 2048);  // fftSize + hop
     }
 }
 
-TEST_CASE("SpectralDelay latency equals FFT size", "[spectral-delay][foundational][SC-006]") {
+// The wet stream sits a fixed fftSize behind the input (its FIFO), plus the
+// one frame the per-bin loop costs: fftSize + hop at any block length (T2.31).
+TEST_CASE("SpectralDelay latency is FFT size plus one hop", "[spectral-delay][foundational][SC-006]") {
     SpectralDelay delay;
 
     delay.setFFTSize(1024);
     delay.prepare(44100.0, 512);
 
-    REQUIRE(delay.getLatencySamples() == 1024);
+    REQUIRE(delay.getLatencySamples() == 1024 + 512);
 }
 
 // =============================================================================
@@ -1049,17 +1051,18 @@ TEST_CASE("SpectralDelay output has no hop-edge steps", "[effects][spectral-dela
     constexpr float kSampleRate = 44100.0f;
     const std::size_t fftSize = GENERATE(std::size_t{1024}, std::size_t{2048});
     const std::size_t hop = fftSize / 2;
-    // One-hop blocks: the wet path then adds no block-scheduling delay, so the
-    // excluded echo edges below sit where the echoes are.
+    // One-hop blocks, as before the wet path's latency was fixed (T2.31); the
+    // latency is the same at any block length now.
     const std::vector<float> out = renderSpectralFeedbackBurst(0.9f, 1.6f, fftSize, hop);
-    // A last block shorter than one hop arrives before its frame can be
-    // analysed; only whole blocks are measured.
+    // Only whole blocks are measured.
     const std::size_t measuredEnd = (out.size() / hop) * hop;
 
-    // Echo k sits at k * delay + (fftSize - hop): the reported latency
-    // (fftSize) includes the one frame the loop spends, which the delay time
-    // already accounts for.
-    const std::size_t latency = fftSize - hop;
+    // Echo k sits at k * delay + (reported latency - hop): the reported
+    // latency (fftSize + hop) includes the one frame the loop spends, which
+    // the delay time already accounts for.
+    SpectralDelay sized;
+    sized.setFFTSize(fftSize);
+    const std::size_t latency = sized.getLatencySamples() - hop;
     const auto delaySamples = static_cast<std::size_t>(0.3f * kSampleRate);
     const auto burstLen = static_cast<std::size_t>(0.1f * kSampleRate);
     // +-2 ms around each onset and offset, widened by half a hop for the echoes:
@@ -1107,8 +1110,8 @@ TEST_CASE("SpectralDelay output has no hop-edge steps", "[effects][spectral-dela
 
 // The OverlapAdd normalisation gives unity passthrough: with feedback 0 and a
 // whole-frame delay (base 0 ms: the one frame the loop costs, read unchanged),
-// the wet output is the input delayed by the reported latency. Blocks are one
-// hop long, the length at which the reported latency is the whole wet latency.
+// the wet output is the input delayed by the reported latency, at any block
+// length (T2.31). Blocks are one hop long.
 TEST_CASE("SpectralDelay passes an unmodified frame through at unity",
           "[effects][spectral-delay]") {
     constexpr double kSampleRate = 44100.0;
@@ -3237,7 +3240,7 @@ TEST_CASE("SpectralDelay FFT size change is applied consistently", "[effects][sp
     REQUIRE(probe >= 1);
     REQUIRE(switchBlock < numBlocks);
     REQUIRE(a.getFFTSize() == 4096);
-    REQUIRE(a.getLatencySamples() == 4096);
+    REQUIRE(a.getLatencySamples() == 4096 + 2048);  // fftSize + hop
     CHECK(allocations == 0);
 
     const std::size_t switchStart = switchBlock * kFftSwitchBlock;

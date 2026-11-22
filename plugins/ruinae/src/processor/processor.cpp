@@ -279,8 +279,10 @@ void Processor::resetPlayingState(bool engineToo) noexcept {
         flushArpLedger(nullptr, 0);
     }
     arpCore_.reset();
-    // The core forgot the held keys it was fed.
+    // The core forgot the held keys it was fed, and the notes it played: the
+    // Arp Pitch source starts neutral (R-052).
     arpCoreKeysOpen_.fill(0);
+    lastArpPitch_ = 0.0f;
     // The MIDI-out notes are downstream, out of reach of both resets: the next
     // process() with an output list sends their NoteOffs (arpMidiOutOpen_ is
     // kept until then, R-070).
@@ -469,9 +471,11 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
 
         Krate::DSP::BlockContext arpCtx = blockCtx;
         // Simple hosts that never set kPlaying: force the arp to always run.
-        // DAW hosts that do set kPlaying: pass the real transport state
-        // through so ArpeggiatorCore can emit NoteOffs on transport stop.
-        if (!hostSupportsTransport_) {
+        // DAW hosts that do set kPlaying: a tempo-synced arp follows the real
+        // transport, so ArpeggiatorCore emits NoteOffs on transport stop and
+        // pauses; a free-rate arp runs whatever the transport does, like
+        // Gradus's Live mode (R-073).
+        if (!hostSupportsTransport_ || !arpParams_.tempoSync.load(std::memory_order_relaxed)) {
             arpCtx.isPlaying = true;
         }
         // No musical position from the host (R-068): the arp's position is
@@ -493,14 +497,11 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
             prevProjectTimeMusic_ = blockCtx.projectTimeMusic;
         }
 
-        // Sync arp step clock to host musical position so transport
-        // rewind/reposition keeps the arp grid-locked.
-        if (blockCtx.projectTimeMusicValid && blockCtx.isPlaying) {
-            arpCore_.syncToMusicalPosition(blockCtx.projectTimeMusic);
-        }
-
-        // Process arp block (processBlock takes std::span<ArpEvent>, returns event count)
-        size_t numArpEvents = arpCore_.processBlock(arpCtx, arpEvents_);
+        // Process the arp in segments split at its keys' offsets (R-072). Each
+        // segment syncs the step clock to its host musical position, so
+        // transport rewind/reposition keeps the arp grid-locked.
+        const bool hostSync = blockCtx.projectTimeMusicValid && blockCtx.isPlaying;
+        const size_t numArpEvents = runArpSegments(arpCtx, hostSync);
 
         // Route arp events to engine (FR-007)
         const bool midiOutEnabled = arpParams_.midiOut.load(std::memory_order_relaxed);
@@ -600,6 +601,9 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
             }
         }
     } else {
+        // A key released while the arp is Off still leaves its held buffer
+        // (R-065); with the core not running there is no timing to keep.
+        flushArpKeys();
         // 079-layout-framework US5: Arp disabled -- write sentinel (1.0) to
         // indicate no playback. Decoded as stepIndex=32 >= kMaxSteps -> -1.
         if (data.outputParameterChanges) {
@@ -644,10 +648,14 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
     std::fill_n(outputL, numSamples, 0.0f);
     std::fill_n(outputR, numSamples, 0.0f);
 
-    // Feed arp pitch as External0 mod source (before mod engine processes)
-    if (isArpModSource) {
-        engine_.setExternalSourceValue(0, lastArpPitch_);
+    // Feed arp pitch as External0 mod source (before mod engine processes).
+    // Outside the Mod modes the source is neutral: holding the last arp note
+    // kept every Arp Pitch route offset after the arp was switched Off or to
+    // MIDI only, and re-entering a Mod mode replayed it (R-052).
+    if (!isArpModSource) {
+        lastArpPitch_ = 0.0f;
     }
+    engine_.setExternalSourceValue(0, lastArpPitch_);
 
     // Extract sidechain audio if available (for EnvFollower, PitchFollower, Transient)
     const float* sidechainL = nullptr;

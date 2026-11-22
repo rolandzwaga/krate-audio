@@ -205,6 +205,15 @@ public:
     /// @post All smoothers snap to current values. Delay line cleared.
     void reset() noexcept;
 
+    /// @brief Start a reset() whose delay-line clear is left to
+    /// continueIncrementalReset() (see DelayLine::startIncrementalReset).
+    /// Do not process until that has returned true.
+    void startIncrementalReset() noexcept;
+
+    /// @brief Clear up to @p budget more delay-line samples (deducted from it).
+    /// @return true once the started reset is complete.
+    bool continueIncrementalReset(std::size_t& budget) noexcept;
+
     // =========================================================================
     // Tap Configuration (FR-002 to FR-019)
     // =========================================================================
@@ -483,7 +492,17 @@ inline void TapManager::prepare(float sampleRate, size_t /*maxBlockSize*/,
 }
 
 inline void TapManager::reset() noexcept {
-    delayLine_.reset();
+    startIncrementalReset();
+    std::size_t unlimited = SIZE_MAX;
+    (void)continueIncrementalReset(unlimited);
+}
+
+inline bool TapManager::continueIncrementalReset(std::size_t& budget) noexcept {
+    return delayLine_.continueIncrementalReset(budget);
+}
+
+inline void TapManager::startIncrementalReset() noexcept {
+    delayLine_.startIncrementalReset();
 
     for (auto& tap : taps_) {
         // Use setTarget + snapToTarget for smoother reset

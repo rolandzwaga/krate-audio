@@ -50,7 +50,7 @@ inline void handleSampleHoldParamChange(
     switch (id) {
         case kSampleHoldRateId:
             params.rateHz.store(
-                std::clamp(lfoRateFromNormalized(value), 0.1f, 50.0f),
+                sampleHoldRateFromNormalized(value),
                 std::memory_order_relaxed);
             break;
         case kSampleHoldSyncId:
@@ -77,8 +77,8 @@ inline void handleSampleHoldParamChange(
 
 inline void registerSampleHoldParams(Steinberg::Vst::ParameterContainer& parameters) {
     using namespace Steinberg::Vst;
-    // Rate: continuous, log mapping [0.1, 50] Hz, default 4 Hz (norm ~0.702)
-    parameters.addParameter(STR16("S&H Rate"), STR16("Hz"), 0, 0.702,
+    // Rate: continuous, log mapping [0.1, 50] Hz, default 4 Hz
+    parameters.addParameter(STR16("S&H Rate"), STR16("Hz"), 0, sampleHoldRateToNormalized(4.0f),
         ParameterInfo::kCanAutomate, kSampleHoldRateId);
     // Sync: boolean toggle, default off
     parameters.addParameter(STR16("S&H Sync"), STR16(""), 1, 0.0,
@@ -106,7 +106,7 @@ inline Steinberg::tresult formatSampleHoldParam(
     switch (id) {
         case kSampleHoldRateId:
             snprintf(text, sizeof(text), "%.2f Hz",
-                static_cast<double>(std::clamp(lfoRateFromNormalized(value), 0.1f, 50.0f)));
+                static_cast<double>(sampleHoldRateFromNormalized(value)));
             UString(string, 128).fromAscii(text);
             return kResultOk;
         case kSampleHoldSlewId:
@@ -159,7 +159,7 @@ inline void loadSampleHoldParamsToController(
 
     // Rate: read Hz, convert back to normalized
     if (streamer.readFloat(fv))
-        setParam(kSampleHoldRateId, lfoRateToNormalized(fv));
+        setParam(kSampleHoldRateId, sampleHoldRateToNormalized(fv));
     // Sync: read int32, convert to 0.0/1.0
     if (streamer.readInt32(iv))
         setParam(kSampleHoldSyncId, iv != 0 ? 1.0 : 0.0);

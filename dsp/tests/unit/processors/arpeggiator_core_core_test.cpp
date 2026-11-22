@@ -3954,3 +3954,75 @@ TEST_CASE("GMF-014: samplesUntilStep never underflows across a bar boundary with
     INFO("note-ons after bar 2: " << onsInRange(176400, 204800));
     CHECK(onsInRange(176400, 204800) >= 1);
 }
+
+// R-071: while the held buffer is empty, processBlock returns before the step
+// loop, so the step counter froze at the last release and the first step after
+// an idle gap waited out the rest of that old step (6690 samples at 2 Hz). A
+// press after an idle gap now fires the first step in the block of the press,
+// unless the host's musical position drives the counter (tempo sync + PPQ),
+// where the step waits for the grid.
+TEST_CASE("First arp step after an idle gap fires in the block of the key press",
+          "[processors][arp]") {
+    constexpr size_t kBlock = 512;
+    ArpeggiatorCore arp;
+    arp.prepare(44100.0, kBlock);
+    arp.setEnabled(true);
+    arp.setMode(ArpMode::Up);
+    arp.setGateLength(50.0f);
+
+    BlockContext ctx;
+    ctx.sampleRate = 44100.0;
+    ctx.blockSize = kBlock;
+    ctx.tempoBPM = 120.0;
+    ctx.isPlaying = true;
+
+    std::array<ArpEvent, 64> buf{};
+    int64_t abs = 0;
+    // Runs one block; returns the absolute sample of its first NoteOn, or -1.
+    const auto runBlock = [&](bool hostSync) {
+        if (hostSync) {
+            ctx.projectTimeMusicValid = true;
+            ctx.projectTimeMusic = static_cast<double>(abs) / 44100.0 * 2.0;  // 120 BPM
+            ctx.transportPositionSamples = abs;
+            arp.syncToMusicalPosition(ctx.projectTimeMusic);
+        }
+        const size_t n = arp.processBlock(ctx, buf);
+        int64_t firstOn = -1;
+        for (size_t i = 0; i < n; ++i) {
+            if (buf[i].type == ArpEvent::Type::NoteOn && firstOn < 0) {
+                firstOn = abs + buf[i].sampleOffset;
+            }
+        }
+        abs += static_cast<int64_t>(kBlock);
+        return firstOn;
+    };
+
+    SECTION("free rate 2 Hz: the step fires at the press") {
+        arp.setTempoSync(false);
+        arp.setFreeRate(2.0f);  // 22050 samples per step
+        arp.noteOn(60, 100);
+        for (int b = 0; b < 30; ++b) (void)runBlock(false);  // release 15360 into the step
+        arp.noteOff(60);
+        for (int b = 0; b < 200; ++b) REQUIRE(runBlock(false) < 0);  // idle
+        REQUIRE(abs == 117760);
+        arp.noteOn(62, 100);
+        const int64_t firstOn = runBlock(false);
+        INFO("first NoteOn after the press at 117760: " << firstOn << " (-1 = not in this block)");
+        CHECK(firstOn == 117760);
+    }
+
+    SECTION("tempo sync driven by the host PPQ: the step waits for the grid") {
+        arp.setTempoSync(true);
+        arp.setNoteValue(NoteValue::Eighth, NoteModifier::None);  // 11025 samples
+        arp.noteOn(60, 100);
+        for (int b = 0; b < 30; ++b) (void)runBlock(true);
+        arp.noteOff(60);
+        for (int b = 0; b < 200; ++b) REQUIRE(runBlock(true) < 0);
+        arp.noteOn(62, 100);
+        // 117760 = 10 * 11025 + 7510: the next grid point is 121275.
+        int64_t firstOn = -1;
+        for (int b = 0; b < 10 && firstOn < 0; ++b) firstOn = runBlock(true);
+        INFO("first NoteOn after the press at 117760: " << firstOn);
+        CHECK(std::abs(firstOn - 121275) <= 1);
+    }
+}

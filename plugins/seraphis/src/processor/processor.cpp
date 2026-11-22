@@ -2614,6 +2614,9 @@ void Processor::renderSlice(float* outL, float* outR, std::size_t n) noexcept {
 // offset of the whole send, not a start-up transient - and the Seraphis chain is
 // documented block-size invariant. Hence: the component is called with a
 // CONSTANT kFxSendChunkSamples, never with a slice length (FR-003a).
+// (Since T2.31, Ruinae audit R-150, SpectralDelay itself holds its wet stream
+// a fixed getLatencySamples() behind the input at any call length; the
+// accumulator is kept and its invariant below still holds.)
 //
 // THE INVARIANT, PROVED - not merely asserted. Let inLen be fxChunkFill_ and
 // outLen be fxOutFill_ after a slice. clearFifos() establishes inLen = 0,
