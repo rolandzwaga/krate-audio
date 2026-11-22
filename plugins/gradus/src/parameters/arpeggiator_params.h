@@ -1286,9 +1286,10 @@ inline void registerArpParams(
         for (int i = 0; i < 8; ++i) {
             Steinberg::Vst::String128 name16;
             Steinberg::UString(name16, 128).fromAscii(kLaneNames[i]);
+            // A stepped RangeParameter takes its default as a step index, not as a normalized value.
             parameters.addParameter(
                 new RangeParameter(name16, kSpeedIds[i],
-                    STR16("x"), 0, 1, static_cast<double>(kLaneSpeedDefault) / (kLaneSpeedCount - 1),
+                    STR16("x"), 0, 1, static_cast<double>(kLaneSpeedDefault),
                     kLaneSpeedCount - 1,
                     ParameterInfo::kCanAutomate));
         }

@@ -27,6 +27,7 @@
 #include <limits>
 #include <memory>
 #include <numeric>
+#include <string>
 #include <vector>
 
 using namespace Krate::DSP;
@@ -3204,4 +3205,68 @@ TEST_CASE("RuinaeVoice_IdleVoiceStartsClean", "[ruinae-voice][idle]") {
     const float rms = computeRMS(note2.data(), note2.size());
     INFO("note 2 (silent inputs) RMS over its first 1024 samples: " << rms);
     REQUIRE(rms < 1e-4f);
+}
+
+// =============================================================================
+// R-162: release 0 fades the voice out instead of cutting it
+// =============================================================================
+// Release 0 ms reached the amp envelope as its own 0.1 ms minimum, so a held
+// tone ended within ~5 samples: the audit probe (sine A4, 48 kHz, release 0)
+// measured a 2.80 jump ratio at note-off. The voice is driven through
+// RuinaeEngine::setAmpRelease, the processor's path to the amp release, where
+// the floor lives. The note-off lands at eight phases across one A4 cycle,
+// since the step a release makes depends on where in the cycle it starts.
+TEST_CASE("RuinaeVoice: release 0 does not click", "[ruinae-voice][click]") {
+    constexpr double kRate = 48000.0;
+    constexpr size_t kBlock = 512;
+    constexpr size_t kHold = 24000;    // 0.5 s
+    constexpr size_t kTail = 4800;     // 0.1 s after note-off
+    constexpr size_t kWin = 240;       // +-5 ms (the probe's window)
+    constexpr size_t kRef = 960;       // 20 ms steady reference (the probe's)
+    constexpr std::array<size_t, 8> kPhaseOffsets = {0, 14, 27, 41, 55, 68, 82, 95};  // A4 period 109
+
+    double worst = 0.0;
+    std::string ratios;
+    for (const size_t offset : kPhaseOffsets) {
+        auto engine = std::make_unique<RuinaeEngine>();
+        engine->prepare(kRate, kBlock);
+        engine->setOscAParam(OscParam::Waveform, 0.0f);  // sine
+        engine->setOscBLevel(0.0f);
+        engine->setMixMode(MixMode::CrossfadeMix);
+        engine->setMixPosition(0.0f);
+        engine->setFilterCutoff(20000.0f);
+        engine->setFilterKeyTrack(0.0f);
+        engine->setFilterEnvAmount(0.0f);
+        engine->setSoftLimitEnabled(false);
+        engine->setAmpAttack(1.0f);
+        engine->setAmpSustain(1.0f);
+        engine->setAmpRelease(0.0f);
+        // The processor pushes the curve amounts every block; 0 (linear) is the default.
+        engine->setAmpAttackCurve(0.0f);
+        engine->setAmpDecayCurve(0.0f);
+        engine->setAmpReleaseCurve(0.0f);
+        engine->noteOn(69, 102);  // A4, velocity 0.8
+
+        const size_t noteOffAt = kHold + offset;
+        const size_t total = noteOffAt + kTail;
+        std::vector<float> left(total, 0.0f);
+        std::vector<float> right(total, 0.0f);
+        for (size_t pos = 0; pos < total;) {
+            if (pos == noteOffAt) engine->noteOff(69);
+            const size_t end = pos < noteOffAt ? noteOffAt : total;
+            const size_t n = std::min(kBlock, end - pos);
+            engine->processBlock(left.data() + pos, right.data() + pos, n);
+            pos += n;
+        }
+
+        std::vector<float> mono(total);
+        for (size_t i = 0; i < total; ++i) mono[i] = 0.5f * (left[i] + right[i]);
+        REQUIRE(computeRMS(mono.data() + noteOffAt - kRef, kRef) > 0.01f);
+        const double ratio = filterSwitchJumpRatio(mono, noteOffAt, kWin, kRef);
+        ratios += " " + std::to_string(offset) + ":" + std::to_string(ratio);
+        worst = std::max(worst, ratio);
+    }
+    INFO("jump ratio at note-off per cycle offset (samples:ratio):" << ratios);
+    INFO("worst: " << worst);
+    CHECK(worst <= 1.5);
 }

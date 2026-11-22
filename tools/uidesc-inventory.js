@@ -177,14 +177,14 @@ function compareToBaseline(inv, base) {
 }
 
 /// Moves the overlaps an allow list accepts from inv.defects to inv.allowed. An entry names the template, the exact
-/// overlap detail (so moving either view re-flags it), how many times it occurs, and why it is deliberate. An entry
+/// overlap detail (or, with "kind": "out-of-bounds", the exact out-of-bounds detail, e.g. an off-screen drawer) (so moving either view re-flags it), how many times it occurs, and why it is deliberate. An entry
 /// whose count does not match what the file has is itself a defect, so the list cannot go stale.
 function applyAllowList(inv, entries) {
   inv.allowed = [];
   for (const e of entries) {
     if (!e.template || !e.detail || !e.reason) fail(`allow-list entry needs template, detail and reason: ${JSON.stringify(e)}`);
     const want = e.count || 1;
-    const hits = inv.defects.filter((d) => d.kind === 'overlap' && d.template === e.template && d.detail === e.detail);
+    const hits = inv.defects.filter((d) => d.kind === (e.kind || 'overlap') && d.template === e.template && d.detail === e.detail);
     if (hits.length !== want) {
       inv.defects.push({ kind: 'allow-mismatch', template: e.template, detail: `${e.detail}: allowed ${want}, found ${hits.length}` });
       continue;

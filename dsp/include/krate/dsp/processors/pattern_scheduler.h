@@ -242,7 +242,7 @@ public:
         const double end = posBeats + (static_cast<double>(numSamples) - 0.5) * beatsPerSample;
         const double samplesPerBeat = 1.0 / beatsPerSample;
         const auto last = static_cast<double>(numSamples - 1);
-        const auto firstInBlock =
+        const auto firstInBlock =  // musical-time-truncation-ok: a step INDEX, rounded up explicitly (half-sample guard)
             static_cast<int64_t>(std::ceil((posBeats - 0.5 * beatsPerSample) / beatsPerStep));
         for (int64_t k = std::max(lastFiredIndex_ + 1, firstInBlock); static_cast<double>(k) * beatsPerStep < end;
              ++k) {
@@ -265,7 +265,7 @@ public:
         if (!(beatsPerStep > 0.0)) {
             return;
         }
-        lastFiredIndex_ =
+        lastFiredIndex_ =  // musical-time-truncation-ok: a step INDEX, rounded up explicitly (half-sample guard)
             static_cast<int64_t>(std::ceil((posBeats - 0.5 * beatsPerSample) / beatsPerStep)) - 1;
     }
 

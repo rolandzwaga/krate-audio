@@ -23,6 +23,7 @@
 
 #include "test_helpers/arp_shared_prefix_golden.h"
 
+#include <cmath>
 #include <vector>
 
 using Catch::Approx;
@@ -150,4 +151,36 @@ TEST_CASE("speedValueToNormalized snaps to the nearest kLaneSpeedValues entry",
     CHECK(Gradus::speedValueToNormalized(-100.0f) == Catch::Approx(normFor(0)));
     CHECK(Gradus::speedValueToNormalized(1.0e9f)
           == Catch::Approx(normFor(Gradus::kLaneSpeedCount - 1)));
+}
+
+// =============================================================================
+// Lane speed registered default (same bug as Ruinae audit T2.34 / R-184)
+// =============================================================================
+// The eight lane-speed parameters are stepped RangeParameters. Their registered
+// default must be 1.0x (index kLaneSpeedDefault), so a host "reset to default"
+// plays the lane at the speed a fresh instance starts at.
+
+TEST_CASE("Lane speed parameters register 1x as their default",
+          "[gradus][params][defaults]")
+{
+    Steinberg::Vst::ParameterContainer parameters;
+    Gradus::registerArpParams(parameters);
+
+    const Steinberg::Vst::ParamID ids[] = {
+        Gradus::kArpVelocityLaneSpeedId, Gradus::kArpGateLaneSpeedId,
+        Gradus::kArpPitchLaneSpeedId, Gradus::kArpModifierLaneSpeedId,
+        Gradus::kArpRatchetLaneSpeedId, Gradus::kArpConditionLaneSpeedId,
+        Gradus::kArpChordLaneSpeedId, Gradus::kArpInversionLaneSpeedId};
+    const double expected = static_cast<double>(Gradus::kLaneSpeedDefault)
+                          / static_cast<double>(Gradus::kLaneSpeedCount - 1);
+
+    for (const auto id : ids) {
+        auto* param = parameters.getParameter(id);
+        REQUIRE(param != nullptr);
+        INFO("param " << id);
+        CHECK(param->getInfo().defaultNormalizedValue == Catch::Approx(expected));
+        CHECK(Gradus::kLaneSpeedValues[static_cast<size_t>(std::lround(
+                  param->getInfo().defaultNormalizedValue * (Gradus::kLaneSpeedCount - 1)))]
+              == Catch::Approx(1.0f));
+    }
 }

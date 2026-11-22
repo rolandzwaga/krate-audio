@@ -395,6 +395,12 @@ public:
         tapeHissR_.setNoiseLevel(NoiseType::TapeHiss, levelDb);
     }
 
+    /// @brief Turn the tape hiss on or off (both channels). prepare() turns it on.
+    void setTapeHissEnabled(bool enabled) noexcept {
+        tapeHiss_.setNoiseEnabled(NoiseType::TapeHiss, enabled);
+        tapeHissR_.setNoiseEnabled(NoiseType::TapeHiss, enabled);
+    }
+
     /// @brief Set tape high-frequency rolloff frequency
     void setTapeRolloffFreq(float freqHz) noexcept {
         for (auto& rolloff : tapeRolloff_) {

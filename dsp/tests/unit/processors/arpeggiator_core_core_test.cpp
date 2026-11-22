@@ -207,18 +207,18 @@ TEST_CASE("ArpeggiatorCore: timing accuracy at 120 BPM",
         }
     }
 
-    SECTION("1/16 note = every 5512 samples") {
+    SECTION("1/16 note = every 5513 samples") {
         arp.setNoteValue(NoteValue::Sixteenth, NoteModifier::None);
 
-        // 120 BPM, 1/16 note: (60/120)*0.25*44100 = 5512.5 -> 5512 samples
-        // First step fires immediately at 0, then every 5512
+        // 120 BPM, 1/16 note: (60/120)*0.25*44100 = 5512.5 -> 5513 samples (rounded, R-106)
+        // First step fires immediately at 0, then every 5513
         auto events = collectEvents(arp, ctx, 1200);
         auto noteOns = filterNoteOns(events);
 
         REQUIRE(noteOns.size() >= 100);
 
         for (size_t i = 0; i < 100; ++i) {
-            int32_t expected = static_cast<int32_t>(i * 5512);
+            int32_t expected = static_cast<int32_t>(i * 5513);
             CHECK(std::abs(noteOns[i].sampleOffset - expected) <= 1);
         }
     }
@@ -1861,7 +1861,7 @@ TEST_CASE("ArpeggiatorCore: Retrigger Note -- resets pattern on noteOn",
         arp.setMode(ArpMode::Up);
         arp.setNoteValue(NoteValue::Eighth, NoteModifier::None);
         arp.setRetrigger(ArpRetriggerMode::Note);
-        arp.setSwing(50.0f);  // 50% swing: even=16537, odd=5512
+        arp.setSwing(50.0f);  // 50% swing: even=16538, odd=5512
         arp.setGateLength(50.0f);
         arp.noteOn(48, 100);  // C3
         arp.noteOn(52, 100);  // E3
@@ -1874,8 +1874,8 @@ TEST_CASE("ArpeggiatorCore: Retrigger Note -- resets pattern on noteOn",
         ctx.isPlaying = true;
 
         // Collect NoteOns. With swing 50%:
-        // Step 0 (even): fires immediately at 0, duration = floor(11025 * 1.5) = 16537
-        // Step 1 (odd):  at 16537, duration = floor(11025 * 0.5) = 5512
+        // Step 0 (even): fires immediately at 0, duration = round(11025 * 1.5) = 16538
+        // Step 1 (odd):  at 16538, duration = 2 * 11025 - 16538 = 5512 (R-106)
         // Need enough blocks to get at least 2 NoteOns
         auto events = collectEvents(arp, ctx, 500);
         auto noteOns = filterNoteOns(events);
@@ -1886,10 +1886,10 @@ TEST_CASE("ArpeggiatorCore: Retrigger Note -- resets pattern on noteOn",
         int32_t gap01 = noteOns[1].sampleOffset - noteOns[0].sampleOffset;
         // R-199: step 0 lasts its own (even, lengthened) duration. Was 5512: step k
         // lasted dur(k+1), so free-run swing played short-first.
-        CHECK(gap01 == 16537);
+        CHECK(gap01 == 16538);
 
         // 500 blocks = 256000 samples: steps 0..22 have fired (step 22, even and
-        // long, started at 11 * 22049 = 242539), so swingStepCounter_ = 23 (odd):
+        // long, started at 11 * 22050 = 242550), so swingStepCounter_ = 23 (odd):
         // without a reset the next step would be short.
         // Send a noteOn to retrigger -- should reset swingStepCounter_ to 0.
         arp.noteOn(57, 100);  // A3 -- triggers retrigger Note
@@ -1910,11 +1910,11 @@ TEST_CASE("ArpeggiatorCore: Retrigger Note -- resets pattern on noteOn",
 
         REQUIRE(offsets.size() >= 2);
         // After retrigger: swingStepCounter_ = 0, so the first step fired after it
-        // is step 0 of a pair and lasts the even (long) duration, 16537. Without the
+        // is step 0 of a pair and lasts the even (long) duration, 16538. Without the
         // reset it would be step 23 (odd, 5512).
         // R-199 rewrite: was 5512, when the step fired with counter 0 lasted dur(1).
         int32_t gapAfterRetrigger = offsets[1] - offsets[0];
-        CHECK(gapAfterRetrigger == 16537);
+        CHECK(gapAfterRetrigger == 16538);
     }
 }
 
@@ -2087,24 +2087,17 @@ TEST_CASE("ArpeggiatorCore: Retrigger Beat -- resets at bar boundary",
     }
 
     SECTION("swingStepCounter resets at bar boundary") {
-        // With swing, step durations alternate (even=16537, odd=5512 at 50%).
-        // Pair sum = 22049. In one bar (88200), there are ~4 pairs = ~8 steps.
-        // After bar boundary reset, the swing counter resets to 0.
-        // To verify: find the first NoteOn at or after the bar boundary,
-        // check that its gap to the next NoteOn matches the odd step (5512),
-        // confirming the bar-boundary step was even (counter=0).
+        // With swing, step durations alternate (even=16538, odd=5512 at 50%).
+        // Pair sum = 22050 exactly (R-106: the short half is 2 * base - long).
+        // In one bar (88200) there are exactly 4 pairs = 8 steps, so step 8
+        // fires on the bar boundary itself. The bar wins the tie, resets the
+        // swing counter to 0 and fires step 0 of a new pair.
+        // To verify: find the first NoteOn at or after the bar boundary and
+        // check that its gap to the next NoteOn is the even (long) step's own
+        // duration (R-199: step k lasts dur(k)), confirming counter = 0.
         //
-        // Without swing, step is 11025. 88200/11025 = 8 exactly. With swing,
-        // steps alternate 16537,5512 -> pair=22049. 4 pairs = 88196 samples.
-        // So step 8 fires at 88196, which is 4 samples before the bar boundary.
-        // The bar boundary at 88200 falls within the 9th step's duration.
-        // When the bar boundary fires at offset 88200, the selector resets and
-        // swingStepCounter resets to 0. The step duration recalculation after
-        // that point uses counter=0 (even).
-        //
-        // The simplest verification: after the bar boundary, the gap from the
-        // first post-boundary NoteOn to the second should follow even-then-odd
-        // pattern (confirming counter started at 0).
+        // R-106 rewrite: with truncated halves the pair was 22049, step 8 fired
+        // at 88196, 4 samples before the boundary, and the expected gap was 5512.
         ArpeggiatorCore arp;
         arp.prepare(44100.0, 512);
         arp.setEnabled(true);
@@ -2142,13 +2135,12 @@ TEST_CASE("ArpeggiatorCore: Retrigger Beat -- resets at bar boundary",
         REQUIRE(firstPostBarIdx != SIZE_MAX);
         REQUIRE(firstPostBarIdx + 1 < noteOns.size());
 
-        // The first post-bar-boundary step uses swingStepCounter_=0 (even).
-        // Its duration is 16537 (even step). After it fires, counter=1.
-        // The next step has counter=1 (odd) -> duration 5512.
-        // So gap from first post-bar NoteOn to second = 5512.
+        // The first post-bar-boundary step uses swingStepCounter_=0 (even),
+        // fires on the boundary and lasts its own long duration, 16538.
+        CHECK(noteOns[firstPostBarIdx].sampleOffset == 88200);
         int32_t gap = noteOns[firstPostBarIdx + 1].sampleOffset -
                       noteOns[firstPostBarIdx].sampleOffset;
-        CHECK(gap == 5512);
+        CHECK(gap == 16538);
     }
 }
 
@@ -2198,7 +2190,7 @@ TEST_CASE("ArpeggiatorCore: swing 0% -- all steps equal duration",
 
 
 // T054: Swing 50% test (SC-006, US5 scenario 2)
-TEST_CASE("ArpeggiatorCore: swing 50% -- even=16537, odd=5512",
+TEST_CASE("ArpeggiatorCore: swing 50% -- even=16538, odd=5512",
           "[processors][arpeggiator_core]") {
     ArpeggiatorCore arp;
     arp.prepare(44100.0, 512);
@@ -2219,9 +2211,9 @@ TEST_CASE("ArpeggiatorCore: swing 50% -- even=16537, odd=5512",
     ctx.transportPositionSamples = 0;
 
     // At 120 BPM, 1/8 note base = 11025 samples
-    // Even step: floor(11025 * 1.5) = floor(16537.5) = 16537
-    // Odd step:  floor(11025 * 0.5) = floor(5512.5)  = 5512
-    constexpr int32_t expectedEven = 16537;
+    // Even step: round(11025 * 1.5) = round(16537.5) = 16538
+    // Odd step:  2 * 11025 - 16538 = 5512 (R-106: the pair is exact)
+    constexpr int32_t expectedEven = 16538;
     constexpr int32_t expectedOdd = 5512;
 
     auto events = collectEvents(arp, ctx, 500);
@@ -2265,7 +2257,7 @@ TEST_CASE("ArpeggiatorCore: swing 50% -- even=16537, odd=5512",
 
 
 // T055: Swing 25% and 75% tests (SC-006, US5 scenarios 3 and 4)
-TEST_CASE("ArpeggiatorCore: swing 25% -- even=13781, odd=8268",
+TEST_CASE("ArpeggiatorCore: swing 25% -- even=13781, odd=8269",
           "[processors][arpeggiator_core]") {
     ArpeggiatorCore arp;
     arp.prepare(44100.0, 512);
@@ -2285,10 +2277,10 @@ TEST_CASE("ArpeggiatorCore: swing 25% -- even=13781, odd=8268",
     ctx.isPlaying = true;
     ctx.transportPositionSamples = 0;
 
-    // Even step: floor(11025 * 1.25) = floor(13781.25) = 13781
-    // Odd step:  floor(11025 * 0.75) = floor(8268.75)  = 8268
+    // Even step: round(11025 * 1.25) = round(13781.25) = 13781
+    // Odd step:  2 * 11025 - 13781 = 8269 (R-106: the pair is exact)
     constexpr int32_t expectedEven = 13781;
-    constexpr int32_t expectedOdd = 8268;
+    constexpr int32_t expectedOdd = 8269;
 
     auto events = collectEvents(arp, ctx, 500);
     auto noteOns = filterNoteOns(events);
@@ -2323,7 +2315,7 @@ TEST_CASE("ArpeggiatorCore: swing 25% -- even=13781, odd=8268",
 }
 
 
-TEST_CASE("ArpeggiatorCore: swing 75% -- even=19293, odd=2756",
+TEST_CASE("ArpeggiatorCore: swing 75% -- even=19294, odd=2756",
           "[processors][arpeggiator_core]") {
     ArpeggiatorCore arp;
     arp.prepare(44100.0, 512);
@@ -2343,9 +2335,9 @@ TEST_CASE("ArpeggiatorCore: swing 75% -- even=19293, odd=2756",
     ctx.isPlaying = true;
     ctx.transportPositionSamples = 0;
 
-    // Even step: floor(11025 * 1.75) = floor(19293.75) = 19293
-    // Odd step:  floor(11025 * 0.25) = floor(2756.25)  = 2756
-    constexpr int32_t expectedEven = 19293;
+    // Even step: round(11025 * 1.75) = round(19293.75) = 19294
+    // Odd step:  2 * 11025 - 19294 = 2756 (R-106: the pair is exact)
+    constexpr int32_t expectedEven = 19294;
     constexpr int32_t expectedOdd = 2756;
 
     auto events = collectEvents(arp, ctx, 500);
@@ -2412,39 +2404,39 @@ TEST_CASE("R-199: a swung step lasts its own duration; gate and ratchet sub-step
     REQUIRE(noteOns.size() >= 5);
     REQUIRE(noteOffs.size() >= 3);
 
-    // 1/8 at 120 BPM: long = floor(11025 * 1.5) = 16537, short = floor(11025 * 0.5) = 5512.
-    // Step 0 (long, no ratchet): NoteOn 0, gate 50 % of 16537 = 8268.
-    // Step 1 (short, ratchet 2): NoteOn 16537, sub-steps of 5512 / 2 = 2756 with gate 1378: 16537 / 17915, 19293 /
-    // 20671. Step 2 (long): NoteOn 16537 + 5512 = 22049, then step 3 (short, ratchet 2) at 22049 + 16537 = 38586.
+    // 1/8 at 120 BPM: long = round(11025 * 1.5) = 16538, short = 2 * 11025 - 16538 = 5512 (R-106).
+    // Step 0 (long, no ratchet): NoteOn 0, gate 50 % of 16538 = 8269.
+    // Step 1 (short, ratchet 2): NoteOn 16538, sub-steps of 5512 / 2 = 2756 with gate 1378: 16538 / 17916, 19294 /
+    // 20672. Step 2 (long): NoteOn 16538 + 5512 = 22050, then step 3 (short, ratchet 2) at 22050 + 16538 = 38588.
     CHECK(noteOns[0].sampleOffset == 0);
-    CHECK(noteOns[1].sampleOffset == 16537);
-    CHECK(noteOns[2].sampleOffset == 19293);
-    CHECK(noteOns[3].sampleOffset == 22049);
-    CHECK(noteOns[4].sampleOffset == 38586);
-    CHECK(noteOffs[0].sampleOffset == 8268);
-    CHECK(noteOffs[1].sampleOffset == 17915);
-    CHECK(noteOffs[2].sampleOffset == 20671);
+    CHECK(noteOns[1].sampleOffset == 16538);
+    CHECK(noteOns[2].sampleOffset == 19294);
+    CHECK(noteOns[3].sampleOffset == 22050);
+    CHECK(noteOns[4].sampleOffset == 38588);
+    CHECK(noteOffs[0].sampleOffset == 8269);
+    CHECK(noteOffs[1].sampleOffset == 17916);
+    CHECK(noteOffs[2].sampleOffset == 20672);
 }
 
 
 // T056: setMode() reset test (SC-006 additional requirement)
 TEST_CASE("ArpeggiatorCore: setMode resets swing counter -- next step gets even timing",
           "[processors][arpeggiator_core]") {
-    // Step k lasts its own swung duration (R-199): even steps long (16537), odd
+    // Step k lasts its own swung duration (R-199): even steps long (16538), odd
     // steps short (5512), long first. swingStepCounter_ holds the index of the
     // step fired next.
     //
     // After 3 NoteOns (steps 0, 1, 2) step 2 (even, long) is running and the
     // counter is 3 (odd). Without a reset the next step is step 3 and lasts
     // 5512. setMode() resets the counter to 0, so the next step fired is step 0
-    // of a new pair and lasts 16537 (even timing).
+    // of a new pair and lasts 16538 (even timing).
     //
     // R-199 rewrite: the old expectation was the reverse (control 16537, after
     // setMode 5512), because fireStep re-sized the running step from the
     // advanced counter, so step k lasted dur(k+1).
 
     constexpr int32_t expectedOdd = 5512;    // odd step (short)
-    constexpr int32_t expectedEven = 16537;  // even step (long)
+    constexpr int32_t expectedEven = 16538;  // even step (long, R-106 rounded)
 
     auto makeArp = [](ArpeggiatorCore& arp) {
         arp.prepare(44100.0, 512);

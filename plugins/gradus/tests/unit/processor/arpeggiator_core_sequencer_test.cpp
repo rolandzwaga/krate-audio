@@ -423,17 +423,30 @@ TEST_CASE("ArpeggiatorCore: retrigger Beat resets lane 10 playhead on bar bounda
     (void)collectEvents(arp, ctx, blocksToAdvance > 1 ? blocksToAdvance - 1 : 1);
 
     // Sanity: the playhead should have advanced off step 0 after running
-    // through several sixteenth-note steps (one 1/16 @120BPM = 5512 samples;
+    // through several sixteenth-note steps (one 1/16 @120BPM = 5513 samples;
     // half a bar is 44100 samples → ~8 sixteenth steps).
     REQUIRE(arp.seqNoteLane().currentStep() != 0);
 
-    // The next processBlock call will straddle the bar boundary at
-    // ctx.transportPositionSamples == barSamples, triggering the Beat retrigger
-    // which calls resetLanes() — and resetLanes() resets seqNoteLane_ (see
-    // arpeggiator_core.h:2671).
-    (void)collectEvents(arp, ctx, 2);
-
-    REQUIRE(arp.seqNoteLane().currentStep() == 0);
+    // The next blocks straddle the bar boundary at barSamples, triggering the
+    // Beat retrigger, which calls resetLanes() — and resetLanes() resets
+    // seqNoteLane_. Run block by block until the first NoteOn at or after the
+    // boundary: after the reset that step plays lane step 0, so the playhead
+    // then reads 1 (without the reset it would read 9).
+    // R-106 rewrite: this asserted 0 two blocks on. The free-running grid
+    // started mid-bar steps 5512 samples apart (5512.5 truncated), so step 8
+    // fired 4 samples BEFORE the boundary and the playhead read 0 after it.
+    // Rounded to 5513, step 8 fires 4 samples AFTER the boundary, in the same
+    // block, and plays lane step 0.
+    bool firedAfterBoundary = false;
+    for (int b = 0; b < 32 && !firedAfterBoundary; ++b) {
+        const int64_t blockStart = ctx.transportPositionSamples;
+        for (const auto& e : collectEvents(arp, ctx, 1)) {
+            if (e.type == ArpEvent::Type::NoteOn && blockStart + e.sampleOffset >= barSamples)
+                firedAfterBoundary = true;
+        }
+    }
+    REQUIRE(firedAfterBoundary);
+    REQUIRE(arp.seqNoteLane().currentStep() == 1);
 }
 
 // =============================================================================

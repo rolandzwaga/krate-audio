@@ -245,6 +245,8 @@ public:
         // Prepare character processor in Tape mode
         character_.prepare(sampleRate, maxBlockSize);
         character_.setMode(CharacterMode::Tape);
+        // character_.prepare() restores its own defaults (hiss on at -60 dB): re-apply Wear, Saturation and Age
+        updateCharacter();
 
         // Prepare smoothers
         feedbackSmoother_.configure(kSmoothingTimeMs, static_cast<float>(sampleRate));
@@ -711,7 +713,7 @@ private:
         // Wear 0-1 maps to:
         // - Wow depth: 0-0.5 (moderate at max)
         // - Flutter depth: 0-0.3
-        // - Hiss level: -80dB to -40dB
+        // - Hiss level: off at Wear 0 and Age 0; -80 dB to -40 dB with Wear; +0 to +10 dB with Age
         character_.setTapeWowDepth(wear_ * 0.5f);
         character_.setTapeFlutterDepth(wear_ * 0.3f);
         character_.setTapeHissLevel(-80.0f + wear_ * 40.0f);
@@ -732,6 +734,8 @@ private:
             const float ageHissBoost = age_ * 10.0f;  // Extra 0-10dB
             character_.setTapeHissLevel(-80.0f + wear_ * 40.0f + ageHissBoost);
         }
+        // No hiss without Wear or Age, so silence in stays silence out (R-154)
+        character_.setTapeHissEnabled(wear_ > 0.0f || age_ > 0.0f);
     }
 
     /// @brief Update wow rate based on current motor speed (FR-007)

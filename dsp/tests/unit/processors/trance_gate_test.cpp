@@ -25,7 +25,7 @@ static size_t expectedSamplesPerStep(double bpm, NoteValue note,
                                       NoteModifier mod, double sampleRate) {
     const float beatsPerNote = getBeatsForNote(note, mod);
     const double secondsPerBeat = 60.0 / bpm;
-    return static_cast<size_t>(secondsPerBeat * static_cast<double>(beatsPerNote) * sampleRate);
+    return static_cast<size_t>(std::llround(secondsPerBeat * static_cast<double>(beatsPerNote) * sampleRate));
 }
 
 // =============================================================================
@@ -62,10 +62,11 @@ TEST_CASE("TranceGate - step advancement at correct sample count", "[trance_gate
 
     REQUIRE(gate.getCurrentStep() == 0);
 
-    // At 120 BPM, 1/16 note = 0.25 beats * 0.5 sec/beat * 44100 = 5512.5 => 5512 samples
+    // At 120 BPM, 1/16 note = 0.25 beats * 0.5 sec/beat * 44100 = 5512.5 => 5513 samples (rounded, R-015)
     const size_t stepsPerNote = expectedSamplesPerStep(120.0, NoteValue::Sixteenth,
                                                         NoteModifier::None, 44100.0);
-    REQUIRE(stepsPerNote == 5512);
+    REQUIRE(stepsPerNote == 5513);
+    REQUIRE(gate.getSamplesPerStep() == 5513);
 
     // Process exactly stepsPerNote samples -- should advance to step 1
     for (size_t i = 0; i < stepsPerNote; ++i) {
@@ -811,11 +812,11 @@ TEST_CASE("TranceGate - step duration matches tempo and note value", "[trance_ga
     gate.setStep(3, 0.0f);
 
     // SC-001: step boundary within 1 sample of ideal
-    // 120 BPM, 1/16: 0.25 beats * 0.5 sec/beat * 44100 = 5512.5 -> 5512 samples
+    // 120 BPM, 1/16: 0.25 beats * 0.5 sec/beat * 44100 = 5512.5 -> 5513 samples (rounded, R-015)
     REQUIRE(gate.getCurrentStep() == 0);
 
-    // Process 5512 samples
-    for (size_t i = 0; i < 5512; ++i) {
+    // Process 5513 samples
+    for (size_t i = 0; i < 5513; ++i) {
         (void)gate.process(1.0f);
     }
     REQUIRE(gate.getCurrentStep() == 1);
@@ -880,11 +881,11 @@ TEST_CASE("TranceGate - free-run mode uses Hz rate", "[trance_gate][US5]") {
     gate.setStep(2, 1.0f);
     gate.setStep(3, 0.0f);
 
-    // At 8 Hz, each step = 44100/8 = 5512.5 -> 5512 samples
+    // At 8 Hz, each step = 44100/8 = 5512.5 -> 5513 samples (rounded, R-015)
     REQUIRE(gate.getCurrentStep() == 0);
 
-    // Process 5512 samples
-    for (size_t i = 0; i < 5512; ++i) {
+    // Process 5513 samples
+    for (size_t i = 0; i < 5513; ++i) {
         (void)gate.process(1.0f);
     }
     REQUIRE(gate.getCurrentStep() == 1);
@@ -1467,7 +1468,7 @@ TEST_CASE("TranceGate - prepare recalculates coefficients with new sample rate",
         gate.setStep(i, (i % 2 == 0) ? 1.0f : 0.0f);
     }
 
-    // Step at 44100: 5512 samples
+    // Step at 44100: 5513 samples
     size_t samplesAt44100 = expectedSamplesPerStep(120.0, NoteValue::Sixteenth,
                                                     NoteModifier::None, 44100.0);
     for (size_t i = 0; i < samplesAt44100; ++i) {

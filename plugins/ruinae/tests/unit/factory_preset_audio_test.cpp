@@ -112,52 +112,109 @@ struct PresetLevels {
     bool loaded{false};
 };
 
-/// @brief Load a preset, hold one note, and measure its output levels.
-PresetLevels renderPresetLevels(const std::filesystem::path& presetPath) {
-    auto proc = std::make_unique<Ruinae::Processor>();
-    proc->initialize(nullptr);
+/// @brief A fresh processor with one factory preset loaded, holding C4.
+class HeldNoteRender {
+public:
+    /// Initialize, activate, load the preset and drain its deferred snapshot.
+    bool load(const std::filesystem::path& presetPath) {
+        proc_->initialize(nullptr);
 
-    ProcessSetup setup{};
-    setup.processMode = kRealtime;
-    setup.symbolicSampleSize = kSample32;
-    setup.sampleRate = kSampleRate;
-    setup.maxSamplesPerBlock = kBlockSize;
-    proc->setupProcessing(setup);
+        ProcessSetup setup{};
+        setup.processMode = kRealtime;
+        setup.symbolicSampleSize = kSample32;
+        setup.sampleRate = kSampleRate;
+        setup.maxSamplesPerBlock = kBlockSize;
+        proc_->setupProcessing(setup);
 
-    PresetLevels levels{};
+        // Ruinae defers preset application through RTTransferT; activate first.
+        proc_->setActive(static_cast<TBool>(true));
+        if (!loadPresetFileIntoProcessor(presetPath, *proc_)) return false;
 
-    // Ruinae defers preset application through RTTransferT; activate first.
-    proc->setActive(true);
-    if (!loadPresetFileIntoProcessor(presetPath, *proc)) return levels;
-    levels.loaded = true;
-
-    // Drain the deferred preset snapshot.
-    {
+        // Drain the deferred preset snapshot.
         ProcessData drainData{};
         drainData.numSamples = 0;
-        proc->process(drainData);
+        proc_->process(drainData);
+
+        outputBus_.numChannels = 2;
+        outputBus_.channelBuffers32 = outChannels_;
+
+        processContext_.state = ProcessContext::kPlaying
+                              | ProcessContext::kTempoValid
+                              | ProcessContext::kProjectTimeMusicValid;
+        processContext_.sampleRate = kSampleRate;
+        processContext_.tempo = 120.0;
+
+        // C4, moderately hard, so velocity-sensitive presets open up.
+        inEvents_.addNoteOn(60, 0.8f, 0);
+        loaded_ = true;
+        return true;
     }
 
-    std::vector<float> outL(static_cast<size_t>(kBlockSize), 0.0f);
-    std::vector<float> outR(static_cast<size_t>(kBlockSize), 0.0f);
-    float* outChannels[2] = { outL.data(), outR.data() };
-    AudioBusBuffers outputBus{};
-    outputBus.numChannels = 2;
-    outputBus.channelBuffers32 = outChannels;
+    /// Render the next block into left() / right().
+    void renderBlock() {
+        std::fill(outL_.begin(), outL_.end(), 0.0f);
+        std::fill(outR_.begin(), outR_.end(), 0.0f);
 
-    TestEventList inEvents;
-    TestEventList outEvents;
-    EmptyParamChanges emptyParams;
+        ProcessData data{};
+        data.processMode = kRealtime;
+        data.symbolicSampleSize = kSample32;
+        data.numSamples = kBlockSize;
+        data.numInputs = 0;
+        data.numOutputs = 1;
+        data.outputs = &outputBus_;
+        data.inputEvents = &inEvents_;
+        data.outputEvents = &outEvents_;
+        data.inputParameterChanges = &emptyParams_;
+        data.processContext = &processContext_;
 
-    ProcessContext processContext{};
-    processContext.state = ProcessContext::kPlaying
-                         | ProcessContext::kTempoValid
-                         | ProcessContext::kProjectTimeMusicValid;
-    processContext.sampleRate = kSampleRate;
-    processContext.tempo = 120.0;
+        proc_->process(data);
 
-    // C4, moderately hard, so velocity-sensitive presets open up.
-    inEvents.addNoteOn(60, 0.8f, 0);
+        // The note-on is only delivered in the first block; hold it after that.
+        inEvents_.clear();
+        outEvents_.clear();
+
+        processContext_.projectTimeSamples += kBlockSize;
+        processContext_.projectTimeMusic +=
+            static_cast<double>(kBlockSize) / kSampleRate
+            * (processContext_.tempo / 60.0);
+    }
+
+    [[nodiscard]] const std::vector<float>& left() const { return outL_; }
+    [[nodiscard]] const std::vector<float>& right() const { return outR_; }
+
+    ~HeldNoteRender() {
+        if (loaded_) {
+            proc_->setActive(static_cast<TBool>(false));
+            proc_->terminate();
+        }
+    }
+
+    HeldNoteRender() = default;
+    HeldNoteRender(const HeldNoteRender&) = delete;
+    HeldNoteRender& operator=(const HeldNoteRender&) = delete;
+    HeldNoteRender(HeldNoteRender&&) = delete;
+    HeldNoteRender& operator=(HeldNoteRender&&) = delete;
+
+private:
+    std::unique_ptr<Ruinae::Processor> proc_ = std::make_unique<Ruinae::Processor>();
+    std::vector<float> outL_ = std::vector<float>(static_cast<size_t>(kBlockSize), 0.0f);
+    std::vector<float> outR_ = std::vector<float>(static_cast<size_t>(kBlockSize), 0.0f);
+    float* outChannels_[2] = { outL_.data(), outR_.data() };
+    AudioBusBuffers outputBus_{};
+    TestEventList inEvents_;
+    TestEventList outEvents_;
+    EmptyParamChanges emptyParams_;
+    ProcessContext processContext_{};
+    bool loaded_{false};
+};
+
+/// @brief Load a preset, hold one note, and measure its output levels.
+PresetLevels renderPresetLevels(const std::filesystem::path& presetPath) {
+    PresetLevels levels{};
+
+    HeldNoteRender render;
+    if (!render.load(presetPath)) return levels;
+    levels.loaded = true;
 
     const int numBlocks =
         static_cast<int>((kRenderSeconds * kSampleRate) / kBlockSize);
@@ -173,26 +230,11 @@ PresetLevels renderPresetLevels(const std::filesystem::path& presetPath) {
 
     float peak = 0.0f;
     for (int block = 0; block < numBlocks; ++block) {
-        std::fill(outL.begin(), outL.end(), 0.0f);
-        std::fill(outR.begin(), outR.end(), 0.0f);
-
-        ProcessData data{};
-        data.processMode = kRealtime;
-        data.symbolicSampleSize = kSample32;
-        data.numSamples = kBlockSize;
-        data.numInputs = 0;
-        data.numOutputs = 1;
-        data.outputs = &outputBus;
-        data.inputEvents = &inEvents;
-        data.outputEvents = &outEvents;
-        data.inputParameterChanges = &emptyParams;
-        data.processContext = &processContext;
-
-        proc->process(data);
+        render.renderBlock();
 
         for (int32 i = 0; i < kBlockSize; ++i) {
-            const float l = outL[static_cast<size_t>(i)];
-            const float r = outR[static_cast<size_t>(i)];
+            const float l = render.left()[static_cast<size_t>(i)];
+            const float r = render.right()[static_cast<size_t>(i)];
             peak = std::max(peak, std::abs(l));
             peak = std::max(peak, std::abs(r));
 
@@ -202,19 +244,7 @@ PresetLevels renderPresetLevels(const std::filesystem::path& presetPath) {
                 sustainSamples += 2;
             }
         }
-
-        // The note-on is only delivered in the first block; hold it after that.
-        inEvents.clear();
-        outEvents.clear();
-
-        processContext.projectTimeSamples += kBlockSize;
-        processContext.projectTimeMusic +=
-            static_cast<double>(kBlockSize) / kSampleRate
-            * (processContext.tempo / 60.0);
     }
-
-    proc->setActive(false);
-    proc->terminate();
 
     levels.peak = peak;
     levels.sustainedRms = (sustainSamples > 0)
@@ -266,6 +296,47 @@ TEST_CASE("Every Ruinae factory preset produces audible output for a held note",
             REQUIRE(levels.peak > kAudibleThreshold);
         }
     }
+}
+
+// =============================================================================
+// R-161: the spectral delay renders deterministically
+// =============================================================================
+// SpectralDelay seeded its stereo-phase RNG from its own address, so the same
+// preset bounced twice differed (Spectral_Wash: 0.1451 peak between two fresh
+// loads). Both processors stay alive for the whole render, so their delays sit
+// at different addresses.
+
+TEST_CASE("Spectral_Wash renders identically from two fresh processors",
+          "[presets][determinism]")
+{
+    const auto presets = enumerateAllPresets();
+    const auto it = std::find_if(presets.begin(), presets.end(), [](const auto& p) {
+        return p.stem().string() == "Spectral_Wash";
+    });
+    REQUIRE(it != presets.end());
+
+    HeldNoteRender first;
+    HeldNoteRender second;
+    REQUIRE(first.load(*it));
+    REQUIRE(second.load(*it));
+
+    const int numBlocks =
+        static_cast<int>((kRenderSeconds * kSampleRate) / kBlockSize);
+    float maxDiff = 0.0f;
+    float peak = 0.0f;
+    for (int block = 0; block < numBlocks; ++block) {
+        first.renderBlock();
+        second.renderBlock();
+        for (size_t i = 0; i < static_cast<size_t>(kBlockSize); ++i) {
+            maxDiff = std::max(maxDiff, std::abs(first.left()[i] - second.left()[i]));
+            maxDiff = std::max(maxDiff, std::abs(first.right()[i] - second.right()[i]));
+            peak = std::max(peak, std::abs(first.left()[i]));
+        }
+    }
+
+    INFO("peak " << peak << ", max sample difference " << maxDiff);
+    REQUIRE(peak > kAudibleThreshold);  // not vacuous: the preset sounds
+    REQUIRE(maxDiff <= 1e-7f);
 }
 
 TEST_CASE("No Ruinae factory preset is drastically quieter than the bank",

@@ -48,7 +48,7 @@ const TASKS = [
   ['T2.31', 2, 'opus'], ['T2.32', 2, 'opus'], ['T2.33', 2, 'opus'], ['T2.34', 2, 'sonnet'], ['T2.35', 2, 'opus'],
 
   ['T3.1', 3, 'opus'], ['T3.2', 3, 'opus'], ['T3.3', 3, 'sonnet'], ['T3.4', 3, 'sonnet'], ['T3.5', 3, 'opus'],
-  ['T3.6a', 3, 'opus'], ['T3.6b', 3, 'sonnet'],
+  ['T3.6a', 3, 'opus'], ['T3.6b', 3, 'opus'],
 
   ['T4.1', 4, 'sonnet'], ['T4.2', 4, 'sonnet'], ['T4.3', 4, 'sonnet'], ['T4.4', 4, 'opus'], ['T4.5', 4, 'opus'],
   ['T4.6', 4, 'opus'], ['T4.7', 4, 'opus'], ['T4.8', 4, 'opus'],
@@ -103,8 +103,9 @@ const IMPL_SCHEMA = {
     deviations: { type: 'string', description: 'everything done differently from the plan section, and why; "none" if none' },
     blocker: { type: 'string', description: 'for blocked/failed: what stops the task, with measured numbers' },
     notes: { type: 'string', description: 'facts the main loop needs for the phase commit message (consumers listed per CROSS-PLUGIN, goldens regenerated and why, findings refuted)' },
+    callers_checked: { type: 'string', description: 'for every function/method whose behaviour or signature this attempt changed: "Symbol (file): N callers via find_referencing_symbols -> caller list; how each is covered (unchanged contract / updated / tested)". Or "Serena unavailable: Grep used" with the grep commands. "none" only when no function changed (tests, data, docs only).' },
   },
-  required: ['status', 'blocker_kind', 'red_evidence', 'gate_line', 'files', 'deviations', 'notes'],
+  required: ['status', 'blocker_kind', 'red_evidence', 'gate_line', 'files', 'deviations', 'notes', 'callers_checked'],
 }
 
 const REVIEW_SCHEMA = {
@@ -146,7 +147,7 @@ const EXEC_RULES = `EXECUTION RULES:
 - Every long command runs in the FOREGROUND (Bash timeout 600000) with stdout+stderr redirected to a log under ${LOG_ROOT}/<task id>/, then tail that log. Read a failing shard's log from the gate --out directory; never re-run a slow command to re-read its output.
 - NEVER use run_in_background, the Monitor tool, sleep, or polling. NEVER run find /c, find /, du or any disk-wide walk; never cat a whole log. Never run tools/clean-test-output.js.
 - WSL tools (macos-fastmath-repro.sh, check-portability.js) may be used, but NEVER run wsl --shutdown, wsl --terminate or anything that stops or restarts WSL: the user runs WSL in other sessions at the same time (user, 2026-11-18). A hook blocks it.
-- Code navigation: when the Serena MCP tools are available (ToolSearch "serena"), use mcp__serena__find_symbol, get_symbols_overview and find_referencing_symbols (clangd, repo-root compile_commands.json) to locate a symbol and every caller before editing, especially for entry points and template/virtual call sites grep misses. Fall back to Grep when Serena is absent or returns nothing.
+- CALLER CHECK (required, before editing): load Serena once with ToolSearch "select:mcp__serena__find_symbol,mcp__serena__find_referencing_symbols,mcp__serena__get_symbols_overview". For EVERY function or method whose behaviour or signature you change, run mcp__serena__find_referencing_symbols on it and account for every caller. A method declared in a header and defined in a .cpp: query BOTH files and take the union (one side can return fewer callers); get each side's exact name_path with find_symbol first ("Class/method" in the header, "Class::method" in the .cpp). Never accept an empty answer on the first try: an empty result right after startup can be an unfinished clangd index; re-run once, and if it is still empty, confirm with Grep before writing "0 callers". Serena resolves calls through macros, templates and virtuals that Grep misses (example: RuinaeEngine::setAmpRelease is called only through the RUINAE_APPLY_ENVELOPE macro). Use find_symbol / get_symbols_overview to locate symbols instead of reading whole files. Report the result in callers_checked. Only if the Serena tools are absent or error out, fall back to Grep and say so in callers_checked.
 - New files with the Write tool (no heredocs). Read a file before editing it. Before creating any class or struct, grep dsp/ and plugins/ for the name (ODR). Node.js for any helper script, never Python. One git operation per command, never chained.
 - Thresholds in the plan are final. Never relax a threshold, weaken an assertion, tag a test hidden/[.], or shrink a workload to get green. If the plan's threshold cannot be met, stop with status "blocked", blocker_kind "threshold_unmet", and the measured numbers.
 - If the task needs a decision only the user can make that the Rulings table does not cover, stop with status "blocked", blocker_kind "needs_user", and state the question with your recommended answer.
@@ -157,7 +158,9 @@ function implPrompt(t, attempt, feedback) {
   const retry = feedback
     ? `\n\nTHIS IS ATTEMPT ${attempt}. A previous attempt did not pass. Its report and the reviewer's problems:\n${feedback}\nThe working tree still holds that attempt's UNSTAGED changes. Inspect them with git diff and git status; continue from them or revert only those unstaged hunks of this task (git checkout -- <file> restores a file to its STAGED version, which keeps earlier tasks' approved work). Fix every listed problem.`
     : ''
-  return `${CONTEXT}\n\nYOUR TASK: ${t.id} (fix-plan phase ${t.phase}).${retry}\n\n${OVERRIDES}\n\n${EXEC_RULES}`
+  // args.notes: { "T3.5": "..." } — main-loop context for a relaunch after a block (e.g. the stopped run's work is in the tree).
+  const note = A.notes && A.notes[t.id] ? `\n\nNOTE FROM THE MAIN LOOP (relaunch): ${A.notes[t.id]}` : ''
+  return `${CONTEXT}\n\nYOUR TASK: ${t.id} (fix-plan phase ${t.phase}).${note}${retry}\n\n${OVERRIDES}\n\n${EXEC_RULES}`
 }
 
 function reviewPrompt(t, impl) {
@@ -170,7 +173,8 @@ Check, and list every violation as a concrete problem with file:line:
 4. Plan conformance: the fix matches the section and the recorded Ruling; deviations are justified.
 5. Real-time safety on audio-thread paths (no allocation, lock, exception or I/O added), layer rules for dsp/ headers, macOS fast-math rules (detail::isFinite, no numeric_limits infinity/NaN constants, std::llround for musical time).
 6. Evidence: gate_line ends GATE GREEN; pluginval exit 0 when plugin sources changed; clang-tidy 0 warnings when it was required.
-Do NOT edit any file and do NOT re-run builds or gates. You may run git and grep/read commands.
+7. Callers: load Serena once (ToolSearch "select:mcp__serena__find_referencing_symbols,mcp__serena__find_symbol"). For every function or method whose behaviour or signature the unstaged diff changes, run mcp__serena__find_referencing_symbols yourself (header and .cpp side, union) and compare with the implementer's callers_checked. Then cross-check cheaply with Grep, files only (grep -rlw <name> over the plugin/dsp dirs the symbol can reach): a file Grep lists that neither Serena nor callers_checked accounts for must be opened and explained. A caller the implementer did not account for, whose contract the change breaks or leaves untested, is a problem (file:line). A missing or "none" callers_checked while production functions changed is a problem. Only if Serena is unavailable, use Grep and say so in the summary.
+Do NOT edit any file and do NOT re-run builds or gates. You may run git, grep/read and Serena (read-only query tools only) commands.
 If and only if there are no problems: stage exactly this task's files with ONE command, git add -- <file> <file> ... (the changed tracked files plus the new untracked files that belong to the task; never git add -A or git add .), then report ok=true and the staged list. Otherwise report ok=false, staged=[], and the problems.`
 }
 

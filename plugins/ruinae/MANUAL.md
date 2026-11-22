@@ -806,6 +806,8 @@ Models the warm, wobbly character of analog tape echo machines with three indepe
 | **Splice** | Enable tape splice artifacts |
 | **Splice Intensity** | Intensity of splice artifacts |
 
+Tape adds hiss only when Wear or Age is above 0; at Wear 0 and Age 0 it is silent with no input.
+
 Each of the **three tape heads** has:
 
 | Control | Description |
@@ -855,6 +857,8 @@ A granular delay that chops the delayed signal into grains and reassembles them,
 ![Spectral Delay](images/delay-spectral.png)
 
 An FFT-based delay that operates in the frequency domain, allowing different frequency bands to be delayed by different amounts.
+
+Spectral delay repeats follow the delay time; the first echo arrives about 21 ms later than the other delay types because of the FFT analysis. Echo timing is quantised to the FFT hop (about 10.7 ms at 48 kHz), so a tempo-synced echo can sit up to about 5 ms off the grid. Both figures are for the default 1024-point FFT size and halve or double with it.
 
 | Control | Description |
 |---------|-------------|

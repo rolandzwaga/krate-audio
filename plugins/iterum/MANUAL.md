@@ -122,6 +122,8 @@ stops the buffer from recording, so the grains keep playing what it holds.
 Spectral splits the signal into frequency bands with an FFT and delays each band by its own amount, so an echo smears
 across the spectrum: low frequencies first and highs later, or the other way round. Each band has its own feedback,
 which **Feedback Tilt** can weight towards the lows or the highs. **Freeze** captures the current spectrum and holds it.
+Echo timing is quantised to the FFT hop (about 10.7 ms at 48 kHz at the default 1024-point FFT size), so a tempo-synced
+echo can sit up to about 5 ms off the grid.
 
 | Control | Host name | Range | Default | What it does |
 |---|---|---|---|---|

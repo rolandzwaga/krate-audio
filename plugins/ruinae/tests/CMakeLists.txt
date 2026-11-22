@@ -246,5 +246,14 @@ endif()
 # CTest Integration
 catch_discover_tests(ruinae_tests REPORTER console)
 
+# editor.uidesc geometry lint (audit T3.3, R-163..R-166): no overlap outside the audited allow list, nothing out of bounds.
+find_program(KRATE_NODE_EXECUTABLE node)
+if(KRATE_NODE_EXECUTABLE)
+    add_test(NAME ruinae_uidesc_inventory
+        COMMAND ${KRATE_NODE_EXECUTABLE} tools/uidesc-inventory.js plugins/ruinae/resources/editor.uidesc --check
+                --allow plugins/ruinae/tests/uidesc_overlaps_allowed.json
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+endif()
+
 # Precompiled Catch2 + STL when KRATE_TEST_PCH is ON (cmake/KrateTestPch.cmake); after the per-source flag blocks above.
 krate_test_pch(ruinae_tests)

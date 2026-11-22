@@ -117,6 +117,9 @@ public:
     static constexpr size_t kMaxPolyphony = 16;
     static constexpr float kMinMasterGain = 0.0f;
     static constexpr float kMaxMasterGain = 2.0f;
+    /// Shortest amp-envelope release, the note-off declick (R-162); the same
+    /// 2 ms as the Hard voice-steal fade.
+    static constexpr float kMinAmpReleaseMs = 2.0f;
 
     // =========================================================================
     // Lifecycle (FR-003, FR-004)
@@ -1312,9 +1315,13 @@ public:
         for (auto& voice : voices_) { voice.getAmpEnvelope().setSustain(level); }
     }
 
+    /// Floored at kMinAmpReleaseMs: release 0 reached the envelope as its own
+    /// 0.1 ms minimum and cut a held tone within ~5 samples, a click at
+    /// note-off (R-162). Amp only; the filter and mod envelopes keep 0.1 ms.
     void setAmpRelease(float ms) noexcept {
         if (detail::isNaN(ms) || detail::isInf(ms)) return;
-        for (auto& voice : voices_) { voice.getAmpEnvelope().setRelease(ms); }
+        const float floored = std::max(ms, kMinAmpReleaseMs);
+        for (auto& voice : voices_) { voice.getAmpEnvelope().setRelease(floored); }
     }
 
     void setAmpAttackCurve(EnvCurve curve) noexcept {

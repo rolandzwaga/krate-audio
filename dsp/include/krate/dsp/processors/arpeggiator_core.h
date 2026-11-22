@@ -1154,7 +1154,7 @@ private:
         return stepDurationFor(ctx.tempoBPM, ctx.sampleRate, swingStepCounter_ % 2 == 0);
     }
 
-    /// @brief Tempo-synced step length in samples before truncation (no swing).
+    /// @brief Tempo-synced step length in samples before rounding (no swing).
     double exactBaseStepSamples(double tempoBPM, double ctxSampleRate) const noexcept {
         // (f) Double-precision: cast getBeatsForNote() to double before multiply
         double beatsPerStep = static_cast<double>(
@@ -1166,25 +1166,25 @@ private:
     /// @brief calculateStepDuration for an explicit tempo, sample rate and swing half
     /// (evenStep = the long half), so syncToMusicalPosition sizes both halves of a swing pair.
     size_t stepDurationFor(double tempoBPM, double ctxSampleRate, bool evenStep) const noexcept {
+        // Rounded, not truncated (R-106): the tempo product is often an exact integer the double lands an ulp below
+        // (and which ones depends on the FP mode), so truncation lost a sample per step.
         size_t baseDuration = 0;
         if (tempoSync_) {
-            baseDuration = static_cast<size_t>(exactBaseStepSamples(tempoBPM, ctxSampleRate));
+            baseDuration = static_cast<size_t>(std::llround(exactBaseStepSamples(tempoBPM, ctxSampleRate)));
         } else {
-            baseDuration = static_cast<size_t>(sampleRate_ / static_cast<double>(freeRateHz_));
+            baseDuration = static_cast<size_t>(std::llround(sampleRate_ / static_cast<double>(freeRateHz_)));
         }
 
-        // Apply swing
+        // Apply swing. The short half is the pair's remainder, so long + short is exactly 2 * base.
         size_t swungDuration = baseDuration;
         if (swing_ > 0.0f) {
-            double swingVal = static_cast<double>(swing_);
+            const auto longDuration = static_cast<size_t>(
+                std::llround(static_cast<double>(baseDuration) * (1.0 + static_cast<double>(swing_))));
+            const size_t pairDuration = 2 * baseDuration;
             if (evenStep) {
-                // Even step: lengthen
-                swungDuration = static_cast<size_t>(
-                    static_cast<double>(baseDuration) * (1.0 + swingVal));
+                swungDuration = longDuration;
             } else {
-                // Odd step: shorten
-                swungDuration = static_cast<size_t>(
-                    static_cast<double>(baseDuration) * (1.0 - swingVal));
+                swungDuration = pairDuration > longDuration ? pairDuration - longDuration : 0;
             }
         }
 

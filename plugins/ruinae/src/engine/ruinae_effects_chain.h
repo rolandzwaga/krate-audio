@@ -68,8 +68,9 @@ enum class ModulationType : std::uint8_t {
 /// - Five selectable delay types with click-free crossfade switching
 /// - Dattorro plate reverb
 /// - No added latency (getLatencySamples() is 0): the dry path is never delayed
-///   and every delay type's first echo lands at the set delay time. Spectral
-///   takes its FFT latency off its base delay (R-055).
+///   and every time-domain delay type's first echo lands at the set delay time.
+///   Spectral repeats follow the set time; its first echo arrives a fixed FFT
+///   size later (T3.6b).
 /// - Fully real-time safe (all runtime methods noexcept, zero allocations)
 ///
 /// @par Constitution Compliance
@@ -505,11 +506,12 @@ public:
         tapeDelay_.setMotorSpeed(ms);
         pingPongDelay_.setDelayTimeMs(ms);
         granularDelay_.setDelayTime(ms);
-        // The spectral delay's echo carries its FFT latency on top of the base delay; take
-        // it off so its echo also lands at the set time (R-055).
-        const float spectralLatencyMs = static_cast<float>(
-            1000.0 * static_cast<double>(spectralDelay_.getLatencySamples()) / sampleRate_);
-        spectralDelay_.setBaseDelayMs(std::max(SpectralDelay::kMinDelayMs, ms - spectralLatencyMs));
+        // Not latency-compensated (T3.6b): the spectral delay's repeats are spaced by its base
+        // delay, and its FFT latency only offsets the first echo. Taking the latency off the
+        // base delay put that first echo on time but pulled every repeat a whole FFT size plus
+        // a hop early, cumulatively; with the set time passed unchanged the repeats stay on the
+        // grid and the first echo arrives a fixed fftSize late.
+        spectralDelay_.setBaseDelayMs(std::max(SpectralDelay::kMinDelayMs, ms));
 
         // A pre-warm in progress needs the new time's duration, less what it has already run.
         // The processor re-applies the delay time every block, so this must never restart the

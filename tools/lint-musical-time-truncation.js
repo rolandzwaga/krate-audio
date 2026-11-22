@@ -3,8 +3,9 @@
 // lint-musical-time-truncation.js
 // =============================================================================
 // Fails when DSP or plugin source truncates host musical time to an integer: a static_cast to an integer type (or a
-// C-style integer cast) whose argument reads a PPQ position (`ppq`, `projectTimeMusic`) or a step fraction
-// (`stepFraction`) and is not rounded with std::round / lround / llround / rint.
+// C-style integer cast) whose argument reads a PPQ position (`ppq`, `projectTimeMusic`), a step fraction
+// (`stepFraction`) or a tempo-derived length (`secondsPerBeat`, `beatsPer*`, `tempo`, `bpm`) and is not rounded with
+// std::round / lround / llround / rint.
 //
 // WHY. A PPQ position converts to a sample count that is very often an exact integer: a 1/8 step at 120 BPM and
 // 44.1 kHz is 11025 samples, so `stepFraction * stepDuration` at a block start is exactly `pos % 11025`. The double
@@ -28,7 +29,10 @@ const ROOTS = ['dsp/include', 'dsp/src'];
 const INT_TYPES = '(?:std::)?(?:size_t|ptrdiff_t|u?int(?:8|16|32|64)?_t|int|long(?:\\s+long)?|unsigned(?:\\s+int)?|' +
     'Steinberg::(?:u?int32|u?int64|TSamples))';
 const CAST_RE = new RegExp(`static_cast<\\s*${INT_TYPES}\\s*>\\s*\\(|\\(\\s*${INT_TYPES}\\s*\\)\\s*\\(`, 'g');
-const TIME_RE = /\b\w*(?:ppq|projectTimeMusic|stepFraction)\w*\b/i;
+// Host musical time, and tempo-derived step lengths (R-106): secondsPerBeat * beatsPerStep * sampleRate is just as
+// often an exact integer the double lands an ulp below. `tempo` must not be followed by a letter, so `Temporal` is not
+// a hit (`tempoBPM` is, through `bpm`).
+const TIME_RE = /\b\w*(?:ppq|projectTimeMusic|stepFraction|secondsPerBeat|beatsPer\w*|tempo(?![a-z])|bpm)\w*\b/i;
 const ROUND_RE = /\b(?:std::)?(?:l?l?round|l?l?rint|nearbyint)[fl]?\s*\(/;
 const OK_MARK = 'musical-time-truncation-ok:';
 
@@ -86,10 +90,16 @@ function selfTest() {
     ['int s = (int)(hostPpq * 4.0);', 1],
     ['const auto n = static_cast<size_t>(std::llround(pos.stepFraction * d));', 0],
     ['return static_cast<int64_t>(std::llround(ppq * (60.0 / bpm) * sr));', 0],
-    ['const int step = static_cast<int>(posInPattern / beatsPerStep) % n;', 0],
+    ['const int step = static_cast<int>(posInPattern / beatsPerStep) % n;', 1],
+    ['// musical-time-truncation-ok: a step index\nconst int step = static_cast<int>(posInPattern / beatsPerStep) % n;', 0],
     ['// static_cast<size_t>(stepFraction * d) in a comment', 0],
     ['// musical-time-truncation-ok: a step index\nconst int i = static_cast<int>(stepFraction * 4.0);', 0],
     ['const float f = static_cast<float>(projectTimeMusic);', 0],
+    ['samplesPerStep_ = static_cast<size_t>(secondsPerBeat * beats * sampleRate);', 1],
+    ['d = static_cast<size_t>(exactBaseStepSamples(tempoBPM, sr));', 1],
+    ['d = static_cast<size_t>(sampleRate / tempo);', 1],
+    ['d = static_cast<size_t>(std::llround(secondsPerBeat * beats * sampleRate));', 0],
+    ['slots[static_cast<int>(DistortionType::Temporal)] = 0.0f;', 0],
   ];
   let failed = 0;
   for (const [src, want] of cases) {

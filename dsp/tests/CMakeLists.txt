@@ -251,6 +251,9 @@ add_executable(dsp_processors_tests
     unit/processors/arpeggiator_core_dawloop_test.cpp
     unit/processors/arpeggiator_core_scalechord_test.cpp
     unit/processors/arpeggiator_core_curve_race_test.cpp
+    # Ruinae audit T3.5 (R-106, R-015): tempo-derived step lengths round; built here under the executable's
+    # fast-math flags (deliberately not in the per-file IEEE list) and again in dsp_ieee_tests
+    unit/processors/step_duration_rounding_test.cpp
     unit/processors/midi_note_delay_test.cpp
     unit/processors/ring_modulator_test.cpp
     unit/processors/harmonic_types_tests.cpp
@@ -960,6 +963,9 @@ add_executable(dsp_ieee_tests
     unit/systems/profundum_note_behaviour_test.cpp
     unit/systems/profundum_voice_test.cpp
     unit/systems/profundum_engine_test.cpp
+    # Ruinae audit T3.5 (R-106, R-015): tempo-derived step lengths round; the same TU runs fast-math in
+    # dsp_processors_tests
+    unit/processors/step_duration_rounding_test.cpp
 )
 
 target_link_libraries(dsp_ieee_tests

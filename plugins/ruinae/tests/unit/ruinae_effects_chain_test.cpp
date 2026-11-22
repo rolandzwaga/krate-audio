@@ -1180,12 +1180,13 @@ TEST_CASE("RuinaeEffectsChain_Echo_ArrivesAtSetDelayTime", "[ruinae-fx][delay][t
     CAPTURE(sampleRate);
     const double expected = static_cast<double>(kTimeMs) * sampleRate / 1000.0;
 
-    const auto check = [&](RuinaeDelayType type, double toleranceSamples) {
+    const auto check = [&](RuinaeDelayType type, double toleranceSamples, double offsetSamples = 0.0) {
         const size_t onset = echoOnsetSample(type, sampleRate, kTimeMs);
-        const double error = static_cast<double>(onset) - expected;
+        const double error = static_cast<double>(onset) - (expected + offsetSamples);
         INFO("first echo at sample " << onset << " (" << static_cast<double>(onset) * 1000.0 / sampleRate
-             << " ms), expected " << expected << " (" << kTimeMs << " ms) +/- " << toleranceSamples
-             << " samples; error " << error << " samples");
+             << " ms), expected " << expected + offsetSamples << " (" << kTimeMs << " ms + "
+             << offsetSamples << " samples) +/- " << toleranceSamples << " samples; error " << error
+             << " samples");
         REQUIRE(std::abs(error) <= toleranceSamples);
     };
     const double oneMs = sampleRate / 1000.0;
@@ -1194,8 +1195,109 @@ TEST_CASE("RuinaeEffectsChain_Echo_ArrivesAtSetDelayTime", "[ruinae-fx][delay][t
     SECTION("PingPong") { check(RuinaeDelayType::PingPong, oneMs); }
     SECTION("Granular") { check(RuinaeDelayType::Granular, oneMs); }
     SECTION("Spectral") {
-        // +/- 1 hop at the default FFT size (1024 -> hop 512).
-        check(RuinaeDelayType::Spectral, static_cast<double>(SpectralDelay::kDefaultFFTSize / 2));
+        // T3.6b: the spectral delay is not latency-compensated (its repeats are spaced by the
+        // set time), so its first echo arrives one FFT size late: 250 ms + fftSize, +/- 1 hop
+        // at the default FFT size (1024 -> hop 512).
+        check(RuinaeDelayType::Spectral, static_cast<double>(SpectralDelay::kDefaultFFTSize / 2),
+              static_cast<double>(SpectralDelay::kDefaultFFTSize));
+    }
+}
+
+namespace {
+
+/// Spectral delay through the chain (time `timeMs`, feedback 0.5, mix 1, nothing else in the
+/// chain): one click, then the positions of the first `count` echoes, counted from the click.
+/// Each echo is located by the x^2 energy centroid of the LEFT output (sub-sample) in a
+/// +/- grid/2 window around where it is expected: grid + fftSize for the first, one grid per
+/// repeat after it. Not a threshold onset: the frame read leaves a weak pre-echo about one frame
+/// early, and a threshold trips on it (ruling "T3.6b echo measure").
+std::vector<double> spectralEchoCentroids(double sampleRate, float timeMs, size_t count) {
+    const double grid = static_cast<double>(timeMs) * sampleRate / 1000.0;
+    const auto fftSize = static_cast<double>(SpectralDelay::kDefaultFFTSize);
+
+    RuinaeEffectsChain chain;
+    prepareChain(chain, sampleRate, kBlockSize);
+    chain.setDelayEnabled(true);
+    chain.setDelayMix(1.0f);
+    chain.setDelayFeedback(0.5f);
+    chain.setDelayTime(timeMs);
+    chain.setModulationType(ModulationType::None);
+    chain.setHarmonizerEnabled(false);
+    ReverbParams reverbParams;
+    reverbParams.mix = 0.0f;
+    chain.setReverbParams(reverbParams);
+    chain.setReverbEnabled(false);
+    chain.reset();
+    chain.setDelayType(RuinaeDelayType::Spectral);
+
+    // Silence until the type switch and every smoother have finished.
+    const auto settleSamples = static_cast<size_t>((timeMs / 1000.0f + 1.0f) * sampleRate);
+    std::vector<float> silenceL(kBlockSize, 0.0f);
+    std::vector<float> silenceR(kBlockSize, 0.0f);
+    for (size_t done = 0; done < settleSamples; done += kBlockSize) {
+        std::fill(silenceL.begin(), silenceL.end(), 0.0f);
+        std::fill(silenceR.begin(), silenceR.end(), 0.0f);
+        chain.processBlock(silenceL.data(), silenceR.data(), kBlockSize);
+    }
+    REQUIRE(chain.getActiveDelayType() == RuinaeDelayType::Spectral);
+
+    // Long enough for the last echo's whole window: (count + 1/2) grids + fftSize after the click.
+    const auto totalLen =
+        static_cast<size_t>((static_cast<double>(count) + 1.0) * grid + fftSize);
+    std::vector<float> left(totalLen, 0.0f);
+    std::vector<float> right(totalLen, 0.0f);
+    left[0] = 1.0f;
+    right[0] = 1.0f;
+    for (size_t pos = 0; pos < totalLen; pos += kBlockSize) {
+        const size_t n = std::min(kBlockSize, totalLen - pos);
+        chain.processBlock(left.data() + pos, right.data() + pos, n);
+    }
+
+    std::vector<double> centroids;
+    for (size_t k = 0; k < count; ++k) {
+        const double expected = grid + fftSize + static_cast<double>(k) * grid;
+        const auto lo = static_cast<size_t>(expected - grid / 2.0);
+        const auto hi = std::min(totalLen, static_cast<size_t>(expected + grid / 2.0) + 1);
+        double energy = 0.0;
+        double moment = 0.0;
+        for (size_t i = lo; i < hi; ++i) {
+            const double e = static_cast<double>(left[i]) * static_cast<double>(left[i]);
+            energy += e;
+            moment += e * static_cast<double>(i);
+        }
+        REQUIRE(energy > 0.0);  // an echo is present in the window
+        centroids.push_back(moment / energy);
+    }
+    return centroids;
+}
+
+} // anonymous namespace
+
+// T3.6b (R-160): the spectral delay's repeats are spaced by its base delay; its FFT latency
+// only offsets the first echo. T1.18 took that latency off the base delay, which pulled every
+// repeat ~1536 samples (one FFT size plus a hop) early, cumulatively. The chain now passes the
+// set time unchanged: each repeat lands within one hop of the set time after the previous one,
+// and the first echo sits a fixed fftSize late.
+TEST_CASE("RuinaeEffectsChain_SpectralRepeats_LandOnTheGrid", "[ruinae-fx][delay][timing]") {
+    const double sampleRate = GENERATE(48000.0, 44100.0);
+    const float timeMs = GENERATE(500.0f, 250.0f);  // 1/4 and 1/8 @ 120 BPM
+    CAPTURE(sampleRate, timeMs);
+    constexpr auto kFftSize = static_cast<double>(SpectralDelay::kDefaultFFTSize);
+    constexpr double kHop = kFftSize / 2.0;
+    const double grid = static_cast<double>(timeMs) * sampleRate / 1000.0;
+
+    const auto echoes = spectralEchoCentroids(sampleRate, timeMs, 3);
+    REQUIRE(echoes.size() == 3);
+    INFO("echo centroids " << echoes[0] << ", " << echoes[1] << ", " << echoes[2] << " (grid "
+         << grid << ", fftSize " << kFftSize << ")");
+
+    const double first = echoes[0];
+    CAPTURE(first - (grid + kFftSize));
+    CHECK(std::abs(first - (grid + kFftSize)) <= kHop / 2.0 + 128.0);
+    for (size_t k = 1; k < echoes.size(); ++k) {
+        const double spacing = echoes[k] - echoes[k - 1];
+        CAPTURE(k, spacing);
+        CHECK(std::abs(spacing - grid) <= kHop);
     }
 }
 
@@ -2952,4 +3054,43 @@ TEST_CASE("Delay lines cleared over several blocks replay no stale echo and echo
         CHECK(onset >= ms(kTimeMs - 0.5));
         CHECK(onset <= ms(kTimeMs + 0.5));
     }
+}
+
+// R-154 (fix plan T3.6a): the Tape delay added hiss with no input at Wear 0 and Age 0, so Ruinae never reached
+// digital silence with it enabled (probe silence:delay:Tape -98.2 dBFS RMS / -85.6 dBFS peak).
+TEST_CASE("Tape delay at Wear 0 Age 0 is silent with no input", "[effects-chain][tape]") {
+    RuinaeEffectsChain chain;
+    prepareChain(chain);
+    chain.setDelayEnabled(true);
+    chain.setDelayType(RuinaeDelayType::Tape);
+    chain.setDelayMix(1.0f);
+
+    SECTION("Wear and Age never set after prepare") {}
+    SECTION("Wear and Age set to 0 as the processor does") {
+        chain.setDelayTapeWear(0.0f);
+        chain.setDelayTapeAge(0.0f);
+    }
+
+    const auto total = static_cast<size_t>(2.0 * kSampleRate);
+    const auto skip = static_cast<size_t>(0.5 * kSampleRate);
+    std::vector<float> left(kBlockSize);
+    std::vector<float> right(kBlockSize);
+    double sum = 0.0;
+    size_t counted = 0;
+    float peak = 0.0f;
+    for (size_t done = 0; done < total; done += kBlockSize) {
+        std::fill(left.begin(), left.end(), 0.0f);
+        std::fill(right.begin(), right.end(), 0.0f);
+        chain.processBlock(left.data(), right.data(), kBlockSize);
+        for (size_t i = 0; i < kBlockSize; ++i) {
+            if (done + i < skip) continue;
+            sum += static_cast<double>(left[i]) * left[i] + static_cast<double>(right[i]) * right[i];
+            counted += 2;
+            peak = std::max({peak, std::abs(left[i]), std::abs(right[i])});
+        }
+    }
+    REQUIRE(chain.getActiveDelayType() == RuinaeDelayType::Tape);
+    const float rms = static_cast<float>(std::sqrt(sum / static_cast<double>(counted)));
+    INFO("RMS " << linearToDbFS(rms) << " dBFS, peak " << linearToDbFS(peak) << " dBFS");
+    REQUIRE(rms <= 1e-6f);
 }

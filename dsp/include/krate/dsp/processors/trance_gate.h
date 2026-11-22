@@ -465,14 +465,17 @@ private:
     }
 
     /// @brief Recalculate step duration from current params/tempo.
+    /// Rounded, not truncated (R-015): the tempo product is often an exact integer the double lands an ulp below
+    /// (50 BPM, dotted 1/4, 44.1 kHz is 79379.99999999999), and truncation lost a sample per step.
     void updateStepDuration() noexcept {
         if (params_.tempoSync) {
             const float beatsPerNote = getBeatsForNote(params_.noteValue, params_.noteModifier);
             const double secondsPerBeat = 60.0 / tempoBPM_;
-            samplesPerStep_ = static_cast<size_t>(secondsPerBeat * static_cast<double>(beatsPerNote) * sampleRate_);
+            samplesPerStep_ = static_cast<size_t>(
+                std::llround(secondsPerBeat * static_cast<double>(beatsPerNote) * sampleRate_));
         } else {
             const float clampedRate = std::clamp(params_.rateHz, kMinRateHz, kMaxRateHz);
-            samplesPerStep_ = static_cast<size_t>(sampleRate_ / static_cast<double>(clampedRate));
+            samplesPerStep_ = static_cast<size_t>(std::llround(sampleRate_ / static_cast<double>(clampedRate)));
         }
         // Ensure at least 1 sample per step
         samplesPerStep_ = std::max<size_t>(samplesPerStep_, 1);

@@ -3345,3 +3345,157 @@ TEST_CASE("SpectralDelay base delay range follows the prepared maximum", "[spect
         REQUIRE(delay.getBaseDelayMs() == Approx(SpectralDelay::kMaxDelayMs));
     }
 }
+
+// R-161 (Ruinae audit): the stereo-phase RNG was seeded from the object's address and reset() kept
+// drawing from the running stream, so two instances, or one instance before and after a reset,
+// rendered different audio at any stereo width.
+TEST_CASE("SpectralDelay renders deterministically across instances and resets",
+          "[spectral-delay][stereo][deterministic]") {
+    constexpr std::size_t kBlockSize = 512;
+    constexpr int kBlocks = 120;
+    const auto ctx = makeTestContext();
+
+    const auto configure = [](SpectralDelay& d) {
+        d.setFFTSize(1024);
+        d.prepare(44100.0, kBlockSize);
+        d.setBaseDelayMs(100.0f);
+        d.setSpreadMs(100.0f);
+        d.setFeedback(0.5f);
+        d.setDryWetMix(1.0f);
+        d.setStereoWidth(1.0f);
+        d.snapParameters();
+    };
+    const auto render = [&](SpectralDelay& d) {
+        std::vector<float> out;
+        out.reserve(2 * kBlockSize * kBlocks);
+        std::vector<float> left(kBlockSize);
+        std::vector<float> right(kBlockSize);
+        std::size_t n = 0;
+        for (int b = 0; b < kBlocks; ++b) {
+            for (std::size_t i = 0; i < kBlockSize; ++i, ++n) {
+                const float t = static_cast<float>(n) / 44100.0f;
+                left[i] = 0.3f * std::sin(6.28318530718f * 440.0f * t) +
+                          0.2f * std::sin(6.28318530718f * 1130.0f * t);
+            }
+            std::copy(left.begin(), left.end(), right.begin());
+            d.process(left.data(), right.data(), kBlockSize, ctx);
+            out.insert(out.end(), left.begin(), left.end());
+            out.insert(out.end(), right.begin(), right.end());
+        }
+        return out;
+    };
+    const auto maxDiff = [](const std::vector<float>& a, const std::vector<float>& b) {
+        float worst = 0.0f;
+        for (std::size_t i = 0; i < a.size(); ++i) worst = std::max(worst, std::abs(a[i] - b[i]));
+        return worst;
+    };
+
+    SpectralDelay first;
+    configure(first);
+    const auto reference = render(first);
+    float peak = 0.0f;
+    for (const float s : reference) peak = std::max(peak, std::abs(s));
+    REQUIRE(peak > 0.01f);  // the wet path sounds
+
+    SECTION("a second instance renders the same") {
+        SpectralDelay second;  // alive beside `first`: another address
+        configure(second);
+        const float diff = maxDiff(reference, render(second));
+        INFO("max sample difference " << diff);
+        REQUIRE(diff <= 1e-7f);
+    }
+    SECTION("the same instance renders the same after reset()") {
+        first.reset();
+        const float diff = maxDiff(reference, render(first));
+        INFO("max sample difference " << diff);
+        REQUIRE(diff <= 1e-7f);
+    }
+}
+
+// T3.6b (R-160, Ruinae audit): characterisation of the echo timing a tempo-synced host gets
+// when it passes the grid time to setBaseDelayMs unchanged. The first echo carries the FFT
+// latency (base + fftSize); the repeats are spaced by the base delay. The delay is read at the
+// nearest frame (documented design, no 75 % overlap), so every echo can sit up to about half a
+// hop off; one hop is the design limit, not a target to tighten.
+TEST_CASE("SpectralDelay synced echo spacing is within one hop of the grid", "[spectral-delay][sync]") {
+    constexpr std::size_t kFftSize = 1024;
+    constexpr double kHop = static_cast<double>(kFftSize) / 2.0;
+    constexpr std::size_t kBlock = 512;
+    constexpr std::size_t kEchoes = 3;
+
+    struct GridCase {
+        const char* name;
+        double beats;  // quarter notes
+        double tempo;
+    };
+    constexpr std::array<GridCase, 4> kCases{{
+        {"1/4 @ 120", 1.0, 120.0},
+        {"1/8 @ 120", 0.5, 120.0},
+        {"1/16 @ 120", 0.25, 120.0},
+        {"1/4 @ 90", 1.0, 90.0},
+    }};
+
+    for (const double sampleRate : {48000.0, 44100.0}) {
+        for (const auto& c : kCases) {
+            const double gridMs = c.beats * 60000.0 / c.tempo;
+            const double grid = gridMs * sampleRate / 1000.0;
+            CAPTURE(sampleRate, c.name, grid);
+
+            SpectralDelay d;
+            d.setFFTSize(kFftSize);
+            d.prepare(sampleRate, kBlock);
+            d.setBaseDelayMs(static_cast<float>(gridMs));
+            d.setSpreadMs(0.0f);
+            d.setFeedback(0.5f);
+            d.setDryWetMix(1.0f);
+            d.snapParameters();
+            auto ctx = makeTestContext(sampleRate);
+            ctx.tempoBPM = c.tempo;
+
+            // The click sits off the frame grid (at a frame start the analysis window is 0).
+            constexpr std::size_t kClickAt = 2 * kFftSize + 173;
+            // Long enough for the last echo's whole window: (kEchoes + 1/2) grids + fftSize.
+            const auto totalLen = kClickAt + static_cast<std::size_t>(
+                (static_cast<double>(kEchoes) + 1.0) * grid + static_cast<double>(kFftSize));
+            std::vector<float> left(totalLen, 0.0f);
+            std::vector<float> right(totalLen, 0.0f);
+            left[kClickAt] = 1.0f;
+            right[kClickAt] = 1.0f;
+            for (std::size_t pos = 0; pos < totalLen; pos += kBlock) {
+                const std::size_t n = std::min(kBlock, totalLen - pos);
+                d.process(left.data() + pos, right.data() + pos, n, ctx);
+            }
+
+            // Each echo is located by the x^2 energy centroid (sub-sample) in a +/- grid/2 window
+            // around where it is expected (grid + fftSize after the click, then one grid per
+            // repeat). Not a threshold onset: the frame read leaves a weak pre-echo about one
+            // frame early, and a threshold trips on it.
+            std::vector<double> echoes;
+            for (std::size_t k = 0; k < kEchoes; ++k) {
+                const double expected = static_cast<double>(kClickAt) + grid +
+                                        static_cast<double>(kFftSize) + static_cast<double>(k) * grid;
+                const auto lo = static_cast<std::size_t>(expected - grid / 2.0);
+                const auto hi = std::min(totalLen, static_cast<std::size_t>(expected + grid / 2.0) + 1);
+                double energy = 0.0;
+                double moment = 0.0;
+                for (std::size_t i = lo; i < hi; ++i) {
+                    const double e = static_cast<double>(left[i]) * static_cast<double>(left[i]);
+                    energy += e;
+                    moment += e * static_cast<double>(i);
+                }
+                REQUIRE(energy > 0.0);  // an echo is present in the window
+                echoes.push_back(moment / energy - static_cast<double>(kClickAt));
+            }
+            INFO("echo centroids after the click " << echoes[0] << ", " << echoes[1] << ", " << echoes[2]);
+
+            const double first = echoes[0];
+            CAPTURE(first - (grid + static_cast<double>(kFftSize)));
+            CHECK(std::abs(first - (grid + static_cast<double>(kFftSize))) <= kHop / 2.0 + 128.0);
+            for (std::size_t k = 1; k < echoes.size(); ++k) {
+                const double spacing = echoes[k] - echoes[k - 1];
+                CAPTURE(k, spacing);
+                CHECK(std::abs(spacing - grid) <= kHop);
+            }
+        }
+    }
+}

@@ -230,10 +230,10 @@ public:
         // Snap smoothers to initial values
         snapParameters();
 
-        // Seed RNG with unique value per instance (address + sample rate)
-        // This ensures different instances produce different random sequences
-        rng_.seed(static_cast<uint32_t>(reinterpret_cast<uintptr_t>(this) ^
-                                        static_cast<uintptr_t>(sampleRate)));
+        // Seed the RNG from rngSeed_ (a constant unless seedRng() set one), never from
+        // the object's address: the same settings must render the same audio on
+        // every instance and every run (offline bounce, freeze, A/B).
+        rng_.seed(rngSeed_);
 
         // Phase buffers for stereo decorrelation (random walk approach) provide
         // smooth phase modulation without frame-boundary clicks. Initialize the
@@ -302,8 +302,10 @@ public:
         wasFrozen_ = false;
         freezeCrossfade_ = 0.0f;
 
-        // Re-randomize stereo phase state (random walk values)
-        // This ensures each reset produces new random starting phases
+        // Re-seed, then re-draw the stereo phase state (random walk values), so a
+        // reset restores the starting phases prepare() or seedRng() drew instead of
+        // drawing new ones from the running stream.
+        rng_.seed(rngSeed_);
         for (std::size_t i = 0; i < std::min(activeNumBins(), stereoPhaseL_.size()); ++i) {
             stereoPhaseL_[i] = (rng_.nextUnipolar() - 0.5f) * kPi;
             stereoPhaseR_[i] = (rng_.nextUnipolar() - 0.5f) * kPi;
@@ -333,11 +335,11 @@ public:
         return true;
     }
 
-    /// @brief Seed the internal RNG for deterministic testing
-    /// @param seed The seed value to use
-    /// @note This should only be called in tests to ensure reproducible results.
-    ///       After seeding, call reset() to reinitialize phase buffers.
+    /// @brief Seed the internal RNG (replaces the constant default seed)
+    /// @param seed The seed value to use; prepare() and reset() re-seed from it too
+    /// @note After seeding, call reset() to reinitialize phase buffers.
     void seedRng(uint32_t seed) noexcept {
+        rngSeed_ = seed;
         rng_.seed(seed);
         // Reinitialize stereo phase buffers with deterministic values
         for (std::size_t i = 0; i < std::min(activeNumBins(), stereoPhaseL_.size()); ++i) {
@@ -1179,8 +1181,11 @@ private:
     std::size_t maxBlockSize_ = 512;
     bool prepared_ = false;
 
-    // Random number generator for phase randomization (unique seed per instance)
-    Xorshift32 rng_{1};
+    // Random number generator for phase randomization. prepare() and reset() seed it
+    // from rngSeed_, so a render does not depend on the object's address.
+    static constexpr uint32_t kDefaultRngSeed = 0x5DE1A7u;
+    uint32_t rngSeed_ = kDefaultRngSeed;
+    Xorshift32 rng_{kDefaultRngSeed};
 
     // FFT Configuration
     std::size_t fftSize_ = kDefaultFFTSize;           ///< size in use

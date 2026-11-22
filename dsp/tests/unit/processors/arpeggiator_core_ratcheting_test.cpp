@@ -722,16 +722,16 @@ TEST_CASE("Swing applies to full step duration before subdivision",
 
     REQUIRE(noteOns.size() >= 4);
 
-    // Step 0 (even, lengthened): baseDuration * (1 + 0.5) = 11025 * 1.5 = 16537
-    // Swung step duration for even step = 16537
-    // subStepDuration = 16537 / 2 = 8268
+    // Step 0 (even, lengthened): round(baseDuration * (1 + 0.5)) = round(16537.5) = 16538
+    // Swung step duration for even step = 16538
+    // subStepDuration = 16538 / 2 = 8269
     int32_t step0onset = noteOns[0].sampleOffset;
     int32_t subStep1onset = noteOns[1].sampleOffset;
     int32_t swungSubStepDuration = subStep1onset - step0onset;
 
-    // Swung step duration = floor(11025 * 1.5) = 16537
-    // subStepDuration = 16537 / 2 = 8268
-    CHECK(swungSubStepDuration == 8268);
+    // Swung step duration = round(11025 * 1.5) = 16538 (R-106)
+    // subStepDuration = 16538 / 2 = 8269
+    CHECK(swungSubStepDuration == 8269);
 
     // Step 1 (odd, shortened): baseDuration * (1 - 0.5) = 11025 * 0.5 = 5512
     // Swung step duration for odd step = 5512
