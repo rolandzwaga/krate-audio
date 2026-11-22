@@ -53,6 +53,12 @@ constexpr std::size_t kStateV3Bytes = kStateV2Bytes + 4 /* float syncRate */
                                      + 4 /* float selfAffinity */;
 static_assert(kStateV3Bytes == 436, "spec FR-006: 428 + 4 * |R|, |R| = 2");
 
+/// R-205 (fix plan T1.39): a preset-browser load. The controller sends the whole
+/// component stream to the processor as the binary attribute kMsgAttrPresetBytes,
+/// and the processor's notify runs setState on it: one load path.
+inline constexpr const char* kMsgLoadPresetState = "LoadPresetState";
+inline constexpr const char* kMsgAttrPresetBytes = "bytes";
+
 /// FR-011. Freshly generated v4 GUIDs. NEVER reused, NEVER changed after release.
 /// Processor component ID - the audio processing component (runs on the audio
 /// thread).

@@ -21,8 +21,8 @@
 //     routes the session-tag controls (page strip, preset button) and captures
 //     the Gravity macro views (FR-043).
 //   - The PresetBrowserView overlay is built in didOpen and dropped in willClose;
-//     the preset providers save via IComponent::getState and load with host
-//     edits (FR-070 - FR-073).
+//     the preset providers save via IComponent::getState and load through the
+//     processor's setState plus host edits (FR-070 - FR-073, R-205).
 //   - IDependent observer of kResonanceAnchorModeId: the Gravity macro's label
 //     and tooltip show "inert" outside Hybrid (FR-080, FR-081). Display only.
 // ==============================================================================
@@ -125,7 +125,10 @@ public:
     /// The processor's own getState bytes via the host's IComponent; the caller
     /// owns the result (null when the host exposes no IComponent).
     [[nodiscard]] Steinberg::IBStream* createComponentStateStream();
+    /// The preset-browser load (R-205): sends the stream to the processor
+    /// (kMsgLoadPresetState, its setState runs on it), and mirrors it here as
     /// setComponentState with one begin/perform/end edit per restored value.
+    /// A rejected stream (no version word, a future version) reaches neither side.
     bool loadComponentStateWithEdits(Steinberg::IBStream* state);
 
     // Test seams

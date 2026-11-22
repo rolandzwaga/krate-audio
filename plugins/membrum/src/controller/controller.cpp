@@ -727,9 +727,10 @@ tresult PLUGIN_API Controller::initialize(FUnknown* context)
     // ==========================================================================
     // Phase 6 (T052..T056): create kit + per-pad PresetManager instances.
     // Two managers, two roots, two browsers. Both use the controller as their
-    // VST3 sync target; the processor pointer is left null because we operate
-    // entirely through controller params (kit/pad presets are flattened to
-    // parameter writes via state providers below).
+    // VST3 sync target; the processor pointer is left null: a kit load sends
+    // the blob to the processor ("LoadPresetState", the setState path), a pad
+    // load sends its blob ("LoadPadPreset", State::applyPadPresetSnapshot),
+    // and both mirror it into the params (see the load providers below).
     // ==========================================================================
     kitPresetManager_ = std::make_unique<Krate::Plugins::PresetManager>(
         kitPresetConfig(),
@@ -761,17 +762,12 @@ tresult PLUGIN_API Controller::initialize(FUnknown* context)
     padPresetManager_->setLoadProvider(
         [this](Steinberg::IBStream* stream,
                const Krate::Plugins::PresetInfo& info) -> bool {
-            // FR-042 / T054: per-pad load applies sound params only;
-            // outputBus and couplingAmount are preserved structurally because
-            // the per-pad preset blob does not carry them. After load, force
-            // a re-application of the affected pad's macros so the underlying
-            // params reflect both the just-loaded sound state and the user's
-            // current macro positions (calls macroMapper_.apply() in the
-            // processor via standard parameter-change events).
+            // FR-042 / FR-061: per-pad load applies sound params only; the
+            // pad keeps its routing, coupling, macros, enable state and pan.
+            // The processor's apply resyncs the pad's macro cache (R-203).
             const bool ok = padPresetLoadProvider(stream);
             padPresetLoadFailed_ = !ok;
             if (ok) {
-                triggerSelectedPadMacroReapply();
                 lastPadPresetName_ = info.name;
                 if (padInlineBrowser_)
                     padInlineBrowser_->setCurrentPresetName(info.name);
@@ -1001,29 +997,6 @@ void Controller::forwardGlobalToPad(ParamID globalId, ParamValue value)
             suppressProxyForward_ = false;
             return;
         }
-    }
-}
-
-void Controller::triggerSelectedPadMacroReapply()
-{
-    // T054: re-apply current macros to the selected pad after a per-pad
-    // preset load. Use beginEdit/performEdit/endEdit on each macro param so
-    // the processor sees a parameter-change event and invokes its MacroMapper
-    // for the selected pad. Setting to the same value still propagates the
-    // change through processParameterChanges() because VST3 host-mediated
-    // changes are not value-deduplicated.
-    const int pad = selectedPadIndex_;
-    const int macroOffsets[] = {
-        kPadMacroTightness, kPadMacroBrightness, kPadMacroBodySize,
-        kPadMacroPunch,     kPadMacroComplexity,
-    };
-    for (const auto& offset : macroOffsets)
-    {
-        const auto pid = static_cast<ParamID>(padParamId(pad, offset));
-        const ParamValue current = getParamNormalized(pid);
-        beginEdit(pid);
-        performEdit(pid, current);
-        endEdit(pid);
     }
 }
 

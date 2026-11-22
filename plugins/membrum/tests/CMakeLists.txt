@@ -140,6 +140,7 @@ add_executable(membrum_tests
     unit/ui/test_pad_grid_view.cpp
     unit/ui/test_pitch_envelope_display.cpp
     unit/preset/test_kit_uimode_roundtrip.cpp
+    unit/preset/test_kit_browser_load.cpp
     integration/test_editor_asan_lifecycle.cpp
 
     # Editor open/close lifecycle regression (willClose UAF guard) -- unlike the

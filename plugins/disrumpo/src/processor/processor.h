@@ -107,6 +107,10 @@ public:
     Steinberg::tresult PLUGIN_API disconnect(
         Steinberg::Vst::IConnectionPoint* other) override;
 
+    /// "LoadPresetState" (binary "bytes"): a preset-browser load. The bytes take the
+    /// setState path (loadState), on the message thread like setState (R-204).
+    Steinberg::tresult PLUGIN_API notify(Steinberg::Vst::IMessage* message) override;
+
     // ===========================================================================
     // IComponent
     // ===========================================================================
@@ -566,6 +570,12 @@ private:
 
     /// @brief Snapshot -> stream, in the layout getState has always written
     Steinberg::tresult writeState(const PendingState& s, Steinberg::IBStreamer& streamer) const;
+
+    /// @brief setState's whole load: parse, hand-off, apply. A host load adopts the
+    /// state's instance ID (@p adoptInstanceId); a preset-browser load keeps this
+    /// processor's own, since a preset names no instance and the controller stays
+    /// linked to this processor's display by it.
+    Steinberg::tresult loadState(Steinberg::IBStream* state, bool adoptInstanceId);
 
     /// @brief Stream sections after the globals -> snapshot. False when the stream
     /// ended before the band count (setState then stops, as it always did).

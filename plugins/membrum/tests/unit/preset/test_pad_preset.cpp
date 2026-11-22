@@ -15,18 +15,32 @@
 #include <catch2/catch_approx.hpp>
 
 #include "controller/controller.h"
+#include "processor/processor.h"
 #include "plugin_ids.h"
+#include "state/state_codec.h"
+#include "dsp/default_kit.h"
 #include "dsp/pad_config.h"
 #include "dsp/exciter_type.h"
 #include "dsp/body_model_type.h"
 #include "preset/membrum_preset_config.h"
 
 #include "public.sdk/source/common/memorystream.h"
+#include "public.sdk/source/vst/hosting/hostclasses.h"
 #include "pluginterfaces/base/ibstream.h"
+#include "pluginterfaces/vst/ivstaudioprocessor.h"
+#include "pluginterfaces/vst/ivsteditcontroller.h"
+#include "pluginterfaces/vst/ivstevents.h"
 
+#include "vst_param_changes.h"
+
+#include <algorithm>
 #include <array>
+#include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <memory>
+#include <utility>
+#include <vector>
 
 using namespace Steinberg;
 using namespace Steinberg::Vst;
@@ -382,4 +396,318 @@ TEST_CASE("Pad preset: subcategories match drum types",
     CHECK(cfg.subcategoryNames[5] == "Perc");
     CHECK(cfg.subcategoryNames[6] == "Tonal");
     CHECK(cfg.subcategoryNames[7] == "FX");
+}
+
+// ==============================================================================
+// One apply for pad presets (R-203, Ruinae audit fix plan T1.37)
+// ==============================================================================
+// A pad-preset browser load used to reach the processor only as performEdits
+// from a controller-side copy of State::applyPadPresetSnapshot. That copy
+// overwrote the target pad's enabled flag and pan (FR-061 keeps both) and
+// never delivered noiseLayerGain (it has no ParamID). These cases pin the
+// browser route to State::applyPadPresetSnapshot.
+// ==============================================================================
+
+namespace {
+
+constexpr int32  kPpBlockSize  = 256;
+constexpr double kPpSampleRate = 48000.0;
+
+// A host's component handler: records every performEdit the controller sends,
+// so the test can forward them to the processor as a host would.
+class PpRecordingHandler final : public IComponentHandler
+{
+public:
+    std::vector<std::pair<ParamID, ParamValue>> edits;
+
+    tresult PLUGIN_API beginEdit(ParamID /*id*/) override { return kResultOk; }
+    tresult PLUGIN_API performEdit(ParamID id, ParamValue value) override
+    {
+        edits.emplace_back(id, value);
+        return kResultOk;
+    }
+    tresult PLUGIN_API endEdit(ParamID /*id*/) override { return kResultOk; }
+    tresult PLUGIN_API restartComponent(int32 /*flags*/) override { return kResultOk; }
+
+    tresult PLUGIN_API queryInterface(const TUID iid, void** obj) override
+    {
+        if (FUnknownPrivate::iidEqual(iid, IComponentHandler::iid) ||
+            FUnknownPrivate::iidEqual(iid, FUnknown::iid))
+        {
+            *obj = static_cast<IComponentHandler*>(this);
+            return kResultOk;
+        }
+        *obj = nullptr;
+        return kNoInterface;
+    }
+    // Owned by the test: reference counting is a no-op.
+    uint32 PLUGIN_API addRef() override { return 1; }
+    uint32 PLUGIN_API release() override { return 1; }
+};
+
+std::unique_ptr<Membrum::Processor> makePpProcessor(FUnknown* context)
+{
+    auto proc = std::make_unique<Membrum::Processor>();
+    REQUIRE(proc->initialize(context) == kResultOk);
+    ProcessSetup setup{};
+    setup.processMode = kRealtime;
+    setup.symbolicSampleSize = kSample32;
+    setup.maxSamplesPerBlock = kPpBlockSize;
+    setup.sampleRate = kPpSampleRate;
+    REQUIRE(proc->setupProcessing(setup) == kResultOk);
+    REQUIRE(proc->setActive(true) == kResultOk);
+    return proc;
+}
+
+void processPpBlock(Membrum::Processor& proc, IParameterChanges* changes)
+{
+    std::array<float, kPpBlockSize> outL{};
+    std::array<float, kPpBlockSize> outR{};
+    std::array<float*, 2> chans{outL.data(), outR.data()};
+    AudioBusBuffers bus{};
+    bus.numChannels = 2;
+    bus.channelBuffers32 = chans.data();
+
+    ProcessData data{};
+    data.processMode = kRealtime;
+    data.symbolicSampleSize = kSample32;
+    data.numSamples = kPpBlockSize;
+    data.numOutputs = 1;
+    data.outputs = &bus;
+    data.inputParameterChanges = changes;
+    proc.process(data);
+}
+
+std::vector<char> ppStreamBytes(MemoryStream& stream)
+{
+    const auto size = static_cast<std::size_t>(stream.getSize());
+    const char* data = stream.getData();
+    return std::vector<char>(data, data + size);
+}
+
+std::vector<char> ppProcessorStateBytes(Membrum::Processor& proc)
+{
+    MemoryStream stream;
+    REQUIRE(proc.getState(&stream) == kResultOk);
+    return ppStreamBytes(stream);
+}
+
+Membrum::State::KitSnapshot ppProcessorKit(Membrum::Processor& proc)
+{
+    const auto bytes = ppProcessorStateBytes(proc);
+    MemoryStream stream(const_cast<char*>(bytes.data()),
+                        static_cast<TSize>(bytes.size()));
+    Membrum::State::KitSnapshot kit;
+    REQUIRE(Membrum::State::readKitBlob(&stream, kit) == kResultOk);
+    return kit;
+}
+
+std::vector<char> ppKitBytes(const Membrum::State::KitSnapshot& kit)
+{
+    MemoryStream stream;
+    REQUIRE(Membrum::State::writeKitBlob(&stream, kit) == kResultOk);
+    return ppStreamBytes(stream);
+}
+
+std::vector<char> ppPadPresetBytes(const Membrum::State::PadPresetSnapshot& preset)
+{
+    MemoryStream stream;
+    REQUIRE(Membrum::State::writePadPresetBlob(&stream, preset) == kResultOk);
+    return ppStreamBytes(stream);
+}
+
+constexpr int kPpTargetPad = 3;
+
+// The kit both sides start from: the default kit, with the target pad selected,
+// disabled, panned hard left, an explicit body damping (not the -1 sentinel),
+// noiseLayerGain 1.0 and non-neutral macros.
+Membrum::State::KitSnapshot ppStartKit()
+{
+    std::array<Membrum::PadConfig, Membrum::kNumPads> pads;
+    Membrum::DefaultKit::apply(pads);
+    Membrum::State::KitSnapshot kit;
+    for (int i = 0; i < Membrum::kNumPads; ++i)
+        kit.pads[static_cast<std::size_t>(i)] =
+            Membrum::State::toPadSnapshot(pads[static_cast<std::size_t>(i)]);
+    kit.selectedPadIndex = kPpTargetPad;
+
+    auto& target = kit.pads[kPpTargetPad];
+    target.sound[51] = 0.0;   // enabled: off
+    target.sound[56] = 0.0;   // pan: hard left
+    target.sound[42] = 0.4;   // bodyDampingB1: explicit
+    target.sound[43] = 0.3;   // bodyDampingB3: explicit
+    target.sound[57] = 1.0;   // noiseLayerGain
+    target.macros = {0.3, 0.7, 0.6, 0.4, 0.55};
+    return kit;
+}
+
+// A pad preset from another pad's sound, storing enabled = 1, pan centre,
+// the body-damping sentinel and a noiseLayerGain of 3.0.
+Membrum::State::PadPresetSnapshot ppPreset()
+{
+    std::array<Membrum::PadConfig, Membrum::kNumPads> pads;
+    Membrum::DefaultKit::apply(pads);
+    auto preset = Membrum::State::toPadPresetSnapshot(pads[1]);
+    preset.sound[0]  = 0.25;  // material
+    preset.sound[51] = 1.0;   // enabled
+    preset.sound[56] = 0.5;   // pan: centre
+    preset.sound[42] = -1.0;  // bodyDampingB1: sentinel
+    preset.sound[43] = -1.0;  // bodyDampingB3: sentinel
+    preset.sound[57] = 3.0;   // noiseLayerGain
+    return preset;
+}
+
+// A connected Controller + Processor pair, as a host wires them, both loaded
+// with ppStartKit() through the host path.
+struct PadPresetPair
+{
+    HostApplication host;
+    PpRecordingHandler handler;
+    std::unique_ptr<Membrum::Processor> proc;
+    Membrum::Controller controller;
+
+    PadPresetPair()
+    {
+        proc = makePpProcessor(&host);
+        REQUIRE(controller.initialize(&host) == kResultOk);
+        controller.setComponentHandler(&handler);
+        controller.connect(static_cast<IConnectionPoint*>(
+            static_cast<AudioEffect*>(proc.get())));
+        proc->connect(static_cast<IConnectionPoint*>(
+            static_cast<EditControllerEx1*>(&controller)));
+
+        const auto kit = ppKitBytes(ppStartKit());
+        {
+            MemoryStream stream(const_cast<char*>(kit.data()),
+                                static_cast<TSize>(kit.size()));
+            REQUIRE(proc->setState(&stream) == kResultOk);
+        }
+        {
+            MemoryStream stream(const_cast<char*>(kit.data()),
+                                static_cast<TSize>(kit.size()));
+            REQUIRE(controller.setComponentState(&stream) == kResultOk);
+        }
+        controller.setParamNormalized(
+            Membrum::kSelectedPadId, static_cast<double>(kPpTargetPad) / 31.0);
+        forwardEditsAndProcess();
+    }
+
+    ~PadPresetPair()
+    {
+        proc->disconnect(static_cast<IConnectionPoint*>(
+            static_cast<EditControllerEx1*>(&controller)));
+        controller.disconnect(static_cast<IConnectionPoint*>(
+            static_cast<AudioEffect*>(proc.get())));
+        controller.setComponentHandler(nullptr);
+        controller.terminate();
+        proc->setActive(false);
+        proc->terminate();
+    }
+
+    PadPresetPair(const PadPresetPair&) = delete;
+    PadPresetPair& operator=(const PadPresetPair&) = delete;
+
+    bool browserLoad(const std::vector<char>& bytes)
+    {
+        MemoryStream stream;
+        stream.write(const_cast<char*>(bytes.data()),
+                     static_cast<int32>(bytes.size()), nullptr);
+        stream.seek(0, IBStream::kIBSeekSet, nullptr);
+        return controller.padPresetLoadProvider(&stream);
+    }
+
+    // What a host does with the controller's performEdits: hand them to the
+    // processor in the next process() call.
+    void forwardEditsAndProcess()
+    {
+        Krate::Test::ParameterChanges changes;
+        for (const auto& [id, value] : handler.edits)
+            changes.addChange(id, value);
+        handler.edits.clear();
+        processPpBlock(*proc, &changes);
+    }
+};
+
+} // namespace
+
+TEST_CASE("Pad preset load keeps the target pad's enabled and pan",
+          "[membrum][presets][pad]")
+{
+    PadPresetPair pair;
+    const auto enabledId = static_cast<ParamID>(
+        Membrum::padParamId(kPpTargetPad, Membrum::kPadEnabled));
+    const auto panId = static_cast<ParamID>(
+        Membrum::padParamId(kPpTargetPad, Membrum::kPadPan));
+    REQUIRE(pair.controller.getParamNormalized(enabledId) == 0.0);
+    REQUIRE(pair.controller.getParamNormalized(panId) == 0.0);
+
+    REQUIRE(pair.browserLoad(ppPadPresetBytes(ppPreset())));
+    pair.forwardEditsAndProcess();
+
+    // The load did land (the sound changed) ...
+    const auto materialId = static_cast<ParamID>(
+        Membrum::padParamId(kPpTargetPad, Membrum::kPadMaterial));
+    CHECK(pair.controller.getParamNormalized(materialId) == Approx(0.25).margin(1e-6));
+
+    // ... but FR-061 keeps the pad's enable state and pan, in the controller
+    CHECK(pair.controller.getParamNormalized(enabledId) == 0.0);
+    CHECK(pair.controller.getParamNormalized(panId) == 0.0);
+
+    // ... and in the processor.
+    const auto kit = ppProcessorKit(*pair.proc);
+    CHECK(kit.pads[kPpTargetPad].sound[51] == 0.0);
+    CHECK(kit.pads[kPpTargetPad].sound[56] == 0.0);
+}
+
+TEST_CASE("Pad preset load applies noiseLayerGain", "[membrum][presets][pad]")
+{
+    PadPresetPair pair;
+    REQUIRE(ppProcessorKit(*pair.proc).pads[kPpTargetPad].sound[57] == 1.0);
+
+    REQUIRE(pair.browserLoad(ppPadPresetBytes(ppPreset())));
+    pair.forwardEditsAndProcess();
+
+    const auto kit = ppProcessorKit(*pair.proc);
+    CHECK(kit.pads[kPpTargetPad].sound[57] == Approx(3.0).margin(1e-6));
+}
+
+TEST_CASE("Browser pad load leaves the processor in the same state as applyPadPresetSnapshot",
+          "[membrum][presets][pad][state]")
+{
+    const auto preset = ppPreset();
+
+    PadPresetPair pair;
+    REQUIRE(pair.browserLoad(ppPadPresetBytes(preset)));
+    pair.forwardEditsAndProcess();
+
+    // Reference: the start kit with the target pad set by the processor-side
+    // helper, loaded through setState.
+    auto refKit = ppStartKit();
+    {
+        Membrum::PadConfig cfg;
+        Membrum::State::applyPadSnapshot(refKit.pads[kPpTargetPad], cfg);
+        Membrum::State::applyPadPresetSnapshot(preset, cfg);
+        refKit.pads[kPpTargetPad] = Membrum::State::toPadSnapshot(cfg);
+    }
+    auto reference = makePpProcessor(nullptr);
+    {
+        const auto bytes = ppKitBytes(refKit);
+        MemoryStream stream(const_cast<char*>(bytes.data()),
+                            static_cast<TSize>(bytes.size()));
+        REQUIRE(reference->setState(&stream) == kResultOk);
+    }
+    processPpBlock(*reference, nullptr);
+
+    const auto got = ppProcessorStateBytes(*pair.proc);
+    const auto want = ppProcessorStateBytes(*reference);
+    std::size_t firstDiff = 0;
+    while (firstDiff < std::min(got.size(), want.size()) &&
+           got[firstDiff] == want[firstDiff])
+        ++firstDiff;
+    INFO("browser-loaded state " << got.size() << " bytes, reference "
+         << want.size() << " bytes, first difference at byte " << firstDiff);
+    CHECK(got == want);
+
+    reference->setActive(false);
+    reference->terminate();
 }

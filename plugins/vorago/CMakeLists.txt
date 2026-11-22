@@ -64,6 +64,7 @@ smtg_add_vst3plugin(${PLUGIN_NAME}
     src/parameters/ghost_params.h
     src/parameters/life_params.h
     src/parameters/param_routes.h
+    src/parameters/state_migration.h
 
     # Prepare-time engine/reverb configuration (no DSP)
     src/engine/vorago_engine_config.h

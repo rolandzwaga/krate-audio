@@ -92,6 +92,16 @@ Verdict: C = CONFIRMED, P = PLAUSIBLE (verify first). Severity is the final seve
 | R-197 | `applyPresetSnapshot` parses the saved state a second time on the audio thread (`processor_state.cpp:316-363` mirrors `setState`'s parse prefix to skip to the voice routes, re-storing every parameter atomic) and uses none of it. Found by the parallel-paths sweep, 2026-11-21 | medium | C | T1.22a | 1 |
 | R-199 | `ArpeggiatorCore::fireStep` increments `swingStepCounter_` and then recomputes `currentStepDuration_` (also on the rest/tie/skip early returns), so step k lasts dur(k+1): free-run swing plays short-first (reverse) while `calculateGateDuration` (`arpeggiator_core.cpp:1005`) and ratchet sub-steps (`:1047`) are sized from dur(k) (Stab_Machine ratchets 2112/2112/462 in a 4686-sample step). Tests pin it (`arpeggiator_core_core_test.cpp` swing 50 % even=16537, odd=5512). Found by T1.31, 2026-11-21 | high | C (measured) | T1.31 | 1 |
 | R-198 | The "reset what is playing" sequence (engine reset, arp reset, the three note ledgers, MIDI-out flush flag) is written out twice: `Processor::setActive` (`processor.cpp:265-273`) and `applyPresetSnapshot` (`processor_state.cpp:368-375`). T1.7 had to add the flush to both. Found by the parallel-paths sweep, 2026-11-21 | medium | C | T1.22a | 1 |
+| R-200 | Innexus: the preset browser's load provider (`innexus/src/controller/controller.cpp:903-907`) runs a second hand-written parser, `loadComponentStateWithNotify` (`controller_presets.cpp:113-354`), that has drifted from `setComponentState` (`controller_state.cpp:57-545`), and `Processor::setState` (`processor_state.cpp:254-723`) never runs. Skipped: global ADSR (9 params, `controller_presets.cpp:341-346`), everything after Partial Count (`:349-353`: mod tempo sync, voice mode, physical model, impact exciter, waveguide, bow, body, sympathetic: about 27 params), the sample load/clear (`processor_state.cpp:284-299`), residual frames (`:314-392`), the 8 memory-slot snapshots (`:436-506`), evolution waypoints (`:565`), per-slot ADSR (`:609-631`). Found by the 8-plugin load-path check, 2026-11-22 | high | C | T1.35 | 1 |
+| R-201 | Innexus: both controller parsers skip the Mod 1/2 tempo-sync and note-value params (`controller_state.cpp:405-412`) although they are registered (`plugin_ids.h:106-107`) and the processor restores them, so after a host load those controls show the wrong values. Found 2026-11-22 | medium | C | T1.35 | 1 |
+| R-202 | Membrum kit presets: the browser provider (`membrum/src/controller/controller.cpp:741-752` → `controller_state.cpp:119-160`) parses with the shared `State::readKitBlob` but applies through a controller ParamID copy of `State::applyPadSnapshot` (`controller_state_codec.cpp:183-272, 368-401`) and performEdit; `Processor::setState` never runs. Skipped: the voice flush `resetAllVoicesForKitSwitch` (`processor.cpp:920`, the "tonal beep" fix), the coupling flush (`:958-960`, the "infinite ring" fix), each pad's `noiseLayerGain` (`sound[57]`, no ParamID, `state_codec.cpp:243`), the bodyDamping -1 sentinel (`controller_state_codec.cpp:263-268` vs `state_codec.cpp:213-222`), the macro cache resync (`processor.cpp:992-995`). Found 2026-11-22 | high | C | T1.36 | 1 |
+| R-203 | Membrum pad presets: the browser provider (`controller.cpp:761-780` → `controller_state.cpp:187-212`) applies through a duplicate in `controller_state_codec.cpp:274-324`; the processor helper `State::applyPadPresetSnapshot` (`state_codec.cpp:276-358`) has no production caller. The duplicate drops `noiseLayerGain`, overwrites the target pad's `enabled` (slot 51) and `pan` (slot 56) that FR-061 keeps (its filter `snapIndex >= kPresetSoundSize` never fires; comments at `controller_state_codec.cpp:305-308` and `controller_state.cpp:173-176` are stale), skips the damping sentinel, and its macro reapply (`controller.cpp:1007-1028`) is a no-op because `MacroMapper::apply` returns early (`macro_mapper.cpp:71-78`). Found 2026-11-22 | medium | C | T1.37 | 1 |
+| R-204 | Disrumpo: the browser provider (`disrumpo/src/controller/controller.cpp:130-134` → `:2108-2131`) replays the shared controller parser with performEdit; `Processor::setState` (`processor_state.cpp:468-596`) never runs. The per-type shape shadow storage (26 types × 10 slots per node, not parameters, `processor_state.cpp:1042-1054`, applied `:1223`) reaches only the controller's `shapeShadowStorage_` (`controller.cpp:630-638`); the processor keeps the previous patch's shadows for every non-current type, a node-type change by automation then loads stale slots (`processor_params.cpp:567-580`), and a project save writes them (`processor_state.cpp:438-441`). The browser's Save uses a hand-written controller serializer (`controller.cpp:1898-2097`) instead of the state the processor writes. Found 2026-11-22 | medium | C | T1.38 | 1 |
+| R-205 | Vorago: the browser provider (`vorago/src/controller/controller.cpp:118-126` → `loadComponentStateWithEdits` `:148-158` → `applyStateStream` `:178-258`) is controller-only; `Processor::setState` (`processor.cpp:582-665`) never runs, so notes held by the latch or the sustain pedal keep sounding after a browser load (`latchReleasePending_` `:663` → `latch_.releaseAll` `:350-352`; sustain and channel pressure reset `:659-660`). Old-state migration is written twice (processor `:606-657`, controller `:216-255`). Found 2026-11-22 | low | C | T1.39 | 1 |
+| R-206 | Gradus: the browser provider (`gradus/src/controller/controller.cpp:87-91` → `controller_presets.cpp:108-135` → `loadFullState`) is controller-only; `Processor::setState` (`processor.cpp:486-537`) never runs. Differences: operating mode (setState forces MIDI, `:518`; the browser replays the stored value), ratchet shuffle (setState keeps any value in 50-75, `arpeggiator_params.h:2311-2312`; the browser snaps to 50/66.67/75, `:2807-2814`), clamps on ratchet decay, strum time, lane swings and speeds. Speed curves have two writers on every host load (setState bakes them, `processor.cpp:520-532`; `setComponentState` resends `SpeedCurveTable`), and every sequencer note-lane param is also sent as a `SeqNoteLaneParam` message (`controller_view_sync.cpp:59-61`, `processor.cpp:551-568`). Found 2026-11-22 | low | C | T1.40 | 1 |
+| R-207 | Gradus: speed-curve depth for lanes 0-7 reaches the engine only through the `SpeedCurveTable` message (`processor.cpp:584-590`), whose depth comes from the editor knob (`controller.cpp:501-509`); `setState` loads the depths (`arpeggiator_params.h:2446-2453`) but never passes them to the engine. With the editor closed the knobs are null and depth 0.0 is sent, and opening the editor does not resend it, so after a project reload the engine plays depth 0.0 until the user touches a speed-curve control. Found 2026-11-22 | medium | P | T1.40 | 1 |
+| R-208 | Gradus: the depth knobs are in UI lane order (Cond before Ratchet, `controller_verify_view.cpp:969-980`) while the stream and engine use Ratchet-then-Cond (`processor.cpp:871-872`); `sendSpeedCurveTable(laneIdx)` may read the wrong knob for lanes 4 and 5. Found 2026-11-22 | medium | P | T1.40 | 1 |
+| R-209 | Iterum: the browser provider (`iterum/src/controller/controller.cpp:232-236` → `loadComponentStateWithNotify` `:1343-1395`) is a controller-only parameter replay; `Processor::setState` (`processor.cpp:391-425`) never runs. No observable difference today (setState only stores parameters), but any future non-parameter field, reset or version gate would apply on host loads only. Found 2026-11-22 | low | C | T1.41 | 1 |
 | R-121 | Mono portamento time overwritten by arp slide time | high | C | T1.12 | 1 |
 | R-119 | Poly/Mono and polyphony tests assert nothing | high | C | T1.9 | 1 |
 | R-118 | No test for SpectralFreeze after reset | high | C | T1.15 | 1 |
@@ -836,6 +846,141 @@ Consequences of the browser path:
 3–6. **Build:** `ruinae_tests Ruinae dsp_primitives_tests` + consumers. **Gate:** matching (the `[performance]` case is excluded by the filter); then the CPU lane alone. pluginval: yes. clang-tidy: `dsp`, `ruinae`. Commit.
 
 **Acceptance:** generation-counter case passes; CPU-lane case passes (baseline 270–650 µs per block).
+
+---
+## Phase 1b — one preset-load path in every plugin (T1.35–T1.41, added 2026-11-22)
+
+**Origin.** After T1.22a (R-196) the user ordered a read-only check of the other eight plugins' preset-browser load routes, and on 2026-11-22: "if the read-only check yields results, add them to the fix-plan and fix them, after that continue with the remaining phases". Findings R-200 to R-209. Seraphis and Profundum already have one path and get no task. These tasks work outside `plugins/ruinae/`: each section names its plugin; read that plugin's leaf `CLAUDE.md` first. The `Scope` paragraph above (Ruinae only) does not limit them.
+
+**Reference implementations (read one before starting):**
+- Ruinae (T1.22a): `ruinae/src/controller/controller_presets.cpp` `loadComponentStateWithNotify` → message `"LoadPresetState"` (binary `"bytes"`) → `ruinae/src/processor/processor_messaging.cpp` → `loadStateBytes`, the function `setState` also calls. Tests: `ruinae/tests/unit/controller/preset_browser_test.cpp` (`"Browser load leaves the processor in the same state as a host load"`).
+- Profundum: `profundum/src/controller/controller.cpp` `loadPresetStream` → `kMsgLoadPresetState` → `processor.cpp` `notify` → `setState(stream)`. Tests: `profundum/tests/integration/preset_browser_test.cpp` (`Profundum_LoadPresetStateMessage`, `Profundum_ControllerLoadPresetStream`).
+- Seraphis: `seraphis/src/controller/controller.cpp` `loadComponentStateWithNotify` / `sendPresetStateMessage` → `processor.cpp` edit kind 8 → `setState`.
+
+**The canonical shape every task below implements:**
+1. The browser load provider reads the preset stream into bytes once (an `IBStream` may not seek), checks the version exactly as the controller's `setComponentState` does, and sends one `IMessage` `"LoadPresetState"` with the binary attribute `"bytes"` to the processor.
+2. The processor's `notify` wraps the bytes in a `MemoryStream` and calls its own `setState` (or the one function `setState` delegates to). One parser, one apply, one reset sequence. It runs on the message thread, exactly like `setState`; nothing new happens on the audio thread.
+3. The controller mirrors the same bytes through the SAME parse function its `setComponentState` uses (one controller parser; a second hand-written copy is deleted), with `beginEdit` / `performEdit` / `endEdit` per value so the host gets automation, undo and the dirty flag. These values equal what the processor already holds.
+4. Remove what the old route made redundant (a second parser, per-field messages that `setState` now covers). Remove only what this change orphans.
+5. State format, factory presets and goldens do not change: no version bump, no regeneration.
+
+**Shared test (every task; it must fail on the current tree):** `TEST_CASE("Browser load leaves the processor in the same state as a host load", "[<plugin>][presets][state]")`.
+- Setup: a connected Controller + Processor pair. Reuse the plugin's own `IConnectionPoint` shim, or copy Ruinae's or Profundum's.
+- Run: load preset A, then preset B, through the browser provider. Forward every `performEdit` the controller sent to the processor as one `IParameterChanges` block and process one block (this is what a host does). On a second, fresh processor, load B through `setState` and process one block.
+- REQUIRE: both processors' `getState` bytes are identical.
+- A and B must differ in every field the section lists as skipped.
+
+Each section also adds the observable test(s) it names. Gate: that plugin's test executable, plus the consumers `node tools/header-consumers.js` names when shared code changes. pluginval: that plugin. clang-tidy: `-Target <plugin>`.
+
+### T1.35 — Innexus: a browser load runs the processor's setState; one controller parser (R-200, R-201)
+
+**Flags:** plugin Innexus (`plugins/innexus/`). **Estimate:** 300 min. **Prerequisites:** none.
+
+1. **Failing tests** (`innexus_tests`; find the plugin's preset-browser or controller-state test file with Grep and add there):
+   - The shared test. A and B differ in global ADSR, voice mode, one impact-exciter, one waveguide, one bow, one body and one sympathetic param, Mod 1 tempo sync, one memory-slot snapshot and one per-slot ADSR value.
+   - `TEST_CASE("Browser load shows the preset's values in the controller", "[innexus][presets][state]")`: after a browser load of B, `getParamNormalized` for every parameter registered in `plugin_ids.h` equals its value after `setComponentState(B)` on a fresh controller.
+   - `TEST_CASE("Host load restores Mod 1/2 tempo sync and note value in the controller", "[innexus][state]")` (R-201): `setComponentState` with non-default Mod 1/2 Sync and Note Value; REQUIRE that `getParamNormalized` returns them.
+2. **Fix:**
+   - Canonical shape steps 1-2: `controller.cpp:903-907` provider → message → processor `notify` → `setState`.
+   - Step 3: move the body of `Controller::setComponentState` (`controller_state.cpp:57-545`) into one parse function that takes a value setter. `setComponentState` passes `setParamNormalized`; the browser route passes the `editParamWithNotify` (performEdit) setter. Delete the second parser in `controller_presets.cpp:113-354`.
+   - R-201: the one parser reads the Mod 1/2 tempo-sync and note-value fields where the processor writes them (`processor_state.cpp:637-645`) and sets their params.
+   - Sample, residual and memory-slot data: these are loaded by the processor's `setState`, as on a host load. The old comment at `controller_presets.cpp:144` (skip the sample path) no longer applies: a browser load now behaves like a host load, including the stored sample. Say so in the CHANGELOG's next unreleased entry (Innexus `CHANGELOG.md`; do not bump `version.json`).
+3–6. **Build:** `innexus_tests Innexus`. **Gate:** `innexus_tests`. pluginval: Innexus. clang-tidy: `innexus`.
+
+**Acceptance:** the three cases pass; one controller parser remains (grep: `loadComponentStateWithNotify` no longer parses fields itself).
+
+### T1.36 — Membrum kit presets: a browser load runs the processor's setState (R-202)
+
+**Flags:** plugin Membrum (`plugins/membrum/`). **Estimate:** 180 min. **Prerequisites:** none.
+
+1. **Failing tests** (`membrum_tests`, `tests/unit/preset/`):
+   - The shared test, using the kit provider. A and B are two kits that differ in at least one pad's `noiseLayerGain`, an explicit B1/B3 body damping versus the -1 sentinel, macros and the coupling matrix.
+   - `TEST_CASE("Browser kit load silences the previous kit's voices and coupling", "[membrum][presets][kit]")`: trigger pads of kit A and keep them sounding; browser-load kit B; REQUIRE that the next block is as silent as after a host `setState(B)` at the same point (same RMS within 1e-6). This is the "tonal beep" and "infinite ring" fix that `processor.cpp:913-957` documents.
+2. **Fix:**
+   - Canonical shape: the `kitPresetManager_` provider (`controller.cpp:741-752`) sends `"LoadPresetState"`; the processor's `notify` runs `setState`, so `readKitBlob`, `applyPadSnapshot`, the voice and coupling flushes and the macro cache resync each run once.
+   - The controller mirror keeps `ControllerState::applySnapshot` (it is the parser `setComponentState` uses) with performEdit.
+   - Keep FR-052: the selected pad index is not changed by a kit load (`controller_state.cpp:154-156`). Check that the processor's `setState` honours it too; if it does not, the processor must keep the current selection on a browser load, the same as the controller does.
+   - Kit preset files and the component state: if the kit-preset stream is not byte-compatible with what `setState` reads, the message carries a flag and the processor calls the shared kit-blob reader plus the same apply / flush function `setState` uses (extract it). Never a second apply.
+3–6. **Build:** `membrum_tests Membrum`. **Gate:** `membrum_tests`. pluginval: Membrum. clang-tidy: `membrum`.
+
+**Acceptance:** both cases pass.
+
+### T1.37 — Membrum pad presets: one apply function, FR-061 kept (R-203)
+
+**Flags:** plugin Membrum. **Estimate:** 180 min. **Prerequisites:** T1.36.
+
+1. **Failing tests** (`membrum_tests`, `tests/unit/preset/test_pad_preset.cpp`):
+   - `TEST_CASE("Pad preset load keeps the target pad's enabled and pan", "[membrum][presets][pad]")`: the target pad is disabled and panned hard left; load a pad preset that stores enabled = 1 and pan centre; REQUIRE that the pad is still disabled and hard left in the controller and in the processor (FR-061).
+   - `TEST_CASE("Pad preset load applies noiseLayerGain", "[membrum][presets][pad]")`: REQUIRE that the processor's pad config `noiseLayerGain` equals the preset's.
+   - `TEST_CASE("Browser pad load leaves the processor in the same state as applyPadPresetSnapshot", "[membrum][presets][pad][state]")`: the processor's `getState` after the browser route equals the state of a processor whose pad was set by `State::applyPadPresetSnapshot` with the same blob.
+2. **Fix:**
+   - The `padPresetManager_` provider (`controller.cpp:761-780`) sends `"LoadPadPreset"` (binary `"bytes"`, int `"pad"`).
+   - The processor's `notify` parses with `readPadPresetBlob` and applies with `State::applyPadPresetSnapshot` (`state_codec.cpp:276-358`, today used only by a test), using the same thread hand-off `setState` uses for pad data. That makes it the one apply.
+   - Controller mirror: fix the slot filter in `controller_state_codec.cpp:274-324` so that the slots `applyPadPresetSnapshot` skips (`enabled` 51, `pan` 56, per `state_codec.h:100`) are skipped here too. Fix the stale comments at `:305-308` and `controller_state.cpp:173-176`.
+   - The no-op macro reapply (`controller.cpp:764-770`, `:1007-1028`): if `applyPadPresetSnapshot` already sets the pad's macros and the processor's apply invalidates the macro cache, remove the reapply call. Otherwise invalidate the cache in the processor apply. Either way the macro values end where a host load would put them.
+3–6. **Build / Gate / pluginval / tidy:** as T1.36.
+
+**Acceptance:** the three cases pass.
+
+### T1.38 — Disrumpo: a browser load runs the processor's setState; shape shadows reach the processor (R-204)
+
+**Flags:** plugin Disrumpo (`plugins/disrumpo/`). **Estimate:** 180 min. **Prerequisites:** none.
+
+1. **Failing tests** (`disrumpo_tests`, `tests/unit/controller/preset_integration_test.cpp` or the browser test file):
+   - The shared test. A and B differ in the shape shadow of a node type that is not the current type, on at least two bands.
+   - `TEST_CASE("Node type automation after a browser load uses the preset's shape shadow", "[disrumpo][presets][state]")`: browser-load B, then change a node's type through an `IParameterChanges` block only (no controller). REQUIRE that the processor's shape slots for that node equal B's stored shadow for the new type.
+   - `TEST_CASE("Browser save after a browser load writes the processor's state", "[disrumpo][presets][state]")`: after a browser load of B, REQUIRE that the bytes the browser's Save writes (`createComponentStateStream` or the provider at `controller.cpp:1898-2097`) equal the processor's `getState` bytes.
+2. **Fix:**
+   - Canonical shape: provider `controller.cpp:130-134` → `"LoadPresetState"` → `setState` (`processor_state.cpp:468-596`).
+   - The controller mirror keeps `parseComponentState` / `parseStateTrailer` with the performEdit setter.
+   - If the save test is red after the load fix, make the controller's serializer write what `getState` writes, field for field. Name each difference in deviations.
+   - Per-preset MIDI mappings (controller chunk, `controller.cpp:794-821`) are not part of a preset: no change.
+3–6. **Build:** `disrumpo_tests Disrumpo`. **Gate:** `disrumpo_tests`. pluginval: Disrumpo. clang-tidy: `disrumpo`.
+
+**Acceptance:** the three cases pass.
+
+### T1.39 — Vorago: a browser load runs the processor's setState; one migration (R-205)
+
+**Flags:** plugin Vorago (`plugins/vorago/`). **Estimate:** 150 min. **Prerequisites:** none.
+
+1. **Failing tests** (`vorago_tests`, `tests/integration/preset_browser_test.cpp`):
+   - The shared test.
+   - `TEST_CASE("Browser load releases latched and sustained notes", "[vorago][presets][state]")`: hold notes with the latch on and with the sustain pedal down; browser-load another preset; REQUIRE that within the next block every held note is released, as after a host `setState`.
+   - Keep the existing requirement that sustain is not sent as a parameter edit (`preset_browser_test.cpp:245, 388`).
+   - `TEST_CASE("Old-version state migrates the same in controller and processor", "[vorago][state]")`: for each older state version in the test fixtures, the controller's parameter values after `setComponentState` equal the processor's after `setState` (compare normalized values).
+2. **Fix:**
+   - Canonical shape: provider `controller.cpp:118-126` → `"LoadPresetState"` → `setState` (`processor.cpp:582-665`).
+   - Migration: move the version migration into one function in a state header that is neither processor nor controller, the way Membrum's `state_codec` is shared. Processor `:606-657` and controller `:216-255` both call it. No processor/controller cross-include.
+3–6. **Build:** `vorago_tests Vorago`. **Gate:** `vorago_tests`. pluginval: Vorago. clang-tidy: `vorago`.
+
+**Acceptance:** the three cases pass; one migration function.
+
+### T1.40 — Gradus: a browser load runs the processor's setState; one writer for speed curves; depth reaches the engine (R-206, R-207, R-208)
+
+**Flags:** plugin Gradus (`plugins/gradus/`). The Gradus-local `loadArpParams`, separate from Ruinae's, is intentional and stays. **Estimate:** 240 min. **Prerequisites:** none.
+
+1. **Failing tests** (`gradus_tests`):
+   - The shared test. A and B differ in ratchet shuffle (B stores 58), operating mode, ratchet decay, strum time, lane swing and speed, and speed-curve tables and depths.
+   - R-207 (PLAUSIBLE, verify first): `TEST_CASE("Host load applies speed-curve depth without the editor", "[gradus][state]")`: a processor alone (no controller) runs `setState` with lane depths of 0.7; REQUIRE that the arp core uses 0.7 for each lane (read it through the core's accessor or measure the effect on step timing).
+   - R-208 (PLAUSIBLE, verify first): `TEST_CASE("Speed-curve message carries each lane's own depth", "[gradus][controller]")`: with the editor's knobs set to distinct depths per lane, `sendSpeedCurveTable(lane)` for the Ratchet and Condition lanes sends that lane's depth.
+2. **Fix:**
+   - Canonical shape: provider `controller.cpp:87-91` → `"LoadPresetState"` → `setState` (`processor.cpp:486-537`). The controller mirror keeps `loadFullState` with performEdit.
+   - R-207: `setState` passes the loaded depths to the engine with the tables (`processor.cpp:520-532`). The `SpeedCurveTable` message stays for edits the user makes in the editor; a load (host or browser) no longer sends it. The processor's `setState` is the one writer on loads.
+   - R-208: if the test is red, map the knob array to the stream / engine lane order in one place.
+   - `SeqNoteLaneParam` (`controller_view_sync.cpp:59-61`): if every sequencer note-lane value already reaches the processor through `processParameterChanges` and `setState`, the message is a second writer. Remove it and its handler. If it carries anything the parameter does not, keep it, and say what in deviations.
+3–6. **Build:** `gradus_tests Gradus`. **Gate:** `gradus_tests`. pluginval: Gradus. clang-tidy: `gradus`.
+
+**Acceptance:** the shared case passes; R-207 / R-208 are red-then-green or recorded as refuted with the passing line.
+
+### T1.41 — Iterum: a browser load runs the processor's setState (R-209)
+
+**Flags:** plugin Iterum (`plugins/iterum/`). **Estimate:** 120 min. **Prerequisites:** none.
+
+1. **Failing test** (`plugin_tests`): `TEST_CASE("Browser load sends the preset bytes to the processor", "[iterum][presets][state]")`. A connected pair; browser-load a preset. REQUIRE that the processor received one `"LoadPresetState"` message whose bytes equal the preset's component state, and that its `getState` equals that of a processor loaded with `setState` (the shared test's comparison).
+2. **Fix:** canonical shape: provider `controller.cpp:232-236` → `"LoadPresetState"` → `setState` (`processor.cpp:391-425`). The controller mirror keeps the per-mode parsers with performEdit (`controller.cpp:1330-1395`).
+3–6. **Build:** `plugin_tests approval_tests Iterum`. **Gate:** `plugin_tests approval_tests`. pluginval: Iterum. clang-tidy: `iterum`.
+
+**Acceptance:** the case passes; approval tests unchanged.
 
 ---
 ## Phase 2 — medium defects (and low defects that share their fix)

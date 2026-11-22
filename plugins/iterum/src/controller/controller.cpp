@@ -28,6 +28,7 @@
 #include "vstgui/uidescription/uiviewswitchcontainer.h"
 #include "vstgui/uidescription/uiattributes.h"
 
+#include <array>
 #include <vector>
 #include <atomic>
 
@@ -1351,10 +1352,38 @@ bool Controller::loadComponentStateWithNotify(Steinberg::IBStream* state) {
         return false;
     }
 
+    // Read the whole stream first (an IBStream may not seek): the processor gets
+    // these bytes, and the parse below reads the same buffer
+    std::vector<char> bytes;
+    {
+        constexpr Steinberg::int32 kChunkSize = 4096;
+        std::array<char, kChunkSize> chunk{};
+        Steinberg::int32 bytesRead = 0;
+        while (state->read(chunk.data(), kChunkSize, &bytesRead) == Steinberg::kResultTrue && bytesRead > 0) {
+            bytes.insert(bytes.end(), chunk.begin(), chunk.begin() + bytesRead);
+        }
+    }
+    if (bytes.empty()) {
+        return false;
+    }
+
+    // One preset-load path (R-209): the processor runs setState on these bytes,
+    // exactly as on a host load
+    if (auto msg = Steinberg::owned(allocateMessage())) {
+        msg->setMessageID("LoadPresetState");
+        if (auto* attrs = msg->getAttributes()) {
+            attrs->setBinary("bytes", bytes.data(), static_cast<Steinberg::uint32>(bytes.size()));
+            sendMessage(msg);
+        }
+    }
+
     bulkParamLoad_ = true;  // Suppress per-param view updates during bulk load
     FrameInvalidationGuard frameGuard(activeEditor_);  // Suppress VSTGUI invalidRect
 
-    Steinberg::IBStreamer streamer(state, kLittleEndian);
+    // The edits tell the host (automation, undo, dirty flag) and the UI the new
+    // values; they carry the values the processor already holds
+    Steinberg::MemoryStream memStream(bytes.data(), static_cast<Steinberg::TSize>(bytes.size()));
+    Steinberg::IBStreamer streamer(&memStream, kLittleEndian);
     Steinberg::int32 intVal = 0;
     float floatVal = 0.0f;
 

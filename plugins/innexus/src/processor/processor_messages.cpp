@@ -6,9 +6,11 @@
 #include "display/display_bridge_log.h"
 
 #include "pluginterfaces/vst/ivstdataexchange.h"
+#include "public.sdk/source/common/memorystream.h"
 
 #include <algorithm>
 #include <cstring>
+#include <vector>
 
 namespace Innexus {
 
@@ -226,6 +228,28 @@ Steinberg::tresult PLUGIN_API Processor::notify(Steinberg::Vst::IMessage* messag
         memorySlots_[static_cast<size_t>(slotIndex)].occupied = true;
 
         return Steinberg::kResultOk;
+    }
+
+    // LoadPresetState: a preset-browser load (R-200). The controller hands over
+    // the whole component state; it takes the same path as a host load. Runs
+    // on the message thread, like setState.
+    if (strcmp(message->getMessageID(), "LoadPresetState") == 0)
+    {
+        auto* attrs = message->getAttributes();
+        if (!attrs)
+            return Steinberg::kResultFalse;
+
+        const void* data = nullptr;
+        Steinberg::uint32 size = 0;
+        if (attrs->getBinary("bytes", data, size) != Steinberg::kResultOk
+            || data == nullptr || size == 0)
+            return Steinberg::kResultFalse;
+
+        const auto* first = static_cast<const char*>(data);
+        std::vector<char> bytes(first, first + size);
+        Steinberg::MemoryStream stream(bytes.data(),
+                                       static_cast<Steinberg::TSize>(bytes.size()));
+        return setState(&stream);
     }
 
     // Load sample file from controller's file browser

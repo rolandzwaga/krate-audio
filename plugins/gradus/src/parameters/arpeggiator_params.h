@@ -88,6 +88,30 @@ static constexpr int kMaxSpeedCurvePoints = 64;
     return static_cast<double>(bestIdx) / static_cast<double>(kLaneSpeedCount - 1);
 }
 
+/// The lane speed a parameter holds for a stored `speed`: what the lane speed
+/// handlers store for speedValueToNormalized(speed). setState snaps a loaded
+/// speed to it, so the processor holds the value the controller's mirror of the
+/// load can send (R-206).
+[[nodiscard]] inline float snapLaneSpeed(float speed) noexcept
+{
+    const auto idx = static_cast<int>(
+        std::lround(speedValueToNormalized(speed) * (kLaneSpeedCount - 1)));
+    return kLaneSpeedValues[std::clamp(idx, 0, kLaneSpeedCount - 1)];
+}
+
+/// Ratchet Shuffle positions: Even, Triplet, Dotted (percent).
+static constexpr float kRatchetShuffleValues[3] = {50.0f, 66.6667f, 75.0f};
+
+/// Position (0-2) of the Ratchet Shuffle entry nearest a stored percentage.
+/// Old presets store any value in 50-75 %; the parameter has three positions.
+[[nodiscard]] inline int ratchetShuffleIndex(float percent) noexcept
+{
+    const float clamped = std::clamp(percent, 50.0f, 75.0f);
+    if (clamped < 58.33f) return 0;  // < midpoint between 50 and 66.67
+    if (clamped < 70.83f) return 1;  // < midpoint between 66.67 and 75
+    return 2;
+}
+
 struct ArpeggiatorParams {
     // Base arp params (Phase 3)
     std::atomic<int>   operatingMode{kArpOff};  // ArpOperatingMode (0-3)
@@ -519,8 +543,7 @@ inline void handleArpParamChange(
             // 3 discrete values: 0=Even(50%), 1=Triplet(~66.67%), 2=Dotted(75%)
             const int idx = std::clamp(
                 static_cast<int>(std::round(value * 2.0)), 0, 2);
-            static constexpr float kShuffleValues[3] = {50.0f, 66.6667f, 75.0f};
-            params.ratchetSwing.store(kShuffleValues[idx],
+            params.ratchetSwing.store(kRatchetShuffleValues[idx],
                 std::memory_order_relaxed);
             break;
         }
@@ -2308,8 +2331,10 @@ inline bool loadArpParams(
 
     // --- Ratchet Swing (078-ratchet-swing) ---
     // EOF-safe: if ratchet swing data is missing (Phase 9 preset), keep default (50%)
+    // Snapped to the parameter's three positions, as the controller loads it.
     if (!streamer.readFloat(floatVal)) return true;
-    params.ratchetSwing.store(std::clamp(floatVal, 50.0f, 75.0f), std::memory_order_relaxed);
+    params.ratchetSwing.store(kRatchetShuffleValues[ratchetShuffleIndex(floatVal)],
+        std::memory_order_relaxed);
 
     // --- Scale Mode (084-arp-scale-mode) ---
     // EOF-safe: if scale data is missing (pre-scale-mode preset), keep defaults
@@ -2342,12 +2367,12 @@ inline bool loadArpParams(
     if (!streamer.readInt32(intVal)) return true;
     params.voicingMode.store(std::clamp(intVal, 0, 3), std::memory_order_relaxed);
 
-    // Per-lane speed multipliers
+    // Per-lane speed multipliers (snapped to the parameter's speed set)
     {
         float speed = 1.0f;
         auto loadSpeed = [&](std::atomic<float>& target) {
             if (streamer.readFloat(speed))
-                target.store(speed, std::memory_order_relaxed);
+                target.store(snapLaneSpeed(speed), std::memory_order_relaxed);
         };
         loadSpeed(params.velocityLaneSpeed);
         loadSpeed(params.gateLaneSpeed);
@@ -2360,27 +2385,28 @@ inline bool loadArpParams(
     }
 
     // --- v1.5 Features (optional, for backward compatibility) ---
+    // Clamped to the parameter ranges, as the controller loads them.
     {
         float f = 0.0f;
-        auto loadFloat = [&](std::atomic<float>& target) -> bool {
+        auto loadFloat = [&](std::atomic<float>& target, float lo, float hi) -> bool {
             if (!streamer.readFloat(f)) return false;
-            target.store(f, std::memory_order_relaxed);
+            target.store(std::clamp(f, lo, hi), std::memory_order_relaxed);
             return true;
         };
 
-        if (!loadFloat(params.ratchetDecay)) return true;
-        if (!loadFloat(params.strumTime)) return true;
+        if (!loadFloat(params.ratchetDecay, 0.0f, 100.0f)) return true;
+        if (!loadFloat(params.strumTime, 0.0f, 100.0f)) return true;
         if (!streamer.readInt32(intVal)) return true;
         params.strumDirection.store(std::clamp(intVal, 0, 3), std::memory_order_relaxed);
 
-        if (!loadFloat(params.velocityLaneSwing)) return true;
-        if (!loadFloat(params.gateLaneSwing)) return true;
-        if (!loadFloat(params.pitchLaneSwing)) return true;
-        if (!loadFloat(params.modifierLaneSwing)) return true;
-        if (!loadFloat(params.ratchetLaneSwing)) return true;
-        if (!loadFloat(params.conditionLaneSwing)) return true;
-        if (!loadFloat(params.chordLaneSwing)) return true;
-        if (!loadFloat(params.inversionLaneSwing)) return true;
+        if (!loadFloat(params.velocityLaneSwing, 0.0f, 75.0f)) return true;
+        if (!loadFloat(params.gateLaneSwing, 0.0f, 75.0f)) return true;
+        if (!loadFloat(params.pitchLaneSwing, 0.0f, 75.0f)) return true;
+        if (!loadFloat(params.modifierLaneSwing, 0.0f, 75.0f)) return true;
+        if (!loadFloat(params.ratchetLaneSwing, 0.0f, 75.0f)) return true;
+        if (!loadFloat(params.conditionLaneSwing, 0.0f, 75.0f)) return true;
+        if (!loadFloat(params.chordLaneSwing, 0.0f, 75.0f)) return true;
+        if (!loadFloat(params.inversionLaneSwing, 0.0f, 75.0f)) return true;
     }
 
     // --- v1.5 Part 2: Velocity Curve, Transpose, Per-Lane Length Jitter ---
@@ -2521,7 +2547,7 @@ inline bool loadArpParams(
         params.midiDelayActiveSteps[i].store(std::clamp(intVal, 0, 1), std::memory_order_relaxed);
     }
     if (!streamer.readFloat(floatVal)) return false;
-    params.midiDelayLaneSpeed.store(std::clamp(floatVal, 0.25f, 4.0f), std::memory_order_relaxed);
+    params.midiDelayLaneSpeed.store(snapLaneSpeed(floatVal), std::memory_order_relaxed);
     if (!streamer.readFloat(floatVal)) return false;
     params.midiDelayLaneSwing.store(std::clamp(floatVal, 0.0f, 75.0f), std::memory_order_relaxed);
     if (!streamer.readInt32(intVal)) return false;
@@ -2597,8 +2623,7 @@ inline bool loadSequencerNoteLaneParams(
     }
 
     if (!streamer.readFloat(floatVal)) return false;
-    params.seqNoteLaneSpeed.store(std::clamp(floatVal, 0.25f, 4.0f),
-        std::memory_order_relaxed);
+    params.seqNoteLaneSpeed.store(snapLaneSpeed(floatVal), std::memory_order_relaxed);
 
     if (!streamer.readFloat(floatVal)) return false;
     params.seqNoteLaneSwing.store(std::clamp(floatVal, 0.0f, 75.0f),
@@ -2661,22 +2686,25 @@ inline void loadArpParamsToController(
                 / (Parameters::kNoteValueDropdownCount - 1));
     else return;
 
+    // Continuous values are normalized in double with the handler's constants,
+    // so the processor's denormalization returns the stored float exactly.
+
     // freeRate (float -> normalized: (rate - 0.5) / 49.5)
     if (streamer.readFloat(floatVal))
         setParam(kArpFreeRateId,
-            static_cast<double>((std::clamp(floatVal, 0.5f, 50.0f) - 0.5f) / 49.5f));
+            (std::clamp(static_cast<double>(floatVal), 0.5, 50.0) - 0.5) / 49.5);
     else return;
 
     // gateLength (float -> normalized: (len - 1) / 199)
     if (streamer.readFloat(floatVal))
         setParam(kArpGateLengthId,
-            static_cast<double>((std::clamp(floatVal, 1.0f, 200.0f) - 1.0f) / 199.0f));
+            (std::clamp(static_cast<double>(floatVal), 1.0, 200.0) - 1.0) / 199.0);
     else return;
 
     // swing (float -> normalized: swing / 75)
     if (streamer.readFloat(floatVal))
         setParam(kArpSwingId,
-            static_cast<double>(std::clamp(floatVal, 0.0f, 75.0f) / 75.0f));
+            std::clamp(static_cast<double>(floatVal), 0.0, 75.0) / 75.0);
     else return;
 
     // latchMode (int32 -> normalized: index / 2)
@@ -2710,7 +2738,7 @@ inline void loadArpParamsToController(
         if (!streamer.readFloat(floatVal)) return;
         // Gate lane: [0.01, 2.0] -> normalized: (val - 0.01) / 1.99
         setParam(static_cast<Steinberg::Vst::ParamID>(kArpGateLaneStep0Id + i),
-            static_cast<double>((std::clamp(floatVal, 0.01f, 2.0f) - 0.01f) / 1.99f));
+            (std::clamp(static_cast<double>(floatVal), 0.01, 2.0) - 0.01) / 1.99);
     }
 
     // --- Pitch Lane (072-independent-lanes, US3) ---
@@ -2745,7 +2773,7 @@ inline void loadArpParamsToController(
     // Slide time: float -> normalized: value / 500
     if (!streamer.readFloat(floatVal)) return;
     setParam(kArpSlideTimeId,
-        static_cast<double>(std::clamp(floatVal, 0.0f, 500.0f)) / 500.0);
+        std::clamp(static_cast<double>(floatVal), 0.0, 500.0) / 500.0);
 
     // --- Ratchet Lane (074-ratcheting) ---
     // EOF-safe: if ratchet data is missing (Phase 5 preset), keep controller defaults
@@ -2805,14 +2833,7 @@ inline void loadArpParamsToController(
     // Backward-compat: old presets store 50-75% float; map to nearest of
     // {Even=50, Triplet=66.67, Dotted=75} → index 0/1/2 → normalized 0.0/0.5/1.0.
     if (!streamer.readFloat(floatVal)) return;
-    {
-        const float clamped = std::clamp(floatVal, 50.0f, 75.0f);
-        int idx;
-        if (clamped < 58.33f)       idx = 0;  // < midpoint between 50 and 66.67
-        else if (clamped < 70.83f)  idx = 1;  // < midpoint between 66.67 and 75
-        else                        idx = 2;
-        setParam(kArpRatchetSwingId, static_cast<double>(idx) / 2.0);
-    }
+    setParam(kArpRatchetSwingId, static_cast<double>(ratchetShuffleIndex(floatVal)) / 2.0);
 
     // --- Scale Mode (084-arp-scale-mode) ---
     // EOF-safe: if scale data is missing (pre-scale-mode preset), keep controller defaults
@@ -2871,10 +2892,10 @@ inline void loadArpParamsToController(
 
     // --- v1.5 Features (optional, backward compatible) ---
     if (!streamer.readFloat(floatVal)) return;
-    setParam(kArpRatchetDecayId, static_cast<double>(std::clamp(floatVal, 0.0f, 100.0f)) / 100.0);
+    setParam(kArpRatchetDecayId, std::clamp(static_cast<double>(floatVal), 0.0, 100.0) / 100.0);
 
     if (!streamer.readFloat(floatVal)) return;
-    setParam(kArpStrumTimeId, static_cast<double>(std::clamp(floatVal, 0.0f, 100.0f)) / 100.0);
+    setParam(kArpStrumTimeId, std::clamp(static_cast<double>(floatVal), 0.0, 100.0) / 100.0);
 
     if (!streamer.readInt32(iv)) return;
     setParam(kArpStrumDirectionId, static_cast<double>(std::clamp(static_cast<int>(iv), 0, 3)) / 3.0);
@@ -2888,7 +2909,7 @@ inline void loadArpParamsToController(
         };
         for (auto pid : kSwingIds) {
             if (streamer.readFloat(floatVal)) {
-                setParam(pid, static_cast<double>(std::clamp(floatVal, 0.0f, 75.0f)) / 75.0);
+                setParam(pid, std::clamp(static_cast<double>(floatVal), 0.0, 75.0) / 75.0);
             }
         }
     }
@@ -2899,7 +2920,7 @@ inline void loadArpParamsToController(
         static_cast<double>(std::clamp(static_cast<int>(iv), 0, 3)) / 3.0);
     if (!streamer.readFloat(floatVal)) return;
     setParam(kArpVelocityCurveAmountId,
-        static_cast<double>(std::clamp(floatVal, 0.0f, 100.0f)) / 100.0);
+        std::clamp(static_cast<double>(floatVal), 0.0, 100.0) / 100.0);
     if (!streamer.readInt32(iv)) return;
     setParam(kArpTransposeId,
         static_cast<double>(std::clamp(static_cast<int>(iv), -24, 24) + 24) / 48.0);

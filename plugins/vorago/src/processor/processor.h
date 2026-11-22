@@ -93,6 +93,9 @@ public:
     // Phase 13 FR-021 (plan 4.2): the EcosystemFrame DataExchange lifecycle.
     Steinberg::tresult PLUGIN_API connect(Steinberg::Vst::IConnectionPoint* other) override;
     Steinberg::tresult PLUGIN_API disconnect(Steinberg::Vst::IConnectionPoint* other) override;
+    /// kMsgLoadPresetState (binary kMsgAttrPresetBytes): a preset-browser load runs
+    /// setState on the bytes (R-205). Message thread, like setState.
+    Steinberg::tresult PLUGIN_API notify(Steinberg::Vst::IMessage* message) override;
 
     // ---- Phase 13 test seams (plan 4.1). Shipping logic branches only on the
     // two gates; everything else is read-only. ----

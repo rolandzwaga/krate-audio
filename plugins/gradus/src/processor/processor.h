@@ -57,6 +57,9 @@ public:
         return static_cast<Steinberg::Vst::IAudioProcessor*>(new Processor());
     }
 
+    /// Test seam: the arp engine, read-only.
+    [[nodiscard]] const Krate::DSP::ArpeggiatorCore& arpCoreForTest() const noexcept { return arpCore_; }
+
 private:
     // Parameter handling
     void processParameterChanges(Steinberg::Vst::IParameterChanges* changes);

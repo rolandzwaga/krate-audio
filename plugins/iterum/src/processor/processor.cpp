@@ -8,12 +8,16 @@
 #include <krate/dsp/core/scoped_denormal_mode.h>
 
 #include "base/source/fstreamer.h"
+#include "pluginterfaces/vst/ivstmessage.h"
 #include "pluginterfaces/vst/ivstparameterchanges.h"
 #include "pluginterfaces/vst/ivstprocesscontext.h"
+#include "public.sdk/source/common/memorystream.h"
 
 #include <algorithm>
 #include <cmath>
+#include <cstring>
 #include <utility>
+#include <vector>
 
 namespace Iterum {
 
@@ -422,6 +426,39 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
     loadFreezeCaptureParams(freezeParams_, streamer);  // absent before the Freeze redesign: Hold off, 1/1, Mix
 
     return Steinberg::kResultTrue;
+}
+
+// ==============================================================================
+// LoadPresetState: a preset-browser load (R-209)
+// ==============================================================================
+// The controller hands over the whole component state; it takes the setState
+// path, so a browser load applies exactly as a host load. Runs on the message
+// thread, like setState.
+
+Steinberg::tresult PLUGIN_API Processor::notify(Steinberg::Vst::IMessage* message) {
+    if (message == nullptr) {
+        return Steinberg::kInvalidArgument;
+    }
+
+    if (std::strcmp(message->getMessageID(), "LoadPresetState") == 0) {
+        auto* attrs = message->getAttributes();
+        if (attrs == nullptr) {
+            return Steinberg::kResultFalse;
+        }
+
+        const void* data = nullptr;
+        Steinberg::uint32 size = 0;
+        if (attrs->getBinary("bytes", data, size) != Steinberg::kResultOk || data == nullptr || size == 0) {
+            return Steinberg::kResultFalse;
+        }
+
+        const auto* first = static_cast<const char*>(data);
+        std::vector<char> bytes(first, first + size);
+        Steinberg::MemoryStream stream(bytes.data(), static_cast<Steinberg::TSize>(bytes.size()));
+        return setState(&stream);
+    }
+
+    return AudioEffect::notify(message);
 }
 
 // ==============================================================================

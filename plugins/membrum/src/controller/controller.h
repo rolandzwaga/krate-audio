@@ -127,7 +127,9 @@ public:
     // Phase 4: kit preset providers (FR-052)
     /// Produces a 9036-byte kit preset blob (v4 without selectedPadIndex)
     Steinberg::IBStream* kitPresetStateProvider();
-    /// Loads a 9036-byte kit preset blob and syncs all controller params
+    /// Loads a kit preset blob: sends it to the processor ("LoadPresetState",
+    /// the setState path) and mirrors it into the controller params with
+    /// performEdit (R-202)
     bool kitPresetLoadProvider(Steinberg::IBStream* stream);
 
     // Phase 6 (T046): IDataExchangeReceiver for MetersBlock.
@@ -165,7 +167,9 @@ public:
     // Phase 4: pad preset providers (FR-060 through FR-063)
     /// Produces a 284-byte pad preset blob for the currently selected pad
     Steinberg::IBStream* padPresetStateProvider();
-    /// Loads a 284-byte pad preset blob and applies to the currently selected pad only
+    /// Loads a pad preset blob onto the selected pad: sends it to the
+    /// processor ("LoadPadPreset", State::applyPadPresetSnapshot) and mirrors
+    /// it into the controller params with performEdit (R-203)
     bool padPresetLoadProvider(Steinberg::IBStream* stream);
 
 private:
@@ -371,14 +375,6 @@ private:
     /// T046: push `cachedMeters_` values into the kit-column meter / CPU label
     /// views. Tolerant of missing views (safe when editor is not open).
     void updateMeterViews(const MetersBlock& meters) noexcept;
-
-    /// T054: after a per-pad preset load, force the selected pad's MacroMapper
-    /// to re-apply its current macro values on top of the freshly loaded
-    /// underlying parameters. Implemented as a no-op-valued performEdit on
-    /// each of the five macro params -- the processor's processParameterChanges
-    /// path detects the parameter event and calls `macroMapper_.apply()` so
-    /// underlying tension/cutoff/etc. reflect macro positions after the load.
-    void triggerSelectedPadMacroReapply();
 
     // ==========================================================================
     // Phase 6 (T052..T056): two PresetManager instances (kit + per-pad scope).

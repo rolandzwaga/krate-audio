@@ -8,8 +8,10 @@
 #include "dsp/sweep_morph_link.h"
 
 #include "base/source/fstreamer.h"
+#include "pluginterfaces/vst/ivstmessage.h"
 #include "pluginterfaces/vst/ivstparameterchanges.h"
 #include "pluginterfaces/vst/ivstevents.h"
+#include "public.sdk/source/common/memorystream.h"
 
 #include <krate/dsp/core/db_utils.h>
 #include <krate/dsp/core/note_value.h>
@@ -19,7 +21,9 @@
 
 #include <algorithm>  // for std::max, std::min, std::copy_n, std::fill
 #include <cmath>      // for std::log10, std::pow
+#include <cstring>    // for std::strcmp
 #include <random>     // for instance ID generation
+#include <vector>     // for the LoadPresetState bytes
 
 namespace Disrumpo {
 
@@ -85,6 +89,39 @@ Steinberg::tresult PLUGIN_API Processor::disconnect(
         dataExchange_.reset();
     }
     return AudioEffect::disconnect(other);
+}
+
+// ==============================================================================
+// LoadPresetState: a preset-browser load (R-204)
+// ==============================================================================
+// The controller hands over the whole component state; it takes the setState
+// path (one parser, one hand-off, one apply), so the per-type shape shadows,
+// which are not parameters, reach the processor too. Runs on the message
+// thread, like setState.
+
+Steinberg::tresult PLUGIN_API Processor::notify(Steinberg::Vst::IMessage* message)
+{
+    if (message == nullptr)
+        return Steinberg::kInvalidArgument;
+
+    if (std::strcmp(message->getMessageID(), "LoadPresetState") == 0)
+    {
+        auto* attrs = message->getAttributes();
+        if (attrs == nullptr)
+            return Steinberg::kResultFalse;
+
+        const void* data = nullptr;
+        Steinberg::uint32 size = 0;
+        if (attrs->getBinary("bytes", data, size) != Steinberg::kResultOk || data == nullptr || size == 0)
+            return Steinberg::kResultFalse;
+
+        const auto* first = static_cast<const char*>(data);
+        std::vector<char> bytes(first, first + size);
+        Steinberg::MemoryStream stream(bytes.data(), static_cast<Steinberg::TSize>(bytes.size()));
+        return loadState(&stream, false);
+    }
+
+    return AudioEffect::notify(message);
 }
 
 // ==============================================================================

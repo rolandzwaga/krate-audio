@@ -5,6 +5,13 @@ All notable changes to Innexus will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- **A preset loaded from the preset browser now loads all of it** — The preset browser read presets with a second, incomplete reader that never reached the sound engine directly: the envelope (ADSR) settings, voice mode, modulator tempo sync, the physical-model, impact, waveguide, bow, body and sympathetic settings, the stored memory slots and their envelopes were left as they were. A browser load now takes the same path as a project reload, so the whole preset is restored, including its stored sample, which is loaded again from its saved location.
+- **The modulator Sync switches and note values showed the wrong setting after a project reload** — Reopening a project restored Mod 1 and Mod 2 Sync and Note Value in the sound, but the controls showed their defaults. They now show the restored values.
+
 ## [1.0.6] - 2026-11-11
 
 ### Fixed

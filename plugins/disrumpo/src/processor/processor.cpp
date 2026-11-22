@@ -69,6 +69,13 @@ Processor::Processor() {
         }
         cache.activeNodeCount = kDefaultActiveNodes;
     }
+
+    // Rungler Rate starts on its registered default (osc 2 at 1.5x, as the parameter sets it). The
+    // Rungler's own 200 Hz lies outside the parameter's 0.1-50 Hz, so a fresh instance's state stored
+    // it as 4.0 normalized, which no parameter edit can carry (T1.38)
+    const float runglerHz = kRunglerRateHzRange.toPlain(kRunglerRateDefaultNorm);
+    modulationEngine_.setRunglerOsc1Freq(runglerHz);
+    modulationEngine_.setRunglerOsc2Freq(runglerHz * 1.5f);
 }
 
 // ==============================================================================

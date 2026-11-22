@@ -17,7 +17,9 @@
 #include "pluginterfaces/vst/ivstcomponent.h"
 #include "public.sdk/source/common/memorystream.h"
 
+#include <array>
 #include <cstring>
+#include <vector>
 
 namespace {
 
@@ -109,7 +111,23 @@ bool Controller::loadComponentStateWithNotify(Steinberg::IBStream* state) {
     if (!state)
         return false;
 
-    Steinberg::IBStreamer streamer(state, kLittleEndian);
+    // Read the whole stream first (an IBStream may not seek): the processor
+    // gets these bytes, and loadFullState below reads the same buffer.
+    std::vector<char> bytes;
+    {
+        constexpr Steinberg::int32 kChunkSize = 4096;
+        std::array<char, kChunkSize> chunk{};
+        Steinberg::int32 bytesRead = 0;
+        while (state->read(chunk.data(), kChunkSize, &bytesRead) == Steinberg::kResultTrue &&
+               bytesRead > 0) {
+            bytes.insert(bytes.end(), chunk.data(), chunk.data() + bytesRead);
+        }
+    }
+    if (bytes.empty())
+        return false;
+
+    Steinberg::MemoryStream memStream(bytes.data(), static_cast<Steinberg::TSize>(bytes.size()));
+    Steinberg::IBStreamer streamer(&memStream, kLittleEndian);
 
     // Accept the same versions the processor does (isLoadableStateVersion:
     // v1 and v2 legacy, v3 current); the newer blocks are EOF-tolerant, so an
@@ -123,7 +141,19 @@ bool Controller::loadComponentStateWithNotify(Steinberg::IBStream* state) {
     if (!isLoadableStateVersion(version))
         return false;
 
-    // Single path for all state loading (arp params + speed curves + delay)
+    // One preset-load path (R-206): the processor parses and applies these
+    // bytes in its setState, exactly as on a host load (speed curves and
+    // depths included).
+    if (auto msg = Steinberg::owned(allocateMessage())) {
+        msg->setMessageID("LoadPresetState");
+        if (auto* attrs = msg->getAttributes()) {
+            attrs->setBinary("bytes", bytes.data(), static_cast<Steinberg::uint32>(bytes.size()));
+            sendMessage(msg);
+        }
+    }
+
+    // The edits tell the host (automation, undo, dirty flag) and the UI the new
+    // values; they carry the values the processor already holds.
     auto setParam = [this](Steinberg::Vst::ParamID id, double value) {
         editParamWithNotify(id, value);
     };

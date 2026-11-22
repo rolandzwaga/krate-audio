@@ -41,6 +41,7 @@
 #include "vstgui/lib/cframe.h"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstdio>
 #include <cstring>
@@ -121,14 +122,44 @@ bool Controller::kitPresetLoadProvider(IBStream* stream)
     if (!stream)
         return false;
 
-    Membrum::State::KitSnapshot kit;
-    if (Membrum::State::readKitBlob(stream, kit) != kResultOk)
+    // Read the whole stream first (an IBStream may not seek): the processor
+    // gets these bytes, and the controller mirror below parses the same buffer.
+    std::vector<char> bytes;
+    {
+        constexpr int32 kChunkSize = 4096;
+        std::array<char, kChunkSize> chunk{};
+        int32 bytesRead = 0;
+        while (stream->read(chunk.data(), kChunkSize, &bytesRead) == kResultOk &&
+               bytesRead > 0)
+        {
+            bytes.insert(bytes.end(), chunk.data(), chunk.data() + bytesRead);
+        }
+    }
+    if (bytes.empty())
         return false;
 
-    // Kit preset load bypasses the host's preset-load mechanism, so the
-    // processor never sees the new values unless we notify the host through
-    // beginEdit / performEdit / endEdit. Plain setParamNormalized only
-    // updates the controller-side Parameter objects (UI).
+    MemoryStream memStream(bytes.data(), static_cast<TSize>(bytes.size()));
+    Membrum::State::KitSnapshot kit;
+    if (Membrum::State::readKitBlob(&memStream, kit) != kResultOk)
+        return false;
+
+    // One preset-load path (R-202): the processor parses and applies these
+    // bytes exactly as in setState (voice and coupling flushes, every pad
+    // field including noiseLayerGain and the body-damping sentinel, macro
+    // cache resync), keeping its selected pad (FR-052).
+    if (auto msg = Steinberg::owned(allocateMessage()))
+    {
+        msg->setMessageID("LoadPresetState");
+        if (auto* attrs = msg->getAttributes())
+        {
+            attrs->setBinary("bytes", bytes.data(),
+                             static_cast<Steinberg::uint32>(bytes.size()));
+            sendMessage(msg);
+        }
+    }
+
+    // The edits tell the host (automation, undo, dirty flag) and the UI the
+    // new values; they carry the values the processor already holds.
     Membrum::ControllerState::ParamSetter setAndNotify =
         [this](Steinberg::Vst::ParamID id, double v) {
             const double clamped = std::clamp(v, 0.0, 1.0);
@@ -170,10 +201,9 @@ IBStream* Controller::padPresetStateProvider()
     const auto full =
         Membrum::ControllerState::buildPadSnapshotFromParams(*this, pad);
 
-    // Project the per-pad snapshot down to the narrower per-pad preset slice.
-    // PadPresetSnapshot::sound is intentionally one slot shorter than
-    // PadSnapshot::sound (the Phase 8F enable-toggle slot at index 51 is
-    // kit-level only and never persisted in per-pad presets).
+    // Project the per-pad snapshot down to the per-pad preset slice (no choke,
+    // bus, coupling or macros). The sound array has the same 59 slots; the
+    // enable flag (51) and pan (56) are written but ignored on load (FR-061).
     Membrum::State::PadPresetSnapshot preset;
     preset.exciterType = full.exciterType;
     preset.bodyModel   = full.bodyModel;
@@ -189,12 +219,45 @@ bool Controller::padPresetLoadProvider(IBStream* stream)
     if (!stream)
         return false;
 
-    Membrum::State::PadPresetSnapshot preset;
-    if (Membrum::State::readPadPresetBlob(stream, preset) != kResultOk)
+    // Read the whole stream first (an IBStream may not seek): the processor
+    // gets these bytes, and the controller mirror below parses the same buffer.
+    std::vector<char> bytes;
+    {
+        constexpr int32 kChunkSize = 4096;
+        std::array<char, kChunkSize> chunk{};
+        int32 bytesRead = 0;
+        while (stream->read(chunk.data(), kChunkSize, &bytesRead) == kResultOk &&
+               bytesRead > 0)
+        {
+            bytes.insert(bytes.end(), chunk.data(), chunk.data() + bytesRead);
+        }
+    }
+    if (bytes.empty())
         return false;
 
-    // Per-pad preset load bypasses the host, so we need begin/perform/end
-    // around every write so the processor sees the new values.
+    MemoryStream memStream(bytes.data(), static_cast<TSize>(bytes.size()));
+    Membrum::State::PadPresetSnapshot preset;
+    if (Membrum::State::readPadPresetBlob(&memStream, preset) != kResultOk)
+        return false;
+
+    // One pad-preset apply (R-203): the processor parses these bytes and
+    // applies them to the target pad through State::applyPadPresetSnapshot
+    // (noiseLayerGain, the body-damping sentinel; FR-061 keeps routing,
+    // coupling, macros, enabled and pan).
+    if (auto msg = Steinberg::owned(allocateMessage()))
+    {
+        msg->setMessageID("LoadPadPreset");
+        if (auto* attrs = msg->getAttributes())
+        {
+            attrs->setBinary("bytes", bytes.data(),
+                             static_cast<Steinberg::uint32>(bytes.size()));
+            attrs->setInt("pad", selectedPadIndex_);
+            sendMessage(msg);
+        }
+    }
+
+    // The edits tell the host (automation, undo, dirty flag) and the UI the
+    // new values; they carry the values the processor already holds.
     Membrum::ControllerState::ParamSetter setAndNotify =
         [this](Steinberg::Vst::ParamID id, double v) {
             const double clamped = std::clamp(v, 0.0, 1.0);

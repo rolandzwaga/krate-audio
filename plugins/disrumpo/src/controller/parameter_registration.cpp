@@ -556,10 +556,10 @@ void Controller::registerModulationParams() {
         STR16("Transient Decay"), makeModParamId(ModParamType::kTransientDecay), STR16("ms"),
         kTransientDecayMsRange, 50.0));
 
-    // Rungler Parameters (default kept at its registered normalized 0.08)
+    // Rungler Parameters (default kept at its registered normalized 0.08; the processor starts there too)
     parameters.addParameter(makeLinearRangeParameter(
         STR16("Rungler Rate"), makeModParamId(ModParamType::kRunglerRate), STR16("Hz"), kRunglerRateHzRange,
-        static_cast<double>(kRunglerRateHzRange.toPlain(0.08f))));
+        static_cast<double>(kRunglerRateHzRange.toPlain(kRunglerRateDefaultNorm))));
     parameters.addParameter(STR16("Rungler Depth"), nullptr, 0, 0.5,
         Steinberg::Vst::ParameterInfo::kCanAutomate, makeModParamId(ModParamType::kRunglerDepth));
     parameters.addParameter(STR16("Rungler Bits"), nullptr, 12, 0.333,

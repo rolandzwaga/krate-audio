@@ -35,6 +35,9 @@ const TASKS = [
   ['T1.20a', 1, 'opus'], ['T1.21', 1, 'opus'], ['T1.22', 1, 'opus'], ['T1.22a', 1, 'opus'], ['T1.23', 1, 'opus'], ['T1.24', 1, 'opus'], ['T1.25', 1, 'opus'],
   ['T1.26', 1, 'opus'], ['T1.27', 1, 'opus'], ['T1.28', 1, 'opus'], ['T1.29', 1, 'opus'], ['T1.30', 1, 'opus'],
   ['T1.31', 1, 'opus'], ['T1.32', 1, 'opus'], ['T1.33', 1, 'opus'], ['T1.34', 1, 'opus'],
+  // Phase 1b (added 2026-11-22): one preset-load path in the other plugins (R-200 to R-209).
+  ['T1.35', 1, 'opus'], ['T1.36', 1, 'opus'], ['T1.37', 1, 'opus'], ['T1.38', 1, 'opus'], ['T1.39', 1, 'opus'],
+  ['T1.40', 1, 'opus'], ['T1.41', 1, 'opus'],
 
   ['T2.1', 2, 'opus'], ['T2.2', 2, 'opus'], ['T2.3', 2, 'sonnet'], ['T2.4', 2, 'sonnet'], ['T2.5', 2, 'opus'],
   ['T2.6', 2, 'sonnet'], ['T2.7', 2, 'opus'], ['T2.8', 2, 'sonnet'], ['T2.9', 2, 'opus'], ['T2.10', 2, 'opus'],
@@ -125,7 +128,8 @@ READ FIRST, in this order (Read tool, by line ranges; do not read the whole 1,20
 1. The sections "Scope", "How to read an anchor", "Rulings needed before the affected task starts" (the Ruling column is FINAL: recorded from the user on 2026-11-16; never ask, never re-litigate), "Workflow every task follows", "Flags used in the tasks", "Shared test conventions".
 2. Your task's own section (grep '^### <id> ' for its line) and its rows in the "Findings → tasks" table.
 3. For each R-id your task covers, the finding in specs/ruinae-audit/report.md (grep '^### R-nnn'): problem, evidence, verifier notes.
-Anchors carry line numbers from commit f8ed81e1; earlier tasks moved lines. Find the quoted symbol with Grep; never edit by line number alone.`
+Anchors carry line numbers from commit f8ed81e1; earlier tasks moved lines. Find the quoted symbol with Grep; never edit by line number alone.
+Phase 1b tasks (T1.35-T1.41) work in the plugin their section names, not Ruinae: read the "Phase 1b" preamble (grep '^## Phase 1b') and that plugin's leaf CLAUDE.md. Their findings R-200 to R-209 exist only as rows in the plan's "Findings → tasks" table (not in report.md); their anchors are from 2026-11-22.`
 
 const OVERRIDES = `OVERRIDES OF THE PLAN (these win over the plan text):
 - Step 6 "Commit" is REPLACED: do NOT commit, do NOT stage (no git add), do NOT stash, reset, checkout, clean, amend or push. Leave your changes in the working tree; a reviewer stages them and the main loop commits once per phase.
@@ -133,7 +137,7 @@ const OVERRIDES = `OVERRIDES OF THE PLAN (these win over the plan text):
 - Build with the cap and without MSBuild node reuse: "C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target <targets> -- -m:2 /nr:false
 - The gate filter is ${PERF_FILTER} (the plan's filter plus ~[long]~[.]): node tools/run-gate.js --share 4 --filter ${PERF_FILTER} --out ${LOG_ROOT}/<task>/gate <exes>
   Run a [long] case your task adds by its name, directly, once. Timing cases ([performance] etc.) run only through node tools/run-cpu-tests.js <exe>, and only when your task section asks for it (nothing else is running, so it may run inside the task).
-- clang-tidy: ./tools/run-clang-tidy.ps1 -Target <ruinae|dsp|shared> -BuildDir build/windows-ninja -Jobs 4 (PowerShell). If it reports phantom warnings from a stale compile db, reconfigure the ninja preset once, then re-run.
+- clang-tidy: ./tools/run-clang-tidy.ps1 -Target <ruinae|dsp|shared|the plugin a Phase 1b task names> -BuildDir build/windows-ninja -Jobs 4 (PowerShell). If it reports phantom warnings from a stale compile db, reconfigure the ninja preset once, then re-run.
 - If the root cause is in SHARED code (dsp/include, plugins/shared), fix it there, even when the task section names only plugin files or says "fixtures only": the fix then lands for every plugin that uses it (user ruling 2026-11-17). Do the CROSS-PLUGIN steps: grep -rl the header across plugins/ and dsp/include, list every consumer in notes, build and gate each consumer's suite (gradus_tests for the arp core; the executables header-consumers.js names; Iterum plugin_tests approval_tests for DSP Iterum uses), and explain the root cause in deviations. Restore every temporary diagnostic edit (A/B probes) before returning.
 - A red gate case your change cannot reach: run that one case by name once. Green alone + a wall-clock assertion = load: record it in notes. Red alone = it is yours to fix, or status "failed" with the evidence. Never call a failure "pre-existing" and move on.`
 

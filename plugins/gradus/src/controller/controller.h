@@ -164,6 +164,11 @@ public:
         return static_cast<Steinberg::Vst::IEditController*>(new Controller());
     }
 
+    /// Test seam: the speed-curve message the editor sends for a lane.
+    void sendSpeedCurveTableForTest(size_t laneIndex, const SpeedCurveData& data) {
+        sendSpeedCurveTable(laneIndex, data);
+    }
+
 private:
     // Preset button factory (called from createCustomView)
     VSTGUI::CView* createPresetButton(const VSTGUI::CRect& rect, bool isBrowse);
@@ -237,7 +242,8 @@ private:
     std::shared_ptr<VSTGUI::IControlListener> speedCurvePresetListener_;
     std::shared_ptr<VSTGUI::IControlListener> speedCurveDepthListener_;
     int selectedLaneIndex_ = 0;
-    // Pending speed curve data from setComponentState (applied when editors are created)
+    // Pending speed curve data from setComponentState (applied when editors are
+    // created), in ring/UI lane order like speedCurveEditors_
     std::array<SpeedCurveData, 8> pendingSpeedCurves_{};
     bool hasPendingSpeedCurves_ = false;
 
@@ -256,18 +262,15 @@ private:
     // Guard against cell-edit → preset-to-Custom ping-pong.
     bool suppressMarkovCellEcho_ = false;
 
-    // Speed curve IMessage helper
+    // The speed-curve editors and depth knobs sit in ring/UI lane order (Vel,
+    // Gate, Pitch, Mod, Cond, Ratchet, Chord, Inv); the engine, the state stream
+    // and the SpeedCurveTable message use lane-param order (..., Ratchet, Cond,
+    // ...). The swap is its own inverse, so this one table maps both ways (R-208).
+    static constexpr std::array<size_t, 8> kSpeedCurveRingToEngineLane = {0, 1, 2, 3, 5, 4, 6, 7};
+
+    // Speed curve IMessage helper (laneIndex: engine lane)
     void sendSpeedCurveTable(size_t laneIndex, const SpeedCurveData& data);
     void showSpeedCurveForLane(int laneIndex);
-
-    // Spec 142: forward Sequencer Note lane parameter edits to the Processor
-    // via IMessage. Some hosts don't relay programmatically-driven UI param
-    // changes (PianoRollView clicks, COptionMenu selections) back through the
-    // host's parameter queue to processParameterChanges, so Processor atomics
-    // miss the update — getState then saves stale values. Same workaround as
-    // sendSpeedCurveTable (see controller.cpp:458 for the rationale).
-    void sendSeqNoteLaneParam(Steinberg::Vst::ParamID id,
-                              Steinberg::Vst::ParamValue value);
 
     // Shared state loading helpers (used by setComponentState + preset loading)
     template<typename SetParamFn>

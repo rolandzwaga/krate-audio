@@ -33,6 +33,8 @@
 // Forward-declare DataExchangeHandler so processor.h stays cheap to include.
 namespace Steinberg::Vst { class DataExchangeHandler; }
 
+namespace Membrum::State { struct KitSnapshot; struct PadPresetSnapshot; }
+
 namespace Membrum {
 
 class Processor : public Steinberg::Vst::AudioEffect
@@ -89,6 +91,17 @@ private:
     void processParameterChanges(Steinberg::Vst::IParameterChanges* paramChanges);
     void processEvents(Steinberg::Vst::IEventList* events);
     void consumePendingAudition();
+
+    /// Applies a parsed kit: the one apply that setState and a kit-preset
+    /// browser load ("LoadPresetState", R-202) share. Flushes the voices and
+    /// the coupling engine, installs every pad and global, resyncs the macro
+    /// cache.
+    void applyKitSnapshot(const State::KitSnapshot& kit);
+
+    /// Applies a parsed pad preset to one pad through
+    /// State::applyPadPresetSnapshot (the one pad-preset apply, R-203), then
+    /// refreshes the pad's category, the coupling matrix and its macro cache.
+    void applyPadPresetSnapshot(int pad, const State::PadPresetSnapshot& preset);
 
     /// Phase 6 (US4): recompute the coupling matrix passing the current
     /// per-pad couplingAmount values so they are baked into effectiveGain

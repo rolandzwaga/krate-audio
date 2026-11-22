@@ -302,16 +302,14 @@ void applyPadPresetSnapshotToParams(
                preset.sound[30 + j]);
     }
 
-    // Phase 7+ late slots that fit within the preset's sound array. The
-    // per-pad preset deliberately stops one slot short of the kit blob (it
-    // omits `kPadEnabled` at index 51), so we filter by snapIndex. Same
-    // bodyDamping sentinel guard as `applyPadSnapshotToParams` -- see the
-    // comment there.
-    const std::size_t kPresetSoundSize = preset.sound.size();
+    // Phase 7+ late slots. The preset blob carries all 59 sound slots, but
+    // the target pad's enable flag (51) and pan (56) are kept (FR-061), the
+    // same slots `State::applyPadPresetSnapshot` skips. Same bodyDamping
+    // sentinel guard as `applyPadSnapshotToParams` -- see the comment there.
     for (const auto& slot : kLateSlots)
     {
-        if (slot.snapIndex >= kPresetSoundSize)
-            continue; // kit-level fields outside the preset blob (e.g. enabled)
+        if (slot.offset == kPadEnabled || slot.offset == kPadPan)
+            continue;
         const bool isSentinelSlot =
             (slot.offset == kPadBodyDampingB1 || slot.offset == kPadBodyDampingB3);
         if (isSentinelSlot && preset.sound[slot.snapIndex] < 0.0)
@@ -320,7 +318,8 @@ void applyPadPresetSnapshotToParams(
                preset.sound[slot.snapIndex]);
     }
 
-    // FR-061 exemptions: kPadCouplingAmount, kPadMacro* are NOT written.
+    // FR-061 exemptions: kPadCouplingAmount, kPadMacro*, kPadEnabled and
+    // kPadPan are NOT written.
 }
 
 // ==============================================================================

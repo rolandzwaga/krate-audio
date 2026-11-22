@@ -86,6 +86,9 @@ add_executable(disrumpo_tests
     # Unit tests - Preset Integration (010-preset-system)
     unit/controller/preset_integration_test.cpp
 
+    # A browser preset load runs Processor::setState (fix plan T1.38, R-204)
+    unit/controller/preset_browser_load_test.cpp
+
     # Editor open/close lifecycle regression (willClose UAF guard)
     unit/controller/editor_lifecycle_test.cpp
 

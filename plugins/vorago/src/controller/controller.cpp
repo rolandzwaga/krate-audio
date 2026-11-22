@@ -29,6 +29,7 @@
 #include "parameters/resonance_params.h"
 #include "parameters/smear_params.h"
 #include "parameters/space_params.h"
+#include "parameters/state_migration.h"
 #include "parameters/sub_params.h"
 #include "plugin_ids.h"
 #include "preset/vorago_preset_config.h"
@@ -40,7 +41,9 @@
 #include "ui/preset_browser_view.h"
 
 #include "base/source/fstreamer.h"
+#include "pluginterfaces/vst/ivstattributes.h"
 #include "pluginterfaces/vst/ivstcomponent.h"
+#include "pluginterfaces/vst/ivstmessage.h"
 #include "public.sdk/source/common/memorystream.h"
 
 #include "vstgui/lib/cframe.h"
@@ -146,15 +149,46 @@ tresult PLUGIN_API Controller::setComponentState(IBStream* state) {
 }
 
 bool Controller::loadComponentStateWithEdits(IBStream* state) {
+    if (state == nullptr) {
+        return false;
+    }
+    // R-205: one load path. The stream is read once (an IBStream may not seek);
+    // the processor loads these bytes through its own setState, exactly as a host
+    // load (latch release, sustain / pressure reset, re-push).
+    std::vector<char> bytes;
+    {
+        constexpr int32 kChunkSize = 4096;
+        std::array<char, kChunkSize> chunk{};
+        int32 bytesRead = 0;
+        while (state->read(chunk.data(), kChunkSize, &bytesRead) == kResultOk && bytesRead > 0) {
+            bytes.insert(bytes.end(), chunk.begin(), chunk.begin() + bytesRead);
+        }
+    }
+    MemoryStream memStream(bytes.data(), static_cast<TSize>(bytes.size()));
+
     // FR-073: every restored value reaches the host as one Begin/Perform/End
-    // triple, carrying the (clamped) value setParamNormalized stored. A stream
-    // with version > kCurrentStateVersion is rejected before any setter runs.
-    return applyStateStream(state, [this](ParamID id, double v) {
-               beginEdit(id);
-               setParamNormalized(id, v);
-               performEdit(id, getParamNormalized(id));
-               endEdit(id);
-           }) == kResultOk;
+    // triple, carrying the (clamped) value setParamNormalized stored: automation,
+    // undo and the dirty flag. They equal what the processor holds after its
+    // setState. A stream with version > kCurrentStateVersion is rejected before
+    // any setter runs, and then the processor is not sent it either.
+    const tresult applied = applyStateStream(&memStream, [this](ParamID id, double v) {
+        beginEdit(id);
+        setParamNormalized(id, v);
+        performEdit(id, getParamNormalized(id));
+        endEdit(id);
+    });
+    if (applied != kResultOk) {
+        return false;
+    }
+
+    if (auto msg = owned(allocateMessage())) {
+        msg->setMessageID(kMsgLoadPresetState);
+        if (IAttributeList* attrs = msg->getAttributes()) {
+            attrs->setBinary(kMsgAttrPresetBytes, bytes.data(), static_cast<uint32>(bytes.size()));
+            sendMessage(msg);
+        }
+    }
+    return true;
 }
 
 IBStream* Controller::createComponentStateStream() {
@@ -177,84 +211,43 @@ IBStream* Controller::createComponentStateStream() {
 
 template <typename SetParam>
 tresult Controller::applyStateStream(IBStream* state, const SetParam& setParam) {
-    if (state == nullptr) {
-        return kResultFalse;
-    }
-
-    IBStreamer streamer(state, kLittleEndian);
-
-    int32 version = 0;
-    if (!streamer.readInt32(version)) {
-        return kResultFalse;
-    }
-    if (version > kCurrentStateVersion) {
-        return kResultFalse;
-    }
-
     // FR-047 / FR-040: the ...ToController helpers invert every processor mapping
-    // and are EOF-safe, in getState's write order (plan 4.9). After a failed read
-    // every later read fails too (the stream is at its end), matching the
-    // processor's short-circuit chain. `setParam` is the caller's setter
-    // (setComponentState: setParamNormalized; the load provider: with edits).
-    const auto loadV2Tail = [&setParam](IBStreamer& in) {
-        loadGlobalParamsV2ExtToController(in, setParam);
-        loadCloudParamsToController(in, setParam);
-        loadNoiseParamsToController(in, setParam);
-        loadResonanceParamsToController(in, setParam);
-        loadEcologyParamsToController(in, setParam);
-        loadSubParamsToController(in, setParam);
-        loadSmearParamsToController(in, setParam);
-        loadEventsParamsToController(in, setParam);
-        loadEcosystemParamsToController(in, setParam);
-        loadBodyParamsToController(in, setParam);
-        loadSpaceParamsToController(in, setParam);
-        loadEnvelopeParamsToController(in, setParam);
-        loadBloomParamsToController(in, setParam);
-        loadGhostParamsToController(in, setParam);
-        loadLifeParamsToController(in, setParam);
-    };
-    loadGlobalParamsToController(streamer, setParam);
-    loadMacroParamsToController(streamer, setParam);
-    if (version >= 2) {
-        loadV2Tail(streamer);
-    } else {
-        // C-7 / FR-040 mirror of Processor::setState: a version < 2 stream leaves
-        // every Phase 12 field at its registered default. The default-constructed
-        // packs' v2 tail is serialized and fed through the same inverse mappings.
-        auto tail = owned(new MemoryStream());
-        IBStreamer out(tail, kLittleEndian);
-        saveGlobalParamsV2Ext(GlobalParams{}, out);
-        saveCloudParams(CloudParams{}, out);
-        saveNoiseParams(NoiseParams{}, out);
-        saveResonanceParams(ResonanceParams{}, out);
-        saveEcologyParams(EcologyParams{}, out);
-        saveSubParams(SubParams{}, out);
-        saveSmearParams(SmearParams{}, out);
-        saveEventsParams(EventsParams{}, out);
-        saveEcosystemParams(EcosystemParams{}, out);
-        saveBodyParams(BodyParams{}, out);
-        saveSpaceParams(SpaceParams{}, out);
-        saveEnvelopeParams(EnvelopeParams{}, out);
-        saveBloomParams(BloomParams{}, out);
-        saveGhostParams(GhostParams{}, out);
-        saveLifeParams(LifeParams{}, out);
-        tail->seek(0, IBStream::kIBSeekSet, nullptr);
-        loadV2Tail(out);
-    }
-    // Phase 14 FR-072 / FR-074 mirror of Processor::setState: the v3 extension
-    // (ecosystem roster) follows the life pack; an older stream returns both
-    // roster fields to their registered defaults through the same inverse mapping.
-    if (version >= 3) {
-        loadEcosystemParamsV3ExtToController(streamer, setParam);
-    } else {
-        auto ext = owned(new MemoryStream());
-        IBStreamer out(ext, kLittleEndian);
-        saveEcosystemParamsV3Ext(EcosystemParams{}, out);
-        ext->seek(0, IBStream::kIBSeekSet, nullptr);
-        loadEcosystemParamsV3ExtToController(out, setParam);
-    }
-
-    return kResultOk;
+    // and are EOF-safe, in getState's write order (plan 4.9). The version handling
+    // and migration are loadStateStream's, the same function Processor::setState
+    // reads with (R-205). These loaders set each field as they read it and report
+    // true: after a failed read every later read fails too (the stream is at its
+    // end), matching the processor's short-circuit chain. `setParam` is the
+    // caller's setter (setComponentState: setParamNormalized; the load provider:
+    // with edits).
+    return loadStateStream(
+        state,
+        [&setParam](IBStreamer& in) {
+            loadGlobalParamsToController(in, setParam);
+            loadMacroParamsToController(in, setParam);
+            return true;
+        },
+        [&setParam](IBStreamer& in) {
+            loadGlobalParamsV2ExtToController(in, setParam);
+            loadCloudParamsToController(in, setParam);
+            loadNoiseParamsToController(in, setParam);
+            loadResonanceParamsToController(in, setParam);
+            loadEcologyParamsToController(in, setParam);
+            loadSubParamsToController(in, setParam);
+            loadSmearParamsToController(in, setParam);
+            loadEventsParamsToController(in, setParam);
+            loadEcosystemParamsToController(in, setParam);
+            loadBodyParamsToController(in, setParam);
+            loadSpaceParamsToController(in, setParam);
+            loadEnvelopeParamsToController(in, setParam);
+            loadBloomParamsToController(in, setParam);
+            loadGhostParamsToController(in, setParam);
+            loadLifeParamsToController(in, setParam);
+            return true;
+        },
+        [&setParam](IBStreamer& in) {
+            loadEcosystemParamsV3ExtToController(in, setParam);
+            return true;
+        });
 }
 
 tresult PLUGIN_API Controller::getParamStringByValue(ParamID tag, ParamValue valueNormalized,
