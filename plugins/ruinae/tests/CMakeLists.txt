@@ -33,6 +33,7 @@ add_executable(ruinae_tests
     # Plugin Shell Tests (045-plugin-shell)
     unit/processor_bus_test.cpp
     unit/processor_host_contract_test.cpp
+    unit/dropdown_mappings_include_test.cpp
     unit/param_denorm_test.cpp
     unit/state_roundtrip_test.cpp
     unit/state_migration_test.cpp
@@ -252,6 +253,10 @@ if(KRATE_NODE_EXECUTABLE)
     add_test(NAME ruinae_uidesc_inventory
         COMMAND ${KRATE_NODE_EXECUTABLE} tools/uidesc-inventory.js plugins/ruinae/resources/editor.uidesc --check
                 --allow plugins/ruinae/tests/uidesc_overlaps_allowed.json
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+    # Counts quoted in MANUAL.md / README.md / docs/index.html (filter types, global sources, presets) match the code (audit T4.2, R-103).
+    add_test(NAME ruinae_doc_counts
+        COMMAND ${KRATE_NODE_EXECUTABLE} tools/lint-ruinae-doc-counts.js
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 endif()
 

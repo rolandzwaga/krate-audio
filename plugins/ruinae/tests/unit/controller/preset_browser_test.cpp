@@ -438,6 +438,55 @@ TEST_CASE("loadComponentStateWithNotify rejects invalid version",
     handler->release();
 }
 
+// R-076: a stream cut inside the required prefix is rejected on the controller
+// too, before any parameter is touched, so the UI never shows values the
+// processor (which rejects the same stream) does not use.
+TEST_CASE("Truncated state changes no controller parameter",
+          "[preset browser][loadState]") {
+    TestableController controller;
+    controller.initialize(nullptr);
+
+    auto* handler = new MockComponentHandler();
+    controller.setComponentHandler(handler);
+
+    const auto paramId = static_cast<Steinberg::Vst::ParamID>(Ruinae::kMasterGainId);
+    controller.setParamNormalized(paramId, 0.3);
+
+    std::vector<char> state;
+    {
+        auto proc = makeReadyProcessor(nullptr);
+        state = processorStateBytes(*proc);
+        proc->setActive(false);
+        proc->terminate();
+    }
+    REQUIRE(state.size() > 20);
+    std::vector<char> cut(state.begin(), state.begin() + 20);
+    Steinberg::MemoryStream stream;
+    stream.write(cut.data(), static_cast<Steinberg::int32>(cut.size()), nullptr);
+    stream.seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
+
+    SECTION("setComponentState") {
+        CHECK(controller.setComponentState(&stream) == Steinberg::kResultFalse);
+    }
+    SECTION("loadComponentStateWithNotify") {
+        CHECK_FALSE(controller.loadComponentStateWithNotify(&stream));
+    }
+
+    CHECK(controller.getParamNormalized(paramId) == Approx(0.3));
+    CHECK(handler->records.empty());
+
+    // The bulk-load flag is not left set: a following edit reaches the handler
+    // and the parameter as a normal edit does.
+    controller.editParamWithNotify(Ruinae::kDelayEnabledId, 1.0);
+    REQUIRE(handler->records.size() == 3);
+    CHECK(handler->records[1].action == EditRecord::Action::Perform);
+    CHECK(controller.getParamNormalized(Ruinae::kDelayEnabledId) == Approx(1.0));
+
+    controller.setComponentHandler(nullptr);
+    controller.terminate();
+    handler->release();
+}
+
 TEST_CASE("loadComponentStateWithNotify succeeds with valid v1 processor state",
           "[preset browser][loadState][roundtrip]") {
     TestableController controller;

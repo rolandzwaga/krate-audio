@@ -298,6 +298,23 @@ TEST_CASE("Every Ruinae factory preset produces audible output for a held note",
     }
 }
 
+// R-076: setState rejects a stream cut inside the required prefix. Every
+// factory preset is a complete stream, so every one must still load.
+TEST_CASE("Every Ruinae factory preset passes Processor::setState",
+          "[processor][presets][state]")
+{
+    const auto presets = enumerateAllPresets();
+    REQUIRE_FALSE(presets.empty());
+
+    Ruinae::Processor processor;
+    REQUIRE(processor.initialize(nullptr) == kResultOk);
+    for (const auto& p : presets) {
+        INFO("preset: " << p.stem().string());
+        CHECK(loadPresetFileIntoProcessor(p, processor));
+    }
+    processor.terminate();
+}
+
 // =============================================================================
 // R-161: the spectral delay renders deterministically
 // =============================================================================

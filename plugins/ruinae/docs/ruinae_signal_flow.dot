@@ -256,7 +256,7 @@ digraph RuinaeSignalFlow {
     // =========================================================================
     // VOICE SUMMING
     // =========================================================================
-    voice_sum [label="Voice Summation\n16 voices → Stereo L/R\n(per-voice pan)\n+ 1/√N gain compensation", shape=box, fillcolor="#4A90D9", fontcolor="white"];
+    voice_sum [label="Voice Summation\n16 voices → Stereo L/R\n(per-voice pan)", shape=box, fillcolor="#4A90D9", fontcolor="white"];
     stereo_width [label="Stereo Width\n(Mid/Side matrix)", shape=box, fillcolor="#4A90D9", fontcolor="white"];
 
     vca -> voice_sum [penwidth=2, color="#2A5080"];
@@ -310,10 +310,10 @@ digraph RuinaeSignalFlow {
             color="#9B6BBF";
             bgcolor="#EAE0F2";
 
-            delay [label="Active Delay Type\n• Digital (era/age/limiter/mod/wavefold)\n• Tape (motor/wear/saturation/splice/3 heads)\n• PingPong (L/R ratio, cross-feedback, width)\n• Granular (size/density/pitch spray/reverse)\n• Spectral (FFT per-bin, spread/tilt/freeze)\n\nSpectral latency: FFT size + hop\n(1536 samples at 1024, compensated)", shape=box, fillcolor="#C49EE0"];
+            delay [label="Active Delay Type\n• Digital (era/age/limiter/mod/wavefold)\n• Tape (motor/wear/saturation/splice/3 heads)\n• PingPong (L/R ratio, cross-feedback, width)\n• Granular (size/density/pitch spray/reverse)\n• Spectral (FFT per-bin, spread/tilt/freeze)\n\nNo reported latency; dry path undelayed.\nSpectral repeats follow the set time,\nits first echo arrives one FFT size later", shape=box, fillcolor="#C49EE0"];
         }
 
-        harmonizer [label="Harmonizer\nPitch-shifted voices (up to 4)\nHarmony modes, scale-aware\nFormant preserve, per-voice\ninterval/level/pan/delay/detune\n\nMono-in → Stereo-out\n30ms crossfade on enable", shape=box, fillcolor="#C49EE0"];
+        harmonizer [label="Harmonizer\nPitch-shifted voices (up to 4)\nHarmony modes, scale-aware\nFormant preserve, per-voice\ninterval/level/pan/delay/detune\n\nMono-in → Stereo-out\n10ms fade on enable", shape=box, fillcolor="#C49EE0"];
 
         inter_limiter [label="Soft Limiter\ntanh(sample)\n(when harmonizer active)", shape=box, fillcolor="#B090D0"];
 
@@ -371,13 +371,13 @@ digraph RuinaeSignalFlow {
             glfo2 [label="LFO 2\n(same features)", shape=ellipse, fillcolor="#E88AAA"];
             genv_follow [label="Env Follower\ntracks audio input\n[0, 1]", shape=ellipse, fillcolor="#E88AAA"];
             grandom [label="Random\nwhite noise\n[-1, +1]", shape=ellipse, fillcolor="#E88AAA"];
-            gchaos [label="Chaos\nLorenz, Logistic,\nHenon, Rössler", shape=ellipse, fillcolor="#E88AAA"];
+            gchaos [label="Chaos\nLorenz, Rossler", shape=ellipse, fillcolor="#E88AAA"];
             grungler [label="Rungler\nshift-register chaos\n[-1, +1]", shape=ellipse, fillcolor="#E88AAA"];
             gsample_hold [label="Sample & Hold\nsamples: Random,\nLFO1, LFO2, audio", shape=ellipse, fillcolor="#E88AAA"];
             gpitch_follow [label="Pitch Follower\ntracks input pitch\n[0, 1]", shape=ellipse, fillcolor="#E88AAA"];
             gtransient [label="Transient\nDetector\n[0, 1]", shape=ellipse, fillcolor="#E88AAA"];
             garp_pitch [label="Arp Pitch\ncurrent arp note\n[0, 1]", shape=ellipse, fillcolor="#E88AAA"];
-            gmacro1 [label="Macro 1\nuser knob\nmin/max/curve", shape=ellipse, fillcolor="#E88AAA"];
+            gmacro1 [label="Macro 1\nuser knob\n(value only)", shape=ellipse, fillcolor="#E88AAA"];
             gmacro2 [label="Macro 2", shape=ellipse, fillcolor="#E88AAA"];
             gmacro3 [label="Macro 3", shape=ellipse, fillcolor="#E88AAA"];
             gmacro4 [label="Macro 4", shape=ellipse, fillcolor="#E88AAA"];

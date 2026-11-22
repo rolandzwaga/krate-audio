@@ -22,8 +22,8 @@ namespace Ruinae {
 // Detail params (1324-1355): Curve, Smooth, Scale, Bypass (spec 049)
 
 struct ModMatrixSlot {
-    std::atomic<int> source{0};       // ModSource enum (0-12)
-    std::atomic<int> dest{0};         // RuinaeModDest index (0-6)
+    std::atomic<int> source{0};       // ModSource enum (0..kNumGlobalSources, 0 = None)
+    std::atomic<int> dest{0};         // RuinaeModDest index (0..kNumGlobalDestinations-1)
     std::atomic<float> amount{0.0f};  // -1 to +1
     std::atomic<int> curve{0};        // Krate::DSP::ModCurve: 0=Linear, 1=Exponential, 2=S-Curve, 3=Stepped
     std::atomic<float> smoothMs{0.0f};// 0-100ms

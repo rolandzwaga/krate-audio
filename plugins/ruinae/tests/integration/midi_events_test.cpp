@@ -710,3 +710,41 @@ TEST_CASE("Mod wheel parameter drives Macro 1 until the Macro 1 knob moves", "[i
     CHECK(rmsWheelUp > rmsWheelDown * 1.05);
     CHECK(rmsKnobAfterWheel == Approx(rmsWheelDown).epsilon(0.02));
 }
+
+// =============================================================================
+// R-006: controller data does not multiply engine render calls
+// =============================================================================
+// Each engine processBlock call carries fixed per-call work (trance-gate sync,
+// global mod sub-block, effects chain, limiter), so the call count must follow
+// the note events and the block length, not the controller-data density.
+
+TEST_CASE("Dense pitch-bend stream does not multiply engine calls",
+          "[integration][performance-structure]") {
+    ProcessorFixture f;
+    f.events.addNoteOn(60, 0.8f);
+    f.processBlock();
+    f.clearEvents();
+
+    // One 512-sample block: a pitch-bend point at every sample, plus two notes.
+    constexpr int32_t kNoteEvents = 2;
+    for (int32_t i = 0; i < static_cast<int32_t>(ProcessorFixture::kBlockSize); ++i) {
+        if (i == 100) f.events.addNoteOn(64, 0.8f, i);
+        if (i == 300) f.events.addNoteOff(60, i);
+        Steinberg::Vst::Event bend{};
+        bend.type = Steinberg::Vst::Event::kLegacyMIDICCOutEvent;
+        bend.sampleOffset = i;
+        bend.midiCCOut.controlNumber = Steinberg::Vst::ControllerNumbers::kPitchBend;
+        bend.midiCCOut.channel = 0;
+        const int value14 = (i * 16383) / static_cast<int>(ProcessorFixture::kBlockSize - 1);
+        bend.midiCCOut.value = static_cast<Steinberg::int8>(value14 & 0x7F);
+        bend.midiCCOut.value2 = static_cast<Steinberg::int8>((value14 >> 7) & 0x7F);
+        f.events.addEvent(bend);
+    }
+
+    const uint64_t before = f.processor.engineRenderCallsForTest();
+    f.processBlock();
+    const uint64_t calls = f.processor.engineRenderCallsForTest() - before;
+    constexpr uint64_t kBound = kNoteEvents + 1 + ProcessorFixture::kBlockSize / 64;
+    INFO("engine processBlock calls for the buffer: " << calls << " (bound " << kBound << ")");
+    REQUIRE(calls <= kBound);
+}

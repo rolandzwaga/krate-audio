@@ -573,8 +573,10 @@ void Processor::applyModRoutingParams() {
         static_assert(std::size(kUiVoiceDestToDsp)
                       == static_cast<size_t>(Krate::Plugins::kNumVoiceDestinations));
 
+        // One consistent table, or last block's if this read raced a write (R-007)
+        voiceRoutes_.tryLoadAll(appliedVoiceRoutes_);
         for (int i = 0; i < Krate::Plugins::kMaxVoiceRoutes; ++i) {
-            auto r = voiceRoutes_[static_cast<size_t>(i)].load();
+            const auto& r = appliedVoiceRoutes_[static_cast<size_t>(i)];
 
             Krate::DSP::VoiceModRoute dspRoute;
             dspRoute.source = static_cast<VoiceModSource>(r.source);

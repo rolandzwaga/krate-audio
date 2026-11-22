@@ -3,12 +3,12 @@
 // ==============================================================================
 // Stereo effects chain for the Ruinae synthesizer composing existing Layer 4
 // effects into a fixed-order processing chain:
-//   Voice Sum -> Phaser -> Delay -> Harmonizer -> Reverb -> Output
+//   Voice Sum -> Modulation slot -> Delay -> Harmonizer -> Reverb -> Output
 //
 // Features:
-// - Stereo phaser with tempo sync
-// - Five selectable delay types with click-free crossfade switching (25-50ms)
-// - Dattorro plate reverb
+// - One modulation slot (None / Phaser / Flanger / Chorus) with crossfade switching
+// - Five selectable delay types with click-free crossfade switching (30ms)
+// - Two reverbs (Dattorro plate, FDN hall), crossfaded when switched
 // - No added latency: every delay type's first echo lands at the set delay time
 // - Fully real-time safe (all runtime methods noexcept, zero allocations)
 //
@@ -49,8 +49,8 @@ namespace Krate::DSP {
 
 /// @brief Modulation type selector for the modulation effects slot.
 ///
-/// Replaces the legacy `phaserEnabled_` boolean with a three-way selector
-/// supporting None, Phaser, and Flanger. Used by RuinaeEffectsChain for
+/// Replaces the legacy `phaserEnabled_` boolean with a four-way selector
+/// supporting None, Phaser, Flanger, and Chorus. Used by RuinaeEffectsChain for
 /// crossfade switching between modulation effects.
 enum class ModulationType : std::uint8_t {
     None = 0,
@@ -62,11 +62,11 @@ enum class ModulationType : std::uint8_t {
 /// @brief Stereo effects chain for the Ruinae synthesizer (Layer 3).
 ///
 /// Composes existing effects into a fixed-order processing chain:
-///   Voice Sum -> Phaser -> Delay -> Harmonizer -> Reverb -> Output
+///   Voice Sum -> Modulation slot -> Delay -> Harmonizer -> Reverb -> Output
 ///
 /// Features:
 /// - Five selectable delay types with click-free crossfade switching
-/// - Dattorro plate reverb
+/// - Two reverbs (Dattorro plate, FDN hall), crossfaded when switched
 /// - No added latency (getLatencySamples() is 0): the dry path is never delayed
 ///   and every time-domain delay type's first echo lands at the set delay time.
 ///   Spectral repeats follow the set time; its first echo arrives a fixed FFT
@@ -668,9 +668,7 @@ public:
     // =========================================================================
 
     void setDelaySpectralFFTSize(int index) noexcept {
-        constexpr size_t kFFTSizes[] = {512, 1024, 2048, 4096};
-        int clamped = std::clamp(index, 0, 3);
-        spectralDelay_.setFFTSize(kFFTSizes[clamped]);
+        spectralDelay_.setFFTSize(fftSizeFromIndex(index));
     }
     void setDelaySpectralSpread(float ms) noexcept {
         spectralDelay_.setSpreadMs(ms);

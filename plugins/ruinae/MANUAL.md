@@ -44,7 +44,7 @@ Global:
     ──> Master Gain ──> Soft Limiter ──> Output
 ```
 
-Each voice produces a mono signal. Voices are panned and summed to stereo, then processed through the shared effects chain. Master gain is automatically compensated based on the number of active voices (1/√N scaling) so the output level stays consistent whether you play one note or a full chord.
+Each voice produces a mono signal. Voices are panned and summed to stereo, then processed through the shared effects chain. Voices are summed without voice-count compensation; the soft limiter prevents clipping when many voices overlap.
 
 ---
 
@@ -108,7 +108,7 @@ Classic analog-modeled waveforms using band-limited polynomial synthesis. Clean,
 
 ##### Wavetable
 
-Wavetable synthesis that scans through a table of waveforms for evolving timbres.
+Band-limited wavetable oscillator. Ruinae ships one table (a sawtooth, mipmapped so it stays alias-free across the keyboard) and has no table-position control, so the character comes from the Phase Mod and Freq Mod controls below.
 
 | Control | Description |
 |---------|-------------|
@@ -278,7 +278,7 @@ When Mono mode is selected, additional controls appear:
 <!-- IMG-08: Close-up of the Filter container, showing the filter type dropdown, the general/type-specific toggle, and the parameter area. Show the General view. -->
 ![Filter](images/filter.png)
 
-The filter shapes the timbre of each voice after the oscillators are mixed. Six filter types are available, each with shared "general" parameters and type-specific controls.
+The filter shapes the timbre of each voice after the oscillators are mixed. Thirteen filter types are available, each with shared "general" parameters and type-specific controls.
 
 Use the toggle button (gear icon) to switch between the **General** view (common parameters) and the **Type-Specific** view (parameters unique to the selected filter type).
 
@@ -468,7 +468,7 @@ Each envelope also supports **curve shaping** for the attack, decay, and release
 
 ## Mod Tab
 
-The Mod tab is where you bring your sound to life with movement and variation. The left side houses ten different modulation sources, and the right side provides an 8-slot modulation matrix for routing those sources to destinations throughout the synth.
+The Mod tab is where you bring your sound to life with movement and variation. The left side houses fourteen different modulation sources, and the right side provides an 8-slot modulation matrix for routing those sources to destinations throughout the synth.
 
 <!-- IMG-11: Full screenshot of the Mod tab showing the modulation sources panel on the left and the modulation matrix on the right -->
 ![Mod Tab](images/mod-tab.png)
@@ -635,7 +635,7 @@ The modulation matrix provides 8 independent routing slots. Each slot connects o
 
 | Control | Description |
 |---------|-------------|
-| **Source** | The modulation signal to use (any of the 10 sources listed above, plus the 3 envelopes, velocity, and arp lanes) |
+| **Source** | The modulation signal to use (any of the 14 sources listed above, plus the 3 envelopes, velocity, and arp lanes) |
 | **Destination** | The parameter to modulate (oscillator parameters, filter cutoff/resonance, distortion drive, mixer position, trance gate, effect parameters, and more) |
 | **Amount** | Modulation depth (0–100%) |
 | **Curve** | Shapes the modulation response (e.g., linear, exponential, S-curve) |
@@ -957,13 +957,13 @@ The Trance Gate is a rhythmic volume gate applied to each voice. It modulates th
 | **Steps** | Number of active steps in the pattern (2–32) |
 | **Preset** | Load a preset gate pattern |
 | **Sync** | Lock the gate rate to host tempo |
-| **Rate** | Gate speed when not synced (0.1–50 Hz) |
+| **Rate** | Gate speed when not synced (0.1–100 Hz) |
 | **Note Value** | Step length when synced (e.g., 1/16 note) |
 | **Depth** | How deep the gating cuts — at 100%, silent steps are fully silent; lower values just reduce the volume |
 | **Attack** | Fade-in time for each gate opening (1–20 ms). Prevents clicks. |
 | **Release** | Fade-out time for each gate closing (1–50 ms) |
 | **Phase** | Phase offset of the gate pattern |
-| **Retrigger** | Reset the pattern on each new note |
+| **Retrigger** | Depth of a short dip at every step boundary (0–100%), which re-articulates each step. The pattern itself runs continuously and is not restarted by a new note. |
 
 #### Step Pattern Editor
 
@@ -1110,7 +1110,6 @@ Access the settings drawer by clicking the gear icon in the top bar. These setti
 | **Tuning Reference** | Concert pitch reference frequency (default: 440 Hz) |
 | **Voice Allocation** | How new voices are assigned: Round Robin, Oldest, Lowest Velocity, or Highest Note |
 | **Voice Steal Mode** | What happens to the stolen voice when polyphony is exceeded (Voice Allocation picks which one). **Hard**: the old note fades out over 2 ms and the new note starts from silence with its full attack. **Soft**: the new note takes the voice over from the old note's current level, without a gap |
-| **Gain Compensation** | Automatic volume compensation based on active voice count |
 
 ---
 
@@ -1130,3 +1129,9 @@ Ruinae allows delay feedback above 100%. This creates self-oscillating, runaway 
 
 ### CPU Management
 If CPU usage is high, try reducing the polyphony count in the Master section. Many sounds work well with 4–6 voices instead of the default 8. Also, disable any effects you're not using — each active effect consumes resources even at 0% mix.
+
+### Automation Timing
+Notes start and stop on their exact sample. Parameter automation is applied once per host audio buffer: Ruinae reads the last automation value the host sends for each buffer and applies it from the start of that buffer. A change can therefore take effect up to one buffer early (about 11 ms at 512 samples and 48 kHz), and two automation points inside one buffer (for example a switch turned on and off again) count as one, the last. Continuous controls glide through their smoothing, so this is inaudible for them; for a switch or a menu that must change exactly on a note, put the automation point a buffer ahead of the note, or use a smaller buffer size. Pitch bend, note expression, aftertouch and the mod wheel are applied within 64 samples of where they arrive (at once if a note starts sooner).
+
+### Damaged Presets and Projects
+A preset or project whose Ruinae data ends early, inside its sound settings (a damaged or hand-edited `.vstpreset` file or project chunk), does not load: the current sound stays as it was, and your host may report that the preset failed to load. Earlier versions loaded such a file halfway, mixing its settings with the previous sound, and the next save kept that mix.

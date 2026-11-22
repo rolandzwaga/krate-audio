@@ -26,6 +26,14 @@
 #include <vector>
 #include "vst_param_changes.h"
 
+#include "unit/controller/view_lifecycle_rig.h"
+#include "controller/view_sync_rules.h"
+#include "parameters/dropdown_mappings.h"
+#include "ui/arp_condition_lane.h"
+#include "ui/chaos_mod_display.h"
+#include <krate/dsp/core/note_value.h>
+#include <krate/dsp/primitives/polyblep_oscillator.h>
+
 using Catch::Approx;
 
 // =============================================================================
@@ -570,5 +578,143 @@ TEST_CASE("Legacy state loads identical values via setState and via the browser 
         ctrl->setComponentHandler(nullptr);
         ctrl->terminate();
         ctrl->release();
+    }
+}
+
+// =============================================================================
+// T4.5 (R-108): live edit, state load and editor open apply ONE view-sync rule
+// =============================================================================
+// setParamNormalized (live edit / automation), syncAllViews (setComponentState)
+// and verifyView (a view built on editor open) each used to carry their own copy
+// of the PW-knob dimming, the condition-index scale and the 120 BPM display tempo.
+// Every path must show what the shared rule in controller/view_sync_rules.h says.
+
+namespace {
+
+using RuinaeViewLifecycleTest::ParamList;
+using RuinaeViewLifecycleTest::ViewLifecycleRig;
+
+// Processor state after the given normalized parameter changes.
+std::vector<char> processorStateWith(const ParamList& params) {
+    auto proc = std::make_unique<TestableProcessor>();
+    REQUIRE(proc->initialize(nullptr) == Steinberg::kResultOk);
+    Steinberg::Vst::ProcessSetup setup{};
+    setup.processMode = Steinberg::Vst::kRealtime;
+    setup.symbolicSampleSize = Steinberg::Vst::kSample32;
+    setup.sampleRate = 44100.0;
+    setup.maxSamplesPerBlock = 512;
+    proc->setupProcessing(setup);
+    StateTestParamChanges changes;
+    for (const auto& [id, v] : params) changes.addChange(id, v);
+    proc->processParameterChanges(&changes);
+    Steinberg::MemoryStream s;
+    REQUIRE(proc->getState(&s) == Steinberg::kResultTrue);
+    std::vector<char> bytes(s.getData(), s.getData() + s.getSize());
+    proc->terminate();
+    return bytes;
+}
+
+struct ViewReadings {
+    double liveEdit = -1.0;    // setParamNormalized with the editor open
+    double stateLoad = -1.0;   // setComponentState with the editor open (syncAllViews)
+    double editorOpen = -1.0;  // parameters set first, then the editor opens (verifyView)
+};
+
+template <typename Read>
+ViewReadings readViewThreeWays(const ParamList& editorParams, const ParamList& edits, Read read) {
+    ViewReadings out;
+    {
+        ViewLifecycleRig rig(editorParams);
+        for (const auto& [id, v] : edits) rig.ctl.setParamNormalized(id, v);
+        out.liveEdit = read(rig);
+    }
+    {
+        ViewLifecycleRig rig(editorParams);
+        REQUIRE(rig.loadState(processorStateWith(edits)) == Steinberg::kResultTrue);
+        out.stateLoad = read(rig);
+    }
+    {
+        ParamList all = editorParams;
+        all.insert(all.end(), edits.begin(), edits.end());
+        ViewLifecycleRig rig(all);
+        out.editorOpen = read(rig);
+    }
+    return out;
+}
+
+}  // namespace
+
+TEST_CASE("Live edit and state load give the same view state", "[controller][view-sync]") {
+    using namespace RuinaeViewLifecycleTest;
+
+    SECTION("OSC A PW knob alpha for the Pulse waveform") {
+        const double pulse = static_cast<double>(Krate::DSP::OscWaveform::Pulse) /
+                             static_cast<double>(Ruinae::kOscWaveformCount - 1);
+        const double saw = static_cast<double>(Krate::DSP::OscWaveform::Sawtooth) /
+                           static_cast<double>(Ruinae::kOscWaveformCount - 1);
+        REQUIRE(Ruinae::oscPwKnobAlpha(pulse) == 1.0f);
+        REQUIRE(Ruinae::oscPwKnobAlpha(saw) < 1.0f);
+
+        auto readAlpha = [](ViewLifecycleRig& rig) {
+            auto* knob = rig.pointer("oscAPWKnob_");
+            REQUIRE(knob != nullptr);
+            return static_cast<double>(knob->getAlphaValue());
+        };
+        const ParamList tab{{Ruinae::kMainTabTag, kTabSound}};
+        {
+            // The default (Sawtooth) knob is dimmed, so the Pulse edit has something to change.
+            ViewLifecycleRig rig(tab);
+            CHECK(readAlpha(rig) == Approx(Ruinae::oscPwKnobAlpha(saw)));
+        }
+        const auto r = readViewThreeWays(tab, {{Ruinae::kOscAWaveformId, pulse}}, readAlpha);
+        CHECK(r.liveEdit == Approx(Ruinae::oscPwKnobAlpha(pulse)));
+        CHECK(r.stateLoad == Approx(r.liveEdit));
+        CHECK(r.editorOpen == Approx(r.liveEdit));
+    }
+
+    SECTION("Condition lane step value") {
+        constexpr int kMaxCondition = Krate::Plugins::ArpConditionLane::kConditionCount - 1;
+        constexpr int kCondition = 11;
+        static_assert(kCondition < kMaxCondition);
+        const double norm = static_cast<double>(kCondition) / kMaxCondition;
+        REQUIRE(Ruinae::conditionIndexFromNormalized(norm) == kCondition);
+        REQUIRE(Ruinae::conditionIndexFromNormalized(1.0) == kMaxCondition);
+
+        auto readCondition = [](ViewLifecycleRig& rig) {
+            auto* lane = dynamic_cast<Krate::Plugins::ArpConditionLane*>(rig.pointer("conditionLane_"));
+            REQUIRE(lane != nullptr);
+            return static_cast<double>(lane->getStepCondition(0));
+        };
+        const auto r = readViewThreeWays({{Ruinae::kMainTabTag, kTabSeq}},
+                                         {{Ruinae::kArpConditionLaneStep0Id, norm}}, readCondition);
+        CHECK(r.liveEdit == kCondition);
+        CHECK(r.stateLoad == r.liveEdit);
+        CHECK(r.editorOpen == r.liveEdit);
+    }
+
+    SECTION("Chaos display speed when tempo-synced") {
+        constexpr int kNoteIndex = 13;
+        static_assert(kNoteIndex != Krate::DSP::kNoteValueDefaultIndex);
+        const double nvNorm = static_cast<double>(kNoteIndex) / (Krate::DSP::kNoteValueDropdownCount - 1);
+        const auto mapping = Krate::DSP::getNoteValueFromDropdown(kNoteIndex);
+        const float expected = (Krate::Plugins::LfoWaveformDisplay::kDefaultBpm / 60.0f) /
+                               Krate::DSP::getBeatsForNote(mapping.note, mapping.modifier);
+        REQUIRE(expected > 0.05f);
+        REQUIRE(expected < 20.0f);  // inside ChaosModDisplay::setSpeed's clamp
+        REQUIRE(Ruinae::displayBeatsPerSecond() == Krate::Plugins::LfoWaveformDisplay::kDefaultBpm / 60.0f);
+        REQUIRE(Ruinae::syncedDisplayRateHz(nvNorm) == Approx(expected).margin(1e-6));
+
+        auto readSpeed = [](ViewLifecycleRig& rig) {
+            auto* display = dynamic_cast<Krate::Plugins::ChaosModDisplay*>(rig.pointer("chaosModDisplay_"));
+            REQUIRE(display != nullptr);
+            return static_cast<double>(display->getSpeed());
+        };
+        constexpr int kChaosSourceIndex = 2;  // ModSourceViewMode: LFO1, LFO2, Chaos, ...
+        const auto r = readViewThreeWays(
+            {{Ruinae::kMainTabTag, kTabMod}, {Ruinae::kModSourceViewModeTag, modSourceNorm(kChaosSourceIndex)}},
+            {{Ruinae::kChaosModSyncId, 1.0}, {Ruinae::kChaosModNoteValueId, nvNorm}}, readSpeed);
+        CHECK(r.liveEdit == Approx(expected).margin(1e-6));
+        CHECK(r.stateLoad == Approx(r.liveEdit).margin(1e-6));
+        CHECK(r.editorOpen == Approx(r.liveEdit).margin(1e-6));
     }
 }

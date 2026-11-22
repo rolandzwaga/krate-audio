@@ -9,12 +9,12 @@
 // - ModulationEngine (global modulation: LFOs, Chaos, Rungler, Macros)
 // - 2x SVF (global stereo filter)
 // - RuinaeEffectsChain (delay, reverb)
-// - Master output with gain compensation, soft limiting, NaN/Inf flush
+// - Master output with soft limiting, NaN/Inf flush
 //
 // Signal flow:
 //   noteOn/Off -> VoiceAllocator/MonoHandler -> RuinaeVoice[0..15]
 //   -> Stereo Pan + Sum -> Stereo Width -> Global Filter -> Effects Chain
-//   -> Master Gain * 1/sqrt(N) -> Soft Limit -> NaN/Inf Flush -> Output
+//   -> Master Gain -> Soft Limit -> NaN/Inf Flush -> Output
 //
 // Feature: 044-engine-composition
 // Reference: specs/044-engine-composition/spec.md
@@ -45,6 +45,7 @@
 
 // Plugin engine components (co-located)
 #include "ruinae_effects_chain.h"
+#include "ruinae_types.h"
 #include "ruinae_voice.h"
 
 // Standard library
@@ -57,40 +58,6 @@
 #include <vector>
 
 namespace Krate::DSP {
-
-// =============================================================================
-// RuinaeModDest Enumeration (FR-020)
-// =============================================================================
-
-/// @brief Internal enum for global modulation destinations within the
-///        RuinaeEngine. Values start at 64 to avoid collision with
-///        per-voice modulation destination IDs.
-enum class RuinaeModDest : std::uint8_t {
-    GlobalFilterCutoff     = 64,  ///< Global filter cutoff frequency offset
-    GlobalFilterResonance  = 65,  ///< Global filter resonance offset
-    MasterVolume           = 66,  ///< Master volume offset
-    EffectMix              = 67,  ///< Effect chain mix offset (delay mix)
-    AllVoiceFilterCutoff   = 68,  ///< Offset forwarded to all voices' filter cutoff
-    AllVoiceMorphPosition  = 69,  ///< Offset forwarded to all voices' morph position
-    AllVoiceTranceGateRate = 70,  ///< Offset forwarded to all voices' trance gate rate
-    AllVoiceSpectralTilt   = 71,  ///< Offset forwarded to all voices' spectral tilt
-    AllVoiceResonance      = 72,  ///< Offset forwarded to all voices' filter resonance
-    AllVoiceFilterEnvAmt   = 73,  ///< Offset forwarded to all voices' filter env amount
-    // Arpeggiator modulation destinations (078-modulation-integration)
-    ArpRate                = 74,  ///< Arp rate/speed modulation
-    ArpGateLength          = 75,  ///< Arp gate length modulation
-    ArpOctaveRange         = 76,  ///< Arp octave range modulation
-    ArpSwing               = 77,  ///< Arp swing modulation
-    ArpSpice               = 78   ///< Arp spice amount modulation
-};
-
-// FR-020: Validate linear mapping from UI index to enum value.
-// modDestFromIndex() computes GlobalFilterCutoff + index, so ArpRate must be
-// exactly GlobalFilterCutoff + 10 (since ArpRate is at UI index 10).
-static_assert(static_cast<uint32_t>(RuinaeModDest::ArpRate) ==
-              static_cast<uint32_t>(RuinaeModDest::GlobalFilterCutoff) + 10,
-              "ArpRate enum value must equal GlobalFilterCutoff + 10 "
-              "for modDestFromIndex() to work correctly");
 
 // =============================================================================
 // RuinaeEngine Class (FR-001 through FR-044)
@@ -357,7 +324,6 @@ public:
     /// @brief Set the number of available voices (FR-010).
     /// Clamped to [1, kMaxPolyphony]. Releases excess voices; they keep
     /// rendering until their release ends.
-    /// Recalculates gain compensation to 1/sqrt(count).
     /// @param count Number of voices to use
     void setPolyphony(size_t count) noexcept {
         count = std::max<size_t>(count, 1);
@@ -769,7 +735,7 @@ public:
     }
 
     /// @brief Legacy setter — gain compensation has been removed.
-    /// Kept for preset/settings compatibility (parameter is still serialized).
+    /// Kept for preset/settings compatibility (the hidden parameter is still serialized).
     /// The engine now sums voices naturally and relies on the soft limiter.
     void setGainCompensationEnabled([[maybe_unused]] bool enabled) noexcept {
         // No-op: dynamic voice-count gain compensation removed to eliminate
@@ -908,6 +874,16 @@ public:
         sidechainL_ = nullptr;
         sidechainR_ = nullptr;
     }
+
+    /// Samples until the next modulation grid cell starts (0 at a cell start).
+    /// The grid is counted across buffers, so it does not depend on the host
+    /// buffer size; the processor applies controller data on it (R-006).
+    [[nodiscard]] size_t samplesToNextModCell() const noexcept {
+        return (kModSubBlock - modGridPhase_) % kModSubBlock;
+    }
+
+    /// Length of one modulation grid cell in samples.
+    [[nodiscard]] static constexpr size_t modCellSamples() noexcept { return kModSubBlock; }
 
     // =========================================================================
     // Voice Parameter Forwarding (FR-035)

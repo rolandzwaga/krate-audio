@@ -66,6 +66,10 @@ public:
     static constexpr float kBodyHeight = 63.0f;
     static constexpr float kRowHeight = 15.75f;  // kBodyHeight / kRowCount
 
+    /// The step parameters are 0-255 and the processors decode round(v * 255)
+    /// (R-145): the lane's normalized value is flags / 255, never flags / 15.
+    static constexpr float kFlagParamMax = 255.0f;
+
     // Row definitions
     static constexpr const char* kRowLabels[4] = {"Rest", "Tie", "Slide", "Accent"};
     static constexpr uint8_t kRowBits[4] = {0x01, 0x02, 0x04, 0x08};
@@ -236,16 +240,17 @@ public:
 
     [[nodiscard]] float getNormalizedStepValue(int32_t step) const override {
         if (step >= 0 && step < kMaxSteps) {
-            return static_cast<float>(stepFlags_[static_cast<size_t>(step)] & 0x0F) / 15.0f;
+            return static_cast<float>(stepFlags_[static_cast<size_t>(step)] & 0x0F) / kFlagParamMax;
         }
         return 0.0f;
     }
 
+    /// Decodes as the processor does: round(v * 255), of which the flag bits show.
     void setNormalizedStepValue(int32_t step, float value) override {
         if (step >= 0 && step < kMaxSteps) {
-            auto flags = static_cast<uint8_t>(
-                std::clamp(static_cast<int>(std::round(value * 15.0f)), 0, 15));
-            stepFlags_[static_cast<size_t>(step)] = flags;
+            const int decoded = std::clamp(
+                static_cast<int>(std::round(value * kFlagParamMax)), 0, static_cast<int>(kFlagParamMax));
+            stepFlags_[static_cast<size_t>(step)] = static_cast<uint8_t>(decoded & 0x0F);
         }
     }
 
@@ -281,7 +286,7 @@ public:
     // =========================================================================
 
     /// Compute the result of applying a transform to this lane's step data.
-    /// Returns an array of new normalized values (flags/15.0f).
+    /// Returns an array of new normalized values (flags / kFlagParamMax).
     [[nodiscard]] std::array<float, 32> computeTransform(TransformType type) const {
         int32_t len = getActiveLength();
         std::array<float, 32> result{};
@@ -295,10 +300,10 @@ public:
             case TransformType::kInvert:
                 for (int32_t i = 0; i < len; ++i) {
                     auto flags = static_cast<uint8_t>(
-                        std::round(result[static_cast<size_t>(i)] * 15.0f));
+                        std::round(result[static_cast<size_t>(i)] * kFlagParamMax));
                     auto inverted = static_cast<uint8_t>((~flags) & 0x0F);
                     result[static_cast<size_t>(i)] =
-                        static_cast<float>(inverted) / 15.0f;
+                        static_cast<float>(inverted) / kFlagParamMax;
                 }
                 break;
 
@@ -328,7 +333,7 @@ public:
                 std::uniform_int_distribution<int> dist(0, 15);
                 for (int32_t i = 0; i < len; ++i) {
                     result[static_cast<size_t>(i)] =
-                        static_cast<float>(dist(rng)) / 15.0f;
+                        static_cast<float>(dist(rng)) / kFlagParamMax;
                 }
                 break;
             }
@@ -430,7 +435,7 @@ public:
 
         // Fire parameter callback with normalized value
         if (paramCallback_ && stepFlagBaseParamId_ != 0) {
-            float normalized = static_cast<float>(flags & 0x0F) / 15.0f;
+            float normalized = static_cast<float>(flags & 0x0F) / kFlagParamMax;
             paramCallback_(stepFlagBaseParamId_ + static_cast<uint32_t>(step), normalized);
         }
 

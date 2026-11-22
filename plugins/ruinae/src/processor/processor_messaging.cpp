@@ -33,8 +33,8 @@ Steinberg::tresult PLUGIN_API Processor::notify(Steinberg::Vst::IMessage* messag
         if (slotIndex < 0 || slotIndex >= Krate::Plugins::kMaxVoiceRoutes)
             return Steinberg::kResultFalse;
 
-        // Build local route, then atomic-store into the slot
-        auto route = voiceRoutes_[static_cast<size_t>(slotIndex)].load();
+        // Build local route, then publish it with the rest of the table
+        auto route = voiceRoutes_.loadAll()[static_cast<size_t>(slotIndex)];
 
         Steinberg::int64 val = 0;
         double dval = 0.0;
@@ -69,7 +69,7 @@ Steinberg::tresult PLUGIN_API Processor::notify(Steinberg::Vst::IMessage* messag
         if (attrs->getInt("active", val) == Steinberg::kResultOk)
             route.active = static_cast<uint8_t>(val != 0 ? 1 : 0);
 
-        voiceRoutes_[static_cast<size_t>(slotIndex)].store(route);
+        voiceRoutes_.store(static_cast<size_t>(slotIndex), route);
 
         // Send authoritative state back to controller (T086)
         sendVoiceModRouteState();
@@ -89,8 +89,8 @@ Steinberg::tresult PLUGIN_API Processor::notify(Steinberg::Vst::IMessage* messag
         if (slotIndex < 0 || slotIndex >= Krate::Plugins::kMaxVoiceRoutes)
             return Steinberg::kResultFalse;
 
-        // Deactivate the slot (atomic store of default-constructed route)
-        voiceRoutes_[static_cast<size_t>(slotIndex)].store(Krate::Plugins::VoiceModRoute{});
+        // Deactivate the slot (publish a default-constructed route)
+        voiceRoutes_.store(static_cast<size_t>(slotIndex), Krate::Plugins::VoiceModRoute{});
 
         // Send authoritative state back to controller (T086)
         sendVoiceModRouteState();
@@ -141,10 +141,11 @@ void Processor::sendVoiceModRouteState() {
     auto* attrs = voiceRouteSyncMsg_->getAttributes();
     if (!attrs) return;
 
-    // Count active routes (atomic load per slot)
+    // Count active routes in one consistent snapshot
+    const auto routes = voiceRoutes_.loadAll();
     Steinberg::int64 activeCount = 0;
-    for (const auto& ar : voiceRoutes_) {
-        if (ar.active.load(std::memory_order_relaxed) != 0) ++activeCount;
+    for (const auto& r : routes) {
+        if (r.active != 0) ++activeCount;
     }
     attrs->setInt("routeCount", activeCount);
 
@@ -156,7 +157,7 @@ void Processor::sendVoiceModRouteState() {
     uint8_t buffer[kTotalBytes]{};
 
     for (int i = 0; i < Krate::Plugins::kMaxVoiceRoutes; ++i) {
-        auto r = voiceRoutes_[static_cast<size_t>(i)].load();
+        const auto& r = routes[static_cast<size_t>(i)];
         auto* ptr = &buffer[static_cast<size_t>(i) * kBytesPerRoute];
 
         ptr[0] = r.source;

@@ -154,10 +154,7 @@ inline void registerHarmonizerParams(Steinberg::Vst::ParameterContainer& paramet
         {STR16("Chromatic"), STR16("Scalic")}));
 
     parameters.addParameter(createDropdownParameter(
-        STR16("Harmonizer Key"), kHarmonizerKeyId,
-        {STR16("C"), STR16("C#"), STR16("D"), STR16("Eb"),
-         STR16("E"), STR16("F"), STR16("F#"), STR16("G"),
-         STR16("Ab"), STR16("A"), STR16("Bb"), STR16("B")}));
+        STR16("Harmonizer Key"), kHarmonizerKeyId, kHarmonizerKeyStrings, kHarmonizerKeyCount));
 
     parameters.addParameter(createDropdownParameter(
         STR16("Harmonizer Scale"), kHarmonizerScaleId,

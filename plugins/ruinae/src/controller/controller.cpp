@@ -80,6 +80,7 @@
 #include "parameters/transient_params.h"
 #include "parameters/voice_lfo_params.h"
 #include "parameters/arpeggiator_params.h"
+#include "parameters/state_prefix_validator.h"
 
 #include "base/source/fstreamer.h"
 #include "pluginterfaces/base/ibstream.h"
@@ -93,6 +94,7 @@
 #include <cmath>
 #include <cstring>
 #include <string>
+#include <vector>
 
 namespace {
 
@@ -235,6 +237,27 @@ Steinberg::tresult PLUGIN_API Controller::initialize(FUnknown* context) {
         }
     }
 
+    // Processor display data (hidden, read-only output parameters; R-005)
+    {
+        const auto addDisplayParam = [this](const Steinberg::Vst::TChar* title,
+                                            Steinberg::Vst::ParamID id, double defaultValue) {
+            parameters.addParameter(title, STR16(""), 0, defaultValue,
+                Steinberg::Vst::ParameterInfo::kIsHidden | Steinberg::Vst::ParameterInfo::kIsReadOnly,
+                id);
+        };
+        addDisplayParam(STR16("Trance Gate Step"), kTranceGatePlaybackStepId, 0.0);
+        addDisplayParam(STR16("Transport Playing"), kTransportPlayingId, 0.0);
+        addDisplayParam(STR16("Amp Env Output"), kAmpEnvDisplayOutputId, 0.0);
+        addDisplayParam(STR16("Amp Env Stage"), kAmpEnvDisplayStageId, 0.0);
+        addDisplayParam(STR16("Filter Env Output"), kFilterEnvDisplayOutputId, 0.0);
+        addDisplayParam(STR16("Filter Env Stage"), kFilterEnvDisplayStageId, 0.0);
+        addDisplayParam(STR16("Mod Env Output"), kModEnvDisplayOutputId, 0.0);
+        addDisplayParam(STR16("Mod Env Stage"), kModEnvDisplayStageId, 0.0);
+        addDisplayParam(STR16("Env Voice Active"), kEnvDisplayVoiceActiveId, 0.0);
+        addDisplayParam(STR16("Morph Pad Mod X"), kMorphPadModXId, 0.5);
+        addDisplayParam(STR16("Morph Pad Mod Y"), kMorphPadModYId, 0.5);
+    }
+
     // MIDI performance controllers, reached through IMidiMapping (R-030, R-042).
     // Hidden and not part of the state: the host owns the wheel positions.
     parameters.addParameter(STR16("Pitch Bend"), STR16(""), 0, 0.5,
@@ -280,25 +303,8 @@ void Controller::createPresetManager(std::filesystem::path userDirOverride,
 }
 
 Steinberg::tresult PLUGIN_API Controller::terminate() {
-    modulatedMorphXPtr_ = nullptr;
-    modulatedMorphYPtr_ = nullptr;
     playbackPollTimer_ = nullptr;
     trailTimer_ = nullptr;
-    tranceGatePlaybackStepPtr_ = nullptr;
-    isTransportPlayingPtr_ = nullptr;
-    ampEnvOutputPtr_ = nullptr;
-    ampEnvStagePtr_ = nullptr;
-    filterEnvOutputPtr_ = nullptr;
-    filterEnvStagePtr_ = nullptr;
-    modEnvOutputPtr_ = nullptr;
-    modEnvStagePtr_ = nullptr;
-    envVoiceActivePtr_ = nullptr;
-    // The ADSR displays of an editor the host has not closed yet hold copies of the processor's
-    // envelope-display pointers and poll them; revoke those copies (this also stops their timers).
-    for (auto* display : {ampEnvDisplay_, filterEnvDisplay_, modEnvDisplay_}) {
-        if (display)
-            display->setPlaybackStatePointers(nullptr, nullptr, nullptr);
-    }
     // An editor the host has not closed yet keeps its views; stop caching them.
     viewRegistry_.clear();
     // updateChecker_ and presetManager_ stay until the destructor: an editor a host has not
@@ -318,7 +324,20 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(
     if (!state)
         return Steinberg::kResultFalse;
 
-    Steinberg::IBStreamer streamer(state, kLittleEndian);
+    // Read the whole stream first (an IBStream may not seek): the truncation
+    // check and loadStateCore read the same buffer.
+    std::vector<char> bytes;
+    {
+        constexpr Steinberg::int32 kChunkSize = 4096;
+        char chunk[kChunkSize];
+        Steinberg::int32 bytesRead = 0;
+        while (state->read(chunk, kChunkSize, &bytesRead) == Steinberg::kResultTrue &&
+               bytesRead > 0) {
+            bytes.insert(bytes.end(), chunk, chunk + bytesRead);
+        }
+    }
+    Steinberg::MemoryStream memStream(bytes.data(), static_cast<Steinberg::TSize>(bytes.size()));
+    Steinberg::IBStreamer streamer(&memStream, kLittleEndian);
 
     Steinberg::int32 version = 0;
     if (!streamer.readInt32(version))
@@ -326,6 +345,11 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(
 
     if (version < 1 || version > Ruinae::kCurrentStateVersion)
         return Steinberg::kResultTrue; // Unknown version, keep defaults
+
+    // Cut inside the required prefix: rejected before any parameter is set,
+    // as Processor::setState rejects it (R-076)
+    if (!Ruinae::isRequiredStatePrefixComplete(bytes.data(), bytes.size(), version))
+        return Steinberg::kResultFalse;
 
     bulkParamLoad_ = true;
     FrameInvalidationGuard frameGuard(activeEditor_);
@@ -396,86 +420,6 @@ Steinberg::tresult PLUGIN_API Controller::notify(Steinberg::Vst::IMessage* messa
     if (!message)
         return Steinberg::kInvalidArgument;
 
-    if (strcmp(message->getMessageID(), "TranceGatePlayback") == 0) {
-        auto* attrs = message->getAttributes();
-        if (!attrs)
-            return Steinberg::kResultFalse;
-
-        Steinberg::int64 stepPtr = 0;
-        Steinberg::int64 playingPtr = 0;
-
-        if (attrs->getInt("stepPtr", stepPtr) == Steinberg::kResultOk) {
-            tranceGatePlaybackStepPtr_ = reinterpret_cast<std::atomic<int>*>( // NOLINT(performance-no-int-to-ptr)
-                static_cast<intptr_t>(stepPtr));
-        }
-        if (attrs->getInt("playingPtr", playingPtr) == Steinberg::kResultOk) {
-            isTransportPlayingPtr_ = reinterpret_cast<std::atomic<bool>*>( // NOLINT(performance-no-int-to-ptr)
-                static_cast<intptr_t>(playingPtr));
-        }
-
-        return Steinberg::kResultOk;
-    }
-
-    if (strcmp(message->getMessageID(), "EnvelopeDisplayState") == 0) {
-        auto* attrs = message->getAttributes();
-        if (!attrs)
-            return Steinberg::kResultFalse;
-
-        Steinberg::int64 val = 0;
-
-        if (attrs->getInt("ampOutputPtr", val) == Steinberg::kResultOk) {
-            ampEnvOutputPtr_ = reinterpret_cast<std::atomic<float>*>( // NOLINT(performance-no-int-to-ptr)
-                static_cast<intptr_t>(val));
-        }
-        if (attrs->getInt("ampStagePtr", val) == Steinberg::kResultOk) {
-            ampEnvStagePtr_ = reinterpret_cast<std::atomic<int>*>( // NOLINT(performance-no-int-to-ptr)
-                static_cast<intptr_t>(val));
-        }
-        if (attrs->getInt("filterOutputPtr", val) == Steinberg::kResultOk) {
-            filterEnvOutputPtr_ = reinterpret_cast<std::atomic<float>*>( // NOLINT(performance-no-int-to-ptr)
-                static_cast<intptr_t>(val));
-        }
-        if (attrs->getInt("filterStagePtr", val) == Steinberg::kResultOk) {
-            filterEnvStagePtr_ = reinterpret_cast<std::atomic<int>*>( // NOLINT(performance-no-int-to-ptr)
-                static_cast<intptr_t>(val));
-        }
-        if (attrs->getInt("modOutputPtr", val) == Steinberg::kResultOk) {
-            modEnvOutputPtr_ = reinterpret_cast<std::atomic<float>*>( // NOLINT(performance-no-int-to-ptr)
-                static_cast<intptr_t>(val));
-        }
-        if (attrs->getInt("modStagePtr", val) == Steinberg::kResultOk) {
-            modEnvStagePtr_ = reinterpret_cast<std::atomic<int>*>( // NOLINT(performance-no-int-to-ptr)
-                static_cast<intptr_t>(val));
-        }
-        if (attrs->getInt("voiceActivePtr", val) == Steinberg::kResultOk) {
-            envVoiceActivePtr_ = reinterpret_cast<std::atomic<bool>*>( // NOLINT(performance-no-int-to-ptr)
-                static_cast<intptr_t>(val));
-        }
-
-        // Wire the atomic pointers to existing ADSRDisplay instances
-        wireEnvDisplayPlayback();
-
-        return Steinberg::kResultOk;
-    }
-
-    if (strcmp(message->getMessageID(), "MorphPadModulation") == 0) {
-        auto* attrs = message->getAttributes();
-        if (!attrs)
-            return Steinberg::kResultFalse;
-
-        Steinberg::int64 val = 0;
-        if (attrs->getInt("morphXPtr", val) == Steinberg::kResultOk) {
-            modulatedMorphXPtr_ = reinterpret_cast<std::atomic<float>*>( // NOLINT(performance-no-int-to-ptr)
-                static_cast<intptr_t>(val));
-        }
-        if (attrs->getInt("morphYPtr", val) == Steinberg::kResultOk) {
-            modulatedMorphYPtr_ = reinterpret_cast<std::atomic<float>*>( // NOLINT(performance-no-int-to-ptr)
-                static_cast<intptr_t>(val));
-        }
-
-        return Steinberg::kResultOk;
-    }
-
     if (strcmp(message->getMessageID(), "VoiceModRouteState") == 0) {
         auto* attrs = message->getAttributes();
         if (!attrs)
@@ -526,46 +470,7 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
     // Create a unified UI poll timer (~30fps) for all processor→UI feedback.
     if (!playbackPollTimer_) {
         playbackPollTimer_ = VSTGUI::makeOwned<VSTGUI::CVSTGUITimer>(
-            [this](VSTGUI::CVSTGUITimer*) {
-                // Trance gate step indicator
-                if (stepPatternEditor_) {
-                    if (tranceGatePlaybackStepPtr_) {
-                        stepPatternEditor_->setPlaybackStep(
-                            tranceGatePlaybackStepPtr_->load(std::memory_order_relaxed));
-                    }
-                    if (isTransportPlayingPtr_) {
-                        stepPatternEditor_->setPlaying(
-                            isTransportPlayingPtr_->load(std::memory_order_relaxed));
-                    }
-                }
-                // Morph pad modulation animation
-                if (xyMorphPad_ && modulatedMorphXPtr_ && modulatedMorphYPtr_
-                    && !xyMorphPad_->isDragging()) {
-                    const float modX = modulatedMorphXPtr_->load(std::memory_order_relaxed);
-                    const float modY = modulatedMorphYPtr_->load(std::memory_order_relaxed);
-                    xyMorphPad_->setMorphPosition(modX, modY);
-                }
-
-                // 081-interaction-polish US1: Detect transport stop and clear trails
-                if (isTransportPlayingPtr_) {
-                    bool playing = isTransportPlayingPtr_->load(std::memory_order_relaxed);
-                    if (wasTransportPlaying_ && !playing) {
-                        for (auto& ts : laneTrailStates_) ts.clear();
-                        lastPolledSteps_.fill(-1);
-                        if (velocityLane_) velocityLane_->clearOverlays();
-                        if (gateLane_) gateLane_->clearOverlays();
-                        if (pitchLane_) pitchLane_->clearOverlays();
-                        if (ratchetLane_) ratchetLane_->clearOverlays();
-                        if (modifierLane_) modifierLane_->clearOverlays();
-                        if (conditionLane_) conditionLane_->clearOverlays();
-                        if (chordLane_) chordLane_->clearOverlays();
-                        if (inversionLane_) inversionLane_->clearOverlays();
-                    }
-                    wasTransportPlaying_ = playing;
-                }
-
-                pollArpLanePlayheads();
-            }, 33); // ~30fps
+            [this](VSTGUI::CVSTGUITimer*) { pollProcessorDisplays(); }, 33); // ~30fps
 
         trailTimer_ = playbackPollTimer_;
     }
@@ -645,6 +550,71 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
     if (updateBannerView_) {
         updateBannerView_->startPolling();
     }
+}
+
+void Controller::pollProcessorDisplays() {
+    // Everything here comes from the processor's display-data output parameters
+    // (R-005): values the host delivered to this controller, never the processor's memory.
+    const auto norm = [this](Steinberg::Vst::ParamID id) { return getParamNormalized(id); };
+    const bool playing = norm(kTransportPlayingId) >= 0.5;
+
+    // Trance gate step indicator
+    if (stepPatternEditor_) {
+        const long encodedStep = std::lround(norm(kTranceGatePlaybackStepId) * kTranceGateDisplayStepScale);
+        stepPatternEditor_->setPlaybackStep(static_cast<int>(encodedStep) - 1);
+        stepPatternEditor_->setPlaying(playing);
+    }
+
+    // Morph pad modulation animation
+    if (xyMorphPad_ && morphPadFollowsProcessor_ && !xyMorphPad_->isDragging()) {
+        xyMorphPad_->setMorphPosition(static_cast<float>(norm(kMorphPadModXId)),
+                                      static_cast<float>(norm(kMorphPadModYId)));
+    }
+
+    // ADSR playback dots (the three strip displays and the expanded overlay's)
+    const bool voiceActive = norm(kEnvDisplayVoiceActiveId) >= 0.5;
+    const auto pushEnv = [&](Krate::Plugins::ADSRDisplay* display, Steinberg::Vst::ParamID outputId,
+                             Steinberg::Vst::ParamID stageId) {
+        if (!display) return;
+        display->setPlaybackState(static_cast<float>(norm(outputId)),
+                                  static_cast<int>(std::lround(norm(stageId) * kEnvDisplayStageScale)),
+                                  voiceActive);
+    };
+    const auto pushEnvType = [&](Krate::Plugins::ADSRDisplay* display, EnvelopeType env) {
+        switch (env) {
+        case EnvelopeType::kAmp:
+            pushEnv(display, kAmpEnvDisplayOutputId, kAmpEnvDisplayStageId);
+            break;
+        case EnvelopeType::kFilter:
+            pushEnv(display, kFilterEnvDisplayOutputId, kFilterEnvDisplayStageId);
+            break;
+        case EnvelopeType::kMod:
+            pushEnv(display, kModEnvDisplayOutputId, kModEnvDisplayStageId);
+            break;
+        }
+    };
+    pushEnvType(ampEnvDisplay_, EnvelopeType::kAmp);
+    pushEnvType(filterEnvDisplay_, EnvelopeType::kFilter);
+    pushEnvType(modEnvDisplay_, EnvelopeType::kMod);
+    if (adsrExpandedOverlay_ && adsrExpandedOverlay_->isOpen())
+        pushEnvType(adsrExpandedOverlay_->getDisplay(), adsrExpandedEnv_);
+
+    // 081-interaction-polish US1: Detect transport stop and clear trails
+    if (wasTransportPlaying_ && !playing) {
+        for (auto& ts : laneTrailStates_) ts.clear();
+        lastPolledSteps_.fill(-1);
+        if (velocityLane_) velocityLane_->clearOverlays();
+        if (gateLane_) gateLane_->clearOverlays();
+        if (pitchLane_) pitchLane_->clearOverlays();
+        if (ratchetLane_) ratchetLane_->clearOverlays();
+        if (modifierLane_) modifierLane_->clearOverlays();
+        if (conditionLane_) conditionLane_->clearOverlays();
+        if (chordLane_) chordLane_->clearOverlays();
+        if (inversionLane_) inversionLane_->clearOverlays();
+    }
+    wasTransportPlaying_ = playing;
+
+    pollArpLanePlayheads();
 }
 
 void Controller::pollArpLanePlayheads() {
@@ -979,21 +949,8 @@ void Controller::openAdsrExpandedOverlay(EnvelopeType env) {
     // Sync current parameter values
     syncAdsrDisplay(display, adsrBaseId, curveBaseId, bezierEnabledId, bezierBaseId);
 
-    // Wire playback state for the matching envelope
-    switch (env) {
-    case EnvelopeType::kAmp:
-        if (ampEnvOutputPtr_ && ampEnvStagePtr_ && envVoiceActivePtr_)
-            display->setPlaybackStatePointers(ampEnvOutputPtr_, ampEnvStagePtr_, envVoiceActivePtr_);
-        break;
-    case EnvelopeType::kFilter:
-        if (filterEnvOutputPtr_ && filterEnvStagePtr_ && envVoiceActivePtr_)
-            display->setPlaybackStatePointers(filterEnvOutputPtr_, filterEnvStagePtr_, envVoiceActivePtr_);
-        break;
-    case EnvelopeType::kMod:
-        if (modEnvOutputPtr_ && modEnvStagePtr_ && envVoiceActivePtr_)
-            display->setPlaybackStatePointers(modEnvOutputPtr_, modEnvStagePtr_, envVoiceActivePtr_);
-        break;
-    }
+    // The poll timer feeds this envelope's playback state to the expanded display
+    adsrExpandedEnv_ = env;
 
     adsrExpandedOverlay_->open();
 }

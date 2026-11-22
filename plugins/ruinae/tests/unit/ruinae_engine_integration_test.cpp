@@ -655,10 +655,10 @@ TEST_CASE("RuinaeEngine integration: soft limiter transparency",
 }
 
 // =============================================================================
-// Integration Test: Gain Compensation Accuracy (SC-005)
+// Integration Test: Voices sum without voice-count compensation (SC-005)
 // =============================================================================
 
-TEST_CASE("RuinaeEngine integration: gain compensation accuracy",
+TEST_CASE("RuinaeEngine integration: voices sum without voice-count compensation",
           "[ruinae-engine-integration][master]") {
     RuinaeEngine engine;
     engine.prepare(44100.0, kBlockSize);
@@ -691,10 +691,9 @@ TEST_CASE("RuinaeEngine integration: gain compensation accuracy",
         }
     }
 
-    SECTION("compensation scales with actual active voice count") {
-        // Playing N simultaneous notes with compensation enabled should
-        // produce roughly the same total RMS as 1 note (1/sqrt(N) compensates
-        // the sqrt(N) RMS growth from N uncorrelated voices).
+    SECTION("setGainCompensationEnabled(true) is a no-op: voices still sum") {
+        // The engine has no voice-count compensation; the setter is a legacy
+        // no-op. Four notes land within the bounds below (soft limiter off).
         engine.setPolyphony(8);
         engine.setGainCompensationEnabled(true);
         engine.noteOn(60, 100); // 1 voice
@@ -716,14 +715,12 @@ TEST_CASE("RuinaeEngine integration: gain compensation accuracy",
 
         float ratio = rms4 / rms1;
         INFO("4 voices / 1 voice ratio: " << ratio
-             << " (expected ~1.0 with compensation)");
-        // With compensation: should be roughly equal (tolerance for voice
-        // correlation, different note frequencies, and envelope timing)
+             << " (no compensation: bounded by the bounds below)");
         REQUIRE(ratio < 2.0f);
         REQUIRE(ratio > 0.3f);
     }
 
-    SECTION("compensation disabled: voices sum without attenuation") {
+    SECTION("setGainCompensationEnabled(false): voices sum without attenuation") {
         engine.setPolyphony(8);
         engine.setGainCompensationEnabled(false);
         engine.noteOn(60, 100);

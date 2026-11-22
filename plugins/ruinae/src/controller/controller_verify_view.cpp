@@ -30,15 +30,9 @@
 #include "vstgui/lib/controls/cbuttons.h"
 #include "vstgui/lib/controls/coptionmenu.h"
 #include "vstgui/lib/cviewcontainer.h"
-#include <krate/dsp/core/note_value.h>
+#include "controller/view_sync_rules.h"
 
 // Parameter pack headers (for denormalization helpers)
-#include "parameters/lfo1_params.h"
-#include "parameters/lfo2_params.h"
-#include "parameters/chaos_mod_params.h"
-#include "parameters/rungler_params.h"
-#include "parameters/sample_hold_params.h"
-#include "parameters/random_params.h"
 #include "parameters/arpeggiator_params.h"
 #include "parameters/distortion_params.h"
 
@@ -434,10 +428,8 @@ VSTGUI::CView* Controller::verifyView(
                 kArpConditionLaneStep0Id + i);
             auto* paramObj = getParameterObject(paramId);
             if (paramObj) {
-                float normalized = static_cast<float>(paramObj->getNormalized());
-                auto condIndex = static_cast<uint8_t>(
-                    std::clamp(static_cast<int>(std::round(normalized * 17.0f)), 0, 17));
-                conditionLane_->setStepCondition(i, condIndex);
+                conditionLane_->setStepCondition(
+                    i, conditionIndexFromNormalized(paramObj->getNormalized()));
             }
         }
         auto* condLenParam = getParameterObject(kArpConditionLaneLengthId);
@@ -631,17 +623,11 @@ VSTGUI::CView* Controller::verifyView(
             if (*viewName == "OscAPWKnob") {
                 cacheView(oscAPWKnob_, view);
                 auto* wfParam = getParameterObject(kOscAWaveformId);
-                if (wfParam) {
-                    int wf = static_cast<int>(wfParam->getNormalized() * 4.0 + 0.5);
-                    view->setAlphaValue(wf == 3 ? 1.0f : 0.3f);
-                }
+                if (wfParam) applyOscPwDimming(view, wfParam->getNormalized());
             } else if (*viewName == "OscBPWKnob") {
                 cacheView(oscBPWKnob_, view);
                 auto* wfParam = getParameterObject(kOscBWaveformId);
-                if (wfParam) {
-                    int wf = static_cast<int>(wfParam->getNormalized() * 4.0 + 0.5);
-                    view->setAlphaValue(wf == 3 ? 1.0f : 0.3f);
-                }
+                if (wfParam) applyOscPwDimming(view, wfParam->getNormalized());
             } else if (*viewName == "SpectralCurveDropdown") {
                 cacheView(spectralCurveDropdown_, view);
                 auto* modeParam = getParameterObject(kDistortionSpectralModeId);
@@ -659,64 +645,12 @@ VSTGUI::CView* Controller::verifyView(
             // LFO Waveform Displays
             auto* lfoDisplay = dynamic_cast<Krate::Plugins::LfoWaveformDisplay*>(view);
             if (lfoDisplay) {
-                auto syncLfoDisplay = [&](Krate::Plugins::LfoWaveformDisplay* display,
-                                          Steinberg::Vst::ParamID shapeId,
-                                          Steinberg::Vst::ParamID symmetryId,
-                                          Steinberg::Vst::ParamID quantizeId,
-                                          Steinberg::Vst::ParamID unipolarId,
-                                          Steinberg::Vst::ParamID phaseId,
-                                          Steinberg::Vst::ParamID rateId,
-                                          Steinberg::Vst::ParamID syncId,
-                                          Steinberg::Vst::ParamID noteValueId,
-                                          Steinberg::Vst::ParamID depthId,
-                                          Steinberg::Vst::ParamID fadeInId) {
-                    auto* p = getParameterObject(shapeId);
-                    if (p) display->setShape(static_cast<int>(p->getNormalized() * 5.0 + 0.5));
-                    p = getParameterObject(symmetryId);
-                    if (p) display->setSymmetry(static_cast<float>(p->getNormalized()));
-                    p = getParameterObject(quantizeId);
-                    if (p) display->setQuantizeSteps(lfoQuantizeFromNormalized(p->getNormalized()));
-                    p = getParameterObject(unipolarId);
-                    if (p) display->setUnipolar(p->getNormalized() >= 0.5);
-                    p = getParameterObject(phaseId);
-                    if (p) display->setPhaseOffset(static_cast<float>(p->getNormalized()));
-                    p = getParameterObject(depthId);
-                    if (p) display->setDepth(static_cast<float>(p->getNormalized()));
-                    p = getParameterObject(fadeInId);
-                    if (p) display->setFadeInMs(lfoFadeInFromNormalized(p->getNormalized()));
-
-                    // Compute and set frequency
-                    auto* syncParam = getParameterObject(syncId);
-                    bool synced = syncParam && syncParam->getNormalized() >= 0.5;
-                    if (synced) {
-                        auto* nvParam = getParameterObject(noteValueId);
-                        int nvIdx = nvParam ? static_cast<int>(
-                            nvParam->getNormalized() * (Krate::DSP::kNoteValueDropdownCount - 1) + 0.5) : 10;
-                        auto mapping = Krate::DSP::getNoteValueFromDropdown(nvIdx);
-                        float beats = Krate::DSP::getBeatsForNote(mapping.note, mapping.modifier);
-                        float bps = Krate::Plugins::LfoWaveformDisplay::kDefaultBpm / 60.0f;
-                        display->setFrequencyHz(bps / beats);
-                    } else {
-                        auto* rateParam = getParameterObject(rateId);
-                        if (rateParam)
-                            display->setFrequencyHz(lfoRateFromNormalized(rateParam->getNormalized()));
-                    }
-                };
-
                 if (*viewName == "LFO1WaveformDisplay") {
                     cacheView(lfo1WaveformDisplay_, lfoDisplay);
-                    syncLfoDisplay(lfoDisplay,
-                                   kLFO1ShapeId, kLFO1SymmetryId, kLFO1QuantizeId,
-                                   kLFO1UnipolarId, kLFO1PhaseOffsetId,
-                                   kLFO1RateId, kLFO1SyncId, kLFO1NoteValueId,
-                                   kLFO1DepthId, kLFO1FadeInId);
+                    syncLfoWaveformDisplay(lfoDisplay, 0);
                 } else if (*viewName == "LFO2WaveformDisplay") {
                     cacheView(lfo2WaveformDisplay_, lfoDisplay);
-                    syncLfoDisplay(lfoDisplay,
-                                   kLFO2ShapeId, kLFO2SymmetryId, kLFO2QuantizeId,
-                                   kLFO2UnipolarId, kLFO2PhaseOffsetId,
-                                   kLFO2RateId, kLFO2SyncId, kLFO2NoteValueId,
-                                   kLFO2DepthId, kLFO2FadeInId);
+                    syncLfoWaveformDisplay(lfoDisplay, 1);
                 }
             }
 
@@ -724,111 +658,28 @@ VSTGUI::CView* Controller::verifyView(
             auto* chaosDisplay = dynamic_cast<Krate::Plugins::ChaosModDisplay*>(view);
             if (chaosDisplay && viewName && *viewName == "ChaosModDisplay") {
                 cacheView(chaosModDisplay_, chaosDisplay);
-                // Sync current parameter state
-                auto* typeParam = getParameterObject(kChaosModTypeId);
-                if (typeParam)
-                    chaosDisplay->setModel(static_cast<int>(
-                        typeParam->getNormalized() * (kChaosTypeCount - 1) + 0.5));
-                // Compute effective speed from sync state
-                {
-                    auto* syncParam = getParameterObject(kChaosModSyncId);
-                    bool synced = (syncParam != nullptr) && syncParam->getNormalized() >= 0.5;
-                    if (synced) {
-                        auto* nvParam = getParameterObject(kChaosModNoteValueId);
-                        int nvIdx = nvParam ? static_cast<int>(
-                            nvParam->getNormalized() * (Krate::DSP::kNoteValueDropdownCount - 1) + 0.5) : 10;
-                        auto mapping = Krate::DSP::getNoteValueFromDropdown(nvIdx);
-                        float beats = Krate::DSP::getBeatsForNote(mapping.note, mapping.modifier);
-                        float bps = 120.0f / 60.0f;
-                        chaosDisplay->setSpeed(bps / beats);
-                    } else {
-                        auto* rateParam = getParameterObject(kChaosModRateId);
-                        if (rateParam)
-                            chaosDisplay->setSpeed(chaosSpeedFromNormalized(rateParam->getNormalized()));
-                    }
-                }
-                auto* depthParam = getParameterObject(kChaosModDepthId);
-                if (depthParam)
-                    chaosDisplay->setDepth(static_cast<float>(depthParam->getNormalized()));
+                syncChaosModDisplay();
             }
 
             // Rungler Display
             auto* runglerDisp = dynamic_cast<Krate::Plugins::RunglerDisplay*>(view);
             if (runglerDisp && viewName && *viewName == "RunglerDisplay") {
                 cacheView(runglerDisplay_, runglerDisp);
-                // Sync current parameter state
-                auto* osc1Param = getParameterObject(kRunglerOsc1FreqId);
-                if (osc1Param)
-                    runglerDisp->setOsc1Freq(runglerFreqFromNormalized(osc1Param->getNormalized()));
-                auto* osc2Param = getParameterObject(kRunglerOsc2FreqId);
-                if (osc2Param)
-                    runglerDisp->setOsc2Freq(runglerFreqFromNormalized(osc2Param->getNormalized()));
-                auto* depthP = getParameterObject(kRunglerDepthId);
-                if (depthP)
-                    runglerDisp->setDepth(static_cast<float>(depthP->getNormalized()));
-                auto* filterParam = getParameterObject(kRunglerFilterId);
-                if (filterParam)
-                    runglerDisp->setFilterAmount(static_cast<float>(filterParam->getNormalized()));
-                auto* bitsParam = getParameterObject(kRunglerBitsId);
-                if (bitsParam)
-                    runglerDisp->setBits(runglerBitsFromNormalized(bitsParam->getNormalized()));
-                auto* loopParam = getParameterObject(kRunglerLoopModeId);
-                if (loopParam)
-                    runglerDisp->setLoopMode(loopParam->getNormalized() >= 0.5);
+                syncRunglerDisplay();
             }
 
             // Sample & Hold Display
             auto* shDisp = dynamic_cast<Krate::Plugins::SampleHoldDisplay*>(view);
             if (shDisp && viewName && *viewName == "SampleHoldDisplay") {
                 cacheView(sampleHoldDisplay_, shDisp);
-                // Compute effective rate from sync state
-                {
-                    auto* syncParam = getParameterObject(kSampleHoldSyncId);
-                    bool synced = (syncParam != nullptr) && syncParam->getNormalized() >= 0.5;
-                    if (synced) {
-                        auto* nvParam = getParameterObject(kSampleHoldNoteValueId);
-                        int nvIdx = nvParam ? static_cast<int>(
-                            nvParam->getNormalized() * (Krate::DSP::kNoteValueDropdownCount - 1) + 0.5) : 10;
-                        auto mapping = Krate::DSP::getNoteValueFromDropdown(nvIdx);
-                        float beats = Krate::DSP::getBeatsForNote(mapping.note, mapping.modifier);
-                        float bps = 120.0f / 60.0f;
-                        shDisp->setRate(bps / beats);
-                    } else {
-                        auto* rateParam = getParameterObject(kSampleHoldRateId);
-                        if (rateParam)
-                            shDisp->setRate(sampleHoldRateFromNormalized(rateParam->getNormalized()));
-                    }
-                }
-                auto* slewParam = getParameterObject(kSampleHoldSlewId);
-                if (slewParam)
-                    shDisp->setSlew(sampleHoldSlewFromNormalized(slewParam->getNormalized()));
+                syncSampleHoldDisplay();
             }
 
             // Random Mod Display
             auto* rndDisp = dynamic_cast<Krate::Plugins::RandomModDisplay*>(view);
             if (rndDisp && viewName && *viewName == "RandomModDisplay") {
                 cacheView(randomModDisplay_, rndDisp);
-                // Compute effective rate from sync state
-                {
-                    auto* syncParam = getParameterObject(kRandomSyncId);
-                    bool synced = (syncParam != nullptr) && syncParam->getNormalized() >= 0.5;
-                    if (synced) {
-                        auto* nvParam = getParameterObject(kRandomNoteValueId);
-                        int nvIdx = nvParam ? static_cast<int>(
-                            nvParam->getNormalized() * (Krate::DSP::kNoteValueDropdownCount - 1) + 0.5) : 10;
-                        auto mapping = Krate::DSP::getNoteValueFromDropdown(nvIdx);
-                        float beats = Krate::DSP::getBeatsForNote(mapping.note, mapping.modifier);
-                        float bps = 120.0f / 60.0f;
-                        rndDisp->setRate(bps / beats);
-                    } else {
-                        auto* rateParam = getParameterObject(kRandomRateId);
-                        if (rateParam)
-                            rndDisp->setRate(sampleHoldRateFromNormalized(rateParam->getNormalized()));
-                    }
-                }
-                auto* smoothParam = getParameterObject(kRandomSmoothnessId);
-                if (smoothParam)
-                    rndDisp->setSmoothness(static_cast<float>(smoothParam->getNormalized()));
+                syncRandomModDisplay();
             }
         }
     }

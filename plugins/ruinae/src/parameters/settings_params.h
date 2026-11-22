@@ -84,9 +84,11 @@ inline void registerSettingsParams(Steinberg::Vst::ParameterContainer& parameter
         {STR16("Hard"), STR16("Soft")}
     ));
 
-    // Gain Compensation: on/off, default ON (1.0)
+    // Gain Compensation: legacy. The engine no longer compensates by voice count, so
+    // the parameter does nothing; it stays registered (hidden, not automatable) so
+    // the ID, the state field and old projects keep working.
     parameters.addParameter(STR16("Gain Compensation"), STR16(""), 1, 1.0,
-        ParameterInfo::kCanAutomate, kSettingsGainCompensationId);
+        ParameterInfo::kIsHidden, kSettingsGainCompensationId);
 }
 
 inline Steinberg::tresult formatSettingsParam(

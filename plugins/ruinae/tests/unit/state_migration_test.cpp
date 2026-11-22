@@ -110,7 +110,33 @@ TEST_CASE("Empty stream loads with defaults", "[state][migration]") {
     proc->terminate();
 }
 
-TEST_CASE("Truncated v1 stream loads partial defaults", "[state][migration]") {
+TEST_CASE("Truncated v1 stream is rejected and leaves the state unchanged", "[state][migration]") {
+    // R-076 (user ruling 2026-11-16): a stream that ends inside the required
+    // prefix is rejected whole; nothing of it is applied.
+    auto proc = makeProcessor();
+
+    // Load a valid state whose masterGain is 1.5: P's own default stream with
+    // the float after the version int32 patched.
+    {
+        Steinberg::MemoryStream defaults;
+        REQUIRE(proc->getState(&defaults) == Steinberg::kResultTrue);
+        Steinberg::int64 size = 0;
+        defaults.seek(0, Steinberg::IBStream::kIBSeekEnd, &size);
+        std::vector<char> bytes(static_cast<size_t>(size));
+        defaults.seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
+        Steinberg::int32 bytesRead = 0;
+        defaults.read(bytes.data(), static_cast<Steinberg::int32>(size), &bytesRead);
+        const float masterGain = 1.5f;
+        std::memcpy(bytes.data() + sizeof(Steinberg::int32), &masterGain, sizeof(masterGain));
+        Steinberg::MemoryStream valid;
+        valid.write(bytes.data(), static_cast<Steinberg::int32>(bytes.size()), nullptr);
+        valid.seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
+        REQUIRE(proc->setState(&valid) == Steinberg::kResultTrue);
+        drainPresetTransfer(proc.get());
+    }
+    Steinberg::MemoryStream beforeStream;
+    REQUIRE(proc->getState(&beforeStream) == Steinberg::kResultTrue);
+
     // Create a v1 stream that's truncated after just the global params
     Steinberg::MemoryStream stream;
     Steinberg::IBStreamer streamer(&stream, kLittleEndian);
@@ -121,14 +147,17 @@ TEST_CASE("Truncated v1 stream loads partial defaults", "[state][migration]") {
     streamer.writeInt32(4);     // polyphony
     streamer.writeInt32(1);     // softLimit (true)
     // Stream ends here -- rest of packs are missing
-
-    auto proc = makeProcessor();
     stream.seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
 
-    // Should return kResultTrue (truncated but handled gracefully)
-    auto result = proc->setState(&stream);
-    REQUIRE(result == Steinberg::kResultTrue);
+    REQUIRE(proc->setState(&stream) == Steinberg::kResultFalse);
     drainPresetTransfer(proc.get());
+
+    Steinberg::MemoryStream afterStream;
+    REQUIRE(proc->getState(&afterStream) == Steinberg::kResultTrue);
+    const auto bytesOf = [](Steinberg::MemoryStream& s) {
+        return std::vector<char>(s.getData(), s.getData() + s.getSize());
+    };
+    REQUIRE(bytesOf(afterStream) == bytesOf(beforeStream));
 
     proc->terminate();
 }
@@ -192,7 +221,8 @@ TEST_CASE("setState does not crash on any stream content", "[state][migration]")
 
     garbageStream.seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
     auto result = proc->setState(&garbageStream);
-    REQUIRE(result == Steinberg::kResultTrue);
+    // The stream ends inside the required prefix: rejected (R-076)
+    REQUIRE(result == Steinberg::kResultFalse);
     drainPresetTransfer(proc.get());
 
     proc->terminate();
@@ -238,6 +268,106 @@ float floatAt(const std::vector<uint8_t>& bytes, size_t offset) {
 }
 
 }  // namespace
+
+// =============================================================================
+// R-076: a cut inside the required prefix (version ... Mono Mode, everything
+// before the voice routes) is rejected; a cut in the tail is still accepted
+// =============================================================================
+
+TEST_CASE("Every cut inside the required prefix is rejected", "[state][robustness]") {
+    // Source state: early packs differ from the defaults, so any partial apply
+    // to a default processor would show in its getState bytes.
+    std::vector<uint8_t> full;
+    {
+        auto src = makeProcessor();
+        Krate::Test::ParameterChanges changes;
+        changes.addChange(Ruinae::kMasterGainId, 0.3);
+        changes.addChange(Ruinae::kFilterCutoffId, 0.2);
+        changes.addChange(Ruinae::kMonoPortamentoTimeId, 0.4);
+        Steinberg::Vst::ProcessData data{};
+        data.numSamples = 0;
+        data.inputParameterChanges = &changes;
+        src->process(data);
+        Steinberg::MemoryStream out;
+        REQUIRE(src->getState(&out) == Steinberg::kResultTrue);
+        full = streamBytes(out);
+        src->terminate();
+    }
+
+    // Byte offset of the Filter pack: version, Global, OSC A, OSC B, Mixer precede it.
+    size_t filterAt = 0;
+    {
+        Steinberg::MemoryStream mem(full.data(), static_cast<Steinberg::TSize>(full.size()));
+        Steinberg::IBStreamer s(&mem, kLittleEndian);
+        Steinberg::int32 version = 0;
+        auto global = std::make_unique<Ruinae::GlobalParams>();
+        auto oscA = std::make_unique<Ruinae::OscAParams>();
+        auto oscB = std::make_unique<Ruinae::OscBParams>();
+        auto mixer = std::make_unique<Ruinae::MixerParams>();
+        REQUIRE(s.readInt32(version));
+        REQUIRE(Ruinae::loadGlobalParams(*global, s));
+        REQUIRE(Ruinae::loadOscAParams(*oscA, s, version));
+        REQUIRE(Ruinae::loadOscBParams(*oscB, s, version));
+        REQUIRE(Ruinae::loadMixerParams(*mixer, s, version));
+        filterAt = static_cast<size_t>(s.tell());
+    }
+
+    // The validator is monotone: false up to prefixEnd, true from there.
+    const auto* bytes = reinterpret_cast<const char*>(full.data());
+    size_t prefixEnd = 0;
+    bool monotone = true;
+    for (size_t n = 0; n <= full.size(); ++n) {
+        const bool complete =
+            Ruinae::isRequiredStatePrefixComplete(bytes, n, Ruinae::kCurrentStateVersion);
+        if (complete && prefixEnd == 0) prefixEnd = n;
+        if (!complete && prefixEnd != 0) monotone = false;
+    }
+    INFO("stream " << full.size() << " bytes, Filter pack at " << filterAt
+         << ", required prefix ends at " << prefixEnd);
+    REQUIRE(monotone);
+    REQUIRE(prefixEnd > 4);
+    REQUIRE(prefixEnd < full.size());
+    REQUIRE(filterAt > 4);
+    REQUIRE(filterAt < prefixEnd);
+
+    auto proc = makeProcessor();
+    Steinberg::MemoryStream beforeStream;
+    REQUIRE(proc->getState(&beforeStream) == Steinberg::kResultTrue);
+    const auto before = streamBytes(beforeStream);
+    REQUIRE(before != full);  // not vacuous: a partial apply would show
+
+    const auto cutStream = [&full](Steinberg::MemoryStream& s, size_t n) {
+        s.write(full.data(), static_cast<Steinberg::int32>(n), nullptr);
+        s.seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
+    };
+    const auto near = [](size_t n, size_t center) { return n + 32 >= center && n < center + 32; };
+    int checked = 0;
+    for (size_t n = 4; n < prefixEnd; ++n) {
+        if (!near(n, filterAt) && !near(n, prefixEnd) && (n - 4) % 97 != 0) continue;
+        INFO("cut at " << n);
+        Steinberg::MemoryStream cut;
+        cutStream(cut, n);
+        REQUIRE(proc->setState(&cut) == Steinberg::kResultFalse);
+        drainPresetTransfer(proc.get());
+        Steinberg::MemoryStream after;
+        REQUIRE(proc->getState(&after) == Steinberg::kResultTrue);
+        REQUIRE(streamBytes(after) == before);
+        ++checked;
+    }
+    REQUIRE(checked > 64);
+
+    // The tail stays tolerant: a cut at the prefix end or inside the voice
+    // routes loads (packs were appended without version bumps).
+    for (const size_t n : {prefixEnd, prefixEnd + 1}) {
+        INFO("tail cut at " << n);
+        Steinberg::MemoryStream cut;
+        cutStream(cut, n);
+        REQUIRE(proc->setState(&cut) == Steinberg::kResultTrue);
+        drainPresetTransfer(proc.get());
+    }
+
+    proc->terminate();
+}
 
 TEST_CASE("setState clamps out-of-range oscillator floats", "[state][robustness]") {
     // Locate OSC B PhaseMod in the stream: normalized 0.25 stores -0.5, 0.75 stores +0.5.

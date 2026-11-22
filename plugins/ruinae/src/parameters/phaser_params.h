@@ -102,16 +102,13 @@ inline void registerPhaserParams(Steinberg::Vst::ParameterContainer& parameters)
     parameters.addParameter(STR16("Phaser Mix"), STR16("%"), 0, 0.5,
         ParameterInfo::kCanAutomate, kPhaserMixId);
     parameters.addParameter(createDropdownParameterWithDefault(
-        STR16("Phaser Stages"), kPhaserStagesId, 1,
-        {STR16("2"), STR16("4"), STR16("6"),
-         STR16("8"), STR16("10"), STR16("12")}));
+        STR16("Phaser Stages"), kPhaserStagesId, 1, kPhaserStagesStrings, kPhaserStagesCount));
     parameters.addParameter(STR16("Phaser Center Freq"), STR16("Hz"), 0, 0.0909,
         ParameterInfo::kCanAutomate, kPhaserCenterFreqId);  // default ~1000 Hz
     parameters.addParameter(STR16("Phaser Spread"), STR16("\u00B0"), 0, 0.0,
         ParameterInfo::kCanAutomate, kPhaserStereoSpreadId);
     parameters.addParameter(createDropdownParameter(
-        STR16("Phaser Waveform"), kPhaserWaveformId,
-        {STR16("Sine"), STR16("Triangle"), STR16("Sawtooth"), STR16("Square")}));
+        STR16("Phaser Waveform"), kPhaserWaveformId, kPhaserWaveformStrings, kPhaserWaveformCount));
     parameters.addParameter(STR16("Phaser Sync"), STR16(""), 1, 0.0,
         ParameterInfo::kCanAutomate, kPhaserSyncId);
     parameters.addParameter(createNoteValueDropdown(

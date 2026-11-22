@@ -53,6 +53,7 @@
 #include "parameters/transient_params.h"
 #include "parameters/voice_lfo_params.h"
 #include "parameters/arpeggiator_params.h"
+#include "parameters/state_prefix_validator.h"
 
 #include "base/source/fstreamer.h"
 #include "pluginterfaces/base/ibstream.h"
@@ -387,6 +388,11 @@ bool Controller::loadComponentStateWithNotify(Steinberg::IBStream* state, bool a
 
     Steinberg::int32 version = 0;
     if (!streamer.readInt32(version) || version < 1 || version > Ruinae::kCurrentStateVersion)
+        return false;
+
+    // Cut inside the required prefix: rejected before the processor gets it
+    // and before any parameter is edited (R-076)
+    if (!Ruinae::isRequiredStatePrefixComplete(bytes.data(), bytes.size(), version))
         return false;
 
     // One preset-load path (R-196): the processor parses and applies these

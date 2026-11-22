@@ -3,8 +3,9 @@
 // ==============================================================================
 // Tests for the three race condition fixes in preset loading:
 //   Issue 1: sendVoiceModRouteState() pre-allocated message
-//   Issue 2: voiceRoutes_ using per-field atomics
-//   Issue 3: One-time pointer messages pre-allocated in initialize()
+//   Issue 2: voiceRoutes_ published as one table (VoiceRouteTable, R-007)
+//   Issue 3: (gone, R-005) the one-time pointer messages; display data now
+//            travels as output parameters
 //
 // Tags: [voice-route][rt-safety]
 // ==============================================================================
@@ -15,13 +16,19 @@
 #include "processor/processor.h"
 #include "plugin_ids.h"
 #include "drain_preset_transfer.h"
+#include "vst_event_list.h"
+#include "vst_param_changes.h"
 
 #include "public.sdk/source/common/memorystream.h"
 #include "public.sdk/source/vst/hosting/hostclasses.h"
 #include "base/source/fstreamer.h"
 
+#include <algorithm>
+#include <atomic>
 #include <cmath>
 #include <cstring>
+#include <string>
+#include <thread>
 #include <vector>
 
 // =============================================================================
@@ -38,15 +45,6 @@ public:
     // Access pre-allocated messages for verification
     Steinberg::Vst::IMessage* getVoiceRouteSyncMsg() const {
         return voiceRouteSyncMsg_.get();
-    }
-    Steinberg::Vst::IMessage* getPlaybackMsg() const {
-        return playbackMsg_.get();
-    }
-    Steinberg::Vst::IMessage* getEnvDisplayMsg() const {
-        return envDisplayMsg_.get();
-    }
-    Steinberg::Vst::IMessage* getMorphPadModMsg() const {
-        return morphPadModMsg_.get();
     }
 };
 
@@ -368,6 +366,75 @@ TEST_CASE("VoiceModRouteUpdate clamps to the voice enums", "[vst][modmatrix]") {
 }
 
 // =============================================================================
+// R-007: a voice route is never applied torn
+// =============================================================================
+// notify() and setState() (message thread) write the routes while process()
+// (audio thread) reads them. Field-by-field atomics let the reader see a new
+// destination with the old amount; the reader must only ever see whole routes.
+
+namespace {
+
+bool sameRoute(const Krate::Plugins::VoiceModRoute& a, const Krate::Plugins::VoiceModRoute& b) {
+    return a.source == b.source && a.destination == b.destination && a.amount == b.amount
+        && a.curve == b.curve && a.smoothMs == b.smoothMs && a.scale == b.scale
+        && a.bypass == b.bypass && a.active == b.active;
+}
+
+}  // namespace
+
+TEST_CASE("Voice route table is never read torn", "[vst][modmatrix][threads]") {
+    // Two routes that differ in every field
+    const Krate::Plugins::VoiceModRoute routeA{.source = 1, .destination = 2, .amount = 0.5f,
+                                               .curve = 1, .smoothMs = 10.0f, .scale = 1,
+                                               .bypass = 0, .active = 1};
+    const Krate::Plugins::VoiceModRoute routeB{.source = 5, .destination = 6, .amount = -0.9f,
+                                               .curve = 3, .smoothMs = 50.0f, .scale = 4,
+                                               .bypass = 1, .active = 0};
+
+    Ruinae::VoiceRouteTable table;
+    table.store(0, routeA);
+
+    constexpr int kWrites = 200000;
+    std::atomic<bool> start{false};
+    std::atomic<bool> writerDone{false};
+
+    std::thread writer([&] {
+        while (!start.load(std::memory_order_acquire)) {}
+        for (int i = 0; i < kWrites; ++i) {
+            table.store(0, (i & 1) != 0 ? routeA : routeB);
+            std::this_thread::yield();
+        }
+        writerDone.store(true, std::memory_order_release);
+    });
+
+    // The audio thread's reader: a failed read keeps the previous snapshot
+    Ruinae::VoiceRouteTable::Routes snapshot{};
+    snapshot[0] = routeA;
+    long long reads = 0;
+    long long fresh = 0;
+    long long torn = 0;
+    bool sawA = false;
+    bool sawB = false;
+    start.store(true, std::memory_order_release);
+    while (!writerDone.load(std::memory_order_acquire)) {
+        if (table.tryLoadAll(snapshot)) ++fresh;
+        ++reads;
+        const auto& r = snapshot[0];
+        if (sameRoute(r, routeA)) sawA = true;
+        else if (sameRoute(r, routeB)) sawB = true;
+        else ++torn;
+    }
+    writer.join();
+
+    INFO("reads " << reads << ", fresh " << fresh << ", torn " << torn);
+    CHECK(torn == 0);
+    // Non-vacuity: the reader ran alongside the writer, got through, and saw both routes
+    CHECK(fresh > 0);
+    CHECK(sawA);
+    CHECK(sawB);
+}
+
+// =============================================================================
 // Issue 1 & 3: Pre-allocated message verification
 // =============================================================================
 // NOTE: allocateMessage() requires a host connection and returns nullptr in the
@@ -392,38 +459,14 @@ TEST_CASE("Voice route sync message ID round-trips correctly",
     REQUIRE(attrs->setInt("routeCount", 0) == Steinberg::kResultOk);
 }
 
-TEST_CASE("One-time pointer message IDs round-trip correctly",
-          "[voice-route][rt-safety]") {
-    SECTION("TranceGatePlayback") {
-        auto msg = Steinberg::owned(new Steinberg::Vst::HostMessage());
-        msg->setMessageID("TranceGatePlayback");
-        REQUIRE(std::strcmp(msg->getMessageID(), "TranceGatePlayback") == 0);
-    }
-
-    SECTION("EnvelopeDisplayState") {
-        auto msg = Steinberg::owned(new Steinberg::Vst::HostMessage());
-        msg->setMessageID("EnvelopeDisplayState");
-        REQUIRE(std::strcmp(msg->getMessageID(), "EnvelopeDisplayState") == 0);
-    }
-
-    SECTION("MorphPadModulation") {
-        auto msg = Steinberg::owned(new Steinberg::Vst::HostMessage());
-        msg->setMessageID("MorphPadModulation");
-        REQUIRE(std::strcmp(msg->getMessageID(), "MorphPadModulation") == 0);
-    }
-}
-
 TEST_CASE("Process succeeds without pre-allocated messages (null-safe)",
           "[voice-route][rt-safety]") {
     // In test environment, allocateMessage() returns nullptr.
     // Verify that process() and sendVoiceModRouteState() handle this gracefully.
     auto proc = makeTestableProcessor();
 
-    // Verify messages are null (test environment has no host)
+    // Verify the message is null (test environment has no host)
     CHECK(proc->getVoiceRouteSyncMsg() == nullptr);
-    CHECK(proc->getPlaybackMsg() == nullptr);
-    CHECK(proc->getEnvDisplayMsg() == nullptr);
-    CHECK(proc->getMorphPadModMsg() == nullptr);
 
     // Process should still work without crashing
     Steinberg::Vst::ProcessData data{};
@@ -475,26 +518,238 @@ TEST_CASE("Preset routes are restored by setState without running the audio thre
 }
 
 // =============================================================================
-// Audio-thread message hygiene
+// R-005: processor -> controller display data travels as values
 // =============================================================================
+// The processor used to send the controller the raw addresses of its member
+// atomics (trance-gate step, transport flag, envelope outputs and stages, voice
+// active flag, morph X/Y) in three messages. The controller's 30 fps timer read
+// them, so a host that frees the processor before the editor closes, or runs the
+// two components in separate address spaces, made the timer read freed memory.
 
-TEST_CASE("One-time controller handshakes are sent from setActive, not process",
-          "[voice-route][rt-safety]") {
-    // These three messages carry pointers to lifetime-stable member atomics, so
-    // there is nothing audio-thread-specific about them -- they were merely
-    // issued from the first process() call, which meant three synchronous host
-    // sendMessage() calls on the audio thread.
-    auto proc = std::make_unique<TestableProcessor>();
-    proc->initialize(nullptr);
+namespace {
+
+/// Records every message the processor sends and every pointer attribute in it.
+class PointerRecordingPeer final : public Steinberg::Vst::IConnectionPoint {
+public:
+    std::vector<std::string> messageIds;
+    int pointerAttributes = 0;
+
+    Steinberg::tresult PLUGIN_API connect(Steinberg::Vst::IConnectionPoint*) override {
+        return Steinberg::kResultTrue;
+    }
+    Steinberg::tresult PLUGIN_API disconnect(Steinberg::Vst::IConnectionPoint*) override {
+        return Steinberg::kResultTrue;
+    }
+    Steinberg::tresult PLUGIN_API notify(Steinberg::Vst::IMessage* message) override {
+        if (message == nullptr) return Steinberg::kInvalidArgument;
+        messageIds.emplace_back(message->getMessageID());
+        if (auto* attrs = message->getAttributes()) {
+            for (const char* key : {"stepPtr", "playingPtr", "ampOutputPtr", "ampStagePtr",
+                                    "filterOutputPtr", "filterStagePtr", "modOutputPtr",
+                                    "modStagePtr", "voiceActivePtr", "morphXPtr", "morphYPtr"}) {
+                Steinberg::int64 value = 0;
+                if (attrs->getInt(key, value) == Steinberg::kResultOk) ++pointerAttributes;
+            }
+        }
+        return Steinberg::kResultTrue;
+    }
+    Steinberg::tresult PLUGIN_API queryInterface(const Steinberg::TUID, void**) override {
+        return Steinberg::kNoInterface;
+    }
+    Steinberg::uint32 PLUGIN_API addRef() override { return 1; }
+    Steinberg::uint32 PLUGIN_API release() override { return 1; }
+
+    [[nodiscard]] bool received(const char* id) const {
+        return std::find(messageIds.begin(), messageIds.end(), id) != messageIds.end();
+    }
+};
+
+/// Output parameter capture: the last value the processor wrote per ID.
+class LastValueOutputChanges final : public Steinberg::Vst::IParameterChanges {
+public:
+    class Queue final : public Steinberg::Vst::IParamValueQueue {
+    public:
+        explicit Queue(Steinberg::Vst::ParamID id) : id_(id) {}
+        Steinberg::tresult PLUGIN_API queryInterface(const Steinberg::TUID, void**) override {
+            return Steinberg::kNoInterface;
+        }
+        Steinberg::uint32 PLUGIN_API addRef() override { return 1; }
+        Steinberg::uint32 PLUGIN_API release() override { return 1; }
+        Steinberg::Vst::ParamID PLUGIN_API getParameterId() override { return id_; }
+        Steinberg::int32 PLUGIN_API getPointCount() override { return 1; }
+        Steinberg::tresult PLUGIN_API getPoint(Steinberg::int32, Steinberg::int32& offset,
+                                               Steinberg::Vst::ParamValue& value) override {
+            offset = 0;
+            value = value_;
+            return Steinberg::kResultTrue;
+        }
+        Steinberg::tresult PLUGIN_API addPoint(Steinberg::int32, Steinberg::Vst::ParamValue value,
+                                               Steinberg::int32& index) override {
+            value_ = value;
+            index = 0;
+            return Steinberg::kResultTrue;
+        }
+        [[nodiscard]] double value() const { return value_; }
+
+    private:
+        Steinberg::Vst::ParamID id_;
+        double value_ = 0.0;
+    };
+
+    Steinberg::tresult PLUGIN_API queryInterface(const Steinberg::TUID, void**) override {
+        return Steinberg::kNoInterface;
+    }
+    Steinberg::uint32 PLUGIN_API addRef() override { return 1; }
+    Steinberg::uint32 PLUGIN_API release() override { return 1; }
+    Steinberg::int32 PLUGIN_API getParameterCount() override {
+        return static_cast<Steinberg::int32>(queues_.size());
+    }
+    Steinberg::Vst::IParamValueQueue* PLUGIN_API getParameterData(Steinberg::int32 index) override {
+        if (index < 0 || index >= static_cast<Steinberg::int32>(queues_.size())) return nullptr;
+        return &queues_[static_cast<size_t>(index)];
+    }
+    Steinberg::Vst::IParamValueQueue* PLUGIN_API addParameterData(const Steinberg::Vst::ParamID& id,
+                                                                  Steinberg::int32& index) override {
+        for (size_t i = 0; i < queues_.size(); ++i) {
+            if (queues_[i].getParameterId() == id) {
+                index = static_cast<Steinberg::int32>(i);
+                return &queues_[i];
+            }
+        }
+        index = static_cast<Steinberg::int32>(queues_.size());
+        return &queues_.emplace_back(id);
+    }
+
+    /// The last value written for `id`, or -1 if the processor never wrote it.
+    [[nodiscard]] double last(Steinberg::Vst::ParamID id) {
+        for (auto& q : queues_)
+            if (q.getParameterId() == id) return q.value();
+        return -1.0;
+    }
+
+private:
+    std::vector<Queue> queues_;
+};
+
+/// One rendered block with a note held and the transport playing.
+void renderBlocks(Ruinae::Processor& proc, int blocks, bool noteOn,
+                  Steinberg::Vst::IParameterChanges* out = nullptr) {
+    constexpr Steinberg::int32 kBlock = 512;
+    std::vector<float> outL(kBlock, 0.0f);
+    std::vector<float> outR(kBlock, 0.0f);
+    float* channels[2] = {outL.data(), outR.data()};
+    Steinberg::Vst::AudioBusBuffers bus{};
+    bus.numChannels = 2;
+    bus.channelBuffers32 = channels;
+
+    Steinberg::Vst::ProcessContext context{};
+    context.state = Steinberg::Vst::ProcessContext::kPlaying | Steinberg::Vst::ProcessContext::kTempoValid;
+    context.tempo = 120.0;
+    context.sampleRate = 44100.0;
+
+    Krate::Test::EventList events;
+    Krate::Test::ParameterChanges noParams;
+    Steinberg::Vst::ProcessData data{};
+    data.processMode = Steinberg::Vst::kRealtime;
+    data.symbolicSampleSize = Steinberg::Vst::kSample32;
+    data.numSamples = kBlock;
+    data.numOutputs = 1;
+    data.outputs = &bus;
+    data.inputEvents = &events;
+    data.inputParameterChanges = &noParams;
+    data.processContext = &context;
+    data.outputParameterChanges = out;
+
+    for (int b = 0; b < blocks; ++b) {
+        events.clear();
+        if (noteOn && b == 0) events.addNoteOn(60, 0.8f);
+        proc.process(data);
+    }
+}
+
+}  // namespace
+
+TEST_CASE("No message carries a raw pointer", "[vst][lifecycle]") {
+    Steinberg::Vst::HostApplication host;  // allocateMessage() works, as in a host
+    Ruinae::Processor proc;
+    PointerRecordingPeer peer;
+    REQUIRE(proc.initialize(&host) == Steinberg::kResultOk);
+    REQUIRE(proc.connect(&peer) == Steinberg::kResultTrue);
 
     Steinberg::Vst::ProcessSetup setup{};
     setup.processMode = Steinberg::Vst::kRealtime;
     setup.symbolicSampleSize = Steinberg::Vst::kSample32;
     setup.sampleRate = 44100.0;
     setup.maxSamplesPerBlock = 512;
-    proc->setupProcessing(setup);
+    proc.setupProcessing(setup);
 
-    CHECK_FALSE(proc->handshakeMessagesSent());
-    proc->setActive(true);
-    CHECK(proc->handshakeMessagesSent());
+    // Activate, play, deactivate and reactivate: every point a handshake was sent from.
+    proc.setActive(true);
+    const size_t beforeProcess = peer.messageIds.size();
+    renderBlocks(proc, 20, /*noteOn=*/true);
+    // Audio-thread hygiene: process() makes no synchronous sendMessage() call.
+    CHECK(peer.messageIds.size() == beforeProcess);
+    proc.setActive(false);
+    proc.setActive(true);
+    renderBlocks(proc, 4, /*noteOn=*/false);
+
+    // A state load sends the voice-route sync: proof that the peer receives what
+    // the processor sends, so the checks below are not vacuous.
+    loadState(&proc, captureState(&proc));
+    REQUIRE(peer.received("VoiceModRouteState"));
+
+    std::string ids;
+    for (const auto& id : peer.messageIds) ids += id + " ";
+    INFO("messages received: " << ids);
+    CHECK_FALSE(peer.received("TranceGatePlayback"));
+    CHECK_FALSE(peer.received("EnvelopeDisplayState"));
+    CHECK_FALSE(peer.received("MorphPadModulation"));
+    CHECK(peer.pointerAttributes == 0);
+
+    proc.setActive(false);
+    proc.disconnect(&peer);
+    proc.terminate();
+}
+
+TEST_CASE("Display data reaches the controller as output parameters", "[vst][lifecycle]") {
+    Ruinae::Processor proc;
+    REQUIRE(proc.initialize(nullptr) == Steinberg::kResultOk);
+    Steinberg::Vst::ProcessSetup setup{};
+    setup.processMode = Steinberg::Vst::kRealtime;
+    setup.symbolicSampleSize = Steinberg::Vst::kSample32;
+    setup.sampleRate = 44100.0;
+    setup.maxSamplesPerBlock = 512;
+    proc.setupProcessing(setup);
+    proc.setActive(true);
+
+    // Note held, transport playing: ~46 ms in, the amp envelope is past its onset.
+    LastValueOutputChanges out;
+    renderBlocks(proc, 4, /*noteOn=*/true, &out);
+
+    INFO("voice active " << out.last(Ruinae::kEnvDisplayVoiceActiveId)
+         << ", amp out " << out.last(Ruinae::kAmpEnvDisplayOutputId)
+         << ", amp stage " << out.last(Ruinae::kAmpEnvDisplayStageId)
+         << ", transport " << out.last(Ruinae::kTransportPlayingId)
+         << ", gate step " << out.last(Ruinae::kTranceGatePlaybackStepId)
+         << ", morph " << out.last(Ruinae::kMorphPadModXId) << "/" << out.last(Ruinae::kMorphPadModYId));
+    CHECK(out.last(Ruinae::kEnvDisplayVoiceActiveId) == 1.0);
+    CHECK(out.last(Ruinae::kAmpEnvDisplayOutputId) > 0.0);
+    CHECK(out.last(Ruinae::kAmpEnvDisplayOutputId) <= 1.0);
+    for (const auto stageId : {Ruinae::kAmpEnvDisplayStageId, Ruinae::kFilterEnvDisplayStageId,
+                               Ruinae::kModEnvDisplayStageId}) {
+        const double stage = out.last(stageId) * Ruinae::kEnvDisplayStageScale;
+        CHECK(stage >= 1.0);  // Attack..Release while the voice sounds
+        CHECK(stage <= 4.0);
+    }
+    CHECK(out.last(Ruinae::kFilterEnvDisplayOutputId) >= 0.0);
+    CHECK(out.last(Ruinae::kModEnvDisplayOutputId) >= 0.0);
+    CHECK(out.last(Ruinae::kTransportPlayingId) == 1.0);
+    CHECK(out.last(Ruinae::kTranceGatePlaybackStepId) >= 0.0);
+    CHECK(out.last(Ruinae::kTranceGatePlaybackStepId) <= 1.0);
+    // Default mixer position 0.5 and tilt 0 dB, no modulation
+    CHECK(out.last(Ruinae::kMorphPadModXId) == Catch::Approx(0.5).margin(1e-6));
+    CHECK(out.last(Ruinae::kMorphPadModYId) == Catch::Approx(0.5).margin(1e-6));
+
+    proc.setActive(false);
+    proc.terminate();
 }

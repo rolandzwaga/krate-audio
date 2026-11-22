@@ -34,6 +34,8 @@
 #include "parameters/delay_params.h"
 #include "parameters/voice_lfo_params.h"
 #include <string>
+#include <fstream>
+#include <sstream>
 
 using namespace Steinberg;
 using namespace Steinberg::Vst;
@@ -792,4 +794,32 @@ TEST_CASE("Chaos speed maps [0,1] onto 0.05-20 monotonically", "[params]") {
             CHECK(v == Catch::Approx(20.0f).margin(1e-3));
         prev = v;
     }
+}
+
+// =============================================================================
+// Gain Compensation is a hidden legacy parameter (Ruinae audit R-101, R-090)
+// =============================================================================
+// The engine's voice-count compensation was removed; the control did nothing.
+// The ID, atomic and state field stay (state layout unchanged), but the host
+// must not offer or automate it and the editor must not bind a control to it.
+
+TEST_CASE("Gain Compensation is a hidden legacy parameter", "[controller][params]") {
+    auto* ctrl = makeControllerRaw();
+
+    auto* param = ctrl->getParameterObject(Ruinae::kSettingsGainCompensationId);
+    REQUIRE(param != nullptr);
+    const auto flags = param->getInfo().flags;
+    CHECK((flags & ParameterInfo::kIsHidden) != 0);
+    CHECK((flags & ParameterInfo::kCanAutomate) == 0);
+
+    ctrl->terminate();
+    ctrl->release();
+
+    std::ifstream in(std::string(RUINAE_RESOURCES_DIR) + "/editor.uidesc", std::ios::binary);
+    REQUIRE(in.good());
+    std::stringstream ss;
+    ss << in.rdbuf();
+    const std::string uidesc = ss.str();
+    CHECK(uidesc.find("control-tag=\"SettingsGainCompensation\"") == std::string::npos);
+    CHECK(uidesc.find("title=\"Gain Compensation\"") == std::string::npos);
 }

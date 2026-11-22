@@ -14,12 +14,18 @@
 #include "view_lifecycle_rig.h"
 
 #include "controller/controller.h"
+#include "plugin_ids.h"
 #include "ui/adsr_display.h"
+#include "ui/step_pattern_editor.h"
+#include "ui/xy_morph_pad.h"
+
+#include "vst_event_list.h"
+#include "vst_param_changes.h"
 
 #include "public.sdk/source/vst/hosting/hostclasses.h"
 
-#include <atomic>
-#include <cstdint>
+#include <catch2/catch_approx.hpp>
+
 #include <filesystem>
 #include <string>
 #include <system_error>
@@ -93,22 +99,82 @@ TEST_CASE("Ruinae: terminating the controller before the editor closes leaves th
         controller, "editor", std::string(RUINAE_RESOURCES_DIR) + "/editor.uidesc");
 }
 
-// R-089: the processor hands the controller raw addresses of its envelope-display atomics, which the controller
-// passes on to the three ADSR displays; each display polls them every 33 ms. Once the controller terminates the
-// processor may be gone, so terminate() must revoke the pointers the displays hold and stop their timers.
-TEST_CASE("terminate with editor open revokes ADSR playback pointers", "[controller][lifecycle]")
-{
-    // Stand-ins for the processor's atomics; they outlive the editor, so a poll after terminate reads valid memory.
-    std::atomic<float> ampOut{0.0f};
-    std::atomic<float> filterOut{0.0f};
-    std::atomic<float> modOut{0.0f};
-    std::atomic<int> ampStage{0};
-    std::atomic<int> filterStage{0};
-    std::atomic<int> modStage{0};
-    std::atomic<bool> voiceActive{false};
+namespace {
 
-    // The view-lifecycle rig builds the Tab_Sound template that holds the three displays (a bare headless open
-    // leaves the main tab switch empty); its destructor closes the editor after the terminate below.
+/// Output parameters as a host collects them: the last value per ID, handed to the controller with
+/// setParamNormalized after the block (a host's output-parameter transfer).
+class HostOutputParams final : public Steinberg::Vst::IParameterChanges {
+public:
+    class Queue final : public Steinberg::Vst::IParamValueQueue {
+    public:
+        explicit Queue(Steinberg::Vst::ParamID id) : id_(id) {}
+        Steinberg::tresult PLUGIN_API queryInterface(const Steinberg::TUID, void**) override {
+            return Steinberg::kNoInterface;
+        }
+        Steinberg::uint32 PLUGIN_API addRef() override { return 1; }
+        Steinberg::uint32 PLUGIN_API release() override { return 1; }
+        Steinberg::Vst::ParamID PLUGIN_API getParameterId() override { return id_; }
+        Steinberg::int32 PLUGIN_API getPointCount() override { return 1; }
+        Steinberg::tresult PLUGIN_API getPoint(Steinberg::int32, Steinberg::int32& offset,
+                                               Steinberg::Vst::ParamValue& value) override {
+            offset = 0;
+            value = value_;
+            return Steinberg::kResultTrue;
+        }
+        Steinberg::tresult PLUGIN_API addPoint(Steinberg::int32, Steinberg::Vst::ParamValue value,
+                                               Steinberg::int32& index) override {
+            value_ = value;
+            index = 0;
+            return Steinberg::kResultTrue;
+        }
+        [[nodiscard]] double value() const { return value_; }
+
+    private:
+        Steinberg::Vst::ParamID id_;
+        double value_ = 0.0;
+    };
+
+    Steinberg::tresult PLUGIN_API queryInterface(const Steinberg::TUID, void**) override {
+        return Steinberg::kNoInterface;
+    }
+    Steinberg::uint32 PLUGIN_API addRef() override { return 1; }
+    Steinberg::uint32 PLUGIN_API release() override { return 1; }
+    Steinberg::int32 PLUGIN_API getParameterCount() override { return static_cast<Steinberg::int32>(queues_.size()); }
+    Steinberg::Vst::IParamValueQueue* PLUGIN_API getParameterData(Steinberg::int32 index) override {
+        if (index < 0 || index >= static_cast<Steinberg::int32>(queues_.size())) return nullptr;
+        return &queues_[static_cast<size_t>(index)];
+    }
+    Steinberg::Vst::IParamValueQueue* PLUGIN_API addParameterData(const Steinberg::Vst::ParamID& id,
+                                                                  Steinberg::int32& index) override {
+        for (size_t i = 0; i < queues_.size(); ++i) {
+            if (queues_[i].getParameterId() == id) {
+                index = static_cast<Steinberg::int32>(i);
+                return &queues_[i];
+            }
+        }
+        index = static_cast<Steinberg::int32>(queues_.size());
+        return &queues_.emplace_back(id);
+    }
+
+    void transferTo(Steinberg::Vst::EditController& controller) {
+        for (auto& q : queues_) controller.setParamNormalized(q.getParameterId(), q.value());
+        queues_.clear();
+    }
+
+private:
+    std::vector<Queue> queues_;
+};
+
+}  // namespace
+
+// R-005 (and R-089 before it): the processor used to hand the controller the raw addresses of its display atomics
+// (trance-gate step, transport, envelope outputs and stages, voice active, morph X/Y) and the editor's 30 fps timers
+// read them. A host that releases the processor before the editor closes made those timers read freed memory. The
+// display data now reaches the controller as output-parameter values; the editor keeps showing the last of them after
+// the processor is gone. Teeth under AddressSanitizer: a poll of the destroyed processor is a heap-use-after-free.
+TEST_CASE("Destroying the processor while the editor's poll timer ticks is safe", "[vst][lifecycle]")
+{
+    // The view-lifecycle rig builds the Tab_Sound template (ADSR displays, morph pad); didOpen started the poll timer.
     RuinaeViewLifecycleTest::ViewLifecycleRig rig;
 
     std::vector<Krate::Plugins::ADSRDisplay*> displays;
@@ -117,34 +183,85 @@ TEST_CASE("terminate with editor open revokes ADSR playback pointers", "[control
         auto* display = dynamic_cast<Krate::Plugins::ADSRDisplay*>(rig.pointer(name));
         REQUIRE(display != nullptr);
         REQUIRE(rig.isLive(display));
+        REQUIRE_FALSE(display->isPlaybackDotVisible());
         displays.push_back(display);
     }
+    auto* pad = dynamic_cast<Krate::Plugins::XYMorphPad*>(rig.pointer("xyMorphPad_"));
+    REQUIRE(pad != nullptr);
+    // The controller's own Mixer Position moves the pad until the processor publishes its modulated position.
+    rig.ctl.setParamNormalized(Ruinae::kMixerPositionId, 0.2);
+    REQUIRE(pad->getMorphX() == Catch::Approx(0.2f));
 
-    auto msg = Steinberg::owned(new Steinberg::Vst::HostMessage());
-    msg->setMessageID("EnvelopeDisplayState");
-    auto* attrs = msg->getAttributes();
-    REQUIRE(attrs != nullptr);
-    const auto addr = [](const void* p) { return static_cast<Steinberg::int64>(reinterpret_cast<intptr_t>(p)); };
-    attrs->setInt("ampOutputPtr", addr(&ampOut));
-    attrs->setInt("ampStagePtr", addr(&ampStage));
-    attrs->setInt("filterOutputPtr", addr(&filterOut));
-    attrs->setInt("filterStagePtr", addr(&filterStage));
-    attrs->setInt("modOutputPtr", addr(&modOut));
-    attrs->setInt("modStagePtr", addr(&modStage));
-    attrs->setInt("voiceActivePtr", addr(&voiceActive));
-    REQUIRE(rig.ctl.notify(msg) == Steinberg::kResultOk);
-    for (auto* d : displays) {
-        REQUIRE(d->hasPlaybackStatePointers());  // wired, so the checks below are not vacuous
-        REQUIRE(d->isPlaybackPollTimerRunning());
+    // A processor connected to the controller as a host connects them, playing a note.
+    Steinberg::Vst::HostApplication host;
+    auto proc = std::make_unique<Ruinae::Processor>();
+    REQUIRE(proc->initialize(&host) == Steinberg::kResultOk);
+    REQUIRE(proc->connect(&rig.ctl) == Steinberg::kResultTrue);
+    REQUIRE(rig.ctl.connect(proc.get()) == Steinberg::kResultTrue);
+    Steinberg::Vst::ProcessSetup setup{};
+    setup.processMode = Steinberg::Vst::kRealtime;
+    setup.symbolicSampleSize = Steinberg::Vst::kSample32;
+    setup.sampleRate = 44100.0;
+    setup.maxSamplesPerBlock = 512;
+    proc->setupProcessing(setup);
+    proc->setActive(true);
+
+    {
+        std::vector<float> outL(512, 0.0f);
+        std::vector<float> outR(512, 0.0f);
+        float* channels[2] = {outL.data(), outR.data()};
+        Steinberg::Vst::AudioBusBuffers bus{};
+        bus.numChannels = 2;
+        bus.channelBuffers32 = channels;
+        Krate::Test::EventList events;
+        Krate::Test::ParameterChanges noParams;
+        HostOutputParams out;
+        Steinberg::Vst::ProcessData data{};
+        data.processMode = Steinberg::Vst::kRealtime;
+        data.symbolicSampleSize = Steinberg::Vst::kSample32;
+        data.numSamples = 512;
+        data.numOutputs = 1;
+        data.outputs = &bus;
+        data.inputEvents = &events;
+        data.inputParameterChanges = &noParams;
+        data.outputParameterChanges = &out;
+        events.addNoteOn(60, 0.8f);
+        for (int block = 0; block < 4; ++block) {
+            proc->process(data);
+            events.clear();
+            out.transferTo(rig.ctl);
+        }
     }
 
-    REQUIRE(rig.ctl.terminate() == Steinberg::kResultOk);  // the editor is still open
-    Krate::TestSupport::dispatchThreadMessagesFor(100);     // a poll still scheduled fires (Windows)
+    rig.ctl.pollProcessorDisplays();  // one timer tick, also where no run loop drives the timer (Linux)
+    for (auto* d : displays) CHECK(d->isPlaybackDotVisible());
+    CHECK(pad->getMorphX() == Catch::Approx(0.5f));  // the processor's published position, not the knob's 0.2
+
+    // The host releases the processor first; the editor stays open and its timer keeps ticking.
+    proc->setActive(false);
+    rig.ctl.disconnect(proc.get());
+    proc->disconnect(&rig.ctl);
+    proc->terminate();
+    proc.reset();
+
+    Krate::TestSupport::dispatchThreadMessagesFor(100);  // the real 33 ms timer fires (Windows)
+    rig.ctl.pollProcessorDisplays();
     for (auto* d : displays) {
         REQUIRE(rig.isLive(d));
-        CHECK_FALSE(d->hasPlaybackStatePointers());
-        CHECK_FALSE(d->isPlaybackPollTimerRunning());
+        CHECK(d->isPlaybackDotVisible());  // the last published values, held by the controller
     }
+    CHECK(pad->getMorphX() == Catch::Approx(0.5f));
+
+    // The trance-gate step indicator (Tab_Seq) decodes the step parameter: (step + 1) / 32.
+    rig.clickControl(Ruinae::kMainTabTag, RuinaeViewLifecycleTest::kTabSeq);
+    auto* stepEditor = dynamic_cast<Krate::Plugins::StepPatternEditor*>(rig.pointer("stepPatternEditor_"));
+    REQUIRE(stepEditor != nullptr);
+    rig.ctl.setParamNormalized(Ruinae::kTranceGatePlaybackStepId, 6.0 / 32.0);
+    rig.ctl.pollProcessorDisplays();
+    CHECK(stepEditor->getPlaybackStep() == 5);
+    rig.ctl.setParamNormalized(Ruinae::kTranceGatePlaybackStepId, 0.0);
+    rig.ctl.pollProcessorDisplays();
+    CHECK(stepEditor->getPlaybackStep() == -1);
 }
 
 namespace {

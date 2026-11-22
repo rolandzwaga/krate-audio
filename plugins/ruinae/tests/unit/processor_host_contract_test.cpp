@@ -111,6 +111,18 @@ TEST_CASE("Processor_TailSamples", "[processor][host-contract]") {
         CHECK(tail >= static_cast<Steinberg::uint32>(0.200 * kSampleRate));
     }
 
+    SECTION("release 0 still reports the 2 ms note-off declick") {
+        // The engine floors the amp release at kMinAmpReleaseMs (T3.2), so a voice keeps
+        // sounding that long after note-off even with release 0.
+        setParams(*p, {{Ruinae::kAmpEnvReleaseId, 0.0},
+                       {Ruinae::kDelayEnabledId, 0.0},
+                       {Ruinae::kReverbEnabledId, 0.0}});
+        const auto tail = p->getTailSamples();
+        CHECK(tail != Steinberg::Vst::kInfiniteTail);
+        CHECK(tail >= static_cast<Steinberg::uint32>(
+                          std::llround(Krate::DSP::RuinaeEngine::kMinAmpReleaseMs * 0.001 * kSampleRate)));
+    }
+
     SECTION("a longer amp release lengthens the tail") {
         setParams(*p, {{Ruinae::kAmpEnvReleaseId, 0.5}});  // 0.5^3 * 10 s = 1250 ms
         const auto tail = p->getTailSamples();
@@ -167,6 +179,23 @@ TEST_CASE("Processor_WritesSilenceFlags", "[processor][host-contract]") {
         }
         CHECK(flags == kBothSilent);
     }
+
+    p->setActive(false);
+    p->terminate();
+}
+
+TEST_CASE("Processor_OversizedBlock_RendersInMaxBlockChunks", "[processor][host-contract]") {
+    auto p = makeProcessor();  // maxSamplesPerBlock = kMaxBlock (512)
+
+    Krate::Test::EventList events;
+    events.addNoteOn(60, 0.8f);
+    constexpr Steinberg::int32 kOversized = 1200;  // 512 + 512 + 176
+
+    const uint64_t before = p->engineRenderCallsForTest();
+    processBlock(*p, kOversized, &events);
+    const uint64_t calls = p->engineRenderCallsForTest() - before;
+    INFO("engine processBlock calls for a " << kOversized << "-sample buffer: " << calls);
+    CHECK(calls == 3);
 
     p->setActive(false);
     p->terminate();

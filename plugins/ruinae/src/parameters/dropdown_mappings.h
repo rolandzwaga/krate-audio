@@ -17,11 +17,11 @@
 #include "pluginterfaces/base/ustring.h"
 #include "public.sdk/source/vst/vstparameters.h"
 #include <krate/dsp/systems/poly_synth_engine.h>
-#include "engine/ruinae_engine.h"  // For RuinaeModDest
 
 
 #include <algorithm>
 #include <array>
+#include <iterator>
 
 namespace Ruinae {
 
@@ -121,6 +121,19 @@ inline const Steinberg::Vst::TChar* const kWaveformStrings[] = {
     STR16("Sample & Hold"),
     STR16("Smooth Random"),
 };
+static_assert(std::size(kWaveformStrings) == static_cast<std::size_t>(kWaveformCount));
+
+// The digital delay's Mod Waveform: the same six shapes and kWaveformCount, with
+// short labels for its narrow menu.
+inline const Steinberg::Vst::TChar* const kDelayModWaveformStrings[] = {
+    STR16("Sine"),
+    STR16("Triangle"),
+    STR16("Sawtooth"),
+    STR16("Square"),
+    STR16("S&H"),
+    STR16("Smooth Rnd"),
+};
+static_assert(std::size(kDelayModWaveformStrings) == static_cast<std::size_t>(kWaveformCount));
 
 // =============================================================================
 // VoiceMode dropdown (2 modes, stepCount = 1)
@@ -207,7 +220,8 @@ inline void appendDestStrings(Steinberg::Vst::StringListParameter* param) {
 // Helper: map dropdown index (0-14) to RuinaeModDest enum value (64-78)
 inline Krate::DSP::RuinaeModDest modDestFromIndex(int index) {
     return static_cast<Krate::DSP::RuinaeModDest>(
-        static_cast<uint32_t>(Krate::DSP::RuinaeModDest::GlobalFilterCutoff) + index);
+        static_cast<uint32_t>(Krate::DSP::RuinaeModDest::GlobalFilterCutoff) +
+        static_cast<uint32_t>(std::clamp(index, 0, 14)));
 }
 
 // =============================================================================
@@ -222,29 +236,17 @@ inline const Steinberg::Vst::TChar* const kChaosTypeStrings[] = {
 };
 
 // =============================================================================
-// NumSteps dropdown for Trance Gate (3 options: 8, 16, 32 -- stepCount = 2)
+// Legacy Trance Gate NumSteps index (3 options: 8, 16, 32)
 // =============================================================================
+// Gate Steps is a 2-32 RangeParameter now; old states stored this index.
 
 inline constexpr int kNumStepsCount = 3;
 
-inline const Steinberg::Vst::TChar* const kNumStepsStrings[] = {
-    STR16("8"),
-    STR16("16"),
-    STR16("32"),
-};
-
-// Helper: map dropdown index to step count value
+// Helper: map a legacy dropdown index to its step count value
 inline int numStepsFromIndex(int index) {
     constexpr int kStepValues[] = {8, 16, 32};
     if (index < 0 || index >= kNumStepsCount) return 16;
     return kStepValues[index];
-}
-
-// Helper: map step count value to dropdown index
-inline int numStepsToIndex(int steps) {
-    if (steps <= 8) return 0;
-    if (steps <= 16) return 1;
-    return 2;
 }
 
 // =============================================================================
@@ -341,21 +343,10 @@ inline const Steinberg::Vst::TChar* const kFFTSizeStrings[] = {
     STR16("2048"),
     STR16("4096"),
 };
-
-// Helper: map dropdown index to actual FFT size
-inline size_t fftSizeFromIndex(int index) {
-    constexpr size_t kFFTSizes[] = {512, 1024, 2048, 4096};
-    if (index < 0 || index >= kFFTSizeCount) return 1024;
-    return kFFTSizes[index];
-}
-
-// Helper: map actual FFT size to dropdown index
-inline int fftSizeToIndex(size_t fftSize) {
-    if (fftSize <= 512) return 0;
-    if (fftSize <= 1024) return 1;
-    if (fftSize <= 2048) return 2;
-    return 3;
-}
+// Index -> size: Krate::DSP::fftSizeFromIndex (ruinae_types.h), which the
+// effects chain uses too.
+static_assert(std::size(kFFTSizeStrings) == static_cast<std::size_t>(kFFTSizeCount));
+static_assert(std::size(Krate::DSP::kSpectralDelayFFTSizes) == static_cast<std::size_t>(kFFTSizeCount));
 
 // =============================================================================
 // Spectral Delay: SpreadDirection dropdown (3 directions, stepCount = 2)
@@ -394,17 +385,13 @@ inline const Steinberg::Vst::TChar* const kPhaserStagesStrings[] = {
     STR16("10"),
     STR16("12"),
 };
+static_assert(std::size(kPhaserStagesStrings) == static_cast<std::size_t>(kPhaserStagesCount));
 
 // Helper: map dropdown index to actual stage count
 inline int phaserStagesFromIndex(int index) {
     constexpr int kStages[] = {2, 4, 6, 8, 10, 12};
     if (index < 0 || index >= kPhaserStagesCount) return 4;
     return kStages[index];
-}
-
-// Helper: map stage count to dropdown index
-inline int phaserStagesToIndex(int stages) {
-    return std::clamp((stages - 2) / 2, 0, kPhaserStagesCount - 1);
 }
 
 // =============================================================================
@@ -419,6 +406,7 @@ inline const Steinberg::Vst::TChar* const kPhaserWaveformStrings[] = {
     STR16("Sawtooth"),
     STR16("Square"),
 };
+static_assert(std::size(kPhaserWaveformStrings) == static_cast<std::size_t>(kPhaserWaveformCount));
 
 // =============================================================================
 // Harmonizer: HarmonyMode dropdown (2 modes, stepCount = 1)
@@ -442,6 +430,7 @@ inline const Steinberg::Vst::TChar* const kHarmonizerKeyStrings[] = {
     STR16("E"), STR16("F"), STR16("F#"), STR16("G"),
     STR16("Ab"), STR16("A"), STR16("Bb"), STR16("B"),
 };
+static_assert(std::size(kHarmonizerKeyStrings) == static_cast<std::size_t>(kHarmonizerKeyCount));
 
 // =============================================================================
 // Harmonizer: Scale dropdown (16 types, stepCount = 15)
@@ -488,11 +477,6 @@ inline constexpr int kHarmonizerIntervalCount = 49;
 // Helper: convert dropdown index (0..48) to diatonic step value (-24..+24)
 inline int harmonizerIntervalFromIndex(int index) {
     return std::clamp(index - 24, -24, 24);
-}
-
-// Helper: convert diatonic step value to dropdown index
-inline int harmonizerIntervalToIndex(int interval) {
-    return std::clamp(interval + 24, 0, 48);
 }
 
 // =============================================================================

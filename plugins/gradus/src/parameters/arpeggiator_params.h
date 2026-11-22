@@ -52,12 +52,10 @@ enum ArpOperatingMode : std::uint8_t {  // NOLINT(cppcoreguidelines-use-enum-cla
     kArpMIDIMod = 3   // Arp dispatches notes AND outputs pitch as mod source
 };
 
-// Per-lane speed multiplier values (fixed discrete set)
-static constexpr float kLaneSpeedValues[] = {
-    0.25f, 0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 1.75f, 2.0f, 3.0f, 4.0f
-};
-static constexpr int kLaneSpeedCount = 10;
-static constexpr int kLaneSpeedDefault = 3; // index 3 = 1.0x
+// Per-lane speed multiplier values (fixed discrete set), shared with Ruinae.
+using Krate::Shared::kLaneSpeedValues;
+using Krate::Shared::kLaneSpeedCount;
+using Krate::Shared::kLaneSpeedDefault;
 
 /// Maximum speed-curve control points the state stream carries per lane.
 /// The reader has always clamped to this; the writer must honour the same
@@ -100,7 +98,20 @@ static constexpr int kMaxSpeedCurvePoints = 64;
 }
 
 /// Ratchet Shuffle positions: Even, Triplet, Dotted (percent).
-static constexpr float kRatchetShuffleValues[3] = {50.0f, 66.6667f, 75.0f};
+inline constexpr float kRatchetShuffleValues[3] = {50.0f, 66.6667f, 75.0f};
+
+/// Gradus's names for the shared arp templates in arp_params_common.h.
+struct ArpSharedScope {
+    using enum ParameterIds;
+    static constexpr const std::array<int, 16>& kScaleDisplayOrder = kArpScaleDisplayOrder;
+};
+
+/// Gradus's side of the deliberate differences in the shared arp ID span:
+/// 12 arp modes and the 3-position Ratchet Shuffle.
+inline constexpr Krate::Shared::ArpSharedParamConfig kArpSharedConfig{
+    .modeCount = 12,
+    .ratchetSwingPositions = kRatchetShuffleValues,
+    .ratchetSwingPositionCount = 3};
 
 /// Position (0-2) of the Ratchet Shuffle entry nearest a stored percentage.
 /// Old presets store any value in 50-75 %; the parameter has three positions.
@@ -366,549 +377,260 @@ inline void handleArpParamChange(
     Steinberg::Vst::ParamID id,
     Steinberg::Vst::ParamValue value)
 {
-    switch (id) {
-        case kArpOperatingModeId:
-            // StringListParameter: 0-1 -> 0-3 (4 entries, stepCount=3)
-            params.operatingMode.store(
-                std::clamp(static_cast<int>(std::round(value * 3.0)), 0, 3),
-                std::memory_order_relaxed);
-            break;
-        case kArpModeId:
-            // StringListParameter: 0-1 -> 0-11 (12 entries, stepCount=11)
-            params.mode.store(
-                std::clamp(static_cast<int>(std::round(value * 11.0)), 0, 11),
-                std::memory_order_relaxed);
-            break;
-        case kArpOctaveRangeId:
-            // RangeParameter: 0-1 -> 1-4 (stepCount=3)
-            params.octaveRange.store(
-                std::clamp(static_cast<int>(1.0 + std::round(value * 3.0)), 1, 4),
-                std::memory_order_relaxed);
-            break;
-        case kArpOctaveModeId:
-            // StringListParameter: 0-1 -> 0-1 (2 entries, stepCount=1)
-            params.octaveMode.store(
-                std::clamp(static_cast<int>(std::round(value * 1.0)), 0, 1),
-                std::memory_order_relaxed);
-            break;
-        case kArpTempoSyncId:
-            params.tempoSync.store(value >= 0.5, std::memory_order_relaxed);
-            break;
-        case kArpNoteValueId:
-            // StringListParameter: 0-1 -> 0-20 (21 entries, stepCount=20)
-            params.noteValue.store(
-                std::clamp(static_cast<int>(value * (Parameters::kNoteValueDropdownCount - 1) + 0.5),
-                    0, Parameters::kNoteValueDropdownCount - 1),
-                std::memory_order_relaxed);
-            break;
-        case kArpFreeRateId:
-            // Continuous Parameter: 0-1 -> 0.5-50 Hz
-            params.freeRate.store(
-                std::clamp(static_cast<float>(0.5 + value * 49.5), 0.5f, 50.0f),
-                std::memory_order_relaxed);
-            break;
-        case kArpGateLengthId:
-            // Continuous Parameter: 0-1 -> 1-200%
-            params.gateLength.store(
-                std::clamp(static_cast<float>(1.0 + value * 199.0), 1.0f, 200.0f),
-                std::memory_order_relaxed);
-            break;
-        case kArpSwingId:
-            // Continuous Parameter: 0-1 -> 0-75%
-            params.swing.store(
-                std::clamp(static_cast<float>(value * 75.0), 0.0f, 75.0f),
-                std::memory_order_relaxed);
-            break;
-        case kArpLatchModeId:
-            // StringListParameter: 0-1 -> 0-2 (3 entries, stepCount=2)
-            params.latchMode.store(
-                std::clamp(static_cast<int>(std::round(value * 2.0)), 0, 2),
-                std::memory_order_relaxed);
-            break;
-        case kArpRetriggerId:
-            // StringListParameter: 0-1 -> 0-2 (3 entries, stepCount=2)
-            params.retrigger.store(
-                std::clamp(static_cast<int>(std::round(value * 2.0)), 0, 2),
-                std::memory_order_relaxed);
-            break;
+    // The span shared with Ruinae (3000-3387) is handled once, in plugins/shared.
+    if (Krate::Shared::handleArpParamChangeShared<ArpSharedScope>(params, id, value, kArpSharedConfig)) {
+        return;
+    }
 
-        // --- Velocity Lane (072-independent-lanes, US1) ---
-        case kArpVelocityLaneLengthId:
-            // RangeParameter: 0-1 -> 1-32 (stepCount=31)
-            params.velocityLaneLength.store(
-                std::clamp(static_cast<int>(1.0 + std::round(value * 31.0)), 1, 32),
-                std::memory_order_relaxed);
-            break;
-
-        // --- Gate Lane (072-independent-lanes, US2) ---
-        case kArpGateLaneLengthId:
-            // RangeParameter: 0-1 -> 1-32 (stepCount=31)
-            params.gateLaneLength.store(
-                std::clamp(static_cast<int>(1.0 + std::round(value * 31.0)), 1, 32),
-                std::memory_order_relaxed);
-            break;
-
-        // --- Pitch Lane (072-independent-lanes, US3) ---
-        case kArpPitchLaneLengthId:
-            // RangeParameter: 0-1 -> 1-32 (stepCount=31)
-            params.pitchLaneLength.store(
-                std::clamp(static_cast<int>(1.0 + std::round(value * 31.0)), 1, 32),
-                std::memory_order_relaxed);
-            break;
-
-        // --- Modifier Lane (073-per-step-mods) ---
-        case kArpModifierLaneLengthId:
-            // RangeParameter: 0-1 -> 1-32 (stepCount=31)
-            params.modifierLaneLength.store(
-                std::clamp(static_cast<int>(1.0 + std::round(value * 31.0)), 1, 32),
-                std::memory_order_relaxed);
-            break;
-
-        case kArpAccentVelocityId:
-            // RangeParameter: 0-1 -> 0-127 (stepCount=127)
-            params.accentVelocity.store(
-                std::clamp(static_cast<int>(std::round(value * 127.0)), 0, 127),
-                std::memory_order_relaxed);
-            break;
-
-        case kArpSlideTimeId:
-            // Continuous Parameter: 0-1 -> 0-500ms
-            params.slideTime.store(
-                std::clamp(static_cast<float>(value * 500.0), 0.0f, 500.0f),
-                std::memory_order_relaxed);
-            break;
-
-        // --- Ratchet Lane (074-ratcheting) ---
-        case kArpRatchetLaneLengthId:
-            // RangeParameter: 0-1 -> 1-32 (stepCount=31)
-            params.ratchetLaneLength.store(
-                std::clamp(static_cast<int>(1.0 + std::round(value * 31.0)), 1, 32),
-                std::memory_order_relaxed);
-            break;
-
-        // --- Euclidean Timing (075-euclidean-timing) ---
-        case kArpEuclideanEnabledId:
-            params.euclideanEnabled.store(value >= 0.5, std::memory_order_relaxed);
-            break;
-        case kArpEuclideanHitsId:
-            // RangeParameter: 0-1 -> 0-32 (stepCount=32)
-            params.euclideanHits.store(
-                std::clamp(static_cast<int>(std::round(value * 32.0)), 0, 32),
-                std::memory_order_relaxed);
-            break;
-        case kArpEuclideanStepsId:
-            // RangeParameter: 0-1 -> 2-32 (stepCount=30)
-            params.euclideanSteps.store(
-                std::clamp(static_cast<int>(2.0 + std::round(value * 30.0)), 2, 32),
-                std::memory_order_relaxed);
-            break;
-        case kArpEuclideanRotationId:
-            // RangeParameter: 0-1 -> 0-31 (stepCount=31)
-            params.euclideanRotation.store(
-                std::clamp(static_cast<int>(std::round(value * 31.0)), 0, 31),
-                std::memory_order_relaxed);
-            break;
-
-        // --- Condition Lane (076-conditional-trigs) ---
-        case kArpConditionLaneLengthId:
-            // RangeParameter: 0-1 -> 1-32 (stepCount=31)
-            params.conditionLaneLength.store(
-                std::clamp(static_cast<int>(1.0 + std::round(value * 31.0)), 1, 32),
-                std::memory_order_relaxed);
-            break;
-        case kArpFillToggleId:
-            params.fillToggle.store(value >= 0.5, std::memory_order_relaxed);
-            break;
-
-        // --- Spice/Dice & Humanize (077-spice-dice-humanize) ---
-        case kArpSpiceId:
-            params.spice.store(
-                std::clamp(static_cast<float>(value), 0.0f, 1.0f),
-                std::memory_order_relaxed);
-            break;
-        case kArpDiceTriggerId:
-            // Discrete 2-step: set to true on rising edge (normalized >= 0.5)
-            if (value >= 0.5) {
-                params.diceTrigger.store(true, std::memory_order_relaxed);
-            }
-            break;
-        case kArpHumanizeId:
-            params.humanize.store(
-                std::clamp(static_cast<float>(value), 0.0f, 1.0f),
-                std::memory_order_relaxed);
-            break;
-
-        // --- Ratchet Shuffle (078-ratchet-swing, snapped to 3 positions) ---
-        case kArpRatchetSwingId: {
-            // 3 discrete values: 0=Even(50%), 1=Triplet(~66.67%), 2=Dotted(75%)
-            const int idx = std::clamp(
-                static_cast<int>(std::round(value * 2.0)), 0, 2);
-            params.ratchetSwing.store(kRatchetShuffleValues[idx],
-                std::memory_order_relaxed);
-            break;
+    // Gradus-only IDs
+    // v1.5: Ratchet Decay (0-100%)
+    if (id == kArpRatchetDecayId) {
+        params.ratchetDecay.store(
+            std::clamp(static_cast<float>(value * 100.0), 0.0f, 100.0f),
+            std::memory_order_relaxed);
+    }
+    // v1.5: Strum Time (0-100ms)
+    else if (id == kArpStrumTimeId) {
+        params.strumTime.store(
+            std::clamp(static_cast<float>(value * 100.0), 0.0f, 100.0f),
+            std::memory_order_relaxed);
+    }
+    // v1.5: Strum Direction (0-3)
+    else if (id == kArpStrumDirectionId) {
+        params.strumDirection.store(
+            std::clamp(static_cast<int>(std::round(value * 3.0)), 0, 3),
+            std::memory_order_relaxed);
+    }
+    // v1.5: Per-lane swing (3391-3398)
+    else if (id >= kArpVelocityLaneSwingId && id <= kArpInversionLaneSwingId) {
+        float swing = std::clamp(static_cast<float>(value * 75.0), 0.0f, 75.0f);
+        switch (id) {
+            case kArpVelocityLaneSwingId:  params.velocityLaneSwing.store(swing, std::memory_order_relaxed); break;
+            case kArpGateLaneSwingId:      params.gateLaneSwing.store(swing, std::memory_order_relaxed); break;
+            case kArpPitchLaneSwingId:     params.pitchLaneSwing.store(swing, std::memory_order_relaxed); break;
+            case kArpModifierLaneSwingId:  params.modifierLaneSwing.store(swing, std::memory_order_relaxed); break;
+            case kArpRatchetLaneSwingId:   params.ratchetLaneSwing.store(swing, std::memory_order_relaxed); break;
+            case kArpConditionLaneSwingId: params.conditionLaneSwing.store(swing, std::memory_order_relaxed); break;
+            case kArpChordLaneSwingId:     params.chordLaneSwing.store(swing, std::memory_order_relaxed); break;
+            case kArpInversionLaneSwingId: params.inversionLaneSwing.store(swing, std::memory_order_relaxed); break;
+            default: break;
         }
-
-        // --- Scale Mode (084-arp-scale-mode) ---
-        case kArpScaleTypeId: {
-            // UI index -> ScaleType enum via display order mapping
-            int uiIndex = std::clamp(
-                static_cast<int>(value * (kArpScaleTypeCount - 1) + 0.5),
-                0, kArpScaleTypeCount - 1);
-            params.scaleType.store(kArpScaleDisplayOrder[static_cast<size_t>(uiIndex)],
-                std::memory_order_relaxed);
-            return;
+    }
+    // v1.5 Part 2: Velocity Curve Type (0-3)
+    else if (id == kArpVelocityCurveTypeId) {
+        params.velocityCurveType.store(
+            std::clamp(static_cast<int>(std::round(value * 3.0)), 0, 3),
+            std::memory_order_relaxed);
+    }
+    // v1.5 Part 2: Velocity Curve Amount (0-100%)
+    else if (id == kArpVelocityCurveAmountId) {
+        params.velocityCurveAmount.store(
+            std::clamp(static_cast<float>(value * 100.0), 0.0f, 100.0f),
+            std::memory_order_relaxed);
+    }
+    // v1.5 Part 2: Transpose (-24 to +24)
+    else if (id == kArpTransposeId) {
+        params.transpose.store(
+            std::clamp(static_cast<int>(std::round(value * 48.0 - 24.0)), -24, 24),
+            std::memory_order_relaxed);
+    }
+    // v1.5 Part 3: Note Range Mapping (3410-3412)
+    else if (id == kArpRangeLowId) {
+        params.rangeLow.store(
+            std::clamp(static_cast<int>(std::round(value * 127.0)), 0, 127),
+            std::memory_order_relaxed);
+    }
+    else if (id == kArpRangeHighId) {
+        params.rangeHigh.store(
+            std::clamp(static_cast<int>(std::round(value * 127.0)), 0, 127),
+            std::memory_order_relaxed);
+    }
+    else if (id == kArpRangeModeId) {
+        params.rangeMode.store(
+            std::clamp(static_cast<int>(std::round(value * 2.0)), 0, 2),
+            std::memory_order_relaxed);
+    }
+    // v1.5 Part 3: Step Pinning
+    else if (id == kArpPinNoteId) {
+        params.pinNote.store(
+            std::clamp(static_cast<int>(std::round(value * 127.0)), 0, 127),
+            std::memory_order_relaxed);
+    }
+    else if (id >= kArpPinFlagStep0Id && id <= kArpPinFlagStep31Id) {
+        int stepIdx = static_cast<int>(id - kArpPinFlagStep0Id);
+        params.pinFlags[stepIdx].store(
+            value >= 0.5 ? 1 : 0, std::memory_order_relaxed);
+    }
+    // Markov Chain mode
+    else if (id == kArpMarkovPresetId) {
+        // StringListParameter: 0-1 -> 0-5 (6 entries, stepCount=5)
+        params.markovPreset.store(
+            std::clamp(static_cast<int>(std::round(value * 5.0)), 0, 5),
+            std::memory_order_relaxed);
+    }
+    else if (id >= kArpMarkovCell00Id && id <= kArpMarkovCell66Id) {
+        int cellIdx = static_cast<int>(id - kArpMarkovCell00Id);
+        params.markovMatrix[static_cast<size_t>(cellIdx)].store(
+            std::clamp(static_cast<float>(value), 0.0f, 1.0f),
+            std::memory_order_relaxed);
+    }
+    // v1.5 Part 2: Per-lane Length Jitter (3402-3409)
+    else if (id >= kArpVelocityLaneJitterId && id <= kArpInversionLaneJitterId) {
+        int jitter = std::clamp(static_cast<int>(std::round(value * 4.0)), 0, 4);
+        switch (id) {
+            case kArpVelocityLaneJitterId:  params.velocityLaneJitter.store(jitter, std::memory_order_relaxed); break;
+            case kArpGateLaneJitterId:      params.gateLaneJitter.store(jitter, std::memory_order_relaxed); break;
+            case kArpPitchLaneJitterId:     params.pitchLaneJitter.store(jitter, std::memory_order_relaxed); break;
+            case kArpModifierLaneJitterId:  params.modifierLaneJitter.store(jitter, std::memory_order_relaxed); break;
+            case kArpRatchetLaneJitterId:   params.ratchetLaneJitter.store(jitter, std::memory_order_relaxed); break;
+            case kArpConditionLaneJitterId: params.conditionLaneJitter.store(jitter, std::memory_order_relaxed); break;
+            case kArpChordLaneJitterId:     params.chordLaneJitter.store(jitter, std::memory_order_relaxed); break;
+            case kArpInversionLaneJitterId: params.inversionLaneJitter.store(jitter, std::memory_order_relaxed); break;
+            default: break;
         }
-        case kArpRootNoteId:
-            params.rootNote.store(
-                std::clamp(static_cast<int>(value * (kArpRootNoteCount - 1) + 0.5),
-                           0, kArpRootNoteCount - 1),
-                std::memory_order_relaxed);
-            return;
-        case kArpScaleQuantizeInputId:
-            params.scaleQuantizeInput.store(value >= 0.5, std::memory_order_relaxed);
-            return;
-        case kArpMidiOutId:
-            params.midiOut.store(value >= 0.5, std::memory_order_relaxed);
-            return;
-
-        // --- Chord Lane (arp-chord-lane) ---
-        case kArpChordLaneLengthId:
-            params.chordLaneLength.store(
-                std::clamp(static_cast<int>(1.0 + std::round(value * 31.0)), 1, 32),
-                std::memory_order_relaxed);
-            return;
-        case kArpInversionLaneLengthId:
-            params.inversionLaneLength.store(
-                std::clamp(static_cast<int>(1.0 + std::round(value * 31.0)), 1, 32),
-                std::memory_order_relaxed);
-            return;
-        case kArpVoicingModeId:
-            params.voicingMode.store(
-                std::clamp(static_cast<int>(std::round(value * 3.0)), 0, 3),
-                std::memory_order_relaxed);
-            return;
-
-        default:
-            // Velocity lane steps: 3021-3052
-            if (id >= kArpVelocityLaneStep0Id && id <= kArpVelocityLaneStep31Id) {
-                float vel = std::clamp(static_cast<float>(value), 0.0f, 1.0f);
-                params.velocityLaneSteps[id - kArpVelocityLaneStep0Id].store(
-                    vel, std::memory_order_relaxed);
-            }
-            // Gate lane steps: 3061-3092
-            else if (id >= kArpGateLaneStep0Id && id <= kArpGateLaneStep31Id) {
-                float gate = std::clamp(static_cast<float>(0.01 + value * 1.99), 0.01f, 2.0f);
-                params.gateLaneSteps[id - kArpGateLaneStep0Id].store(
-                    gate, std::memory_order_relaxed);
-            }
-            // Pitch lane steps: 3101-3132
-            else if (id >= kArpPitchLaneStep0Id && id <= kArpPitchLaneStep31Id) {
-                int pitch = std::clamp(
-                    static_cast<int>(-24.0 + std::round(value * 48.0)), -24, 24);
-                params.pitchLaneSteps[id - kArpPitchLaneStep0Id].store(
-                    pitch, std::memory_order_relaxed);
-            }
-            // Modifier lane steps: 3141-3172
-            else if (id >= kArpModifierLaneStep0Id && id <= kArpModifierLaneStep31Id) {
-                int step = std::clamp(
-                    static_cast<int>(std::round(value * 255.0)), 0, 255);
-                params.modifierLaneSteps[id - kArpModifierLaneStep0Id].store(
-                    step, std::memory_order_relaxed);
-            }
-            // Ratchet lane steps: 3191-3222 (074-ratcheting)
-            else if (id >= kArpRatchetLaneStep0Id && id <= kArpRatchetLaneStep31Id) {
-                int ratchet = std::clamp(
-                    static_cast<int>(1.0 + std::round(value * 3.0)), 1, 4);
-                params.ratchetLaneSteps[id - kArpRatchetLaneStep0Id].store(
-                    ratchet, std::memory_order_relaxed);
-            }
-            // Condition lane steps: 3241-3272 (076-conditional-trigs)
-            else if (id >= kArpConditionLaneStep0Id && id <= kArpConditionLaneStep31Id) {
-                int step = std::clamp(
-                    static_cast<int>(std::round(value * 17.0)), 0, 17);
-                params.conditionLaneSteps[id - kArpConditionLaneStep0Id].store(
-                    step, std::memory_order_relaxed);
-            }
-            // Chord lane steps: 3305-3336 (arp-chord-lane)
-            else if (id >= kArpChordLaneStep0Id && id <= kArpChordLaneStep31Id) {
-                int step = std::clamp(
-                    static_cast<int>(std::round(value * 4.0)), 0, 4);
-                params.chordLaneSteps[id - kArpChordLaneStep0Id].store(
-                    step, std::memory_order_relaxed);
-            }
-            // Inversion lane steps: 3338-3369 (arp-chord-lane)
-            else if (id >= kArpInversionLaneStep0Id && id <= kArpInversionLaneStep31Id) {
-                int step = std::clamp(
-                    static_cast<int>(std::round(value * 3.0)), 0, 3);
-                params.inversionLaneSteps[id - kArpInversionLaneStep0Id].store(
-                    step, std::memory_order_relaxed);
-            }
-            // Per-lane speed multipliers (3380-3387)
-            else if (id >= kArpVelocityLaneSpeedId && id <= kArpInversionLaneSpeedId) {
-                int idx = std::clamp(static_cast<int>(std::round(value * (kLaneSpeedCount - 1))), 0, kLaneSpeedCount - 1);
-                float speed = kLaneSpeedValues[idx];
-                switch (id) {
-                    case kArpVelocityLaneSpeedId:  params.velocityLaneSpeed.store(speed, std::memory_order_relaxed); break;
-                    case kArpGateLaneSpeedId:      params.gateLaneSpeed.store(speed, std::memory_order_relaxed); break;
-                    case kArpPitchLaneSpeedId:     params.pitchLaneSpeed.store(speed, std::memory_order_relaxed); break;
-                    case kArpModifierLaneSpeedId:  params.modifierLaneSpeed.store(speed, std::memory_order_relaxed); break;
-                    case kArpRatchetLaneSpeedId:   params.ratchetLaneSpeed.store(speed, std::memory_order_relaxed); break;
-                    case kArpConditionLaneSpeedId: params.conditionLaneSpeed.store(speed, std::memory_order_relaxed); break;
-                    case kArpChordLaneSpeedId:     params.chordLaneSpeed.store(speed, std::memory_order_relaxed); break;
-                    case kArpInversionLaneSpeedId: params.inversionLaneSpeed.store(speed, std::memory_order_relaxed); break;
-                    default: break;
-                }
-            }
-            // v1.5: Ratchet Decay (0-100%)
-            else if (id == kArpRatchetDecayId) {
-                params.ratchetDecay.store(
-                    std::clamp(static_cast<float>(value * 100.0), 0.0f, 100.0f),
-                    std::memory_order_relaxed);
-            }
-            // v1.5: Strum Time (0-100ms)
-            else if (id == kArpStrumTimeId) {
-                params.strumTime.store(
-                    std::clamp(static_cast<float>(value * 100.0), 0.0f, 100.0f),
-                    std::memory_order_relaxed);
-            }
-            // v1.5: Strum Direction (0-3)
-            else if (id == kArpStrumDirectionId) {
-                params.strumDirection.store(
-                    std::clamp(static_cast<int>(std::round(value * 3.0)), 0, 3),
-                    std::memory_order_relaxed);
-            }
-            // v1.5: Per-lane swing (3391-3398)
-            else if (id >= kArpVelocityLaneSwingId && id <= kArpInversionLaneSwingId) {
-                float swing = std::clamp(static_cast<float>(value * 75.0), 0.0f, 75.0f);
-                switch (id) {
-                    case kArpVelocityLaneSwingId:  params.velocityLaneSwing.store(swing, std::memory_order_relaxed); break;
-                    case kArpGateLaneSwingId:      params.gateLaneSwing.store(swing, std::memory_order_relaxed); break;
-                    case kArpPitchLaneSwingId:     params.pitchLaneSwing.store(swing, std::memory_order_relaxed); break;
-                    case kArpModifierLaneSwingId:  params.modifierLaneSwing.store(swing, std::memory_order_relaxed); break;
-                    case kArpRatchetLaneSwingId:   params.ratchetLaneSwing.store(swing, std::memory_order_relaxed); break;
-                    case kArpConditionLaneSwingId: params.conditionLaneSwing.store(swing, std::memory_order_relaxed); break;
-                    case kArpChordLaneSwingId:     params.chordLaneSwing.store(swing, std::memory_order_relaxed); break;
-                    case kArpInversionLaneSwingId: params.inversionLaneSwing.store(swing, std::memory_order_relaxed); break;
-                    default: break;
-                }
-            }
-            // v1.5 Part 2: Velocity Curve Type (0-3)
-            else if (id == kArpVelocityCurveTypeId) {
-                params.velocityCurveType.store(
-                    std::clamp(static_cast<int>(std::round(value * 3.0)), 0, 3),
-                    std::memory_order_relaxed);
-            }
-            // v1.5 Part 2: Velocity Curve Amount (0-100%)
-            else if (id == kArpVelocityCurveAmountId) {
-                params.velocityCurveAmount.store(
-                    std::clamp(static_cast<float>(value * 100.0), 0.0f, 100.0f),
-                    std::memory_order_relaxed);
-            }
-            // v1.5 Part 2: Transpose (-24 to +24)
-            else if (id == kArpTransposeId) {
-                params.transpose.store(
-                    std::clamp(static_cast<int>(std::round(value * 48.0 - 24.0)), -24, 24),
-                    std::memory_order_relaxed);
-            }
-            // v1.5 Part 3: Note Range Mapping (3410-3412)
-            else if (id == kArpRangeLowId) {
-                params.rangeLow.store(
-                    std::clamp(static_cast<int>(std::round(value * 127.0)), 0, 127),
-                    std::memory_order_relaxed);
-            }
-            else if (id == kArpRangeHighId) {
-                params.rangeHigh.store(
-                    std::clamp(static_cast<int>(std::round(value * 127.0)), 0, 127),
-                    std::memory_order_relaxed);
-            }
-            else if (id == kArpRangeModeId) {
-                params.rangeMode.store(
-                    std::clamp(static_cast<int>(std::round(value * 2.0)), 0, 2),
-                    std::memory_order_relaxed);
-            }
-            // v1.5 Part 3: Step Pinning
-            else if (id == kArpPinNoteId) {
-                params.pinNote.store(
-                    std::clamp(static_cast<int>(std::round(value * 127.0)), 0, 127),
-                    std::memory_order_relaxed);
-            }
-            else if (id >= kArpPinFlagStep0Id && id <= kArpPinFlagStep31Id) {
-                int stepIdx = static_cast<int>(id - kArpPinFlagStep0Id);
-                params.pinFlags[stepIdx].store(
-                    value >= 0.5 ? 1 : 0, std::memory_order_relaxed);
-            }
-            // Markov Chain mode
-            else if (id == kArpMarkovPresetId) {
-                // StringListParameter: 0-1 -> 0-5 (6 entries, stepCount=5)
-                params.markovPreset.store(
-                    std::clamp(static_cast<int>(std::round(value * 5.0)), 0, 5),
-                    std::memory_order_relaxed);
-            }
-            else if (id >= kArpMarkovCell00Id && id <= kArpMarkovCell66Id) {
-                int cellIdx = static_cast<int>(id - kArpMarkovCell00Id);
-                params.markovMatrix[static_cast<size_t>(cellIdx)].store(
-                    std::clamp(static_cast<float>(value), 0.0f, 1.0f),
-                    std::memory_order_relaxed);
-            }
-            // v1.5 Part 2: Per-lane Length Jitter (3402-3409)
-            else if (id >= kArpVelocityLaneJitterId && id <= kArpInversionLaneJitterId) {
-                int jitter = std::clamp(static_cast<int>(std::round(value * 4.0)), 0, 4);
-                switch (id) {
-                    case kArpVelocityLaneJitterId:  params.velocityLaneJitter.store(jitter, std::memory_order_relaxed); break;
-                    case kArpGateLaneJitterId:      params.gateLaneJitter.store(jitter, std::memory_order_relaxed); break;
-                    case kArpPitchLaneJitterId:     params.pitchLaneJitter.store(jitter, std::memory_order_relaxed); break;
-                    case kArpModifierLaneJitterId:  params.modifierLaneJitter.store(jitter, std::memory_order_relaxed); break;
-                    case kArpRatchetLaneJitterId:   params.ratchetLaneJitter.store(jitter, std::memory_order_relaxed); break;
-                    case kArpConditionLaneJitterId: params.conditionLaneJitter.store(jitter, std::memory_order_relaxed); break;
-                    case kArpChordLaneJitterId:     params.chordLaneJitter.store(jitter, std::memory_order_relaxed); break;
-                    case kArpInversionLaneJitterId: params.inversionLaneJitter.store(jitter, std::memory_order_relaxed); break;
-                    default: break;
-                }
-            }
-            // --- MIDI Delay Lane (3510-3707) ---
-            else if (id == kArpMidiDelayLaneLengthId) {
-                params.midiDelayLaneLength.store(
-                    std::clamp(static_cast<int>(1.0 + std::round(value * 31.0)), 1, 32),
-                    std::memory_order_relaxed);
-            }
-            else if (id >= kArpMidiDelayTimeModeStep0Id && id <= kArpMidiDelayTimeModeStep31Id) {
-                int stepIdx = static_cast<int>(id - kArpMidiDelayTimeModeStep0Id);
-                params.midiDelayTimeModeSteps[stepIdx].store(
-                    value >= 0.5 ? 1 : 0, std::memory_order_relaxed);
-            }
-            else if (id >= kArpMidiDelayTimeStep0Id && id <= kArpMidiDelayTimeStep31Id) {
-                int stepIdx = static_cast<int>(id - kArpMidiDelayTimeStep0Id);
-                // Stored raw 0-1 normalized; processor interprets based on time mode:
-                // Free: 10 + value * 1990 = 10-2000ms
-                // Synced: value * 29 = note value index 0-29
-                params.midiDelayTimeSteps[stepIdx].store(
-                    std::clamp(static_cast<float>(value), 0.0f, 1.0f),
-                    std::memory_order_relaxed);
-            }
-            else if (id >= kArpMidiDelayFeedbackStep0Id && id <= kArpMidiDelayFeedbackStep31Id) {
-                int stepIdx = static_cast<int>(id - kArpMidiDelayFeedbackStep0Id);
-                params.midiDelayFeedbackSteps[stepIdx].store(
-                    std::clamp(static_cast<int>(std::round(value * 16.0)), 0, 16),
-                    std::memory_order_relaxed);
-            }
-            else if (id >= kArpMidiDelayVelDecayStep0Id && id <= kArpMidiDelayVelDecayStep31Id) {
-                int stepIdx = static_cast<int>(id - kArpMidiDelayVelDecayStep0Id);
-                params.midiDelayVelDecaySteps[stepIdx].store(
-                    std::clamp(static_cast<float>(value), 0.0f, 1.0f),
-                    std::memory_order_relaxed);
-            }
-            else if (id >= kArpMidiDelayPitchShiftStep0Id && id <= kArpMidiDelayPitchShiftStep31Id) {
-                int stepIdx = static_cast<int>(id - kArpMidiDelayPitchShiftStep0Id);
-                params.midiDelayPitchShiftSteps[stepIdx].store(
-                    std::clamp(static_cast<int>(std::round(value * 48.0 - 24.0)), -24, 24),
-                    std::memory_order_relaxed);
-            }
-            else if (id >= kArpMidiDelayGateScaleStep0Id && id <= kArpMidiDelayGateScaleStep31Id) {
-                int stepIdx = static_cast<int>(id - kArpMidiDelayGateScaleStep0Id);
-                // 0-1 → 10-200%: value * 190 + 10, stored as fraction: 0.1-2.0
-                float scale = std::clamp(static_cast<float>(0.1 + value * 1.9), 0.1f, 2.0f);
-                params.midiDelayGateScaleSteps[stepIdx].store(
-                    scale, std::memory_order_relaxed);
-            }
-            else if (id >= kArpMidiDelayActiveStep0Id && id <= kArpMidiDelayActiveStep31Id) {
-                int stepIdx = static_cast<int>(id - kArpMidiDelayActiveStep0Id);
-                params.midiDelayActiveSteps[stepIdx].store(
-                    value >= 0.5 ? 1 : 0, std::memory_order_relaxed);
-            }
-            else if (id == kArpMidiDelayLaneSpeedId) {
-                int idx = std::clamp(static_cast<int>(std::round(value * (kLaneSpeedCount - 1))),
-                    0, kLaneSpeedCount - 1);
-                params.midiDelayLaneSpeed.store(kLaneSpeedValues[idx], std::memory_order_relaxed);
-            }
-            else if (id == kArpMidiDelayLaneSwingId) {
-                float swing = std::clamp(static_cast<float>(value * 75.0), 0.0f, 75.0f);
-                params.midiDelayLaneSwing.store(swing, std::memory_order_relaxed);
-            }
-            else if (id == kArpMidiDelayLaneJitterId) {
-                int jitter = std::clamp(static_cast<int>(std::round(value * 4.0)), 0, 4);
-                params.midiDelayLaneJitter.store(jitter, std::memory_order_relaxed);
-            }
-            else if (id == kArpMidiDelayLaneSpeedCurveDepthId) {
-                float depth = std::clamp(static_cast<float>(value), 0.0f, 1.0f);
-                params.midiDelayLaneSpeedCurveDepth.store(depth, std::memory_order_relaxed);
-            }
-            // v1.6: Per-lane Speed Curve Depth (3500-3507)
-            else if (id >= kArpVelocityLaneSpeedCurveDepthId &&
-                     id <= kArpInversionLaneSpeedCurveDepthId) {
-                float depth = std::clamp(static_cast<float>(value), 0.0f, 1.0f);
-                switch (id) {
-                    case kArpVelocityLaneSpeedCurveDepthId:  params.velocityLaneSpeedCurveDepth.store(depth, std::memory_order_relaxed); break;
-                    case kArpGateLaneSpeedCurveDepthId:      params.gateLaneSpeedCurveDepth.store(depth, std::memory_order_relaxed); break;
-                    case kArpPitchLaneSpeedCurveDepthId:     params.pitchLaneSpeedCurveDepth.store(depth, std::memory_order_relaxed); break;
-                    case kArpModifierLaneSpeedCurveDepthId:  params.modifierLaneSpeedCurveDepth.store(depth, std::memory_order_relaxed); break;
-                    case kArpRatchetLaneSpeedCurveDepthId:   params.ratchetLaneSpeedCurveDepth.store(depth, std::memory_order_relaxed); break;
-                    case kArpConditionLaneSpeedCurveDepthId: params.conditionLaneSpeedCurveDepth.store(depth, std::memory_order_relaxed); break;
-                    case kArpChordLaneSpeedCurveDepthId:     params.chordLaneSpeedCurveDepth.store(depth, std::memory_order_relaxed); break;
-                    case kArpInversionLaneSpeedCurveDepthId: params.inversionLaneSpeedCurveDepth.store(depth, std::memory_order_relaxed); break;
-                    default: break;
-                }
-            }
-            // --- Sequencer Note Lane (3741-3811, spec 142) ---
-            // Source mode toggle: StringList (Live=0, Sequencer=1)
-            else if (id == kArpSourceModeId) {
-                params.sourceMode.store(
-                    std::clamp(static_cast<int>(std::round(value)), 0, 1),
-                    std::memory_order_relaxed);
-            }
-            // Lane length (1-32, stepCount=31)
-            else if (id == kArpSequencerNoteLaneLengthId) {
-                params.seqNoteLaneLength.store(
-                    std::clamp(static_cast<int>(1.0 + std::round(value * 31.0)), 1, 32),
-                    std::memory_order_relaxed);
-            }
-            // Per-step pitches (3743..3774): 0-127, stepCount=127
-            else if (id >= kArpSequencerNoteLaneStep0Id &&
-                     id <= kArpSequencerNoteLaneStep31Id) {
-                int stepIdx = static_cast<int>(id - kArpSequencerNoteLaneStep0Id);
-                int pitch = std::clamp(
-                    static_cast<int>(std::round(value * 127.0)), 0, 127);
-                params.seqNoteLanePitches[stepIdx].store(
-                    pitch, std::memory_order_relaxed);
-            }
-            // Per-step rest flags (3775..3806): 0/1 toggle
-            else if (id >= kArpSequencerNoteLaneRestStep0Id &&
-                     id <= kArpSequencerNoteLaneRestStep31Id) {
-                int stepIdx = static_cast<int>(id - kArpSequencerNoteLaneRestStep0Id);
-                params.seqNoteLaneRestFlags[stepIdx].store(
-                    value >= 0.5 ? 1 : 0, std::memory_order_relaxed);
-            }
-            // Lane speed (3807): snapped 0.25..4.0x
-            else if (id == kArpSequencerNoteLaneSpeedId) {
-                int idx = std::clamp(
-                    static_cast<int>(std::round(value * (kLaneSpeedCount - 1))),
-                    0, kLaneSpeedCount - 1);
-                params.seqNoteLaneSpeed.store(
-                    kLaneSpeedValues[idx], std::memory_order_relaxed);
-            }
-            // Lane swing (3808): 0..75 %
-            else if (id == kArpSequencerNoteLaneSwingId) {
-                float swing = std::clamp(static_cast<float>(value * 75.0), 0.0f, 75.0f);
-                params.seqNoteLaneSwing.store(swing, std::memory_order_relaxed);
-            }
-            // Lane jitter (3809): 0..4 steps
-            else if (id == kArpSequencerNoteLaneJitterId) {
-                int jitter = std::clamp(
-                    static_cast<int>(std::round(value * 4.0)), 0, 4);
-                params.seqNoteLaneJitter.store(jitter, std::memory_order_relaxed);
-            }
-            // Lane speed curve depth (3810): 0..1
-            else if (id == kArpSequencerNoteLaneSpeedCurveDepthId) {
-                float depth = std::clamp(static_cast<float>(value), 0.0f, 1.0f);
-                params.seqNoteLaneSpeedCurveDepth.store(
-                    depth, std::memory_order_relaxed);
-            }
-            // Playhead (3811): read-only — writes from processParameterChanges
-            // are a no-op. The processor writes the playhead by pushing values
-            // back through the parameter container, not via this path.
-            else if (id == kArpSequencerNoteLanePlayheadId) {
-                // intentional no-op (FR-034a contract: playhead is output-only)
-            }
-            break;
+    }
+    // --- MIDI Delay Lane (3510-3707) ---
+    else if (id == kArpMidiDelayLaneLengthId) {
+        params.midiDelayLaneLength.store(
+            std::clamp(static_cast<int>(1.0 + std::round(value * 31.0)), 1, 32),
+            std::memory_order_relaxed);
+    }
+    else if (id >= kArpMidiDelayTimeModeStep0Id && id <= kArpMidiDelayTimeModeStep31Id) {
+        int stepIdx = static_cast<int>(id - kArpMidiDelayTimeModeStep0Id);
+        params.midiDelayTimeModeSteps[stepIdx].store(
+            value >= 0.5 ? 1 : 0, std::memory_order_relaxed);
+    }
+    else if (id >= kArpMidiDelayTimeStep0Id && id <= kArpMidiDelayTimeStep31Id) {
+        int stepIdx = static_cast<int>(id - kArpMidiDelayTimeStep0Id);
+        // Stored raw 0-1 normalized; processor interprets based on time mode:
+        // Free: 10 + value * 1990 = 10-2000ms
+        // Synced: value * 29 = note value index 0-29
+        params.midiDelayTimeSteps[stepIdx].store(
+            std::clamp(static_cast<float>(value), 0.0f, 1.0f),
+            std::memory_order_relaxed);
+    }
+    else if (id >= kArpMidiDelayFeedbackStep0Id && id <= kArpMidiDelayFeedbackStep31Id) {
+        int stepIdx = static_cast<int>(id - kArpMidiDelayFeedbackStep0Id);
+        params.midiDelayFeedbackSteps[stepIdx].store(
+            std::clamp(static_cast<int>(std::round(value * 16.0)), 0, 16),
+            std::memory_order_relaxed);
+    }
+    else if (id >= kArpMidiDelayVelDecayStep0Id && id <= kArpMidiDelayVelDecayStep31Id) {
+        int stepIdx = static_cast<int>(id - kArpMidiDelayVelDecayStep0Id);
+        params.midiDelayVelDecaySteps[stepIdx].store(
+            std::clamp(static_cast<float>(value), 0.0f, 1.0f),
+            std::memory_order_relaxed);
+    }
+    else if (id >= kArpMidiDelayPitchShiftStep0Id && id <= kArpMidiDelayPitchShiftStep31Id) {
+        int stepIdx = static_cast<int>(id - kArpMidiDelayPitchShiftStep0Id);
+        params.midiDelayPitchShiftSteps[stepIdx].store(
+            std::clamp(static_cast<int>(std::round(value * 48.0 - 24.0)), -24, 24),
+            std::memory_order_relaxed);
+    }
+    else if (id >= kArpMidiDelayGateScaleStep0Id && id <= kArpMidiDelayGateScaleStep31Id) {
+        int stepIdx = static_cast<int>(id - kArpMidiDelayGateScaleStep0Id);
+        // 0-1 → 10-200%: value * 190 + 10, stored as fraction: 0.1-2.0
+        float scale = std::clamp(static_cast<float>(0.1 + value * 1.9), 0.1f, 2.0f);
+        params.midiDelayGateScaleSteps[stepIdx].store(
+            scale, std::memory_order_relaxed);
+    }
+    else if (id >= kArpMidiDelayActiveStep0Id && id <= kArpMidiDelayActiveStep31Id) {
+        int stepIdx = static_cast<int>(id - kArpMidiDelayActiveStep0Id);
+        params.midiDelayActiveSteps[stepIdx].store(
+            value >= 0.5 ? 1 : 0, std::memory_order_relaxed);
+    }
+    else if (id == kArpMidiDelayLaneSpeedId) {
+        int idx = std::clamp(static_cast<int>(std::round(value * (kLaneSpeedCount - 1))),
+            0, kLaneSpeedCount - 1);
+        params.midiDelayLaneSpeed.store(kLaneSpeedValues[idx], std::memory_order_relaxed);
+    }
+    else if (id == kArpMidiDelayLaneSwingId) {
+        float swing = std::clamp(static_cast<float>(value * 75.0), 0.0f, 75.0f);
+        params.midiDelayLaneSwing.store(swing, std::memory_order_relaxed);
+    }
+    else if (id == kArpMidiDelayLaneJitterId) {
+        int jitter = std::clamp(static_cast<int>(std::round(value * 4.0)), 0, 4);
+        params.midiDelayLaneJitter.store(jitter, std::memory_order_relaxed);
+    }
+    else if (id == kArpMidiDelayLaneSpeedCurveDepthId) {
+        float depth = std::clamp(static_cast<float>(value), 0.0f, 1.0f);
+        params.midiDelayLaneSpeedCurveDepth.store(depth, std::memory_order_relaxed);
+    }
+    // v1.6: Per-lane Speed Curve Depth (3500-3507)
+    else if (id >= kArpVelocityLaneSpeedCurveDepthId &&
+             id <= kArpInversionLaneSpeedCurveDepthId) {
+        float depth = std::clamp(static_cast<float>(value), 0.0f, 1.0f);
+        switch (id) {
+            case kArpVelocityLaneSpeedCurveDepthId:  params.velocityLaneSpeedCurveDepth.store(depth, std::memory_order_relaxed); break;
+            case kArpGateLaneSpeedCurveDepthId:      params.gateLaneSpeedCurveDepth.store(depth, std::memory_order_relaxed); break;
+            case kArpPitchLaneSpeedCurveDepthId:     params.pitchLaneSpeedCurveDepth.store(depth, std::memory_order_relaxed); break;
+            case kArpModifierLaneSpeedCurveDepthId:  params.modifierLaneSpeedCurveDepth.store(depth, std::memory_order_relaxed); break;
+            case kArpRatchetLaneSpeedCurveDepthId:   params.ratchetLaneSpeedCurveDepth.store(depth, std::memory_order_relaxed); break;
+            case kArpConditionLaneSpeedCurveDepthId: params.conditionLaneSpeedCurveDepth.store(depth, std::memory_order_relaxed); break;
+            case kArpChordLaneSpeedCurveDepthId:     params.chordLaneSpeedCurveDepth.store(depth, std::memory_order_relaxed); break;
+            case kArpInversionLaneSpeedCurveDepthId: params.inversionLaneSpeedCurveDepth.store(depth, std::memory_order_relaxed); break;
+            default: break;
+        }
+    }
+    // --- Sequencer Note Lane (3741-3811, spec 142) ---
+    // Source mode toggle: StringList (Live=0, Sequencer=1)
+    else if (id == kArpSourceModeId) {
+        params.sourceMode.store(
+            std::clamp(static_cast<int>(std::round(value)), 0, 1),
+            std::memory_order_relaxed);
+    }
+    // Lane length (1-32, stepCount=31)
+    else if (id == kArpSequencerNoteLaneLengthId) {
+        params.seqNoteLaneLength.store(
+            std::clamp(static_cast<int>(1.0 + std::round(value * 31.0)), 1, 32),
+            std::memory_order_relaxed);
+    }
+    // Per-step pitches (3743..3774): 0-127, stepCount=127
+    else if (id >= kArpSequencerNoteLaneStep0Id &&
+             id <= kArpSequencerNoteLaneStep31Id) {
+        int stepIdx = static_cast<int>(id - kArpSequencerNoteLaneStep0Id);
+        int pitch = std::clamp(
+            static_cast<int>(std::round(value * 127.0)), 0, 127);
+        params.seqNoteLanePitches[stepIdx].store(
+            pitch, std::memory_order_relaxed);
+    }
+    // Per-step rest flags (3775..3806): 0/1 toggle
+    else if (id >= kArpSequencerNoteLaneRestStep0Id &&
+             id <= kArpSequencerNoteLaneRestStep31Id) {
+        int stepIdx = static_cast<int>(id - kArpSequencerNoteLaneRestStep0Id);
+        params.seqNoteLaneRestFlags[stepIdx].store(
+            value >= 0.5 ? 1 : 0, std::memory_order_relaxed);
+    }
+    // Lane speed (3807): snapped 0.25..4.0x
+    else if (id == kArpSequencerNoteLaneSpeedId) {
+        int idx = std::clamp(
+            static_cast<int>(std::round(value * (kLaneSpeedCount - 1))),
+            0, kLaneSpeedCount - 1);
+        params.seqNoteLaneSpeed.store(
+            kLaneSpeedValues[idx], std::memory_order_relaxed);
+    }
+    // Lane swing (3808): 0..75 %
+    else if (id == kArpSequencerNoteLaneSwingId) {
+        float swing = std::clamp(static_cast<float>(value * 75.0), 0.0f, 75.0f);
+        params.seqNoteLaneSwing.store(swing, std::memory_order_relaxed);
+    }
+    // Lane jitter (3809): 0..4 steps
+    else if (id == kArpSequencerNoteLaneJitterId) {
+        int jitter = std::clamp(
+            static_cast<int>(std::round(value * 4.0)), 0, 4);
+        params.seqNoteLaneJitter.store(jitter, std::memory_order_relaxed);
+    }
+    // Lane speed curve depth (3810): 0..1
+    else if (id == kArpSequencerNoteLaneSpeedCurveDepthId) {
+        float depth = std::clamp(static_cast<float>(value), 0.0f, 1.0f);
+        params.seqNoteLaneSpeedCurveDepth.store(
+            depth, std::memory_order_relaxed);
+    }
+    // Playhead (3811): read-only — writes from processParameterChanges
+    // are a no-op. The processor writes the playhead by pushing values
+    // back through the parameter container, not via this path.
+    else if (id == kArpSequencerNoteLanePlayheadId) {
+        // intentional no-op (FR-034a contract: playhead is output-only)
     }
 }
 
@@ -1677,149 +1399,12 @@ inline Steinberg::tresult formatArpParam(
     Steinberg::Vst::String128 string)
 {
     using namespace Steinberg;
+    // The span shared with Ruinae (3000-3387) is formatted once, in plugins/shared.
+    if (Krate::Shared::formatArpParamShared<ArpSharedScope>(id, value, string)) {
+        return kResultOk;
+    }
+
     switch (id) {
-        case kArpOctaveRangeId: {
-            char8 text[32];
-            int range = std::clamp(static_cast<int>(1.0 + std::round(value * 3.0)), 1, 4);
-            snprintf(text, sizeof(text), "%d", range);
-            UString(string, 128).fromAscii(text);
-            return kResultOk;
-        }
-        case kArpFreeRateId: {
-            char8 text[32];
-            snprintf(text, sizeof(text), "%.1f Hz", 0.5 + value * 49.5);
-            UString(string, 128).fromAscii(text);
-            return kResultOk;
-        }
-        case kArpGateLengthId: {
-            char8 text[32];
-            snprintf(text, sizeof(text), "%.0f%%", 1.0 + value * 199.0);
-            UString(string, 128).fromAscii(text);
-            return kResultOk;
-        }
-        case kArpSwingId: {
-            char8 text[32];
-            snprintf(text, sizeof(text), "%.0f%%", value * 75.0);
-            UString(string, 128).fromAscii(text);
-            return kResultOk;
-        }
-
-        // --- Velocity Lane (072-independent-lanes, US1) ---
-        case kArpVelocityLaneLengthId: {
-            char8 text[32];
-            int len = std::clamp(static_cast<int>(1.0 + std::round(value * 31.0)), 1, 32);
-            snprintf(text, sizeof(text), "%d steps", len);
-            UString(string, 128).fromAscii(text);
-            return kResultOk;
-        }
-
-        // --- Gate Lane (072-independent-lanes, US2) ---
-        case kArpGateLaneLengthId: {
-            char8 text[32];
-            int len = std::clamp(static_cast<int>(1.0 + std::round(value * 31.0)), 1, 32);
-            snprintf(text, sizeof(text), "%d steps", len);
-            UString(string, 128).fromAscii(text);
-            return kResultOk;
-        }
-
-        // --- Pitch Lane (072-independent-lanes, US3) ---
-        case kArpPitchLaneLengthId: {
-            char8 text[32];
-            int len = std::clamp(static_cast<int>(1.0 + std::round(value * 31.0)), 1, 32);
-            snprintf(text, sizeof(text), "%d steps", len);
-            UString(string, 128).fromAscii(text);
-            return kResultOk;
-        }
-
-        // --- Modifier Lane (073-per-step-mods) ---
-        case kArpModifierLaneLengthId: {
-            char8 text[32];
-            int len = std::clamp(static_cast<int>(1.0 + std::round(value * 31.0)), 1, 32);
-            snprintf(text, sizeof(text), "%d steps", len);
-            UString(string, 128).fromAscii(text);
-            return kResultOk;
-        }
-        case kArpAccentVelocityId: {
-            char8 text[32];
-            int vel = std::clamp(static_cast<int>(std::round(value * 127.0)), 0, 127);
-            snprintf(text, sizeof(text), "%d", vel);
-            UString(string, 128).fromAscii(text);
-            return kResultOk;
-        }
-        case kArpSlideTimeId: {
-            char8 text[32];
-            snprintf(text, sizeof(text), "%.0f ms", value * 500.0);
-            UString(string, 128).fromAscii(text);
-            return kResultOk;
-        }
-
-        // --- Ratchet Lane (074-ratcheting) ---
-        case kArpRatchetLaneLengthId: {
-            char8 text[32];
-            int len = std::clamp(static_cast<int>(1.0 + std::round(value * 31.0)), 1, 32);
-            snprintf(text, sizeof(text), "%d steps", len);
-            UString(string, 128).fromAscii(text);
-            return kResultOk;
-        }
-
-        // --- Euclidean Timing (075-euclidean-timing) ---
-        case kArpEuclideanEnabledId: {
-            UString(string, 128).fromAscii(value >= 0.5 ? "On" : "Off");
-            return kResultOk;
-        }
-        case kArpEuclideanHitsId: {
-            char8 text[32];
-            int hits = std::clamp(static_cast<int>(std::round(value * 32.0)), 0, 32);
-            snprintf(text, sizeof(text), "%d hits", hits);
-            UString(string, 128).fromAscii(text);
-            return kResultOk;
-        }
-        case kArpEuclideanStepsId: {
-            char8 text[32];
-            int steps = std::clamp(static_cast<int>(2.0 + std::round(value * 30.0)), 2, 32);
-            snprintf(text, sizeof(text), "%d steps", steps);
-            UString(string, 128).fromAscii(text);
-            return kResultOk;
-        }
-        case kArpEuclideanRotationId: {
-            char8 text[32];
-            int rot = std::clamp(static_cast<int>(std::round(value * 31.0)), 0, 31);
-            snprintf(text, sizeof(text), "%d", rot);
-            UString(string, 128).fromAscii(text);
-            return kResultOk;
-        }
-
-        // --- Condition Lane (076-conditional-trigs) ---
-        case kArpConditionLaneLengthId: {
-            char8 text[32];
-            int len = std::clamp(static_cast<int>(1.0 + std::round(value * 31.0)), 1, 32);
-            snprintf(text, sizeof(text), len == 1 ? "%d step" : "%d steps", len);
-            UString(string, 128).fromAscii(text);
-            return kResultOk;
-        }
-        case kArpFillToggleId: {
-            UString(string, 128).fromAscii(value >= 0.5 ? "On" : "Off");
-            return kResultOk;
-        }
-
-        // --- Spice/Dice & Humanize (077-spice-dice-humanize) ---
-        case kArpSpiceId: {
-            char8 text[32];
-            snprintf(text, sizeof(text), "%.0f%%", value * 100.0);
-            UString(string, 128).fromAscii(text);
-            return kResultOk;
-        }
-        case kArpDiceTriggerId: {
-            UString(string, 128).fromAscii(value >= 0.5 ? "Roll" : "--");
-            return kResultOk;
-        }
-        case kArpHumanizeId: {
-            char8 text[32];
-            snprintf(text, sizeof(text), "%.0f%%", value * 100.0);
-            UString(string, 128).fromAscii(text);
-            return kResultOk;
-        }
-
         // --- Ratchet Shuffle — StringListParameter handles display ---
         case kArpRatchetSwingId:
             return kResultFalse;
@@ -1899,142 +1484,6 @@ inline Steinberg::tresult formatArpParam(
             return kResultOk;
         }
 
-        // --- Scale Mode (084-arp-scale-mode) ---
-        // Let StringListParameter handle display for these.
-        // StringListParameter::toString reads from the list registered via
-        // createDropdownParameter() in registerArpParams(), so adding a new
-        // StringList param only requires updating ONE source of truth.
-        case kArpOperatingModeId:
-        case kArpModeId:
-        case kArpOctaveModeId:
-        case kArpNoteValueId:
-        case kArpLatchModeId:
-        case kArpRetriggerId:
-        case kArpScaleTypeId:
-        case kArpRootNoteId:
-        case kArpScaleQuantizeInputId:
-        case kArpMidiOutId:
-        case kArpVoicingModeId:
-        case kArpMarkovPresetId:
-            return kResultFalse;
-
-        default:
-            // Velocity lane steps: display as percentage
-            if (id >= kArpVelocityLaneStep0Id && id <= kArpVelocityLaneStep31Id) {
-                char8 text[32];
-                snprintf(text, sizeof(text), "%.0f%%", value * 100.0);
-                UString(string, 128).fromAscii(text);
-                return kResultOk;
-            }
-            // Gate lane steps: display as multiplier
-            if (id >= kArpGateLaneStep0Id && id <= kArpGateLaneStep31Id) {
-                char8 text[32];
-                double gateVal = 0.01 + value * 1.99;
-                snprintf(text, sizeof(text), "%.2fx", gateVal);
-                UString(string, 128).fromAscii(text);
-                return kResultOk;
-            }
-            // Pitch lane steps: display as semitone offset
-            if (id >= kArpPitchLaneStep0Id && id <= kArpPitchLaneStep31Id) {
-                char8 text[32];
-                int pitch = std::clamp(
-                    static_cast<int>(-24.0 + std::round(value * 48.0)), -24, 24);
-                if (pitch > 0) {
-                    snprintf(text, sizeof(text), "+%d st", pitch);
-                } else {
-                    snprintf(text, sizeof(text), "%d st", pitch);
-                }
-                UString(string, 128).fromAscii(text);
-                return kResultOk;
-            }
-            // Modifier lane steps: display as human-readable flag abbreviations (FR-022)
-            if (id >= kArpModifierLaneStep0Id && id <= kArpModifierLaneStep31Id) {
-                int step = std::clamp(
-                    static_cast<int>(std::round(value * 255.0)), 0, 255);
-                // ArpStepFlags: kStepActive=0x01, kStepTie=0x02, kStepSlide=0x04, kStepAccent=0x08
-                constexpr int kActive = 0x01;
-                constexpr int kTie    = 0x02;
-                constexpr int kSlide  = 0x04;
-                constexpr int kAccent = 0x08;
-                if (!(step & kActive)) {
-                    UString(string, 128).fromAscii("REST");
-                    return kResultOk;
-                }
-                // Active step -- build abbreviation string from flags
-                char8 text[32];
-                text[0] = '\0';
-                if (step & kTie) {
-                    snprintf(text, sizeof(text), "TIE");
-                } else {
-                    bool hasSlide = (step & kSlide) != 0;
-                    bool hasAccent = (step & kAccent) != 0;
-                    if (hasSlide && hasAccent)
-                        snprintf(text, sizeof(text), "SL AC");
-                    else if (hasSlide)
-                        snprintf(text, sizeof(text), "SL");
-                    else if (hasAccent)
-                        snprintf(text, sizeof(text), "AC");
-                    else
-                        snprintf(text, sizeof(text), "--");
-                }
-                UString(string, 128).fromAscii(text);
-                return kResultOk;
-            }
-            // Ratchet lane steps: display as "Nx" (074-ratcheting)
-            if (id >= kArpRatchetLaneStep0Id && id <= kArpRatchetLaneStep31Id) {
-                char8 text[32];
-                int ratchet = std::clamp(
-                    static_cast<int>(1.0 + std::round(value * 3.0)), 1, 4);
-                snprintf(text, sizeof(text), "%dx", ratchet);
-                UString(string, 128).fromAscii(text);
-                return kResultOk;
-            }
-            // Condition lane steps: display TrigCondition name (076-conditional-trigs)
-            if (id >= kArpConditionLaneStep0Id && id <= kArpConditionLaneStep31Id) {
-                static const char* const kCondNames[] = {
-                    "Always", "10%", "25%", "50%", "75%", "90%",
-                    "1:2", "2:2", "1:3", "2:3", "3:3",
-                    "1:4", "2:4", "3:4", "4:4",
-                    "1st", "Fill", "!Fill"
-                };
-                int idx = std::clamp(
-                    static_cast<int>(std::round(value * 17.0)), 0, 17);
-                UString(string, 128).fromAscii(kCondNames[idx]);
-                return kResultOk;
-            }
-            // Chord lane steps: display ChordType name (arp-chord-lane)
-            if (id >= kArpChordLaneStep0Id && id <= kArpChordLaneStep31Id) {
-                static const char* const kChordNames[] = {
-                    "None", "Dyad", "Triad", "7th", "9th"
-                };
-                int idx = std::clamp(
-                    static_cast<int>(std::round(value * 4.0)), 0, 4);
-                UString(string, 128).fromAscii(kChordNames[idx]);
-                return kResultOk;
-            }
-            // Inversion lane steps: display InversionType name (arp-chord-lane)
-            if (id >= kArpInversionLaneStep0Id && id <= kArpInversionLaneStep31Id) {
-                static const char* const kInvNames[] = {
-                    "Root", "1st", "2nd", "3rd"
-                };
-                int idx = std::clamp(
-                    static_cast<int>(std::round(value * 3.0)), 0, 3);
-                UString(string, 128).fromAscii(kInvNames[idx]);
-                return kResultOk;
-            }
-            // Per-lane speed multipliers
-            if (id >= kArpVelocityLaneSpeedId && id <= kArpInversionLaneSpeedId) {
-                int idx = std::clamp(static_cast<int>(std::round(value * (kLaneSpeedCount - 1))), 0, kLaneSpeedCount - 1);
-                float speed = kLaneSpeedValues[idx];
-                char buf[16];
-                if (speed == static_cast<int>(speed))
-                    snprintf(buf, sizeof(buf), "%dx", static_cast<int>(speed));
-                else
-                    snprintf(buf, sizeof(buf), "%.2fx", speed);
-                UString(string, 128).fromAscii(buf);
-                return kResultTrue;
-            }
-            break;
         // Speed Curve Depth: display as 0-100%
         case kArpVelocityLaneSpeedCurveDepthId:
         case kArpGateLaneSpeedCurveDepthId:
@@ -2049,6 +1498,14 @@ inline Steinberg::tresult formatArpParam(
             UString(string, 128).fromAscii(text);
             return kResultOk;
         }
+
+        default:
+            // Every other list parameter (Operating Mode, Mode, Octave Mode, Note
+            // Value, Latch, Retrigger, Scale Type, Root Note, Scale Quantize, MIDI
+            // Out, Voicing, Markov preset): StringListParameter::toString reads the
+            // list registered in registerArpParams(), so a new StringList param only
+            // needs that ONE source of truth.
+            break;
     }
     return kResultFalse;
 }

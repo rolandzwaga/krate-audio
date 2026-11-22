@@ -252,6 +252,11 @@ public:
     /// public so a test can drive it without a run loop).
     void pollArpLanePlayheads();
 
+    /// One ~30 fps poll of every processor display-data output parameter (trance-gate step,
+    /// transport, envelope playback dots, morph pad) and the arp playheads: the body of the
+    /// editor's UI timer, public so a test can drive it without a run loop (R-005).
+    void pollProcessorDisplays();
+
     /// The voice route the controller last loaded from a state or received from the processor.
     [[nodiscard]] const Krate::Plugins::ModRoute& cachedVoiceRouteForTest(int index) const {
         return cachedVoiceRoutes_.at(static_cast<size_t>(index));
@@ -276,15 +281,27 @@ private:
                          uint32_t adsrBaseId, uint32_t curveBaseId,
                          uint32_t bezierEnabledId, uint32_t bezierBaseId);
 
+    /// Rate (Hz) a mod-source display shows: the note value at the display tempo when
+    /// synced, else rateFromNormalized(rate). One rule for live edit, state load and
+    /// editor open (R-108).
+    float modSourceDisplayRateHz(Steinberg::Vst::ParamID syncId, Steinberg::Vst::ParamID rateId,
+                                 Steinberg::Vst::ParamID noteValueId,
+                                 float (*rateFromNormalized)(double));
+
+    /// Full sync of a mod-source display from parameter state (state load and editor
+    /// open share these; R-108). lfoIndex: 0 = LFO 1, 1 = LFO 2.
+    void syncLfoWaveformDisplay(Krate::Plugins::LfoWaveformDisplay* display, int lfoIndex);
+    void syncChaosModDisplay();
+    void syncRunglerDisplay();
+    void syncSampleHoldDisplay();
+    void syncRandomModDisplay();
+
     /// Push a single parameter change to an ADSRDisplay if it matches
     static void syncAdsrParamToDisplay(Steinberg::Vst::ParamID tag,
                                         Steinberg::Vst::ParamValue value,
                                         Krate::Plugins::ADSRDisplay* display,
                                         uint32_t adsrBaseId, uint32_t curveBaseId,
                                         uint32_t bezierEnabledId, uint32_t bezierBaseId);
-
-    /// Wire envelope display playback state pointers to ADSRDisplay instances
-    void wireEnvDisplayPlayback();
 
     /// Wire ModMatrixGrid instance with callbacks for parameter editing
     void wireModMatrixGrid(Krate::Plugins::ModMatrixGrid* grid);
@@ -501,23 +518,16 @@ private:
     /// Called once after bulk parameter loads instead of per-param updates.
     void syncAllViews();
 
-    // Playback position shared from processor via IMessage pointer
-    std::atomic<int>* tranceGatePlaybackStepPtr_ = nullptr;
-    std::atomic<bool>* isTransportPlayingPtr_ = nullptr;
+    /// ~30 fps poll of the processor's display-data output parameters (R-005)
     VSTGUI::SharedPointer<VSTGUI::CVSTGUITimer> playbackPollTimer_;
 
-    // Morph pad modulated position shared from processor via IMessage pointer
-    std::atomic<float>* modulatedMorphXPtr_ = nullptr;
-    std::atomic<float>* modulatedMorphYPtr_ = nullptr;
+    /// True once the processor has published a modulated morph position
+    /// (kMorphPadModXId / kMorphPadModYId): the morph pad then follows those
+    /// values, not the Mixer Position / Tilt parameters.
+    bool morphPadFollowsProcessor_ = false;
 
-    // Envelope display state shared from processor via IMessage pointer
-    std::atomic<float>* ampEnvOutputPtr_ = nullptr;
-    std::atomic<int>* ampEnvStagePtr_ = nullptr;
-    std::atomic<float>* filterEnvOutputPtr_ = nullptr;
-    std::atomic<int>* filterEnvStagePtr_ = nullptr;
-    std::atomic<float>* modEnvOutputPtr_ = nullptr;
-    std::atomic<int>* modEnvStagePtr_ = nullptr;
-    std::atomic<bool>* envVoiceActivePtr_ = nullptr;
+    /// The envelope the ADSR expanded overlay shows (its playback state source).
+    EnvelopeType adsrExpandedEnv_ = EnvelopeType::kAmp;
 
     // ==========================================================================
     // Arp Interaction Polish (Phase 11c)

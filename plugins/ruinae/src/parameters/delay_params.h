@@ -384,8 +384,7 @@ inline void registerDelayParams(Steinberg::Vst::ParameterContainer& parameters) 
         ParameterInfo::kCanAutomate, kDelayDigitalModRateId);  // default ~1 Hz
     parameters.addParameter(createDropdownParameter(
         STR16("Delay Mod Waveform"), kDelayDigitalModWaveformId,
-        {STR16("Sine"), STR16("Triangle"), STR16("Sawtooth"),
-         STR16("Square"), STR16("S&H"), STR16("Smooth Rnd")}));
+        kDelayModWaveformStrings, kWaveformCount));
     parameters.addParameter(STR16("Delay Width"), STR16("%"), 0, 0.5,
         ParameterInfo::kCanAutomate, kDelayDigitalWidthId);  // default 100%
     parameters.addParameter(STR16("Delay Wavefold"), STR16("%"), 0, 0.0,

@@ -206,39 +206,39 @@ TEST_CASE("ArpModifierLane setCollapsed toggles state", "[arp_modifier_lane][int
 // Parameter Normalization Tests (T035)
 // ==============================================================================
 
-TEST_CASE("ArpModifierLane bitmask 0x01 encodes as 1/15.0f", "[arp_modifier_lane][normalization]") {
+// The step parameters are 0-255 and the processors decode round(v * 255), so
+// the lane encodes flags / 255 (R-145; flags / 15 stored 17 * f).
+TEST_CASE("ArpModifierLane bitmask 0x01 encodes as 1/255.0f", "[arp_modifier_lane][normalization]") {
     auto* lane = makeModifierLane();
-    uint32_t receivedId = 0;
-    float receivedValue = -1.0f;
-    lane->setStepFlagBaseParamId(1000);
-    lane->setParameterCallback([&](uint32_t id, float val) {
-        receivedId = id;
-        receivedValue = val;
-    });
-
-    // Set flags to 0x01 and fire callback
     lane->setStepFlags(0, 0x01);
-    // Need to manually trigger callback since setStepFlags just stores
-    // The actual callback is fired via onMouseDown interaction.
-    // Instead, verify the encoding formula directly.
-    float normalized = static_cast<float>(0x01 & 0x0F) / 15.0f;
-    REQUIRE(normalized == Approx(1.0f / 15.0f).margin(0.0001f));
+    REQUIRE(lane->getNormalizedStepValue(0) == Approx(1.0f / 255.0f).margin(1e-6f));
     lane->forget();
 }
 
-TEST_CASE("ArpModifierLane bitmask 0x0F encodes as 1.0f", "[arp_modifier_lane][normalization]") {
-    float normalized = static_cast<float>(0x0F) / 15.0f;  // 0x0F & 0x0F
-    REQUIRE(normalized == Approx(1.0f).margin(0.0001f));
+TEST_CASE("ArpModifierLane bitmask 0x0F encodes as 15/255.0f", "[arp_modifier_lane][normalization]") {
+    auto* lane = makeModifierLane();
+    lane->setStepFlags(0, 0x0F);
+    REQUIRE(lane->getNormalizedStepValue(0) == Approx(15.0f / 255.0f).margin(1e-6f));
+    lane->forget();
 }
 
 TEST_CASE("ArpModifierLane bitmask 0x00 encodes as 0.0f", "[arp_modifier_lane][normalization]") {
-    float normalized = static_cast<float>(0x00 & 0x0F) / 15.0f;
-    REQUIRE(normalized == Approx(0.0f).margin(0.0001f));
+    auto* lane = makeModifierLane();
+    lane->setStepFlags(0, 0x00);
+    REQUIRE(lane->getNormalizedStepValue(0) == Approx(0.0f).margin(1e-6f));
+    lane->forget();
 }
 
-TEST_CASE("ArpModifierLane bitmask 0x09 encodes as 9/15.0f", "[arp_modifier_lane][normalization]") {
-    float normalized = static_cast<float>(0x09 & 0x0F) / 15.0f;
-    REQUIRE(normalized == Approx(9.0f / 15.0f).margin(0.0001f));
+TEST_CASE("ArpModifierLane bitmask 0x09 encodes as 9/255.0f", "[arp_modifier_lane][normalization]") {
+    auto* lane = makeModifierLane();
+    lane->setStepFlags(0, 0x09);
+    REQUIRE(lane->getNormalizedStepValue(0) == Approx(9.0f / 255.0f).margin(1e-6f));
+    // The decode is the inverse: every flag set survives the round trip
+    for (int flags = 0; flags <= 0x0F; ++flags) {
+        lane->setNormalizedStepValue(1, static_cast<float>(flags) / 255.0f);
+        REQUIRE(lane->getStepFlags(1) == static_cast<uint8_t>(flags));
+    }
+    lane->forget();
 }
 
 // ==============================================================================

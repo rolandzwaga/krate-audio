@@ -166,10 +166,7 @@ inline void registerLFOParams(Steinberg::Vst::ParameterContainer& parameters,
     parameters.addParameter(label(STR16("Rate")), STR16("Hz"), 0, 0.540,
         ParameterInfo::kCanAutomate, base + kLFORateOffset);
     parameters.addParameter(createDropdownParameter(
-        label(STR16("Shape")), base + kLFOShapeOffset,
-        {STR16("Sine"), STR16("Triangle"), STR16("Sawtooth"),
-         STR16("Square"), STR16("Sample & Hold"), STR16("Smooth Random")}
-    ));
+        label(STR16("Shape")), base + kLFOShapeOffset, kWaveformStrings, kWaveformCount));
     parameters.addParameter(label(STR16("Depth")), STR16("%"), 0, 1.0,
         ParameterInfo::kCanAutomate, base + kLFODepthOffset);
     parameters.addParameter(label(STR16("Sync")), STR16(""), 1, 1.0,

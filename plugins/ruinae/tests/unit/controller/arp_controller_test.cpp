@@ -12,6 +12,7 @@
 #include "plugin_ids.h"
 #include "controller/controller.h"
 #include "ui/arp_lane_editor.h"
+#include "ui/arp_modifier_lane.h"
 #include "view_lifecycle_rig.h"
 
 #include "pluginterfaces/vst/vsttypes.h"
@@ -426,4 +427,34 @@ TEST_CASE("Lane playheads follow the parameter, not the host transport", "[contr
     rig.ctl.pollArpLanePlayheads();
     CHECK(velocity->getPlaybackStep() == -1);
     CHECK(pitch->getPlaybackStep() == -1);
+}
+
+// R-145: the modifier step parameter is 0-255 and the processor decodes
+// round(v * 255). The lane sent flags/15, so a UI edit of Active|Tie (0x03)
+// stored 0x33 (17 * f). The parameter must carry flags/255.
+TEST_CASE("Modifier lane writes flags/255", "[controller][arp]") {
+    RuinaeViewLifecycleTest::ViewLifecycleRig rig;
+    rig.clickControl(Ruinae::kMainTabTag, RuinaeViewLifecycleTest::kTabSeq);
+
+    auto* lane = dynamic_cast<Krate::Plugins::ArpModifierLane*>(rig.pointer("modifierLane_"));
+    REQUIRE(lane != nullptr);
+    lane->setCollapsed(false);
+    REQUIRE(lane->getStepFlags(0) == 0x01);
+
+    // A click on step 0's Tie row: Active (0x01) becomes Active|Tie (0x03).
+    using Lane = Krate::Plugins::ArpModifierLane;
+    const VSTGUI::CRect vs = lane->getViewSize();
+    const double stepWidth = (vs.getWidth() - Lane::kLeftMargin) / lane->getNumSteps();
+    VSTGUI::CPoint where(vs.left + Lane::kLeftMargin + stepWidth * 0.5,
+                         vs.top + Krate::Plugins::ArpLaneHeader::kHeight + Lane::kRowHeight * 1.5);
+    VSTGUI::CButtonState buttons(VSTGUI::kLButton);
+    lane->onMouseDown(where, buttons);
+    REQUIRE(lane->getStepFlags(0) == 0x03);
+
+    // The processor decodes what the controller now holds for the step.
+    const double normalized = rig.ctl.getParamNormalized(Ruinae::kArpModifierLaneStep0Id);
+    auto params = std::make_unique<Ruinae::ArpeggiatorParams>();
+    Ruinae::handleArpParamChange(*params, Ruinae::kArpModifierLaneStep0Id, normalized);
+    INFO("normalized " << normalized);
+    CHECK(params->modifierLaneSteps[0].load() == 0x03);
 }

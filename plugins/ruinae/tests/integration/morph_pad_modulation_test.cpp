@@ -10,7 +10,7 @@
 //   → applyParamsToEngine() → engine_.setGlobalModRoute()
 //   → engine_.processBlock() → globalModEngine_.process()
 //   → getGlobalModOffset(AllVoiceMorphPosition) → non-zero offset
-//   → processor writes modulatedMorphX_ atomic
+//   → processor publishes kMorphPadModXId (output parameter, R-005)
 //
 // Level 1: Engine-level test (public API)
 // Level 2: Processor-level test (audio output varies with morph modulation)
@@ -346,7 +346,7 @@ TEST_CASE("Processor mod matrix LFO->MorphPos produces varying audio",
 TEST_CASE("Engine getGlobalModOffset persists after processBlock returns",
           "[morph-pad][modulation]") {
     // This verifies that the offset values used by the processor to write
-    // the modulated morph pad atomics are available after processBlock().
+    // the modulated morph pad output parameters are available after processBlock().
     // The processor reads these AFTER engine_.processBlock() returns.
 
     Krate::DSP::RuinaeEngine engine;

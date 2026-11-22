@@ -70,13 +70,15 @@ struct PlayheadTrailState {
 // ClipboardLaneType & LaneClipboard (Phase 11c - Copy/Paste)
 // ==============================================================================
 
-/// Identifies the type of lane data in the clipboard for cross-type normalization.
+/// Identifies the lane a clipboard was copied from. Cross-type paste copies the
+/// normalized values unchanged (see plugins/shared/tests/test_copy_paste.cpp);
+/// the target lane decodes them as its own parameter does.
 enum class ClipboardLaneType : std::uint8_t {
     kVelocity = 0,   // 0.0-1.0 normalized
     kGate = 1,       // 0.0-1.0 normalized (represents 0-200%)
     kPitch = 2,      // 0.0-1.0 normalized (represents -24..+24 semitones)
     kRatchet = 3,    // 0.0-1.0 normalized (represents 1-4 discrete)
-    kModifier = 4,   // 0.0-1.0 normalized (represents bitmask 0-15)
+    kModifier = 4,   // flags / 255 (0-255 parameter; flag bits 0-15)
     kCondition = 5,  // 0.0-1.0 normalized (represents index 0-17)
     kChord = 6,      // 0.0-1.0 normalized (represents index 0-4: None/Dyad/Triad/7th/9th)
     kInversion = 7   // 0.0-1.0 normalized (represents index 0-3: Root/1st/2nd/3rd)
@@ -160,7 +162,7 @@ public:
     [[nodiscard]] virtual int32_t getActiveLength() const = 0;
 
     /// Get the normalized step value at the given index.
-    /// For bar lanes: returns 0.0-1.0. For modifier: bitmask/15. For condition: index/17.
+    /// For bar lanes: returns 0.0-1.0. For modifier: bitmask/255. For condition: index/17.
     [[nodiscard]] virtual float getNormalizedStepValue(int32_t step) const = 0;
 
     /// Set the normalized step value at the given index.

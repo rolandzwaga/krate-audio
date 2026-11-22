@@ -22,6 +22,7 @@
 #include "public.sdk/source/common/memorystream.h"
 
 #include "test_helpers/arp_shared_prefix_golden.h"
+#include "test_helpers/arp_shared_handle_golden.h"
 
 #include <cmath>
 #include <vector>
@@ -116,6 +117,27 @@ TEST_CASE("Gradus arp shared-prefix save is byte-golden (D3)", "[arp][params][st
     const uint32_t fnv = Krate::Test::fnv1a(bytes.data(), bytes.size());
     INFO("gradus shared-prefix FNV = 0x" << std::hex << fnv);
     CHECK(fnv == Krate::Test::kSharedArpPrefixGoldenFnv);
+}
+
+// Cross-plugin handler identity (R-098): every shared arp ID except the documented
+// per-plugin exceptions (mode count, ratchet shuffle) denormalizes to the same
+// atomics as in Ruinae. The same golden is asserted in Ruinae's
+// arpeggiator_params_test.cpp.
+TEST_CASE("Gradus shared arp IDs denormalize like Ruinae (R-098)", "[arp][params][shared]") {
+    using namespace Gradus;
+
+    const uint32_t fnv = Krate::Test::sharedArpHandleFingerprint<ArpeggiatorParams>(
+        [](ArpeggiatorParams& p, uint32_t id, double v) { handleArpParamChange(p, id, v); },
+        kArpBaseId, kArpInversionLaneSpeedId, {kArpModeId, kArpRatchetSwingId});
+    INFO("gradus shared-handle FNV = 0x" << std::hex << fnv);
+    CHECK(fnv == Krate::Test::kSharedArpHandleGoldenFnv);
+}
+
+// R-098: the lane-speed set lives once, in plugins/shared, for Gradus and Ruinae.
+TEST_CASE("Gradus lane speeds come from the shared table (R-098)", "[arp][params][shared]") {
+    CHECK(&Gradus::kLaneSpeedValues[0] == &Krate::Shared::kLaneSpeedValues[0]);
+    CHECK(Gradus::kLaneSpeedCount == Krate::Shared::kLaneSpeedCount);
+    CHECK(Gradus::kLaneSpeedDefault == Krate::Shared::kLaneSpeedDefault);
 }
 
 // =============================================================================

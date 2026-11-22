@@ -141,9 +141,40 @@ void Processor::renderEngineSegments(float* left, float* right, size_t numSample
         while (next < timedEventCount_ && timedEvents_[next].offset <= pos) {
             applyTimedEvent(timedEvents_[next++]);
         }
-        const size_t end = (next < timedEventCount_)
-            ? std::min(static_cast<size_t>(timedEvents_[next].offset), numSamples)
-            : numSamples;
+        // Note events split the render at their own sample. Controller data
+        // (bend, expression, aftertouch, mod wheel) does not (R-006): it waits
+        // for the start of the engine's next modulation cell (64 samples,
+        // counted across buffers, where the engine reads it) or the next note
+        // event, whichever comes first. The engine call count then follows
+        // the notes and the block length, not the density of the controller
+        // data, and the result does not depend on the host buffer size.
+        const size_t cell = Krate::DSP::RuinaeEngine::modCellSamples();
+        const size_t toCell = engine_.samplesToNextModCell();  // from pos
+        size_t end = numSamples;
+        for (size_t k = next; k < timedEventCount_; ++k) {
+            const TimedEvent& ev = timedEvents_[k];
+            const auto at = static_cast<size_t>(ev.offset);
+            if (at >= end) break;
+            const bool isNote = ev.kind == TimedEventKind::NoteOn ||
+                                ev.kind == TimedEventKind::NoteOff ||
+                                ev.kind == TimedEventKind::ArpNoteOn ||
+                                ev.kind == TimedEventKind::ArpNoteOff;
+            if (isNote) {
+                end = at;
+                break;
+            }
+            // First cell start at or after `at` (at > pos here)
+            const size_t firstCell = pos + toCell;
+            const size_t cellStart = (at <= firstCell)
+                ? firstCell
+                : firstCell + (at - firstCell + cell - 1) / cell * cell;
+            end = std::min(end, cellStart);
+        }
+        // The engine renders at most the setupProcessing block size per call
+        // (it truncates beyond that): split an oversized buffer into chunks.
+        if (maxBlockSize_ > 0) {
+            end = std::min(end, pos + static_cast<size_t>(maxBlockSize_));
+        }
         // The engine reads the transport per call (trance gate sync), so each
         // segment gets the musical time of its first sample.
         Krate::DSP::BlockContext segment = blockCtx;

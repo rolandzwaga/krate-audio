@@ -14,7 +14,7 @@
 // - Pre-allocate ALL buffers in setupProcessing()
 //
 // Ruinae is a SYNTHESIZER (Instrument):
-// - No audio input bus
+// - Stereo sidechain aux input (EnvFollower / PitchFollower / Transient analysis)
 // - MIDI event input bus
 // - Stereo audio output bus
 // ==============================================================================
@@ -52,6 +52,7 @@
 #include "parameters/transient_params.h"
 #include "parameters/voice_lfo_params.h"
 #include "parameters/arpeggiator_params.h"
+#include "parameters/state_prefix_validator.h"
 
 #include <krate/dsp/processors/arpeggiator_core.h>
 
@@ -76,47 +77,117 @@ struct PresetSnapshot {
 };
 
 // ==============================================================================
-// AtomicVoiceModRoute — per-field atomics for lock-free voice route access
+// VoiceRouteTable — the 16 voice routes, published as one snapshot (R-007)
 // ==============================================================================
-// Eliminates the data race where notify() (UI thread) writes voiceRoutes_
-// while process() (audio thread) reads them. Each field is individually atomic
-// with relaxed ordering (same pattern as all other parameter packs).
+// notify() and setState() (message thread) write the routes while process()
+// (audio thread) reads them. A sequence counter guards the whole table: a
+// writer makes it odd, stores the fields and makes it even again; a reader
+// that sees it odd or changed discards what it read. Per-field atomics alone
+// let process() apply a new destination with the old amount. The fields stay
+// atomic, so a discarded racing read is not a data race either.
 
-struct AtomicVoiceModRoute {
-    std::atomic<uint8_t> source{0};
-    std::atomic<uint8_t> destination{0};
-    std::atomic<float> amount{0.0f};
-    std::atomic<uint8_t> curve{0};
-    std::atomic<float> smoothMs{0.0f};
-    std::atomic<uint8_t> scale{2};
-    std::atomic<uint8_t> bypass{0};
-    std::atomic<uint8_t> active{0};
+class VoiceRouteTable {
+public:
+    using Routes = std::array<Krate::Plugins::VoiceModRoute, Krate::Plugins::kMaxVoiceRoutes>;
 
-    /// Store all fields from a plain VoiceModRoute (UI thread writes)
-    void store(const Krate::Plugins::VoiceModRoute& r) {
-        source.store(r.source, std::memory_order_relaxed);
-        destination.store(r.destination, std::memory_order_relaxed);
-        amount.store(r.amount, std::memory_order_relaxed);
-        curve.store(r.curve, std::memory_order_relaxed);
-        smoothMs.store(r.smoothMs, std::memory_order_relaxed);
-        scale.store(r.scale, std::memory_order_relaxed);
-        bypass.store(r.bypass, std::memory_order_relaxed);
-        active.store(r.active, std::memory_order_relaxed);
+    /// Reads the audio thread attempts per block before it keeps the routes it
+    /// applied last block.
+    static constexpr int kReadTries = 3;
+
+    /// Replace one slot (message thread).
+    void store(size_t slot, const Krate::Plugins::VoiceModRoute& route) noexcept {
+        const uint32_t odd = beginWrite();
+        slots_[slot].store(route);
+        endWrite(odd);
     }
 
-    /// Load all fields into a plain VoiceModRoute (audio thread reads)
-    Krate::Plugins::VoiceModRoute load() const {
-        Krate::Plugins::VoiceModRoute r;
-        r.source = source.load(std::memory_order_relaxed);
-        r.destination = destination.load(std::memory_order_relaxed);
-        r.amount = amount.load(std::memory_order_relaxed);
-        r.curve = curve.load(std::memory_order_relaxed);
-        r.smoothMs = smoothMs.load(std::memory_order_relaxed);
-        r.scale = scale.load(std::memory_order_relaxed);
-        r.bypass = bypass.load(std::memory_order_relaxed);
-        r.active = active.load(std::memory_order_relaxed);
-        return r;
+    /// Replace every slot at once (message thread).
+    void storeAll(const Routes& routes) noexcept {
+        const uint32_t odd = beginWrite();
+        for (size_t i = 0; i < routes.size(); ++i) slots_[i].store(routes[i]);
+        endWrite(odd);
     }
+
+    /// Audio thread: at most kReadTries reads, never waits. On success `out`
+    /// holds one consistent table; on failure it is left untouched.
+    bool tryLoadAll(Routes& out) const noexcept {
+        for (int t = 0; t < kReadTries; ++t)
+            if (readOnce(out)) return true;
+        return false;
+    }
+
+    /// Message thread: retries until it reads a consistent table (a writer
+    /// never stops between beginWrite and endWrite).
+    [[nodiscard]] Routes loadAll() const noexcept {
+        Routes routes{};
+        while (!readOnce(routes)) {}
+        return routes;
+    }
+
+private:
+    struct Slot {
+        std::atomic<uint8_t> source{0};
+        std::atomic<uint8_t> destination{0};
+        std::atomic<float> amount{0.0f};
+        std::atomic<uint8_t> curve{0};
+        std::atomic<float> smoothMs{0.0f};
+        std::atomic<uint8_t> scale{2};
+        std::atomic<uint8_t> bypass{0};
+        std::atomic<uint8_t> active{0};
+
+        void store(const Krate::Plugins::VoiceModRoute& r) noexcept {
+            source.store(r.source, std::memory_order_relaxed);
+            destination.store(r.destination, std::memory_order_relaxed);
+            amount.store(r.amount, std::memory_order_relaxed);
+            curve.store(r.curve, std::memory_order_relaxed);
+            smoothMs.store(r.smoothMs, std::memory_order_relaxed);
+            scale.store(r.scale, std::memory_order_relaxed);
+            bypass.store(r.bypass, std::memory_order_relaxed);
+            active.store(r.active, std::memory_order_relaxed);
+        }
+
+        [[nodiscard]] Krate::Plugins::VoiceModRoute load() const noexcept {
+            Krate::Plugins::VoiceModRoute r;
+            r.source = source.load(std::memory_order_relaxed);
+            r.destination = destination.load(std::memory_order_relaxed);
+            r.amount = amount.load(std::memory_order_relaxed);
+            r.curve = curve.load(std::memory_order_relaxed);
+            r.smoothMs = smoothMs.load(std::memory_order_relaxed);
+            r.scale = scale.load(std::memory_order_relaxed);
+            r.bypass = bypass.load(std::memory_order_relaxed);
+            r.active = active.load(std::memory_order_relaxed);
+            return r;
+        }
+    };
+
+    /// Take the counter from even to odd; a second writer waits its turn.
+    uint32_t beginWrite() noexcept {
+        uint32_t s = seq_.load(std::memory_order_relaxed);
+        while ((s & 1u) != 0
+               || !seq_.compare_exchange_weak(s, s + 1u, std::memory_order_acquire,
+                                              std::memory_order_relaxed))
+            s = seq_.load(std::memory_order_relaxed);
+        // The field stores below must not become visible before the odd count.
+        std::atomic_thread_fence(std::memory_order_release);
+        return s + 1u;
+    }
+
+    void endWrite(uint32_t odd) noexcept { seq_.store(odd + 1u, std::memory_order_release); }
+
+    bool readOnce(Routes& out) const noexcept {
+        const uint32_t before = seq_.load(std::memory_order_acquire);
+        if ((before & 1u) != 0) return false;
+        Routes routes;
+        for (size_t i = 0; i < routes.size(); ++i) routes[i] = slots_[i].load();
+        // The field loads above must complete before the counter is re-read.
+        std::atomic_thread_fence(std::memory_order_acquire);
+        if (seq_.load(std::memory_order_relaxed) != before) return false;
+        out = routes;
+        return true;
+    }
+
+    std::atomic<uint32_t> seq_{0};
+    std::array<Slot, Krate::Plugins::kMaxVoiceRoutes> slots_{};
 };
 
 // ==============================================================================
@@ -189,11 +260,6 @@ public:
         return static_cast<Steinberg::Vst::IAudioProcessor*>(new Processor());
     }
 
-    /// Test hook: true once the one-time pointer handshakes have been issued to
-    /// the controller. These are sent from setActive() so that process() makes no
-    /// synchronous host sendMessage() calls.
-    [[nodiscard]] bool handshakeMessagesSent() const { return handshakeMessagesSent_; }
-
     /// Test hook: voices the engine still holds (gated or releasing).
     [[nodiscard]] uint32_t engineActiveVoiceCountForTest() const noexcept {
         return engine_.getActiveVoiceCount();
@@ -211,9 +277,12 @@ protected:
     void processEvents(Steinberg::Vst::IEventList* events, Steinberg::int32 numSamples);
 
     // --- Sample-accurate note timing ---
-    // Note and expression events reach the engine at their own sample: they are
-    // queued with their offset and the engine renders the buffer in segments
-    // split at those offsets (renderEngineSegments). Keys for the arpeggiator
+    // Note events reach the engine at their own sample: they are queued with
+    // their offset and the engine renders the buffer in segments split at
+    // those offsets (renderEngineSegments). Controller data (bend, expression,
+    // aftertouch, mod wheel) is queued the same way but applies at the start
+    // of the engine's next 64-sample modulation cell or at the next note
+    // event, so it never splits a segment by itself (R-006). Keys for the arpeggiator
     // are queued the same way and the arp runs in segments split at them
     // (runArpSegments, R-072).
     enum class TimedEventKind : uint8_t {
@@ -281,11 +350,6 @@ protected:
 
     /// Pre-allocated message for voice route state sync (Issue 1)
     Steinberg::IPtr<Steinberg::Vst::IMessage> voiceRouteSyncMsg_;
-
-    /// Pre-allocated one-time pointer messages (Issue 3)
-    Steinberg::IPtr<Steinberg::Vst::IMessage> playbackMsg_;
-    Steinberg::IPtr<Steinberg::Vst::IMessage> envDisplayMsg_;
-    Steinberg::IPtr<Steinberg::Vst::IMessage> morphPadModMsg_;
 
     /// Read-only engine access for tests that need to assert on DSP state
     /// rather than infer it from rendered audio.
@@ -367,7 +431,6 @@ private:
     float modWheelValue_ = 0.0f;
     bool modWheelOwnsMacro1_ = false;
     float lastSidechainActive_ = -1.0f;  ///< Tracks sidechain state for output param changes
-    bool wasTransportPlaying_{false};
     bool hostSupportsTransport_{false}; ///< True once host reports kPlaying
     double prevProjectTimeMusic_{-1.0}; ///< For detecting backward PPQ jumps (DAW loop)
     /// The arp's transport position when the host gives no musical time
@@ -419,64 +482,30 @@ private:
     // Scratch Buffers (pre-allocated in setupProcessing)
     // ==========================================================================
 
-    std::vector<float> mixBufferL_;
-    std::vector<float> mixBufferR_;
 
     // ==========================================================================
-    // Playback Position (shared with controller via IMessage pointer)
+    // Display data for the controller (R-005)
     // ==========================================================================
 
-    std::atomic<int> tranceGatePlaybackStep_{-1};
-    std::atomic<bool> isTransportPlaying_{false};
+    /// Write the trance-gate step, transport flag, envelope playback state of the
+    /// most recently triggered voice and the modulated morph X/Y as output
+    /// parameters (kTranceGatePlaybackStepId ... kMorphPadModYId). Audio thread,
+    /// once per rendered block.
+    void publishDisplayData(Steinberg::Vst::IParameterChanges& out,
+                            const Steinberg::Vst::ProcessContext* context);
 
-    /// Guard for the one-time controller handshakes issued from setActive().
-    /// Kept so a deactivate/reactivate cycle does not re-send them.
-    bool handshakeMessagesSent_ = false;
-
-    /// Send the pointer-handshake messages to the controller. Message thread
-    /// only: sendMessage() is a synchronous host call.
-    void sendOneTimeHandshakes();
-
-    // ==========================================================================
-    // Envelope Display State (shared with controller via IMessage pointer)
-    // ==========================================================================
-
-    // Amp envelope display state (most-recently-triggered voice)
-    std::atomic<float> ampEnvDisplayOutput_{0.0f};
-    std::atomic<int> ampEnvDisplayStage_{0};
-
-    // Filter envelope display state
-    std::atomic<float> filterEnvDisplayOutput_{0.0f};
-    std::atomic<int> filterEnvDisplayStage_{0};
-
-    // Mod envelope display state
-    std::atomic<float> modEnvDisplayOutput_{0.0f};
-    std::atomic<int> modEnvDisplayStage_{0};
-
-    // Any voice active flag (shared across all envelope displays)
-    std::atomic<bool> envVoiceActive_{false};
-
-    bool envDisplayMessageSent_ = false;
-
-    // ==========================================================================
-    // Morph Pad Modulation Display (shared with controller via IMessage pointer)
-    // ==========================================================================
-
-    /// Modulated morph position (normalized [0,1]) for XYMorphPad animation
-    std::atomic<float> modulatedMorphX_{0.5f};
-    /// Modulated spectral tilt (normalized [0,1]) for XYMorphPad animation
-    std::atomic<float> modulatedMorphY_{0.5f};
-
-    bool morphPadModMessageSent_ = false;
 
     // ==========================================================================
     // Voice Route State (communicated via IMessage, T085-T086)
     // ==========================================================================
-    // Per-field atomics eliminate data race between notify() (UI thread) and
-    // process() (audio thread). See AtomicVoiceModRoute above.
+    // Written by notify() and setState() (message thread), read by process()
+    // (audio thread) as one snapshot. See VoiceRouteTable above.
 
-    std::array<AtomicVoiceModRoute, Krate::Plugins::kMaxVoiceRoutes>
-        voiceRoutes_{};
+    VoiceRouteTable voiceRoutes_;
+
+    /// The routes applied last block (audio thread only): kept when a block's
+    /// read of voiceRoutes_ races a write (R-007).
+    VoiceRouteTable::Routes appliedVoiceRoutes_{};
 
     /// Send authoritative voice route state to controller
     void sendVoiceModRouteState();
@@ -513,6 +542,11 @@ private:
     template <typename Packs>
     static bool readStatePacks(Packs& packs, ArpeggiatorParams& arp,
                                Steinberg::IBStreamer& streamer);
+
+    /// Reads the required prefix into this processor's packs (R-076)
+    template <typename Packs>
+    friend bool readRequiredStatePrefix(Packs& packs, Steinberg::IBStreamer& streamer,
+                                        Steinberg::int32 version);
 
     /// Apply a preset load on the audio thread: resets only, no stream (R-197)
     void applyPresetSnapshot(const PresetSnapshot& snapshot);

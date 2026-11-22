@@ -19,8 +19,7 @@
 
 namespace Ruinae {
 
-// Maps destination index to the actual VST parameter ID of that knob.
-// Duplicated from controller.cpp — both TUs need these for mod ring sync.
+// Maps destination index to the actual VST parameter ID of that knob (mod ring sync).
 
 static constexpr std::array<Steinberg::Vst::ParamID,
     Krate::Plugins::kNumGlobalDestinations> kGlobalDestParamIds = {{
@@ -30,7 +29,7 @@ static constexpr std::array<Steinberg::Vst::ParamID,
     kDelayMixId,              // 3: Effect Mix
     kFilterCutoffId,          // 4: All Voice Filter Cutoff
     kMixerPositionId,         // 5: All Voice Morph Position
-    kTranceGateDepthId,       // 6: All Voice TranceGate Rate
+    kTranceGateRateId,        // 6: All Voice TranceGate Rate
     kMixerTiltId,             // 7: All Voice Spectral Tilt
     kFilterResonanceId,       // 8: All Voice Resonance
     kFilterEnvAmountId,       // 9: All Voice Filter Env Amount
@@ -160,7 +159,7 @@ void Controller::syncModMatrixGrid() {
             route.source = static_cast<uint8_t>(uiSrcIdx);
         }
 
-        // Destination: DSP index 0-6 maps directly to global tab dest index
+        // Destination: DSP index 0..kNumGlobalDestinations-1 maps directly to global tab dest index
         auto* dstParam = getParameterObject(
             static_cast<Steinberg::Vst::ParamID>(Krate::Plugins::modSlotDestinationId(i)));
         if (dstParam) {
@@ -382,7 +381,7 @@ void Controller::rebuildRingIndicators() {
     }
 
     // For each destination with a ring indicator, build the arc list.
-    // Ring indicators use voice dest indices (0-6) and sit on voice knobs.
+    // Ring indicators use voice dest indices (0..kNumVoiceDestinations-1) and sit on voice knobs.
     // Match global routes to ring indicators via parameter ID so that
     // e.g. global dest 4 (All Voice Filter Cutoff) shows on ring indicator 0
     // (which sits on the per-voice filter cutoff knob).

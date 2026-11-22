@@ -140,64 +140,6 @@ Steinberg::tresult PLUGIN_API Processor::initialize(FUnknown* context) {
         }
     }
 
-    // Pre-allocate one-time pointer messages (Issue 3: avoid allocateMessage on audio thread)
-    playbackMsg_ = Steinberg::owned(allocateMessage());
-    if (playbackMsg_) {
-        playbackMsg_->setMessageID("TranceGatePlayback");
-        auto* attrs = playbackMsg_->getAttributes();
-        if (attrs) {
-            attrs->setInt("stepPtr",
-                static_cast<Steinberg::int64>(
-                    reinterpret_cast<intptr_t>(&tranceGatePlaybackStep_)));
-            attrs->setInt("playingPtr",
-                static_cast<Steinberg::int64>(
-                    reinterpret_cast<intptr_t>(&isTransportPlaying_)));
-        }
-    }
-
-    envDisplayMsg_ = Steinberg::owned(allocateMessage());
-    if (envDisplayMsg_) {
-        envDisplayMsg_->setMessageID("EnvelopeDisplayState");
-        auto* attrs = envDisplayMsg_->getAttributes();
-        if (attrs) {
-            attrs->setInt("ampOutputPtr",
-                static_cast<Steinberg::int64>(
-                    reinterpret_cast<intptr_t>(&ampEnvDisplayOutput_)));
-            attrs->setInt("ampStagePtr",
-                static_cast<Steinberg::int64>(
-                    reinterpret_cast<intptr_t>(&ampEnvDisplayStage_)));
-            attrs->setInt("filterOutputPtr",
-                static_cast<Steinberg::int64>(
-                    reinterpret_cast<intptr_t>(&filterEnvDisplayOutput_)));
-            attrs->setInt("filterStagePtr",
-                static_cast<Steinberg::int64>(
-                    reinterpret_cast<intptr_t>(&filterEnvDisplayStage_)));
-            attrs->setInt("modOutputPtr",
-                static_cast<Steinberg::int64>(
-                    reinterpret_cast<intptr_t>(&modEnvDisplayOutput_)));
-            attrs->setInt("modStagePtr",
-                static_cast<Steinberg::int64>(
-                    reinterpret_cast<intptr_t>(&modEnvDisplayStage_)));
-            attrs->setInt("voiceActivePtr",
-                static_cast<Steinberg::int64>(
-                    reinterpret_cast<intptr_t>(&envVoiceActive_)));
-        }
-    }
-
-    morphPadModMsg_ = Steinberg::owned(allocateMessage());
-    if (morphPadModMsg_) {
-        morphPadModMsg_->setMessageID("MorphPadModulation");
-        auto* attrs = morphPadModMsg_->getAttributes();
-        if (attrs) {
-            attrs->setInt("morphXPtr",
-                static_cast<Steinberg::int64>(
-                    reinterpret_cast<intptr_t>(&modulatedMorphX_)));
-            attrs->setInt("morphYPtr",
-                static_cast<Steinberg::int64>(
-                    reinterpret_cast<intptr_t>(&modulatedMorphY_)));
-        }
-    }
-
     return Steinberg::kResultTrue;
 }
 
@@ -217,8 +159,6 @@ Steinberg::tresult PLUGIN_API Processor::setupProcessing(
     maxBlockSize_ = setup.maxSamplesPerBlock;
 
     // Constitution Principle II: Pre-allocate ALL buffers HERE
-    mixBufferL_.resize(static_cast<size_t>(maxBlockSize_));
-    mixBufferR_.resize(static_cast<size_t>(maxBlockSize_));
 
     // Prepare engine (allocates internal buffers)
     engine_.prepare(sampleRate_, static_cast<size_t>(maxBlockSize_));
@@ -234,30 +174,12 @@ Steinberg::tresult PLUGIN_API Processor::setupProcessing(
     return AudioEffect::setupProcessing(setup);
 }
 
-void Processor::sendOneTimeHandshakes() {
-    if (handshakeMessagesSent_) return;
-
-    if (playbackMsg_) sendMessage(playbackMsg_);
-    if (envDisplayMsg_) sendMessage(envDisplayMsg_);
-    if (morphPadModMsg_) sendMessage(morphPadModMsg_);
-
-    handshakeMessagesSent_ = true;
-}
-
 Steinberg::tresult PLUGIN_API Processor::setActive(Steinberg::TBool state) {
     if (state) {
         // Activating: reset DSP state. The MIDI-out notes are downstream, out
         // of reach of the reset: the first process() sends their NoteOffs.
         resetPlayingState(true);
         arpFreeRunSamples_ = 0;
-        std::fill(mixBufferL_.begin(), mixBufferL_.end(), 0.0f);
-        std::fill(mixBufferR_.begin(), mixBufferR_.end(), 0.0f);
-
-        // These carry pointers to lifetime-stable member atomics, so they can go
-        // out from here (message thread) rather than from the first process()
-        // call, which made three synchronous host sendMessage() calls on the
-        // audio thread.
-        sendOneTimeHandshakes();
     }
 
     return AudioEffect::setActive(state);
@@ -710,7 +632,18 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
         if (std::all_of(outputR, outputR + numSamples, isZero)) data.outputs[0].silenceFlags |= 2u;
     }
 
-    // Update morph pad modulated position for UI animation
+    // Display data for the controller's UI poll (R-005): values written as
+    // output parameters once per rendered block, never addresses.
+    if (data.outputParameterChanges) {
+        publishDisplayData(*data.outputParameterChanges, data.processContext);
+    }
+
+    return Steinberg::kResultTrue;
+}
+
+void Processor::publishDisplayData(Steinberg::Vst::IParameterChanges& out,
+                                   const Steinberg::Vst::ProcessContext* context) {
+    // Morph pad modulated position
     {
         using Krate::DSP::RuinaeModDest;
         const float morphOffset = engine_.getGlobalModOffset(
@@ -719,26 +652,26 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
             RuinaeModDest::AllVoiceSpectralTilt);
 
         const float baseX = mixerParams_.position.load(std::memory_order_relaxed);
-        modulatedMorphX_.store(
-            std::clamp(baseX + morphOffset, 0.0f, 1.0f),
-            std::memory_order_relaxed);
+        writePlayhead(out, kMorphPadModXId,
+                      static_cast<double>(std::clamp(baseX + morphOffset, 0.0f, 1.0f)));
 
         // Tilt: base is dB [-12,+12], offset is normalized scaled by 24 → dB
         const float baseTiltDb = mixerParams_.tilt.load(std::memory_order_relaxed);
         const float modTiltDb = std::clamp(
             baseTiltDb + tiltOffset * 24.0f, -12.0f, 12.0f);
-        modulatedMorphY_.store(
-            (modTiltDb + 12.0f) / 24.0f, std::memory_order_relaxed);
+        writePlayhead(out, kMorphPadModYId, static_cast<double>((modTiltDb + 12.0f) / 24.0f));
     }
 
-    // Update shared playback position atomics for controller UI
-    tranceGatePlaybackStep_.store(
-        engine_.getTranceGateCurrentStep(), std::memory_order_relaxed);
-    bool playing = data.processContext != nullptr &&
-        (data.processContext->state & Steinberg::Vst::ProcessContext::kPlaying) != 0;
-    isTransportPlaying_.store(playing, std::memory_order_relaxed);
+    // Trance gate step (-1 = none) and transport
+    const int gateStep = std::clamp(engine_.getTranceGateCurrentStep(), -1,
+                                    static_cast<int>(kTranceGateDisplayStepScale) - 1);
+    writePlayhead(out, kTranceGatePlaybackStepId,
+                  static_cast<double>(gateStep + 1) / kTranceGateDisplayStepScale);
+    const bool playing = context != nullptr &&
+        (context->state & Steinberg::Vst::ProcessContext::kPlaying) != 0;
+    writePlayhead(out, kTransportPlayingId, playing ? 1.0 : 0.0);
 
-    // Update envelope display state from the most recently triggered voice
+    // Envelope display state from the most recently triggered voice
     {
         // Find most recently triggered active voice
         size_t bestVoice = 0;
@@ -760,27 +693,27 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
             anyActive = true;
         }
 
-        envVoiceActive_.store(anyActive, std::memory_order_relaxed);
+        writePlayhead(out, kEnvDisplayVoiceActiveId, anyActive ? 1.0 : 0.0);
 
+        // Without a sounding voice the displays hide their dot: the last
+        // published output and stage stand.
         if (anyActive) {
-            const auto& ampEnv = engine_.getVoiceAmpEnvelope(bestVoice);
-            ampEnvDisplayOutput_.store(ampEnv.getOutput(), std::memory_order_relaxed);
-            ampEnvDisplayStage_.store(
-                static_cast<int>(ampEnv.getStage()), std::memory_order_relaxed);
-
-            const auto& filterEnv = engine_.getVoiceFilterEnvelope(bestVoice);
-            filterEnvDisplayOutput_.store(filterEnv.getOutput(), std::memory_order_relaxed);
-            filterEnvDisplayStage_.store(
-                static_cast<int>(filterEnv.getStage()), std::memory_order_relaxed);
-
-            const auto& modEnv = engine_.getVoiceModEnvelope(bestVoice);
-            modEnvDisplayOutput_.store(modEnv.getOutput(), std::memory_order_relaxed);
-            modEnvDisplayStage_.store(
-                static_cast<int>(modEnv.getStage()), std::memory_order_relaxed);
+            const auto publishEnv = [&out](const Krate::DSP::ADSREnvelope& env,
+                                           Steinberg::Vst::ParamID outputId,
+                                           Steinberg::Vst::ParamID stageId) {
+                writePlayhead(out, outputId,
+                              static_cast<double>(std::clamp(env.getOutput(), 0.0f, 1.0f)));
+                writePlayhead(out, stageId,
+                              static_cast<double>(static_cast<int>(env.getStage())) / kEnvDisplayStageScale);
+            };
+            publishEnv(engine_.getVoiceAmpEnvelope(bestVoice),
+                       kAmpEnvDisplayOutputId, kAmpEnvDisplayStageId);
+            publishEnv(engine_.getVoiceFilterEnvelope(bestVoice),
+                       kFilterEnvDisplayOutputId, kFilterEnvDisplayStageId);
+            publishEnv(engine_.getVoiceModEnvelope(bestVoice),
+                       kModEnvDisplayOutputId, kModEnvDisplayStageId);
         }
     }
-
-    return Steinberg::kResultTrue;
 }
 
 Steinberg::tresult PLUGIN_API Processor::setBusArrangements(
@@ -816,7 +749,10 @@ Steinberg::uint32 PLUGIN_API Processor::getTailSamples() {
         return Steinberg::Vst::kInfiniteTail;
     }
 
-    double seconds = static_cast<double>(ampEnvParams_.releaseMs.load(kRelaxed)) * 0.001;
+    // The engine floors the amp release at kMinAmpReleaseMs (the note-off declick), so even
+    // release 0 leaves that much tail.
+    double seconds = static_cast<double>(std::max(ampEnvParams_.releaseMs.load(kRelaxed),
+                                                  Krate::DSP::RuinaeEngine::kMinAmpReleaseMs)) * 0.001;
     if (delayOn) {
         const double delayMs = delayParams_.sync.load(kRelaxed)
             ? static_cast<double>(Krate::DSP::dropdownToDelayMs(

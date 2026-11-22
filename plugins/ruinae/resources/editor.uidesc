@@ -148,7 +148,6 @@
         <control-tag name="SettingsTuningReference" tag="2202"/>
         <control-tag name="SettingsVoiceAllocMode" tag="2203"/>
         <control-tag name="SettingsVoiceStealMode" tag="2204"/>
-        <control-tag name="SettingsGainCompensation" tag="2205"/>
 
         <!-- Env Follower -->
         <control-tag name="EnvFollowerSensitivity" tag="2300"/>
@@ -4466,21 +4465,6 @@
                   back-color="bg-dropdown"
                   frame-color="frame-dropdown-dim"
                   transparent="false"/>
-
-            <!-- Gain Compensation -->
-            <view class="CTextLabel" origin="16, 364" size="120, 14"
-                  title="Gain Compensation"
-                  font="~ NormalFontSmaller"
-                  font-color="text-secondary"
-                  text-alignment="left"
-                  transparent="true"/>
-            <view class="ToggleButton" origin="16, 382" size="50, 20"
-                  control-tag="SettingsGainCompensation"
-                  default-value="1"
-                  title="On"
-                  on-color="master"
-                  off-color="toggle-off"
-                  transparent="true"/>
 
             <!-- Check for Updates -->
             <view custom-view-name="CheckForUpdatesButton" origin="16, 760" size="188, 22"/>
