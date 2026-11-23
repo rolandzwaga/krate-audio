@@ -3,8 +3,8 @@
 # Run Clang-Tidy on Krate Audio Codebase
 # ==============================================================================
 # Usage:
-#   ./tools/run-clang-tidy.sh              # Analyze all source files
-#   ./tools/run-clang-tidy.sh --target dsp # Analyze DSP library only
+#   ./tools/run-clang-tidy.sh --target dsp # Analyze what changed in the DSP library (the default)
+#   ./tools/run-clang-tidy.sh --full       # Analyze every file (tidy-full-ok: audits/setup only)
 #   ./tools/run-clang-tidy.sh --fix        # Apply automatic fixes
 #   ./tools/run-clang-tidy.sh --help       # Show help
 # ==============================================================================
@@ -28,6 +28,8 @@ BUILD_DIR=""
 TARGET="all"
 FIX=0
 QUIET=0
+FULL=0
+BASE="HEAD"
 PARALLEL=$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)
 
 # Parse arguments
@@ -57,6 +59,14 @@ while [[ $# -gt 0 ]]; do
             FILE_TIMEOUT="$2"
             shift 2
             ;;
+        --full)
+            FULL=1
+            shift
+            ;;
+        --base)
+            BASE="$2"
+            shift 2
+            ;;
         --help|-h)
             echo "Usage: $0 [OPTIONS]"
             echo ""
@@ -72,6 +82,11 @@ while [[ $# -gt 0 ]]; do
             echo "  --parallel N      Number of parallel processes (default: $PARALLEL)"
             echo "  --file-timeout S  Kill clang-tidy on one file after S seconds, report it"
             echo "                    as an error, continue (default: 600; 0 = no ceiling)"
+            echo "  --full            Analyze EVERY file of the target. Default: only what changed"
+            echo "                    (changed .cpp files + one includer per changed header,"
+            echo "                    tools/tidy-changed-files.js). Agent commands need a"
+            echo "                    '# tidy-full-ok: <reason>' comment (tools/hooks/guard-tidy-scope.js)"
+            echo "  --base REF        Measure the changed set from REF (default HEAD)"
             echo "  --help            Show this help message"
             exit 0
             ;;
@@ -215,6 +230,28 @@ for file in "${SOURCE_FILES[@]}"; do
     COMPILED_FILES+=("$file")
 done
 SOURCE_FILES=("${COMPILED_FILES[@]}")
+
+# Default: only what changed (tools/tidy-changed-files.js: the changed .cpp files and one includer per changed
+# header, within this target's directories). --full analyzes everything.
+if [[ $FULL -eq 0 ]]; then
+    ROOTS=$(IFS=,; echo "${SOURCE_DIRS[*]}")
+    SELECTED=$(node tools/tidy-changed-files.js --roots "$ROOTS" --base "$BASE" --compile-db "$BUILD_DIR/compile_commands.json") || {
+        error "tools/tidy-changed-files.js failed"
+        exit 1
+    }
+    CHANGED_FILES=()
+    for file in "${SOURCE_FILES[@]}"; do
+        if grep -qxF "$file" <<< "$SELECTED"; then
+            CHANGED_FILES+=("$file")
+        fi
+    done
+    SOURCE_FILES=("${CHANGED_FILES[@]}")
+    if [[ ${#SOURCE_FILES[@]} -eq 0 ]]; then
+        success "Nothing changed in target '$TARGET' since $BASE: 0 files to analyze (use --full for a whole-target sweep)"
+        echo "  Files analyzed: 0"
+        exit 0
+    fi
+fi
 
 if [[ ${#SOURCE_FILES[@]} -eq 0 ]]; then
     warn "No source files found for target: $TARGET"

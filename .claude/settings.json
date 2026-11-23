@@ -36,6 +36,15 @@
             "command": "node \"$CLAUDE_PROJECT_DIR/tools/hooks/guard-heredoc.js\""
           }
         ]
+      },
+      {
+        "matcher": "Bash|PowerShell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/tools/hooks/guard-tidy-scope.js\""
+          }
+        ]
       }
     ],
     "PostToolUse": [

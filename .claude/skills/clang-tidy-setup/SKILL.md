@@ -30,22 +30,32 @@ description: One-time clang-tidy environment setup (LLVM/Ninja install, compile_
 
 ## Running Analysis
 
+**Both scripts analyze only what changed by default:** the changed `.cpp` files and, for each changed
+header, one translation unit that includes it (`tools/tidy-changed-files.js`; "changed" = since HEAD,
+staged + unstaged + untracked). `-Base main` / `--base main` widens it to the whole branch. A whole-target
+sweep needs `-Full` / `--full` AND a `# tidy-full-ok: <reason>` comment on the same line, or
+`tools/hooks/guard-tidy-scope.js` blocks the command; `tools/lint-tidy-scope.js` (CI) checks workflow text.
+
 ```powershell
-# Analyze all plugin source files
-./tools/run-clang-tidy.ps1 -Target all -BuildDir build/windows-ninja
+# Analyze what changed in a target (the normal case: tasks, gates, commits)
+./tools/run-clang-tidy.ps1 -Target dsp -BuildDir build/windows-ninja -Jobs 4
 
-# Analyze a specific target
-./tools/run-clang-tidy.ps1 -Target dsp -BuildDir build/windows-ninja
+# Everything the branch changed
+./tools/run-clang-tidy.ps1 -Target ruinae -BuildDir build/windows-ninja -Jobs 4 -Base main
 
-# Apply automatic fixes (use with caution, review changes)
-./tools/run-clang-tidy.ps1 -Target all -BuildDir build/windows-ninja -Fix
+# Apply automatic fixes to the changed files (use with caution, review changes)
+./tools/run-clang-tidy.ps1 -Target dsp -BuildDir build/windows-ninja -Fix
+
+# Whole-target sweep (audits, a clang-tidy upgrade)
+./tools/run-clang-tidy.ps1 -Target all -BuildDir build/windows-ninja -Jobs 4 -Full   # tidy-full-ok: LLVM upgrade check
 ```
 
 **Linux/macOS:**
 ```bash
 cmake --preset linux-release   # or macos-release (generates compile_commands.json)
-./tools/run-clang-tidy.sh --target all
+./tools/run-clang-tidy.sh --target dsp
 ./tools/run-clang-tidy.sh --target dsp --fix
+./tools/run-clang-tidy.sh --target all --full   # tidy-full-ok: LLVM upgrade check
 ```
 
 Valid `--target` values (same roster on both scripts): `all`, `dsp`, `shared`, `iterum`,

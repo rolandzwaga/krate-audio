@@ -39,6 +39,17 @@
     Number of parallel clang-tidy processes. Default: number of logical processors.
     Set to 1 for sequential execution.
 
+.PARAMETER Full
+    Analyze EVERY file of the target. Without it (the default) only what changed is analyzed:
+    the changed .cpp files, and for each changed header one translation unit that includes it
+    (tools/tidy-changed-files.js). A full sweep is for audits and setup checks; an agent command
+    with -Full is blocked unless it carries a "# tidy-full-ok: <reason>" comment
+    (tools/hooks/guard-tidy-scope.js), and workflow text is linted for it (tools/lint-tidy-scope.js).
+
+.PARAMETER Base
+    Git ref the changed set is measured from (default HEAD: staged + unstaged + untracked).
+    Use -Base main to cover everything a branch changed. Ignored with -Full.
+
 .PARAMETER FileTimeoutSec
     Wall-clock ceiling per translation unit. A clang-tidy process still running
     after this many seconds is killed, reported by file name as an error, and the
@@ -46,7 +57,11 @@
     sweep with an empty log). Default: 600. 0 disables the ceiling.
 
 .EXAMPLE
-    .\tools\run-clang-tidy.ps1
+    .\tools\run-clang-tidy.ps1 -Target ruinae -BuildDir build/windows-ninja -Jobs 4
+    # Analyze what changed in Ruinae since HEAD (the default)
+
+.EXAMPLE
+    .\tools\run-clang-tidy.ps1 -Full   # tidy-full-ok: setup check after an LLVM upgrade
     # Run clang-tidy on all source files
 
 .EXAMPLE
@@ -69,6 +84,8 @@ param(
     [string]$Target = "all",
     [switch]$Quiet,
     [int]$Jobs = 0,
+    [switch]$Full,
+    [string]$Base = "HEAD",
     [int]$FileTimeoutSec = 600
 )
 
@@ -336,6 +353,31 @@ if ($UseCompileCommands) {
             }
         }
         $SourceFiles = @($SourceFiles | Where-Object { $Compiled.Contains($_.FullName) })
+    }
+}
+
+# Default: only what changed (tools/tidy-changed-files.js picks the changed .cpp files and one includer per
+# changed header, within this target's directories). -Full analyzes everything.
+if (-not $Full) {
+    $Roots = @($SourceDirs) + @($RootSourceDirs | ForEach-Object { "$_!" })
+    $NodeArgs = @("tools/tidy-changed-files.js", "--roots", ($Roots -join ","), "--base", $Base)
+    if ($UseCompileCommands) { $NodeArgs += @("--compile-db", $CompileCommands) }
+    $Selected = @(& node @NodeArgs)
+    if ($LASTEXITCODE -ne 0) {
+        Write-Err "tools/tidy-changed-files.js failed (exit $LASTEXITCODE)"
+        exit 1
+    }
+    $Wanted = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+    foreach ($Rel in $Selected) {
+        if ($Rel) { [void]$Wanted.Add([System.IO.Path]::GetFullPath((Join-Path $ProjectRoot $Rel))) }
+    }
+    $SourceFiles = @($SourceFiles | Where-Object { $Wanted.Contains($_.FullName) })
+    if ($SourceFiles.Count -eq 0) {
+        Write-Success "Nothing changed in target '$Target' since $($Base): 0 files to analyze (use -Full for a whole-target sweep)"
+        Write-Host "  Files analyzed: 0"
+        Write-Success "  Errors: 0"
+        Write-Success "  Warnings: 0"
+        exit 0
     }
 }
 

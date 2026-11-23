@@ -599,6 +599,12 @@ Run before every commit (canonical todo list step 6) and after significant refac
 # membrum-fit (tools/membrum-fit, src + tests) is a separate target, not part of `all`.
 ```
 
+**It analyzes only what changed** (since HEAD; `-Base main` for the whole branch): the changed `.cpp` files plus one
+includer per changed header (`tools/tidy-changed-files.js`). A whole-target sweep needs `-Full` / `--full` and a
+`# tidy-full-ok: <reason>` comment on the same line (audits, a clang-tidy upgrade); `tools/hooks/guard-tidy-scope.js`
+blocks it otherwise, and `tools/lint-tidy-scope.js` gates workflow text in CI. A task that changed one DSP header
+once swept all 482 dsp TUs for ~40 min (2026-11-23).
+
 **`all` MUST cover dsp + every plugin** — a new plugin needs its case added to BOTH scripts, or the
 Linux/macOS pre-commit lint silently skips it. One-time environment setup (LLVM/Ninja install,
 compile_commands.json generation) and the full flag reference: `clang-tidy-setup` skill.

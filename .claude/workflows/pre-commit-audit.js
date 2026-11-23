@@ -143,6 +143,7 @@ Return the structured status.`,
       () =>
         agent(
           `Run clang-tidy for the "${t.name}" area using ./tools/run-clang-tidy.ps1 against build/windows-ninja
+(it analyzes only the files changed since HEAD by default, which is exactly the commit under review; never pass -Full)
 (capture output to a log file on the FIRST run, then read the log — do not re-run to grep).
 Report whether it is clean and the total warning count with the top issues.`,
           { label: `tidy:${t.name}`, phase: 'Audit', schema: TIDY_SCHEMA, agentType: 'build-test-runner' }

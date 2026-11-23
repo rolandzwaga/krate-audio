@@ -59,7 +59,7 @@ const TASKS = [
   ['T6.1', 6, 'sonnet'], ['T6.2', 6, 'sonnet'], ['T6.3', 6, 'sonnet'], ['T6.4', 6, 'sonnet'], ['T6.5', 6, 'sonnet'],
   ['T6.6', 6, 'sonnet'],
   // Added 2026-11-23 from the T6.6 trace rulings (R-217..R-219).
-  ['T6.7', 6, 'opus'], ['T6.8', 6, 'opus'], ['T6.9', 6, 'opus'],
+  ['T6.7', 6, 'opus'], ['T6.8', 6, 'opus'], ['T6.9', 6, 'opus'], ['T6.10', 6, 'opus'],
 ].map(([id, ph, model]) => ({ id, phase: ph, model }))
 
 // ---------------------------------------------------------------------------
@@ -140,7 +140,7 @@ const OVERRIDES = `OVERRIDES OF THE PLAN (these win over the plan text):
 - Build with the cap and without MSBuild node reuse: "C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target <targets> -- -m:2 /nr:false
 - The gate filter is ${PERF_FILTER} (the plan's filter plus ~[long]~[.]): node tools/run-gate.js --share 4 --filter ${PERF_FILTER} --out ${LOG_ROOT}/<task>/gate <exes>
   Run a [long] case your task adds by its name, directly, once. Timing cases ([performance] etc.) run only through node tools/run-cpu-tests.js <exe>, and only when your task section asks for it (nothing else is running, so it may run inside the task).
-- clang-tidy: ./tools/run-clang-tidy.ps1 -Target <ruinae|dsp|shared|the plugin a Phase 1b task names> -BuildDir build/windows-ninja -Jobs 4 (PowerShell). If it reports phantom warnings from a stale compile db, reconfigure the ninja preset once, then re-run.
+- clang-tidy: ./tools/run-clang-tidy.ps1 -Target <ruinae|dsp|shared|the plugin a Phase 1b task names> -BuildDir build/windows-ninja -Jobs 4 (PowerShell), once per target your diff touches. It analyzes only your uncommitted changes (changed .cpp files + one includer per changed header); never pass -Full (a hook blocks it). If it reports phantom warnings from a stale compile db, reconfigure the ninja preset once, then re-run.
 - If the root cause is in SHARED code (dsp/include, plugins/shared), fix it there, even when the task section names only plugin files or says "fixtures only": the fix then lands for every plugin that uses it (user ruling 2026-11-17). Do the CROSS-PLUGIN steps: grep -rl the header across plugins/ and dsp/include, list every consumer in notes, build and gate each consumer's suite (gradus_tests for the arp core; the executables header-consumers.js names; Iterum plugin_tests approval_tests for DSP Iterum uses), and explain the root cause in deviations. Restore every temporary diagnostic edit (A/B probes) before returning.
 - A red gate case your change cannot reach: run that one case by name once. Green alone + a wall-clock assertion = load: record it in notes. Red alone = it is yours to fix, or status "failed" with the evidence. Never call a failure "pre-existing" and move on.`
 

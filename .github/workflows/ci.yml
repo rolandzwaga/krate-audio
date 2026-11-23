@@ -291,6 +291,17 @@ jobs:
       - name: Wall-clock test tag lint
         run: node tools/lint-wallclock-tags.js
 
+      # Catches a whole-target clang-tidy sweep (-Full / --full) in the agent instructions without a
+      # "tidy-full-ok: <reason>" comment. The runners analyze only what changed by default
+      # (tools/tidy-changed-files.js); a task that changed one DSP header once swept all 482 dsp TUs for
+      # ~40 min (2026-11-23). Runtime twin: tools/hooks/guard-tidy-scope.js. Self-tests first.
+      - name: clang-tidy scope lint (changed files only)
+        run: |
+          node tools/hooks/guard-tidy-scope.js --self-test
+          node tools/tidy-changed-files.js --self-test
+          node tools/lint-tidy-scope.js --self-test
+          node tools/lint-tidy-scope.js
+
       # Identifiers that compile on Windows and Linux but not on macOS: VSTGUI's
       # platform macros (MAC / WINDOWS / LINUX) used as names, and names at
       # global or anonymous-namespace scope that MacTypes.h also declares

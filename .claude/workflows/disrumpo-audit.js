@@ -393,7 +393,8 @@ Hard rules: Write tool for new files (no heredocs), one build at a time, never r
 
   if (!SKIP.tidy) {
     lane.tidy = await laneStep('tidy', `STEP: clang-tidy for the Disrumpo area, four jobs, Windows PowerShell script only (never the .sh on Windows):
-  pwsh -NoProfile -File ./tools/run-clang-tidy.ps1 -Target disrumpo -BuildDir build/windows-ninja -Jobs 4 > ${LOG_DIR}/tidy.log 2>&1
+  pwsh -NoProfile -File ./tools/run-clang-tidy.ps1 -Target disrumpo -BuildDir build/windows-ninja -Jobs 4 -Full > ${LOG_DIR}/tidy.log 2>&1   # tidy-full-ok: the audit measures every Disrumpo TU
+(Keep the "# tidy-full-ok: ..." comment: without it tools/hooks/guard-tidy-scope.js blocks -Full; without -Full the script analyzes only uncommitted changes.)
 If build/windows-ninja/compile_commands.json is missing, generate it first with the ninja preset (${CMAKE} --list-presets shows the name; see .claude/skills/clang-tidy-setup/SKILL.md). If a warning looks like a phantom (header not found, unknown flag), reconfigure that preset once and re-run only the one TU. Set a wall-clock ceiling: if the script has produced no new output for 20 minutes, find the stuck clang-tidy process (Get-CimInstance Win32_Process | where CommandLine -match clang-tidy), record the TU, kill it, and report that TU as kind=tidy "hung". Report warnings CLUSTERED by check name + file (one item per cluster, count in text, one example line), kind=tidy. The total count goes in summary.`, { schema: LANE_SCHEMA, agentType: 'build-test-runner', model: 'sonnet' })
   } else {
     log('Measure: clang-tidy skipped by args.skip.tidy')
