@@ -1674,4 +1674,4 @@ Gathered at close-out; boxes above stay unticked where this record says "open". 
 | Probes | T6.6 table above (1753 / 29 / 45; every non-ok line owned or ruled; the 3 open items became T6.7-T6.9, R-220 became T6.10). | done |
 | Rulings | Every row in the rulings table has the user's answer and date. | done |
 | Version and changelog | User ruling (2026-11-23): Ruinae becomes 1.0.0, the first stable release; the unreleased 0.12.6 entry is now `## [1.0.0] - 2026-11-23` with Added / Changed / Removed / Fixed for the audit's user-visible changes. Other plugins reached by the shared changes have their own entries (ef661a29). | done |
-| Per-finding rows, thresholds, removed features, goldens list | Not re-verified row by row at close-out. | open |
+| Per-finding rows, thresholds, removed features, goldens list | Not re-verified row by row at close-out; dropped by the user's decision (2026-11-23). Each task's own review checked its findings, thresholds and goldens. | skipped (user) |
