@@ -361,14 +361,19 @@ inline const Steinberg::Vst::TChar* const kSpreadDirectionStrings[] = {
 };
 
 // =============================================================================
-// Spectral Delay: SpreadCurve dropdown (2 curves, stepCount = 1)
+// Spectral Delay: SpreadCurve dropdown (6 curves, stepCount = 5; Krate::DSP::SpreadCurve
+// order, saved as the index, so new curves go last)
 // =============================================================================
 
-inline constexpr int kSpreadCurveCount = 2;
+inline constexpr int kSpreadCurveCount = 6;
 
 inline const Steinberg::Vst::TChar* const kSpreadCurveStrings[] = {
     STR16("Linear"),
     STR16("Logarithmic"),
+    STR16("Exponential"),
+    STR16("Steps"),
+    STR16("Scatter"),
+    STR16("Random"),
 };
 
 // =============================================================================

@@ -677,7 +677,8 @@ public:
         spectralDelay_.setSpreadDirection(static_cast<SpreadDirection>(std::clamp(dir, 0, 2)));
     }
     void setDelaySpectralCurve(int curve) noexcept {
-        spectralDelay_.setSpreadCurve(static_cast<SpreadCurve>(std::clamp(curve, 0, 1)));
+        spectralDelay_.setSpreadCurve(
+            static_cast<SpreadCurve>(std::clamp(curve, 0, kNumSpreadCurves - 1)));
     }
     void setDelaySpectralTilt(float tilt) noexcept {
         spectralDelay_.setFeedbackTilt(tilt);

@@ -37,6 +37,7 @@
 #include <krate/dsp/systems/delay_engine.h>
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
@@ -57,12 +58,46 @@ enum class SpreadDirection : std::uint8_t {
     CenterOut   ///< Edge bins get longer delays, center is base delay
 };
 
+namespace detail {
+
+/// Third-octave bands between 20 Hz and 20 kHz (Scatter / Random spread curves)
+inline constexpr std::size_t kSpreadScatterBands = 30;
+
+/// Scatter curve: the evenly spaced positions k / 29, shuffled once (Fisher-Yates
+/// with a fixed seed), so every band gets its own delay and none clump together
+[[nodiscard]] constexpr std::array<float, kSpreadScatterBands> makeSpreadScatterTable() noexcept {
+    std::array<float, kSpreadScatterBands> table{};
+    for (std::size_t i = 0; i < kSpreadScatterBands; ++i) {
+        table[i] = static_cast<float>(i) / static_cast<float>(kSpreadScatterBands - 1);
+    }
+    Xorshift32 rng{0x5CA77E2Eu};
+    for (std::size_t i = kSpreadScatterBands - 1; i > 0; --i) {
+        const std::size_t j = rng.next() % (i + 1);
+        const float t = table[i];
+        table[i] = table[j];
+        table[j] = t;
+    }
+    return table;
+}
+
+inline constexpr std::array<float, kSpreadScatterBands> kSpreadScatterTable =
+    makeSpreadScatterTable();
+
+}  // namespace detail
+
 /// @brief Spread curve modes for delay time distribution scaling
-/// Both lay the spread over octaves (20 Hz to 20 kHz); see calculateBinDelayMs
+/// All lay the spread over octaves (20 Hz to 20 kHz); see calculateBinDelayMs
 enum class SpreadCurve : std::uint8_t {
-    Linear,      ///< Equal share of the spread per octave
-    Logarithmic  ///< Low octaves get most of the spread (ln(1 + 9p) / ln(10))
+    Linear,       ///< Equal share of the spread per octave
+    Logarithmic,  ///< Low octaves get most of the spread (ln(1 + 9p) / ln(10))
+    Exponential,  ///< High octaves get most of the spread ((10^p - 1) / 9)
+    Steps,        ///< 8 bands of 1.25 octaves, band k at k / 7 of the spread
+    Scatter,      ///< 30 third-octave bands in a fixed shuffled order
+    Random        ///< 30 third-octave bands gliding to new random delays every 2 x spread
 };
+
+/// Number of SpreadCurve values (plugins size their menus from it)
+inline constexpr int kNumSpreadCurves = 6;
 
 // =============================================================================
 // SpectralDelay - Layer 4 User Feature
@@ -235,6 +270,7 @@ public:
         // the object's address: the same settings must render the same audio on
         // every instance and every run (offline bounce, freeze, A/B).
         rng_.seed(rngSeed_);
+        resetRandomCurve();
 
         // Phase buffers for stereo decorrelation (random walk approach) provide
         // smooth phase modulation without frame-boundary clicks. Initialize the
@@ -307,6 +343,7 @@ public:
         // reset restores the starting phases prepare() or seedRng() drew instead of
         // drawing new ones from the running stream.
         rng_.seed(rngSeed_);
+        resetRandomCurve();
         for (std::size_t i = 0; i < std::min(activeNumBins(), stereoPhaseL_.size()); ++i) {
             stereoPhaseL_[i] = (rng_.nextUnipolar() - 0.5f) * kPi;
             stereoPhaseR_[i] = (rng_.nextUnipolar() - 0.5f) * kPi;
@@ -771,8 +808,47 @@ private:
     /// Spread runs over octave position from kSpreadLowHz (0) to kSpreadHighHz (1)
     static constexpr float kSpreadLowHz = 20.0f;
     static constexpr float kSpreadHighHz = 20000.0f;
-    /// Logarithmic curve: ln(1 + k p) / ln(1 + k), front-loaded (p = 0.5 -> 0.74)
+    /// Logarithmic curve: ln(1 + k p) / ln(1 + k), front-loaded (p = 0.5 -> 0.74);
+    /// Exponential is its inverse, (e^(p ln(1 + k)) - 1) / k
     static constexpr float kSpreadLogShape = 9.0f;
+    /// Steps curve: bands of 1.25 octaves
+    static constexpr std::size_t kSpreadSteps = 8;
+    /// Scatter / Random curves: third-octave bands
+    static constexpr std::size_t kSpreadBands = detail::kSpreadScatterBands;
+    /// Random curve: each band glides to a new delay every 2 x spread, at least this often
+    static constexpr float kRandomMinIntervalMs = 200.0f;
+    static constexpr uint32_t kRandomCurveSeed = 0x2A5C0FFEu;
+
+    /// @brief Restart the Random curve from its seed (prepare / reset): the same
+    ///        settings render the same audio on every instance
+    void resetRandomCurve() noexcept {
+        randomCurveRng_.seed(kRandomCurveSeed);
+        for (std::size_t b = 0; b < kSpreadBands; ++b) {
+            randomFrom_[b] = randomCurveRng_.nextUnipolar();
+            randomTo_[b] = randomCurveRng_.nextUnipolar();
+            randomNow_[b] = randomFrom_[b];
+        }
+        randomPhase_ = 0.0f;
+    }
+
+    /// @brief Advance the Random curve by one hop: every band glides (smoothstep)
+    ///        from its last random position to the next over 2 x spread
+    void advanceRandomCurve(float hopMs, float spread) noexcept {
+        const float intervalMs = std::max(2.0f * spread, kRandomMinIntervalMs);
+        randomPhase_ += hopMs / intervalMs;
+        if (randomPhase_ >= 1.0f) {
+            randomPhase_ = std::min(randomPhase_ - 1.0f, 1.0f);
+            for (std::size_t b = 0; b < kSpreadBands; ++b) {
+                randomFrom_[b] = randomTo_[b];
+                randomTo_[b] = randomCurveRng_.nextUnipolar();
+            }
+        }
+        const float t = randomPhase_;
+        const float s = t * t * (3.0f - 2.0f * t);
+        for (std::size_t b = 0; b < kSpreadBands; ++b) {
+            randomNow_[b] = randomFrom_[b] + (randomTo_[b] - randomFrom_[b]) * s;
+        }
+    }
 
     /// @brief Calculate delay time for a specific bin based on spread settings
     ///
@@ -798,11 +874,32 @@ private:
                                   0.0f, 1.0f);
         }
 
-        if (spreadCurve_ == SpreadCurve::Logarithmic) {
-            position = std::clamp(std::log1p(kSpreadLogShape * position)
-                                      / std::log1p(kSpreadLogShape),
-                                  0.0f, 1.0f);
+        // Bands for Scatter / Random: thirds of an octave (30 between 20 Hz and 20 kHz)
+        const auto band = std::min(static_cast<std::size_t>(position * kSpreadBands),
+                                   kSpreadBands - 1);
+        switch (spreadCurve_) {
+            case SpreadCurve::Linear:
+                break;
+            case SpreadCurve::Logarithmic:
+                position = std::log1p(kSpreadLogShape * position) / std::log1p(kSpreadLogShape);
+                break;
+            case SpreadCurve::Exponential:
+                // The inverse of Logarithmic: the high octaves get most of the spread
+                position = std::expm1(position * std::log1p(kSpreadLogShape)) / kSpreadLogShape;
+                break;
+            case SpreadCurve::Steps:
+                position = std::min(std::floor(position * static_cast<float>(kSpreadSteps)),
+                                    static_cast<float>(kSpreadSteps - 1))
+                         / static_cast<float>(kSpreadSteps - 1);
+                break;
+            case SpreadCurve::Scatter:
+                position = detail::kSpreadScatterTable[band];
+                break;
+            case SpreadCurve::Random:
+                position = randomNow_[band];
+                break;
         }
+        position = std::clamp(position, 0.0f, 1.0f);
 
         float delayOffset = 0.0f;
 
@@ -1058,6 +1155,7 @@ private:
         // Per-bin delay time in frames
         const float frameRate = static_cast<float>(sampleRate_) /
                                 static_cast<float>(hopSize_);
+        advanceRandomCurve(1000.0f / frameRate, spread);
         for (std::size_t bin = 0; bin < numBins; ++bin) {
             const float binDelayMs = calculateBinDelayMs(bin, numBins, baseDelay, spread);
             // ONE FRAME of the requested delay is spent by the loop itself. The
@@ -1275,6 +1373,12 @@ private:
     float spreadMs_ = 0.0f;
     SpreadDirection spreadDirection_ = SpreadDirection::LowToHigh;
     SpreadCurve spreadCurve_ = SpreadCurve::Linear;  // Phase 3.1: Default to linear
+    // Random curve state (resetRandomCurve / advanceRandomCurve)
+    Xorshift32 randomCurveRng_{kRandomCurveSeed};
+    std::array<float, detail::kSpreadScatterBands> randomFrom_{};
+    std::array<float, detail::kSpreadScatterBands> randomTo_{};
+    std::array<float, detail::kSpreadScatterBands> randomNow_{};
+    float randomPhase_ = 0.0f;
     float feedback_ = 0.0f;
     float feedbackTilt_ = 0.0f;
     float diffusion_ = 0.0f;

@@ -351,7 +351,7 @@ TEST_CASE("Iterum editor panel Spectral: every control live and of the designed 
                          {.tag = kSpectralFeedbackId, .kind = W::K}, {.tag = kSpectralMixId, .kind = W::K},
                          {.tag = kSpectralFreezeId, .kind = W::T}, {.tag = kSpectralSpreadId, .kind = W::S},
                          {.tag = kSpectralSpreadDirectionId, .kind = W::SEG},
-                         {.tag = kSpectralSpreadCurveId, .kind = W::SEG},
+                         {.tag = kSpectralSpreadCurveId, .kind = W::M},
                          {.tag = kSpectralFeedbackTiltId, .kind = W::B}, {.tag = kSpectralDiffusionId, .kind = W::S},
                          {.tag = kSpectralFFTSizeId, .kind = W::SEG}, {.tag = kSpectralStereoWidthId, .kind = W::S}},
                 .absentTags = {kSpectralNoteValueId},
