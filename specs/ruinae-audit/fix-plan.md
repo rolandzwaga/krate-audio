@@ -1529,6 +1529,27 @@ Per oscillator type: pitch ≤ 5 cents at A1/A4/C7 (Sync measured at its slave p
 ### T6.6 — Final probe comparison (45 min)
 Re-add the untouched probe file to a scratch build (do not commit it under `plugins/ruinae/tests/`), run it sharded (`node tools/run-gate.js --share 4 --filter '[audit-probe]' ruinae_tests`), and diff the new `PROBE` lines against `f:/tmp/ruinae-audit/probe-results.txt`. Baseline: 1827 lines = 1658 ok / 54 suspicious / 115 bad. Record the new counts and list every line that is still not ok with the task that owns it or the ruling that accepts it. Run `node tools/clean-test-output.js --apply` only after nothing else is writing to `f:/tmp`.
 
+**Result (2026-11-23, run wf_abcd999c-46f; the baseline file was gone, so counts only).** 1827 lines = **1753 ok / 29 suspicious / 45 bad** (baseline 1658 / 54 / 115). Full output: `f:/tmp/ruinae-fix/T6.6/probes-new.txt`, non-ok lines `nonok.txt`. The groups no task named were traced by the main loop with a scratch TU built on `tests/audit_rig.h` (not committed):
+
+| Non-ok lines | Count | Owner / ruling / evidence |
+|---|---|---|
+| `state-garbage:2` HANG | 1 bad | Not a measurement: the probe hard-codes the string and `continue`s (`audit_probes.cpp.txt:2017-2030`). R-147 fixed in T1.1; the stream is the committed fixture `state_garbage_phasemod.bin`. |
+| `dist:` Wavefolder / TapeSaturator / RingModulator / Granular / Spectral level and peak at drive 0.25-1.0 | 14 | R-019, ruling T2.9: only the drive-0 end is neutral, the law above ~10 % is kept. |
+| `filter:` SVF_LP / SVF_HP / EnvelopeFilter sweep peak +11.8..+15.0 dBFS (res 0.5 / 1.0, limiter off) | 12 susp. | R-156 verifier note: no filter type is level-compensated; resonant gain is the policy (T2.24 compensates only the comb, +22 dB). |
+| `filter:` SVF_HP / BP / Notch click frames at res 0 (6), SVF_HP res 0.5 192k (1) | 7 | **Metric artefact, measured at res 0:** the same cutoff PARKED with no automation scores HP 220 frames (0.3 / 0.5 / 0.7), BP 240 (0.9), Notch 220 (0.3); SVF_LP 0 everywhere. The 4x-median frame metric fires on the steady filtered triangle, not on the sweep. The res 0.5 line (9 frames) was not re-measured parked. |
+| `filter:Comb:res1.0:48k` click frames 6 (worst 5.7) | 1 bad | **Open (pending ruling).** Measured: sweep 6 frames, parked at 0.2 / 0.4 / 0.6 / 0.8 → 0. Real, comb-only, at max resonance during a 64-sample-stepped sweep. No finding owns it. |
+| `osc:Sync` A1 / A4 / C7 pitch and non-harmonic | 7 bad | Probe artefact (report §3 probes row): default ratio 2.0 puts the fundamental at 2·f0; the second pass at 2·f0 reads 0.00 cents at all three notes. |
+| `osc:` Chaos / Formant / Particle peak > 0 dBFS | 5 susp. | R-157 REFUTED (RMS-matched oscillators may exceed 0 dBFS from one voice). |
+| `osc:Formant:A1` −33.2 dBc; `osc:PolyBLEP:C7` −48.3 dBc | 2 susp. | T2.35 bar is A2-A5 (A1 outside it); T6.3 keeps PolyBLEP C7 at ≤ −45 per the plan. |
+| `block-invariance2:` Chorus / Flanger / Phaser bs100, Granular bs32/100, Tape bs32 | 6 | **Measured: steady state is bit-identical.** With 0.5 s settling at block 512 before the notes, all five read max \|diff\| 0.0000000 at bs32 and bs100. The residual is the start-up switch (type set by a parameter in block 0): R-138 block-rate parameters, ruled T4.8 (document, no code). One part is **open (pending ruling):** the modulation pre-warm added in phase 2 (R-059) ends on a block boundary (`ruinae_effects_chain.h:1411`), so the 30 ms fade starts at a buffer-size-dependent sample; the baseline had these three bit-identical. |
+| `fx-latency:Spectral` +786; `fx-sync:Spectral` 24040 / 24234 / 24036 | 2 | Ruling T3.6b (first echo a fixed fftSize late; repeats on the grid within ±1 hop). |
+| `fx-sync:Tape` 11998 / 11999 / 12000; `fx-tail-monotonic:Tape` | 2 | Design: three heads at 1.0 / 1.5 / 2.0 × time (`tape_delay.h:181-183`), so echoes arrive every 0.5 × time and coincident heads sum. |
+| `fx-sync:Granular` fewer than 2 echoes | 1 bad | **Probe stimulus, measured:** echoes are 0.5 s apart with sync on (correct for 1/4 at 120). A 15 ms blip loses 32 dB per grain pass (dry −16 dB, first echo at fb 0 −48 dB), so echo 2 falls under the detector's 5 % threshold. A held note: wet −14.1 vs dry −9.8 dB RMS (normal). The feedback path is unity at small signal (`granular_delay.h:241`). |
+| `fx-tail-monotonic:reverb-Plate` 23 (+3.72 dB), `-Hall` 4 (+4.78 dB) | 2 bad | **Open (pending ruling).** Measured: Reverb Mod Depth 0 changes nothing; the rises are scattered, not periodic (Plate: 600 ms … 4800 ms, each 1.1-3.7 dB on a steady ~15 dB/s decay; Hall: five rises, last at −121 dB). Looks like modal beating of a single-impulse response, not verified further. No finding owns it. |
+| `tail:delay=*:fb=max(1.2)+reverb` | 10 bad | R-155 REFUTED (self-oscillation at feedback 1.2 is the design); T6.4 characterises it as bounded ≤ 0 dBFS with the limiter on; R-190 / T2.26 report the tail. |
+| `level:16voices:softlimit=off` +26.5 dBFS | 1 bad | Informational bar; limiter on reads 0.00 dBFS (report §3). Output-stage headroom by design. |
+| `automation:master gain 0.5->0` zero run 19200 | 1 bad | Expected silence; T6.4 excludes the master-gain-to-0 zero run. |
+
 ---
 
 ## Completion checklist
