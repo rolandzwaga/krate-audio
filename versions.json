@@ -140,29 +140,29 @@
       }
     },
     "Iterum": {
-      "version": "1.0.3",
+      "version": "1.0.4",
       "download_url": "https://krateaudio.com/iterum/",
       "release_notes": "",
-      "tag": "iterum/v1.0.3",
-      "pub_date": "2026-11-21T09:26:03Z",
+      "tag": "iterum/v1.0.4",
+      "pub_date": "2026-11-23T14:14:39Z",
       "channel": "stable",
-      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/iterum/v1.0.3",
+      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/iterum/v1.0.4",
       "description": "Multi-Mode Delay",
-      "notes_markdown": "### Added\n\n- **User manual and signal-flow diagram** — Iterum's page on krateaudio.com now links a full user manual, covering all ten delay modes with every control, and a diagram of the signal flow through each mode.\n\n### Fixed\n\n- **MultiTap's Feedback did not repeat the pattern** — The feedback loop ran with no delay in it, so Feedback only softened the taps slightly and the pattern played once. Feedback now repeats the whole pattern, one pattern length later each time (the Custom pattern's length, or the time of its last tap), each repeat at the Feedback level of the one before.\n- **MultiTap's HP Cutoff did nothing, and LP Cutoff kept filtering at its maximum** — HP Cutoff was never connected to the feedback filter; it now thins the repeats. LP Cutoff, once turned down, kept filtering after it was turned back to its maximum; at its maximum it now leaves the repeats unfiltered.\n- **Digital's feedback above 100 % grew without limit** — Nothing inside Pristine Digital's feedback loop held it back, so above 100 % the repeats grew louder inside the delay line on every pass and only the output limiter hid it. The loop now saturates above 100 %, so self-oscillation stays bounded. Below 100 % Digital stays clean.\n- **Digital's limiter let one channel duck the other** — One limiter ran over the left channel and then the right, so a loud left channel turned the right channel down too. Each channel now has its own limiter.\n- **Tape's two channels ran through one shared transport** — The left and right channels shared one set of wow and flutter oscillators, oversampler and roll-off filter, so the wow and flutter ran twice as fast as set and the right channel started from the left channel's filter state. Both channels now share one tape transport and keep their own filters, so identical input gives identical output.\n- **Tape and MultiTap mixed only part of a very large block** — In host blocks longer than 4096 samples, Tape left everything after the first 4096 samples 100 % wet whatever the Mix. MultiTap read the wrong dry signal in blocks longer than 8192 samples. Every sample is now mixed correctly.\n- **Changing Spectral's FFT Size did nothing until the plugin was reloaded** — The new size was stored and only applied the next time the host re-prepared the plugin. It now takes effect while playing, with a short crossfade.\n- **Switching modes could sound wrong in hosts that process in place** — During the 50 ms crossfade between modes, a host that uses the same buffer for input and output fed the old mode the new mode's output instead of the input. Both modes now hear the input.\n- **Tape's head Level and Reverse's Filter Cutoff showed the wrong default** — Each head's Level showed +3.9 dB and Reverse's Filter Cutoff showed 401 Hz, while the sound started at 0 dB and 4 kHz. A host's \"reset to default\" therefore changed the sound. Both now default to what the processor starts with: 0 dB and 4 kHz.",
+      "notes_markdown": "### Fixed\n\n- **Spectral mode's Feedback did almost nothing after the first repeat** *(shared DSP)* — The feedback limiter worked on unscaled FFT values, so it squashed every recirculated frequency down to the same tiny level: the repeats after the first fell away by tens of dB and lost their tone colour. The limiter now works in the signal's own scale, so Feedback sustains the repeats as set and keeps their spectrum. Patches with Spectral feedback above 0 repeat noticeably longer than before.\n- **Spectral mode stepped at every analysis frame** *(shared DSP)* — The Spectral delay overlapped its frames without a synthesis window, so with feedback its output jumped at every frame edge (about every 10.7 ms at the default FFT size). It now uses matched analysis and synthesis windows, and the steps are gone.\n- **The Digital, Tape and Spectral delays sounded different at different buffer sizes** *(shared DSP)* — The Digital delay applied its delay time and modulation once per audio block, so the modulation moved in steps and a bounce differed from real-time playback and between hosts. The Tape delay did the same for its heads and its hiss, and the Spectral delay's echo timing moved with the block size. All three now run sample by sample (the Spectral delay at a fixed latency), so the output is the same at every buffer size.\n- **The Tape delay hissed with Wear and Age at 0** *(shared DSP)* — With Wear and Age both at 0 the Tape delay still added hiss at about -88 dBFS with no input, so Iterum never went silent in Tape mode. At Wear 0 and Age 0 it is now silent; any Wear or Age above 0 hisses as before.\n- **Spectral mode's stereo spread changed from one render to the next** *(shared DSP)* — The random phase offsets behind the stereo spread were seeded from the plugin's memory address, so two instances, or the same project rendered twice, came out slightly different. They now start from a fixed seed and restart from it on every reset, so renders repeat exactly.",
       "platforms": {
         "darwin-universal": {
-          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/iterum/v1.0.3/Iterum-1.0.3-macOS.pkg",
-          "size": 7841539,
-          "sha256": "b4bfff6cd7361d5127f266dc26821f37a30e926eca09727cb5d0b3131b41844b",
-          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+Tbrn/jYUobBUv2RmnjfgqLZ0e2zziQ1DPigRxS9JKkjhIRKtPSiQRGWc32Mswt8r5B1R/cami5YoMRb5tZt1T+K0QI=\ntrusted comment: krate:1:Iterum:1.0.3:darwin-universal:Iterum-1.0.3-macOS.pkg\n2gPkBQoVNLeeMp8ECvBYDmLACyvgXAohkQ/IYizFO2LHji1GyvBI8bJQeUHt0xZsRTRWSxDy/Yjf7pXeFZyTCw==\n",
+          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/iterum/v1.0.4/Iterum-1.0.4-macOS.pkg",
+          "size": 7885814,
+          "sha256": "5c850f27b14bb8607bf7b4bf413a08b865b91401220a1f504930d3b1cb8179c2",
+          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+Tbrn63ocydDsgxEFNgQfGlktfgd0yHRdUTQ/sx4W4kq+IjxhqWS1geNL7e5RMP3EgiXRPjQA9b1fDiqc+BACydTiwo=\ntrusted comment: krate:1:Iterum:1.0.4:darwin-universal:Iterum-1.0.4-macOS.pkg\nVmH17cNhgxRUDsU2EcIJtFJGtF83//oYDYWNopAWpSFm75ObKWuLbJ/G5jQJs6r2Gsq0wj3X1pwDIfyVDubaBQ==\n",
           "format": "pkg",
           "min_os": "26.5"
         },
         "linux-x86_64": {
-          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/iterum/v1.0.3/Iterum-1.0.3-Linux-x64.tar.gz",
-          "size": 1693421,
-          "sha256": "c2a3f9d170d58f7be812fbb7f6dccd78e4a55d6a807aca18623bfeeea2dc79d6",
-          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+Tbrn5XFD7zzZgGVUVqbwURMT5vQLXs32i3RRsy0iE74kB0PSPk+Pg8p6anilUkznjmbVy8Cqp2QBHn/8FzlBMQYMQ0=\ntrusted comment: krate:1:Iterum:1.0.3:linux-x86_64:Iterum-1.0.3-Linux-x64.tar.gz\nVs6bDwCEKBrOmUCyLPY9rJiJFM+79H1TyDMYw7U530aNBvMqqsJKKe8nnYM7rI2XOfxyJgsZyvR8yCbazdydCQ==\n",
+          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/iterum/v1.0.4/Iterum-1.0.4-Linux-x64.tar.gz",
+          "size": 1706085,
+          "sha256": "ee79db3adbf86d94e5c2c5c8f29aba5e3cdf388b7525ac47c659b8667bc5bc79",
+          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+Tbrn9BN/ggBC1SFIYnPXUCxJSJSoi6ttfrOPUFyFTL+1Dl4eN8phg8MmqqVcNWLInweouQhbPtP7FJhEDnkV5CbOw8=\ntrusted comment: krate:1:Iterum:1.0.4:linux-x86_64:Iterum-1.0.4-Linux-x64.tar.gz\nTm2FsVUcPxqI+sMVvw6gogMdwbleORe2Z5GomXGK/Xk0lt74igUddhD0KxKexNUHbMyvlxLOXumiO1nK12xABQ==\n",
           "format": "tar.gz",
           "min_os": "2.38",
           "payload": {
@@ -171,10 +171,10 @@
           }
         },
         "windows-x86_64": {
-          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/iterum/v1.0.3/Iterum-1.0.3-Windows-x64.exe",
-          "size": 3582381,
-          "sha256": "beba3648f1d9acc331ce5d5535aa6048977c7a70ac070dfa8212d8571de06557",
-          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+Tbrn4r9ngSQxpC37i1S4419pP/5xX5lLjO7FjNb/HkrciDIfwAc0KIEi1CVon9t6ajQWpvpzTjv0UeJeJ4wcUfL2gI=\ntrusted comment: krate:1:Iterum:1.0.3:windows-x86_64:Iterum-1.0.3-Windows-x64.exe\n+O/IjY7Lgg58u35sKO0niZfu83AkGDwTZXWhacisBAS64fsKPf0AsTWdgId1ePwZfWgG8SVjKpuK0N16E6ymCQ==\n",
+          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/iterum/v1.0.4/Iterum-1.0.4-Windows-x64.exe",
+          "size": 3586663,
+          "sha256": "60fb909519575eca7658894580c75e7e045bb1169b8d34d1cee38bc973e8b84b",
+          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+Tbrn3YktKtZvlL5Orz7NkuUzUWvE7j+GXGAeQlEU3G/pbZqhLdJe86XVXWaeHpFCidDc7fthMw/95YkuN52amfx1AE=\ntrusted comment: krate:1:Iterum:1.0.4:windows-x86_64:Iterum-1.0.4-Windows-x64.exe\nHPgsvX8s32Z9823trZzEteJhqJi9MrRddotuePcI78LjXvpa5jCKGnQlzWd7IAkQtWdQq0RMGbRvlooZTSmFAQ==\n",
           "format": "inno-exe"
         }
       },
