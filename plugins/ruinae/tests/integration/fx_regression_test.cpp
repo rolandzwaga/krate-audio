@@ -549,3 +549,47 @@ TEST_CASE("Audit regression: automation of the effects is click-free", "[integra
     requireClickFree({"trance gate enable off->on->off", [](Rig&) {},
                       {{{Ruinae::kTranceGateEnabledId, 1.0}}, {{Ruinae::kTranceGateEnabledId, 0.0}}}, {}});
 }
+
+// ------------------------------------------------------------------------------
+// modulation switch block invariance (R-217)
+// ------------------------------------------------------------------------------
+
+namespace {
+
+/// The modulation type is set by a parameter in block 0, a note is held from
+/// sample 1000; 1.0 s at 48 kHz in buffers of @p bs samples.
+std::vector<float> renderModSwitch(double modTypeNorm, Steinberg::int32 bs) {
+    Rig r(48000.0, 2048);
+    basePatch(r);
+    r.param(Ruinae::kFilterCutoffId, 0.6);
+    r.param(Ruinae::kAmpEnvAttackId, envNorm(5));
+    r.param(Ruinae::kModulationTypeId, modTypeNorm);
+    r.noteOn(60, 0.8f, 1000);
+    r.render(r.at(1.0), bs);
+    return r.mono();
+}
+
+}  // namespace
+
+TEST_CASE("Audit regression: modulation type switch sounds the same at every buffer size",
+          "[integration][regression][fx]") {
+    // The pre-warm before the 30 ms fade ends at a fixed sample, so the fade
+    // must start there, not at the next block boundary.
+    for (int t = 1; t <= 3; ++t) {
+        const auto ref = renderModSwitch(t / 3.0, 512);
+        for (const Steinberg::int32 bs : {32, 100}) {
+            const auto x = renderModSwitch(t / 3.0, bs);
+            REQUIRE(x.size() == ref.size());
+            double maxDiff = 0.0;
+            size_t firstDiff = SIZE_MAX;
+            for (size_t i = 0; i < x.size(); ++i) {
+                const double d = std::fabs(static_cast<double>(x[i]) - ref[i]);
+                if (d > 0.0 && firstDiff == SIZE_MAX) firstDiff = i;
+                maxDiff = std::max(maxDiff, d);
+            }
+            INFO(kModTypeNames[t] << " bs" << bs << " vs bs512: max |diff| " << maxDiff
+                                  << ", first differing sample " << firstDiff);
+            REQUIRE(maxDiff == 0.0);
+        }
+    }
+}

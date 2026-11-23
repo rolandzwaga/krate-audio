@@ -58,6 +58,8 @@ const TASKS = [
 
   ['T6.1', 6, 'sonnet'], ['T6.2', 6, 'sonnet'], ['T6.3', 6, 'sonnet'], ['T6.4', 6, 'sonnet'], ['T6.5', 6, 'sonnet'],
   ['T6.6', 6, 'sonnet'],
+  // Added 2026-11-23 from the T6.6 trace rulings (R-217..R-219).
+  ['T6.7', 6, 'opus'], ['T6.8', 6, 'opus'], ['T6.9', 6, 'opus'],
 ].map(([id, ph, model]) => ({ id, phase: ph, model }))
 
 // ---------------------------------------------------------------------------

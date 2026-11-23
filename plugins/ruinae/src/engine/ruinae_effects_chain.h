@@ -1399,56 +1399,74 @@ private:
 
     /// @brief Process the modulation effect in the stereo audio buffers.
     /// Handles crossfade between modulation types (None/Phaser/Flanger).
+    ///
+    /// The block is split where the pre-warm ends and where the fade ends, so
+    /// the fade (and a pre-warm queued behind it) starts at its own sample,
+    /// whatever the buffer size; it used to start at the next block (R-217).
     void processModulationSlot(float* left, float* right, size_t numSamples) noexcept {
-        if (modPreWarming_) {
-            // Feed the incoming effect (output discarded) while the active one
-            // is heard alone; the crossfade starts once its lines are filled.
-            std::memcpy(tempL_.data(), left, numSamples * sizeof(float));
-            std::memcpy(tempR_.data(), right, numSamples * sizeof(float));
-            processModEffect(incomingModType_, tempL_.data(), tempR_.data(), numSamples);
-            processModEffect(activeModType_, left, right, numSamples);
+        size_t done = 0;
+        while (done < numSamples) {
+            float* l = left + done;
+            float* r = right + done;
+            const size_t n = numSamples - done;
+            if (modPreWarming_) {
+                // Feed the incoming effect (output discarded) while the active one
+                // is heard alone; the crossfade starts once its lines are filled.
+                const size_t seg = std::min(n, modPreWarmRemaining_);
+                std::memcpy(tempL_.data(), l, seg * sizeof(float));
+                std::memcpy(tempR_.data(), r, seg * sizeof(float));
+                processModEffect(incomingModType_, tempL_.data(), tempR_.data(), seg);
+                processModEffect(activeModType_, l, r, seg);
 
-            if (numSamples >= modPreWarmRemaining_) {
-                modPreWarming_ = false;
-                modPreWarmRemaining_ = 0;
-                modCrossfadeAlpha_ = 0.0f;
-                modCrossfadeIncrement_ = 1.0f / (0.030f * static_cast<float>(sampleRate_));
-                modCrossfading_ = true;
-            } else {
-                modPreWarmRemaining_ -= numSamples;
-            }
-        } else if (modCrossfading_) {
-            // Process both outgoing and incoming effects, blend with alpha
-            // Save the input for the outgoing effect
-            std::memcpy(tempL_.data(), left, numSamples * sizeof(float));
-            std::memcpy(tempR_.data(), right, numSamples * sizeof(float));
+                modPreWarmRemaining_ -= seg;
+                if (modPreWarmRemaining_ == 0) {
+                    modPreWarming_ = false;
+                    modCrossfadeAlpha_ = 0.0f;
+                    modCrossfadeIncrement_ = 1.0f / (0.030f * static_cast<float>(sampleRate_));
+                    modCrossfading_ = true;
+                }
+                done += seg;
+            } else if (modCrossfading_) {
+                // Run up to and including the sample the fade completes on.
+                size_t seg = n;
+                float a = modCrossfadeAlpha_;
+                for (size_t i = 0; i < n; ++i) {
+                    a += modCrossfadeIncrement_;
+                    if (a >= 1.0f) {
+                        seg = i + 1;
+                        break;
+                    }
+                }
 
-            // Process outgoing effect on temp buffers
-            processModEffect(activeModType_, tempL_.data(), tempR_.data(), numSamples);
-            // Process incoming effect on original buffers
-            processModEffect(incomingModType_, left, right, numSamples);
+                // Process both outgoing and incoming effects, blend with alpha
+                // Save the input for the outgoing effect
+                std::memcpy(tempL_.data(), l, seg * sizeof(float));
+                std::memcpy(tempR_.data(), r, seg * sizeof(float));
 
-            // Blend: outgoing * (1 - alpha) + incoming * alpha
-            for (size_t i = 0; i < numSamples; ++i) {
-                float alpha = modCrossfadeAlpha_;
-                left[i] = tempL_[i] * (1.0f - alpha) + left[i] * alpha;
-                right[i] = tempR_[i] * (1.0f - alpha) + right[i] * alpha;
+                // Process outgoing effect on temp buffers
+                processModEffect(activeModType_, tempL_.data(), tempR_.data(), seg);
+                // Process incoming effect on original buffers
+                processModEffect(incomingModType_, l, r, seg);
 
-                modCrossfadeAlpha_ += modCrossfadeIncrement_;
+                // Blend: outgoing * (1 - alpha) + incoming * alpha
+                for (size_t i = 0; i < seg; ++i) {
+                    float alpha = modCrossfadeAlpha_;
+                    l[i] = tempL_[i] * (1.0f - alpha) + l[i] * alpha;
+                    r[i] = tempR_[i] * (1.0f - alpha) + r[i] * alpha;
+                    modCrossfadeAlpha_ += modCrossfadeIncrement_;
+                }
                 if (modCrossfadeAlpha_ >= 1.0f) {
                     modCrossfadeAlpha_ = 1.0f;
+                    // The rest of the block runs the new type, or the
+                    // pre-warm of a switch queued mid-fade, from the next sample.
                     completeModCrossfade();
-                    // Copy remaining incoming samples directly (crossfade done)
-                    // The incoming effect already processed the full buffer,
-                    // and remaining samples after this point should use incoming.
-                    // Since left/right already contain the incoming output,
-                    // we just need to stop blending.
-                    break;
                 }
+                done += seg;
+            } else {
+                // No crossfade: process only the active effect
+                processModEffect(activeModType_, l, r, n);
+                done = numSamples;
             }
-        } else {
-            // No crossfade: process only the active effect
-            processModEffect(activeModType_, left, right, numSamples);
         }
     }
 

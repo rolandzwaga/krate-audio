@@ -253,3 +253,141 @@ DIST_REGRESSION_CASE(3)
 DIST_REGRESSION_CASE(4)
 DIST_REGRESSION_CASE(5)
 DIST_REGRESSION_CASE(6)
+
+// ==============================================================================
+// Comb filter: cutoff sweep at high resonance (R-218, T6.8)
+// ==============================================================================
+// The cutoff reaches the voice once per block, so the comb's delay used to jump
+// at every block edge: 11 samples per 64-sample block at the low end of the
+// 48 kHz sweep, 6 click frames (worst 5.7x) at resonance 1.0.
+
+namespace {
+
+/// The audit probe's click metric: 2 ms frames whose max |dx| exceeds 4x the
+/// median of the neighbouring frames (+-15), frame peak above -60 dBFS, counted
+/// over [a, b).
+int localClickFrames(const std::vector<float>& x, size_t a, size_t b, double sr, double* worstRatio) {
+    b = std::min(b, x.size());
+    const auto fr = static_cast<size_t>(0.002 * sr);
+    std::vector<double> fm, pk;
+    for (size_t s = std::max<size_t>(a, 1); s + fr <= b; s += fr) {
+        double m = 0, p = 0;
+        for (size_t i = s; i < s + fr; ++i) {
+            m = std::max(m, static_cast<double>(std::fabs(x[i] - x[i - 1])));
+            p = std::max(p, static_cast<double>(std::fabs(x[i])));
+        }
+        fm.push_back(m);
+        pk.push_back(p);
+    }
+    int clicks = 0;
+    double worst = 0;
+    std::vector<double> nb;
+    for (size_t i = 0; i < fm.size(); ++i) {
+        if (pk[i] < 1e-3) continue;
+        nb.clear();
+        for (size_t j = (i > 15 ? i - 15 : 0); j < std::min(fm.size(), i + 16); ++j)
+            if (j != i) nb.push_back(fm[j]);
+        if (nb.empty()) continue;
+        std::nth_element(nb.begin(), nb.begin() + static_cast<long>(nb.size() / 2), nb.end());
+        const double med = std::max(nb[nb.size() / 2], 1e-7);
+        const double ratio = fm[i] / med;
+        worst = std::max(worst, ratio);
+        if (ratio > 4.0) ++clicks;
+    }
+    *worstRatio = worst;
+    return clicks;
+}
+
+constexpr int kCombFilterType = 6;
+
+/// Comb at @p res on note A2; the cutoff either sweeps 0 -> 1 per 64-sample
+/// block over 2 s (the probe's stimulus) or stays parked at @p parked.
+/// Returns the click frames over the 2 s window.
+int combClickFrames(double sr, double waveformNorm, double res, double parked, double* worst) {
+    Rig r(sr);
+    basePatch(r, waveformNorm);
+    r.param(Ruinae::kSoftLimitId, 0.0);
+    r.param(Ruinae::kFilterTypeId, kCombFilterType / 12.0);
+    r.param(Ruinae::kFilterResonanceId, res);
+    r.param(Ruinae::kFilterCutoffId, parked < 0.0 ? 0.0 : parked);
+    r.noteOn(45, 0.8f, 0);
+    const Steinberg::int32 bs = 64;
+    const int64_t pre = r.at(0.2);
+    const int64_t sweep = r.at(2.0);
+    if (parked < 0.0) {
+        for (int64_t p = pre; p < pre + sweep; p += bs)
+            r.param(Ruinae::kFilterCutoffId, static_cast<double>(p - pre) / static_cast<double>(sweep), p);
+        r.param(Ruinae::kFilterCutoffId, 1.0, pre + sweep);
+    }
+    r.render(pre + sweep + r.at(0.2), bs);
+    REQUIRE(nonFiniteAll(r) == 0);
+    return localClickFrames(r.mono(), static_cast<size_t>(pre), static_cast<size_t>(pre + sweep), sr, worst);
+}
+
+}  // namespace
+
+TEST_CASE("SoundSource comb filter sweeps without clicks at resonance 0.5 and 1.0", "[regression][filter]") {
+    // Triangle is the probe's stimulus; sine is T6.3's filter stimulus.
+    const double waveforms[2] = {1.0, 0.0};
+    const char* const waveNames[2] = {"triangle", "sine"};
+    for (const double sr : {48000.0, 192000.0}) {
+        for (int w = 0; w < 2; ++w) {
+            for (const double res : {0.5, 1.0}) {
+                double worst = 0;
+                const int sweepClicks = combClickFrames(sr, waveforms[w], res, -1.0, &worst);
+                INFO(waveNames[w] << " res " << res << " at " << sr << " Hz: sweep click frames " << sweepClicks
+                                  << ", worst ratio " << worst);
+                CHECK(sweepClicks == 0);
+            }
+        }
+    }
+    for (const double parked : {0.2, 0.4, 0.6, 0.8}) {
+        double worst = 0;
+        const int clicks = combClickFrames(48000.0, 1.0, 1.0, parked, &worst);
+        INFO("parked at " << parked << ": click frames " << clicks << ", worst ratio " << worst);
+        CHECK(clicks == 0);
+    }
+}
+
+TEST_CASE("SoundSource comb delay glides to a stepped cutoff and lands within 5 ms", "[regression][filter]") {
+    for (const double sr : {48000.0, 192000.0}) {
+        INFO("sample rate " << sr);
+        Rig r(sr);
+        basePatch(r, 1.0);
+        r.param(Ruinae::kFilterTypeId, kCombFilterType / 12.0);
+        r.param(Ruinae::kFilterResonanceId, 1.0);
+        r.param(Ruinae::kFilterCutoffId, 0.3);
+        r.noteOn(45, 0.8f, 0);
+        const int64_t step = r.at(0.2);
+        r.param(Ruinae::kFilterCutoffId, 0.6, step);
+        r.render(step, 64);
+
+        const auto& engine = r.proc->engine();
+        size_t voice = SIZE_MAX;
+        for (size_t v = 0; v < 16 && voice == SIZE_MAX; ++v)
+            if (engine.getVoice(v).isActive()) voice = v;
+        REQUIRE(voice != SIZE_MAX);
+        const float before = engine.getVoice(voice).getCombDelaySamples();
+
+        // One sample per block from the step on: the delay after every sample.
+        std::vector<float> delay;
+        r.onBlock = [&](int64_t, Steinberg::int32) { delay.push_back(engine.getVoice(voice).getCombDelaySamples()); };
+        r.render(r.at(0.010), 1);
+
+        const float hz = engine.getVoice(voice).getFilterCutoff();
+        const auto target = static_cast<float>((1000.0f / hz) * 0.001 * sr);
+        const double jump = std::fabs(static_cast<double>(target) - before);
+        REQUIRE(jump > 10.0);  // the step is large enough to have clicked before R-218
+
+        double maxStep = std::fabs(static_cast<double>(delay[0]) - before);
+        for (size_t i = 1; i < delay.size(); ++i)
+            maxStep = std::max(maxStep, std::fabs(static_cast<double>(delay[i]) - delay[i - 1]));
+        INFO("jump " << jump << " samples, largest per-sample move " << maxStep);
+        CHECK(maxStep <= 0.05 * jump);  // continuous: no single-sample jump
+
+        const auto at5ms = static_cast<size_t>(r.at(0.005)) - 1;  // after the 5 ms-th sample
+        INFO("delay 5 ms after the step " << delay[at5ms] << ", target " << target);
+        CHECK(std::fabs(delay[at5ms] - target) <= 1e-4f * target);
+        CHECK(delay.back() == delay[at5ms]);
+    }
+}

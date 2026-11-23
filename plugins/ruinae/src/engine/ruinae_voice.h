@@ -1355,6 +1355,11 @@ public:
     /// engine-level modulation the engine has pushed down).
     [[nodiscard]] float getFilterCutoff() const noexcept { return filterCutoffHz_; }
 
+    /// @brief Delay the comb filter runs at now, in samples (for tests).
+    [[nodiscard]] float getCombDelaySamples() const noexcept {
+        return filterComb_ ? filterComb_->getDelaySamples() : 0.0f;
+    }
+
     /// @brief Current oscillator mix / morph position [0,1].
     [[nodiscard]] float getMixPosition() const noexcept { return mixPosition_; }
 
@@ -1406,7 +1411,10 @@ private:
 
         filterComb_ = std::make_unique<FeedbackComb>();
         filterComb_->prepare(sampleRate_, 0.05f);
-        updateCombDelay(*filterComb_, filterCutoffHz_);
+        combGlideLength_ = std::max(
+            1, static_cast<int>(std::lround(kCombGlideMs * 0.001 * sampleRate_)));
+        setCombDelayTarget(filterCutoffHz_);
+        snapCombDelay();
         combMakeup_ = updateCombFeedback(*filterComb_, filterResonance_);
 
         filterEnvFilter_ = std::make_unique<EnvelopeFilter>();
@@ -1517,6 +1525,7 @@ private:
                 break;
             case RuinaeFilterType::Comb:
                 if (filterComb_) (*filterComb_).reset();
+                snapCombDelay();
                 break;
             case RuinaeFilterType::EnvelopeFilter:
                 if (filterEnvFilter_) (*filterEnvFilter_).reset();
@@ -1546,9 +1555,14 @@ private:
                 filterSvf_.snapToTarget();
                 filterSvf2_.snapToTarget();
                 break;
+            case RuinaeFilterType::Comb:
+                // A new note starts at its own comb pitch, not at the end of a
+                // glide from the previous note's (R-218 glides only within a note).
+                snapCombDelay();
+                break;
             default:
-                // Ladder/Formant/Comb/EnvFilter/SelfOsc: setCutoff already
-                // set the new coefficients. No additional snap needed.
+                // Ladder/Formant/EnvFilter/SelfOsc: setCutoff already set the
+                // new coefficients. No additional snap needed.
                 break;
         }
     }
@@ -1590,7 +1604,7 @@ private:
                 break;
             }
             case RuinaeFilterType::Comb:
-                if (filterComb_) updateCombDelay(*filterComb_, hz);
+                if (filterComb_) setCombDelayTarget(hz);
                 break;
             case RuinaeFilterType::EnvelopeFilter:
                 if (filterEnvFilter_) {
@@ -1693,7 +1707,9 @@ private:
             case RuinaeFilterType::Formant:
                 return filterFormant_ ? filterFormant_->process(input) : input;
             case RuinaeFilterType::Comb:
-                return filterComb_ ? filterComb_->process(input) * combMakeup_ : input;
+                if (!filterComb_) return input;
+                advanceCombDelay();
+                return filterComb_->process(input) * combMakeup_;
             case RuinaeFilterType::EnvelopeFilter:
                 return filterEnvFilter_ ? filterEnvFilter_->process(input) : input;
             case RuinaeFilterType::SelfOscillating:
@@ -1927,11 +1943,52 @@ private:
     // Comb Filter Helpers
     // =========================================================================
 
-    static void updateCombDelay(FeedbackComb& comb, float freqHz) noexcept {
+    /// @brief Aim the comb's delay at the period of @p freqHz (R-218).
+    ///
+    /// @p freqHz is the effective cutoff: the base cutoff times the per-sample
+    /// envelope, key-track and voice-route modulation. The base reaches the
+    /// voice once per block, so writing the product straight to the comb made
+    /// the delay jump at every block edge (11 samples per 64-sample block at
+    /// the bottom of a 48 kHz sweep), and at high feedback each jump clicked.
+    ///
+    /// A base change therefore keeps the delay where it is: the delay becomes
+    /// direct * glide, with glide set so the product is unchanged, and glide
+    /// then ramps linearly back to exactly 1 over combGlideLength_ samples
+    /// (kCombGlideMs). Per-sample modulation rides on top unchanged. With no
+    /// glide running the comb gets the direct delay, computed with
+    /// FeedbackComb::setDelayMs's arithmetic, so a parked base cutoff renders
+    /// exactly as before, modulated or not.
+    void setCombDelayTarget(float freqHz) noexcept {
         const float freq = std::max(freqHz, 20.0f);
         const float delayMs = 1000.0f / freq;
-        comb.setDelayMs(delayMs);
+        combDirectDelay_ = static_cast<float>(delayMs * 0.001 * sampleRate_);
+        if (filterCutoffHz_ == combBaseHz_) return;
+        combBaseHz_ = filterCutoffHz_;
+        combGlide_ = filterComb_->getDelaySamples() / combDirectDelay_;
+        combGlideStep_ = (1.0f - combGlide_) / static_cast<float>(combGlideLength_);
+        combGlideRemaining_ = combGlideLength_;
     }
+
+    /// @brief Set the comb's delay for this sample, advancing a running glide.
+    void advanceCombDelay() noexcept {
+        if (combGlideRemaining_ > 0) {
+            --combGlideRemaining_;
+            combGlide_ = (combGlideRemaining_ == 0) ? 1.0f : combGlide_ + combGlideStep_;
+        }
+        filterComb_->setDelaySamples(
+            combGlideRemaining_ == 0 ? combDirectDelay_ : combDirectDelay_ * combGlide_);
+    }
+
+    /// @brief Put the comb on its direct delay at once (new note, filter reset).
+    void snapCombDelay() noexcept {
+        combBaseHz_ = filterCutoffHz_;
+        combGlide_ = 1.0f;
+        combGlideRemaining_ = 0;
+        if (filterComb_) filterComb_->setDelaySamples(combDirectDelay_);
+    }
+
+    /// Time a base-cutoff change takes to reach the comb in full (R-218).
+    static constexpr double kCombGlideMs = 2.0;
 
     /// @brief Map Q [0.1, 30] to comb feedback [0, 0.98]; returns the output
     /// level compensation for that feedback (R-156).
@@ -2006,6 +2063,12 @@ private:
     std::unique_ptr<FormantFilter> filterFormant_;
     std::unique_ptr<FeedbackComb> filterComb_;
     float combMakeup_{1.0f};            // Comb output level compensation (R-156)
+    float combDirectDelay_{1.0f};       // Comb delay the effective cutoff asks for, samples (R-218)
+    float combBaseHz_{0.0f};            // Base cutoff the comb glide last saw
+    float combGlide_{1.0f};             // Delay factor gliding back to 1 after a base change
+    float combGlideStep_{0.0f};         // Per-sample glide increment
+    int combGlideLength_{1};            // kCombGlideMs in samples
+    int combGlideRemaining_{0};         // Samples left on the glide
     std::unique_ptr<EnvelopeFilter> filterEnvFilter_;
     std::unique_ptr<SelfOscillatingFilter> filterSelfOsc_;
     RuinaeFilterType filterType_{RuinaeFilterType::SVF_LP};
