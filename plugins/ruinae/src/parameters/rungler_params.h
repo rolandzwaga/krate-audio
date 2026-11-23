@@ -1,5 +1,6 @@
 #pragma once
 #include "plugin_ids.h"
+#include "parameters/state_load_helpers.h"
 #include "pluginterfaces/base/ustring.h"
 #include "public.sdk/source/vst/vstparameters.h"
 #include "public.sdk/source/vst/vsteditcontroller.h"
@@ -169,24 +170,33 @@ inline void saveRunglerParams(const RunglerParams& params,
     streamer.writeInt32(params.loopMode.load(std::memory_order_relaxed) ? 1 : 0);
 }
 
+// Saved-field ranges, read by both parsers (R-211)
+namespace RunglerLoad {
+inline constexpr LoadedFloat kOsc1FreqHz{.lo = 0.1f, .hi = 100.0f, .def = 2.0f};
+inline constexpr LoadedFloat kOsc2FreqHz{.lo = 0.1f, .hi = 100.0f, .def = 3.0f};
+inline constexpr LoadedFloat kDepth{.lo = 0.0f, .hi = 1.0f, .def = 0.0f};
+inline constexpr LoadedFloat kFilter{.lo = 0.0f, .hi = 1.0f, .def = 0.0f};
+inline constexpr LoadedInt kBits{.lo = 4, .hi = 16};
+} // namespace RunglerLoad
+
 inline bool loadRunglerParams(RunglerParams& params,
                               Steinberg::IBStreamer& streamer) {
     float fv = 0.0f;
     Steinberg::int32 iv = 0;
 
-    if (!streamer.readFloat(fv)) { return false; }
+    if (!readLoaded(streamer, fv, RunglerLoad::kOsc1FreqHz)) { return false; }
     params.osc1FreqHz.store(fv, std::memory_order_relaxed);
 
-    if (!streamer.readFloat(fv)) { return false; }
+    if (!readLoaded(streamer, fv, RunglerLoad::kOsc2FreqHz)) { return false; }
     params.osc2FreqHz.store(fv, std::memory_order_relaxed);
 
-    if (!streamer.readFloat(fv)) { return false; }
+    if (!readLoaded(streamer, fv, RunglerLoad::kDepth)) { return false; }
     params.depth.store(fv, std::memory_order_relaxed);
 
-    if (!streamer.readFloat(fv)) { return false; }
+    if (!readLoaded(streamer, fv, RunglerLoad::kFilter)) { return false; }
     params.filter.store(fv, std::memory_order_relaxed);
 
-    if (!streamer.readInt32(iv)) { return false; }
+    if (!readLoaded(streamer, iv, RunglerLoad::kBits)) { return false; }
     params.bits.store(static_cast<int>(iv), std::memory_order_relaxed);
 
     if (!streamer.readInt32(iv)) { return false; }
@@ -202,19 +212,19 @@ inline void loadRunglerParamsToController(
     Steinberg::int32 iv = 0;
 
     // Osc1 freq: read Hz, convert back to normalized
-    if (streamer.readFloat(fv))
+    if (readLoaded(streamer, fv, RunglerLoad::kOsc1FreqHz))
         setParam(kRunglerOsc1FreqId, runglerFreqToNormalized(fv));
     // Osc2 freq: read Hz, convert back to normalized
-    if (streamer.readFloat(fv))
+    if (readLoaded(streamer, fv, RunglerLoad::kOsc2FreqHz))
         setParam(kRunglerOsc2FreqId, runglerFreqToNormalized(fv));
     // Depth: already in [0,1] range
-    if (streamer.readFloat(fv))
+    if (readLoaded(streamer, fv, RunglerLoad::kDepth))
         setParam(kRunglerDepthId, static_cast<double>(fv));
     // Filter: already in [0,1] range
-    if (streamer.readFloat(fv))
+    if (readLoaded(streamer, fv, RunglerLoad::kFilter))
         setParam(kRunglerFilterId, static_cast<double>(fv));
     // Bits: read int32, convert back to normalized
-    if (streamer.readInt32(iv))
+    if (readLoaded(streamer, iv, RunglerLoad::kBits))
         setParam(kRunglerBitsId, runglerBitsToNormalized(static_cast<int>(iv)));
     // Loop mode: read int32, 0 or 1
     if (streamer.readInt32(iv))

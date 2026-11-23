@@ -5,6 +5,7 @@
 // ==============================================================================
 
 #include "plugin_ids.h"
+#include "parameters/state_load_helpers.h"
 #include "controller/parameter_helpers.h"
 #include "parameters/dropdown_mappings.h"
 #include "pluginterfaces/base/ustring.h"
@@ -418,58 +419,85 @@ inline void saveFilterParams(const RuinaeFilterParams& params, Steinberg::IBStre
     streamer.writeFloat(params.selfOscRelease.load(std::memory_order_relaxed));
 }
 
+// Saved-field ranges, read by both parsers (R-211)
+namespace FilterLoad {
+inline constexpr LoadedInt kType{.lo = 0, .hi = kFilterTypeCount - 1};
+inline constexpr LoadedFloat kCutoffHz{.lo = 20.0f, .hi = 20000.0f, .def = 20000.0f};
+inline constexpr LoadedFloat kResonance{.lo = 0.1f, .hi = 30.0f, .def = 0.707f};
+inline constexpr LoadedFloat kEnvAmount{.lo = -48.0f, .hi = 48.0f, .def = 0.0f};
+inline constexpr LoadedFloat kKeyTrack{.lo = 0.0f, .hi = 1.0f, .def = 0.0f};
+inline constexpr LoadedInt kLadderSlope{.lo = 1, .hi = 4};
+inline constexpr LoadedFloat kLadderDrive{.lo = 0.0f, .hi = 24.0f, .def = 0.0f};
+inline constexpr LoadedFloat kFormantMorph{.lo = 0.0f, .hi = 4.0f, .def = 0.0f};
+inline constexpr LoadedFloat kFormantGender{.lo = -1.0f, .hi = 1.0f, .def = 0.0f};
+inline constexpr LoadedFloat kCombDamping{.lo = 0.0f, .hi = 1.0f, .def = 0.0f};
+inline constexpr LoadedInt kSvfSlope{.lo = 1, .hi = 2};
+inline constexpr LoadedFloat kSvfDrive{.lo = 0.0f, .hi = 24.0f, .def = 0.0f};
+inline constexpr LoadedFloat kSvfGain{.lo = -24.0f, .hi = 24.0f, .def = 0.0f};
+inline constexpr LoadedInt kEnvSubType{.lo = 0, .hi = 2};
+inline constexpr LoadedFloat kEnvSensitivity{.lo = -24.0f, .hi = 24.0f, .def = 0.0f};
+inline constexpr LoadedFloat kEnvDepth{.lo = 0.0f, .hi = 1.0f, .def = 1.0f};
+inline constexpr LoadedFloat kEnvAttack{.lo = 0.1f, .hi = 500.0f, .def = 10.0f};
+inline constexpr LoadedFloat kEnvRelease{.lo = 1.0f, .hi = 5000.0f, .def = 100.0f};
+inline constexpr LoadedInt kEnvDirection{.lo = 0, .hi = 1};
+inline constexpr LoadedFloat kSelfOscGlide{.lo = 0.0f, .hi = 5000.0f, .def = 0.0f};
+inline constexpr LoadedFloat kSelfOscExtMix{.lo = 0.0f, .hi = 1.0f, .def = 0.5f};
+inline constexpr LoadedFloat kSelfOscShape{.lo = 0.0f, .hi = 1.0f, .def = 0.0f};
+inline constexpr LoadedFloat kSelfOscRelease{.lo = 10.0f, .hi = 2000.0f, .def = 500.0f};
+} // namespace FilterLoad
+
 inline bool loadFilterParams(RuinaeFilterParams& params, Steinberg::IBStreamer& streamer) {
     Steinberg::int32 intVal = 0; float floatVal = 0.0f;
-    if (!streamer.readInt32(intVal)) return false;
+    if (!readLoaded(streamer, intVal, FilterLoad::kType)) return false;
     params.type.store(intVal, std::memory_order_relaxed);
-    if (!streamer.readFloat(floatVal)) return false;
+    if (!readLoaded(streamer, floatVal, FilterLoad::kCutoffHz)) return false;
     params.cutoffHz.store(floatVal, std::memory_order_relaxed);
-    if (!streamer.readFloat(floatVal)) return false;
+    if (!readLoaded(streamer, floatVal, FilterLoad::kResonance)) return false;
     params.resonance.store(floatVal, std::memory_order_relaxed);
-    if (!streamer.readFloat(floatVal)) return false;
+    if (!readLoaded(streamer, floatVal, FilterLoad::kEnvAmount)) return false;
     params.envAmount.store(floatVal, std::memory_order_relaxed);
-    if (!streamer.readFloat(floatVal)) return false;
+    if (!readLoaded(streamer, floatVal, FilterLoad::kKeyTrack)) return false;
     params.keyTrack.store(floatVal, std::memory_order_relaxed);
     // Type-specific
-    if (!streamer.readInt32(intVal)) return false;
+    if (!readLoaded(streamer, intVal, FilterLoad::kLadderSlope)) return false;
     params.ladderSlope.store(intVal, std::memory_order_relaxed);
-    if (!streamer.readFloat(floatVal)) return false;
+    if (!readLoaded(streamer, floatVal, FilterLoad::kLadderDrive)) return false;
     params.ladderDrive.store(floatVal, std::memory_order_relaxed);
-    if (!streamer.readFloat(floatVal)) return false;
+    if (!readLoaded(streamer, floatVal, FilterLoad::kFormantMorph)) return false;
     params.formantMorph.store(floatVal, std::memory_order_relaxed);
-    if (!streamer.readFloat(floatVal)) return false;
+    if (!readLoaded(streamer, floatVal, FilterLoad::kFormantGender)) return false;
     params.formantGender.store(floatVal, std::memory_order_relaxed);
-    if (!streamer.readFloat(floatVal)) return false;
+    if (!readLoaded(streamer, floatVal, FilterLoad::kCombDamping)) return false;
     params.combDamping.store(floatVal, std::memory_order_relaxed);
     // SVF-specific
-    if (!streamer.readInt32(intVal)) return false;
+    if (!readLoaded(streamer, intVal, FilterLoad::kSvfSlope)) return false;
     params.svfSlope.store(intVal, std::memory_order_relaxed);
-    if (!streamer.readFloat(floatVal)) return false;
+    if (!readLoaded(streamer, floatVal, FilterLoad::kSvfDrive)) return false;
     params.svfDrive.store(floatVal, std::memory_order_relaxed);
     // SVF gain
-    if (!streamer.readFloat(floatVal)) return false;
+    if (!readLoaded(streamer, floatVal, FilterLoad::kSvfGain)) return false;
     params.svfGain.store(floatVal, std::memory_order_relaxed);
     // Envelope filter
-    if (!streamer.readInt32(intVal)) return false;
+    if (!readLoaded(streamer, intVal, FilterLoad::kEnvSubType)) return false;
     params.envSubType.store(intVal, std::memory_order_relaxed);
-    if (!streamer.readFloat(floatVal)) return false;
+    if (!readLoaded(streamer, floatVal, FilterLoad::kEnvSensitivity)) return false;
     params.envSensitivity.store(floatVal, std::memory_order_relaxed);
-    if (!streamer.readFloat(floatVal)) return false;
+    if (!readLoaded(streamer, floatVal, FilterLoad::kEnvDepth)) return false;
     params.envDepth.store(floatVal, std::memory_order_relaxed);
-    if (!streamer.readFloat(floatVal)) return false;
+    if (!readLoaded(streamer, floatVal, FilterLoad::kEnvAttack)) return false;
     params.envAttack.store(floatVal, std::memory_order_relaxed);
-    if (!streamer.readFloat(floatVal)) return false;
+    if (!readLoaded(streamer, floatVal, FilterLoad::kEnvRelease)) return false;
     params.envRelease.store(floatVal, std::memory_order_relaxed);
-    if (!streamer.readInt32(intVal)) return false;
+    if (!readLoaded(streamer, intVal, FilterLoad::kEnvDirection)) return false;
     params.envDirection.store(intVal, std::memory_order_relaxed);
     // Self-oscillating filter
-    if (!streamer.readFloat(floatVal)) return false;
+    if (!readLoaded(streamer, floatVal, FilterLoad::kSelfOscGlide)) return false;
     params.selfOscGlide.store(floatVal, std::memory_order_relaxed);
-    if (!streamer.readFloat(floatVal)) return false;
+    if (!readLoaded(streamer, floatVal, FilterLoad::kSelfOscExtMix)) return false;
     params.selfOscExtMix.store(floatVal, std::memory_order_relaxed);
-    if (!streamer.readFloat(floatVal)) return false;
+    if (!readLoaded(streamer, floatVal, FilterLoad::kSelfOscShape)) return false;
     params.selfOscShape.store(floatVal, std::memory_order_relaxed);
-    if (!streamer.readFloat(floatVal)) return false;
+    if (!readLoaded(streamer, floatVal, FilterLoad::kSelfOscRelease)) return false;
     params.selfOscRelease.store(floatVal, std::memory_order_relaxed);
     return true;
 }
@@ -478,62 +506,62 @@ template<typename SetParamFunc>
 inline void loadFilterParamsToController(
     Steinberg::IBStreamer& streamer, const SetParamFunc& setParam) {
     Steinberg::int32 intVal = 0; float floatVal = 0.0f;
-    if (streamer.readInt32(intVal))
+    if (readLoaded(streamer, intVal, FilterLoad::kType))
         setParam(kFilterTypeId, static_cast<double>(intVal) / (kFilterTypeCount - 1));
-    if (streamer.readFloat(floatVal)) {
+    if (readLoaded(streamer, floatVal, FilterLoad::kCutoffHz)) {
         double norm = (floatVal > 20.0f) ? std::log(floatVal / 20.0f) / std::log(1000.0f) : 0.0;
         setParam(kFilterCutoffId, std::clamp(norm, 0.0, 1.0));
     }
-    if (streamer.readFloat(floatVal))
+    if (readLoaded(streamer, floatVal, FilterLoad::kResonance))
         setParam(kFilterResonanceId, static_cast<double>((floatVal - 0.1f) / 29.9f));
-    if (streamer.readFloat(floatVal))
+    if (readLoaded(streamer, floatVal, FilterLoad::kEnvAmount))
         setParam(kFilterEnvAmountId, static_cast<double>((floatVal + 48.0f) / 96.0f));
-    if (streamer.readFloat(floatVal))
+    if (readLoaded(streamer, floatVal, FilterLoad::kKeyTrack))
         setParam(kFilterKeyTrackId, static_cast<double>(floatVal));
     // Type-specific
-    if (streamer.readInt32(intVal))
+    if (readLoaded(streamer, intVal, FilterLoad::kLadderSlope))
         setParam(kFilterLadderSlopeId, static_cast<double>(intVal - 1) / 3.0);
-    if (streamer.readFloat(floatVal))
+    if (readLoaded(streamer, floatVal, FilterLoad::kLadderDrive))
         setParam(kFilterLadderDriveId, static_cast<double>(floatVal / 24.0f));
-    if (streamer.readFloat(floatVal))
+    if (readLoaded(streamer, floatVal, FilterLoad::kFormantMorph))
         setParam(kFilterFormantMorphId, static_cast<double>(floatVal / 4.0f));
-    if (streamer.readFloat(floatVal))
+    if (readLoaded(streamer, floatVal, FilterLoad::kFormantGender))
         setParam(kFilterFormantGenderId, static_cast<double>((floatVal + 1.0f) / 2.0f));
-    if (streamer.readFloat(floatVal))
+    if (readLoaded(streamer, floatVal, FilterLoad::kCombDamping))
         setParam(kFilterCombDampingId, static_cast<double>(floatVal));
     // SVF-specific
-    if (streamer.readInt32(intVal))
+    if (readLoaded(streamer, intVal, FilterLoad::kSvfSlope))
         setParam(kFilterSvfSlopeId, static_cast<double>(intVal - 1));
-    if (streamer.readFloat(floatVal))
+    if (readLoaded(streamer, floatVal, FilterLoad::kSvfDrive))
         setParam(kFilterSvfDriveId, static_cast<double>(floatVal / 24.0f));
     // SVF gain
-    if (streamer.readFloat(floatVal))
+    if (readLoaded(streamer, floatVal, FilterLoad::kSvfGain))
         setParam(kFilterSvfGainId, static_cast<double>((floatVal + 24.0f) / 48.0f));
     // Envelope filter
-    if (streamer.readInt32(intVal))
+    if (readLoaded(streamer, intVal, FilterLoad::kEnvSubType))
         setParam(kFilterEnvFltSubTypeId, static_cast<double>(intVal) / 2.0);
-    if (streamer.readFloat(floatVal))
+    if (readLoaded(streamer, floatVal, FilterLoad::kEnvSensitivity))
         setParam(kFilterEnvFltSensitivityId, static_cast<double>((floatVal + 24.0f) / 48.0f));
-    if (streamer.readFloat(floatVal))
+    if (readLoaded(streamer, floatVal, FilterLoad::kEnvDepth))
         setParam(kFilterEnvFltDepthId, static_cast<double>(floatVal));
-    if (streamer.readFloat(floatVal)) {
+    if (readLoaded(streamer, floatVal, FilterLoad::kEnvAttack)) {
         double norm = (floatVal > 0.1f) ? std::log(floatVal / 0.1) / std::log(5000.0) : 0.0;
         setParam(kFilterEnvFltAttackId, std::clamp(norm, 0.0, 1.0));
     }
-    if (streamer.readFloat(floatVal)) {
+    if (readLoaded(streamer, floatVal, FilterLoad::kEnvRelease)) {
         double norm = (floatVal > 1.0f) ? std::log(static_cast<double>(floatVal)) / std::log(5000.0) : 0.0;
         setParam(kFilterEnvFltReleaseId, std::clamp(norm, 0.0, 1.0));
     }
-    if (streamer.readInt32(intVal))
+    if (readLoaded(streamer, intVal, FilterLoad::kEnvDirection))
         setParam(kFilterEnvFltDirectionId, static_cast<double>(intVal));
     // Self-oscillating filter
-    if (streamer.readFloat(floatVal))
+    if (readLoaded(streamer, floatVal, FilterLoad::kSelfOscGlide))
         setParam(kFilterSelfOscGlideId, static_cast<double>(floatVal / 5000.0f));
-    if (streamer.readFloat(floatVal))
+    if (readLoaded(streamer, floatVal, FilterLoad::kSelfOscExtMix))
         setParam(kFilterSelfOscExtMixId, static_cast<double>(floatVal));
-    if (streamer.readFloat(floatVal))
+    if (readLoaded(streamer, floatVal, FilterLoad::kSelfOscShape))
         setParam(kFilterSelfOscShapeId, static_cast<double>(floatVal));
-    if (streamer.readFloat(floatVal)) {
+    if (readLoaded(streamer, floatVal, FilterLoad::kSelfOscRelease)) {
         double norm = (floatVal > 10.0f) ? std::log(floatVal / 10.0) / std::log(200.0) : 0.0;
         setParam(kFilterSelfOscReleaseId, std::clamp(norm, 0.0, 1.0));
     }

@@ -16,13 +16,17 @@
 #include <krate/dsp/core/pitch_utils.h>
 #include <krate/dsp/core/midi_utils.h>
 #include <krate/dsp/core/math_constants.h>
+#include <krate/dsp/core/db_utils.h>
 
 #include "test_helpers/reverb_metrics.h"
 
 #include <algorithm>
 #include <array>
+#include <bit>
 #include <chrono>
 #include <cmath>
+#include <cstdint>
+#include <functional>
 #include <limits>
 #include <memory>
 #include <numeric>
@@ -70,10 +74,294 @@ static bool hasNonZeroSamples(const float* buffer, size_t numSamples) {
 
 static bool allSamplesFinite(const float* buffer, size_t numSamples) {
     for (size_t i = 0; i < numSamples; ++i) {
-        if (std::isnan(buffer[i]) || std::isinf(buffer[i])) return false;
+        if (!detail::isFinite(buffer[i])) return false;
     }
     return true;
 }
+
+// -----------------------------------------------------------------------------
+// Non-finite input guards (FR-043, R-107)
+// -----------------------------------------------------------------------------
+// The engine flushes NaN/Inf to 0 at its output, so a finite output proves
+// nothing about a setter's NaN guard. requireGuardHolds renders an engine that
+// received the non-finite value next to one that did not, from the same setup
+// and the same performance, and requires the injected render to be audible,
+// finite and equal to the reference. A removed guard either silences the
+// output (NaN state, flushed to 0) or moves it (Inf clamped to a range edge);
+// a stored value the output cannot show is checked through its getter inside
+// the case's inject step.
+
+namespace {
+
+// NaN / Inf from a bit pattern through a volatile, so no fast-math build can
+// fold the value or the guard that rejects it.
+float nonFiniteFromBits(std::uint32_t pattern) {
+    volatile std::uint32_t bits = pattern;
+    return std::bit_cast<float>(static_cast<std::uint32_t>(bits));
+}
+float makeNaN() { return nonFiniteFromBits(0x7FC00000u); }
+float makeInf() { return nonFiniteFromBits(0x7F800000u); }
+
+constexpr int kGuardBlocks = 20;  // ~232 ms at 44.1 kHz
+
+void renderGuardBlocks(RuinaeEngine& engine, int blocks, std::vector<float>& out) {
+    std::vector<float> left(512), right(512);
+    for (int b = 0; b < blocks; ++b) {
+        engine.processBlock(left.data(), right.data(), 512);
+        out.insert(out.end(), left.begin(), left.end());
+        out.insert(out.end(), right.begin(), right.end());
+    }
+}
+
+void playOneNote(RuinaeEngine& engine, std::vector<float>& out) {
+    engine.noteOn(60, 100);
+    renderGuardBlocks(engine, kGuardBlocks, out);
+}
+
+void playTwoNotes(RuinaeEngine& engine, std::vector<float>& out) {
+    engine.noteOn(60, 100);
+    engine.noteOn(67, 100);
+    renderGuardBlocks(engine, kGuardBlocks, out);
+}
+
+// A second note while the first is held: a glide in Mono (portamento Always).
+void playGlide(RuinaeEngine& engine, std::vector<float>& out) {
+    engine.noteOn(60, 100);
+    renderGuardBlocks(engine, 4, out);
+    engine.noteOn(72, 100);
+    renderGuardBlocks(engine, kGuardBlocks - 4, out);
+}
+
+// An arp Slide step in Poly: the sounding voice glides over the slide time.
+void playSlide(RuinaeEngine& engine, std::vector<float>& out) {
+    engine.noteOn(60, 100);
+    renderGuardBlocks(engine, 4, out);
+    engine.noteOn(72, 100, true);
+    renderGuardBlocks(engine, kGuardBlocks - 4, out);
+}
+
+struct NonFiniteGuardCase {
+    const char* setter;
+    std::function<void(RuinaeEngine&)> setup;          ///< valid configuration
+    std::function<void(RuinaeEngine&, float)> inject;  ///< bad value + getter check
+    std::function<void(RuinaeEngine&, std::vector<float>&)> play = playOneNote;
+};
+
+void requireGuardHolds(const NonFiniteGuardCase& c, float bad) {
+    auto render = [&](bool injected) {
+        auto engine = std::make_unique<RuinaeEngine>();
+        engine->prepare(44100.0, 512);
+        c.setup(*engine);
+        if (injected) c.inject(*engine, bad);
+        std::vector<float> out;
+        c.play(*engine, out);
+        return out;
+    };
+    const auto reference = render(false);
+    const auto injected = render(true);
+    REQUIRE(injected.size() == reference.size());
+
+    float maxDiff = 0.0f;
+    for (size_t i = 0; i < injected.size(); ++i) {
+        maxDiff = std::max(maxDiff, std::abs(injected[i] - reference[i]));
+    }
+    const float rms = computeRMS(injected.data(), injected.size());
+    INFO(c.setter << "(" << (detail::isNaN(bad) ? "NaN" : "Inf") << "): RMS "
+                  << rms << ", max |diff| vs reference " << maxDiff);
+    CHECK(allSamplesFinite(injected.data(), injected.size()));
+    CHECK(rms > 1e-3f);
+    CHECK(maxDiff <= 1e-6f);
+}
+
+void requireGuardHoldsForNaNAndInf(const NonFiniteGuardCase& c) {
+    requireGuardHolds(c, makeNaN());
+    requireGuardHolds(c, makeInf());
+}
+
+// A stored value must read back unchanged. Finiteness is checked first: in a
+// fast-math build (MSVC /fp:fast) NaN == x can compare true.
+void checkStored(const char* getter, float actual, float expected) {
+    INFO(getter << "() = " << actual << ", expected " << expected);
+    CHECK(detail::isFinite(actual));
+    CHECK(actual == expected);
+}
+
+NonFiniteGuardCase masterGainGuard() {
+    return {"setMasterGain",
+            [](RuinaeEngine& e) { e.setMasterGain(0.5f); },
+            [](RuinaeEngine& e, float bad) {
+                e.setMasterGain(bad);
+                checkStored("getMasterGain", e.getMasterGain(), 0.5f);
+            }};
+}
+
+NonFiniteGuardCase stereoSpreadGuard() {
+    return {"setStereoSpread",
+            [](RuinaeEngine& e) {
+                e.setPolyphony(2);
+                e.setStereoSpread(0.5f);
+            },
+            [](RuinaeEngine& e, float bad) {
+                e.setStereoSpread(bad);
+                checkStored("getStereoSpread", e.getStereoSpread(), 0.5f);
+            },
+            playTwoNotes};
+}
+
+NonFiniteGuardCase stereoWidthGuard() {
+    return {"setStereoWidth",
+            [](RuinaeEngine& e) {
+                e.setPolyphony(2);
+                e.setStereoSpread(1.0f);
+                e.setStereoWidth(1.5f);
+            },
+            [](RuinaeEngine& e, float bad) {
+                e.setStereoWidth(bad);
+                checkStored("getStereoWidth", e.getStereoWidth(), 1.5f);
+            },
+            playTwoNotes};
+}
+
+NonFiniteGuardCase globalFilterCutoffGuard() {
+    return {"setGlobalFilterCutoff",
+            [](RuinaeEngine& e) {
+                e.setGlobalFilterEnabled(true);
+                e.setGlobalFilterCutoff(500.0f);
+            },
+            [](RuinaeEngine& e, float bad) {
+                e.setGlobalFilterCutoff(bad);
+                checkStored("getGlobalFilterCutoff", e.getGlobalFilterCutoff(), 500.0f);
+            }};
+}
+
+NonFiniteGuardCase globalFilterResonanceGuard() {
+    return {"setGlobalFilterResonance",
+            [](RuinaeEngine& e) {
+                e.setGlobalFilterEnabled(true);
+                e.setGlobalFilterCutoff(500.0f);
+                e.setGlobalFilterResonance(4.0f);
+            },
+            [](RuinaeEngine& e, float bad) {
+                e.setGlobalFilterResonance(bad);
+                checkStored("getGlobalFilterResonance", e.getGlobalFilterResonance(), 4.0f);
+            }};
+}
+
+NonFiniteGuardCase pitchBendGuard() {
+    return {"setPitchBend",
+            [](RuinaeEngine& e) { e.setPitchBend(0.5f); },
+            [](RuinaeEngine& e, float bad) { e.setPitchBend(bad); }};
+}
+
+NonFiniteGuardCase pitchBendRangeGuard() {
+    return {"setPitchBendRange",
+            [](RuinaeEngine& e) {
+                e.setPitchBendRange(7.0f);
+                e.setPitchBend(1.0f);
+            },
+            [](RuinaeEngine& e, float bad) { e.setPitchBendRange(bad); }};
+}
+
+NonFiniteGuardCase tuningReferenceGuard() {
+    return {"setTuningReference",
+            [](RuinaeEngine& e) { e.setTuningReference(432.0f); },
+            [](RuinaeEngine& e, float bad) { e.setTuningReference(bad); }};
+}
+
+// Aftertouch reaches the audio only through a route: Aftertouch -> voice
+// cutoff, +-24 semitones, over a dark 300 Hz base.
+NonFiniteGuardCase aftertouchGuard() {
+    return {"setAftertouch",
+            [](RuinaeEngine& e) {
+                e.setFilterCutoff(300.0f);
+                e.setVoiceModRoute(0, {VoiceModSource::Aftertouch,
+                                       VoiceModDest::FilterCutoff, 1.0f});
+                e.setVoiceModRouteScale(VoiceModDest::FilterCutoff, 24.0f);
+                e.setAftertouch(0.5f);
+            },
+            [](RuinaeEngine& e, float bad) { e.setAftertouch(bad); }};
+}
+
+// The mod wheel is Macro 1; it reaches the audio only through a route.
+NonFiniteGuardCase modWheelGuard() {
+    return {"setModWheel",
+            [](RuinaeEngine& e) {
+                e.setGlobalModRoute(0, ModSource::Macro1,
+                                    RuinaeModDest::MasterVolume, -0.5f);
+                e.setModWheel(0.5f);
+            },
+            [](RuinaeEngine& e, float bad) { e.setModWheel(bad); }};
+}
+
+NonFiniteGuardCase monoPortamentoTimeGuard() {
+    return {"setMonoPortamentoTime",
+            [](RuinaeEngine& e) {
+                e.setMode(VoiceMode::Mono);
+                e.setMonoPortamentoTime(100.0f);
+            },
+            [](RuinaeEngine& e, float bad) {
+                e.setMonoPortamentoTime(bad);
+                checkStored("getMonoPortamentoTime", e.getMonoPortamentoTime(), 100.0f);
+            },
+            playGlide};
+}
+
+NonFiniteGuardCase slideTimeGuard() {
+    return {"setSlideTime",
+            [](RuinaeEngine& e) { e.setSlideTime(100.0f); },
+            [](RuinaeEngine& e, float bad) {
+                e.setSlideTime(bad);
+                checkStored("getSlideTime", e.getSlideTime(), 100.0f);
+            },
+            playSlide};
+}
+
+NonFiniteGuardCase filterCutoffGuard() {
+    return {"setFilterCutoff",
+            [](RuinaeEngine& e) { e.setFilterCutoff(800.0f); },
+            [](RuinaeEngine& e, float bad) {
+                e.setFilterCutoff(bad);
+                checkStored("getFilterCutoff", e.getFilterCutoff(), 800.0f);
+            }};
+}
+
+NonFiniteGuardCase filterResonanceGuard() {
+    return {"setFilterResonance",
+            [](RuinaeEngine& e) {
+                e.setFilterCutoff(800.0f);
+                e.setFilterResonance(4.0f);
+            },
+            [](RuinaeEngine& e, float bad) {
+                e.setFilterResonance(bad);
+                checkStored("getFilterResonance", e.getFilterResonance(), 4.0f);
+            }};
+}
+
+NonFiniteGuardCase distortionDriveGuard() {
+    return {"setDistortionDrive",
+            [](RuinaeEngine& e) {
+                e.setDistortionType(RuinaeDistortionType::Wavefolder);
+                e.setDistortionDrive(0.5f);
+            },
+            [](RuinaeEngine& e, float bad) { e.setDistortionDrive(bad); }};
+}
+
+NonFiniteGuardCase ampAttackGuard() {
+    return {"setAmpAttack",
+            [](RuinaeEngine& e) { e.setAmpAttack(50.0f); },
+            [](RuinaeEngine& e, float bad) { e.setAmpAttack(bad); }};
+}
+
+NonFiniteGuardCase mixPositionGuard() {
+    return {"setMixPosition",
+            [](RuinaeEngine& e) { e.setMixPosition(0.3f); },
+            [](RuinaeEngine& e, float bad) {
+                e.setMixPosition(bad);
+                checkStored("getBaseMixPosition", e.getBaseMixPosition(), 0.3f);
+            }};
+}
+
+}  // namespace
 
 // =============================================================================
 // Phase 2: Foundation Tests (FR-001, FR-002, FR-003, FR-004)
@@ -411,13 +699,8 @@ TEST_CASE("RuinaeEngine stereo spread", "[ruinae-engine][stereo][US2]") {
     }
 
     SECTION("NaN/Inf spread values are silently ignored") {
-        engine.setStereoSpread(0.5f);
-        engine.setStereoSpread(std::numeric_limits<float>::quiet_NaN());
-        // Should still be 0.5, not NaN
-        engine.noteOn(60, 100);
-        std::vector<float> left(512), right(512);
-        engine.processBlock(left.data(), right.data(), 512);
-        REQUIRE(allSamplesFinite(left.data(), 512));
+        // Stays 0.5: same audible output as an engine that never saw them.
+        requireGuardHoldsForNaNAndInf(stereoSpreadGuard());
     }
 }
 
@@ -450,9 +733,8 @@ TEST_CASE("RuinaeEngine stereo width", "[ruinae-engine][stereo][US2]") {
     }
 
     SECTION("NaN/Inf width values are silently ignored") {
-        engine.setStereoWidth(1.5f);
-        engine.setStereoWidth(std::numeric_limits<float>::infinity());
-        // Value should remain 1.5, not infinity
+        // Stays 1.5: same audible output as an engine that never saw them.
+        requireGuardHoldsForNaNAndInf(stereoWidthGuard());
     }
 }
 
@@ -900,9 +1182,8 @@ TEST_CASE("RuinaeEngine master gain", "[ruinae-engine][master][US6]") {
     }
 
     SECTION("NaN/Inf master gain is silently ignored") {
-        engine.setMasterGain(0.5f);
-        engine.setMasterGain(std::numeric_limits<float>::quiet_NaN());
-        // Should remain 0.5
+        // Stays 0.5: same audible output as an engine that never saw them.
+        requireGuardHoldsForNaNAndInf(masterGainGuard());
     }
 
     SECTION("gain=0 produces silence") {
@@ -1121,9 +1402,7 @@ TEST_CASE("RuinaeEngine pitch bend", "[ruinae-engine][controllers][US9]") {
     }
 
     SECTION("NaN/Inf pitch bend silently ignored") {
-        engine.setPitchBend(std::numeric_limits<float>::quiet_NaN());
-        engine.setPitchBend(std::numeric_limits<float>::infinity());
-        // Should not crash
+        requireGuardHoldsForNaNAndInf(pitchBendGuard());
     }
 }
 
@@ -1137,8 +1416,7 @@ TEST_CASE("RuinaeEngine aftertouch", "[ruinae-engine][controllers][US9]") {
     }
 
     SECTION("NaN/Inf aftertouch silently ignored") {
-        engine.setAftertouch(std::numeric_limits<float>::quiet_NaN());
-        // Should not crash
+        requireGuardHoldsForNaNAndInf(aftertouchGuard());
     }
 }
 
@@ -1152,8 +1430,7 @@ TEST_CASE("RuinaeEngine mod wheel", "[ruinae-engine][controllers][US9]") {
     }
 
     SECTION("NaN/Inf mod wheel silently ignored") {
-        engine.setModWheel(std::numeric_limits<float>::quiet_NaN());
-        // Should not crash
+        requireGuardHoldsForNaNAndInf(modWheelGuard());
     }
 }
 
@@ -1195,9 +1472,8 @@ TEST_CASE("RuinaeEngine global filter", "[ruinae-engine][filter]") {
     }
 
     SECTION("NaN/Inf cutoff silently ignored (FR-016)") {
-        engine.setGlobalFilterCutoff(std::numeric_limits<float>::quiet_NaN());
-        engine.setGlobalFilterCutoff(std::numeric_limits<float>::infinity());
-        // Should not crash
+        // Stays 500 Hz: same audible output as an engine that never saw them.
+        requireGuardHoldsForNaNAndInf(globalFilterCutoffGuard());
     }
 }
 
@@ -1538,38 +1814,23 @@ TEST_CASE("RuinaeEngine parameter safety", "[ruinae-engine][safety]") {
     RuinaeEngine engine;
     engine.prepare(44100.0, 512);
 
+    // Each setter in its own engine pair, with a setup in which its value is
+    // audible or readable back (R-107).
+    const std::vector<NonFiniteGuardCase> guards = {
+        masterGainGuard(),         stereoSpreadGuard(),       stereoWidthGuard(),
+        globalFilterCutoffGuard(), globalFilterResonanceGuard(), pitchBendGuard(),
+        pitchBendRangeGuard(),     tuningReferenceGuard(),    aftertouchGuard(),
+        modWheelGuard(),           monoPortamentoTimeGuard(), slideTimeGuard(),
+        filterCutoffGuard(),       filterResonanceGuard(),    distortionDriveGuard(),
+        ampAttackGuard(),          mixPositionGuard(),
+    };
+
     SECTION("NaN float inputs are silently ignored (FR-043)") {
-        const float nan = std::numeric_limits<float>::quiet_NaN();
-        engine.setMasterGain(nan);
-        engine.setStereoSpread(nan);
-        engine.setStereoWidth(nan);
-        engine.setGlobalFilterCutoff(nan);
-        engine.setGlobalFilterResonance(nan);
-        engine.setPitchBend(nan);
-        engine.setAftertouch(nan);
-        engine.setModWheel(nan);
-        engine.setMonoPortamentoTime(nan);
-        engine.setSlideTime(nan);
-        engine.setFilterCutoff(nan);
-        engine.setFilterResonance(nan);
-        engine.setDistortionDrive(nan);
-        engine.setAmpAttack(nan);
-        engine.setMixPosition(nan);
-        // None should crash or change state to NaN
+        for (const auto& guard : guards) requireGuardHolds(guard, makeNaN());
     }
 
     SECTION("Inf float inputs are silently ignored (FR-043)") {
-        const float inf = std::numeric_limits<float>::infinity();
-        engine.setMasterGain(inf);
-        engine.setStereoSpread(inf);
-        engine.setStereoWidth(inf);
-        engine.setGlobalFilterCutoff(inf);
-        engine.setPitchBend(inf);
-        engine.setMonoPortamentoTime(inf);
-        engine.setSlideTime(inf);
-        engine.setPitchBendRange(inf);
-        engine.setTuningReference(inf);
-        // None should crash
+        for (const auto& guard : guards) requireGuardHolds(guard, makeInf());
     }
 
     SECTION("output is always finite after processBlock") {
@@ -2338,7 +2599,7 @@ double monoPitchZeroCrossingHz(const std::vector<float>& x, size_t a, size_t b, 
 
 /// Sine on oscillator A, filter open, no effects; A4 = 432 Hz, bend +1 with a
 /// 2-semitone range, note 69 held for 200 ms. Returns the pitch over 100-200 ms.
-double renderBentTunedA4(VoiceMode mode) {
+double renderBentTunedA4(VoiceMode mode, float bendRange = 2.0f, float bend = 1.0f) {
     auto engine = std::make_unique<RuinaeEngine>();
     prepareSwitchEngine(*engine);
     engine->setOscAType(OscType::PolyBLEP);
@@ -2357,8 +2618,8 @@ double renderBentTunedA4(VoiceMode mode) {
     engine->setAmpSustain(1.0f);
     engine->setMode(mode);
     engine->setTuningReference(432.0f);
-    engine->setPitchBendRange(2.0f);
-    engine->setPitchBend(1.0f);
+    engine->setPitchBendRange(bendRange);
+    engine->setPitchBend(bend);
     engine->noteOn(69, 100);
 
     std::vector<float> out;
@@ -2388,6 +2649,28 @@ TEST_CASE("RuinaeEngine: mono mode applies pitch bend and tuning reference",
         INFO("poly: " << hz << " Hz, " << cents << " cents from " << expectedHz << " Hz");
         REQUIRE(std::abs(cents) <= 3.0);
     }
+}
+
+// R-120: the pitch-bend controller test only checked "does not crash". Assert the
+// bent pitch: +/-12 semitones of range moves A4 = 432 Hz by an octave either way,
+// a half-range bend moves it by half the range, in poly and mono.
+TEST_CASE("RuinaeEngine: pitch bend sets the sounding pitch",
+          "[ruinae-engine][controllers][pitch]") {
+    const auto checkCents = [](VoiceMode mode, float range, float bend, double semitones) {
+        const double expectedHz = 432.0 * std::pow(2.0, semitones / 12.0);
+        const double hz = renderBentTunedA4(mode, range, bend);
+        REQUIRE(hz > 0.0);
+        const double cents = 1200.0 * std::log2(hz / expectedHz);
+        INFO("range " << range << " bend " << bend << ": " << hz << " Hz, " << cents
+             << " cents from " << expectedHz << " Hz");
+        REQUIRE(std::abs(cents) <= 3.0);
+    };
+
+    SECTION("poly: +1 of 12 semitones is an octave up") { checkCents(VoiceMode::Poly, 12.0f, 1.0f, 12.0); }
+    SECTION("poly: -1 of 12 semitones is an octave down") { checkCents(VoiceMode::Poly, 12.0f, -1.0f, -12.0); }
+    SECTION("poly: +0.5 of 12 semitones is a tritone up") { checkCents(VoiceMode::Poly, 12.0f, 0.5f, 6.0); }
+    SECTION("mono: +1 of 12 semitones is an octave up") { checkCents(VoiceMode::Mono, 12.0f, 1.0f, 12.0); }
+    SECTION("poly: centred bend leaves the pitch alone") { checkCents(VoiceMode::Poly, 12.0f, 0.0f, 0.0); }
 }
 
 // =============================================================================

@@ -19,6 +19,7 @@
 #include "controller/parameter_helpers.h"
 #include "parameters/dropdown_mappings.h"
 #include "parameters/note_value_ui.h"
+#include "parameters/state_load_helpers.h"
 #include "pluginterfaces/base/ustring.h"
 #include "public.sdk/source/vst/vstparameters.h"
 #include "public.sdk/source/vst/vsteditcontroller.h"
@@ -305,22 +306,52 @@ inline void saveModEffectParams(const ModEffectConfig& cfg,
     streamer.writeInt32(params.noteValue.load(std::memory_order_relaxed));
 }
 
+/// Saved-field ranges of one effect, read by both parsers (R-211)
+struct ModEffectLoad {
+    LoadedFloat rateHz;
+    LoadedFloat depth;
+    LoadedFloat feedback;
+    LoadedFloat mix;
+    LoadedFloat stereoSpread;
+    LoadedInt voices;
+    LoadedInt waveform;
+    LoadedInt noteValue;
+};
+
+[[nodiscard]] constexpr ModEffectLoad modEffectLoad(const ModEffectConfig& cfg) {
+    return {
+        .rateHz = {.lo = 0.05f, .hi = cfg.rateMaxHz, .def = kModEffectDefaults.rateHz},
+        .depth = {.lo = 0.0f, .hi = 1.0f, .def = kModEffectDefaults.depth},
+        .feedback = {.lo = -1.0f, .hi = 1.0f, .def = kModEffectDefaults.feedback},
+        .mix = {.lo = 0.0f, .hi = 1.0f, .def = kModEffectDefaults.mix},
+        .stereoSpread = {.lo = 0.0f, .hi = 360.0f, .def = cfg.defaultStereoSpread},
+        .voices = {.lo = 1, .hi = 4},
+        .waveform = {.lo = 0, .hi = 1},
+        .noteValue = {.lo = 0, .hi = Parameters::kNoteValueDropdownCount - 1},
+    };
+}
+
+/// The modulation-type int8 after the phaser pack: 0 = None, 1 = Phaser,
+/// 2 = Flanger, 3 = Chorus (R-211)
+inline constexpr LoadedInt kModulationTypeLoad{.lo = 0, .hi = 3};
+
 template <typename Params>
 inline bool loadModEffectParams(const ModEffectConfig& cfg,
                                 Params& params,
                                 Steinberg::IBStreamer& streamer) {
+    const ModEffectLoad load = modEffectLoad(cfg);
     float fv = 0.0f; Steinberg::int32 iv = 0;
-    if (!streamer.readFloat(fv)) { return false; } params.rateHz.store(fv, std::memory_order_relaxed);
-    if (!streamer.readFloat(fv)) { return false; } params.depth.store(fv, std::memory_order_relaxed);
-    if (!streamer.readFloat(fv)) { return false; } params.feedback.store(fv, std::memory_order_relaxed);
-    if (!streamer.readFloat(fv)) { return false; } params.mix.store(fv, std::memory_order_relaxed);
-    if (!streamer.readFloat(fv)) { return false; } params.stereoSpread.store(fv, std::memory_order_relaxed);
+    if (!readLoaded(streamer, fv, load.rateHz)) { return false; } params.rateHz.store(fv, std::memory_order_relaxed);
+    if (!readLoaded(streamer, fv, load.depth)) { return false; } params.depth.store(fv, std::memory_order_relaxed);
+    if (!readLoaded(streamer, fv, load.feedback)) { return false; } params.feedback.store(fv, std::memory_order_relaxed);
+    if (!readLoaded(streamer, fv, load.mix)) { return false; } params.mix.store(fv, std::memory_order_relaxed);
+    if (!readLoaded(streamer, fv, load.stereoSpread)) { return false; } params.stereoSpread.store(fv, std::memory_order_relaxed);
     if (cfg.hasVoices) {
-        if (!streamer.readInt32(iv)) { return false; } params.voices.store(iv, std::memory_order_relaxed);
+        if (!readLoaded(streamer, iv, load.voices)) { return false; } params.voices.store(iv, std::memory_order_relaxed);
     }
-    if (!streamer.readInt32(iv)) { return false; } params.waveform.store(iv, std::memory_order_relaxed);
+    if (!readLoaded(streamer, iv, load.waveform)) { return false; } params.waveform.store(iv, std::memory_order_relaxed);
     if (!streamer.readInt32(iv)) { return false; } params.sync.store(iv != 0, std::memory_order_relaxed);
-    if (!streamer.readInt32(iv)) { return false; } params.noteValue.store(iv, std::memory_order_relaxed);
+    if (!readLoaded(streamer, iv, load.noteValue)) { return false; } params.noteValue.store(iv, std::memory_order_relaxed);
     return true;
 }
 
@@ -331,19 +362,20 @@ inline bool loadModEffectParams(const ModEffectConfig& cfg,
 template<typename SetParamFunc>
 inline void loadModEffectParamsToController(
     const ModEffectConfig& cfg, Steinberg::IBStreamer& streamer, const SetParamFunc& setParam) {
+    const ModEffectLoad load = modEffectLoad(cfg);
     float fv = 0.0f; Steinberg::int32 iv = 0;
-    if (streamer.readFloat(fv))
+    if (readLoaded(streamer, fv, load.rateHz))
         setParam(cfg.rateId(), static_cast<double>((fv - 0.05f) / cfg.rateSpan()));
-    if (streamer.readFloat(fv)) setParam(cfg.depthId(), static_cast<double>(fv));
-    if (streamer.readFloat(fv)) setParam(cfg.feedbackId(), static_cast<double>((fv + 1.0f) / 2.0f));
-    if (streamer.readFloat(fv)) setParam(cfg.mixId(), static_cast<double>(fv));
-    if (streamer.readFloat(fv)) setParam(cfg.stereoSpreadId(), static_cast<double>(fv / 360.0f));
+    if (readLoaded(streamer, fv, load.depth)) setParam(cfg.depthId(), static_cast<double>(fv));
+    if (readLoaded(streamer, fv, load.feedback)) setParam(cfg.feedbackId(), static_cast<double>((fv + 1.0f) / 2.0f));
+    if (readLoaded(streamer, fv, load.mix)) setParam(cfg.mixId(), static_cast<double>(fv));
+    if (readLoaded(streamer, fv, load.stereoSpread)) setParam(cfg.stereoSpreadId(), static_cast<double>(fv / 360.0f));
     if (cfg.hasVoices) {
-        if (streamer.readInt32(iv)) setParam(cfg.voicesId(), static_cast<double>(iv - 1) / 3.0);
+        if (readLoaded(streamer, iv, load.voices)) setParam(cfg.voicesId(), static_cast<double>(iv - 1) / 3.0);
     }
-    if (streamer.readInt32(iv)) setParam(cfg.waveformId(), static_cast<double>(iv) / 1.0);
+    if (readLoaded(streamer, iv, load.waveform)) setParam(cfg.waveformId(), static_cast<double>(iv) / 1.0);
     if (streamer.readInt32(iv)) setParam(cfg.syncId(), iv != 0 ? 1.0 : 0.0);
-    if (streamer.readInt32(iv))
+    if (readLoaded(streamer, iv, load.noteValue))
         setParam(cfg.noteValueId(),
                  static_cast<double>(iv) / (Parameters::kNoteValueDropdownCount - 1));
 }

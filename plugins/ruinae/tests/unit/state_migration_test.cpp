@@ -32,6 +32,12 @@
 #include <cmath>
 #include <cstring>
 #include <cstdint>
+#include <filesystem>
+#include <fstream>
+#include <iterator>
+#include <map>
+#include <memory>
+#include <set>
 #include <random>
 #include <utility>
 #include <vector>
@@ -1247,4 +1253,589 @@ TEST_CASE("setState clamps out-of-range enum indices", "[state][robustness]") {
     CHECK(inRange(int32At(saved, reverbType), 0, 1));
     CHECK(saved[routeSrc] < static_cast<uint8_t>(Krate::DSP::VoiceModSource::NumSources));
     CHECK(saved[routeDst] < static_cast<uint8_t>(Krate::Plugins::kNumVoiceDestinations));
+}
+
+// =============================================================================
+// R-123: genuine old layouts, loaded over a non-default processor
+// =============================================================================
+// A v4..v7 blob is the current stream with the bytes that version never wrote
+// removed (reverb type before v5, Flanger before v6, Chorus before v7, the arp
+// lane speeds before v8, the voice LFO and Velocity > Amp before v9); its
+// version int32 is the version it claims. The expected state is a processor
+// that received the migrated parameter values through the parameter path.
+
+namespace {
+
+using ParamId = Steinberg::Vst::ParamID;
+using ValueMap = std::map<ParamId, double>;
+
+struct ParamTable {
+    std::vector<ParamId> ids;               // every writable parameter
+    std::map<ParamId, double> defaults;     // registered default (normalized)
+    std::map<ParamId, int> stepCounts;
+};
+
+const ParamTable& paramTable() {
+    static const ParamTable table = [] {
+        ParamTable t;
+        auto* ctrl = new Ruinae::Controller();
+        REQUIRE(ctrl->initialize(nullptr) == Steinberg::kResultTrue);
+        const Steinberg::int32 count = ctrl->getParameterCount();
+        for (Steinberg::int32 i = 0; i < count; ++i) {
+            Steinberg::Vst::ParameterInfo info{};
+            ctrl->getParameterInfo(i, info);
+            if ((info.flags & (Steinberg::Vst::ParameterInfo::kIsReadOnly |
+                               Steinberg::Vst::ParameterInfo::kIsProgramChange)) != 0)
+                continue;
+            t.ids.push_back(info.id);
+            t.defaults[info.id] = info.defaultNormalizedValue;
+            t.stepCounts[info.id] = info.stepCount;
+        }
+        ctrl->terminate();
+        ctrl->release();
+        return t;
+    }();
+    return table;
+}
+
+/// Parameters the sweep leaves at their default: a momentary trigger that
+/// randomises lanes, and the mod-matrix amounts, whose v9 migration is
+/// covered with exact numbers by "State v8 loads voice-route and mod-slot
+/// amounts at their old depth".
+bool isSweepExcluded(ParamId id) {
+    using namespace Ruinae;
+    if (id == kArpDiceTriggerId) return true;
+    for (const ParamId amount : {kModMatrixSlot0AmountId, kModMatrixSlot1AmountId, kModMatrixSlot2AmountId,
+                                 kModMatrixSlot3AmountId, kModMatrixSlot4AmountId, kModMatrixSlot5AmountId,
+                                 kModMatrixSlot6AmountId, kModMatrixSlot7AmountId}) {
+        if (id == amount) return true;
+    }
+    return false;
+}
+
+/// Every writable parameter at a deterministic, non-default value in [0.02, 0.98].
+ValueMap sweepValues(double salt) {
+    ValueMap values;
+    for (const ParamId id : paramTable().ids) {
+        if (isSweepExcluded(id)) continue;
+        const double raw = 0.1 + static_cast<double>(id) * 0.6180339887498949 + salt;
+        values[id] = 0.02 + 0.96 * (raw - std::floor(raw));
+    }
+    values[Ruinae::kReverbTypeId] = 1.0;  // Hall: v < 5 states must load Plate
+    return values;
+}
+
+void applyValues(Ruinae::Processor& proc, const ValueMap& values) {
+    Krate::Test::ParameterChanges pc;
+    for (const auto& [id, value] : values) pc.addChange(id, value);
+    Steinberg::Vst::ProcessData data{};
+    data.numSamples = 0;
+    data.inputParameterChanges = &pc;
+    proc.process(data);
+}
+
+std::vector<uint8_t> savedState(Ruinae::Processor& proc) {
+    Steinberg::MemoryStream out;
+    REQUIRE(proc.getState(&out) == Steinberg::kResultTrue);
+    return streamBytes(out);
+}
+
+std::vector<uint8_t> stateOfValues(const ValueMap& values) {
+    auto proc = makeProcessor();
+    applyValues(*proc, values);
+    auto bytes = savedState(*proc);
+    proc->terminate();
+    return bytes;
+}
+
+/// What an older state must load as: the sweep with every field that version
+/// did not carry (or carried with another meaning) at its migrated value.
+ValueMap migratedValues(ValueMap values, int version) {
+    using namespace Ruinae;
+    const auto& table = paramTable();
+    const auto toDefault = [&](ParamId id) { values[id] = table.defaults.at(id); };
+    if (version < 5) values[kReverbTypeId] = 0.0;
+    if (version < 6) {
+        for (ParamId id = kFlangerRateId; id <= kFlangerNoteValueId; ++id) toDefault(id);
+    }
+    if (version < 7) {
+        for (ParamId id = kChorusRateId; id <= kChorusNoteValueId; ++id) toDefault(id);
+    }
+    if (version < 8) {
+        for (ParamId id = kArpVelocityLaneSpeedId; id <= kArpInversionLaneSpeedId; ++id) toDefault(id);
+    }
+    if (version < 9) {
+        values[kLFO1DepthId] = 1.0;
+        values[kLFO2DepthId] = 1.0;
+        values[kChaosModDepthId] = 1.0;
+        values[kMixerShiftId] = 0.5;
+        values[kOscAFormantVowelId] = 0.0;
+        values[kOscBFormantVowelId] = 0.0;
+        values[kVoiceLfoRateId] = lfoRateToNormalized(1.0f);
+        values[kVoiceLfoShapeId] = 0.0;
+        values[kAmpEnvVelocityAmountId] = 0.0;
+    }
+    return values;
+}
+
+template <class Pack, class Save>
+size_t packSize(Save save) {
+    const auto pack = std::make_unique<Pack>();
+    Steinberg::MemoryStream ms;
+    Steinberg::IBStreamer s(&ms, kLittleEndian);
+    save(*pack, s);
+    return static_cast<size_t>(ms.getSize());
+}
+
+/// Byte offsets of the current stream, from the size of every pack's save.
+struct StateLayout {
+    size_t reverbType = 0;
+    size_t routes = 0;
+    std::vector<size_t> tailBoundaries;  // start of every pack from the voice routes on, then the end
+    size_t flangerStart = 0;
+    size_t chorusStart = 0;
+    size_t chorusEnd = 0;
+    size_t arpStart = 0;
+    size_t arpEnd = 0;
+};
+
+StateLayout stateLayout() {
+    using namespace Ruinae;
+    StateLayout l;
+    size_t at = 4;
+    at += packSize<GlobalParams>([](auto& p, auto& s) { saveGlobalParams(p, s); });
+    at += packSize<OscAParams>([](auto& p, auto& s) { saveOscAParams(p, s); });
+    at += packSize<OscBParams>([](auto& p, auto& s) { saveOscBParams(p, s); });
+    at += packSize<MixerParams>([](auto& p, auto& s) { saveMixerParams(p, s); });
+    at += packSize<RuinaeFilterParams>([](auto& p, auto& s) { saveFilterParams(p, s); });
+    at += packSize<RuinaeDistortionParams>([](auto& p, auto& s) { saveDistortionParams(p, s); });
+    at += packSize<RuinaeTranceGateParams>([](auto& p, auto& s) { saveTranceGateParams(p, s); });
+    at += packSize<AmpEnvParams>([](auto& p, auto& s) { saveAmpEnvParams(p, s); });
+    at += packSize<FilterEnvParams>([](auto& p, auto& s) { saveFilterEnvParams(p, s); });
+    at += packSize<ModEnvParams>([](auto& p, auto& s) { saveModEnvParams(p, s); });
+    at += packSize<LFO1Params>([](auto& p, auto& s) { saveLFO1Params(p, s); });
+    at += packSize<LFO2Params>([](auto& p, auto& s) { saveLFO2Params(p, s); });
+    at += packSize<ChaosModParams>([](auto& p, auto& s) { saveChaosModParams(p, s); });
+    at += packSize<ModMatrixParams>([](auto& p, auto& s) { saveModMatrixParams(p, s); });
+    at += packSize<GlobalFilterParams>([](auto& p, auto& s) { saveGlobalFilterParams(p, s); });
+    at += packSize<RuinaeDelayParams>([](auto& p, auto& s) { saveDelayParams(p, s); });
+    at += packSize<RuinaeReverbParams>([](auto& p, auto& s) { saveReverbParams(p, s); });
+    l.reverbType = at;
+    at += 4;
+    at += packSize<MonoModeParams>([](auto& p, auto& s) { saveMonoModeParams(p, s); });
+    l.routes = at;
+
+    const size_t flanger = packSize<RuinaeFlangerParams>([](auto& p, auto& s) { saveFlangerParams(p, s); });
+    const size_t chorus = packSize<RuinaeChorusParams>([](auto& p, auto& s) { saveChorusParams(p, s); });
+    const size_t arp = packSize<ArpeggiatorParams>([](auto& p, auto& s) { saveArpParams(p, s); });
+    const std::vector<size_t> tail = {
+        16 * 14,  // 16 voice routes: int8, int8, float, int8, float, int8, int8, int8
+        2,        // delay, reverb enable flags
+        packSize<RuinaePhaserParams>([](auto& p, auto& s) { savePhaserParams(p, s); }),
+        1,        // modulation type
+        flanger,
+        chorus,
+        packSize<LFO1Params>([](auto& p, auto& s) { saveLFO1ExtendedParams(p, s); }),
+        packSize<LFO2Params>([](auto& p, auto& s) { saveLFO2ExtendedParams(p, s); }),
+        packSize<MacroParams>([](auto& p, auto& s) { saveMacroParams(p, s); }),
+        packSize<RunglerParams>([](auto& p, auto& s) { saveRunglerParams(p, s); }),
+        packSize<SettingsParams>([](auto& p, auto& s) { saveSettingsParams(p, s); }),
+        packSize<EnvFollowerParams>([](auto& p, auto& s) { saveEnvFollowerParams(p, s); }),
+        packSize<SampleHoldParams>([](auto& p, auto& s) { saveSampleHoldParams(p, s); }),
+        packSize<RandomParams>([](auto& p, auto& s) { saveRandomParams(p, s); }),
+        packSize<PitchFollowerParams>([](auto& p, auto& s) { savePitchFollowerParams(p, s); }),
+        packSize<TransientParams>([](auto& p, auto& s) { saveTransientParams(p, s); }),
+        packSize<RuinaeHarmonizerParams>([](auto& p, auto& s) { saveHarmonizerParams(p, s); }),
+        1,        // harmonizer enable flag
+        arp,
+        8,        // voice LFO rate + shape
+        4,        // Velocity > Amp
+    };
+    size_t pos = l.routes;
+    for (size_t i = 0; i < tail.size(); ++i) {
+        l.tailBoundaries.push_back(pos);
+        if (i == 4) l.flangerStart = pos;
+        if (i == 5) l.chorusStart = pos;
+        if (i == 6) l.chorusEnd = pos;
+        if (i == tail.size() - 3) l.arpStart = pos;
+        pos += tail[i];
+        if (i == tail.size() - 3) l.arpEnd = pos;
+    }
+    l.tailBoundaries.push_back(pos);
+    return l;
+}
+
+std::vector<uint8_t> slice(const std::vector<uint8_t>& b, size_t from, size_t to) {
+    return std::vector<uint8_t>(b.begin() + static_cast<std::ptrdiff_t>(from),
+                                b.begin() + static_cast<std::ptrdiff_t>(to));
+}
+
+void append(std::vector<uint8_t>& dst, const std::vector<uint8_t>& src) {
+    dst.insert(dst.end(), src.begin(), src.end());
+}
+
+/// A genuine stream of `version` (4..7) cut from the current stream `cur`.
+std::vector<uint8_t> oldLayoutBlob(const std::vector<uint8_t>& cur, const StateLayout& l, int version) {
+    constexpr size_t kLaneSpeedBytes = 8 * 4;  // v8: eight per-lane speed floats close the arp pack
+    const size_t end = l.arpEnd - kLaneSpeedBytes;  // v9 appended the voice LFO and Velocity > Amp
+    std::vector<uint8_t> blob(4);
+    const Steinberg::int32 v = version;
+    std::memcpy(blob.data(), &v, sizeof(v));
+    if (version < 5) {
+        append(blob, slice(cur, 4, l.reverbType));
+        append(blob, slice(cur, l.reverbType + 4, l.flangerStart));
+    } else {
+        append(blob, slice(cur, 4, l.flangerStart));
+    }
+    if (version >= 6) append(blob, slice(cur, l.flangerStart, l.chorusStart));
+    if (version >= 7) append(blob, slice(cur, l.chorusStart, l.chorusEnd));
+    append(blob, slice(cur, l.chorusEnd, end));
+    return blob;
+}
+
+/// Every writable parameter's normalized value after `setComponentState(blob)`.
+ValueMap controllerValuesAfterLoad(const std::vector<uint8_t>& blob) {
+    auto* ctrl = new Ruinae::Controller();
+    REQUIRE(ctrl->initialize(nullptr) == Steinberg::kResultTrue);
+    Steinberg::MemoryStream in;
+    Steinberg::int32 written = 0;
+    in.write(const_cast<uint8_t*>(blob.data()), static_cast<Steinberg::int32>(blob.size()), &written);
+    in.seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
+    REQUIRE(ctrl->setComponentState(&in) == Steinberg::kResultTrue);
+    ValueMap values;
+    for (const ParamId id : paramTable().ids) values[id] = ctrl->getParamNormalized(id);
+    ctrl->terminate();
+    ctrl->release();
+    return values;
+}
+
+/// A processor holding another preset's values: every parameter swept to a
+/// different value, plus an active voice route.
+std::unique_ptr<Ruinae::Processor> makeNonDefaultProcessor() {
+    auto proc = makeProcessor();
+    applyValues(*proc, sweepValues(0.3));
+    sendVoiceRoute(*proc, 5, 5, 0, 0.5, 2);
+    return proc;
+}
+
+size_t firstDifference(const std::vector<uint8_t>& a, const std::vector<uint8_t>& b) {
+    const size_t n = std::min(a.size(), b.size());
+    for (size_t i = 0; i < n; ++i) {
+        if (a[i] != b[i]) return i;
+    }
+    return n;
+}
+
+}  // namespace
+
+TEST_CASE("StateMigration_V4_V5_V6_V7_LoadsExpectedValues", "[state][migration]") {
+    const auto source = stateOfValues(sweepValues(0.0));
+    const auto layout = stateLayout();
+    // The layout arithmetic must land on the real stream: the int32 at the
+    // reverb type offset is Hall (1), and the sizes add up to the whole stream.
+    REQUIRE(layout.tailBoundaries.back() == source.size());
+    REQUIRE(int32At(source, layout.reverbType) == 1);
+    REQUIRE(layout.arpEnd + 12 == source.size());
+
+    const auto defaults = stateOfValues({});
+    for (const int version : {4, 5, 6, 7}) {
+        DYNAMIC_SECTION("StateMigration_V" << version << "_LoadsExpectedValues") {
+            const auto blob = oldLayoutBlob(source, layout, version);
+            const auto expected = stateOfValues(migratedValues(sweepValues(0.0), version));
+            REQUIRE(expected.size() == source.size());
+            REQUIRE(expected != source);   // the migration changes something
+            REQUIRE(expected != defaults); // and the expected state is not the empty one
+
+            // A fresh processor, then a processor that held another preset.
+            for (const bool nonDefault : {false, true}) {
+                INFO("loaded over " << (nonDefault ? "a non-default processor" : "a fresh processor"));
+                auto proc = nonDefault ? makeNonDefaultProcessor() : makeProcessor();
+                if (nonDefault) REQUIRE(savedState(*proc) != expected);
+                loadBlob(*proc, blob);
+                const auto loaded = savedState(*proc);
+                INFO("first differing byte " << firstDifference(loaded, expected));
+                REQUIRE(loaded.size() == expected.size());
+                CHECK(loaded == expected);
+                proc->terminate();
+            }
+
+            // The controller shows the same values as the processor's expected state.
+            const auto fromBlob = controllerValuesAfterLoad(blob);
+            const auto fromExpected = controllerValuesAfterLoad(expected);
+            for (const ParamId id : paramTable().ids) {
+                INFO("param " << id);
+                CHECK(fromBlob.at(id) == Catch::Approx(fromExpected.at(id)).margin(1e-6));
+            }
+        }
+    }
+}
+
+// =============================================================================
+// R-123 / R-147: the audit's garbage stream is a committed fixture
+// =============================================================================
+
+TEST_CASE("setState of the committed garbage fixture returns within one block", "[state][robustness]") {
+    const std::filesystem::path path = std::filesystem::path{RUINAE_FIXTURES_DIR} / "state_garbage_phasemod.bin";
+    std::ifstream file(path, std::ios::binary);
+    REQUIRE(file.good());
+    const std::vector<uint8_t> junk((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+    REQUIRE(junk.size() == 2000);
+    REQUIRE(int32At(junk, 0) == 8);
+
+    // The fixture is the bytes the audit probe's mt19937 (seed 1234, third draw) wrote.
+    std::mt19937 rng(1234);
+    std::vector<uint8_t> generated;
+    for (int g = 0; g <= 2; ++g) {
+        generated.assign(static_cast<size_t>(200) + (static_cast<size_t>(900) * static_cast<size_t>(g)), 0);
+        for (auto& c : generated) c = static_cast<uint8_t>(rng() & 0xFF);
+    }
+    putInt32(generated, 0, 8);
+    REQUIRE(generated == junk);
+
+    auto proc = makeProcessor();
+    REQUIRE(proc->setActive(true) == Steinberg::kResultTrue);
+    Steinberg::MemoryStream in;
+    Steinberg::int32 written = 0;
+    in.write(const_cast<uint8_t*>(junk.data()), static_cast<Steinberg::int32>(junk.size()), &written);
+    in.seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
+    proc->setState(&in);  // the verdict on a garbage stream is not this case's subject
+    drainPresetTransfer(proc.get());
+
+    const auto rendered = renderChord(*proc, 10);
+    CHECK(rendered.nonFinite == 0);
+    CHECK(rendered.peak <= 1.0f);
+    proc->setActive(static_cast<Steinberg::TBool>(false));
+    proc->terminate();
+}
+
+// =============================================================================
+// R-211: out-of-range enums and NaN floats from any field are sanitised, by the
+// processor and by the controller alike
+// =============================================================================
+
+namespace {
+
+/// The stream offsets of every parameter's field, found by differencing the
+/// streams of one processor that is given the parameter at two values.
+struct LocatedFields {
+    struct Float {
+        ParamId id;
+        size_t offset;
+        float lo;  // the stored value's range: the handler's values at normalized 0 and 1
+        float hi;
+    };
+    std::vector<std::pair<ParamId, size_t>> enums;  // int32 reads 1 then 2
+    std::vector<Float> floats;                      // float32 field
+};
+
+LocatedFields locateFields() {
+    LocatedFields found;
+    auto proc = makeProcessor();
+    const auto& table = paramTable();
+    const auto settle = [&](ParamId id, double value) {
+        applyValues(*proc, {{id, value}});
+        return savedState(*proc);
+    };
+    std::set<size_t> taken;
+    for (const ParamId id : table.ids) {
+        if (isSweepExcluded(id)) continue;
+        if (id == Ruinae::kModulationTypeId) continue;  // stored as an int8, not an int32
+        const int steps = table.stepCounts.at(id);
+        if (steps >= 3) {
+            const auto a = settle(id, 1.0 / steps);
+            const auto b = settle(id, 2.0 / steps);
+            if (a.size() == b.size()) {
+                size_t offset = 0;
+                int matches = 0;
+                for (size_t i = 4; i + 4 <= a.size(); ++i) {
+                    if (int32At(a, i) == 1 && int32At(b, i) == 2) {
+                        offset = i;
+                        ++matches;
+                    }
+                }
+                if (matches == 1 && taken.insert(offset).second) found.enums.emplace_back(id, offset);
+            }
+        } else if (steps == 0) {
+            // Pairs of values until the differing bytes span exactly one float.
+            size_t lo = SIZE_MAX;
+            size_t hi = 0;
+            std::vector<uint8_t> last;
+            for (const auto& [x, y] : {std::pair{0.3183, 0.7071}, std::pair{0.1234, 0.8765},
+                                       std::pair{0.4142, 0.9173}}) {
+                const auto a = settle(id, x);
+                const auto b = settle(id, y);
+                if (a.size() != b.size()) break;
+                for (size_t i = 4; i < a.size(); ++i) {
+                    if (a[i] != b[i]) {
+                        lo = std::min(lo, i);
+                        hi = std::max(hi, i);
+                    }
+                }
+                last = a;
+                if (hi >= lo && hi - lo == 3) break;
+            }
+            if (lo != SIZE_MAX && hi - lo == 3 && Krate::DSP::detail::isFinite(floatAt(last, lo)) &&
+                taken.insert(lo).second) {
+                const float atZero = floatAt(settle(id, 0.0), lo);
+                const float atOne = floatAt(settle(id, 1.0), lo);
+                found.floats.push_back(
+                    {.id = id, .offset = lo, .lo = std::min(atZero, atOne), .hi = std::max(atZero, atOne)});
+            }
+        }
+        applyValues(*proc, {{id, table.defaults.at(id)}});
+    }
+    proc->terminate();
+    return found;
+}
+
+}  // namespace
+
+TEST_CASE("StateLoad_OutOfRangeEnums_AreClamped", "[state][robustness]") {
+    const auto fields = locateFields();
+    INFO(fields.enums.size() << " enum fields, " << fields.floats.size() << " float fields located");
+    REQUIRE(fields.enums.size() > 40);
+    REQUIRE(fields.floats.size() > 200);
+
+    const auto clean = stateOfValues(sweepValues(0.0));
+    const auto defaults = stateOfValues({});
+    const auto& table = paramTable();
+    constexpr std::uint32_t kNaNBits = 0x7FC00000u;
+
+    struct Damage {
+        const char* name;
+        Steinberg::int32 enumValue;
+        float floatValue;
+    };
+    const float nan = [&kNaNBits] {
+        float f = 0.0f;
+        std::memcpy(&f, &kNaNBits, sizeof(f));
+        return f;
+    }();
+    for (const Damage damage : {Damage{"200 and NaN", 200, nan}, Damage{"-5 and 1e30", -5, 1e30f},
+                                Damage{"INT_MAX and -1e30", 0x7FFFFFFF, -1e30f}}) {
+        DYNAMIC_SECTION("every enum " << damage.name) {
+            auto corrupt = clean;
+            for (const auto& [id, offset] : fields.enums) putInt32(corrupt, offset, damage.enumValue);
+            for (const auto& field : fields.floats) {
+                std::memcpy(corrupt.data() + field.offset, &damage.floatValue, sizeof(float));
+            }
+
+            // Processor::setState: every enum within its registered steps, every
+            // float finite and within the range its parameter handler produces;
+            // a non-finite float loads as the field's default.
+            auto proc = makeProcessor();
+            REQUIRE(proc->setActive(true) == Steinberg::kResultTrue);
+            loadBlob(*proc, corrupt);
+            const auto saved = savedState(*proc);
+            REQUIRE(saved.size() == corrupt.size());
+            for (const auto& [id, offset] : fields.enums) {
+                const int steps = table.stepCounts.at(id);
+                const auto value = int32At(saved, offset);
+                INFO("param " << id << " loaded as " << value << " (0.." << steps << ")");
+                CHECK(value >= 0);
+                CHECK(value <= steps);
+            }
+            const bool damageIsNaN = !Krate::DSP::detail::isFinite(damage.floatValue);
+            for (const auto& field : fields.floats) {
+                const float value = floatAt(saved, field.offset);
+                const float tolerance = 1e-5f * (field.hi - field.lo) + 1e-6f;
+                INFO("param " << field.id << " loaded as " << value << " (" << field.lo << ".." << field.hi
+                              << ", default " << floatAt(defaults, field.offset) << ")");
+                CHECK(Krate::DSP::detail::isFinite(value));
+                CHECK(value >= field.lo - tolerance);
+                CHECK(value <= field.hi + tolerance);
+                if (damageIsNaN) CHECK(value == floatAt(defaults, field.offset));
+            }
+            const auto rendered = renderChord(*proc, 20);
+            CHECK(rendered.nonFinite == 0);
+            proc->setActive(static_cast<Steinberg::TBool>(false));
+            proc->terminate();
+
+            // Controller::setComponentState shows exactly what the processor
+            // holds: the same sanitising, from the same definition.
+            const auto fromCorrupt = controllerValuesAfterLoad(corrupt);
+            const auto fromSanitised = controllerValuesAfterLoad(saved);
+            for (const ParamId id : table.ids) {
+                INFO("controller param " << id << " shows " << fromCorrupt.at(id) << ", the processor's value "
+                                         << fromSanitised.at(id));
+                CHECK(Krate::DSP::detail::isFinite(fromCorrupt.at(id)));
+                CHECK(fromCorrupt.at(id) == Catch::Approx(fromSanitised.at(id)).margin(1e-6));
+            }
+        }
+    }
+}
+
+// =============================================================================
+// R-123 / R-212: a state that ends early must not keep the previous preset's values
+// =============================================================================
+
+TEST_CASE("StateLoad_PartialOverNonDefault_DoesNotInheritPreviousPreset", "[state][migration]") {
+    const auto source = stateOfValues(sweepValues(0.0));
+    const auto layout = stateLayout();
+    REQUIRE(layout.tailBoundaries.back() == source.size());
+
+    // The defaults both parsers load for missing packs are a fresh processor's state.
+    const auto defaultBytes = Ruinae::defaultStateBytes();
+    REQUIRE(std::vector<uint8_t>(defaultBytes.begin(), defaultBytes.end()) == stateOfValues({}));
+
+    // Cuts at the start of every pack from the voice routes on, and at every
+    // 4-byte step inside the arp pack (its fields end on those boundaries).
+    std::vector<size_t> cuts(layout.tailBoundaries.begin(), layout.tailBoundaries.end() - 1);
+    for (size_t n = layout.arpStart + 4; n <= layout.arpEnd; n += 4) cuts.push_back(n);
+
+    int accepted = 0;
+    for (const size_t n : cuts) {
+        INFO("cut at " << n << " of " << source.size() << " (voice routes " << layout.routes << ", arp "
+                       << layout.arpStart << ".." << layout.arpEnd << ")");
+        const std::vector<uint8_t> cut(source.begin(), source.begin() + static_cast<std::ptrdiff_t>(n));
+        std::vector<uint8_t> results[2];
+        bool accepts[2] = {false, false};
+        for (int nonDefault = 0; nonDefault < 2; ++nonDefault) {
+            auto proc = nonDefault != 0 ? makeNonDefaultProcessor() : makeProcessor();
+            Steinberg::MemoryStream in;
+            Steinberg::int32 written = 0;
+            in.write(const_cast<uint8_t*>(cut.data()), static_cast<Steinberg::int32>(cut.size()), &written);
+            in.seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
+            accepts[nonDefault] = proc->setState(&in) == Steinberg::kResultTrue;
+            drainPresetTransfer(proc.get());
+            results[nonDefault] = savedState(*proc);
+            proc->terminate();
+        }
+        REQUIRE(accepts[0] == accepts[1]);
+        if (!accepts[0]) continue;  // a cut inside an arp lane is rejected whole
+        ++accepted;
+        INFO("first differing byte " << firstDifference(results[0], results[1]));
+        CHECK(results[0] == results[1]);
+    }
+    REQUIRE(accepted > 40);
+
+    // Controller::setComponentState: a controller that showed another preset
+    // shows, after the cut stream, what a fresh controller shows.
+    const auto other = stateOfValues(sweepValues(0.3));
+    const auto controllerValuesAfter = [](const std::vector<const std::vector<uint8_t>*>& blobs) {
+        auto* ctrl = new Ruinae::Controller();
+        REQUIRE(ctrl->initialize(nullptr) == Steinberg::kResultTrue);
+        for (const auto* blob : blobs) {
+            Steinberg::MemoryStream in;
+            Steinberg::int32 written = 0;
+            in.write(const_cast<uint8_t*>(blob->data()), static_cast<Steinberg::int32>(blob->size()), &written);
+            in.seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
+            REQUIRE(ctrl->setComponentState(&in) == Steinberg::kResultTrue);
+        }
+        ValueMap values;
+        for (const ParamId id : paramTable().ids) values[id] = ctrl->getParamNormalized(id);
+        ctrl->terminate();
+        ctrl->release();
+        return values;
+    };
+    for (const size_t n : cuts) {
+        INFO("controller, cut at " << n << " of " << source.size());
+        const std::vector<uint8_t> cut(source.begin(), source.begin() + static_cast<std::ptrdiff_t>(n));
+        const auto fresh = controllerValuesAfter({&cut});
+        const auto overOther = controllerValuesAfter({&other, &cut});
+        for (const ParamId id : paramTable().ids) {
+            INFO("param " << id);
+            CHECK(overOther.at(id) == Catch::Approx(fresh.at(id)).margin(1e-6));
+        }
+    }
 }

@@ -22,9 +22,10 @@
 
 #include <algorithm>
 #include <array>
+#include <bit>
 #include <chrono>
 #include <cmath>
-#include <limits>
+#include <cstdint>
 #include <memory>
 #include <numeric>
 #include <string>
@@ -761,6 +762,67 @@ TEST_CASE("RuinaeVoice: filter cutoff modulation accuracy (SC-006)", "[ruinae_vo
     // be 500 * 2^(48/12) = 500 * 16 = 8000 Hz, much higher than base 500 Hz.
     // The modulated voice should have significantly more energy.
     REQUIRE(rmsMod > rmsZero * 1.5f);
+}
+
+// R-133: the 12 -> 24 dB slope switch must leave stage 2 at the same cutoff a
+// voice that started at 24 dB has. Guard for the F039 priming in setFilterSvfSlope.
+TEST_CASE("RuinaeVoice: SVF slope 12 to 24 dB switch matches a voice that started at 24 dB",
+          "[ruinae_voice][filter][svf-slope]") {
+    constexpr double sampleRate = 44100.0;
+    constexpr size_t blockSize = 512;
+
+    const auto makeVoice = [&](int slopeStages) {
+        auto voice = std::make_unique<RuinaeVoice>();
+        voice->prepare(sampleRate, blockSize);
+        voice->setOscAType(OscType::PolyBLEP);
+        voice->setOscALevel(1.0f);
+        voice->setOscBLevel(0.0f);
+        voice->setMixPosition(0.0f);
+        voice->setFilterType(RuinaeFilterType::SVF_LP);
+        voice->setFilterCutoff(500.0f);
+        voice->setFilterResonance(0.707f);
+        voice->setFilterSvfSlope(slopeStages);
+        voice->getAmpEnvelope().setAttack(0.1f);
+        voice->getAmpEnvelope().setSustain(1.0f);
+        voice->noteOn(220.0f, 1.0f);
+        return voice;
+    };
+
+    auto switched = makeVoice(1);
+    auto native = makeVoice(2);
+    auto twelveDb = makeVoice(1);
+
+    // Hold in 12 dB for 300 ms, then switch; the native voice runs 24 dB throughout
+    constexpr size_t kHold = 13230;
+    processNSamples(*switched, kHold);
+    processNSamples(*native, kHold);
+    const auto reference12 = processNSamples(*twelveDb, kHold + 4410 + 882);
+    (void)reference12;
+
+    switched->setFilterSvfSlope(2);
+
+    // 5 ms filter smoothing, then the voice DC blocker (~16 ms decay) settles: compare after 100 ms
+    processNSamples(*switched, 4410);
+    processNSamples(*native, 4410);
+    const auto a = processNSamples(*switched, 4410);
+    const auto b = processNSamples(*native, 4410);
+    const auto c = std::vector<float>(reference12.end() - 4410, reference12.end());
+
+    const float rms24 = computeRMS(b.data(), b.size());
+    REQUIRE(rms24 > 0.001f);                 // not vacuous
+    // 24 dB really is a different filter from 12 dB (the comparison below can fail)
+    float slopeDiff = 0.0f;
+    for (size_t i = 0; i < b.size(); ++i) {
+        slopeDiff = std::max(slopeDiff, std::abs(b[i] - c[i]));
+    }
+    REQUIRE(slopeDiff > rms24 * 0.1f);
+
+    float maxDiff = 0.0f;
+    for (size_t i = 0; i < a.size(); ++i) {
+        maxDiff = std::max(maxDiff, std::abs(a[i] - b[i]));
+    }
+    INFO("max |switched - native| = " << maxDiff << " (24 dB RMS " << rms24 << ")");
+    REQUIRE(maxDiff < rms24 * 0.01f);
 }
 
 // =============================================================================
@@ -1668,12 +1730,10 @@ TEST_CASE("RuinaeVoice: SC-002 SpectralMorph voice CPU < 3%", "[ruinae_voice][pe
     REQUIRE(cpuPercent < 3.0);
 }
 
-TEST_CASE("RuinaeVoice: SC-003 eight basic voices CPU < 10%",
-          "[ruinae_voice][performance][sc-003][!mayfail]") {
-    // NOTE: Threshold relaxed from 8% to 10% because wall-clock timing benchmarks
-    // are inherently noisy and vary with system load, background processes, and
-    // CPU frequency scaling. The [!mayfail] tag ensures this timing-sensitive test
-    // does not block CI even if the system is under unusual load.
+TEST_CASE("RuinaeVoice: SC-003 eight basic voices CPU < 8%",
+          "[ruinae_voice][performance][sc-003]") {
+    // Timing case: [performance] keeps it out of the sharded gate; it runs alone in
+    // tools/run-cpu-tests.js and can fail there (R-127). The bar is the spec's 8%.
     constexpr double sampleRate = 44100.0;
     constexpr size_t blockSize = 512;
     constexpr int numVoices = 8;
@@ -1720,8 +1780,8 @@ TEST_CASE("RuinaeVoice: SC-003 eight basic voices CPU < 10%",
     double audioMs = 1000.0;
     double cpuPercent = (elapsedMs / audioMs) * 100.0;
 
-    // SC-003: Must be <10% CPU (relaxed from 8% for system load variation)
-    REQUIRE(cpuPercent < 10.0);
+    // SC-003: Must be <8% CPU
+    REQUIRE(cpuPercent < 8.0);
 }
 
 // =============================================================================
@@ -2104,32 +2164,67 @@ TEST_CASE("RuinaeVoice: zero aftertouch produces no modulation contribution",
     REQUIRE(rmsB > 0.0f);
 }
 
-// T025: NaN aftertouch is ignored (value unchanged)
+// NaN / Inf from a bit pattern through a volatile, so no fast-math build can
+// fold the value or the guard that rejects it.
+static float voiceNonFiniteFromBits(std::uint32_t pattern) {
+    volatile std::uint32_t bits = pattern;
+    return std::bit_cast<float>(static_cast<std::uint32_t>(bits));
+}
+
+// T025: NaN aftertouch is ignored (value unchanged). R-107: the render through
+// an Aftertouch -> FilterCutoff route must match a voice that only ever saw
+// 0.5, with NaN and Inf injected before the note and again mid-note.
 TEST_CASE("RuinaeVoice: NaN aftertouch is ignored",
           "[ruinae_voice][ext_modulation][aftertouch][nan_safety]") {
-    auto voice = createPreparedVoice();
+    const float nan = voiceNonFiniteFromBits(0x7FC00000u);
+    const float inf = voiceNonFiniteFromBits(0x7F800000u);
 
-    // Set a valid aftertouch first
-    voice.setAftertouch(0.5f);
+    // Aftertouch 0.5 opens the dark 300 Hz base by +12 semitones.
+    auto render = [&](float laterAftertouch, bool injectNonFinite) {
+        auto voice = createPreparedVoice();
+        voice.setFilterCutoff(300.0f);
+        voice.setModRoute(0, {VoiceModSource::Aftertouch, VoiceModDest::FilterCutoff, 1.0f});
+        voice.setModRouteScale(VoiceModDest::FilterCutoff, 24.0f);
+        voice.setAftertouch(0.5f);
+        if (injectNonFinite) {
+            voice.setAftertouch(nan);
+            voice.setAftertouch(inf);
+        }
+        voice.noteOn(440.0f, 0.8f);
+        auto out = processNSamples(voice, 4096);
+        if (injectNonFinite) {
+            voice.setAftertouch(nan);
+            voice.setAftertouch(inf);
+        } else {
+            voice.setAftertouch(laterAftertouch);
+        }
+        const auto tail = processNSamples(voice, 4096);
+        out.insert(out.end(), tail.begin(), tail.end());
+        return out;
+    };
+    auto maxAbsDiff = [](const std::vector<float>& a, const std::vector<float>& b) {
+        float diff = 0.0f;
+        for (size_t i = 0; i < a.size(); ++i) diff = std::max(diff, std::abs(a[i] - b[i]));
+        return diff;
+    };
 
-    // Try to set NaN -- should be ignored, value stays at 0.5
-    voice.setAftertouch(std::numeric_limits<float>::quiet_NaN());
+    const auto reference = render(0.5f, false);
+    const auto injected = render(0.5f, true);
+    const auto pressedHarder = render(1.0f, false);
+    REQUIRE(injected.size() == reference.size());
 
-    // Route Aftertouch -> FilterCutoff to verify the value
-    voice.setModRoute(0, {VoiceModSource::Aftertouch, VoiceModDest::FilterCutoff, 1.0f});
-    voice.setModRouteScale(VoiceModDest::FilterCutoff, 1.0f);
-
-    voice.noteOn(440.0f, 0.8f);
-    std::array<float, 64> buf{};
-    voice.processBlock(buf.data(), 64);
-
-    // Voice should still be active (NaN didn't break anything)
-    REQUIRE(voice.isActive());
-
-    // Inf should also be ignored
-    voice.setAftertouch(std::numeric_limits<float>::infinity());
-    voice.processBlock(buf.data(), 64);
-    REQUIRE(voice.isActive());
+    bool finite = true;
+    for (const float s : injected) finite = finite && detail::isFinite(s);
+    const float rms = computeRMS(injected.data(), injected.size());
+    const float diff = maxAbsDiff(injected, reference);
+    // The route is audible: a real aftertouch change moves the render.
+    const float audibleDiff = maxAbsDiff(pressedHarder, reference);
+    INFO("RMS " << rms << ", max |diff| vs reference " << diff
+                << ", aftertouch 0.5 -> 1.0 moves it by " << audibleDiff);
+    CHECK(finite);
+    CHECK(rms > 1e-3f);
+    CHECK(audibleDiff > 1e-3f);
+    CHECK(diff <= 1e-6f);
 }
 
 // =============================================================================

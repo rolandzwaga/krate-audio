@@ -53,6 +53,7 @@
 #include "parameters/voice_lfo_params.h"
 #include "parameters/arpeggiator_params.h"
 #include "parameters/state_prefix_validator.h"
+#include "parameters/state_packs.h"
 
 #include <krate/dsp/processors/arpeggiator_core.h>
 
@@ -539,14 +540,26 @@ private:
     /// into `packs` (this processor, or scratch with the same member names),
     /// the arp pack into `arp`. False when the stream is not a state this
     /// version reads or ends before the voice routes; nothing is handed on then.
+    /// Every pack is first set to its default (defaultStateBytes), so packs the
+    /// stream does not reach load defaults, never the previous preset (R-212).
     template <typename Packs>
     static bool readStatePacks(Packs& packs, ArpeggiatorParams& arp,
                                Steinberg::IBStreamer& streamer);
+
+    /// readStatePacks after the version field: the packs a `version` stream holds
+    template <typename Packs>
+    static bool readStatePackFields(Packs& packs, ArpeggiatorParams& arp,
+                                    Steinberg::IBStreamer& streamer, Steinberg::int32 version);
 
     /// Reads the required prefix into this processor's packs (R-076)
     template <typename Packs>
     friend bool readRequiredStatePrefix(Packs& packs, Steinberg::IBStreamer& streamer,
                                         Steinberg::int32 version);
+
+    /// Writes this processor's packs (getState)
+    template <typename Packs>
+    friend void writeStatePacks(const Packs& packs, const ArpeggiatorParams& arp,
+                                Steinberg::IBStreamer& streamer);
 
     /// Apply a preset load on the audio thread: resets only, no stream (R-197)
     void applyPresetSnapshot(const PresetSnapshot& snapshot);

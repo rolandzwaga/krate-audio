@@ -645,10 +645,16 @@ protected:
     /// Shared state deserialization logic used by both setComponentState and
     /// loadComponentStateWithNotify. The setter callback determines whether
     /// params are applied silently (host init) or with host notification
-    /// (preset browser).
+    /// (preset browser). The default state is parsed first (R-212), so packs
+    /// the stream does not reach show their defaults; each parameter is then
+    /// set once, with its final value.
     using SetParamFunc = std::function<void(Steinberg::Vst::ParamID, double)>;
     bool loadStateCore(Steinberg::IBStreamer& streamer, Steinberg::int32 version,
                        const SetParamFunc& setParam, bool arpOnly);
+
+    /// loadStateCore's parse of one stream after its version field
+    bool loadStateFields(Steinberg::IBStreamer& streamer, Steinberg::int32 version,
+                         const SetParamFunc& setParam, bool arpOnly);
 };
 
 } // namespace Ruinae

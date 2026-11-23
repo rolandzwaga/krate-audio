@@ -1,5 +1,6 @@
 #pragma once
 #include "plugin_ids.h"
+#include "parameters/state_load_helpers.h"
 #include "controller/parameter_helpers.h"
 #include "parameters/dropdown_mappings.h"
 #include "pluginterfaces/base/ustring.h"
@@ -84,12 +85,19 @@ inline void saveMonoModeParams(const MonoModeParams& params, Steinberg::IBStream
     streamer.writeInt32(params.portaMode.load(std::memory_order_relaxed));
 }
 
+// Saved-field ranges, read by both parsers (R-211)
+namespace MonoModeLoad {
+inline constexpr LoadedInt kPriority{.lo = 0, .hi = kMonoModeCount - 1};
+inline constexpr LoadedFloat kPortamentoTimeMs{.lo = 0.0f, .hi = 5000.0f, .def = 0.0f};
+inline constexpr LoadedInt kPortaMode{.lo = 0, .hi = kPortaModeCount - 1};
+} // namespace MonoModeLoad
+
 inline bool loadMonoModeParams(MonoModeParams& params, Steinberg::IBStreamer& streamer) {
     Steinberg::int32 iv = 0; float fv = 0.0f;
-    if (!streamer.readInt32(iv)) { return false; } params.priority.store(iv, std::memory_order_relaxed);
+    if (!readLoaded(streamer, iv, MonoModeLoad::kPriority)) { return false; } params.priority.store(iv, std::memory_order_relaxed);
     if (!streamer.readInt32(iv)) { return false; } params.legato.store(iv != 0, std::memory_order_relaxed);
-    if (!streamer.readFloat(fv)) { return false; } params.portamentoTimeMs.store(fv, std::memory_order_relaxed);
-    if (!streamer.readInt32(iv)) { return false; } params.portaMode.store(iv, std::memory_order_relaxed);
+    if (!readLoaded(streamer, fv, MonoModeLoad::kPortamentoTimeMs)) { return false; } params.portamentoTimeMs.store(fv, std::memory_order_relaxed);
+    if (!readLoaded(streamer, iv, MonoModeLoad::kPortaMode)) { return false; } params.portaMode.store(iv, std::memory_order_relaxed);
     return true;
 }
 
@@ -97,14 +105,14 @@ template<typename SetParamFunc>
 inline void loadMonoModeParamsToController(
     Steinberg::IBStreamer& streamer, const SetParamFunc& setParam) {
     Steinberg::int32 iv = 0; float fv = 0.0f;
-    if (streamer.readInt32(iv)) setParam(kMonoPriorityId, static_cast<double>(iv) / (kMonoModeCount - 1));
+    if (readLoaded(streamer, iv, MonoModeLoad::kPriority)) setParam(kMonoPriorityId, static_cast<double>(iv) / (kMonoModeCount - 1));
     if (streamer.readInt32(iv)) setParam(kMonoLegatoId, iv != 0 ? 1.0 : 0.0);
-    if (streamer.readFloat(fv)) {
+    if (readLoaded(streamer, fv, MonoModeLoad::kPortamentoTimeMs)) {
         // Inverse of cubic: normalized = cbrt(ms / 5000)
         double norm = (fv > 0.0f) ? std::cbrt(static_cast<double>(fv) / 5000.0) : 0.0;
         setParam(kMonoPortamentoTimeId, std::clamp(norm, 0.0, 1.0));
     }
-    if (streamer.readInt32(iv)) setParam(kMonoPortaModeId, static_cast<double>(iv) / (kPortaModeCount - 1));
+    if (readLoaded(streamer, iv, MonoModeLoad::kPortaMode)) setParam(kMonoPortaModeId, static_cast<double>(iv) / (kPortaModeCount - 1));
 }
 
 } // namespace Ruinae

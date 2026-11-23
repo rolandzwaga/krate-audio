@@ -1,5 +1,6 @@
 #pragma once
 #include "plugin_ids.h"
+#include "parameters/state_load_helpers.h"
 #include "controller/parameter_helpers.h"
 #include "parameters/dropdown_mappings.h"
 #include "parameters/note_value_ui.h"
@@ -714,133 +715,187 @@ inline void saveDelayParams(const RuinaeDelayParams& params, Steinberg::IBStream
     streamer.writeFloat(params.pingPongModRateHz.load(std::memory_order_relaxed));
 }
 
+// Saved-field ranges, read by both parsers (R-211)
+namespace DelayLoad {
+inline constexpr LoadedInt kType{.lo = 0, .hi = kDelayTypeCount - 1};
+inline constexpr LoadedFloat kTimeMs{.lo = 1.0f, .hi = 5000.0f, .def = 500.0f};
+inline constexpr LoadedFloat kFeedback{.lo = 0.0f, .hi = 1.2f, .def = 0.4f};
+inline constexpr LoadedFloat kMix{.lo = 0.0f, .hi = 1.0f, .def = 0.5f};
+inline constexpr LoadedInt kNoteValue{.lo = 0, .hi = Parameters::kNoteValueDropdownCount - 1};
+inline constexpr LoadedInt kDigitalEra{.lo = 0, .hi = kDigitalEraCount - 1};
+inline constexpr LoadedFloat kDigitalAge{.lo = 0.0f, .hi = 1.0f, .def = 0.0f};
+inline constexpr LoadedInt kDigitalLimiter{.lo = 0, .hi = kLimiterCharacterCount - 1};
+inline constexpr LoadedFloat kDigitalModDepth{.lo = 0.0f, .hi = 1.0f, .def = 0.0f};
+inline constexpr LoadedFloat kDigitalModRateHz{.lo = 0.1f, .hi = 10.0f, .def = 1.0f};
+inline constexpr LoadedInt kDigitalModWaveform{.lo = 0, .hi = kWaveformCount - 1};
+inline constexpr LoadedFloat kDigitalWidth{.lo = 0.0f, .hi = 200.0f, .def = 100.0f};
+inline constexpr LoadedFloat kDigitalWavefoldAmt{.lo = 0.0f, .hi = 100.0f, .def = 0.0f};
+inline constexpr LoadedInt kDigitalWavefoldModel{.lo = 0, .hi = kWavefolderModelCount - 1};
+inline constexpr LoadedFloat kDigitalWavefoldSym{.lo = -1.0f, .hi = 1.0f, .def = 0.0f};
+inline constexpr LoadedFloat kTapeInertiaMs{.lo = 100.0f, .hi = 1000.0f, .def = 300.0f};
+inline constexpr LoadedFloat kTapeWear{.lo = 0.0f, .hi = 1.0f, .def = 0.0f};
+inline constexpr LoadedFloat kTapeSaturation{.lo = 0.0f, .hi = 1.0f, .def = 0.5f};
+inline constexpr LoadedFloat kTapeAge{.lo = 0.0f, .hi = 1.0f, .def = 0.0f};
+inline constexpr LoadedFloat kTapeSpliceIntensity{.lo = 0.0f, .hi = 1.0f, .def = 0.0f};
+inline constexpr LoadedFloat kTapeHead1Level{.lo = -96.0f, .hi = 6.0f, .def = 0.0f};
+inline constexpr LoadedFloat kTapeHead1Pan{.lo = -100.0f, .hi = 100.0f, .def = 0.0f};
+inline constexpr LoadedFloat kTapeHead2Level{.lo = -96.0f, .hi = 6.0f, .def = 0.0f};
+inline constexpr LoadedFloat kTapeHead2Pan{.lo = -100.0f, .hi = 100.0f, .def = 0.0f};
+inline constexpr LoadedFloat kTapeHead3Level{.lo = -96.0f, .hi = 6.0f, .def = 0.0f};
+inline constexpr LoadedFloat kTapeHead3Pan{.lo = -100.0f, .hi = 100.0f, .def = 0.0f};
+inline constexpr LoadedFloat kGranularSizeMs{.lo = 10.0f, .hi = 500.0f, .def = 100.0f};
+inline constexpr LoadedFloat kGranularDensity{.lo = 1.0f, .hi = 100.0f, .def = 10.0f};
+inline constexpr LoadedFloat kGranularPitch{.lo = -24.0f, .hi = 24.0f, .def = 0.0f};
+inline constexpr LoadedFloat kGranularPitchSpray{.lo = 0.0f, .hi = 1.0f, .def = 0.0f};
+inline constexpr LoadedInt kGranularPitchQuant{.lo = 0, .hi = kPitchQuantModeCount - 1};
+inline constexpr LoadedFloat kGranularPosSpray{.lo = 0.0f, .hi = 1.0f, .def = 0.0f};
+inline constexpr LoadedFloat kGranularReverseProb{.lo = 0.0f, .hi = 1.0f, .def = 0.0f};
+inline constexpr LoadedFloat kGranularPanSpray{.lo = 0.0f, .hi = 1.0f, .def = 0.0f};
+inline constexpr LoadedFloat kGranularJitter{.lo = 0.0f, .hi = 1.0f, .def = 0.0f};
+inline constexpr LoadedFloat kGranularTexture{.lo = 0.0f, .hi = 1.0f, .def = 0.0f};
+inline constexpr LoadedFloat kGranularWidth{.lo = 0.0f, .hi = 1.0f, .def = 1.0f};
+inline constexpr LoadedInt kGranularEnvelope{.lo = 0, .hi = kGrainEnvelopeCount - 1};
+inline constexpr LoadedInt kSpectralFFTSize{.lo = 0, .hi = kFFTSizeCount - 1};
+inline constexpr LoadedFloat kSpectralSpreadMs{.lo = 0.0f, .hi = 2000.0f, .def = 0.0f};
+inline constexpr LoadedInt kSpectralDirection{.lo = 0, .hi = kSpreadDirectionCount - 1};
+inline constexpr LoadedInt kSpectralCurve{.lo = 0, .hi = kSpreadCurveCount - 1};
+inline constexpr LoadedFloat kSpectralTilt{.lo = -1.0f, .hi = 1.0f, .def = 0.0f};
+inline constexpr LoadedFloat kSpectralDiffusion{.lo = 0.0f, .hi = 1.0f, .def = 0.0f};
+inline constexpr LoadedFloat kSpectralWidth{.lo = 0.0f, .hi = 1.0f, .def = 0.0f};
+inline constexpr LoadedInt kPingPongRatio{.lo = 0, .hi = kLRRatioCount - 1};
+inline constexpr LoadedFloat kPingPongCrossFeed{.lo = 0.0f, .hi = 1.0f, .def = 1.0f};
+inline constexpr LoadedFloat kPingPongWidth{.lo = 0.0f, .hi = 200.0f, .def = 100.0f};
+inline constexpr LoadedFloat kPingPongModDepth{.lo = 0.0f, .hi = 1.0f, .def = 0.0f};
+inline constexpr LoadedFloat kPingPongModRateHz{.lo = 0.1f, .hi = 10.0f, .def = 1.0f};
+} // namespace DelayLoad
+
 inline bool loadDelayParams(RuinaeDelayParams& params, Steinberg::IBStreamer& streamer) {
     Steinberg::int32 iv = 0; float fv = 0.0f;
 
     // Common
-    if (!streamer.readInt32(iv)) return false;
+    if (!readLoaded(streamer, iv, DelayLoad::kType)) return false;
     params.type.store(iv, std::memory_order_relaxed);
-    if (!streamer.readFloat(fv)) return false;
+    if (!readLoaded(streamer, fv, DelayLoad::kTimeMs)) return false;
     params.timeMs.store(fv, std::memory_order_relaxed);
-    if (!streamer.readFloat(fv)) return false;
+    if (!readLoaded(streamer, fv, DelayLoad::kFeedback)) return false;
     params.feedback.store(fv, std::memory_order_relaxed);
-    if (!streamer.readFloat(fv)) return false;
+    if (!readLoaded(streamer, fv, DelayLoad::kMix)) return false;
     params.mix.store(fv, std::memory_order_relaxed);
     if (!streamer.readInt32(iv)) return false;
     params.sync.store(iv != 0, std::memory_order_relaxed);
-    if (!streamer.readInt32(iv)) return false;
+    if (!readLoaded(streamer, iv, DelayLoad::kNoteValue)) return false;
     params.noteValue.store(iv, std::memory_order_relaxed);
 
     // Digital
-    if (!streamer.readInt32(iv)) return false;
+    if (!readLoaded(streamer, iv, DelayLoad::kDigitalEra)) return false;
     params.digitalEra.store(iv, std::memory_order_relaxed);
-    if (!streamer.readFloat(fv)) return false;
+    if (!readLoaded(streamer, fv, DelayLoad::kDigitalAge)) return false;
     params.digitalAge.store(fv, std::memory_order_relaxed);
-    if (!streamer.readInt32(iv)) return false;
+    if (!readLoaded(streamer, iv, DelayLoad::kDigitalLimiter)) return false;
     params.digitalLimiter.store(iv, std::memory_order_relaxed);
-    if (!streamer.readFloat(fv)) return false;
+    if (!readLoaded(streamer, fv, DelayLoad::kDigitalModDepth)) return false;
     params.digitalModDepth.store(fv, std::memory_order_relaxed);
-    if (!streamer.readFloat(fv)) return false;
+    if (!readLoaded(streamer, fv, DelayLoad::kDigitalModRateHz)) return false;
     params.digitalModRateHz.store(fv, std::memory_order_relaxed);
-    if (!streamer.readInt32(iv)) return false;
+    if (!readLoaded(streamer, iv, DelayLoad::kDigitalModWaveform)) return false;
     params.digitalModWaveform.store(iv, std::memory_order_relaxed);
-    if (!streamer.readFloat(fv)) return false;
+    if (!readLoaded(streamer, fv, DelayLoad::kDigitalWidth)) return false;
     params.digitalWidth.store(fv, std::memory_order_relaxed);
-    if (!streamer.readFloat(fv)) return false;
+    if (!readLoaded(streamer, fv, DelayLoad::kDigitalWavefoldAmt)) return false;
     params.digitalWavefoldAmt.store(fv, std::memory_order_relaxed);
-    if (!streamer.readInt32(iv)) return false;
+    if (!readLoaded(streamer, iv, DelayLoad::kDigitalWavefoldModel)) return false;
     params.digitalWavefoldModel.store(iv, std::memory_order_relaxed);
-    if (!streamer.readFloat(fv)) return false;
+    if (!readLoaded(streamer, fv, DelayLoad::kDigitalWavefoldSym)) return false;
     params.digitalWavefoldSym.store(fv, std::memory_order_relaxed);
 
     // Tape
-    if (!streamer.readFloat(fv)) return false;
+    if (!readLoaded(streamer, fv, DelayLoad::kTapeInertiaMs)) return false;
     params.tapeInertiaMs.store(fv, std::memory_order_relaxed);
-    if (!streamer.readFloat(fv)) return false;
+    if (!readLoaded(streamer, fv, DelayLoad::kTapeWear)) return false;
     params.tapeWear.store(fv, std::memory_order_relaxed);
-    if (!streamer.readFloat(fv)) return false;
+    if (!readLoaded(streamer, fv, DelayLoad::kTapeSaturation)) return false;
     params.tapeSaturation.store(fv, std::memory_order_relaxed);
-    if (!streamer.readFloat(fv)) return false;
+    if (!readLoaded(streamer, fv, DelayLoad::kTapeAge)) return false;
     params.tapeAge.store(fv, std::memory_order_relaxed);
     if (!streamer.readInt32(iv)) return false;
     params.tapeSpliceEnabled.store(iv != 0, std::memory_order_relaxed);
-    if (!streamer.readFloat(fv)) return false;
+    if (!readLoaded(streamer, fv, DelayLoad::kTapeSpliceIntensity)) return false;
     params.tapeSpliceIntensity.store(fv, std::memory_order_relaxed);
     if (!streamer.readInt32(iv)) return false;
     params.tapeHead1Enabled.store(iv != 0, std::memory_order_relaxed);
-    if (!streamer.readFloat(fv)) return false;
+    if (!readLoaded(streamer, fv, DelayLoad::kTapeHead1Level)) return false;
     params.tapeHead1Level.store(fv, std::memory_order_relaxed);
-    if (!streamer.readFloat(fv)) return false;
+    if (!readLoaded(streamer, fv, DelayLoad::kTapeHead1Pan)) return false;
     params.tapeHead1Pan.store(fv, std::memory_order_relaxed);
     if (!streamer.readInt32(iv)) return false;
     params.tapeHead2Enabled.store(iv != 0, std::memory_order_relaxed);
-    if (!streamer.readFloat(fv)) return false;
+    if (!readLoaded(streamer, fv, DelayLoad::kTapeHead2Level)) return false;
     params.tapeHead2Level.store(fv, std::memory_order_relaxed);
-    if (!streamer.readFloat(fv)) return false;
+    if (!readLoaded(streamer, fv, DelayLoad::kTapeHead2Pan)) return false;
     params.tapeHead2Pan.store(fv, std::memory_order_relaxed);
     if (!streamer.readInt32(iv)) return false;
     params.tapeHead3Enabled.store(iv != 0, std::memory_order_relaxed);
-    if (!streamer.readFloat(fv)) return false;
+    if (!readLoaded(streamer, fv, DelayLoad::kTapeHead3Level)) return false;
     params.tapeHead3Level.store(fv, std::memory_order_relaxed);
-    if (!streamer.readFloat(fv)) return false;
+    if (!readLoaded(streamer, fv, DelayLoad::kTapeHead3Pan)) return false;
     params.tapeHead3Pan.store(fv, std::memory_order_relaxed);
 
     // Granular
-    if (!streamer.readFloat(fv)) return false;
+    if (!readLoaded(streamer, fv, DelayLoad::kGranularSizeMs)) return false;
     params.granularSizeMs.store(fv, std::memory_order_relaxed);
-    if (!streamer.readFloat(fv)) return false;
+    if (!readLoaded(streamer, fv, DelayLoad::kGranularDensity)) return false;
     params.granularDensity.store(fv, std::memory_order_relaxed);
-    if (!streamer.readFloat(fv)) return false;
+    if (!readLoaded(streamer, fv, DelayLoad::kGranularPitch)) return false;
     params.granularPitch.store(fv, std::memory_order_relaxed);
-    if (!streamer.readFloat(fv)) return false;
+    if (!readLoaded(streamer, fv, DelayLoad::kGranularPitchSpray)) return false;
     params.granularPitchSpray.store(fv, std::memory_order_relaxed);
-    if (!streamer.readInt32(iv)) return false;
+    if (!readLoaded(streamer, iv, DelayLoad::kGranularPitchQuant)) return false;
     params.granularPitchQuant.store(iv, std::memory_order_relaxed);
-    if (!streamer.readFloat(fv)) return false;
+    if (!readLoaded(streamer, fv, DelayLoad::kGranularPosSpray)) return false;
     params.granularPosSpray.store(fv, std::memory_order_relaxed);
-    if (!streamer.readFloat(fv)) return false;
+    if (!readLoaded(streamer, fv, DelayLoad::kGranularReverseProb)) return false;
     params.granularReverseProb.store(fv, std::memory_order_relaxed);
-    if (!streamer.readFloat(fv)) return false;
+    if (!readLoaded(streamer, fv, DelayLoad::kGranularPanSpray)) return false;
     params.granularPanSpray.store(fv, std::memory_order_relaxed);
-    if (!streamer.readFloat(fv)) return false;
+    if (!readLoaded(streamer, fv, DelayLoad::kGranularJitter)) return false;
     params.granularJitter.store(fv, std::memory_order_relaxed);
-    if (!streamer.readFloat(fv)) return false;
+    if (!readLoaded(streamer, fv, DelayLoad::kGranularTexture)) return false;
     params.granularTexture.store(fv, std::memory_order_relaxed);
-    if (!streamer.readFloat(fv)) return false;
+    if (!readLoaded(streamer, fv, DelayLoad::kGranularWidth)) return false;
     params.granularWidth.store(fv, std::memory_order_relaxed);
-    if (!streamer.readInt32(iv)) return false;
+    if (!readLoaded(streamer, iv, DelayLoad::kGranularEnvelope)) return false;
     params.granularEnvelope.store(iv, std::memory_order_relaxed);
     if (!streamer.readInt32(iv)) return false;
     params.granularFreeze.store(iv != 0, std::memory_order_relaxed);
 
     // Spectral
-    if (!streamer.readInt32(iv)) return false;
+    if (!readLoaded(streamer, iv, DelayLoad::kSpectralFFTSize)) return false;
     params.spectralFFTSize.store(iv, std::memory_order_relaxed);
-    if (!streamer.readFloat(fv)) return false;
+    if (!readLoaded(streamer, fv, DelayLoad::kSpectralSpreadMs)) return false;
     params.spectralSpreadMs.store(fv, std::memory_order_relaxed);
-    if (!streamer.readInt32(iv)) return false;
+    if (!readLoaded(streamer, iv, DelayLoad::kSpectralDirection)) return false;
     params.spectralDirection.store(iv, std::memory_order_relaxed);
-    if (!streamer.readInt32(iv)) return false;
+    if (!readLoaded(streamer, iv, DelayLoad::kSpectralCurve)) return false;
     params.spectralCurve.store(iv, std::memory_order_relaxed);
-    if (!streamer.readFloat(fv)) return false;
+    if (!readLoaded(streamer, fv, DelayLoad::kSpectralTilt)) return false;
     params.spectralTilt.store(fv, std::memory_order_relaxed);
-    if (!streamer.readFloat(fv)) return false;
+    if (!readLoaded(streamer, fv, DelayLoad::kSpectralDiffusion)) return false;
     params.spectralDiffusion.store(fv, std::memory_order_relaxed);
-    if (!streamer.readFloat(fv)) return false;
+    if (!readLoaded(streamer, fv, DelayLoad::kSpectralWidth)) return false;
     params.spectralWidth.store(fv, std::memory_order_relaxed);
     if (!streamer.readInt32(iv)) return false;
     params.spectralFreeze.store(iv != 0, std::memory_order_relaxed);
 
     // PingPong
-    if (!streamer.readInt32(iv)) return false;
+    if (!readLoaded(streamer, iv, DelayLoad::kPingPongRatio)) return false;
     params.pingPongRatio.store(iv, std::memory_order_relaxed);
-    if (!streamer.readFloat(fv)) return false;
+    if (!readLoaded(streamer, fv, DelayLoad::kPingPongCrossFeed)) return false;
     params.pingPongCrossFeed.store(fv, std::memory_order_relaxed);
-    if (!streamer.readFloat(fv)) return false;
+    if (!readLoaded(streamer, fv, DelayLoad::kPingPongWidth)) return false;
     params.pingPongWidth.store(fv, std::memory_order_relaxed);
-    if (!streamer.readFloat(fv)) return false;
+    if (!readLoaded(streamer, fv, DelayLoad::kPingPongModDepth)) return false;
     params.pingPongModDepth.store(fv, std::memory_order_relaxed);
-    if (!streamer.readFloat(fv)) return false;
+    if (!readLoaded(streamer, fv, DelayLoad::kPingPongModRateHz)) return false;
     params.pingPongModRateHz.store(fv, std::memory_order_relaxed);
 
     return true;
@@ -856,73 +911,73 @@ inline void loadDelayParamsToController(
     Steinberg::int32 iv = 0; float fv = 0.0f;
 
     // Common
-    if (streamer.readInt32(iv)) setParam(kDelayTypeId, static_cast<double>(iv) / (kDelayTypeCount - 1));
-    if (streamer.readFloat(fv)) setParam(kDelayTimeId, static_cast<double>((fv - 1.0f) / 4999.0f));
-    if (streamer.readFloat(fv)) setParam(kDelayFeedbackId, static_cast<double>(fv / 1.2f));
-    if (streamer.readFloat(fv)) setParam(kDelayMixId, static_cast<double>(fv));
+    if (readLoaded(streamer, iv, DelayLoad::kType)) setParam(kDelayTypeId, static_cast<double>(iv) / (kDelayTypeCount - 1));
+    if (readLoaded(streamer, fv, DelayLoad::kTimeMs)) setParam(kDelayTimeId, static_cast<double>((fv - 1.0f) / 4999.0f));
+    if (readLoaded(streamer, fv, DelayLoad::kFeedback)) setParam(kDelayFeedbackId, static_cast<double>(fv / 1.2f));
+    if (readLoaded(streamer, fv, DelayLoad::kMix)) setParam(kDelayMixId, static_cast<double>(fv));
     if (streamer.readInt32(iv)) setParam(kDelaySyncId, iv != 0 ? 1.0 : 0.0);
-    if (streamer.readInt32(iv)) setParam(kDelayNoteValueId, static_cast<double>(iv) / (Parameters::kNoteValueDropdownCount - 1));
+    if (readLoaded(streamer, iv, DelayLoad::kNoteValue)) setParam(kDelayNoteValueId, static_cast<double>(iv) / (Parameters::kNoteValueDropdownCount - 1));
 
     // Digital
-    if (streamer.readInt32(iv)) setParam(kDelayDigitalEraId, static_cast<double>(iv) / (kDigitalEraCount - 1));
-    if (streamer.readFloat(fv)) setParam(kDelayDigitalAgeId, static_cast<double>(fv));
-    if (streamer.readInt32(iv)) setParam(kDelayDigitalLimiterId, static_cast<double>(iv) / (kLimiterCharacterCount - 1));
-    if (streamer.readFloat(fv)) setParam(kDelayDigitalModDepthId, static_cast<double>(fv));
-    if (streamer.readFloat(fv)) setParam(kDelayDigitalModRateId, static_cast<double>((fv - 0.1f) / 9.9f));
-    if (streamer.readInt32(iv)) setParam(kDelayDigitalModWaveformId, static_cast<double>(iv) / (kWaveformCount - 1));
-    if (streamer.readFloat(fv)) setParam(kDelayDigitalWidthId, static_cast<double>(fv / 200.0f));
-    if (streamer.readFloat(fv)) setParam(kDelayDigitalWavefoldAmountId, static_cast<double>(fv / 100.0f));
-    if (streamer.readInt32(iv)) setParam(kDelayDigitalWavefoldModelId, static_cast<double>(iv) / (kWavefolderModelCount - 1));
-    if (streamer.readFloat(fv)) setParam(kDelayDigitalWavefoldSymmetryId, static_cast<double>((fv + 1.0f) / 2.0f));
+    if (readLoaded(streamer, iv, DelayLoad::kDigitalEra)) setParam(kDelayDigitalEraId, static_cast<double>(iv) / (kDigitalEraCount - 1));
+    if (readLoaded(streamer, fv, DelayLoad::kDigitalAge)) setParam(kDelayDigitalAgeId, static_cast<double>(fv));
+    if (readLoaded(streamer, iv, DelayLoad::kDigitalLimiter)) setParam(kDelayDigitalLimiterId, static_cast<double>(iv) / (kLimiterCharacterCount - 1));
+    if (readLoaded(streamer, fv, DelayLoad::kDigitalModDepth)) setParam(kDelayDigitalModDepthId, static_cast<double>(fv));
+    if (readLoaded(streamer, fv, DelayLoad::kDigitalModRateHz)) setParam(kDelayDigitalModRateId, static_cast<double>((fv - 0.1f) / 9.9f));
+    if (readLoaded(streamer, iv, DelayLoad::kDigitalModWaveform)) setParam(kDelayDigitalModWaveformId, static_cast<double>(iv) / (kWaveformCount - 1));
+    if (readLoaded(streamer, fv, DelayLoad::kDigitalWidth)) setParam(kDelayDigitalWidthId, static_cast<double>(fv / 200.0f));
+    if (readLoaded(streamer, fv, DelayLoad::kDigitalWavefoldAmt)) setParam(kDelayDigitalWavefoldAmountId, static_cast<double>(fv / 100.0f));
+    if (readLoaded(streamer, iv, DelayLoad::kDigitalWavefoldModel)) setParam(kDelayDigitalWavefoldModelId, static_cast<double>(iv) / (kWavefolderModelCount - 1));
+    if (readLoaded(streamer, fv, DelayLoad::kDigitalWavefoldSym)) setParam(kDelayDigitalWavefoldSymmetryId, static_cast<double>((fv + 1.0f) / 2.0f));
 
     // Tape
-    if (streamer.readFloat(fv)) setParam(kDelayTapeMotorInertiaId, static_cast<double>((fv - 100.0f) / 900.0f));
-    if (streamer.readFloat(fv)) setParam(kDelayTapeWearId, static_cast<double>(fv));
-    if (streamer.readFloat(fv)) setParam(kDelayTapeSaturationId, static_cast<double>(fv));
-    if (streamer.readFloat(fv)) setParam(kDelayTapeAgeId, static_cast<double>(fv));
+    if (readLoaded(streamer, fv, DelayLoad::kTapeInertiaMs)) setParam(kDelayTapeMotorInertiaId, static_cast<double>((fv - 100.0f) / 900.0f));
+    if (readLoaded(streamer, fv, DelayLoad::kTapeWear)) setParam(kDelayTapeWearId, static_cast<double>(fv));
+    if (readLoaded(streamer, fv, DelayLoad::kTapeSaturation)) setParam(kDelayTapeSaturationId, static_cast<double>(fv));
+    if (readLoaded(streamer, fv, DelayLoad::kTapeAge)) setParam(kDelayTapeAgeId, static_cast<double>(fv));
     if (streamer.readInt32(iv)) setParam(kDelayTapeSpliceEnabledId, iv != 0 ? 1.0 : 0.0);
-    if (streamer.readFloat(fv)) setParam(kDelayTapeSpliceIntensityId, static_cast<double>(fv));
+    if (readLoaded(streamer, fv, DelayLoad::kTapeSpliceIntensity)) setParam(kDelayTapeSpliceIntensityId, static_cast<double>(fv));
     if (streamer.readInt32(iv)) setParam(kDelayTapeHead1EnabledId, iv != 0 ? 1.0 : 0.0);
-    if (streamer.readFloat(fv)) setParam(kDelayTapeHead1LevelId, static_cast<double>((fv + 96.0f) / 102.0f));
-    if (streamer.readFloat(fv)) setParam(kDelayTapeHead1PanId, static_cast<double>((fv + 100.0f) / 200.0f));
+    if (readLoaded(streamer, fv, DelayLoad::kTapeHead1Level)) setParam(kDelayTapeHead1LevelId, static_cast<double>((fv + 96.0f) / 102.0f));
+    if (readLoaded(streamer, fv, DelayLoad::kTapeHead1Pan)) setParam(kDelayTapeHead1PanId, static_cast<double>((fv + 100.0f) / 200.0f));
     if (streamer.readInt32(iv)) setParam(kDelayTapeHead2EnabledId, iv != 0 ? 1.0 : 0.0);
-    if (streamer.readFloat(fv)) setParam(kDelayTapeHead2LevelId, static_cast<double>((fv + 96.0f) / 102.0f));
-    if (streamer.readFloat(fv)) setParam(kDelayTapeHead2PanId, static_cast<double>((fv + 100.0f) / 200.0f));
+    if (readLoaded(streamer, fv, DelayLoad::kTapeHead2Level)) setParam(kDelayTapeHead2LevelId, static_cast<double>((fv + 96.0f) / 102.0f));
+    if (readLoaded(streamer, fv, DelayLoad::kTapeHead2Pan)) setParam(kDelayTapeHead2PanId, static_cast<double>((fv + 100.0f) / 200.0f));
     if (streamer.readInt32(iv)) setParam(kDelayTapeHead3EnabledId, iv != 0 ? 1.0 : 0.0);
-    if (streamer.readFloat(fv)) setParam(kDelayTapeHead3LevelId, static_cast<double>((fv + 96.0f) / 102.0f));
-    if (streamer.readFloat(fv)) setParam(kDelayTapeHead3PanId, static_cast<double>((fv + 100.0f) / 200.0f));
+    if (readLoaded(streamer, fv, DelayLoad::kTapeHead3Level)) setParam(kDelayTapeHead3LevelId, static_cast<double>((fv + 96.0f) / 102.0f));
+    if (readLoaded(streamer, fv, DelayLoad::kTapeHead3Pan)) setParam(kDelayTapeHead3PanId, static_cast<double>((fv + 100.0f) / 200.0f));
 
     // Granular
-    if (streamer.readFloat(fv)) setParam(kDelayGranularSizeId, static_cast<double>((fv - 10.0f) / 490.0f));
-    if (streamer.readFloat(fv)) setParam(kDelayGranularDensityId, static_cast<double>((fv - 1.0f) / 99.0f));
-    if (streamer.readFloat(fv)) setParam(kDelayGranularPitchId, static_cast<double>((fv + 24.0f) / 48.0f));
-    if (streamer.readFloat(fv)) setParam(kDelayGranularPitchSprayId, static_cast<double>(fv));
-    if (streamer.readInt32(iv)) setParam(kDelayGranularPitchQuantId, static_cast<double>(iv) / (kPitchQuantModeCount - 1));
-    if (streamer.readFloat(fv)) setParam(kDelayGranularPositionSprayId, static_cast<double>(fv));
-    if (streamer.readFloat(fv)) setParam(kDelayGranularReverseProbId, static_cast<double>(fv));
-    if (streamer.readFloat(fv)) setParam(kDelayGranularPanSprayId, static_cast<double>(fv));
-    if (streamer.readFloat(fv)) setParam(kDelayGranularJitterId, static_cast<double>(fv));
-    if (streamer.readFloat(fv)) setParam(kDelayGranularTextureId, static_cast<double>(fv));
-    if (streamer.readFloat(fv)) setParam(kDelayGranularWidthId, static_cast<double>(fv));
-    if (streamer.readInt32(iv)) setParam(kDelayGranularEnvelopeId, static_cast<double>(iv) / (kGrainEnvelopeCount - 1));
+    if (readLoaded(streamer, fv, DelayLoad::kGranularSizeMs)) setParam(kDelayGranularSizeId, static_cast<double>((fv - 10.0f) / 490.0f));
+    if (readLoaded(streamer, fv, DelayLoad::kGranularDensity)) setParam(kDelayGranularDensityId, static_cast<double>((fv - 1.0f) / 99.0f));
+    if (readLoaded(streamer, fv, DelayLoad::kGranularPitch)) setParam(kDelayGranularPitchId, static_cast<double>((fv + 24.0f) / 48.0f));
+    if (readLoaded(streamer, fv, DelayLoad::kGranularPitchSpray)) setParam(kDelayGranularPitchSprayId, static_cast<double>(fv));
+    if (readLoaded(streamer, iv, DelayLoad::kGranularPitchQuant)) setParam(kDelayGranularPitchQuantId, static_cast<double>(iv) / (kPitchQuantModeCount - 1));
+    if (readLoaded(streamer, fv, DelayLoad::kGranularPosSpray)) setParam(kDelayGranularPositionSprayId, static_cast<double>(fv));
+    if (readLoaded(streamer, fv, DelayLoad::kGranularReverseProb)) setParam(kDelayGranularReverseProbId, static_cast<double>(fv));
+    if (readLoaded(streamer, fv, DelayLoad::kGranularPanSpray)) setParam(kDelayGranularPanSprayId, static_cast<double>(fv));
+    if (readLoaded(streamer, fv, DelayLoad::kGranularJitter)) setParam(kDelayGranularJitterId, static_cast<double>(fv));
+    if (readLoaded(streamer, fv, DelayLoad::kGranularTexture)) setParam(kDelayGranularTextureId, static_cast<double>(fv));
+    if (readLoaded(streamer, fv, DelayLoad::kGranularWidth)) setParam(kDelayGranularWidthId, static_cast<double>(fv));
+    if (readLoaded(streamer, iv, DelayLoad::kGranularEnvelope)) setParam(kDelayGranularEnvelopeId, static_cast<double>(iv) / (kGrainEnvelopeCount - 1));
     if (streamer.readInt32(iv)) setParam(kDelayGranularFreezeId, iv != 0 ? 1.0 : 0.0);
 
     // Spectral
-    if (streamer.readInt32(iv)) setParam(kDelaySpectralFFTSizeId, static_cast<double>(iv) / (kFFTSizeCount - 1));
-    if (streamer.readFloat(fv)) setParam(kDelaySpectralSpreadId, static_cast<double>(fv / 2000.0f));
-    if (streamer.readInt32(iv)) setParam(kDelaySpectralDirectionId, static_cast<double>(iv) / (kSpreadDirectionCount - 1));
-    if (streamer.readInt32(iv)) setParam(kDelaySpectralCurveId, static_cast<double>(iv) / (kSpreadCurveCount - 1));
-    if (streamer.readFloat(fv)) setParam(kDelaySpectralTiltId, static_cast<double>((fv + 1.0f) / 2.0f));
-    if (streamer.readFloat(fv)) setParam(kDelaySpectralDiffusionId, static_cast<double>(fv));
-    if (streamer.readFloat(fv)) setParam(kDelaySpectralWidthId, static_cast<double>(fv));
+    if (readLoaded(streamer, iv, DelayLoad::kSpectralFFTSize)) setParam(kDelaySpectralFFTSizeId, static_cast<double>(iv) / (kFFTSizeCount - 1));
+    if (readLoaded(streamer, fv, DelayLoad::kSpectralSpreadMs)) setParam(kDelaySpectralSpreadId, static_cast<double>(fv / 2000.0f));
+    if (readLoaded(streamer, iv, DelayLoad::kSpectralDirection)) setParam(kDelaySpectralDirectionId, static_cast<double>(iv) / (kSpreadDirectionCount - 1));
+    if (readLoaded(streamer, iv, DelayLoad::kSpectralCurve)) setParam(kDelaySpectralCurveId, static_cast<double>(iv) / (kSpreadCurveCount - 1));
+    if (readLoaded(streamer, fv, DelayLoad::kSpectralTilt)) setParam(kDelaySpectralTiltId, static_cast<double>((fv + 1.0f) / 2.0f));
+    if (readLoaded(streamer, fv, DelayLoad::kSpectralDiffusion)) setParam(kDelaySpectralDiffusionId, static_cast<double>(fv));
+    if (readLoaded(streamer, fv, DelayLoad::kSpectralWidth)) setParam(kDelaySpectralWidthId, static_cast<double>(fv));
     if (streamer.readInt32(iv)) setParam(kDelaySpectralFreezeId, iv != 0 ? 1.0 : 0.0);
 
     // PingPong
-    if (streamer.readInt32(iv)) setParam(kDelayPingPongRatioId, static_cast<double>(iv) / (kLRRatioCount - 1));
-    if (streamer.readFloat(fv)) setParam(kDelayPingPongCrossFeedId, static_cast<double>(fv));
-    if (streamer.readFloat(fv)) setParam(kDelayPingPongWidthId, static_cast<double>(fv / 200.0f));
-    if (streamer.readFloat(fv)) setParam(kDelayPingPongModDepthId, static_cast<double>(fv));
-    if (streamer.readFloat(fv)) setParam(kDelayPingPongModRateId, static_cast<double>((fv - 0.1f) / 9.9f));
+    if (readLoaded(streamer, iv, DelayLoad::kPingPongRatio)) setParam(kDelayPingPongRatioId, static_cast<double>(iv) / (kLRRatioCount - 1));
+    if (readLoaded(streamer, fv, DelayLoad::kPingPongCrossFeed)) setParam(kDelayPingPongCrossFeedId, static_cast<double>(fv));
+    if (readLoaded(streamer, fv, DelayLoad::kPingPongWidth)) setParam(kDelayPingPongWidthId, static_cast<double>(fv / 200.0f));
+    if (readLoaded(streamer, fv, DelayLoad::kPingPongModDepth)) setParam(kDelayPingPongModDepthId, static_cast<double>(fv));
+    if (readLoaded(streamer, fv, DelayLoad::kPingPongModRateHz)) setParam(kDelayPingPongModRateId, static_cast<double>((fv - 0.1f) / 9.9f));
 }
 
 } // namespace Ruinae

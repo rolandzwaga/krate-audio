@@ -21,6 +21,10 @@
 #include "pluginterfaces/vst/ivstparameterchanges.h"
 #include "pluginterfaces/vst/ivstprocesscontext.h"
 
+#include <krate/dsp/core/db_utils.h>
+
+#include <algorithm>
+#include <array>
 #include <cmath>
 #include <vector>
 #include "vst_param_changes.h"
@@ -95,6 +99,17 @@ public:
         events_.push_back(e);
     }
 
+    void addNoteOff(int note, int sampleOffset = 0) {
+        Steinberg::Vst::Event e{};
+        e.type = Steinberg::Vst::Event::kNoteOffEvent;
+        e.sampleOffset = sampleOffset;
+        e.noteOff.channel = 0;
+        e.noteOff.pitch = static_cast<Steinberg::int16>(note);
+        e.noteOff.velocity = 0.0f;
+        e.noteOff.noteId = note;
+        events_.push_back(e);
+    }
+
     void clear() { events_.clear(); }
 
 private:
@@ -123,13 +138,55 @@ void loadState(Ruinae::Processor* proc, const std::vector<char>& bytes) {
 
 bool hasNanOrInf(const float* buffer, size_t count) {
     for (size_t i = 0; i < count; ++i) {
-        if (std::isnan(buffer[i]) || std::isinf(buffer[i])) return true;
+        if (!Krate::DSP::detail::isFinite(buffer[i])) return true;
     }
     return false;
 }
 
+/// Per-pitch NoteOn / NoteOff counts read off the processor's MIDI output.
+struct MidiOutTally {
+    std::array<int, 128> on{};
+    std::array<int, 128> off{};
+    int totalOn = 0;
+
+    void collect(TestEventList& out) {
+        for (Steinberg::int32 i = 0; i < out.getEventCount(); ++i) {
+            Steinberg::Vst::Event e{};
+            if (out.getEvent(i, e) != Steinberg::kResultTrue) continue;
+            if (e.type == Steinberg::Vst::Event::kNoteOnEvent && e.noteOn.velocity > 0.0f) {
+                ++on[static_cast<size_t>(e.noteOn.pitch & 0x7F)];
+                ++totalOn;
+            } else if (e.type == Steinberg::Vst::Event::kNoteOnEvent) {
+                ++off[static_cast<size_t>(e.noteOn.pitch & 0x7F)];
+            } else if (e.type == Steinberg::Vst::Event::kNoteOffEvent) {
+                ++off[static_cast<size_t>(e.noteOff.pitch & 0x7F)];
+            }
+        }
+        out.clear();
+    }
+
+    [[nodiscard]] int unbalancedPitches() const {
+        int n = 0;
+        for (size_t p = 0; p < 128; ++p) {
+            if (on[p] != off[p]) ++n;
+        }
+        return n;
+    }
+};
+
+/// Largest |x[i] - x[i-1]| over [a, b).
+double maxStep(const std::vector<float>& x, size_t a, size_t b) {
+    double m = 0.0;
+    b = std::min(b, x.size());
+    for (size_t i = std::max<size_t>(a, 1); i < b; ++i) {
+        m = std::max(m, static_cast<double>(std::fabs(x[i] - x[i - 1])));
+    }
+    return m;
+}
+
 void processBlock(Ruinae::Processor& proc, TestEventList& events,
-                  float* outL, float* outR, Steinberg::int32 numSamples) {
+                  float* outL, float* outR, Steinberg::int32 numSamples,
+                  TestEventList* midiOut = nullptr) {
     Steinberg::Vst::ProcessContext context{};
     context.state = Steinberg::Vst::ProcessContext::kPlaying |
                     Steinberg::Vst::ProcessContext::kTempoValid;
@@ -147,6 +204,7 @@ void processBlock(Ruinae::Processor& proc, TestEventList& events,
     data.numOutputs = 1;
     data.outputs = &output;
     data.inputEvents = &events;
+    data.outputEvents = midiOut;
     data.processContext = &context;
 
     proc.process(data);
@@ -186,7 +244,7 @@ TEST_CASE("Preset switch during playback produces finite output",
     // Now switch to a different preset (different osc type + filter)
     auto proc2 = makeTestableProcessor();
     ParamChangeBatch changes2;
-    changes2.add(Ruinae::kOscATypeId, 3.0 / 9.0); // Additive
+    changes2.add(Ruinae::kOscATypeId, 3.0 / 9.0); // Sync (3)
     changes2.add(Ruinae::kFilterCutoffId, 0.3);
     proc2->processParameterChanges(&changes2);
     auto presetB = captureState(proc2.get());
@@ -279,17 +337,33 @@ TEST_CASE("Oscillator type switch during playback",
     for (int i = 0; i < 3; ++i) {
         processBlock(*proc, events, outL.data(), outR.data(), kBlockSize);
     }
+    // The last steady block is the click reference.
+    std::vector<float> trace(outL.begin(), outL.end());
 
-    // Create a Wavetable preset
+    // Create an Additive preset
     auto wtProc = makeTestableProcessor();
     ParamChangeBatch wtChanges;
-    wtChanges.add(Ruinae::kOscATypeId, 4.0 / 9.0); // Wavetable = 4
+    wtChanges.add(Ruinae::kOscATypeId, 4.0 / 9.0); // Additive = 4
     wtChanges.add(Ruinae::kOscALevelId, 0.8);
     wtProc->processParameterChanges(&wtChanges);
     auto wtState = captureState(wtProc.get());
 
     // Switch while note is playing
     loadState(proc.get(), wtState);
+
+    // The switch block: a preset load is a hard cut by design (engine reset), so
+    // the bound that holds is a jump of at most 3x the steady block's largest
+    // per-sample step across the switch boundary, not "no discontinuity".
+    std::fill(outL.begin(), outL.end(), 0.0f);
+    std::fill(outR.begin(), outR.end(), 0.0f);
+    processBlock(*proc, events, outL.data(), outR.data(), kBlockSize);
+    trace.insert(trace.end(), outL.begin(), outL.end());
+    const double steadyStep = maxStep(trace, 1, static_cast<size_t>(kBlockSize));
+    const double switchStep = maxStep(trace, static_cast<size_t>(kBlockSize),
+                                      static_cast<size_t>(kBlockSize) + 2 * static_cast<size_t>(kBlockSize));
+    INFO("steady max|dx| " << steadyStep << ", switch-block max|dx| " << switchStep);
+    REQUIRE(steadyStep > 1e-4); // the reference is a real signal
+    CHECK(switchStep / steadyStep <= 3.0);
 
     // Verify clean output after switch
     bool anyBadSamples = false;
@@ -319,6 +393,8 @@ TEST_CASE("Arp-to-non-arp preset switch",
     arpChanges.add(Ruinae::kArpModeId, 0.0); // Up
     arpChanges.add(Ruinae::kArpTempoSyncId, 1.0);
     arpChanges.add(Ruinae::kOscALevelId, 1.0);
+    arpChanges.add(Ruinae::kArpGateLengthId, 1.0); // 200 %: an arp note always sounds
+    arpChanges.add(Ruinae::kArpMidiOutId, 1.0);
     arpProc->processParameterChanges(&arpChanges);
     auto arpState = captureState(arpProc.get());
 
@@ -344,29 +420,53 @@ TEST_CASE("Arp-to-non-arp preset switch",
     events.addNoteOn(64, 0.8f);
     events.addNoteOn(67, 0.8f);
 
+    TestEventList midiOut;
+    MidiOutTally tally;
+
     // Process several blocks with arp running
     for (int i = 0; i < 5; ++i) {
-        processBlock(*proc, events, outL.data(), outR.data(), kBlockSize);
+        processBlock(*proc, events, outL.data(), outR.data(), kBlockSize, &midiOut);
+        tally.collect(midiOut);
         events.clear();
     }
+    REQUIRE(tally.totalOn > 0); // the arp is really running
 
-    // Switch to non-arp preset
+    // Switch to non-arp preset, then release the keys
     loadState(proc.get(), noArpState);
+    events.addNoteOff(60);
+    events.addNoteOff(64);
+    events.addNoteOff(67);
 
-    // Process after switch — should be clean
+    // Default amp release 200 ms = 18 blocks of 512 at 44.1 kHz, plus 10 blocks.
+    constexpr int kReleasePlus10Blocks = 18 + 10;
     bool anyBadSamples = false;
+    for (int i = 0; i < kReleasePlus10Blocks; ++i) {
+        std::fill(outL.begin(), outL.end(), 0.0f);
+        std::fill(outR.begin(), outR.end(), 0.0f);
+        processBlock(*proc, events, outL.data(), outR.data(), kBlockSize, &midiOut);
+        tally.collect(midiOut);
+        events.clear();
+        anyBadSamples = anyBadSamples || hasNanOrInf(outL.data(), kBlockSize) ||
+                        hasNanOrInf(outR.data(), kBlockSize);
+    }
+    REQUIRE_FALSE(anyBadSamples);
+
+    // Silence: the next 10 blocks are exactly zero (no stuck arp voice).
+    bool silent = true;
     for (int i = 0; i < 10; ++i) {
         std::fill(outL.begin(), outL.end(), 0.0f);
         std::fill(outR.begin(), outR.end(), 0.0f);
-        processBlock(*proc, events, outL.data(), outR.data(), kBlockSize);
-        if (hasNanOrInf(outL.data(), kBlockSize) ||
-            hasNanOrInf(outR.data(), kBlockSize)) {
-            anyBadSamples = true;
-            break;
+        processBlock(*proc, events, outL.data(), outR.data(), kBlockSize, &midiOut);
+        tally.collect(midiOut);
+        for (Steinberg::int32 s = 0; s < kBlockSize; ++s) {
+            if (outL[static_cast<size_t>(s)] != 0.0f || outR[static_cast<size_t>(s)] != 0.0f) {
+                silent = false;
+            }
         }
     }
-
-    REQUIRE_FALSE(anyBadSamples);
+    CHECK(silent);
+    // Every MIDI-out NoteOn got its NoteOff: no stranded downstream note.
+    CHECK(tally.unbalancedPitches() == 0);
 
     arpProc->terminate();
     noArpProc->terminate();
@@ -375,9 +475,29 @@ TEST_CASE("Arp-to-non-arp preset switch",
 
 TEST_CASE("Voice routes synced after preset snapshot",
           "[preset-safety][voice-routes]") {
-    // Create a preset with voice routes configured
+    // Create a preset with a voice route configured through notify (UI thread)
     auto proc1 = makeTestableProcessor();
+    const auto stateDefault = captureState(proc1.get());
+
+    auto routeMsg = Steinberg::owned(new Steinberg::Vst::HostMessage());
+    routeMsg->setMessageID("VoiceModRouteUpdate");
+    auto* attrs = routeMsg->getAttributes();
+    attrs->setInt("slotIndex", 2);
+    attrs->setInt("source", 1);
+    attrs->setInt("destination", 0);
+    attrs->setFloat("amount", 0.5);
+    attrs->setInt("active", 1);
+    proc1->notify(routeMsg);
+
+    // Let the audio thread apply the route, then save.
+    static constexpr Steinberg::int32 kBlockSize = 256;
+    std::vector<float> outL(kBlockSize, 0.0f);
+    std::vector<float> outR(kBlockSize, 0.0f);
+    TestEventList events;
+    processBlock(*proc1, events, outL.data(), outR.data(), kBlockSize);
     auto state1 = captureState(proc1.get());
+    // The route is really in the saved bytes (otherwise the round trip is vacuous).
+    REQUIRE(state1 != stateDefault);
 
     // Load into a fresh processor, drain, verify state survives round-trip
     auto proc2 = makeTestableProcessor();
@@ -412,7 +532,7 @@ TEST_CASE("Rapid preset switch with voice route updates produces finite output",
 
     auto procB = makeTestableProcessor();
     ParamChangeBatch changesB;
-    changesB.add(Ruinae::kOscATypeId, 3.0 / 9.0); // Additive
+    changesB.add(Ruinae::kOscATypeId, 3.0 / 9.0); // Sync (3)
     changesB.add(Ruinae::kFilterCutoffId, 0.3);
     procB->processParameterChanges(&changesB);
     auto presetB = captureState(procB.get());

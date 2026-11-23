@@ -1,5 +1,6 @@
 #pragma once
 #include "plugin_ids.h"
+#include "parameters/state_load_helpers.h"
 #include "controller/parameter_helpers.h"
 #include "pluginterfaces/base/ustring.h"
 #include "public.sdk/source/vst/vstparameters.h"
@@ -124,13 +125,22 @@ inline void saveSettingsParams(const SettingsParams& params, Steinberg::IBStream
     streamer.writeInt32(params.gainCompensation.load(std::memory_order_relaxed) ? 1 : 0);
 }
 
+// Saved-field ranges, read by both parsers (R-211)
+namespace SettingsLoad {
+inline constexpr LoadedFloat kPitchBendRangeSemitones{.lo = 0.0f, .hi = 24.0f, .def = 2.0f};
+inline constexpr LoadedInt kVelocityCurve{.lo = 0, .hi = 3};
+inline constexpr LoadedFloat kTuningReferenceHz{.lo = 400.0f, .hi = 480.0f, .def = 440.0f};
+inline constexpr LoadedInt kVoiceAllocMode{.lo = 0, .hi = 3};
+inline constexpr LoadedInt kVoiceStealMode{.lo = 0, .hi = 1};
+} // namespace SettingsLoad
+
 inline bool loadSettingsParams(SettingsParams& params, Steinberg::IBStreamer& streamer) {
     Steinberg::int32 iv = 0; float fv = 0.0f;
-    if (!streamer.readFloat(fv)) { return false; } params.pitchBendRangeSemitones.store(fv, std::memory_order_relaxed);
-    if (!streamer.readInt32(iv)) { return false; } params.velocityCurve.store(iv, std::memory_order_relaxed);
-    if (!streamer.readFloat(fv)) { return false; } params.tuningReferenceHz.store(fv, std::memory_order_relaxed);
-    if (!streamer.readInt32(iv)) { return false; } params.voiceAllocMode.store(iv, std::memory_order_relaxed);
-    if (!streamer.readInt32(iv)) { return false; } params.voiceStealMode.store(iv, std::memory_order_relaxed);
+    if (!readLoaded(streamer, fv, SettingsLoad::kPitchBendRangeSemitones)) { return false; } params.pitchBendRangeSemitones.store(fv, std::memory_order_relaxed);
+    if (!readLoaded(streamer, iv, SettingsLoad::kVelocityCurve)) { return false; } params.velocityCurve.store(iv, std::memory_order_relaxed);
+    if (!readLoaded(streamer, fv, SettingsLoad::kTuningReferenceHz)) { return false; } params.tuningReferenceHz.store(fv, std::memory_order_relaxed);
+    if (!readLoaded(streamer, iv, SettingsLoad::kVoiceAllocMode)) { return false; } params.voiceAllocMode.store(iv, std::memory_order_relaxed);
+    if (!readLoaded(streamer, iv, SettingsLoad::kVoiceStealMode)) { return false; } params.voiceStealMode.store(iv, std::memory_order_relaxed);
     if (!streamer.readInt32(iv)) { return false; } params.gainCompensation.store(iv != 0, std::memory_order_relaxed);
     return true;
 }
@@ -140,15 +150,15 @@ inline void loadSettingsParamsToController(
     Steinberg::IBStreamer& streamer, const SetParamFunc& setParam) {
     Steinberg::int32 iv = 0; float fv = 0.0f;
     // Pitch Bend Range: inverse of (normalized * 24)
-    if (streamer.readFloat(fv)) setParam(kSettingsPitchBendRangeId, static_cast<double>(fv) / 24.0);
+    if (readLoaded(streamer, fv, SettingsLoad::kPitchBendRangeSemitones)) setParam(kSettingsPitchBendRangeId, static_cast<double>(fv) / 24.0);
     // Velocity Curve: index / 3
-    if (streamer.readInt32(iv)) setParam(kSettingsVelocityCurveId, static_cast<double>(iv) / 3.0);
+    if (readLoaded(streamer, iv, SettingsLoad::kVelocityCurve)) setParam(kSettingsVelocityCurveId, static_cast<double>(iv) / 3.0);
     // Tuning Reference: inverse of (400 + normalized * 80)
-    if (streamer.readFloat(fv)) setParam(kSettingsTuningReferenceId, static_cast<double>((fv - 400.0f) / 80.0f));
+    if (readLoaded(streamer, fv, SettingsLoad::kTuningReferenceHz)) setParam(kSettingsTuningReferenceId, static_cast<double>((fv - 400.0f) / 80.0f));
     // Voice Allocation: index / 3
-    if (streamer.readInt32(iv)) setParam(kSettingsVoiceAllocModeId, static_cast<double>(iv) / 3.0);
+    if (readLoaded(streamer, iv, SettingsLoad::kVoiceAllocMode)) setParam(kSettingsVoiceAllocModeId, static_cast<double>(iv) / 3.0);
     // Voice Steal: index / 1
-    if (streamer.readInt32(iv)) setParam(kSettingsVoiceStealModeId, static_cast<double>(iv));
+    if (readLoaded(streamer, iv, SettingsLoad::kVoiceStealMode)) setParam(kSettingsVoiceStealModeId, static_cast<double>(iv));
     // Gain Compensation: bool -> 0.0 or 1.0
     if (streamer.readInt32(iv)) setParam(kSettingsGainCompensationId, iv != 0 ? 1.0 : 0.0);
 }

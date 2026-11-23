@@ -1,5 +1,6 @@
 #pragma once
 #include "plugin_ids.h"
+#include "parameters/state_load_helpers.h"
 #include "controller/parameter_helpers.h"
 #include "parameters/dropdown_mappings.h"
 #include "pluginterfaces/base/ustring.h"
@@ -367,50 +368,66 @@ inline void saveHarmonizerParams(const RuinaeHarmonizerParams& params, Steinberg
     }
 }
 
+// Saved-field ranges, read by both parsers (R-211)
+namespace HarmonizerLoad {
+inline constexpr LoadedInt kHarmonyMode{.lo = 0, .hi = kHarmonyModeCount - 1};
+inline constexpr LoadedInt kKey{.lo = 0, .hi = kHarmonizerKeyCount - 1};
+inline constexpr LoadedInt kScale{.lo = 0, .hi = kHarmonizerScaleCount - 1};
+inline constexpr LoadedInt kPitchShiftMode{.lo = 0, .hi = kHarmonizerPitchModeCount - 1};
+inline constexpr LoadedInt kNumVoices{.lo = 1, .hi = kHarmonizerNumVoicesCount};
+inline constexpr LoadedFloat kDryLevelDb{.lo = -60.0f, .hi = 6.0f, .def = 0.0f};
+inline constexpr LoadedFloat kWetLevelDb{.lo = -60.0f, .hi = 6.0f, .def = -6.0f};
+inline constexpr LoadedInt kVoiceInterval{.lo = -24, .hi = 24};
+inline constexpr LoadedFloat kVoiceLevelDb{.lo = -60.0f, .hi = 6.0f, .def = 0.0f};
+inline constexpr LoadedFloat kVoicePan{.lo = -1.0f, .hi = 1.0f, .def = 0.0f};
+inline constexpr LoadedFloat kVoiceDelayMs{.lo = 0.0f, .hi = 50.0f, .def = 0.0f};
+inline constexpr LoadedFloat kVoiceDetuneCents{.lo = -50.0f, .hi = 50.0f, .def = 0.0f};
+} // namespace HarmonizerLoad
+
 inline bool loadHarmonizerParams(RuinaeHarmonizerParams& params, Steinberg::IBStreamer& streamer) {
     Steinberg::int32 iv = 0; float fv = 0.0f;
     // Global ints
-    if (!streamer.readInt32(iv))
+    if (!readLoaded(streamer, iv, HarmonizerLoad::kHarmonyMode))
         return false;
     params.harmonyMode.store(iv, std::memory_order_relaxed);
-    if (!streamer.readInt32(iv))
+    if (!readLoaded(streamer, iv, HarmonizerLoad::kKey))
         return false;
     params.key.store(iv, std::memory_order_relaxed);
-    if (!streamer.readInt32(iv))
+    if (!readLoaded(streamer, iv, HarmonizerLoad::kScale))
         return false;
     params.scale.store(iv, std::memory_order_relaxed);
-    if (!streamer.readInt32(iv))
+    if (!readLoaded(streamer, iv, HarmonizerLoad::kPitchShiftMode))
         return false;
     params.pitchShiftMode.store(iv, std::memory_order_relaxed);
     if (!streamer.readInt32(iv))
         return false;
     params.formantPreserve.store(iv != 0, std::memory_order_relaxed);
-    if (!streamer.readInt32(iv))
+    if (!readLoaded(streamer, iv, HarmonizerLoad::kNumVoices))
         return false;
     params.numVoices.store(iv, std::memory_order_relaxed);
     // Global floats
-    if (!streamer.readFloat(fv))
+    if (!readLoaded(streamer, fv, HarmonizerLoad::kDryLevelDb))
         return false;
     params.dryLevelDb.store(fv, std::memory_order_relaxed);
-    if (!streamer.readFloat(fv))
+    if (!readLoaded(streamer, fv, HarmonizerLoad::kWetLevelDb))
         return false;
     params.wetLevelDb.store(fv, std::memory_order_relaxed);
     // Per-voice (4 voices)
     for (int v = 0; v < 4; ++v) {
         auto vi = static_cast<size_t>(v);
-        if (!streamer.readInt32(iv))
+        if (!readLoaded(streamer, iv, HarmonizerLoad::kVoiceInterval))
             return false;
         params.voiceInterval[vi].store(iv, std::memory_order_relaxed);
-        if (!streamer.readFloat(fv))
+        if (!readLoaded(streamer, fv, HarmonizerLoad::kVoiceLevelDb))
             return false;
         params.voiceLevelDb[vi].store(fv, std::memory_order_relaxed);
-        if (!streamer.readFloat(fv))
+        if (!readLoaded(streamer, fv, HarmonizerLoad::kVoicePan))
             return false;
         params.voicePan[vi].store(fv, std::memory_order_relaxed);
-        if (!streamer.readFloat(fv))
+        if (!readLoaded(streamer, fv, HarmonizerLoad::kVoiceDelayMs))
             return false;
         params.voiceDelayMs[vi].store(fv, std::memory_order_relaxed);
-        if (!streamer.readFloat(fv))
+        if (!readLoaded(streamer, fv, HarmonizerLoad::kVoiceDetuneCents))
             return false;
         params.voiceDetuneCents[vi].store(fv, std::memory_order_relaxed);
     }
@@ -426,15 +443,15 @@ inline void loadHarmonizerParamsToController(
     Steinberg::IBStreamer& streamer, const SetParamFunc& setParam) {
     Steinberg::int32 iv = 0; float fv = 0.0f;
     // Global ints
-    if (streamer.readInt32(iv)) setParam(kHarmonizerHarmonyModeId, static_cast<double>(iv) / (kHarmonyModeCount - 1));
-    if (streamer.readInt32(iv)) setParam(kHarmonizerKeyId, static_cast<double>(iv) / (kHarmonizerKeyCount - 1));
-    if (streamer.readInt32(iv)) setParam(kHarmonizerScaleId, static_cast<double>(iv) / (kHarmonizerScaleCount - 1));
-    if (streamer.readInt32(iv)) setParam(kHarmonizerPitchShiftModeId, static_cast<double>(iv) / (kHarmonizerPitchModeCount - 1));
+    if (readLoaded(streamer, iv, HarmonizerLoad::kHarmonyMode)) setParam(kHarmonizerHarmonyModeId, static_cast<double>(iv) / (kHarmonyModeCount - 1));
+    if (readLoaded(streamer, iv, HarmonizerLoad::kKey)) setParam(kHarmonizerKeyId, static_cast<double>(iv) / (kHarmonizerKeyCount - 1));
+    if (readLoaded(streamer, iv, HarmonizerLoad::kScale)) setParam(kHarmonizerScaleId, static_cast<double>(iv) / (kHarmonizerScaleCount - 1));
+    if (readLoaded(streamer, iv, HarmonizerLoad::kPitchShiftMode)) setParam(kHarmonizerPitchShiftModeId, static_cast<double>(iv) / (kHarmonizerPitchModeCount - 1));
     if (streamer.readInt32(iv)) setParam(kHarmonizerFormantPreserveId, iv != 0 ? 1.0 : 0.0);
-    if (streamer.readInt32(iv)) setParam(kHarmonizerNumVoicesId, static_cast<double>(iv - 1) / (kHarmonizerNumVoicesCount - 1));
+    if (readLoaded(streamer, iv, HarmonizerLoad::kNumVoices)) setParam(kHarmonizerNumVoicesId, static_cast<double>(iv - 1) / (kHarmonizerNumVoicesCount - 1));
     // Global floats: dB -> norm: (plain + 60) / 66
-    if (streamer.readFloat(fv)) setParam(kHarmonizerDryLevelId, static_cast<double>((fv + 60.0f) / 66.0f));
-    if (streamer.readFloat(fv)) setParam(kHarmonizerWetLevelId, static_cast<double>((fv + 60.0f) / 66.0f));
+    if (readLoaded(streamer, fv, HarmonizerLoad::kDryLevelDb)) setParam(kHarmonizerDryLevelId, static_cast<double>((fv + 60.0f) / 66.0f));
+    if (readLoaded(streamer, fv, HarmonizerLoad::kWetLevelDb)) setParam(kHarmonizerWetLevelId, static_cast<double>((fv + 60.0f) / 66.0f));
     // Per-voice (4 voices)
     constexpr Steinberg::Vst::ParamID voiceIntervalIds[] = {
         kHarmonizerVoice1IntervalId, kHarmonizerVoice2IntervalId,
@@ -452,11 +469,11 @@ inline void loadHarmonizerParamsToController(
         kHarmonizerVoice1DetuneId, kHarmonizerVoice2DetuneId,
         kHarmonizerVoice3DetuneId, kHarmonizerVoice4DetuneId};
     for (int v = 0; v < 4; ++v) {
-        if (streamer.readInt32(iv)) setParam(voiceIntervalIds[v], static_cast<double>(iv + 24) / 48.0);
-        if (streamer.readFloat(fv)) setParam(voiceLevelIds[v], static_cast<double>((fv + 60.0f) / 66.0f));
-        if (streamer.readFloat(fv)) setParam(voicePanIds[v], static_cast<double>((fv + 1.0f) / 2.0f));
-        if (streamer.readFloat(fv)) setParam(voiceDelayIds[v], static_cast<double>(fv / 50.0f));
-        if (streamer.readFloat(fv)) setParam(voiceDetuneIds[v], static_cast<double>((fv + 50.0f) / 100.0f));
+        if (readLoaded(streamer, iv, HarmonizerLoad::kVoiceInterval)) setParam(voiceIntervalIds[v], static_cast<double>(iv + 24) / 48.0);
+        if (readLoaded(streamer, fv, HarmonizerLoad::kVoiceLevelDb)) setParam(voiceLevelIds[v], static_cast<double>((fv + 60.0f) / 66.0f));
+        if (readLoaded(streamer, fv, HarmonizerLoad::kVoicePan)) setParam(voicePanIds[v], static_cast<double>((fv + 1.0f) / 2.0f));
+        if (readLoaded(streamer, fv, HarmonizerLoad::kVoiceDelayMs)) setParam(voiceDelayIds[v], static_cast<double>(fv / 50.0f));
+        if (readLoaded(streamer, fv, HarmonizerLoad::kVoiceDetuneCents)) setParam(voiceDetuneIds[v], static_cast<double>((fv + 50.0f) / 100.0f));
     }
 }
 

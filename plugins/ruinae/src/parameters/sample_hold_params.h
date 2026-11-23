@@ -1,5 +1,6 @@
 #pragma once
 #include "plugin_ids.h"
+#include "parameters/state_load_helpers.h"
 #include "controller/parameter_helpers.h"
 #include "parameters/note_value_ui.h"
 #include "parameters/lfo1_params.h"  // for lfoRateFromNormalized/lfoRateToNormalized
@@ -131,21 +132,28 @@ inline void saveSampleHoldParams(const SampleHoldParams& params,
     streamer.writeFloat(params.slewMs.load(std::memory_order_relaxed));
 }
 
+// Saved-field ranges, read by both parsers (R-211)
+namespace SampleHoldLoad {
+inline constexpr LoadedFloat kRateHz{.lo = 0.1f, .hi = 50.0f, .def = 4.0f};
+inline constexpr LoadedInt kNoteValue{.lo = 0, .hi = Parameters::kNoteValueDropdownCount - 1};
+inline constexpr LoadedFloat kSlewMs{.lo = 0.0f, .hi = 500.0f, .def = 0.0f};
+} // namespace SampleHoldLoad
+
 inline bool loadSampleHoldParams(SampleHoldParams& params,
                                   Steinberg::IBStreamer& streamer) {
     float fv = 0.0f;
     Steinberg::int32 iv = 0;
 
-    if (!streamer.readFloat(fv)) { return false; }
+    if (!readLoaded(streamer, fv, SampleHoldLoad::kRateHz)) { return false; }
     params.rateHz.store(fv, std::memory_order_relaxed);
 
     if (!streamer.readInt32(iv)) { return false; }
     params.sync.store(iv != 0, std::memory_order_relaxed);
 
-    if (!streamer.readInt32(iv)) { return false; }
+    if (!readLoaded(streamer, iv, SampleHoldLoad::kNoteValue)) { return false; }
     params.noteValue.store(iv, std::memory_order_relaxed);
 
-    if (!streamer.readFloat(fv)) { return false; }
+    if (!readLoaded(streamer, fv, SampleHoldLoad::kSlewMs)) { return false; }
     params.slewMs.store(fv, std::memory_order_relaxed);
 
     return true;
@@ -158,17 +166,17 @@ inline void loadSampleHoldParamsToController(
     Steinberg::int32 iv = 0;
 
     // Rate: read Hz, convert back to normalized
-    if (streamer.readFloat(fv))
+    if (readLoaded(streamer, fv, SampleHoldLoad::kRateHz))
         setParam(kSampleHoldRateId, sampleHoldRateToNormalized(fv));
     // Sync: read int32, convert to 0.0/1.0
     if (streamer.readInt32(iv))
         setParam(kSampleHoldSyncId, iv != 0 ? 1.0 : 0.0);
     // Note Value: read int32, convert to normalized
-    if (streamer.readInt32(iv))
+    if (readLoaded(streamer, iv, SampleHoldLoad::kNoteValue))
         setParam(kSampleHoldNoteValueId,
             static_cast<double>(iv) / (Parameters::kNoteValueDropdownCount - 1));
     // Slew: read ms, convert back to normalized
-    if (streamer.readFloat(fv))
+    if (readLoaded(streamer, fv, SampleHoldLoad::kSlewMs))
         setParam(kSampleHoldSlewId, sampleHoldSlewToNormalized(fv));
 }
 

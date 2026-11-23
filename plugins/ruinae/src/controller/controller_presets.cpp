@@ -54,6 +54,7 @@
 #include "parameters/voice_lfo_params.h"
 #include "parameters/arpeggiator_params.h"
 #include "parameters/state_prefix_validator.h"
+#include "parameters/state_packs.h"
 
 #include "base/source/fstreamer.h"
 #include "pluginterfaces/base/ibstream.h"
@@ -63,6 +64,8 @@
 
 #include <cstring>
 #include <functional>
+#include <unordered_map>
+#include <utility>
 #include <vector>
 
 namespace {
@@ -428,6 +431,37 @@ bool Controller::loadStateCore(Steinberg::IBStreamer& streamer,
                                Steinberg::int32 version,
                                const SetParamFunc& setParam,
                                bool arpOnly) {
+    // Collect the parse of the default state, then of the stream, and set each
+    // parameter once with its last value, in stream order (R-212): a stream
+    // that ends at a pack boundary shows defaults for the packs it lacks, as
+    // Processor::readStatePacks loads them, never the previous preset.
+    std::vector<std::pair<Steinberg::Vst::ParamID, double>> edits;
+    std::unordered_map<Steinberg::Vst::ParamID, size_t> editIndex;
+    const SetParamFunc collect = [&edits, &editIndex](Steinberg::Vst::ParamID id, double value) {
+        const auto [it, inserted] = editIndex.try_emplace(id, edits.size());
+        if (inserted)
+            edits.emplace_back(id, value);
+        else
+            edits[it->second].second = value;
+    };
+
+    std::vector<char> defaults = defaultStateBytes();
+    Steinberg::MemoryStream defaultStream(defaults.data(),
+                                          static_cast<Steinberg::TSize>(defaults.size()));
+    Steinberg::IBStreamer defaultStreamer(&defaultStream, kLittleEndian);
+    Steinberg::int32 defaultVersion = 0;
+    defaultStreamer.readInt32(defaultVersion);
+    loadStateFields(defaultStreamer, defaultVersion, collect, arpOnly);
+
+    const bool ok = loadStateFields(streamer, version, collect, arpOnly);
+    for (const auto& [id, value] : edits) setParam(id, value);
+    return ok;
+}
+
+bool Controller::loadStateFields(Steinberg::IBStreamer& streamer,
+                                 Steinberg::int32 version,
+                                 const SetParamFunc& setParam,
+                                 bool arpOnly) {
     // When loading an arp-only preset, synth parameters are read but not applied.
     // The no-op lambda discards values while the stream position still advances.
     SetParamFunc synthSetter = arpOnly
@@ -464,7 +498,7 @@ bool Controller::loadStateCore(Steinberg::IBStreamer& streamer,
         Steinberg::int32 reverbType = 0;
         if (streamer.readInt32(reverbType)) {
             // StringListParameter: normalized value = index / stepCount = index / 1
-            synthSetter(kReverbTypeId, static_cast<double>(reverbType));
+            synthSetter(kReverbTypeId, static_cast<double>(ReverbLoad::kType(reverbType)));
         }
     } else {
         // Backward compat: default to Plate
@@ -472,33 +506,23 @@ bool Controller::loadStateCore(Steinberg::IBStreamer& streamer,
     }
     loadMonoModeParamsToController(streamer, synthSetter);
 
-    // Voice routes — cache and apply to grid
+    // Voice routes — cache and apply to grid. The processor's reader:
+    // sanitised and migrated the same way (R-211).
     for (int i = 0; i < 16; ++i) {
-        Steinberg::int8 src = 0;
-        Steinberg::int8 dst = 0;
-        Steinberg::int8 curve = 0;
-        Steinberg::int8 scale = 0;
-        Steinberg::int8 bypass = 0;
-        Steinberg::int8 active = 0;
-        float amount = 0;
-        float smoothMs = 0;
-        if (!streamer.readInt8(src) || !streamer.readInt8(dst) ||
-            !streamer.readFloat(amount) || !streamer.readInt8(curve) ||
-            !streamer.readFloat(smoothMs) || !streamer.readInt8(scale) ||
-            !streamer.readInt8(bypass) || !streamer.readInt8(active))
+        LoadedVoiceRoute loaded;
+        if (!readVoiceRoute(streamer, version, loaded))
             return false;
 
         if (!arpOnly) {
             Krate::Plugins::ModRoute route;
-            route.source = static_cast<uint8_t>(src);
-            route.destination = static_cast<Krate::Plugins::ModDestination>(dst);
-            // Before v9: Scale saturated the amount and Filter Resonance spanned 1 Q
-            route.amount = (version < 9) ? preV9VoiceRouteAmount(amount, dst, scale) : amount;
-            route.curve = static_cast<uint8_t>(curve);
-            route.smoothMs = smoothMs;
-            route.scale = static_cast<uint8_t>(scale);
-            route.bypass = (bypass != 0);
-            route.active = (active != 0);
+            route.source = static_cast<uint8_t>(loaded.source);
+            route.destination = static_cast<Krate::Plugins::ModDestination>(loaded.destination);
+            route.amount = loaded.amount;
+            route.curve = static_cast<uint8_t>(loaded.curve);
+            route.smoothMs = loaded.smoothMs;
+            route.scale = static_cast<uint8_t>(loaded.scale);
+            route.bypass = loaded.bypass;
+            route.active = loaded.active;
             cachedVoiceRoutes_[static_cast<size_t>(i)] = route;
 
             if (modMatrixGrid_) {
@@ -519,7 +543,7 @@ bool Controller::loadStateCore(Steinberg::IBStreamer& streamer,
     // A state without the byte loads Phaser, as Processor::setState does.
     if (!streamer.readInt8(flag)) flag = 1;
     // Map int8 to StringListParameter normalized: index / stepCount = index / 3
-    synthSetter(kModulationTypeId, static_cast<double>(flag) / 3.0);
+    synthSetter(kModulationTypeId, static_cast<double>(kModulationTypeLoad(flag)) / 3.0);
 
     // A state written before an effect existed loads that effect's registered
     // defaults: the values Processor::setState resets it to (kModEffectDefaults).

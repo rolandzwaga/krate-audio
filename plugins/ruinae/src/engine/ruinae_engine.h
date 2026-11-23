@@ -384,6 +384,7 @@ public:
         stereoSpread_ = std::clamp(spread, 0.0f, 1.0f);
         recalculatePanPositions();
     }
+    [[nodiscard]] float getStereoSpread() const noexcept { return stereoSpread_; }
 
     /// @brief Set stereo width (FR-014).
     /// 0.0 = mono, 1.0 = natural stereo, 2.0 = extra wide.
@@ -392,6 +393,7 @@ public:
         if (detail::isNaN(width) || detail::isInf(width)) return;
         stereoWidth_ = std::clamp(width, 0.0f, 2.0f);
     }
+    [[nodiscard]] float getStereoWidth() const noexcept { return stereoWidth_; }
 
     // =========================================================================
     // Global Filter (FR-015, FR-016, FR-017)
@@ -412,6 +414,7 @@ public:
         globalFilterL_.setCutoff(globalFilterCutoffHz_);
         globalFilterR_.setCutoff(globalFilterCutoffHz_);
     }
+    [[nodiscard]] float getGlobalFilterCutoff() const noexcept { return globalFilterCutoffHz_; }
 
     /// @brief Set global filter resonance (FR-016).
     void setGlobalFilterResonance(float q) noexcept {
@@ -420,6 +423,7 @@ public:
         globalFilterL_.setResonance(globalFilterResonance_);
         globalFilterR_.setResonance(globalFilterResonance_);
     }
+    [[nodiscard]] float getGlobalFilterResonance() const noexcept { return globalFilterResonance_; }
 
     /// @brief Set global filter mode (FR-017).
     void setGlobalFilterType(SVFMode mode) noexcept {
@@ -728,6 +732,7 @@ public:
         if (detail::isNaN(gain) || detail::isInf(gain)) return;
         masterGain_ = std::clamp(gain, kMinMasterGain, kMaxMasterGain);
     }
+    [[nodiscard]] float getMasterGain() const noexcept { return masterGain_; }
 
     /// @brief Enable/disable the soft limiter (FR-030).
     void setSoftLimitEnabled(bool enabled) noexcept {
@@ -982,12 +987,14 @@ public:
         voiceFilterCutoffHz_ = std::clamp(hz, 20.0f, 20000.0f);
         for (auto& voice : voices_) { voice.setFilterCutoff(voiceFilterCutoffHz_); }
     }
+    [[nodiscard]] float getFilterCutoff() const noexcept { return voiceFilterCutoffHz_; }
 
     void setFilterResonance(float q) noexcept {
         if (detail::isNaN(q) || detail::isInf(q)) return;
         voiceFilterResonance_ = std::clamp(q, 0.1f, 30.0f);
         for (auto& voice : voices_) { voice.setFilterResonance(voiceFilterResonance_); }
     }
+    [[nodiscard]] float getFilterResonance() const noexcept { return voiceFilterResonance_; }
 
     void setFilterEnvAmount(float semitones) noexcept {
         if (detail::isNaN(semitones) || detail::isInf(semitones)) return;
@@ -1515,6 +1522,7 @@ public:
         monoPortamentoTimeMs_ = ms;
         if (!monoSlideGlide_) applyMonoGlideTime(ms);
     }
+    [[nodiscard]] float getMonoPortamentoTime() const noexcept { return monoPortamentoTimeMs_; }
 
     /// @brief Arp Slide Time: the glide of an arp slide step, in Poly (each
     ///        voice's portamento, FR-034) and in Mono (startNote's legato path).
@@ -1526,6 +1534,7 @@ public:
             voices_[i].setPortamentoTime(ms);
         }
     }
+    [[nodiscard]] float getSlideTime() const noexcept { return slideTimeMs_; }
 
     void setPortamentoMode(PortaMode mode) noexcept {
         monoHandler_.setPortamentoMode(mode);

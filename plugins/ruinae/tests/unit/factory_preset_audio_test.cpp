@@ -15,6 +15,9 @@
 #include "controller/controller.h"
 #include "plugin_ids.h"
 #include "parameters/dropdown_mappings.h"
+#include "vst_param_changes.h"
+
+#include <krate/dsp/core/db_utils.h>
 
 #include "public.sdk/source/common/memorystream.h"
 #include "public.sdk/source/vst/vstpresetfile.h"
@@ -72,19 +75,19 @@ public:
         e.noteOn.noteId = -1;
         events_.push_back(e);
     }
+    void addNoteOff(int16 pitch, int32 sampleOffset) {
+        Event e{};
+        e.type = Event::kNoteOffEvent;
+        e.sampleOffset = sampleOffset;
+        e.noteOff.channel = 0;
+        e.noteOff.pitch = pitch;
+        e.noteOff.velocity = 0.0f;
+        e.noteOff.noteId = -1;
+        events_.push_back(e);
+    }
     void clear() { events_.clear(); }
 private:
     std::vector<Event> events_;
-};
-
-class EmptyParamChanges : public IParameterChanges {
-public:
-    tresult PLUGIN_API queryInterface(const TUID, void**) override { return kNoInterface; }
-    uint32 PLUGIN_API addRef() override { return 1; }
-    uint32 PLUGIN_API release() override { return 1; }
-    int32 PLUGIN_API getParameterCount() override { return 0; }
-    IParamValueQueue* PLUGIN_API getParameterData(int32) override { return nullptr; }
-    IParamValueQueue* PLUGIN_API addParameterData(const ParamID&, int32&) override { return nullptr; }
 };
 
 bool loadPresetFileIntoProcessor(const std::filesystem::path& presetPath,
@@ -150,6 +153,12 @@ public:
         return true;
     }
 
+    /// Queue the note-off for C4 in the next rendered block.
+    void releaseNote() { inEvents_.addNoteOff(60, 0); }
+
+    /// Queue a normalized parameter change for the next rendered block.
+    void setParam(ParamID id, double normalized) { params_.addChange(id, normalized); }
+
     /// Render the next block into left() / right().
     void renderBlock() {
         std::fill(outL_.begin(), outL_.end(), 0.0f);
@@ -164,7 +173,7 @@ public:
         data.outputs = &outputBus_;
         data.inputEvents = &inEvents_;
         data.outputEvents = &outEvents_;
-        data.inputParameterChanges = &emptyParams_;
+        data.inputParameterChanges = &params_;
         data.processContext = &processContext_;
 
         proc_->process(data);
@@ -172,6 +181,7 @@ public:
         // The note-on is only delivered in the first block; hold it after that.
         inEvents_.clear();
         outEvents_.clear();
+        params_.clear();
 
         processContext_.projectTimeSamples += kBlockSize;
         processContext_.projectTimeMusic +=
@@ -203,7 +213,7 @@ private:
     AudioBusBuffers outputBus_{};
     TestEventList inEvents_;
     TestEventList outEvents_;
-    EmptyParamChanges emptyParams_;
+    Krate::Test::ParameterChanges params_;
     ProcessContext processContext_{};
     bool loaded_{false};
 };
@@ -253,6 +263,79 @@ PresetLevels renderPresetLevels(const std::filesystem::path& presetPath) {
     return levels;
 }
 
+/// @brief What a preset does over a held note, its release and its tail (R-125).
+struct ReleaseLevels {
+    bool loaded{false};
+    float peak{0.0f};
+    double fractionAbove085{0.0};  ///< Share of samples above the limiter knee.
+    double sustainMean{0.0};       ///< Mean over the sustain window (DC).
+    float sustainedRms{0.0f};      ///< RMS over the sustain window.
+    float tailRms{0.0f};           ///< RMS of the last second, 10 s after release.
+    size_t nonFinite{0};
+};
+
+constexpr double kNoteOffSeconds = 3.0;
+constexpr double kTailSeconds = 10.0;
+// The slowest factory amp attack is 2000 ms; judge the held level after it.
+constexpr double kSustainStartSeconds = 2.0;
+
+/// A normalized parameter value applied from the first block on top of the preset.
+struct ParamOverride {
+    ParamID id;
+    double normalized;
+};
+
+/// @param overrides  Parameters changed from the first block, so a preset is heard
+///                   with one setting removed (the latch disengaged, the delay's
+///                   feedback at 0) to show what keeps it sounding.
+ReleaseLevels renderReleaseLevels(const std::filesystem::path& presetPath,
+                                  const std::vector<ParamOverride>& overrides = {}) {
+    ReleaseLevels out{};
+    HeldNoteRender render;
+    if (!render.load(presetPath)) return out;
+    out.loaded = true;
+    for (const auto& o : overrides) render.setParam(o.id, o.normalized);
+
+    const int noteOffBlock = static_cast<int>((kNoteOffSeconds * kSampleRate) / kBlockSize);
+    const int numBlocks =
+        static_cast<int>(((kNoteOffSeconds + kTailSeconds) * kSampleRate) / kBlockSize);
+    const int sustainStartBlock =
+        static_cast<int>((kSustainStartSeconds * kSampleRate) / kBlockSize);
+    const int tailStartBlock = numBlocks - static_cast<int>(kSampleRate / kBlockSize);
+
+    double sustainSum = 0.0, sustainSq = 0.0, tailSq = 0.0;
+    size_t sustainN = 0, tailN = 0, total = 0, above = 0;
+    for (int block = 0; block < numBlocks; ++block) {
+        if (block == noteOffBlock) render.releaseNote();
+        render.renderBlock();
+        for (size_t i = 0; i < static_cast<size_t>(kBlockSize); ++i) {
+            for (const float x : {render.left()[i], render.right()[i]}) {
+                ++total;
+                if (!Krate::DSP::detail::isFinite(x)) { ++out.nonFinite; continue; }
+                const float a = std::abs(x);
+                out.peak = std::max(out.peak, a);
+                if (a > 0.85f) ++above;
+                if (block >= sustainStartBlock && block < noteOffBlock) {
+                    sustainSum += x;
+                    sustainSq += static_cast<double>(x) * x;
+                    ++sustainN;
+                }
+                if (block >= tailStartBlock) {
+                    tailSq += static_cast<double>(x) * x;
+                    ++tailN;
+                }
+            }
+        }
+    }
+    out.fractionAbove085 = total > 0 ? static_cast<double>(above) / static_cast<double>(total) : 0.0;
+    if (sustainN > 0) {
+        out.sustainMean = sustainSum / static_cast<double>(sustainN);
+        out.sustainedRms = static_cast<float>(std::sqrt(sustainSq / static_cast<double>(sustainN)));
+    }
+    if (tailN > 0) out.tailRms = static_cast<float>(std::sqrt(tailSq / static_cast<double>(tailN)));
+    return out;
+}
+
 float toDbfs(float linear) {
     return (linear > 0.0f) ? 20.0f * std::log10(linear) : -200.0f;
 }
@@ -298,6 +381,217 @@ TEST_CASE("Every Ruinae factory preset produces audible output for a held note",
     }
 }
 
+// R-125: hold C4 for 3 s, release it, render 10 s more. Every preset must stay
+// finite, keep its level under the limiter knee, carry no DC and run down to
+// silence. The bars never change.
+//
+// Known failures (user ruling 2026-11-22): one entry per (preset, check) that fails
+// today, with the value measured when the entry was written and the task that removes
+// it. A listed check that still fails is skipped; a listed check that PASSES fails the
+// test as stale, so the list only shrinks. Since T5.3d it is empty: presets meant to
+// ring on live in kRingOn below, each with a numeric reason.
+enum class Check { Peak, Above085, Mean, Tail };
+
+struct KnownFailure {
+    const char* preset;
+    Check check;
+    double measured;   ///< peak, share above 0.85, |mean|, or tail dBFS
+    const char* owner;
+};
+
+const std::array<KnownFailure, 0> kKnownFailures{};
+
+const KnownFailure* findKnownFailure(const std::string& stem, Check check) {
+    for (const auto& k : kKnownFailures)
+        if (stem == k.preset && k.check == check) return &k;
+    return nullptr;
+}
+
+// Ring-on list: presets meant to keep sounding after the key is released. For these
+// the tail bar is inverted (a ring-on preset that falls silent is a stale entry) and
+// the reason is checked by removing the cause:
+// - Latch: with Latch Off the preset falls below the bar.
+// - DelayFeedback: the delay's recirculation alone holds the tail past 10 s. With the
+//   tape noise off (Wear 0, Age 0, Splice off) it still fails the bar; with Feedback 0
+//   as well it passes.
+// - TapeNoise: the tape delay adds hiss (Wear/Age) and splice clicks after its loop,
+//   input or not, which the R-154 ruling keeps above Wear 0 / Age 0. With Wear 0, Age 0
+//   and Splice off the preset passes.
+// Tape delay decay (T5.3d): its three heads sit at d, 1.5d and 2d and each feeds back
+// the Feedback value g, so the loop falls by -20 log10(y) dB per d, where y solves
+// g (y + y^1.5 + y^2) = 1. A synced delay at 120 BPM: 1/8 = 250 ms, 1/8D = 375 ms,
+// 1/4D = 750 ms. Tails are the RMS of the last second, 9-10 s after release.
+enum class RingCause { Latch, DelayFeedback, TapeNoise };
+
+struct RingOn {
+    const char* preset;
+    RingCause cause;
+    const char* reason;
+};
+
+const RingOn kRingOn[] = {
+    {"Pulse_Climb", RingCause::Latch,
+     "arp Latch = Hold (generator: 'LATCHED so the climb sustains hands-free'): the 1/16 "
+     "up-arp keeps playing the released chord; tail -16.8 dBFS latched, digital silence "
+     "with Latch Off (T5.3a)"},
+    {"Fill_Cascade", RingCause::Latch,
+     "arp Latch = Add (generator: 'held notes ACCUMULATE into the cascade'): the 1/16 "
+     "up-arp keeps playing every note ever pressed; tail -21.0 dBFS latched, -217.8 "
+     "dBFS with Latch Off (T5.3a)"},
+    {"Dub_Chamber", RingCause::DelayFeedback,
+     "Tape 1/4D (750 ms), Feedback 0.21 on 3 heads: loop gain 0.739, -2.63 dB per pass "
+     "= -3.5 dB/s (measured -3.3 dB/s with LFO1 off); LFO1 (0.1 Hz) -> Effect Mix swells "
+     "the wet back up from 6 s, so the last second reads -44.8 dBFS; -177 with Feedback 0 "
+     "(T5.3d)"},
+    {"Chaos_Wind", RingCause::DelayFeedback,
+     "Tape synced 1/8 (250 ms; Sync stays on, so Time 750 ms is unused), Feedback 0.29 on "
+     "3 heads: loop gain 0.912, -0.80 dB per pass = -3.2 dB/s (measured -3.3 dB/s with the "
+     "Hall off), into a size 0.85 Hall: last second -51.1 dBFS; -350 with Feedback 0 (T5.3d)"},
+    {"Echo_Bass", RingCause::DelayFeedback,
+     "Tape 1/8D (375 ms), Feedback 0.28 on 3 heads: loop gain 0.891, -1.00 dB per pass = "
+     "-2.7 dB/s (measured -2.7 dB/s): -28.4 dBFS 1 s after release reaches -80 only after "
+     "~20 s; last second -54.5; -200 with Feedback 0 (T5.3d)"},
+    {"Dreamscape", RingCause::DelayFeedback,
+     "Tape 400 ms, Feedback 0.28 on 3 heads: loop gain 0.891, -1.00 dB per pass = -2.5 dB/s "
+     "(measured -2.5 dB/s), into a size 0.8 Plate: last second -65.6 dBFS; -121 with "
+     "Feedback 0 (T5.3d)"},
+    {"Tape_Shuffle", RingCause::DelayFeedback,
+     "Tape 1/8D (375 ms), Feedback 0.22 on 3 heads: loop gain 0.761, -2.37 dB per pass = "
+     "-6.3 dB/s (measured -6.3 dB/s): -22.7 dBFS 1 s after release reaches -80 at ~10.1 s "
+     "(last second -78.0 with the tape noise off); Wear 0.5 / Age 0.4 hiss (-56 dB) holds "
+     "it at -73.7; -176 with Feedback 0 (T5.3d)"},
+    {"Spectral_Drift", RingCause::DelayFeedback,
+     "Spectral delay 600 ms + Spread 400 ms High-to-Low, Feedback 0.4 with Tilt -0.3: the "
+     "C4/C5 bins feed back 0.52 every ~995 ms = -5.7 dB/s (measured -6.0 dB/s): last second "
+     "-75.6 dBFS; -200 with Feedback 0. Reverb Freeze is on but holds nothing (Freeze Off "
+     "reads the same -75.6) (T5.3d)"},
+    {"Lorenz_Choir", RingCause::DelayFeedback,
+     "Tape 1/8D (375 ms), Feedback 0.23 on 3 heads: loop gain 0.783, -2.12 dB per pass = "
+     "-5.7 dB/s (measured -5.7 dB/s): last second -76.3 dBFS (-77.6 with the tape noise "
+     "off); -143 with Feedback 0 (T5.3d)"},
+    {"Foldbeast", RingCause::DelayFeedback,
+     "Tape 1/8 (250 ms), Feedback 0.25 on 3 heads: loop gain 0.827, -1.65 dB per pass = "
+     "-6.6 dB/s (measured -6.5 dB/s): -21.2 dBFS 1 s after release reaches -80 at ~10 s; "
+     "last second -78.8; -265 with Feedback 0 (T5.3d)"},
+    {"FM_Grunge", RingCause::TapeNoise,
+     "Splice on (intensity 0.5) and Wear 0.4 hiss (-64 dB) after the tape loop: with "
+     "Feedback 0 the output holds -74.6 dBFS (-84.4 with Splice off); the echoes (synced "
+     "1/8 = 250 ms, Feedback 0.23 on 3 heads = -8.5 dB/s) fall to -107 with the tape noise "
+     "off (T5.3d)"},
+    {"Degauss_Drift", RingCause::TapeNoise,
+     "Wear 0.5 / Age 0.3 hiss (-57 dB, Master Gain 2.0) after the tape loop: with Feedback "
+     "0 the output holds -74.5 dBFS; the echoes (synced 1/8 = 250 ms, Feedback 0.25 on 3 "
+     "heads = -6.6 dB/s) fall to -88.9 with the tape noise off (T5.3d)"},
+    {"Chaos_Machine", RingCause::TapeNoise,
+     "Splice on (intensity 0.4) and Wear 0.3 / Age 0.4 hiss (-64 dB) after the tape loop: "
+     "with Feedback 0 the output holds -79.9 dBFS; the echoes (synced 1/8 = 250 ms, Feedback "
+     "0.25 on 3 heads = -6.6 dB/s) fall to -98.5 with the tape noise off (T5.3d)"},
+};
+
+const RingOn* findRingOn(const std::string& stem) {
+    for (const auto& r : kRingOn)
+        if (stem == r.preset) return &r;
+    return nullptr;
+}
+
+/// Apply one bar: an unlisted check must pass, a listed one must still fail.
+void applyBar(const std::string& stem, Check check, const char* name, bool passes, double value) {
+    const KnownFailure* known = findKnownFailure(stem, check);
+    INFO(stem << " " << name << " = " << value);
+    if (known == nullptr) {
+        CHECK(passes);
+    } else {
+        INFO("known failure owned by " << known->owner << ", measured " << known->measured
+             << ": it passes now, so the entry is stale; delete it");
+        CHECK_FALSE(passes);
+    }
+}
+
+TEST_CASE("Every Ruinae factory preset releases cleanly and stays within level and DC bounds",
+          "[processor][presets][audio][release][long]")
+{
+    const auto presets = enumerateAllPresets();
+    REQUIRE_FALSE(presets.empty());
+
+    // A known-failure entry whose preset no longer exists is stale too.
+    for (const auto& k : kKnownFailures) {
+        const bool exists = std::any_of(presets.begin(), presets.end(),
+            [&](const auto& p) { return p.stem().string() == k.preset; });
+        INFO("known failure for missing preset " << k.preset);
+        CHECK(exists);
+    }
+    for (const auto& r : kRingOn) {
+        const bool exists = std::any_of(presets.begin(), presets.end(),
+            [&](const auto& p) { return p.stem().string() == r.preset; });
+        INFO("ring-on entry for missing preset " << r.preset);
+        CHECK(exists);
+        INFO("ring-on preset " << r.preset << " also carries a known tail failure");
+        CHECK(findKnownFailure(r.preset, Check::Tail) == nullptr);
+    }
+
+    for (const auto& p : presets) {
+        const std::string stem = p.stem().string();
+        DYNAMIC_SECTION("preset " << stem) {
+            const auto l = renderReleaseLevels(p);
+            REQUIRE(l.loaded);
+            INFO("preset: " << stem << " peak " << l.peak << " above0.85 " << l.fractionAbove085
+                 << " mean " << l.sustainMean << " sustainRms " << l.sustainedRms
+                 << " (" << toDbfs(l.sustainedRms) << " dBFS) tailRms " << l.tailRms
+                 << " (" << toDbfs(l.tailRms) << " dBFS) nonFinite " << l.nonFinite);
+            CHECK(l.nonFinite == size_t{0});
+            CHECK(l.sustainedRms > kAudibleThreshold);
+            applyBar(stem, Check::Peak, "peak", l.peak < 0.99f, l.peak);
+            applyBar(stem, Check::Above085, "share above 0.85", l.fractionAbove085 < 0.01,
+                     l.fractionAbove085);
+            applyBar(stem, Check::Mean, "|sustain mean|", std::abs(l.sustainMean) < 0.01,
+                     std::abs(l.sustainMean));
+            const RingOn* ring = findRingOn(stem);
+            if (ring == nullptr) {
+                applyBar(stem, Check::Tail, "tail dBFS", toDbfs(l.tailRms) < -80.0f,
+                         toDbfs(l.tailRms));
+            } else {
+                INFO("ring-on entry: " << ring->reason);
+                INFO("tail " << toDbfs(l.tailRms)
+                     << " dBFS: a ring-on preset that falls silent is a stale entry");
+                CHECK_FALSE(toDbfs(l.tailRms) < -80.0f);
+                // Tape noise off: Wear 0, Age 0, Splice off.
+                const std::vector<ParamOverride> noiseOff = {
+                    {Ruinae::kDelayTapeWearId, 0.0}, {Ruinae::kDelayTapeAgeId, 0.0},
+                    {Ruinae::kDelayTapeSpliceEnabledId, 0.0}};
+                if (ring->cause == RingCause::Latch) {
+                    // list index 0 = Off
+                    const auto unlatched = renderReleaseLevels(p, {{Ruinae::kArpLatchModeId, 0.0}});
+                    REQUIRE(unlatched.loaded);
+                    INFO("with Latch Off: tail " << toDbfs(unlatched.tailRms) << " dBFS");
+                    CHECK(unlatched.nonFinite == size_t{0});
+                    CHECK(unlatched.sustainedRms > kAudibleThreshold);
+                    CHECK(toDbfs(unlatched.tailRms) < -80.0f);
+                } else if (ring->cause == RingCause::DelayFeedback) {
+                    const auto quiet = renderReleaseLevels(p, noiseOff);
+                    auto dryOverrides = noiseOff;
+                    dryOverrides.push_back({Ruinae::kDelayFeedbackId, 0.0});
+                    const auto dry = renderReleaseLevels(p, dryOverrides);
+                    REQUIRE(quiet.loaded);
+                    REQUIRE(dry.loaded);
+                    INFO("tape noise off: tail " << toDbfs(quiet.tailRms)
+                         << " dBFS; and Feedback 0: tail " << toDbfs(dry.tailRms) << " dBFS");
+                    CHECK(dry.nonFinite == size_t{0});
+                    CHECK(dry.sustainedRms > kAudibleThreshold);
+                    CHECK_FALSE(toDbfs(quiet.tailRms) < -80.0f);
+                    CHECK(toDbfs(dry.tailRms) < -80.0f);
+                } else {
+                    const auto quiet = renderReleaseLevels(p, noiseOff);
+                    REQUIRE(quiet.loaded);
+                    INFO("tape noise off: tail " << toDbfs(quiet.tailRms) << " dBFS");
+                    CHECK(quiet.nonFinite == size_t{0});
+                    CHECK(quiet.sustainedRms > kAudibleThreshold);
+                    CHECK(toDbfs(quiet.tailRms) < -80.0f);
+                }
+            }
+        }
+    }
+}
+
 // R-076: setState rejects a stream cut inside the required prefix. Every
 // factory preset is a complete stream, so every one must still load.
 TEST_CASE("Every Ruinae factory preset passes Processor::setState",
@@ -311,6 +605,45 @@ TEST_CASE("Every Ruinae factory preset passes Processor::setState",
     for (const auto& p : presets) {
         INFO("preset: " << p.stem().string());
         CHECK(loadPresetFileIntoProcessor(p, processor));
+    }
+    processor.terminate();
+}
+
+// R-211: the loaders clamp what a damaged state holds, and nothing else. Every
+// factory preset holds in-range values only, so getState after setState gives
+// back the preset's component state byte for byte.
+TEST_CASE("Every Ruinae factory preset state round-trips byte-identically",
+          "[processor][presets][state]")
+{
+    const auto presets = enumerateAllPresets();
+    REQUIRE_FALSE(presets.empty());
+
+    Ruinae::Processor processor;
+    REQUIRE(processor.initialize(nullptr) == kResultOk);
+    for (const auto& p : presets) {
+        INFO("preset: " << p.stem().string());
+        auto* file = FileStream::open(p.string().c_str(), "rb");
+        REQUIRE(file != nullptr);
+        PresetFile presetFile(file);
+        const bool found = presetFile.readChunkList() && presetFile.seekToComponentState();
+        const auto* entry = presetFile.getEntry(kComponentState);
+        std::vector<char> bytes(entry != nullptr ? static_cast<size_t>(entry->size) : 0);
+        int32 read = 0;
+        const bool readOk = found && entry != nullptr &&
+                            file->read(bytes.data(), static_cast<int32>(bytes.size()), &read) == kResultOk &&
+                            read == static_cast<int32>(bytes.size());
+        file->release();
+        REQUIRE(readOk);
+
+        MemoryStream in(bytes.data(), static_cast<TSize>(bytes.size()));
+        REQUIRE(processor.setState(&in) == kResultTrue);
+        MemoryStream out;
+        REQUIRE(processor.getState(&out) == kResultTrue);
+        const std::vector<char> saved(out.getData(), out.getData() + out.getSize());
+        size_t firstDiff = 0;
+        while (firstDiff < std::min(saved.size(), bytes.size()) && saved[firstDiff] == bytes[firstDiff]) ++firstDiff;
+        INFO("first differing byte " << firstDiff << " of " << bytes.size());
+        CHECK(saved == bytes);
     }
     processor.terminate();
 }

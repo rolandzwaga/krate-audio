@@ -1,5 +1,6 @@
 #pragma once
 #include "plugin_ids.h"
+#include "parameters/state_load_helpers.h"
 #include "controller/parameter_helpers.h"
 #include "parameters/dropdown_mappings.h"
 #include "parameters/note_value_ui.h"
@@ -183,18 +184,31 @@ inline void savePhaserParams(const RuinaePhaserParams& params, Steinberg::IBStre
     streamer.writeInt32(params.noteValue.load(std::memory_order_relaxed));
 }
 
+// Saved-field ranges, read by both parsers (R-211)
+namespace PhaserLoad {
+inline constexpr LoadedFloat kRateHz{.lo = 0.01f, .hi = 20.0f, .def = 0.5f};
+inline constexpr LoadedFloat kDepth{.lo = 0.0f, .hi = 1.0f, .def = 0.5f};
+inline constexpr LoadedFloat kFeedback{.lo = -1.0f, .hi = 1.0f, .def = 0.5f};
+inline constexpr LoadedFloat kMix{.lo = 0.0f, .hi = 1.0f, .def = 0.5f};
+inline constexpr LoadedInt kStages{.lo = 0, .hi = kPhaserStagesCount - 1};
+inline constexpr LoadedFloat kCenterFreqHz{.lo = 100.0f, .hi = 10000.0f, .def = 1000.0f};
+inline constexpr LoadedFloat kStereoSpread{.lo = 0.0f, .hi = 360.0f, .def = 0.0f};
+inline constexpr LoadedInt kWaveform{.lo = 0, .hi = kPhaserWaveformCount - 1};
+inline constexpr LoadedInt kNoteValue{.lo = 0, .hi = Parameters::kNoteValueDropdownCount - 1};
+} // namespace PhaserLoad
+
 inline bool loadPhaserParams(RuinaePhaserParams& params, Steinberg::IBStreamer& streamer) {
     float fv = 0.0f; Steinberg::int32 iv = 0;
-    if (!streamer.readFloat(fv)) { return false; } params.rateHz.store(fv, std::memory_order_relaxed);
-    if (!streamer.readFloat(fv)) { return false; } params.depth.store(fv, std::memory_order_relaxed);
-    if (!streamer.readFloat(fv)) { return false; } params.feedback.store(fv, std::memory_order_relaxed);
-    if (!streamer.readFloat(fv)) { return false; } params.mix.store(fv, std::memory_order_relaxed);
-    if (!streamer.readInt32(iv)) { return false; } params.stages.store(iv, std::memory_order_relaxed);
-    if (!streamer.readFloat(fv)) { return false; } params.centerFreqHz.store(fv, std::memory_order_relaxed);
-    if (!streamer.readFloat(fv)) { return false; } params.stereoSpread.store(fv, std::memory_order_relaxed);
-    if (!streamer.readInt32(iv)) { return false; } params.waveform.store(iv, std::memory_order_relaxed);
+    if (!readLoaded(streamer, fv, PhaserLoad::kRateHz)) { return false; } params.rateHz.store(fv, std::memory_order_relaxed);
+    if (!readLoaded(streamer, fv, PhaserLoad::kDepth)) { return false; } params.depth.store(fv, std::memory_order_relaxed);
+    if (!readLoaded(streamer, fv, PhaserLoad::kFeedback)) { return false; } params.feedback.store(fv, std::memory_order_relaxed);
+    if (!readLoaded(streamer, fv, PhaserLoad::kMix)) { return false; } params.mix.store(fv, std::memory_order_relaxed);
+    if (!readLoaded(streamer, iv, PhaserLoad::kStages)) { return false; } params.stages.store(iv, std::memory_order_relaxed);
+    if (!readLoaded(streamer, fv, PhaserLoad::kCenterFreqHz)) { return false; } params.centerFreqHz.store(fv, std::memory_order_relaxed);
+    if (!readLoaded(streamer, fv, PhaserLoad::kStereoSpread)) { return false; } params.stereoSpread.store(fv, std::memory_order_relaxed);
+    if (!readLoaded(streamer, iv, PhaserLoad::kWaveform)) { return false; } params.waveform.store(iv, std::memory_order_relaxed);
     if (!streamer.readInt32(iv)) { return false; } params.sync.store(iv != 0, std::memory_order_relaxed);
-    if (!streamer.readInt32(iv)) { return false; } params.noteValue.store(iv, std::memory_order_relaxed);
+    if (!readLoaded(streamer, iv, PhaserLoad::kNoteValue)) { return false; } params.noteValue.store(iv, std::memory_order_relaxed);
     return true;
 }
 
@@ -206,16 +220,16 @@ template<typename SetParamFunc>
 inline void loadPhaserParamsToController(
     Steinberg::IBStreamer& streamer, const SetParamFunc& setParam) {
     float fv = 0.0f; Steinberg::int32 iv = 0;
-    if (streamer.readFloat(fv)) setParam(kPhaserRateId, static_cast<double>((fv - 0.01f) / 19.99f));
-    if (streamer.readFloat(fv)) setParam(kPhaserDepthId, static_cast<double>(fv));
-    if (streamer.readFloat(fv)) setParam(kPhaserFeedbackId, static_cast<double>((fv + 1.0f) / 2.0f));
-    if (streamer.readFloat(fv)) setParam(kPhaserMixId, static_cast<double>(fv));
-    if (streamer.readInt32(iv)) setParam(kPhaserStagesId, static_cast<double>(iv) / (kPhaserStagesCount - 1));
-    if (streamer.readFloat(fv)) setParam(kPhaserCenterFreqId, static_cast<double>((fv - 100.0f) / 9900.0f));
-    if (streamer.readFloat(fv)) setParam(kPhaserStereoSpreadId, static_cast<double>(fv / 360.0f));
-    if (streamer.readInt32(iv)) setParam(kPhaserWaveformId, static_cast<double>(iv) / (kPhaserWaveformCount - 1));
+    if (readLoaded(streamer, fv, PhaserLoad::kRateHz)) setParam(kPhaserRateId, static_cast<double>((fv - 0.01f) / 19.99f));
+    if (readLoaded(streamer, fv, PhaserLoad::kDepth)) setParam(kPhaserDepthId, static_cast<double>(fv));
+    if (readLoaded(streamer, fv, PhaserLoad::kFeedback)) setParam(kPhaserFeedbackId, static_cast<double>((fv + 1.0f) / 2.0f));
+    if (readLoaded(streamer, fv, PhaserLoad::kMix)) setParam(kPhaserMixId, static_cast<double>(fv));
+    if (readLoaded(streamer, iv, PhaserLoad::kStages)) setParam(kPhaserStagesId, static_cast<double>(iv) / (kPhaserStagesCount - 1));
+    if (readLoaded(streamer, fv, PhaserLoad::kCenterFreqHz)) setParam(kPhaserCenterFreqId, static_cast<double>((fv - 100.0f) / 9900.0f));
+    if (readLoaded(streamer, fv, PhaserLoad::kStereoSpread)) setParam(kPhaserStereoSpreadId, static_cast<double>(fv / 360.0f));
+    if (readLoaded(streamer, iv, PhaserLoad::kWaveform)) setParam(kPhaserWaveformId, static_cast<double>(iv) / (kPhaserWaveformCount - 1));
     if (streamer.readInt32(iv)) setParam(kPhaserSyncId, iv != 0 ? 1.0 : 0.0);
-    if (streamer.readInt32(iv)) setParam(kPhaserNoteValueId, static_cast<double>(iv) / (Parameters::kNoteValueDropdownCount - 1));
+    if (readLoaded(streamer, iv, PhaserLoad::kNoteValue)) setParam(kPhaserNoteValueId, static_cast<double>(iv) / (Parameters::kNoteValueDropdownCount - 1));
 }
 
 } // namespace Ruinae

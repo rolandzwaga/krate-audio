@@ -7,6 +7,7 @@
 #include "plugin_ids.h"
 #include "controller/parameter_helpers.h"
 #include "parameters/dropdown_mappings.h"
+#include "parameters/state_load_helpers.h"
 #include "pluginterfaces/base/ustring.h"
 #include "public.sdk/source/vst/vstparameters.h"
 #include "public.sdk/source/vst/vsteditcontroller.h"
@@ -112,18 +113,26 @@ inline void saveMixerParams(const MixerParams& params, Steinberg::IBStreamer& st
     streamer.writeFloat(params.shift.load(std::memory_order_relaxed));
 }
 
+// Saved-field ranges, read by both parsers (R-211)
+namespace MixerLoad {
+inline constexpr LoadedInt kMode{.lo = 0, .hi = kMixModeCount - 1};
+inline constexpr LoadedFloat kPosition{.lo = 0.0f, .hi = 1.0f, .def = 0.5f};
+inline constexpr LoadedFloat kTilt{.lo = -12.0f, .hi = 12.0f, .def = 0.0f};
+inline constexpr LoadedFloat kShift{.lo = 0.0f, .hi = 1.0f, .def = kMixerShiftNeutral};
+} // namespace MixerLoad
+
 inline bool loadMixerParams(MixerParams& params, Steinberg::IBStreamer& streamer,
                             Steinberg::int32 stateVersion = kCurrentStateVersion) {
     Steinberg::int32 intVal = 0; float floatVal = 0.0f;
     if (!streamer.readInt32(intVal)) return false;
-    params.mode.store(intVal, std::memory_order_relaxed);
+    params.mode.store(MixerLoad::kMode(intVal), std::memory_order_relaxed);
     if (!streamer.readFloat(floatVal)) return false;
-    params.position.store(floatVal, std::memory_order_relaxed);
+    params.position.store(MixerLoad::kPosition(floatVal), std::memory_order_relaxed);
     if (!streamer.readFloat(floatVal)) return false;
-    params.tilt.store(floatVal, std::memory_order_relaxed);
+    params.tilt.store(MixerLoad::kTilt(floatVal), std::memory_order_relaxed);
     if (!streamer.readFloat(floatVal)) return false;
     if (stateVersion < kMixerShiftAudibleStateVersion) floatVal = kMixerShiftNeutral;
-    params.shift.store(floatVal, std::memory_order_relaxed);
+    params.shift.store(MixerLoad::kShift(floatVal), std::memory_order_relaxed);
     return true;
 }
 
@@ -133,16 +142,16 @@ inline void loadMixerParamsToController(
     Steinberg::int32 stateVersion = kCurrentStateVersion) {
     Steinberg::int32 intVal = 0; float floatVal = 0.0f;
     if (streamer.readInt32(intVal))
-        setParam(kMixerModeId, static_cast<double>(intVal) / (kMixModeCount - 1));
+        setParam(kMixerModeId, static_cast<double>(MixerLoad::kMode(intVal)) / (kMixModeCount - 1));
     if (streamer.readFloat(floatVal))
-        setParam(kMixerPositionId, static_cast<double>(floatVal));
+        setParam(kMixerPositionId, static_cast<double>(MixerLoad::kPosition(floatVal)));
     if (streamer.readFloat(floatVal)) {
-        double normalized = (static_cast<double>(floatVal) + 12.0) / 24.0;
+        double normalized = (static_cast<double>(MixerLoad::kTilt(floatVal)) + 12.0) / 24.0;
         setParam(kMixerTiltId, normalized);
     }
     if (streamer.readFloat(floatVal)) {
         if (stateVersion < kMixerShiftAudibleStateVersion) floatVal = kMixerShiftNeutral;
-        setParam(kMixerShiftId, static_cast<double>(floatVal));
+        setParam(kMixerShiftId, static_cast<double>(MixerLoad::kShift(floatVal)));
     }
 }
 

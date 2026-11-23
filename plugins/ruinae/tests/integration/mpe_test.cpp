@@ -400,6 +400,93 @@ TEST_CASE("MPE: pitch bend + expression tuning combine", "[mpe][integration]") {
 }
 
 // =============================================================================
+// Pitch assertions (R-120): the tests above only prove "something sounds"
+// =============================================================================
+
+namespace {
+
+/// Renders `blocks` more blocks and returns the left channel of all of them.
+std::vector<float> captureLeft(TestProcessor& t, int blocks) {
+    std::vector<float> out;
+    for (int i = 0; i < blocks; ++i) {
+        t.processBlocks(1);
+        out.insert(out.end(), t.outL.begin(), t.outL.end());
+    }
+    return out;
+}
+
+/// Mean frequency from interpolated rising zero crossings.
+double zeroCrossingHz(const std::vector<float>& x, double sampleRate) {
+    double first = -1.0;
+    double last = -1.0;
+    int periods = -1;
+    for (size_t i = 1; i < x.size(); ++i) {
+        if (x[i - 1] < 0.0f && x[i] >= 0.0f) {
+            const double crossing = static_cast<double>(i - 1) +
+                static_cast<double>(-x[i - 1]) / static_cast<double>(x[i] - x[i - 1]);
+            if (first < 0.0) first = crossing;
+            last = crossing;
+            ++periods;
+        }
+    }
+    if (periods < 1) return 0.0;
+    return sampleRate * static_cast<double>(periods) / (last - first);
+}
+
+constexpr double kC4Hz = 261.6255653005986;
+
+/// Pitch of the held note after `settleBlocks` further blocks, over `measureBlocks`.
+double heldPitchHz(TestProcessor& t, int settleBlocks, int measureBlocks) {
+    t.processBlocks(settleBlocks);
+    return zeroCrossingHz(captureLeft(t, measureBlocks), 44100.0);
+}
+
+} // namespace
+
+TEST_CASE("MPE: tuning expression of +12 semitones shifts the pitch by an octave",
+          "[mpe][integration][pitch]") {
+    TestProcessor t;
+    t.eventList.addNoteOn(60, 0.8f, 1);
+    t.processBlocks(10);
+    const double before = zeroCrossingHz(captureLeft(t, 8), 44100.0);
+    INFO("before tuning: " << before << " Hz");
+    REQUIRE(before == Approx(kC4Hz).epsilon(0.01));
+
+    t.eventList.addNoteExpression(1, NoteExpressionTypeIDs::kTuningTypeID, 0.55);
+    const double after = heldPitchHz(t, 6, 8);
+    INFO("after tuning: " << after << " Hz");
+    REQUIRE(after == Approx(523.25).epsilon(0.01));
+}
+
+TEST_CASE("MPE: pitch bend and expression tuning sum their offsets",
+          "[mpe][integration][pitch]") {
+    TestProcessor t;
+    t.eventList.addNoteOn(60, 0.8f, 1);
+    t.processBlocks(10);
+
+    // Bend +0.5 of the default 2-semitone range = +1 semitone; tuning +12 semitones
+    t.proc.onPitchBend(0.5f);
+    t.eventList.addNoteExpression(1, NoteExpressionTypeIDs::kTuningTypeID, 0.55);
+    const double hz = heldPitchHz(t, 20, 8);
+    const double expected = kC4Hz * std::pow(2.0, 13.0 / 12.0);
+    INFO("measured " << hz << " Hz, expected " << expected << " Hz");
+    REQUIRE(hz == Approx(expected).epsilon(0.01));
+}
+
+TEST_CASE("MPE: pitch bend alone bends the note by its range",
+          "[mpe][integration][pitch]") {
+    TestProcessor t;
+    t.eventList.addNoteOn(60, 0.8f, 1);
+    t.processBlocks(10);
+
+    t.proc.onPitchBend(1.0f);  // +2 semitones
+    const double hz = heldPitchHz(t, 20, 8);
+    const double expected = kC4Hz * std::pow(2.0, 2.0 / 12.0);
+    INFO("measured " << hz << " Hz, expected " << expected << " Hz");
+    REQUIRE(hz == Approx(expected).epsilon(0.01));
+}
+
+// =============================================================================
 // Phase 4: noteId bookkeeping addresses the sounding note (R-035, R-168, R-167, R-036)
 // =============================================================================
 

@@ -74,6 +74,21 @@ function derivedNames(s) {
     return names;
 }
 
+// The clock-derived names plus every name this one case computes from them, to a fixed point.
+function caseNames(body, names) {
+    const local = new Set(names);
+    const assigns = [...body.matchAll(/([A-Za-z_]\w*)\s*(?:\+|-|\*|\/)?=(?!=)\s*([^;]*);/g)].map((m) => [m[1], m[2]]);
+    for (let grew = true; grew;) {
+        grew = false;
+        const re = new RegExp(`\\b(${[...local].join('|')})\\b`);
+        for (const [l, r] of assigns) {
+            if (local.has(l) || l.length < 3 || SKIP.has(l) || !re.test(r)) continue;
+            local.add(l); grew = true;
+        }
+    }
+    return local;
+}
+
 function lint(root) {
     const files = testFiles(root);
     const text = new Map(files.map((f) => [f, fs.readFileSync(f, 'utf8')]));
@@ -97,7 +112,13 @@ function lint(root) {
             const p = s.slice(at, starts[i + 1] ?? s.length);
             const head = HEAD.exec(p);
             if (!head || TAGGED.test(head[1])) return;
-            const direct = p.split('\n').find((l) => ASSERT.test(l) && re.test(l));
+            // Inside one case a value computed from a clock-derived name is clock-derived
+            // whatever it is called (overheadPct = (arpTimeMs - noArpTimeMs) / ...).
+            // Only a case that reads a clock itself: a name that merely collides with a
+            // clock-derived name in another case of the file is not a time quantity.
+            const local = CLOCK.test(p) ? caseNames(p, names) : names;
+            const lre = new RegExp(`\\b(${[...local].join('|')})\\b`);
+            const direct = p.split('\n').find((l) => ASSERT.test(l) && lre.test(l));
             const via = helpers.find((h) => new RegExp(`\\b${h}\\s*\\(`).test(p));
             if (!direct && !via) return;
             const line = s.slice(0, at + p.search(/\S/)).split('\n').length;

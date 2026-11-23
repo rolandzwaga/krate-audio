@@ -172,17 +172,31 @@ inline void saveReverbParams(const RuinaeReverbParams& params, Steinberg::IBStre
     streamer.writeFloat(params.modDepth.load(std::memory_order_relaxed));
 }
 
+// Saved-field ranges, read by both parsers (R-211)
+namespace ReverbLoad {
+inline constexpr LoadedFloat kSize{.lo = 0.0f, .hi = 1.0f, .def = 0.5f};
+inline constexpr LoadedFloat kDamping{.lo = 0.0f, .hi = 1.0f, .def = 0.5f};
+inline constexpr LoadedFloat kWidth{.lo = 0.0f, .hi = 1.0f, .def = 1.0f};
+inline constexpr LoadedFloat kMix{.lo = 0.0f, .hi = 1.0f, .def = 0.5f};
+inline constexpr LoadedFloat kPreDelayMs{.lo = 0.0f, .hi = 100.0f, .def = 0.0f};
+inline constexpr LoadedFloat kDiffusion{.lo = 0.0f, .hi = 1.0f, .def = 0.7f};
+inline constexpr LoadedFloat kModRateHz{.lo = 0.0f, .hi = 2.0f, .def = 0.5f};
+inline constexpr LoadedFloat kModDepth{.lo = 0.0f, .hi = 1.0f, .def = 0.0f};
+// The reverb-type int32 after the pack (state v5+): 0 = Plate, 1 = Hall
+inline constexpr LoadedInt kType{.lo = 0, .hi = 1};
+} // namespace ReverbLoad
+
 inline bool loadReverbParams(RuinaeReverbParams& params, Steinberg::IBStreamer& streamer) {
     float fv = 0.0f; Steinberg::int32 iv = 0;
-    if (!streamer.readFloat(fv)) { return false; } params.size.store(finiteClamp(fv, 0.0f, 1.0f, 0.5f), std::memory_order_relaxed);
-    if (!streamer.readFloat(fv)) { return false; } params.damping.store(finiteClamp(fv, 0.0f, 1.0f, 0.5f), std::memory_order_relaxed);
-    if (!streamer.readFloat(fv)) { return false; } params.width.store(finiteClamp(fv, 0.0f, 1.0f, 1.0f), std::memory_order_relaxed);
-    if (!streamer.readFloat(fv)) { return false; } params.mix.store(finiteClamp(fv, 0.0f, 1.0f, 0.5f), std::memory_order_relaxed);
-    if (!streamer.readFloat(fv)) { return false; } params.preDelayMs.store(finiteClamp(fv, 0.0f, 100.0f, 0.0f), std::memory_order_relaxed);
-    if (!streamer.readFloat(fv)) { return false; } params.diffusion.store(finiteClamp(fv, 0.0f, 1.0f, 0.7f), std::memory_order_relaxed);
+    if (!readLoaded(streamer, fv, ReverbLoad::kSize)) { return false; } params.size.store(fv, std::memory_order_relaxed);
+    if (!readLoaded(streamer, fv, ReverbLoad::kDamping)) { return false; } params.damping.store(fv, std::memory_order_relaxed);
+    if (!readLoaded(streamer, fv, ReverbLoad::kWidth)) { return false; } params.width.store(fv, std::memory_order_relaxed);
+    if (!readLoaded(streamer, fv, ReverbLoad::kMix)) { return false; } params.mix.store(fv, std::memory_order_relaxed);
+    if (!readLoaded(streamer, fv, ReverbLoad::kPreDelayMs)) { return false; } params.preDelayMs.store(fv, std::memory_order_relaxed);
+    if (!readLoaded(streamer, fv, ReverbLoad::kDiffusion)) { return false; } params.diffusion.store(fv, std::memory_order_relaxed);
     if (!streamer.readInt32(iv)) { return false; } params.freeze.store(iv != 0, std::memory_order_relaxed);
-    if (!streamer.readFloat(fv)) { return false; } params.modRateHz.store(finiteClamp(fv, 0.0f, 2.0f, 0.5f), std::memory_order_relaxed);
-    if (!streamer.readFloat(fv)) { return false; } params.modDepth.store(finiteClamp(fv, 0.0f, 1.0f, 0.0f), std::memory_order_relaxed);
+    if (!readLoaded(streamer, fv, ReverbLoad::kModRateHz)) { return false; } params.modRateHz.store(fv, std::memory_order_relaxed);
+    if (!readLoaded(streamer, fv, ReverbLoad::kModDepth)) { return false; } params.modDepth.store(fv, std::memory_order_relaxed);
     return true;
 }
 
@@ -190,15 +204,15 @@ template<typename SetParamFunc>
 inline void loadReverbParamsToController(
     Steinberg::IBStreamer& streamer, const SetParamFunc& setParam) {
     float fv = 0.0f; Steinberg::int32 iv = 0;
-    if (streamer.readFloat(fv)) setParam(kReverbSizeId, static_cast<double>(fv));
-    if (streamer.readFloat(fv)) setParam(kReverbDampingId, static_cast<double>(fv));
-    if (streamer.readFloat(fv)) setParam(kReverbWidthId, static_cast<double>(fv));
-    if (streamer.readFloat(fv)) setParam(kReverbMixId, static_cast<double>(fv));
-    if (streamer.readFloat(fv)) setParam(kReverbPreDelayId, static_cast<double>(fv / 100.0f));
-    if (streamer.readFloat(fv)) setParam(kReverbDiffusionId, static_cast<double>(fv));
+    if (readLoaded(streamer, fv, ReverbLoad::kSize)) setParam(kReverbSizeId, static_cast<double>(fv));
+    if (readLoaded(streamer, fv, ReverbLoad::kDamping)) setParam(kReverbDampingId, static_cast<double>(fv));
+    if (readLoaded(streamer, fv, ReverbLoad::kWidth)) setParam(kReverbWidthId, static_cast<double>(fv));
+    if (readLoaded(streamer, fv, ReverbLoad::kMix)) setParam(kReverbMixId, static_cast<double>(fv));
+    if (readLoaded(streamer, fv, ReverbLoad::kPreDelayMs)) setParam(kReverbPreDelayId, static_cast<double>(fv / 100.0f));
+    if (readLoaded(streamer, fv, ReverbLoad::kDiffusion)) setParam(kReverbDiffusionId, static_cast<double>(fv));
     if (streamer.readInt32(iv)) setParam(kReverbFreezeId, iv != 0 ? 1.0 : 0.0);
-    if (streamer.readFloat(fv)) setParam(kReverbModRateId, static_cast<double>(fv / 2.0f));
-    if (streamer.readFloat(fv)) setParam(kReverbModDepthId, static_cast<double>(fv));
+    if (readLoaded(streamer, fv, ReverbLoad::kModRateHz)) setParam(kReverbModRateId, static_cast<double>(fv / 2.0f));
+    if (readLoaded(streamer, fv, ReverbLoad::kModDepth)) setParam(kReverbModDepthId, static_cast<double>(fv));
 }
 
 } // namespace Ruinae

@@ -1051,6 +1051,7 @@ std::vector<PresetDef> createAllPresets() {
         PresetDef p;
         p.name = "Reich Drift";
         p.category = "Arp Polymetric";
+        p.state.global.masterGain = 0.55f; // T5.3b (R-214): master gain was 1; measured before peak 0.9992 in the release test
 
         // --- Voice: OSC A = hard-Sync engine (buzzy, formant-rich slave) an octave
         //     down; OSC B = a square sub two octaves down for low-end weight.
@@ -1178,7 +1179,7 @@ std::vector<PresetDef> createAllPresets() {
         p.state.filter.type = 2;           // SVF BP
         p.state.filter.cutoffHz = 1200.0f; // centered on the vowel formant region
         p.state.filter.resonance = 2.5f;   // narrow enough to sing, not whistle
-        p.state.filter.svfSlope = 0;       // 12 dB - keep it open/airy
+        p.state.filter.svfSlope = 1;       // 12 dB - keep it open/airy (was 0: the parameter range is 1..2)
         p.state.filter.envAmount = 16.0f;  // +16 st per-note bloom (FIXED: plain semitones)
         // Plucky filter env so each probabilistic note gets a little consonant "attack"
         p.state.filterEnv.attackMs = 4.0f;
@@ -1237,6 +1238,7 @@ std::vector<PresetDef> createAllPresets() {
         PresetDef p;
         p.name = "Chaos Garden";
         p.category = "Arp Generative";
+        p.state.global.masterGain = 0.7f; // T5.3b (R-214): master gain was 1; measured before peak 1.0 in the release test
 
         // --- Voice: CHAOS oscillator (Rossler) over a sine sub for tonal anchoring ---
         // OSC A is the chaotic attractor (quasi-pitched, mutating); OSC B is a clean
@@ -1818,6 +1820,7 @@ std::vector<PresetDef> createAllPresets() {
         p.name = "Lydian Aurora";
         p.category = "Arp Chords";
         auto& s = p.state;
+        s.global.masterGain = 0.45f; // T5.3b (R-214): master gain was 1; measured before peak 1.0 in the release test
         // --- Voice: Formant (vocal) oscillator A over an airy saw bed B; the mixer
         //     morphs vocal<->saw, and we hand that morph to AFTERTOUCH.
         s.oscA.type = 7;                 // Formant engine
@@ -1919,7 +1922,7 @@ std::vector<PresetDef> createAllPresets() {
         s.filterEnv.sustain = 0.0f;
         s.filterEnv.releaseMs = 90.0f;
         s.filterEnv.decayCurve = 0.5f;   // snappy exponential pluck
-        s.global.masterGain = 0.85f;     // headroom for drive + distortion
+        s.global.masterGain = 0.4f; // T5.3b (R-214): master gain was 0.85; measured before peak 1.0 in the release test
         // --- Distortion: Tape saturator gives the stabs their punch
         s.distortion.type = 5;           // TapeSaturator
         s.distortion.drive = 0.35f;
@@ -2127,7 +2130,7 @@ std::vector<PresetDef> createAllPresets() {
         s.delay.granularPitch = 12.0f; // octave-up grains
         s.delay.granularPitchSpray = 0.1f;
         s.delay.granularTexture = 0.3f;
-        s.delay.granularWidth = 1.3f;
+        s.delay.granularWidth = 1.0f; // was 1.3: the parameter range is 0..1
         // Modulated Plate reverb = chorused shimmer tail
         s.reverbEnabled = 1;
         s.reverbType = 0; // Plate
@@ -2236,6 +2239,7 @@ std::vector<PresetDef> createAllPresets() {
         p.name = "Choir";
         p.category = "Pads";
         auto& s = p.state;
+        s.global.masterGain = 0.45f; // T5.3b (R-214): master gain was 1; measured before peak 1.0, 1.3 % above 0.85 in the release test
         // Formant oscillator = the vocal body
         s.oscA.type = 7; // Formant
         s.oscA.level = 0.8f;
@@ -2384,6 +2388,7 @@ std::vector<PresetDef> createAllPresets() {
         p.name = "Supersaw";
         p.category = "Leads";
         auto& s = p.state;
+        s.global.masterGain = 0.7f; // T5.3b (R-214): master gain was 1; measured before peak 1.0 in the release test
         // Two PolyBLEP saws, detuned in OPPOSITE directions so the pair beats against itself
         s.oscA.type = 0; // PolyBLEP
         s.oscA.waveform = 1; // Saw
@@ -3361,7 +3366,7 @@ std::vector<PresetDef> createAllPresets() {
         s.tranceGate.noteValue = kNote1_16;
         s.tranceGate.depth = 1.0f;
         s.tranceGate.attackMs = 20.0f;
-        s.tranceGate.releaseMs = 60.0f;
+        s.tranceGate.releaseMs = 50.0f; // was 60: the parameter range is 1..50
         s.tranceGate.stepLevels[0] = 0.0f; s.tranceGate.stepLevels[1] = 0.6f;
         s.tranceGate.stepLevels[2] = 1.0f; s.tranceGate.stepLevels[3] = 0.85f;
         // --- The REAL sidechain: transient detector ducks master volume on every
@@ -3436,7 +3441,7 @@ std::vector<PresetDef> createAllPresets() {
         s.tranceGate.tempoSync = 1;
         s.tranceGate.noteValue = kNote1_16;
         s.tranceGate.depth = 1.0f;
-        s.tranceGate.attackMs = 0.5f;
+        s.tranceGate.attackMs = 1.0f; // was 0.5: the parameter range is 1..20
         s.tranceGate.releaseMs = 4.0f;
         s.tranceGate.retriggerDepth = 0.85f; // the machine-gun character
         float bg[32]{};
@@ -3500,7 +3505,7 @@ std::vector<PresetDef> createAllPresets() {
         s.tranceGate.noteValue = kNote1_8;
         s.tranceGate.depth = 0.75f;
         s.tranceGate.attackMs = 12.0f;
-        s.tranceGate.releaseMs = 55.0f;
+        s.tranceGate.releaseMs = 50.0f; // was 55: the parameter range is 1..50
         s.tranceGate.stepLevels[0] = 1.0f; s.tranceGate.stepLevels[1] = 0.5f;
         s.tranceGate.stepLevels[2] = 0.85f; s.tranceGate.stepLevels[3] = 0.35f;
         s.tranceGate.stepLevels[4] = 1.0f; s.tranceGate.stepLevels[5] = 0.45f;
@@ -4173,7 +4178,7 @@ std::vector<PresetDef> createAllPresets() {
         // Subtle SPECTRAL distortion adds crystalline bit/phase character.
         s.distortion.type = 2;       // Spectral
         s.distortion.drive = 0.25f; s.distortion.spectralMode = 0;
-        s.distortion.spectralBits = 8.0f; s.distortion.mix = 0.3f;
+        s.distortion.spectralBits = 1.0f; s.distortion.mix = 0.3f; // bits was 8: the parameter range is 0..1
         // GRANULAR delay throws octave-up shards behind the cloud.
         s.delayEnabled = 1;
         s.delay.type = 3;            // Granular
@@ -4199,6 +4204,7 @@ std::vector<PresetDef> createAllPresets() {
         p.name = "Cathedral Organ";
         p.category = "Pads";
         auto& s = p.state;
+        s.global.masterGain = 0.45f; // T5.3b (R-214): master gain was 1; measured before peak 1.0 in the release test
         s.oscA.type = 0; s.oscA.waveform = 2; s.oscA.level = 0.7f; // Square = organ reed
         s.oscB.type = 0; s.oscB.waveform = 2;
         s.oscB.tuneSemitones = 12.0f; s.oscB.level = 0.4f;         // octave-up rank
@@ -4276,7 +4282,8 @@ std::vector<PresetDef> createAllPresets() {
         // Chaos-mod source (Rossler) slowly warps the spectral morph position
         s.chaosMod.rateHz = 0.15f; s.chaosMod.type = 1; // Rossler
         s.chaosMod.depth = 1.0f;
-        setModSlot(s, 1, kSrcChaos, kDstAllMorphPos, 0.35f, kCurveExp, 150.0f);
+        // smooth was 150: the parameter range is 0..100
+        setModSlot(s, 1, kSrcChaos, kDstAllMorphPos, 0.35f, kCurveExp, 100.0f);
         // LFO2 (triangle) drifts spectral tilt for slow brightness breathing
         s.lfo2.rateHz = 0.04f; s.lfo2.shape = 1; // Triangle
         s.lfo2.depth = 1.0f; s.lfo2.sync = 0;
@@ -4393,7 +4400,8 @@ std::vector<PresetDef> createAllPresets() {
         // MORPH MOTION = SMOOTHED RANDOM: a slow, heavily-interpolated Random source
         // wanders the additive<->triangle morph (the batch's smoothed-Random member).
         s.random.rateHz = 0.3f; s.random.smoothness = 0.9f; // slow, interpolated wander
-        setModSlot(s, 0, kSrcRandom, kDstAllMorphPos, 0.4f, kCurveLinear, 150.0f);
+        // smooth was 150: the parameter range is 0..100
+        setModSlot(s, 0, kSrcRandom, kDstAllMorphPos, 0.4f, kCurveLinear, 100.0f);
         // ModEnv slowly ramps the spectrum open across the note's life (not the morph)
         s.modEnv.attackMs = 1500.0f; s.modEnv.decayMs = 2000.0f;
         s.modEnv.sustain = 0.6f; s.modEnv.releaseMs = 2500.0f;
@@ -4567,7 +4575,7 @@ std::vector<PresetDef> createAllPresets() {
         s.delay.timeMs = 450.0f; s.delay.feedback = 0.3f; s.delay.mix = 0.22f;
         s.delay.sync = 0;
         s.delay.granularSizeMs = 140.0f; s.delay.granularDensity = 14.0f;
-        s.delay.granularTexture = 0.3f; s.delay.granularWidth = 1.2f;
+        s.delay.granularTexture = 0.3f; s.delay.granularWidth = 1.0f; // width was 1.2: the parameter range is 0..1
         // --- Huge diffuse HALL with pre-delay for the sense of distance
         s.reverbEnabled = 1; s.reverbType = 1;     // Hall
         s.reverb.size = 0.95f; s.reverb.mix = 0.45f;
@@ -4815,6 +4823,7 @@ std::vector<PresetDef> createAllPresets() {
         p.name = "Vox Machina";
         p.category = "Leads";
         auto& s = p.state;
+        s.global.masterGain = 0.2f; // T5.3b (R-214): master gain was 1; measured before peak 1.0, 6.2 % above 0.85 in the release test
         // --- Oscillator: pure Formant engine, single voice (OscB muted) ---
         s.oscA.type = 7;              // Formant
         s.oscA.formantVowel = 2;      // base vowel 'I'
@@ -5631,7 +5640,7 @@ std::vector<PresetDef> createAllPresets() {
             s.phaser.centerFreqHz = 800.0f;
 
             s.global.voiceMode = 1;        // Mono
-            s.global.masterGain = 0.9f;
+            s.global.masterGain = 0.5f; // T5.3b (R-214): master gain was 0.9; measured before peak 0.9983 in the release test
             presets.push_back(std::move(p));
         }
 
@@ -5798,6 +5807,7 @@ std::vector<PresetDef> createAllPresets() {
         p.name = "Vocal Bass";
         p.category = "Bass";
         auto& s = p.state;
+        s.global.masterGain = 0.4f; // T5.3b (R-214): master gain was 1; measured before peak 1.0, 4.5 % of samples above 0.85 in the release test
         // OSC A: Formant engine on vowel 'O' — the nasal vowel body of the bass
         s.oscA.type = 7;              // Formant
         s.oscA.formantVowel = 3;      // O
@@ -5989,6 +5999,7 @@ std::vector<PresetDef> createAllPresets() {
         p.name = "Swarm Sub";
         p.category = "Bass";
         auto& s = p.state;
+        s.global.masterGain = 0.55f; // T5.3b (R-214): master gain was 1; measured before peak 0.9988 in the release test
         // OSC A: Particle engine in BURST spawn mode = rhythmic grain clusters, not a smear
         s.oscA.type = 6;                 // Particle
         s.oscA.particleSpawnMode = 2;    // Burst (own this: 0=Regular,1=Random,2=Burst)
@@ -7101,6 +7112,7 @@ std::vector<PresetDef> createAllPresets() {
         p.name = "Vowel Cloud";
         p.category = "Textures";
         auto& s = p.state;
+        s.global.masterGain = 0.65f; // T5.3b (R-214): master gain was 1; measured before peak 1.0, 2.6 % above 0.85 in the release test
         // Two formant oscillators, E vs O, cross-morphed in the spectral-morph mixer.
         // This trio's WARM member: mid vowels E(1)<->O(3), distinct from Formant Sea
         // (A/O) and Vowel Ghost (I/U).
@@ -7156,6 +7168,7 @@ std::vector<PresetDef> createAllPresets() {
         p.name = "Harmony Gate";
         p.category = "Rhythmic";
         auto& s = p.state;
+        s.global.masterGain = 0.45f; // T5.3b (R-214): master gain was 1; measured before peak 1.0 in the release test
         // --- Voice: classic warm virtual-analog dual saw, wide unison feel ---
         s.global.width = 1.5f;      // wide stereo bed for the harmony voices
         s.global.spread = 0.3f;     // pan-spread the poly stack
@@ -7667,6 +7680,7 @@ std::vector<PresetDef> createAllPresets() {
         p.name = "Vowel Sequencer";
         p.category = "Rhythmic";
         auto& s = p.state;
+        s.global.masterGain = 0.7f; // T5.3b (R-214): master gain was 1; measured before peak 1.0 in the release test
         s.oscA.type = 0; s.oscA.waveform = 1; s.oscA.level = 0.75f; // Saw = rich source for formants
         s.oscB.type = 0; s.oscB.waveform = 4; s.oscB.level = 0.4f;  // Triangle softens the top
         s.mixer.position = 0.35f;
@@ -7727,7 +7741,8 @@ std::vector<PresetDef> createAllPresets() {
         // Rising 4-step 1/4 gate ramp = the pump shape
         s.tranceGate.enabled = 1; s.tranceGate.numSteps = 4;
         s.tranceGate.tempoSync = 1; s.tranceGate.noteValue = kNote1_4;
-        s.tranceGate.depth = 1.0f; s.tranceGate.attackMs = 25.0f; s.tranceGate.releaseMs = 140.0f;
+        // attack was 25: the parameter range is 1..20; release was 140: the parameter range is 1..50
+        s.tranceGate.depth = 1.0f; s.tranceGate.attackMs = 20.0f; s.tranceGate.releaseMs = 50.0f;
         s.tranceGate.stepLevels[0] = 0.0f; s.tranceGate.stepLevels[1] = 0.45f;
         s.tranceGate.stepLevels[2] = 0.75f; s.tranceGate.stepLevels[3] = 1.0f;
         // TapeSaturator (type 5) for the warm, glued tape colour
@@ -7769,6 +7784,7 @@ std::vector<PresetDef> createAllPresets() {
         p.name = "Phase Pulse";
         p.category = "Rhythmic";
         auto& s = p.state;
+        s.global.masterGain = 0.45f; // T5.3b (R-214): master gain was 1; measured before peak 1.0, 2.1 % above 0.85 in the release test
         // Saw + a triangle sub-voice for body
         s.oscA.type = 0; s.oscA.waveform = 1; s.oscA.level = 0.78f;
         s.oscB.type = 0; s.oscB.waveform = 4; s.oscB.fineCents = 5.0f; s.oscB.level = 0.5f; // Triangle
@@ -7918,7 +7934,8 @@ std::vector<PresetDef> createAllPresets() {
         // Hard 16-step 1/16 gate with RETRIGGER DEPTH for stutter accents
         s.tranceGate.enabled = 1; s.tranceGate.numSteps = 16;
         s.tranceGate.tempoSync = 1; s.tranceGate.noteValue = kNote1_16;
-        s.tranceGate.depth = 1.0f; s.tranceGate.attackMs = 0.5f; s.tranceGate.releaseMs = 3.0f;
+        // attack was 0.5: the parameter range is 1..20
+        s.tranceGate.depth = 1.0f; s.tranceGate.attackMs = 1.0f; s.tranceGate.releaseMs = 3.0f;
         s.tranceGate.retriggerDepth = 0.6f;
         float tg[] = {1,0,0,1, 0,1,1,0, 1,1,0,0, 0,1,1,1};
         for (int i = 0; i < 16; ++i) s.tranceGate.stepLevels[i] = tg[i];
@@ -8067,7 +8084,7 @@ std::vector<PresetDef> createAllPresets() {
         s.filter.selfOscGlide = 2500.0f; // slow portamento between pitches
         s.filter.selfOscExtMix = 0.45f;  // let noise+sub bleed through the resonator
         s.filter.selfOscShape = 0.3f;    // slightly non-sine timbre
-        s.filter.selfOscRelease = 2500.0f;
+        s.filter.selfOscRelease = 2000.0f; // was 2500: the parameter range is 10..2000
         s.filter.keyTrack = 1.0f;    // resonator follows the keyboard
 
         // --- Spectral distortion: faint shimmer dusted onto the drone ---
@@ -8133,7 +8150,7 @@ std::vector<PresetDef> createAllPresets() {
         s.mixer.mode = 1;            // Spectral Morph (FFT interpolation A<->B)
         s.mixer.position = 0.5f;
         s.mixer.tilt = 3.0f;         // brighten the morph
-        s.mixer.shift = 40.0f;       // inharmonic frequency shift on the morph
+        s.mixer.shift = 1.0f;        // inharmonic frequency shift on the morph (was 40: the parameter range is 0..1)
 
         // --- Comb filter: metallic resonant body distinct from every sibling ---
         s.filter.type = 6;          // Comb
@@ -8622,7 +8639,7 @@ std::vector<PresetDef> createAllPresets() {
         s.mixer.mode = 1;              // Spectral Morph (FFT interpolation A<->B)
         s.mixer.position = 0.5f;
         s.mixer.tilt = -3.0f;          // darken the morphed spectrum (SpectralMorph only)
-        s.mixer.shift = 40.0f;         // small inharmonic freq shift for shimmer
+        s.mixer.shift = 1.0f;          // small inharmonic freq shift for shimmer (was 40: the parameter range is 0..1)
         // Comb filter: tuned resonant teeth turn the drone metallic/glassy.
         s.filter.type = 6;             // Comb
         s.filter.cutoffHz = 320.0f;    // comb fundamental
@@ -8640,11 +8657,13 @@ std::vector<PresetDef> createAllPresets() {
         // LFO2: 0.03 Hz triangle -> spectral tilt for a slow timbral tide.
         s.lfo2.rateHz = 0.03f; s.lfo2.shape = 1; s.lfo2.depth = 1.0f; s.lfo2.sync = 0;
         // Sample & Hold gives stepped comb-pitch jumps, glide-smoothed to stay glacial.
-        s.sampleHold.rateHz = 0.08f; s.sampleHold.sync = 0; s.sampleHold.slewMs = 400.0f;
+        // rate was 0.08: the parameter range is 0.1..50
+        s.sampleHold.rateHz = 0.1f; s.sampleHold.sync = 0; s.sampleHold.slewMs = 400.0f;
         // --- Mod web ---
         setModSlot(s, 0, kSrcLFO1, kDstAllMorphPos, 0.5f, kCurveSCurve);
         setModSlot(s, 1, kSrcLFO2, kDstAllSpecTilt, 0.4f, kCurveLinear);
-        setModSlot(s, 2, kSrcSampleHold, kDstAllFltCut, 0.35f, kCurveStepped, 300.0f);
+        // smooth was 300: the parameter range is 0..100
+        setModSlot(s, 2, kSrcSampleHold, kDstAllFltCut, 0.35f, kCurveStepped, 100.0f);
         // Slot 7: a parked Random->morph route left BYPASSED to demonstrate the
         // bypass axis (flip bypass to 0 live for a busier second morph layer).
         setModSlot(s, 7, kSrcRandom, kDstAllMorphPos, 0.4f, kCurveLinear);
@@ -8703,7 +8722,8 @@ std::vector<PresetDef> createAllPresets() {
         // Weather modulation on top of the macro:
         setModSlot(s, 3, kSrcLFO1, kDstAllSpecTilt, 0.5f, kCurveLinear);
         s.modMatrix.slots[3].scale = 3;    // x2 - push tilt beyond +/-1
-        setModSlot(s, 4, kSrcRandom, kDstAllResonance, 0.35f, kCurveLinear, 120.0f);
+        // smooth was 120: the parameter range is 0..100
+        setModSlot(s, 4, kSrcRandom, kDstAllResonance, 0.35f, kCurveLinear, 100.0f);
         setModSlot(s, 5, kSrcEnvFollower, kDstAllMorphPos, 0.3f, kCurveLinear);
         setModSlot(s, 6, kSrcLFO2, kDstAllFltCut, 0.25f, kCurveLinear);
         // Own the voice-management settings axes for a chaotic dense swarm.
@@ -9782,6 +9802,7 @@ std::vector<PresetDef> createAllPresets() {
         p.name = "Swing Vox";
         p.category = "Rhythmic";
         auto& s = p.state;
+        s.global.masterGain = 0.25f; // T5.3b (R-214): master gain was 1; measured before peak 1.0, 9.0 % above 0.85 in the release test
         s.oscA.type = 7;                    // Formant
         s.oscA.formantVowel = 0; s.oscA.formantMorph = 0.3f; s.oscA.level = 0.85f;
         s.oscB.type = 0; s.oscB.waveform = 1; s.oscB.level = 0.3f;
@@ -10163,7 +10184,8 @@ std::vector<PresetDef> createAllPresets() {
         // combination repeats -- over six bars of 16ths from entirely static data.
         float vel5[] = {1.0f, 0.55f, 0.85f, 0.6f, 0.95f};
         setVelocityLane(s, 5, vel5);
-        float gate7[] = {1.0f, 0.8f, 0.0f, 1.0f, 0.6f, 0.0f, 0.9f};
+        // steps 3 and 6 were 0: the parameter range is 0.01..2
+        float gate7[] = {1.0f, 0.8f, 0.01f, 1.0f, 0.6f, 0.01f, 0.9f};
         setGateLane(s, 7, gate7);
         int32_t ratch3[] = {1, 1, 2};
         setRatchetLane(s, 3, ratch3);

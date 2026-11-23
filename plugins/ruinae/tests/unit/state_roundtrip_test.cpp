@@ -697,7 +697,8 @@ TEST_CASE("Partial arp preset loads base params and defaults rest",
     changes.add(Ruinae::kArpModeId, 2.0 / 9.0);       // mode = UpDown (2)
     changes.add(Ruinae::kArpOctaveRangeId, 2.0 / 3.0); // octaveRange = 3
     changes.add(Ruinae::kArpTempoSyncId, 1.0);         // tempoSync = true
-    changes.add(Ruinae::kArpNoteValueId, 7.0 / 20.0);  // noteValue = 7 (1/16)
+    changes.add(Ruinae::kArpNoteValueId,
+                7.0 / (Krate::DSP::kNoteValueDropdownCount - 1));  // noteValue = 7 (1/16)
     changes.add(Ruinae::kArpGateLengthId, (60.0 - 1.0) / 199.0); // gateLength = 60%
     proc1->processParameterChanges(&changes);
 

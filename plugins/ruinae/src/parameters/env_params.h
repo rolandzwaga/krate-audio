@@ -337,15 +337,19 @@ inline double envFieldToNormalized(const EnvField& field, float v) {
     }
 }
 
+// The same envFieldFromState sanitising as loadEnvParams (R-211).
 template <typename SetParamFunc>
 inline void loadEnvParamsToController(Steinberg::Vst::ParamID base,
                                       Steinberg::IBStreamer& streamer,
-                                      const SetParamFunc& setParam) {
+                                      const SetParamFunc& setParam,
+                                      const EnvParams& defaults) {
     const EnvField* fields = envFields();
     float v = 0.0f;
     for (int i = 0; i < kEnvFieldCount; ++i) {
         if (streamer.readFloat(v)) {
-            setParam(base + fields[i].offset, envFieldToNormalized(fields[i], v));
+            const float def = (defaults.*fields[i].member).load(std::memory_order_relaxed);
+            setParam(base + fields[i].offset,
+                     envFieldToNormalized(fields[i], envFieldFromState(fields[i], v, def)));
         } else {
             return;
         }
@@ -393,7 +397,7 @@ inline bool loadAmpEnvParams(AmpEnvParams& params, Steinberg::IBStreamer& stream
 }
 template <typename SetParamFunc>
 inline void loadAmpEnvParamsToController(Steinberg::IBStreamer& streamer, const SetParamFunc& setParam) {
-    loadEnvParamsToController(kAmpEnvBaseId, streamer, std::move(setParam));
+    loadEnvParamsToController(kAmpEnvBaseId, streamer, setParam, AmpEnvParams{});
 }
 
 // Velocity > Amp: appended after the voice LFO (state version 9)
@@ -442,7 +446,7 @@ inline bool loadFilterEnvParams(FilterEnvParams& params, Steinberg::IBStreamer& 
 }
 template <typename SetParamFunc>
 inline void loadFilterEnvParamsToController(Steinberg::IBStreamer& streamer, const SetParamFunc& setParam) {
-    loadEnvParamsToController(kFilterEnvBaseId, streamer, std::move(setParam));
+    loadEnvParamsToController(kFilterEnvBaseId, streamer, setParam, FilterEnvParams{});
 }
 
 // ---- Mod envelope ----
@@ -467,7 +471,7 @@ inline bool loadModEnvParams(ModEnvParams& params, Steinberg::IBStreamer& stream
 }
 template <typename SetParamFunc>
 inline void loadModEnvParamsToController(Steinberg::IBStreamer& streamer, const SetParamFunc& setParam) {
-    loadEnvParamsToController(kModEnvBaseId, streamer, std::move(setParam));
+    loadEnvParamsToController(kModEnvBaseId, streamer, setParam, ModEnvParams{});
 }
 
 } // namespace Ruinae

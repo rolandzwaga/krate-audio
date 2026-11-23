@@ -71,11 +71,16 @@ inline void saveMacroParams(const MacroParams& params, Steinberg::IBStreamer& st
     streamer.writeFloat(params.values[3].load(std::memory_order_relaxed));
 }
 
+// Saved-field range, read by both parsers (R-211)
+namespace MacroLoad {
+inline constexpr LoadedFloat kValue{.lo = 0.0f, .hi = 1.0f, .def = 0.0f};
+} // namespace MacroLoad
+
 inline bool loadMacroParams(MacroParams& params, Steinberg::IBStreamer& streamer) {
     float fv = 0.0f;
     for (auto& value : params.values) {
-        if (!streamer.readFloat(fv)) { return false; }
-        value.store(finiteClamp(fv, 0.0f, 1.0f, 0.0f), std::memory_order_relaxed);
+        if (!readLoaded(streamer, fv, MacroLoad::kValue)) { return false; }
+        value.store(fv, std::memory_order_relaxed);
     }
     return true;
 }
@@ -84,10 +89,10 @@ template<typename SetParamFunc>
 inline void loadMacroParamsToController(
     Steinberg::IBStreamer& streamer, const SetParamFunc& setParam) {
     float fv = 0.0f;
-    if (streamer.readFloat(fv)) setParam(kMacro1ValueId, static_cast<double>(fv));
-    if (streamer.readFloat(fv)) setParam(kMacro2ValueId, static_cast<double>(fv));
-    if (streamer.readFloat(fv)) setParam(kMacro3ValueId, static_cast<double>(fv));
-    if (streamer.readFloat(fv)) setParam(kMacro4ValueId, static_cast<double>(fv));
+    if (readLoaded(streamer, fv, MacroLoad::kValue)) setParam(kMacro1ValueId, static_cast<double>(fv));
+    if (readLoaded(streamer, fv, MacroLoad::kValue)) setParam(kMacro2ValueId, static_cast<double>(fv));
+    if (readLoaded(streamer, fv, MacroLoad::kValue)) setParam(kMacro3ValueId, static_cast<double>(fv));
+    if (readLoaded(streamer, fv, MacroLoad::kValue)) setParam(kMacro4ValueId, static_cast<double>(fv));
 }
 
 } // namespace Ruinae

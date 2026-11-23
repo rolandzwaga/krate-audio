@@ -26,92 +26,7 @@ namespace Ruinae {
 
 Steinberg::tresult PLUGIN_API Processor::getState(Steinberg::IBStream* state) {
     Steinberg::IBStreamer streamer(state, kLittleEndian);
-
-    // Write state version first
-    streamer.writeInt32(kCurrentStateVersion);
-
-    // Save all 19 parameter packs in deterministic order
-    saveGlobalParams(globalParams_, streamer);
-    saveOscAParams(oscAParams_, streamer);
-    saveOscBParams(oscBParams_, streamer);
-    saveMixerParams(mixerParams_, streamer);
-    saveFilterParams(filterParams_, streamer);
-    saveDistortionParams(distortionParams_, streamer);
-    saveTranceGateParams(tranceGateParams_, streamer);
-    saveAmpEnvParams(ampEnvParams_, streamer);
-    saveFilterEnvParams(filterEnvParams_, streamer);
-    saveModEnvParams(modEnvParams_, streamer);
-    saveLFO1Params(lfo1Params_, streamer);
-    saveLFO2Params(lfo2Params_, streamer);
-    saveChaosModParams(chaosModParams_, streamer);
-    saveModMatrixParams(modMatrixParams_, streamer);
-    saveGlobalFilterParams(globalFilterParams_, streamer);
-    saveDelayParams(delayParams_, streamer);
-    saveReverbParams(reverbParams_, streamer);
-    // Reverb type (125-dual-reverb, state version 5)
-    streamer.writeInt32(reverbParams_.reverbType.load(std::memory_order_relaxed));
-
-    saveMonoModeParams(monoModeParams_, streamer);
-
-    // Voice routes (16 slots), one consistent snapshot
-    for (const auto& r : voiceRoutes_.loadAll()) {
-        streamer.writeInt8(static_cast<Steinberg::int8>(r.source));
-        streamer.writeInt8(static_cast<Steinberg::int8>(r.destination));
-        streamer.writeFloat(r.amount);
-        streamer.writeInt8(static_cast<Steinberg::int8>(r.curve));
-        streamer.writeFloat(r.smoothMs);
-        streamer.writeInt8(static_cast<Steinberg::int8>(r.scale));
-        streamer.writeInt8(static_cast<Steinberg::int8>(r.bypass));
-        streamer.writeInt8(static_cast<Steinberg::int8>(r.active));
-    }
-
-    // FX enable flags
-    streamer.writeInt8(delayEnabled_.load(std::memory_order_relaxed) ? 1 : 0);
-    streamer.writeInt8(reverbEnabled_.load(std::memory_order_relaxed) ? 1 : 0);
-
-    // Phaser params + modulation type (replaces legacy phaserEnabled_ int8)
-    savePhaserParams(phaserParams_, streamer);
-    // Write modulationType as int8 for backward compatibility with state format:
-    // 0 = None (legacy: phaser disabled), 1 = Phaser (legacy: phaser enabled), 2 = Flanger, 3 = Chorus
-    streamer.writeInt8(static_cast<Steinberg::int8>(modulationType_.load(std::memory_order_relaxed)));
-
-    // Flanger params (version 6+)
-    saveFlangerParams(flangerParams_, streamer);
-
-    // Chorus params (version 7+)
-    saveChorusParams(chorusParams_, streamer);
-
-    // Extended LFO params
-    saveLFO1ExtendedParams(lfo1Params_, streamer);
-    saveLFO2ExtendedParams(lfo2Params_, streamer);
-
-    // Macro and Rungler params
-    saveMacroParams(macroParams_, streamer);
-    saveRunglerParams(runglerParams_, streamer);
-
-    // Settings params
-    saveSettingsParams(settingsParams_, streamer);
-
-    // Mod source params
-    saveEnvFollowerParams(envFollowerParams_, streamer);
-    saveSampleHoldParams(sampleHoldParams_, streamer);
-    saveRandomParams(randomParams_, streamer);
-    savePitchFollowerParams(pitchFollowerParams_, streamer);
-    saveTransientParams(transientParams_, streamer);
-
-    // Harmonizer params + enable flag
-    saveHarmonizerParams(harmonizerParams_, streamer);
-    streamer.writeInt8(harmonizerEnabled_.load(std::memory_order_relaxed) ? 1 : 0);
-
-    // Arpeggiator params (FR-011)
-    saveArpParams(arpParams_, streamer);
-
-    // Voice LFO rate + shape (version 9+), appended after the arp pack
-    saveVoiceLfoParams(voiceLfoParams_, streamer);
-
-    // Velocity > Amp (version 9+), after the voice LFO
-    saveAmpVelocityAmount(ampEnvParams_, streamer);
-
+    writeStatePacks(*this, arpParams_, streamer);
     return Steinberg::kResultTrue;
 }
 
@@ -138,44 +53,7 @@ namespace {
 /// Scratch target of an arp-only load: the stream's other packs are parsed into
 /// it, only to reach the arp pack, and dropped. The member names are the
 /// Processor's, so Processor::readStatePacks serves both.
-struct DiscardedStatePacks {
-    GlobalParams globalParams_;
-    OscAParams oscAParams_;
-    OscBParams oscBParams_;
-    MixerParams mixerParams_;
-    RuinaeFilterParams filterParams_;
-    RuinaeDistortionParams distortionParams_;
-    RuinaeTranceGateParams tranceGateParams_;
-    AmpEnvParams ampEnvParams_;
-    FilterEnvParams filterEnvParams_;
-    ModEnvParams modEnvParams_;
-    LFO1Params lfo1Params_;
-    LFO2Params lfo2Params_;
-    ChaosModParams chaosModParams_;
-    ModMatrixParams modMatrixParams_;
-    GlobalFilterParams globalFilterParams_;
-    std::atomic<bool> delayEnabled_{false};
-    std::atomic<bool> reverbEnabled_{false};
-    std::atomic<int> modulationType_{0};
-    std::atomic<bool> harmonizerEnabled_{false};
-    RuinaeDelayParams delayParams_;
-    RuinaeReverbParams reverbParams_;
-    RuinaePhaserParams phaserParams_;
-    RuinaeFlangerParams flangerParams_;
-    RuinaeChorusParams chorusParams_;
-    RuinaeHarmonizerParams harmonizerParams_;
-    MonoModeParams monoModeParams_;
-    MacroParams macroParams_;
-    RunglerParams runglerParams_;
-    SettingsParams settingsParams_;
-    EnvFollowerParams envFollowerParams_;
-    SampleHoldParams sampleHoldParams_;
-    RandomParams randomParams_;
-    PitchFollowerParams pitchFollowerParams_;
-    TransientParams transientParams_;
-    VoiceLfoParams voiceLfoParams_;
-    VoiceRouteTable voiceRoutes_;
-};
+using DiscardedStatePacks = StatePackSet<VoiceRouteTable>;
 
 } // namespace
 
@@ -240,6 +118,24 @@ bool Processor::readStatePacks(Packs& packs, ArpeggiatorParams& arp,
     if (version < 1 || version > kCurrentStateVersion)
         return false;
 
+    // Every pack starts at its default (R-212): a stream that ends at a pack
+    // boundary (older versions legitimately do) leaves the packs it lacks at
+    // their defaults, never at the previous preset's values. The controller
+    // parses the same defaults first (Controller::loadStateCore).
+    std::vector<char> defaults = defaultStateBytes();
+    Steinberg::MemoryStream defaultStream(defaults.data(),
+                                          static_cast<Steinberg::TSize>(defaults.size()));
+    Steinberg::IBStreamer defaultStreamer(&defaultStream, kLittleEndian);
+    Steinberg::int32 defaultVersion = 0;
+    defaultStreamer.readInt32(defaultVersion);
+    readStatePackFields(packs, arp, defaultStreamer, defaultVersion);
+
+    return readStatePackFields(packs, arp, streamer, version);
+}
+
+template <typename Packs>
+bool Processor::readStatePackFields(Packs& packs, ArpeggiatorParams& arp,
+                                    Steinberg::IBStreamer& streamer, Steinberg::int32 version) {
     // Load the required prefix (Global ... Mono Mode) into atomics (safe from
     // any thread); the same reader the truncation check runs (R-076)
     if (!readRequiredStatePrefix(packs, streamer, version)) return false;
@@ -253,37 +149,23 @@ bool Processor::readStatePacks(Packs& packs, ArpeggiatorParams& arp,
     // Before v9 the Scale saturated the amount (R-053): keep the saved depth
     if (version < 9) migratePreV9ModMatrixAmounts(packs.modMatrixParams_);
 
-    // Voice routes. Indices are clamped to the voice tab's ranges (R-003): a
-    // damaged state must not hand the voice router an index past its tables.
-    const auto clampedIndex = [](Steinberg::int8 v, int hi) {
-        return static_cast<uint8_t>(std::clamp(static_cast<int>(static_cast<uint8_t>(v)), 0, hi));
-    };
+    // Voice routes, sanitised by the reader the controller uses (R-003, R-211):
+    // a damaged state must not hand the voice router an index past its tables.
     // All 16 are published in one write (R-007); slots the stream does not
-    // reach keep their current routes.
+    // reach keep the routes readStatePacks's default pass gave them.
     auto routes = packs.voiceRoutes_.loadAll();
     for (auto& route : routes) {
+        LoadedVoiceRoute loaded;
+        if (!readVoiceRoute(streamer, version, loaded)) break;
         Krate::Plugins::VoiceModRoute r{};
-        Steinberg::int8 i8 = 0;
-        float f = 0.0f;
-        if (!streamer.readInt8(i8)) break;
-        r.source = clampedIndex(
-            i8, static_cast<int>(Krate::DSP::VoiceModSource::NumSources) - 1);
-        if (!streamer.readInt8(i8)) break;
-        r.destination = clampedIndex(i8, Krate::Plugins::kNumVoiceDestinations - 1);
-        if (!streamer.readFloat(f)) break;
-        r.amount = f;
-        if (!streamer.readInt8(i8)) break;
-        r.curve = clampedIndex(i8, 3);
-        if (!streamer.readFloat(f)) break;
-        r.smoothMs = f;
-        if (!streamer.readInt8(i8)) break;
-        r.scale = clampedIndex(i8, 4);
-        if (!streamer.readInt8(i8)) break;
-        r.bypass = static_cast<uint8_t>(i8 != 0 ? 1 : 0);
-        if (!streamer.readInt8(i8)) break;
-        r.active = static_cast<uint8_t>(i8 != 0 ? 1 : 0);
-        // Before v9: Scale saturated the amount and Filter Resonance spanned 1 Q
-        if (version < 9) r.amount = preV9VoiceRouteAmount(r.amount, r.destination, r.scale);
+        r.source = static_cast<uint8_t>(loaded.source);
+        r.destination = static_cast<uint8_t>(loaded.destination);
+        r.amount = loaded.amount;
+        r.curve = static_cast<uint8_t>(loaded.curve);
+        r.smoothMs = loaded.smoothMs;
+        r.scale = static_cast<uint8_t>(loaded.scale);
+        r.bypass = static_cast<uint8_t>(loaded.bypass ? 1 : 0);
+        r.active = static_cast<uint8_t>(loaded.active ? 1 : 0);
         route = r;
     }
     packs.voiceRoutes_.storeAll(routes);
@@ -300,7 +182,7 @@ bool Processor::readStatePacks(Packs& packs, ArpeggiatorParams& arp,
     // Legacy format: 0 = disabled (None), 1 = enabled (Phaser)
     // New format: 0 = None, 1 = Phaser, 2 = Flanger
     // Default to Phaser (1) for very old presets with no byte (FR-011)
-    const int modType = streamer.readInt8(i8) ? std::clamp(static_cast<int>(i8), 0, 3) : 1;
+    const int modType = streamer.readInt8(i8) ? kModulationTypeLoad(i8) : 1;
     packs.modulationType_.store(modType, std::memory_order_relaxed);
 
     // Flanger params (version 6+)

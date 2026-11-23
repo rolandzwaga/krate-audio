@@ -293,6 +293,21 @@ inline void saveTranceGateParams(const RuinaeTranceGateParams& params, Steinberg
     streamer.writeFloat(params.retriggerDepth.load(std::memory_order_relaxed));
 }
 
+// Saved-field ranges, read by both parsers (R-211)
+namespace TranceGateLoad {
+inline constexpr LoadedFloat kRateHz{.lo = 0.1f, .hi = 100.0f, .def = 4.0f};
+inline constexpr LoadedFloat kDepth{.lo = 0.0f, .hi = 1.0f, .def = 1.0f};
+inline constexpr LoadedFloat kAttackMs{.lo = 1.0f, .hi = 20.0f, .def = 2.0f};
+inline constexpr LoadedFloat kReleaseMs{.lo = 1.0f, .hi = 50.0f, .def = 10.0f};
+inline constexpr LoadedInt kNoteValue{.lo = 0, .hi = Parameters::kNoteValueDropdownCount - 1};
+inline constexpr LoadedInt kEuclideanHits{.lo = 0, .hi = 32};
+inline constexpr LoadedInt kEuclideanRotation{.lo = 0, .hi = 31};
+inline constexpr LoadedFloat kPhaseOffset{.lo = 0.0f, .hi = 1.0f, .def = 0.0f};
+inline constexpr LoadedFloat kStepLevel{.lo = 0.0f, .hi = 1.0f, .def = 1.0f};
+inline constexpr LoadedFloat kRetriggerDepth{.lo = 0.0f, .hi = 1.0f, .def = 0.0f};
+inline constexpr LoadedInt kNumSteps{.lo = 2, .hi = 32};
+} // namespace TranceGateLoad
+
 inline bool loadTranceGateParams(RuinaeTranceGateParams& params, Steinberg::IBStreamer& streamer) {
     Steinberg::int32 intVal = 0; float floatVal = 0.0f;
 
@@ -306,47 +321,47 @@ inline bool loadTranceGateParams(RuinaeTranceGateParams& params, Steinberg::IBSt
     // version marker after the base fields.
     int numStepsRaw = intVal;
 
-    if (!streamer.readFloat(floatVal)) return false;
-    params.rateHz.store(finiteClamp(floatVal, 0.1f, 100.0f, 4.0f), std::memory_order_relaxed);
-    if (!streamer.readFloat(floatVal)) return false;
-    params.depth.store(finiteClamp(floatVal, 0.0f, 1.0f, 1.0f), std::memory_order_relaxed);
-    if (!streamer.readFloat(floatVal)) return false;
-    params.attackMs.store(finiteClamp(floatVal, 1.0f, 20.0f, 2.0f), std::memory_order_relaxed);
-    if (!streamer.readFloat(floatVal)) return false;
-    params.releaseMs.store(finiteClamp(floatVal, 1.0f, 50.0f, 10.0f), std::memory_order_relaxed);
+    if (!readLoaded(streamer, floatVal, TranceGateLoad::kRateHz)) return false;
+    params.rateHz.store(floatVal, std::memory_order_relaxed);
+    if (!readLoaded(streamer, floatVal, TranceGateLoad::kDepth)) return false;
+    params.depth.store(floatVal, std::memory_order_relaxed);
+    if (!readLoaded(streamer, floatVal, TranceGateLoad::kAttackMs)) return false;
+    params.attackMs.store(floatVal, std::memory_order_relaxed);
+    if (!readLoaded(streamer, floatVal, TranceGateLoad::kReleaseMs)) return false;
+    params.releaseMs.store(floatVal, std::memory_order_relaxed);
     if (!streamer.readInt32(intVal)) return false;
     params.tempoSync.store(intVal != 0, std::memory_order_relaxed);
-    if (!streamer.readInt32(intVal)) return false;
+    if (!readLoaded(streamer, intVal, TranceGateLoad::kNoteValue)) return false;
     params.noteValue.store(intVal, std::memory_order_relaxed);
 
     // Try to read v2+ version marker
     Steinberg::int32 versionMarker = 0;
     if (streamer.readInt32(versionMarker) && versionMarker >= 2) {
         // v2+ format: numStepsRaw is actual step count
-        params.numSteps.store(std::clamp(numStepsRaw, 2, 32), std::memory_order_relaxed);
+        params.numSteps.store(TranceGateLoad::kNumSteps(numStepsRaw), std::memory_order_relaxed);
 
         // Read Euclidean params
         if (streamer.readInt32(intVal))
             params.euclideanEnabled.store(intVal != 0, std::memory_order_relaxed);
-        if (streamer.readInt32(intVal))
-            params.euclideanHits.store(std::clamp(intVal, 0, 32), std::memory_order_relaxed);
-        if (streamer.readInt32(intVal))
-            params.euclideanRotation.store(std::clamp(intVal, 0, 31), std::memory_order_relaxed);
-        if (streamer.readFloat(floatVal))
-            params.phaseOffset.store(finiteClamp(floatVal, 0.0f, 1.0f, 0.0f), std::memory_order_relaxed);
+        if (readLoaded(streamer, intVal, TranceGateLoad::kEuclideanHits))
+            params.euclideanHits.store(intVal, std::memory_order_relaxed);
+        if (readLoaded(streamer, intVal, TranceGateLoad::kEuclideanRotation))
+            params.euclideanRotation.store(intVal, std::memory_order_relaxed);
+        if (readLoaded(streamer, floatVal, TranceGateLoad::kPhaseOffset))
+            params.phaseOffset.store(floatVal, std::memory_order_relaxed);
 
         // Read 32 step levels
         for (int i = 0; i < 32; ++i) {
-            if (streamer.readFloat(floatVal)) {
+            if (readLoaded(streamer, floatVal, TranceGateLoad::kStepLevel)) {
                 params.stepLevels[static_cast<size_t>(i)].store(
-                    finiteClamp(floatVal, 0.0f, 1.0f, 1.0f), std::memory_order_relaxed);
+                    floatVal, std::memory_order_relaxed);
             }
         }
 
         // v3: retrigger depth
         if (versionMarker >= 3) {
-            if (streamer.readFloat(floatVal))
-                params.retriggerDepth.store(finiteClamp(floatVal, 0.0f, 1.0f, 0.0f), std::memory_order_relaxed);
+            if (readLoaded(streamer, floatVal, TranceGateLoad::kRetriggerDepth))
+                params.retriggerDepth.store(floatVal, std::memory_order_relaxed);
         } else {
             params.retriggerDepth.store(0.0f, std::memory_order_relaxed);
         }
@@ -381,44 +396,44 @@ inline void loadTranceGateParamsToController(
         // Will be resolved after checking version marker
     }
 
-    if (streamer.readFloat(floatVal))
+    if (readLoaded(streamer, floatVal, TranceGateLoad::kRateHz))
         setParam(kTranceGateRateId, static_cast<double>((floatVal - 0.1f) / 99.9f));
-    if (streamer.readFloat(floatVal))
+    if (readLoaded(streamer, floatVal, TranceGateLoad::kDepth))
         setParam(kTranceGateDepthId, static_cast<double>(floatVal));
-    if (streamer.readFloat(floatVal))
+    if (readLoaded(streamer, floatVal, TranceGateLoad::kAttackMs))
         setParam(kTranceGateAttackId, static_cast<double>((floatVal - 1.0f) / 19.0f));
-    if (streamer.readFloat(floatVal))
+    if (readLoaded(streamer, floatVal, TranceGateLoad::kReleaseMs))
         setParam(kTranceGateReleaseId, static_cast<double>((floatVal - 1.0f) / 49.0f));
     if (streamer.readInt32(intVal))
         setParam(kTranceGateTempoSyncId, intVal != 0 ? 1.0 : 0.0);
-    if (streamer.readInt32(intVal))
+    if (readLoaded(streamer, intVal, TranceGateLoad::kNoteValue))
         setParam(kTranceGateNoteValueId, static_cast<double>(intVal) / (Parameters::kNoteValueDropdownCount - 1));
 
     // Try to read v2+ version marker
     Steinberg::int32 versionMarker = 0;
     if (streamer.readInt32(versionMarker) && versionMarker >= 2) {
         // v2+: numStepsRaw is actual step count
-        int steps = std::clamp(numStepsRaw, 2, 32);
+        int steps = TranceGateLoad::kNumSteps(numStepsRaw);
         setParam(kTranceGateNumStepsId, static_cast<double>(steps - 2) / 30.0);
 
         if (streamer.readInt32(intVal))
             setParam(kTranceGateEuclideanEnabledId, intVal != 0 ? 1.0 : 0.0);
-        if (streamer.readInt32(intVal))
+        if (readLoaded(streamer, intVal, TranceGateLoad::kEuclideanHits))
             setParam(kTranceGateEuclideanHitsId, static_cast<double>(intVal) / 32.0);
-        if (streamer.readInt32(intVal))
+        if (readLoaded(streamer, intVal, TranceGateLoad::kEuclideanRotation))
             setParam(kTranceGateEuclideanRotationId, static_cast<double>(intVal) / 31.0);
-        if (streamer.readFloat(floatVal))
+        if (readLoaded(streamer, floatVal, TranceGateLoad::kPhaseOffset))
             setParam(kTranceGatePhaseOffsetId, static_cast<double>(floatVal));
 
         for (int i = 0; i < 32; ++i) {
-            if (streamer.readFloat(floatVal))
+            if (readLoaded(streamer, floatVal, TranceGateLoad::kStepLevel))
                 setParam(static_cast<Steinberg::Vst::ParamID>(kTranceGateStepLevel0Id + i),
                          static_cast<double>(floatVal));
         }
 
         // v3: retrigger depth
         if (versionMarker >= 3) {
-            if (streamer.readFloat(floatVal))
+            if (readLoaded(streamer, floatVal, TranceGateLoad::kRetriggerDepth))
                 setParam(kTranceGateRetriggerDepthId, static_cast<double>(floatVal));
         } else {
             // Same reset as loadTranceGateParams: the browser path reaches the

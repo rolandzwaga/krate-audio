@@ -1,5 +1,6 @@
 #pragma once
 #include "plugin_ids.h"
+#include "parameters/state_load_helpers.h"
 #include "controller/parameter_helpers.h"
 #include "parameters/note_value_ui.h"
 #include "parameters/lfo1_params.h"  // for lfoRateFromNormalized/lfoRateToNormalized
@@ -115,21 +116,28 @@ inline void saveRandomParams(const RandomParams& params,
     streamer.writeFloat(params.smoothness.load(std::memory_order_relaxed));
 }
 
+// Saved-field ranges, read by both parsers (R-211)
+namespace RandomLoad {
+inline constexpr LoadedFloat kRateHz{.lo = 0.1f, .hi = 50.0f, .def = 4.0f};
+inline constexpr LoadedInt kNoteValue{.lo = 0, .hi = Parameters::kNoteValueDropdownCount - 1};
+inline constexpr LoadedFloat kSmoothness{.lo = 0.0f, .hi = 1.0f, .def = 0.0f};
+} // namespace RandomLoad
+
 inline bool loadRandomParams(RandomParams& params,
                               Steinberg::IBStreamer& streamer) {
     float fv = 0.0f;
     Steinberg::int32 iv = 0;
 
-    if (!streamer.readFloat(fv)) { return false; }
+    if (!readLoaded(streamer, fv, RandomLoad::kRateHz)) { return false; }
     params.rateHz.store(fv, std::memory_order_relaxed);
 
     if (!streamer.readInt32(iv)) { return false; }
     params.sync.store(iv != 0, std::memory_order_relaxed);
 
-    if (!streamer.readInt32(iv)) { return false; }
+    if (!readLoaded(streamer, iv, RandomLoad::kNoteValue)) { return false; }
     params.noteValue.store(iv, std::memory_order_relaxed);
 
-    if (!streamer.readFloat(fv)) { return false; }
+    if (!readLoaded(streamer, fv, RandomLoad::kSmoothness)) { return false; }
     params.smoothness.store(fv, std::memory_order_relaxed);
 
     return true;
@@ -142,17 +150,17 @@ inline void loadRandomParamsToController(
     Steinberg::int32 iv = 0;
 
     // Rate: read Hz, convert back to normalized
-    if (streamer.readFloat(fv))
+    if (readLoaded(streamer, fv, RandomLoad::kRateHz))
         setParam(kRandomRateId, sampleHoldRateToNormalized(fv));
     // Sync: read int32, convert to 0.0/1.0
     if (streamer.readInt32(iv))
         setParam(kRandomSyncId, iv != 0 ? 1.0 : 0.0);
     // Note Value: read int32, convert to normalized
-    if (streamer.readInt32(iv))
+    if (readLoaded(streamer, iv, RandomLoad::kNoteValue))
         setParam(kRandomNoteValueId,
             static_cast<double>(iv) / (Parameters::kNoteValueDropdownCount - 1));
     // Smoothness: read float, direct [0,1]
-    if (streamer.readFloat(fv))
+    if (readLoaded(streamer, fv, RandomLoad::kSmoothness))
         setParam(kRandomSmoothnessId, static_cast<double>(fv));
 }
 

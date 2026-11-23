@@ -53,7 +53,7 @@ const TASKS = [
   ['T4.1', 4, 'sonnet'], ['T4.2', 4, 'sonnet'], ['T4.3', 4, 'sonnet'], ['T4.4', 4, 'opus'], ['T4.5', 4, 'opus'],
   ['T4.6', 4, 'opus'], ['T4.7', 4, 'opus'], ['T4.8', 4, 'opus'],
 
-  ['T5.1', 5, 'sonnet'], ['T5.2', 5, 'sonnet'], ['T5.3', 5, 'sonnet'], ['T5.4', 5, 'sonnet'], ['T5.5', 5, 'sonnet'],
+  ['T5.1', 5, 'sonnet'], ['T5.2', 5, 'sonnet'], ['T5.2a', 5, 'opus'], ['T5.2b', 5, 'opus'], ['T5.3', 5, 'sonnet'], ['T5.3a', 5, 'opus'], ['T5.3b', 5, 'sonnet'], ['T5.3c', 5, 'opus'], ['T5.3d', 5, 'opus'], ['T5.4', 5, 'sonnet'], ['T5.5', 5, 'sonnet'],
   ['T5.6', 5, 'sonnet'], ['T5.7', 5, 'sonnet'], ['T5.8', 5, 'opus'], ['T5.9', 5, 'sonnet'],
 
   ['T6.1', 6, 'sonnet'], ['T6.2', 6, 'sonnet'], ['T6.3', 6, 'sonnet'], ['T6.4', 6, 'sonnet'], ['T6.5', 6, 'sonnet'],
@@ -173,8 +173,8 @@ Check, and list every violation as a concrete problem with file:line:
 4. Plan conformance: the fix matches the section and the recorded Ruling; deviations are justified.
 5. Real-time safety on audio-thread paths (no allocation, lock, exception or I/O added), layer rules for dsp/ headers, macOS fast-math rules (detail::isFinite, no numeric_limits infinity/NaN constants, std::llround for musical time).
 6. Evidence: gate_line ends GATE GREEN; pluginval exit 0 when plugin sources changed; clang-tidy 0 warnings when it was required.
-7. Callers: load Serena once (ToolSearch "select:mcp__serena__find_referencing_symbols,mcp__serena__find_symbol"). For every function or method whose behaviour or signature the unstaged diff changes, run mcp__serena__find_referencing_symbols yourself (header and .cpp side, union) and compare with the implementer's callers_checked. Then cross-check cheaply with Grep, files only (grep -rlw <name> over the plugin/dsp dirs the symbol can reach): a file Grep lists that neither Serena nor callers_checked accounts for must be opened and explained. A caller the implementer did not account for, whose contract the change breaks or leaves untested, is a problem (file:line). A missing or "none" callers_checked while production functions changed is a problem. Only if Serena is unavailable, use Grep and say so in the summary.
-Do NOT edit any file and do NOT re-run builds or gates. You may run git, grep/read and Serena (read-only query tools only) commands.
+7. Callers (quick check; do NOT load or run Serena yourself): for every function or method whose behaviour or signature the unstaged diff changes, run a files-only grep (grep -rlw <name> over the plugin/dsp dirs the symbol can reach) and compare the file list with the implementer's callers_checked. A file the grep lists that callers_checked does not account for must be opened and explained (a real caller, or a same-named unrelated symbol). A caller the implementer did not account for, whose contract the change breaks or leaves untested, is a problem (file:line). A missing or "none" callers_checked while production functions changed is a problem.
+Do NOT edit any file and do NOT re-run builds or gates. You may run git and grep/read commands.
 If and only if there are no problems: stage exactly this task's files with ONE command, git add -- <file> <file> ... (the changed tracked files plus the new untracked files that belong to the task; never git add -A or git add .), then report ok=true and the staged list. Otherwise report ok=false, staged=[], and the problems.`
 }
 

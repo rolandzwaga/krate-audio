@@ -75,7 +75,7 @@ bool readRequiredStatePrefix(Packs& packs, Steinberg::IBStreamer& streamer,
         Steinberg::int32 reverbType = 0;
         if (!streamer.readInt32(reverbType)) return false;
         packs.reverbParams_.reverbType.store(
-            std::clamp(static_cast<int32_t>(reverbType), 0, 1), std::memory_order_relaxed);
+            ReverbLoad::kType(reverbType), std::memory_order_relaxed);
     } else {
         packs.reverbParams_.reverbType.store(0, std::memory_order_relaxed);
     }

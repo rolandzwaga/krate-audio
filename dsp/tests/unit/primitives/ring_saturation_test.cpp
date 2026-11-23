@@ -1233,7 +1233,7 @@ TEST_CASE("RingSaturation block processing performance (SC-007)",
 
 // T072: Real-time safety - no allocations in process methods (FR-021)
 TEST_CASE("RingSaturation no allocations in process methods (FR-021)",
-          "[ring_saturation][realtime_safety]") {
+          "[ring_saturation][realtime_safety][wallclock]") {
     // This test verifies behavior, not actual allocation tracking
     // (Allocation tracking would require hooks not available here)
 

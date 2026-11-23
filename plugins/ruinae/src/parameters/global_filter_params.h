@@ -1,5 +1,6 @@
 #pragma once
 #include "plugin_ids.h"
+#include "parameters/state_load_helpers.h"
 #include "controller/parameter_helpers.h"
 #include "parameters/dropdown_mappings.h"
 #include "pluginterfaces/base/ustring.h"
@@ -88,12 +89,19 @@ inline void saveGlobalFilterParams(const GlobalFilterParams& params, Steinberg::
     streamer.writeFloat(params.resonance.load(std::memory_order_relaxed));
 }
 
+// Saved-field ranges, read by both parsers (R-211)
+namespace GlobalFilterLoad {
+inline constexpr LoadedInt kType{.lo = 0, .hi = kGlobalFilterTypeCount - 1};
+inline constexpr LoadedFloat kCutoffHz{.lo = 20.0f, .hi = 20000.0f, .def = 1000.0f};
+inline constexpr LoadedFloat kResonance{.lo = 0.1f, .hi = 30.0f, .def = 0.707f};
+} // namespace GlobalFilterLoad
+
 inline bool loadGlobalFilterParams(GlobalFilterParams& params, Steinberg::IBStreamer& streamer) {
     Steinberg::int32 iv = 0; float fv = 0.0f;
     if (!streamer.readInt32(iv)) { return false; } params.enabled.store(iv != 0, std::memory_order_relaxed);
-    if (!streamer.readInt32(iv)) { return false; } params.type.store(iv, std::memory_order_relaxed);
-    if (!streamer.readFloat(fv)) { return false; } params.cutoffHz.store(fv, std::memory_order_relaxed);
-    if (!streamer.readFloat(fv)) { return false; } params.resonance.store(fv, std::memory_order_relaxed);
+    if (!readLoaded(streamer, iv, GlobalFilterLoad::kType)) { return false; } params.type.store(iv, std::memory_order_relaxed);
+    if (!readLoaded(streamer, fv, GlobalFilterLoad::kCutoffHz)) { return false; } params.cutoffHz.store(fv, std::memory_order_relaxed);
+    if (!readLoaded(streamer, fv, GlobalFilterLoad::kResonance)) { return false; } params.resonance.store(fv, std::memory_order_relaxed);
     return true;
 }
 
@@ -102,12 +110,12 @@ inline void loadGlobalFilterParamsToController(
     Steinberg::IBStreamer& streamer, const SetParamFunc& setParam) {
     Steinberg::int32 iv = 0; float fv = 0.0f;
     if (streamer.readInt32(iv)) setParam(kGlobalFilterEnabledId, iv != 0 ? 1.0 : 0.0);
-    if (streamer.readInt32(iv)) setParam(kGlobalFilterTypeId, static_cast<double>(iv) / (kGlobalFilterTypeCount - 1));
-    if (streamer.readFloat(fv)) {
+    if (readLoaded(streamer, iv, GlobalFilterLoad::kType)) setParam(kGlobalFilterTypeId, static_cast<double>(iv) / (kGlobalFilterTypeCount - 1));
+    if (readLoaded(streamer, fv, GlobalFilterLoad::kCutoffHz)) {
         double norm = (fv > 20.0f) ? std::log(fv / 20.0f) / std::log(1000.0f) : 0.0;
         setParam(kGlobalFilterCutoffId, std::clamp(norm, 0.0, 1.0));
     }
-    if (streamer.readFloat(fv)) setParam(kGlobalFilterResonanceId, static_cast<double>((fv - 0.1f) / 29.9f));
+    if (readLoaded(streamer, fv, GlobalFilterLoad::kResonance)) setParam(kGlobalFilterResonanceId, static_cast<double>((fv - 0.1f) / 29.9f));
 }
 
 } // namespace Ruinae

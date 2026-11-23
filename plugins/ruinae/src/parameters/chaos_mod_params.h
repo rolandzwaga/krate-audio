@@ -3,6 +3,7 @@
 #include "controller/parameter_helpers.h"
 #include "parameters/dropdown_mappings.h"
 #include "parameters/note_value_ui.h"
+#include "parameters/state_load_helpers.h"
 #include "parameters/lfo1_params.h"  // for lfoRateFromNormalized/lfoRateToNormalized
 #include "pluginterfaces/base/ustring.h"
 #include "public.sdk/source/vst/vstparameters.h"
@@ -101,14 +102,22 @@ inline void saveChaosModParams(const ChaosModParams& params, Steinberg::IBStream
     streamer.writeInt32(params.noteValue.load(std::memory_order_relaxed));
 }
 
+// Saved-field ranges, read by both parsers (R-211)
+namespace ChaosModLoad {
+inline constexpr LoadedFloat kRate{.lo = 0.05f, .hi = 20.0f, .def = 1.0f};
+inline constexpr LoadedInt kType{.lo = 0, .hi = kChaosTypeCount - 1};
+inline constexpr LoadedFloat kDepth{.lo = 0.0f, .hi = 1.0f, .def = 1.0f};
+inline constexpr LoadedInt kNoteValue{.lo = 0, .hi = Parameters::kNoteValueDropdownCount - 1};
+} // namespace ChaosModLoad
+
 inline bool loadChaosModParams(ChaosModParams& params, Steinberg::IBStreamer& streamer) {
     float fv = 0.0f; Steinberg::int32 iv = 0;
-    if (!streamer.readFloat(fv)) { return false; } params.rateHz.store(fv, std::memory_order_relaxed);
-    if (!streamer.readInt32(iv)) { return false; } params.type.store(iv, std::memory_order_relaxed);
-    if (!streamer.readFloat(fv)) { return false; } params.depth.store(fv, std::memory_order_relaxed);
+    if (!streamer.readFloat(fv)) { return false; } params.rateHz.store(ChaosModLoad::kRate(fv), std::memory_order_relaxed);
+    if (!streamer.readInt32(iv)) { return false; } params.type.store(ChaosModLoad::kType(iv), std::memory_order_relaxed);
+    if (!streamer.readFloat(fv)) { return false; } params.depth.store(ChaosModLoad::kDepth(fv), std::memory_order_relaxed);
     // New fields - optional for backward compat with old presets
     if (streamer.readInt32(iv)) params.sync.store(iv != 0, std::memory_order_relaxed);
-    if (streamer.readInt32(iv)) params.noteValue.store(iv, std::memory_order_relaxed);
+    if (streamer.readInt32(iv)) params.noteValue.store(ChaosModLoad::kNoteValue(iv), std::memory_order_relaxed);
     return true;
 }
 
@@ -116,12 +125,12 @@ template<typename SetParamFunc>
 inline void loadChaosModParamsToController(
     Steinberg::IBStreamer& streamer, const SetParamFunc& setParam) {
     float fv = 0.0f; Steinberg::int32 iv = 0;
-    if (streamer.readFloat(fv)) setParam(kChaosModRateId, chaosSpeedToNormalized(fv));
-    if (streamer.readInt32(iv)) setParam(kChaosModTypeId, static_cast<double>(iv) / (kChaosTypeCount - 1));
-    if (streamer.readFloat(fv)) setParam(kChaosModDepthId, static_cast<double>(fv));
+    if (streamer.readFloat(fv)) setParam(kChaosModRateId, chaosSpeedToNormalized(ChaosModLoad::kRate(fv)));
+    if (streamer.readInt32(iv)) setParam(kChaosModTypeId, static_cast<double>(ChaosModLoad::kType(iv)) / (kChaosTypeCount - 1));
+    if (streamer.readFloat(fv)) setParam(kChaosModDepthId, static_cast<double>(ChaosModLoad::kDepth(fv)));
     // New fields - optional for backward compat
     if (streamer.readInt32(iv)) setParam(kChaosModSyncId, iv != 0 ? 1.0 : 0.0);
-    if (streamer.readInt32(iv)) setParam(kChaosModNoteValueId, static_cast<double>(iv) / (Parameters::kNoteValueDropdownCount - 1));
+    if (streamer.readInt32(iv)) setParam(kChaosModNoteValueId, static_cast<double>(ChaosModLoad::kNoteValue(iv)) / (Parameters::kNoteValueDropdownCount - 1));
 }
 
 } // namespace Ruinae

@@ -2,10 +2,12 @@
 #include "plugin_ids.h"
 #include "controller/parameter_helpers.h"
 #include "parameters/dropdown_mappings.h"
+#include "parameters/state_load_helpers.h"
 #include "pluginterfaces/base/ustring.h"
 #include "public.sdk/source/vst/vstparameters.h"
 #include "public.sdk/source/vst/vsteditcontroller.h"
 #include "base/source/fstreamer.h"
+#include "ui/mod_matrix_types.h"
 #include <krate/dsp/systems/voice_mod_types.h>
 #include <algorithm>
 #include <array>
@@ -355,6 +357,16 @@ inline void saveModMatrixParams(const ModMatrixParams& params, Steinberg::IBStre
     }
 }
 
+// Saved-field ranges, read by both parsers (R-211)
+namespace ModMatrixLoad {
+inline constexpr LoadedInt kSource{.lo = 0, .hi = kModSourceCount - 1};
+inline constexpr LoadedInt kDest{.lo = 0, .hi = kModDestCount - 1};
+inline constexpr LoadedFloat kAmount{.lo = -1.0f, .hi = 1.0f, .def = 0.0f};
+inline constexpr LoadedInt kCurve{.lo = 0, .hi = kModCurveCount - 1};
+inline constexpr LoadedFloat kSmoothMs{.lo = 0.0f, .hi = 100.0f, .def = 0.0f};
+inline constexpr LoadedInt kScale{.lo = 0, .hi = kModScaleCount - 1};
+} // namespace ModMatrixLoad
+
 inline bool loadModMatrixParams(ModMatrixParams& params, Steinberg::IBStreamer& streamer) {
     // Every index is clamped to the range handleModMatrixParamChange produces: a
     // source past kModSourceCount wrote past ModulationEngine::sourceActive_ (R-003).
@@ -363,25 +375,78 @@ inline bool loadModMatrixParams(ModMatrixParams& params, Steinberg::IBStreamer& 
         auto& slot = params.slots[static_cast<size_t>(i)];
         // Base
         if (!streamer.readInt32(iv)) return false;
-        slot.source.store(std::clamp(static_cast<int>(iv), 0, kModSourceCount - 1),
-                          std::memory_order_relaxed);
+        slot.source.store(ModMatrixLoad::kSource(iv), std::memory_order_relaxed);
         if (!streamer.readInt32(iv)) return false;
-        slot.dest.store(std::clamp(static_cast<int>(iv), 0, kModDestCount - 1),
-                        std::memory_order_relaxed);
+        slot.dest.store(ModMatrixLoad::kDest(iv), std::memory_order_relaxed);
         if (!streamer.readFloat(fv)) return false;
-        slot.amount.store(fv, std::memory_order_relaxed);
+        slot.amount.store(ModMatrixLoad::kAmount(fv), std::memory_order_relaxed);
         // Detail
         if (!streamer.readInt32(iv)) return false;
-        slot.curve.store(std::clamp(static_cast<int>(iv), 0, kModCurveCount - 1),
-                         std::memory_order_relaxed);
+        slot.curve.store(ModMatrixLoad::kCurve(iv), std::memory_order_relaxed);
         if (!streamer.readFloat(fv)) return false;
-        slot.smoothMs.store(fv, std::memory_order_relaxed);
+        slot.smoothMs.store(ModMatrixLoad::kSmoothMs(fv), std::memory_order_relaxed);
         if (!streamer.readInt32(iv)) return false;
-        slot.scale.store(std::clamp(static_cast<int>(iv), 0, kModScaleCount - 1),
-                         std::memory_order_relaxed);
+        slot.scale.store(ModMatrixLoad::kScale(iv), std::memory_order_relaxed);
         if (!streamer.readInt32(iv)) return false;
         slot.bypass.store(iv != 0 ? 1 : 0, std::memory_order_relaxed);
     }
+    return true;
+}
+
+// ==============================================================================
+// Voice routes (16 slots after the Mono Mode pack, not parameters)
+// ==============================================================================
+
+// Saved-field ranges of a voice route, read by both parsers (R-211). Indices
+// are the voice tab's, not the global matrix's (R-003, R-109).
+namespace VoiceRouteLoad {
+inline constexpr LoadedInt kSource{.lo = 0, .hi = static_cast<int>(Krate::DSP::VoiceModSource::NumSources) - 1};
+inline constexpr LoadedInt kDestination{.lo = 0, .hi = Krate::Plugins::kNumVoiceDestinations - 1};
+inline constexpr LoadedFloat kAmount{.lo = -1.0f, .hi = 1.0f, .def = 0.0f};
+inline constexpr LoadedInt kCurve{.lo = 0, .hi = kModCurveCount - 1};
+inline constexpr LoadedFloat kSmoothMs{.lo = 0.0f, .hi = 100.0f, .def = 0.0f};
+inline constexpr LoadedInt kScale{.lo = 0, .hi = kModScaleCount - 1};
+} // namespace VoiceRouteLoad
+
+/// One saved voice route, sanitised (and, before state v9, migrated).
+struct LoadedVoiceRoute {
+    int source = 0;
+    int destination = 0;
+    float amount = 0.0f;
+    int curve = 0;
+    float smoothMs = 0.0f;
+    int scale = 2;
+    bool bypass = false;
+    bool active = false;
+};
+
+/// Reads one voice route (int8 source, int8 destination, float amount, int8
+/// curve, float smooth, int8 scale, int8 bypass, int8 active). Returns false
+/// when the stream ends inside it; `out` is then unspecified.
+inline bool readVoiceRoute(Steinberg::IBStreamer& streamer, Steinberg::int32 version,
+                           LoadedVoiceRoute& out) {
+    // The int8 indices are read as unsigned bytes, as they are written.
+    const auto index = [](Steinberg::int8 v) { return static_cast<Steinberg::int32>(static_cast<uint8_t>(v)); };
+    Steinberg::int8 i8 = 0;
+    float f = 0.0f;
+    if (!streamer.readInt8(i8)) return false;
+    out.source = VoiceRouteLoad::kSource(index(i8));
+    if (!streamer.readInt8(i8)) return false;
+    out.destination = VoiceRouteLoad::kDestination(index(i8));
+    if (!streamer.readFloat(f)) return false;
+    out.amount = VoiceRouteLoad::kAmount(f);
+    if (!streamer.readInt8(i8)) return false;
+    out.curve = VoiceRouteLoad::kCurve(index(i8));
+    if (!streamer.readFloat(f)) return false;
+    out.smoothMs = VoiceRouteLoad::kSmoothMs(f);
+    if (!streamer.readInt8(i8)) return false;
+    out.scale = VoiceRouteLoad::kScale(index(i8));
+    if (!streamer.readInt8(i8)) return false;
+    out.bypass = i8 != 0;
+    if (!streamer.readInt8(i8)) return false;
+    out.active = i8 != 0;
+    // Before v9: Scale saturated the amount and Filter Resonance spanned 1 Q
+    if (version < 9) out.amount = preV9VoiceRouteAmount(out.amount, out.destination, out.scale);
     return true;
 }
 
@@ -428,25 +493,27 @@ inline void loadModMatrixParamsToController(
     for (int i = 0; i < 8; ++i) {
         // Base
         if (streamer.readInt32(iv))
-            setParam(srcIds[i], static_cast<double>(iv) / (kModSourceCount - 1));
+            setParam(srcIds[i], static_cast<double>(ModMatrixLoad::kSource(iv)) / (kModSourceCount - 1));
         if (streamer.readInt32(iv))
-            setParam(dstIds[i], static_cast<double>(iv) / (kModDestCount - 1));
+            setParam(dstIds[i], static_cast<double>(ModMatrixLoad::kDest(iv)) / (kModDestCount - 1));
         // The amount is set after the scale is known: states older than v9 migrate it.
         float amount = 0.0f;
         const bool hasAmount = streamer.readFloat(amount);
+        amount = ModMatrixLoad::kAmount(amount);
         // Detail
         if (streamer.readInt32(iv))
-            setParam(curveIds[i], static_cast<double>(iv) / (kModCurveCount - 1));
+            setParam(curveIds[i], static_cast<double>(ModMatrixLoad::kCurve(iv)) / (kModCurveCount - 1));
         if (streamer.readFloat(fv))
-            setParam(smoothIds[i], static_cast<double>(fv / 100.0f));
+            setParam(smoothIds[i], static_cast<double>(ModMatrixLoad::kSmoothMs(fv) / 100.0f));
         if (streamer.readInt32(iv)) {
-            setParam(scaleIds[i], static_cast<double>(iv) / (kModScaleCount - 1));
-            if (version < 9) amount = preV9RouteAmount(amount, iv);
+            const int scale = ModMatrixLoad::kScale(iv);
+            setParam(scaleIds[i], static_cast<double>(scale) / (kModScaleCount - 1));
+            if (version < 9) amount = preV9RouteAmount(amount, scale);
         }
         if (hasAmount)
             setParam(amtIds[i], static_cast<double>((amount + 1.0f) / 2.0f));
         if (streamer.readInt32(iv))
-            setParam(bypassIds[i], static_cast<double>(iv));
+            setParam(bypassIds[i], iv != 0 ? 1.0 : 0.0);
     }
 }
 
