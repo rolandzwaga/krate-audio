@@ -19,7 +19,12 @@
 //     consumers too. A file under plugins/<p>/ only reaches plugins/<p>/ tests and the shared test areas;
 //   - then every file that (transitively) #includes something reached (include strings resolved by path suffix, only
 //     inside the includer's own plugin or the shared areas, as tools/header-consumers.js does).
-// A changed CMakeLists.txt / *.cmake / CMakePresets.json is build-wide: every case is affected.
+// A changed CMakeLists.txt / *.cmake / CMakePresets.json counts only through the lines it changed: a line that sets
+// compile or link configuration (flags, definitions, include dirs, libraries, packages, standards) reaches every source
+// under that CMakeLists' directory, or everything when the file is the root CMakeLists.txt, CMakePresets.json or under
+// cmake/ (build-wide). Source-list lines and test registrations reach nothing beyond the files they name, which are
+// changed files themselves (2026-11-23: an AU plist configure_file in cmake/KratePlugin.cmake and new test files in
+// test CMakeLists made a "build-wide" CPU lane of every suite).
 //
 // CLI (dry run, shows the reach):  node tools/affected-tests.js [--base <ref>]
 // ==============================================================================
@@ -32,7 +37,28 @@ const ROOT = path.resolve(__dirname, '..');
 const SRC = /\.(cpp|cc|cxx|h|hpp|hh|inl)$/i;
 const SCAN_ROOTS = ['dsp', 'plugins', 'tests', 'tools/membrum-fit'];
 const SKIP_DIR = /^(build|_deps|extern|node_modules|\.git|\..*)$/;
-const BUILD_WIDE = /(^|\/)CMakeLists\.txt$|\.cmake$|^CMakePresets\.json$/;
+const CMAKE_FILE = /(^|\/)CMakeLists\.txt$|\.cmake$|^CMakePresets\.json$/;
+const GLOBAL_CMAKE = /^(CMakeLists\.txt|CMakePresets\.json)$|^cmake\//;
+// A CMake line that changes how code compiles or links.
+const BUILD_CONFIG = /\b(add_compile_options|target_compile_options|add_compile_definitions|target_compile_definitions|add_definitions|add_link_options|target_link_options|target_link_libraries|link_libraries|target_include_directories|include_directories|target_compile_features|set_source_files_properties|set_target_properties|set_property|FetchContent_\w+|find_package|CMAKE_\w*FLAGS\w*|CMAKE_CXX_STANDARD|CMAKE_BUILD_TYPE|COMPILE_OPTIONS|COMPILE_DEFINITIONS|INTERPROCEDURAL_OPTIMIZATION|"configurePresets"|"cacheVariables")\b|-f[a-z-]+|\/fp:|\/arch:/;
+
+// A property set on named source files only: it reaches those files, not the directory.
+const FILE_SCOPED = /set_source_files_properties|PROPERTIES\s+COMPILE_(OPTIONS|DEFINITIONS|FLAGS)/;
+
+// The changed lines (+/-) of one CMake file vs base, comments and blanks dropped; an untracked file: all its lines.
+function cmakeChangedLines(file, base) {
+    let text;
+    try {
+        text = execFileSync('git', ['diff', '-U0', base, '--', file], { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
+    } catch { text = ''; }
+    let lines;
+    if (text.trim()) {
+        lines = text.split(/\r?\n/).filter((l) => /^[-+]/.test(l) && !/^(\+\+\+|---)/.test(l)).map((l) => l.slice(1));
+    } else {
+        try { lines = fs.readFileSync(path.join(ROOT, file), 'utf8').split(/\r?\n/); } catch { lines = []; }
+    }
+    return lines.map((l) => l.replace(/#.*$/, '').trim()).filter(Boolean);
+}
 
 const norm = (p) => p.replace(/\\/g, '/');
 const relOf = (abs) => norm(path.relative(ROOT, abs));
@@ -91,11 +117,26 @@ function dataTokens(file) {
 // { changed, buildWide: <file>|null, reached: Set<repo-relative file> }
 function reach(base = 'HEAD', changedOverride = null) {
     const changed = changedOverride || changedFiles(base);
-    const buildWide = changed.find((f) => BUILD_WIDE.test(f)) || null;
-    if (buildWide) return { changed, buildWide, reached: null };
+    const cmakeScopes = [];   // directories whose every source a compile-config CMake change reaches
+    const namedByCmake = [];  // [dir, basename]: a file-scoped property (set_source_files_properties) names its files
+    for (const f of changed.filter((c) => CMAKE_FILE.test(c))) {
+        const lines = cmakeChangedLines(f, base);
+        const config = lines.filter((l) => BUILD_CONFIG.test(l));
+        if (!config.length) continue;
+        const dir = path.posix.dirname(f) === '.' ? '' : path.posix.dirname(f) + '/';
+        if (config.every((l) => FILE_SCOPED.test(l))) {
+            for (const l of lines) for (const m of l.matchAll(/[\w${}./-]+\.(?:cpp|cc|cxx|h|hpp)\b/g)) namedByCmake.push([dir, path.posix.basename(m[0])]);
+            continue;
+        }
+        if (GLOBAL_CMAKE.test(f)) return { changed, buildWide: f, reached: null };
+        cmakeScopes.push(dir);
+    }
     const g = graph();
     const seeds = new Set();
+    for (const d of cmakeScopes) for (const file of g.text.keys()) if (file.startsWith(d)) seeds.add(file);
+    for (const [d, b] of namedByCmake) for (const file of g.text.keys()) if (file.startsWith(d) && path.posix.basename(file) === b) seeds.add(file);
     for (const f of changed) {
+        if (CMAKE_FILE.test(f)) continue;
         if (SRC.test(f)) {
             seeds.add(f);
             if (/\.(cpp|cc|cxx)$/i.test(f)) {
