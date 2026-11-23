@@ -226,8 +226,9 @@ jobs:
       # The AUv2 .component's Info.plist is generated from au-info.plist.in so
       # CFBundleVersion / AudioComponents version follow version.json (Ruinae
       # audit R-191). Reads the template; a configured tree's generated plist too.
+      # No arguments: every plugin, so a new plugin needs its template from day one.
       - name: AUv2 plist version check
-        run: node tools/check-au-plist.js ruinae
+        run: node tools/check-au-plist.js
       # Catches a hand-rolled global operator new / delete. A partial or
       # hidden-visibility replacement set corrupts the heap; MSVC never shows
       # it, and on Linux it surfaces as an intermittent SIGSEGV in whatever

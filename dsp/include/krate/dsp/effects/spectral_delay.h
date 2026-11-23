@@ -37,6 +37,7 @@
 #include <krate/dsp/systems/delay_engine.h>
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
@@ -54,15 +55,54 @@ namespace Krate::DSP {
 enum class SpreadDirection : std::uint8_t {
     LowToHigh,  ///< Higher bins get longer delays (rising effect)
     HighToLow,  ///< Lower bins get longer delays (falling effect)
-    CenterOut   ///< Edge bins get longer delays, center is base delay
+    CenterOut,  ///< Edge bins get longer delays, center is base delay
+    EdgesIn,    ///< Center bins get longer delays, the edges arrive first (closing in)
+    Cross       ///< Left channel Low > High, right channel High > Low
 };
 
+/// Number of SpreadDirection values (plugins size their menus from it)
+inline constexpr int kNumSpreadDirections = 5;
+
+namespace detail {
+
+/// Third-octave bands between 20 Hz and 20 kHz (Scatter / Random spread curves)
+inline constexpr std::size_t kSpreadScatterBands = 30;
+
+/// Scatter curve: the evenly spaced positions k / 29, shuffled once (Fisher-Yates
+/// with a fixed seed), so every band gets its own delay and none clump together
+[[nodiscard]] constexpr std::array<float, kSpreadScatterBands> makeSpreadScatterTable() noexcept {
+    std::array<float, kSpreadScatterBands> table{};
+    for (std::size_t i = 0; i < kSpreadScatterBands; ++i) {
+        table[i] = static_cast<float>(i) / static_cast<float>(kSpreadScatterBands - 1);
+    }
+    Xorshift32 rng{0x5CA77E2Eu};
+    for (std::size_t i = kSpreadScatterBands - 1; i > 0; --i) {
+        const std::size_t j = rng.next() % (i + 1);
+        const float t = table[i];
+        table[i] = table[j];
+        table[j] = t;
+    }
+    return table;
+}
+
+inline constexpr std::array<float, kSpreadScatterBands> kSpreadScatterTable =
+    makeSpreadScatterTable();
+
+}  // namespace detail
+
 /// @brief Spread curve modes for delay time distribution scaling
-/// Phase 3.1: Linear vs logarithmic frequency distribution
+/// All lay the spread over octaves (20 Hz to 20 kHz); see calculateBinDelayMs
 enum class SpreadCurve : std::uint8_t {
-    Linear,      ///< Linear distribution (perceptually less even)
-    Logarithmic  ///< Logarithmic distribution (perceptually more even)
+    Linear,       ///< Equal share of the spread per octave
+    Logarithmic,  ///< Low octaves get most of the spread (ln(1 + 9p) / ln(10))
+    Exponential,  ///< High octaves get most of the spread ((10^p - 1) / 9)
+    Steps,        ///< 8 bands of 1.25 octaves, band k at k / 7 of the spread
+    Scatter,      ///< 30 third-octave bands in a fixed shuffled order
+    Random        ///< 30 third-octave bands gliding to new random delays every 2 x spread
 };
+
+/// Number of SpreadCurve values (plugins size their menus from it)
+inline constexpr int kNumSpreadCurves = 6;
 
 // =============================================================================
 // SpectralDelay - Layer 4 User Feature
@@ -201,7 +241,9 @@ public:
         wetFifoR_.assign(2 * kMaxFFTSize + maxBlockSize, 0.0f);
         blurredMag_.assign(kMaxBins, 0.0f);
         binDelayFrames_.assign(kMaxBins, 0.0f);
+        binDelayFramesR_.assign(kMaxBins, 0.0f);
         peaks_.assign(kMaxBins, 0);
+        regionPeak_.assign(kMaxBins, 0);
         for (DelayedSpectrum* s : {&delayedL_, &delayedR_}) {
             s->magNew.assign(kMaxBins, 0.0f);
             s->advance.assign(kMaxBins, 0.0f);
@@ -234,6 +276,7 @@ public:
         // the object's address: the same settings must render the same audio on
         // every instance and every run (offline bounce, freeze, A/B).
         rng_.seed(rngSeed_);
+        resetRandomCurve();
 
         // Phase buffers for stereo decorrelation (random walk approach) provide
         // smooth phase modulation without frame-boundary clicks. Initialize the
@@ -306,6 +349,7 @@ public:
         // reset restores the starting phases prepare() or seedRng() drew instead of
         // drawing new ones from the running stream.
         rng_.seed(rngSeed_);
+        resetRandomCurve();
         for (std::size_t i = 0; i < std::min(activeNumBins(), stereoPhaseL_.size()); ++i) {
             stereoPhaseL_[i] = (rng_.nextUnipolar() - 0.5f) * kPi;
             stereoPhaseR_[i] = (rng_.nextUnipolar() - 0.5f) * kPi;
@@ -512,7 +556,7 @@ public:
     }
 
     /// @brief Set spread curve mode (Linear or Logarithmic)
-    /// Phase 3.1: Logarithmic gives perceptually more even distribution
+    /// Linear: equal share per octave; Logarithmic: the low octaves get most of it
     void setSpreadCurve(SpreadCurve curve) noexcept {
         spreadCurve_ = curve;
     }
@@ -767,37 +811,122 @@ private:
         }
     }
 
+    /// Spread runs over octave position from kSpreadLowHz (0) to kSpreadHighHz (1)
+    static constexpr float kSpreadLowHz = 20.0f;
+    static constexpr float kSpreadHighHz = 20000.0f;
+    /// Logarithmic curve: ln(1 + k p) / ln(1 + k), front-loaded (p = 0.5 -> 0.74);
+    /// Exponential is its inverse, (e^(p ln(1 + k)) - 1) / k
+    static constexpr float kSpreadLogShape = 9.0f;
+    /// Steps curve: bands of 1.25 octaves
+    static constexpr std::size_t kSpreadSteps = 8;
+    /// Scatter / Random curves: third-octave bands
+    static constexpr std::size_t kSpreadBands = detail::kSpreadScatterBands;
+    /// Random curve: each band glides to a new delay every 2 x spread, at least this often
+    static constexpr float kRandomMinIntervalMs = 200.0f;
+    static constexpr uint32_t kRandomCurveSeed = 0x2A5C0FFEu;
+
+    /// @brief Restart the Random curve from its seed (prepare / reset): the same
+    ///        settings render the same audio on every instance
+    void resetRandomCurve() noexcept {
+        randomCurveRng_.seed(kRandomCurveSeed);
+        for (std::size_t b = 0; b < kSpreadBands; ++b) {
+            randomFrom_[b] = randomCurveRng_.nextUnipolar();
+            randomTo_[b] = randomCurveRng_.nextUnipolar();
+            randomNow_[b] = randomFrom_[b];
+        }
+        randomPhase_ = 0.0f;
+    }
+
+    /// @brief Advance the Random curve by one hop: every band glides (smoothstep)
+    ///        from its last random position to the next over 2 x spread
+    void advanceRandomCurve(float hopMs, float spread) noexcept {
+        const float intervalMs = std::max(2.0f * spread, kRandomMinIntervalMs);
+        randomPhase_ += hopMs / intervalMs;
+        if (randomPhase_ >= 1.0f) {
+            randomPhase_ = std::min(randomPhase_ - 1.0f, 1.0f);
+            for (std::size_t b = 0; b < kSpreadBands; ++b) {
+                randomFrom_[b] = randomTo_[b];
+                randomTo_[b] = randomCurveRng_.nextUnipolar();
+            }
+        }
+        const float t = randomPhase_;
+        const float s = t * t * (3.0f - 2.0f * t);
+        for (std::size_t b = 0; b < kSpreadBands; ++b) {
+            randomNow_[b] = randomFrom_[b] + (randomTo_[b] - randomFrom_[b]) * s;
+        }
+    }
+
     /// @brief Calculate delay time for a specific bin based on spread settings
+    ///
+    /// The spread is laid out over octaves, not over the bin index. Linear in the
+    /// bin index (linear in Hz) gave everything below ~2 kHz the first ~9 % of the
+    /// spread at 44.1 kHz, so Low > High sounded like a plain echo and High > Low
+    /// / Center Out like a plain longer one (measured 2026-11-23). On the octave
+    /// scale each octave gets an equal share (Linear), or the low octaves most of
+    /// it (Logarithmic), independent of sample rate and FFT size.
+    /// Cross lays the left channel out Low > High and the right High > Low;
+    /// every other direction is the same on both channels (rightChannel ignored).
     [[nodiscard]] float calculateBinDelayMs(std::size_t bin,
                                             std::size_t numBins,
                                             float baseDelay,
-                                            float spread) const noexcept {
+                                            float spread,
+                                            bool rightChannel = false) const noexcept {
         if (numBins <= 1) return baseDelay;
 
-        float normalizedBin = static_cast<float>(bin) /
-                              static_cast<float>(numBins - 1);
-
-        // Phase 3.1: Apply logarithmic curve if selected
-        // Log scaling gives more perceptually even distribution across frequencies
-        if (spreadCurve_ == SpreadCurve::Logarithmic) {
-            // Map linear 0-1 to logarithmic 0-1
-            // log2(1 + x) / log2(2) = log2(1 + x) where x ranges 0-1
-            // This maps 0->0, 0.5->0.585, 1->1 with emphasis on lower values
-            constexpr float kLogBase = 2.0f;
-            normalizedBin = std::log2(1.0f + normalizedBin * (kLogBase - 1.0f));
+        const float binHz = static_cast<float>(bin) * static_cast<float>(sampleRate_)
+                          / static_cast<float>(fftSize_);
+        // Clamped below the log, so DC and sub-20 Hz bins sit exactly at 0
+        float position = 0.0f;
+        if (binHz > kSpreadLowHz) {
+            position = std::clamp(std::log(binHz / kSpreadLowHz)
+                                      / std::log(kSpreadHighHz / kSpreadLowHz),
+                                  0.0f, 1.0f);
         }
+
+        // Bands for Scatter / Random: thirds of an octave (30 between 20 Hz and 20 kHz)
+        const auto band = std::min(static_cast<std::size_t>(position * kSpreadBands),
+                                   kSpreadBands - 1);
+        switch (spreadCurve_) {
+            case SpreadCurve::Linear:
+                break;
+            case SpreadCurve::Logarithmic:
+                position = std::log1p(kSpreadLogShape * position) / std::log1p(kSpreadLogShape);
+                break;
+            case SpreadCurve::Exponential:
+                // The inverse of Logarithmic: the high octaves get most of the spread
+                position = std::expm1(position * std::log1p(kSpreadLogShape)) / kSpreadLogShape;
+                break;
+            case SpreadCurve::Steps:
+                position = std::min(std::floor(position * static_cast<float>(kSpreadSteps)),
+                                    static_cast<float>(kSpreadSteps - 1))
+                         / static_cast<float>(kSpreadSteps - 1);
+                break;
+            case SpreadCurve::Scatter:
+                position = detail::kSpreadScatterTable[band];
+                break;
+            case SpreadCurve::Random:
+                position = randomNow_[band];
+                break;
+        }
+        position = std::clamp(position, 0.0f, 1.0f);
 
         float delayOffset = 0.0f;
 
         switch (spreadDirection_) {
             case SpreadDirection::LowToHigh:
-                delayOffset = normalizedBin * spread;
+                delayOffset = position * spread;
                 break;
             case SpreadDirection::HighToLow:
-                delayOffset = (1.0f - normalizedBin) * spread;
+                delayOffset = (1.0f - position) * spread;
                 break;
             case SpreadDirection::CenterOut:
-                delayOffset = std::abs(normalizedBin - 0.5f) * 2.0f * spread;
+                delayOffset = std::abs(position - 0.5f) * 2.0f * spread;
+                break;
+            case SpreadDirection::EdgesIn:
+                delayOffset = (1.0f - std::abs(position - 0.5f) * 2.0f) * spread;
+                break;
+            case SpreadDirection::Cross:
+                delayOffset = (rightChannel ? 1.0f - position : position) * spread;
                 break;
         }
 
@@ -816,7 +945,7 @@ private:
     static constexpr float kPeakFloor = 1e-9f;
 
     /// @brief Read one channel's spectrum at each bin's fractional frame delay
-    ///        (binDelayFrames_) into out.mag / out.phase
+    ///        (delayFrames) into out.mag / out.phase
     ///
     /// Most delay times fall between two STFT frames. Blending the frames' complex
     /// values linearly cancels: at 50 % overlap a bin's phase turns by up to pi per
@@ -831,13 +960,14 @@ private:
     /// whole-frame delay reads the newer frame unchanged.
     void readDelayedSpectrum(const std::vector<DelayLine>& realLines,
                              const std::vector<DelayLine>& imagLines,
+                             const std::vector<float>& delayFrames,
                              DelayedSpectrum& out, std::size_t numBins) noexcept {
         // Pass 1: newer-frame magnitude and phase, blended magnitude, and each
         // bin's own true phase advance per hop (expected plus wrapped deviation)
         for (std::size_t bin = 0; bin < numBins; ++bin) {
-            const float delayFrames = binDelayFrames_[bin];
-            const auto newer = static_cast<std::size_t>(delayFrames);
-            const float frac = delayFrames - static_cast<float>(newer);
+            const float binDelay = delayFrames[bin];
+            const auto newer = static_cast<std::size_t>(binDelay);
+            const float frac = binDelay - static_cast<float>(newer);
 
             const float reNew = realLines[bin].read(newer);
             const float imNew = imagLines[bin].read(newer);
@@ -875,9 +1005,11 @@ private:
                 peaks_[peakCount++] = bin;
             }
         }
+        for (std::size_t bin = 0; bin < numBins; ++bin) regionPeak_[bin] = bin;
         if (peakCount > 0) {
             for (std::size_t bin = 0; bin < peaks_[0]; ++bin) {
                 out.advance[bin] = out.advance[peaks_[0]];
+                regionPeak_[bin] = peaks_[0];
             }
             for (std::size_t p = 0; p + 1 < peakCount; ++p) {
                 const std::size_t left = peaks_[p];
@@ -887,21 +1019,46 @@ private:
                     if (out.magNew[bin] < out.magNew[lowest]) lowest = bin;
                 }
                 for (std::size_t bin = left + 1; bin < right; ++bin) {
-                    out.advance[bin] = out.advance[bin <= lowest ? left : right];
+                    const std::size_t owner = bin <= lowest ? left : right;
+                    out.advance[bin] = out.advance[owner];
+                    regionPeak_[bin] = owner;
                 }
             }
             for (std::size_t bin = peaks_[peakCount - 1] + 1; bin < numBins; ++bin) {
                 out.advance[bin] = out.advance[peaks_[peakCount - 1]];
+                regionPeak_[bin] = peaks_[peakCount - 1];
             }
         }
 
         // Pass 3: step each bin's phase from its nearer frame by the locked advance:
         // back by frac from the newer frame, forward by (1 - frac) from the older
         for (std::size_t bin = 0; bin < numBins; ++bin) {
-            const float delayFrames = binDelayFrames_[bin];
-            const float frac = delayFrames - std::floor(delayFrames);
+            const float binDelay = delayFrames[bin];
+            const float frac = binDelay - std::floor(binDelay);
             const float stepFromNearer = (frac <= 0.5f) ? -frac : (1.0f - frac);
             out.phase[bin] += stepFromNearer * out.advance[bin];
+        }
+
+        // Pass 4: identity phase locking. A component spans several bins (the
+        // window's main lobe); with Spread they read different frames, so their
+        // phases no longer line up and the component partly cancelled itself in
+        // the resynthesis (-1.4 to -5.6 dB depending on the exact spread, measured
+        // 2026-11-23). Every bin of a region takes its phase relative to the peak
+        // from the PEAK's nearer frame, so the component leaves whole at the peak's
+        // timing; each bin keeps its own delayed magnitude. With no spread every
+        // bin reads the peak's frame already, and this changes nothing.
+        for (std::size_t bin = 0; bin < numBins; ++bin) {
+            const std::size_t peak = regionPeak_[bin];
+            if (peak == bin) continue;
+            const float peakDelay = delayFrames[peak];
+            const auto peakNewer = static_cast<std::size_t>(peakDelay);
+            const std::size_t peakFrame =
+                peakNewer + ((peakDelay - static_cast<float>(peakNewer)) <= 0.5f ? 0u : 1u);
+            const float phaseBin = std::atan2(imagLines[bin].read(peakFrame),
+                                              realLines[bin].read(peakFrame));
+            const float phasePeak = std::atan2(imagLines[peak].read(peakFrame),
+                                               realLines[peak].read(peakFrame));
+            out.phase[bin] = out.phase[peak] + (phaseBin - phasePeak);
         }
     }
 
@@ -1014,6 +1171,7 @@ private:
         // Per-bin delay time in frames
         const float frameRate = static_cast<float>(sampleRate_) /
                                 static_cast<float>(hopSize_);
+        advanceRandomCurve(1000.0f / frameRate, spread);
         for (std::size_t bin = 0; bin < numBins; ++bin) {
             const float binDelayMs = calculateBinDelayMs(bin, numBins, baseDelay, spread);
             // ONE FRAME of the requested delay is spent by the loop itself. The
@@ -1029,10 +1187,20 @@ private:
             binDelayFrames_[bin] =
                 std::max(0.0f, (binDelayMs / 1000.0f) * frameRate - 1.0f);
         }
+        // Cross gives the right channel its own (mirrored) layout
+        const bool cross = spreadDirection_ == SpreadDirection::Cross;
+        if (cross) {
+            for (std::size_t bin = 0; bin < numBins; ++bin) {
+                const float binDelayMs =
+                    calculateBinDelayMs(bin, numBins, baseDelay, spread, /*rightChannel=*/true);
+                binDelayFramesR_[bin] = std::max(0.0f, (binDelayMs / 1000.0f) * frameRate - 1.0f);
+            }
+        }
 
         // Read the delayed spectra (before this frame's write, see above)
-        readDelayedSpectrum(binRealDelaysL_, binImagDelaysL_, delayedL_, numBins);
-        readDelayedSpectrum(binRealDelaysR_, binImagDelaysR_, delayedR_, numBins);
+        readDelayedSpectrum(binRealDelaysL_, binImagDelaysL_, binDelayFrames_, delayedL_, numBins);
+        readDelayedSpectrum(binRealDelaysR_, binImagDelaysR_,
+                            cross ? binDelayFramesR_ : binDelayFrames_, delayedR_, numBins);
 
         // Feedback soft limiter, in the signal's own (time-domain) scale (R-057).
         // tanh() on raw FFT magnitudes (FFT::forward is unnormalised: a sine of
@@ -1231,6 +1399,12 @@ private:
     float spreadMs_ = 0.0f;
     SpreadDirection spreadDirection_ = SpreadDirection::LowToHigh;
     SpreadCurve spreadCurve_ = SpreadCurve::Linear;  // Phase 3.1: Default to linear
+    // Random curve state (resetRandomCurve / advanceRandomCurve)
+    Xorshift32 randomCurveRng_{kRandomCurveSeed};
+    std::array<float, detail::kSpreadScatterBands> randomFrom_{};
+    std::array<float, detail::kSpreadScatterBands> randomTo_{};
+    std::array<float, detail::kSpreadScatterBands> randomNow_{};
+    float randomPhase_ = 0.0f;
     float feedback_ = 0.0f;
     float feedbackTilt_ = 0.0f;
     float diffusion_ = 0.0f;
@@ -1294,7 +1468,9 @@ private:
 
     // Fractional-frame read (readDelayedSpectrum)
     std::vector<float> binDelayFrames_;
+    std::vector<float> binDelayFramesR_;  ///< right channel's layout, used only by SpreadDirection::Cross
     std::vector<std::size_t> peaks_;
+    std::vector<std::size_t> regionPeak_;  ///< each bin's region peak (readDelayedSpectrum)
     DelayedSpectrum delayedL_;
     DelayedSpectrum delayedR_;
 };

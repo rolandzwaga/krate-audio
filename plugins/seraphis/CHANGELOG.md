@@ -5,6 +5,13 @@ All notable changes to Seraphis will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.7] - 2026-11-23
+
+### Fixed
+
+- **The FX delay's Spread barely swept the sound** *(shared DSP)* — Spread was laid out evenly in Hz, so everything below about 2 kHz shared the first tenth of the spread time and the echo came back as one plain echo. Spread is now laid out by octave, from 20 Hz to 20 kHz, so each echo audibly sweeps from low to high (or high to low, or out from the middle). No factory preset uses Spread; projects that do sound different.
+- **The FX delay's echo got 1 to 6 dB quieter with Spread** *(shared DSP)* — Each sound covers several neighbouring frequency bands; with Spread they left the delay at different moments, their phases stopped lining up and the sound partly cancelled itself. The bands of one sound now leave together, and the echo keeps its level with Spread on.
+
 ## [1.0.6] - 2026-11-23
 
 ### Fixed

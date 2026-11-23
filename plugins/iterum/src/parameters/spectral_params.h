@@ -22,6 +22,13 @@
 
 namespace Iterum {
 
+/// Spread Curve entries: Linear, Logarithmic, Exponential, Steps, Scatter, Random
+/// (Krate::DSP::SpreadCurve order; saved as the index, so new curves go last)
+inline constexpr int kSpectralSpreadCurveCount = 6;
+/// Spread Direction entries: Low->High, High->Low, Center Out, Edges In, Cross
+/// (Krate::DSP::SpreadDirection order; saved as the index, so new directions go last)
+inline constexpr int kSpectralSpreadDirectionCount = 5;
+
 // ==============================================================================
 // SpectralParams Struct
 // ==============================================================================
@@ -85,9 +92,10 @@ inline void handleSpectralParamChange(
             break;
 
         case kSpectralSpreadDirectionId:
-            // 0-2 (LowToHigh, HighToLow, CenterOut)
+            // 0-4 (LowToHigh, HighToLow, CenterOut, EdgesIn, Cross)
             params.spreadDirection.store(
-                static_cast<int>(normalizedValue * 2.0 + 0.5),
+                std::clamp(static_cast<int>(normalizedValue * (kSpectralSpreadDirectionCount - 1) + 0.5),
+                           0, kSpectralSpreadDirectionCount - 1),
                 std::memory_order_relaxed);
             break;
 
@@ -125,9 +133,10 @@ inline void handleSpectralParamChange(
             break;
 
         case kSpectralSpreadCurveId:
-            // 0-1 (Linear=0, Logarithmic=1)
+            // 0-5 (Linear, Logarithmic, Exponential, Steps, Scatter, Random)
             params.spreadCurve.store(
-                normalizedValue >= 0.5 ? 1 : 0,
+                std::clamp(static_cast<int>(normalizedValue * (kSpectralSpreadCurveCount - 1) + 0.5),
+                           0, kSpectralSpreadCurveCount - 1),
                 std::memory_order_relaxed);
             break;
 
@@ -199,10 +208,11 @@ inline void registerSpectralParams(Steinberg::Vst::ParameterContainer& parameter
         STR16("Spread")
     );
 
-    // Spread Direction: LowToHigh, HighToLow, CenterOut - MUST use StringListParameter
+    // Spread Direction - MUST use StringListParameter (kSpectralSpreadDirectionCount entries)
     parameters.addParameter(createDropdownParameter(
         STR16("Spread Dir"), kSpectralSpreadDirectionId,
-        {STR16("Low->High"), STR16("High->Low"), STR16("Center Out")}
+        {STR16("Low->High"), STR16("High->Low"), STR16("Center Out"), STR16("Edges In"),
+         STR16("Cross")}
     ));
 
     // Feedback: 0-120%
@@ -265,10 +275,11 @@ inline void registerSpectralParams(Steinberg::Vst::ParameterContainer& parameter
         STR16("Mix")
     );
 
-    // Spread Curve: Linear, Logarithmic - MUST use StringListParameter
+    // Spread Curve - MUST use StringListParameter (kSpectralSpreadCurveCount entries)
     parameters.addParameter(createDropdownParameter(
         STR16("Spread Curve"), kSpectralSpreadCurveId,
-        {STR16("Linear"), STR16("Logarithmic")}
+        {STR16("Linear"), STR16("Logarithmic"), STR16("Exponential"), STR16("Steps"),
+         STR16("Scatter"), STR16("Random")}
     ));
 
     // Stereo Width: 0-100%
@@ -482,9 +493,11 @@ inline void loadSpectralParamsToController(
         setParam(kSpectralSpreadId, static_cast<double>(floatVal / 2000.0f));
     }
 
-    // Spread Direction: 0-2 -> normalized = val/2
+    // Spread Direction: 0-4 -> normalized = val / 4
     if (streamer.readInt32(intVal)) {
-        setParam(kSpectralSpreadDirectionId, static_cast<double>(intVal) / 2.0);
+        setParam(kSpectralSpreadDirectionId,
+                 static_cast<double>(std::clamp(intVal, 0, kSpectralSpreadDirectionCount - 1))
+                     / (kSpectralSpreadDirectionCount - 1));
     }
 
     // Feedback: 0-1.2 -> normalized = val/1.2
@@ -512,9 +525,11 @@ inline void loadSpectralParamsToController(
         setParam(kSpectralMixId, static_cast<double>(floatVal));
     }
 
-    // Spread Curve: 0-1 -> normalized = val (already 0 or 1)
+    // Spread Curve: 0-5 -> normalized = val / 5
     if (streamer.readInt32(intVal)) {
-        setParam(kSpectralSpreadCurveId, static_cast<double>(intVal));
+        setParam(kSpectralSpreadCurveId,
+                 static_cast<double>(std::clamp(intVal, 0, kSpectralSpreadCurveCount - 1))
+                     / (kSpectralSpreadCurveCount - 1));
     }
 
     // Stereo Width: 0-1 (already normalized)

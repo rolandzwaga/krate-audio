@@ -5,6 +5,22 @@ All notable changes to Iterum will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-11-23
+
+### Added
+
+- **Four new Spectral spread curves** — Spread Curve now also offers Exponential (the lows and mids return together, then the highs trail out), Steps (eight bands, each a separate echo, like a multitap arpeggiating the spectrum), Scatter (third-octave bands in a fixed shuffled order, the same on every echo) and Random (the bands keep gliding to new delays, so no two echoes are alike).
+- **Two new Spectral spread directions** — Spread Direction now also offers Edges In (the lows and highs return first and the echo closes in on the mids) and Cross (the echo sweeps up on the left and down on the right at the same time).
+
+### Changed
+
+- **Spectral mode's Spread now sweeps through the sound** *(shared DSP)* — Spread was laid out evenly in Hz, so everything below about 2 kHz, most of a mix, shared the first tenth of the spread time: Low->High came back as one plain echo with a faint treble trail, and High->Low and Center Out as one plain later echo. Spread is now laid out by octave, from 20 Hz to 20 kHz, so each echo audibly sweeps from low to high, high to low, or out from the middle. Logarithmic now really differs from Linear: it gives the low octaves most of the spread. Every patch that uses Spread sounds different.
+- **Spread Direction and Spread Curve are menus** — With five and six entries they no longer fit as segment buttons, so both are drop-down menus in the Spread section. Saved patches keep their direction and curve.
+
+### Fixed
+
+- **Spectral mode's echo got 1 to 6 dB quieter with Spread** *(shared DSP)* — Each sound covers several neighbouring frequency bands; with Spread they left the delay at different moments, their phases stopped lining up and the sound partly cancelled itself, by an amount that jumped around with the exact Spread setting. The bands of one sound now leave together, and the echo keeps its level with Spread on.
+
 ## [1.0.4] - 2026-11-23
 
 ### Fixed

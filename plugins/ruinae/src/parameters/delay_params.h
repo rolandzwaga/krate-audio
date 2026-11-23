@@ -471,10 +471,12 @@ inline void registerDelayParams(Steinberg::Vst::ParameterContainer& parameters) 
         ParameterInfo::kCanAutomate, kDelaySpectralSpreadId);
     parameters.addParameter(createDropdownParameter(
         STR16("Delay Spread Dir"), kDelaySpectralDirectionId,
-        {STR16("Low > High"), STR16("High > Low"), STR16("Center Out")}));
+        {STR16("Low > High"), STR16("High > Low"), STR16("Center Out"), STR16("Edges In"),
+         STR16("Cross")}));
     parameters.addParameter(createDropdownParameter(
         STR16("Delay Spread Curve"), kDelaySpectralCurveId,
-        {STR16("Linear"), STR16("Logarithmic")}));
+        {STR16("Linear"), STR16("Logarithmic"), STR16("Exponential"), STR16("Steps"),
+         STR16("Scatter"), STR16("Random")}));
     parameters.addParameter(STR16("Delay Tilt"), STR16(""), 0, 0.5,
         ParameterInfo::kCanAutomate, kDelaySpectralTiltId);  // default 0 (center)
     parameters.addParameter(STR16("Delay Diffusion"), STR16("%"), 0, 0.0,

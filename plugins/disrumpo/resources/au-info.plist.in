@@ -17,7 +17,9 @@
 	<key>CFBundleSignature</key>
 	<string>????</string>
 	<key>CFBundleVersion</key>
-	<string>1.0</string>
+	<string>@PROJECT_VERSION@</string>
+	<key>CFBundleShortVersionString</key>
+	<string>@PROJECT_VERSION@</string>
 	<key>CSResourcesFileMapped</key>
 	<string>yes</string>
 	<key>AudioComponents</key>
@@ -26,17 +28,17 @@
 			<key>factoryFunction</key>
 			<string>AUWrapperFactory</string>
 			<key>description</key>
-			<string>Iterum Delay</string>
+			<string>Disrumpo Distortion</string>
 			<key>manufacturer</key>
 			<string>KrAt</string>
 			<key>name</key>
-			<string>Krate Audio: Iterum</string>
+			<string>Krate Audio: Disrumpo</string>
 			<key>subtype</key>
-			<string>Itrm</string>
+			<string>Dsrm</string>
 			<key>type</key>
 			<string>aufx</string>
 			<key>version</key>
-			<integer>1</integer>
+			<integer>@AU_COMPONENT_VERSION@</integer>
 		</dict>
 	</array>
 	<key>AudioUnit SupportedNumChannels</key>

@@ -114,10 +114,10 @@ macro(krate_plugin_configure_generated_files)
     )
 
     # AUv2 Info.plist carrying the plugin version (CFBundleVersion, CFBundleShortVersionString and the
-    # AudioComponents version = kAUcomponentVersion). Opt-in per plugin: a plugin with resources/au-info.plist.in
-    # gets resources/au-info.plist generated here (gitignored) and krate_plugin_platform_setup passes that file to
-    # smtg_target_add_auv2; the SDK does not stamp the version into the AUv2 plist itself (Ruinae audit R-191).
-    # Plugins without the template keep their static resources/au-info.plist. Check: tools/check-au-plist.js.
+    # AudioComponents version = kAUcomponentVersion). Every plugin has resources/au-info.plist.in; it gets
+    # resources/au-info.plist generated here (gitignored, never committed) and krate_plugin_platform_setup passes
+    # that file to smtg_target_add_auv2; the SDK does not stamp the version into the AUv2 plist itself (Ruinae audit
+    # R-191). Check (every plugin, CI and the commit gate): tools/check-au-plist.js.
     if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/resources/au-info.plist.in")
         configure_file(
             "${CMAKE_CURRENT_SOURCE_DIR}/resources/au-info.plist.in"

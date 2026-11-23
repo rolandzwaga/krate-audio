@@ -249,6 +249,12 @@ static_assert(kGrainEnvelopeLabels.size() == Krate::DSP::AtmosphereEngine::kEnve
 // The count is declared HERE because `spectral_delay.h` declares no
 // enumerator-count sentinel of its own (unlike ContinuousBody::kNumMaterials,
 // asserted at :202 above) and this phase's Non-goals forbid adding one to dsp/.
+//
+// 2026-11-23: SpreadDirection gained EdgesIn and Cross (after CenterOut, and
+// Krate::DSP::kNumSpreadDirections now exists). Seraphis keeps its three entries:
+// this list is frozen as registered (FR-020 / spec C-6, above), so the two new
+// directions are deliberately not exposed here; the assert below still pins the
+// three it does expose to the enum's first three.
 inline constexpr std::size_t kSpreadDirectionCount = 3;
 
 static_assert(kSpreadDirectionCount

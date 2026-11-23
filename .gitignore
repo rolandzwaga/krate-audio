@@ -64,7 +64,7 @@ tools/*.txt
 /plugins/ruinae/resources/win32resource.rc
 /plugins/ruinae/src/version.h
 /plugins/ruinae/resources/auv3/audiounitconfig.h
-/plugins/ruinae/resources/au-info.plist
+/plugins/*/resources/au-info.plist
 /plugins/innexus/resources/win32resource.rc
 /plugins/innexus/src/version.h
 /plugins/innexus/resources/auv3/audiounitconfig.h

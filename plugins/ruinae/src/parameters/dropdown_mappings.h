@@ -349,26 +349,34 @@ static_assert(std::size(kFFTSizeStrings) == static_cast<std::size_t>(kFFTSizeCou
 static_assert(std::size(Krate::DSP::kSpectralDelayFFTSizes) == static_cast<std::size_t>(kFFTSizeCount));
 
 // =============================================================================
-// Spectral Delay: SpreadDirection dropdown (3 directions, stepCount = 2)
+// Spectral Delay: SpreadDirection dropdown (5 directions, stepCount = 4; Krate::DSP::
+// SpreadDirection order, saved as the index, so new directions go last)
 // =============================================================================
 
-inline constexpr int kSpreadDirectionCount = 3;
+inline constexpr int kSpreadDirectionCount = 5;
 
 inline const Steinberg::Vst::TChar* const kSpreadDirectionStrings[] = {
     STR16("Low > High"),
     STR16("High > Low"),
     STR16("Center Out"),
+    STR16("Edges In"),
+    STR16("Cross"),
 };
 
 // =============================================================================
-// Spectral Delay: SpreadCurve dropdown (2 curves, stepCount = 1)
+// Spectral Delay: SpreadCurve dropdown (6 curves, stepCount = 5; Krate::DSP::SpreadCurve
+// order, saved as the index, so new curves go last)
 // =============================================================================
 
-inline constexpr int kSpreadCurveCount = 2;
+inline constexpr int kSpreadCurveCount = 6;
 
 inline const Steinberg::Vst::TChar* const kSpreadCurveStrings[] = {
     STR16("Linear"),
     STR16("Logarithmic"),
+    STR16("Exponential"),
+    STR16("Steps"),
+    STR16("Scatter"),
+    STR16("Random"),
 };
 
 // =============================================================================

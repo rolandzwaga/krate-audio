@@ -4,6 +4,7 @@
 
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/catch_approx.hpp>
+#include <algorithm>
 #include <cmath>
 
 using Catch::Approx;
@@ -33,9 +34,9 @@ float denormSpread(double normalized) {
     return static_cast<float>(normalized * 2000.0);
 }
 
-// Spread Direction: 0-2 discrete
+// Spread Direction: 0-4 discrete (Low->High, High->Low, Center Out, Edges In, Cross)
 int denormSpreadDirection(double normalized) {
-    return static_cast<int>(normalized * 2.0 + 0.5);
+    return std::clamp(static_cast<int>(normalized * 4.0 + 0.5), 0, 4);
 }
 
 // Feedback: 0-1.2
@@ -67,9 +68,9 @@ float denormDryWet(double normalized) {
     return static_cast<float>(normalized * 100.0);
 }
 
-// Spread Curve: 0-1 discrete (Linear=0, Logarithmic=1)
+// Spread Curve: 0-5 discrete (Linear, Logarithmic, Exponential, Steps, Scatter, Random)
 int denormSpreadCurve(double normalized) {
-    return normalized >= 0.5 ? 1 : 0;
+    return std::clamp(static_cast<int>(normalized * 5.0 + 0.5), 0, 5);
 }
 
 // Stereo Width: 0-1 passthrough
@@ -134,11 +135,17 @@ TEST_CASE("Spectral Spread Direction normalization", "[params][spectral]") {
     SECTION("normalized 0.0 -> LowToHigh (0)") {
         REQUIRE(denormSpreadDirection(0.0) == 0);
     }
-    SECTION("normalized 0.5 -> HighToLow (1)") {
-        REQUIRE(denormSpreadDirection(0.5) == 1);
+    SECTION("normalized 0.25 -> HighToLow (1)") {
+        REQUIRE(denormSpreadDirection(0.25) == 1);
     }
-    SECTION("normalized 1.0 -> CenterOut (2)") {
-        REQUIRE(denormSpreadDirection(1.0) == 2);
+    SECTION("normalized 0.5 -> CenterOut (2)") {
+        REQUIRE(denormSpreadDirection(0.5) == 2);
+    }
+    SECTION("normalized 0.75 -> EdgesIn (3)") {
+        REQUIRE(denormSpreadDirection(0.75) == 3);
+    }
+    SECTION("normalized 1.0 -> Cross (4)") {
+        REQUIRE(denormSpreadDirection(1.0) == 4);
     }
 }
 
@@ -159,13 +166,16 @@ TEST_CASE("Spectral Spread Curve normalization", "[params][spectral]") {
     SECTION("normalized 0.0 -> Linear (0)") {
         REQUIRE(denormSpreadCurve(0.0) == 0);
     }
-    SECTION("normalized 0.49 -> Linear (0)") {
-        REQUIRE(denormSpreadCurve(0.49) == 0);
+    SECTION("normalized 0.09 -> Linear (0)") {
+        REQUIRE(denormSpreadCurve(0.09) == 0);
     }
-    SECTION("normalized 0.5 -> Logarithmic (1)") {
-        REQUIRE(denormSpreadCurve(0.5) == 1);
+    SECTION("normalized 0.2 -> Logarithmic (1)") {
+        REQUIRE(denormSpreadCurve(0.2) == 1);
     }
-    SECTION("normalized 1.0 -> Logarithmic (1)") {
-        REQUIRE(denormSpreadCurve(1.0) == 1);
+    SECTION("normalized 0.6 -> Steps (3)") {
+        REQUIRE(denormSpreadCurve(0.6) == 3);
+    }
+    SECTION("normalized 1.0 -> Random (5)") {
+        REQUIRE(denormSpreadCurve(1.0) == 5);
     }
 }

@@ -17,9 +17,9 @@
 	<key>CFBundleSignature</key>
 	<string>????</string>
 	<key>CFBundleVersion</key>
-	<string>1.0.0</string>
+	<string>@PROJECT_VERSION@</string>
 	<key>CFBundleShortVersionString</key>
-	<string>1.0.0</string>
+	<string>@PROJECT_VERSION@</string>
 	<key>CSResourcesFileMapped</key>
 	<string>yes</string>
 	<key>AudioComponents</key>
@@ -28,17 +28,17 @@
 			<key>factoryFunction</key>
 			<string>AUWrapperFactory</string>
 			<key>description</key>
-			<string>Ruinae Synth</string>
+			<string>Profundum Mass Bass Instrument</string>
 			<key>manufacturer</key>
 			<string>KrAt</string>
 			<key>name</key>
-			<string>Krate Audio: Ruinae</string>
+			<string>Krate Audio: Profundum</string>
 			<key>subtype</key>
-			<string>Ruin</string>
+			<string>Prfd</string>
 			<key>type</key>
 			<string>aumu</string>
 			<key>version</key>
-			<integer>65536</integer>
+			<integer>@AU_COMPONENT_VERSION@</integer>
 		</dict>
 	</array>
 	<key>AudioUnit SupportedNumChannels</key>
@@ -46,12 +46,6 @@
 		<dict>
 			<key>Inputs</key>
 			<string>0</string>
-			<key>Outputs</key>
-			<string>2</string>
-		</dict>
-		<dict>
-			<key>Inputs</key>
-			<string>2</string>
 			<key>Outputs</key>
 			<string>2</string>
 		</dict>
