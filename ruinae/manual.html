@@ -60,7 +60,7 @@
           "publisher": {
             "@id": "https://krateaudio.com/#organization"
           },
-          "dateModified": "2026-11-21T00:32:17+01:00"
+          "dateModified": "2026-11-23T14:33:35+01:00"
         },
         {
           "@type": "BreadcrumbList",
@@ -400,6 +400,11 @@ Modulator</a></li>
 Safety</a></li>
 <li><a href="#cpu-management" id="toc-cpu-management">CPU
 Management</a></li>
+<li><a href="#automation-timing" id="toc-automation-timing">Automation
+Timing</a></li>
+<li><a href="#damaged-presets-and-projects"
+id="toc-damaged-presets-and-projects">Damaged Presets and
+Projects</a></li>
 </ul></li>
 </ul>
         </nav>
@@ -460,9 +465,8 @@ Global:
     ──&gt; Master Gain ──&gt; Soft Limiter ──&gt; Output</code></pre>
         <p>Each voice produces a mono signal. Voices are panned and
         summed to stereo, then processed through the shared effects
-        chain. Master gain is automatically compensated based on the
-        number of active voices (1/√N scaling) so the output level stays
-        consistent whether you play one note or a full chord.</p>
+        chain. Voices are summed without voice-count compensation; the
+        soft limiter prevents clipping when many voices overlap.</p>
         <hr />
         <h2 id="top-bar">Top Bar</h2>
         <!-- IMG-02: Close-up of the top bar showing the plugin title, tab selector, preset controls, and settings gear -->
@@ -587,8 +591,10 @@ Global:
         </tbody>
         </table>
         <h5 id="wavetable">Wavetable</h5>
-        <p>Wavetable synthesis that scans through a table of waveforms
-        for evolving timbres.</p>
+        <p>Band-limited wavetable oscillator. Ruinae ships one table (a
+        sawtooth, mipmapped so it stays alias-free across the keyboard)
+        and has no table-position control, so the character comes from
+        the Phase Mod and Freq Mod controls below.</p>
         <table>
         <thead>
         <tr>
@@ -799,12 +805,15 @@ Global:
         <tbody>
         <tr>
         <td><strong>Vowel</strong></td>
-        <td>Selects the target vowel formant (A, E, I, O, U and blends
-        between them)</td>
+        <td>Selects the vowel the oscillator starts from (A, E, I, O or
+        U)</td>
         </tr>
         <tr>
         <td><strong>Morph</strong></td>
-        <td>Smoothly morphs between adjacent vowel shapes</td>
+        <td>Moves away from the selected Vowel toward the next ones, in
+        vowel steps (0 = the Vowel itself, 1 = the next vowel, up to U).
+        Projects and presets saved before this worked keep their sound:
+        they load with Vowel A and their Morph</td>
         </tr>
         </tbody>
         </table>
@@ -1048,8 +1057,8 @@ Global:
         <figcaption aria-hidden="true">Filter</figcaption>
         </figure>
         <p>The filter shapes the timbre of each voice after the
-        oscillators are mixed. Six filter types are available, each with
-        shared “general” parameters and type-specific controls.</p>
+        oscillators are mixed. Thirteen filter types are available, each
+        with shared “general” parameters and type-specific controls.</p>
         <p>Use the toggle button (gear icon) to switch between the
         <strong>General</strong> view (common parameters) and the
         <strong>Type-Specific</strong> view (parameters unique to the
@@ -1520,6 +1529,13 @@ Global:
         </tr>
         </tbody>
         </table>
+        <p>The AMP envelope has a fifth knob, <strong>VEL (Velocity &gt;
+        Amp)</strong>, 0–100 %, default 100 %: how far note velocity
+        sets the level. At 100 % a note’s level is proportional to its
+        velocity (after the Velocity Curve, so the arp Velocity lane,
+        Accent and Humanize are audible); at 0 % every note plays at
+        full level. Projects saved before this control existed load it
+        at 0 %, the level they were made with.</p>
         <p>Each envelope also supports <strong>curve shaping</strong>
         for the attack, decay, and release segments (accessible via
         right-click or the envelope display), ranging from logarithmic
@@ -1533,7 +1549,7 @@ Global:
         <hr />
         <h2 id="mod-tab">Mod Tab</h2>
         <p>The Mod tab is where you bring your sound to life with
-        movement and variation. The left side houses ten different
+        movement and variation. The left side houses fourteen different
         modulation sources, and the right side provides an 8-slot
         modulation matrix for routing those sources to destinations
         throughout the synth.</p>
@@ -1930,6 +1946,36 @@ Global:
         </tr>
         </tbody>
         </table>
+        <h4 id="voice-lfo">Voice LFO</h4>
+        <p>The Voice LFO is a separate LFO inside every voice, available
+        as the <strong>Voice LFO</strong> source of the per-voice
+        routes. It restarts at each note, so each voice gets its own
+        vibrato or wobble. Its two controls sit at the top of the
+        Modulation Sources panel, to the right of the source
+        selector.</p>
+        <table>
+        <colgroup>
+        <col style="width: 40%" />
+        <col style="width: 59%" />
+        </colgroup>
+        <thead>
+        <tr>
+        <th>Control</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr>
+        <td><strong>Rate</strong></td>
+        <td>0.01–50 Hz (default 1 Hz)</td>
+        </tr>
+        <tr>
+        <td><strong>Shape</strong></td>
+        <td>Sine, Triangle, Sawtooth, Square, Sample &amp; Hold or
+        Smooth Random (default Sine)</td>
+        </tr>
+        </tbody>
+        </table>
         <hr />
         <h3 id="modulation-matrix">Modulation Matrix</h3>
         <!-- IMG-22: Close-up of the Modulation Configuration panel showing the 8-slot matrix with source, destination, and amount columns. Show at least 2-3 slots with active routings. -->
@@ -1955,7 +2001,7 @@ Global:
         <tbody>
         <tr>
         <td><strong>Source</strong></td>
-        <td>The modulation signal to use (any of the 10 sources listed
+        <td>The modulation signal to use (any of the 14 sources listed
         above, plus the 3 envelopes, velocity, and arp lanes)</td>
         </tr>
         <tr>
@@ -2416,6 +2462,8 @@ Global:
         </tr>
         </tbody>
         </table>
+        <p>Tape adds hiss only when Wear or Age is above 0; at Wear 0
+        and Age 0 it is silent with no input.</p>
         <p>Each of the <strong>three tape heads</strong> has:</p>
         <table>
         <thead>
@@ -2557,6 +2605,12 @@ Global:
         <p>An FFT-based delay that operates in the frequency domain,
         allowing different frequency bands to be delayed by different
         amounts.</p>
+        <p>Spectral delay repeats follow the delay time; the first echo
+        arrives about 21 ms later than the other delay types because of
+        the FFT analysis. Echo timing is quantised to the FFT hop (about
+        10.7 ms at 48 kHz), so a tempo-synced echo can sit up to about 5
+        ms off the grid. Both figures are for the default 1024-point FFT
+        size and halve or double with it.</p>
         <table>
         <colgroup>
         <col style="width: 40%" />
@@ -2772,7 +2826,9 @@ Global:
         <td><strong>Freeze</strong></td>
         <td>Freeze the reverb tail — the current decay sustains
         indefinitely while new input is muted. Great for ambient
-        textures.</td>
+        textures. A <strong>Type</strong> change made while Freeze is on
+        waits until Freeze is released, so the frozen sound is kept; the
+        new type then fades in.</td>
         </tr>
         <tr>
         <td><strong>Mod Rate</strong></td>
@@ -2836,7 +2892,7 @@ Global:
         </tr>
         <tr>
         <td><strong>Rate</strong></td>
-        <td>Gate speed when not synced (0.1–50 Hz)</td>
+        <td>Gate speed when not synced (0.1–100 Hz)</td>
         </tr>
         <tr>
         <td><strong>Note Value</strong></td>
@@ -2862,7 +2918,9 @@ Global:
         </tr>
         <tr>
         <td><strong>Retrigger</strong></td>
-        <td>Reset the pattern on each new note</td>
+        <td>Depth of a short dip at every step boundary (0–100%), which
+        re-articulates each step. The pattern itself runs continuously
+        and is not restarted by a new note.</td>
         </tr>
         </tbody>
         </table>
@@ -3246,12 +3304,12 @@ Global:
         </tr>
         <tr>
         <td><strong>Voice Steal Mode</strong></td>
-        <td>Which voice is stolen when polyphony is exceeded</td>
-        </tr>
-        <tr>
-        <td><strong>Gain Compensation</strong></td>
-        <td>Automatic volume compensation based on active voice
-        count</td>
+        <td>What happens to the stolen voice when polyphony is exceeded
+        (Voice Allocation picks which one). <strong>Hard</strong>: the
+        old note fades out over 2 ms and the new note starts from
+        silence with its full attack. <strong>Soft</strong>: the new
+        note takes the voice over from the old note’s current level,
+        without a gap</td>
         </tr>
         </tbody>
         </table>
@@ -3285,6 +3343,30 @@ Global:
         Master section. Many sounds work well with 4–6 voices instead of
         the default 8. Also, disable any effects you’re not using — each
         active effect consumes resources even at 0% mix.</p>
+        <h3 id="automation-timing">Automation Timing</h3>
+        <p>Notes start and stop on their exact sample. Parameter
+        automation is applied once per host audio buffer: Ruinae reads
+        the last automation value the host sends for each buffer and
+        applies it from the start of that buffer. A change can therefore
+        take effect up to one buffer early (about 11 ms at 512 samples
+        and 48 kHz), and two automation points inside one buffer (for
+        example a switch turned on and off again) count as one, the
+        last. Continuous controls glide through their smoothing, so this
+        is inaudible for them; for a switch or a menu that must change
+        exactly on a note, put the automation point a buffer ahead of
+        the note, or use a smaller buffer size. Pitch bend, note
+        expression, aftertouch and the mod wheel are applied within 64
+        samples of where they arrive (at once if a note starts
+        sooner).</p>
+        <h3 id="damaged-presets-and-projects">Damaged Presets and
+        Projects</h3>
+        <p>A preset or project whose Ruinae data ends early, inside its
+        sound settings (a damaged or hand-edited <code>.vstpreset</code>
+        file or project chunk), does not load: the current sound stays
+        as it was, and your host may report that the preset failed to
+        load. Earlier versions loaded such a file halfway, mixing its
+        settings with the previous sound, and the next save kept that
+        mix.</p>
 
         <div class="manual-footer">
             <p>

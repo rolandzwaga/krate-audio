@@ -60,7 +60,7 @@
           "publisher": {
             "@id": "https://krateaudio.com/#organization"
           },
-          "dateModified": "2026-11-21T00:32:17+01:00"
+          "dateModified": "2026-11-23T14:33:35+01:00"
         },
         {
           "@type": "BreadcrumbList",
@@ -693,7 +693,9 @@ Stereo out</code></pre>
         other way round. Each band has its own feedback, which
         <strong>Feedback Tilt</strong> can weight towards the lows or
         the highs. <strong>Freeze</strong> captures the current spectrum
-        and holds it.</p>
+        and holds it. Echo timing is quantised to the FFT hop (about
+        10.7 ms at 48 kHz at the default 1024-point FFT size), so a
+        tempo-synced echo can sit up to about 5 ms off the grid.</p>
         <table>
         <colgroup>
         <col style="width: 20%" />
