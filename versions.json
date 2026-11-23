@@ -371,29 +371,29 @@
       }
     },
     "Vorago": {
-      "version": "1.0.4",
+      "version": "1.0.5",
       "download_url": "https://krateaudio.com/vorago/",
       "release_notes": "",
-      "tag": "vorago/v1.0.4",
-      "pub_date": "2026-11-15T22:24:00Z",
+      "tag": "vorago/v1.0.5",
+      "pub_date": "2026-11-23T16:55:08Z",
       "channel": "stable",
-      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/vorago/v1.0.4",
+      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/vorago/v1.0.5",
       "description": "Dark-Ambient Drone Instrument",
-      "notes_markdown": "### Fixed\n\n- **The Cavern reverb and the body's decay cloud ignored the fraction of their delay times** — Their diffusers' allpass interpolation worked out to a whole-sample delay. It is now a true fractional allpass. The textures change subtly and some presets come out quieter; of the presets measured, Chamber Drone by 3.4 dB, Cathedral Void by 1.2 dB and Glass Sphere by 0.7 dB.\n- **Ice Shelf, Slow Bloom and Spore Drift lost some of their character to that fix** — Each is built around one feature, and with the corrected diffusers it came through less clearly. One setting per preset brings it back. Ice Shelf and Slow Bloom: Cloud Spectral Gravity +0.10 → +0.50, which stretches the drone's partials, so Ice Shelf's icy body rings through again and Slow Bloom's budding partials stand out from the drone again. Spore Drift: Noise Wake 75 % → 50 %, so the granular dust stands apart from the rest of the drone again and its spores' backward-drifting ghost grains come through. Levels move by under 0.5 dB at each preset's loudest moment; over the whole note Ice Shelf is about 1.6 dB louder and Spore Drift about 0.5 dB louder.\n- **Five more presets lost a defining feature to that fix, or ran slightly too hot** — Wind Through Basalt: Ghost Peak Level 15 % → 5 %, so the wind and hiss lead again instead of the ghost layer. Fogbound: Space Mix 90 % → 100 %, so the fog swallows the drone fully again. Steam Vent: Ecology Mix 70 % → 90 % and Loop Gain 54 % → 90 %, so its high-passed, whistling feedback loops are heard over the hiss. Teeming: Ecosystem Depth 15 % → 20 % and Event Rate 0.20 x → 0.14 x, so the colony is heard waking slowly and feeding on the drone. Stone Gravity: on one of the four seeds it is checked at, its loudest 10 seconds sat 0.06 dB above the −6 dBFS ceiling; its Master Gain is now −0.5 dB. Each preset's loudest moment moves by under 0.7 dB; Teeming's peaks rise by about 2 dB.\n- **Choir of Absence ran slightly too hot on some seeds** — On one of the four seeds it is checked at, its loudest 10 seconds sat 0.4 dB above the −6 dBFS loudness ceiling the factory presets keep to. Its Master Gain is now −5.1 dB, which brings every seed below the ceiling with a small margin. The output limiter already held its peaks, so what you hear is a less squeezed sound: about 3 dB quieter on average and about 1 dB quieter at its loudest.\n- **The reverb's feedback mix was not the same on every platform** *(shared DSP)* — The Cavern reverb morphs between three mixing matrices, and part of that morph has no single natural path; which one it took was decided by tiny rounding differences in how each compiler builds the plug-in, so the Windows, macOS and Linux builds mixed their reverb lines differently (on Linux a dark Cavern setting let its low end die away about a quarter faster). The morph now follows one fixed path on every platform. The reverb texture changes subtly on all three; every factory preset stays within the loudness and stability checks the presets are held to.\n- **A possible crash when a host shut Vorago down with its window still open** — If a host shut down the plugin's controller before closing the editor window, the update banner kept checking for updates, twice a second, through memory that had already been freed, which could crash the host. The update check now stays alive until the window is gone.\n- **A possible crash when opening the preset browser after a host shut Vorago down with its window still open** — In the same situation, clicking Presets read the preset list through memory that had already been freed, which could crash the host. The preset list now stays alive until the window is gone.\n\n- **Long preset descriptions were cut off in the preset browser** — The description under the preset list was a single line, so a long one ended mid-word at the edge. It now wraps onto up to three lines, ending with \"…\" if it is longer still, and hovering over it shows the whole text.\n\n### Changed\n\n- **Built with VST3 SDK 3.8.1.**",
+      "notes_markdown": "### Fixed\n\n- **Notes held by the latch or the sustain pedal kept sounding after a browser preset load** — Loading a preset from the preset browser only changed the controls; the sound engine's own load code never ran, so latched and sustained notes from the previous preset carried on into the new one. A browser load now runs the same code as a project reload: it releases those notes and resets sustain and channel pressure. Older presets and projects are also converted by one shared routine on both paths, so they load the same way from the browser and from the host.",
       "platforms": {
         "darwin-universal": {
-          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/vorago/v1.0.4/Vorago-1.0.4-macOS.pkg",
-          "size": 7502793,
-          "sha256": "5b9dd505b771d0c5baa7e1ca7c9f8b4d14d8fc3c1bbb19ce0c717daa91beccf4",
-          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+Tbrn8pAM6NijHaUeC7teOCkAdtlcq8g1VnY1NfzGGTvkB1wa0UOQvRoRSJ0wss4gsAYR7C7nPKwNeUqQQAcLZcdsQE=\ntrusted comment: krate:1:Vorago:1.0.4:darwin-universal:Vorago-1.0.4-macOS.pkg\nDyLSmwOFHjkNeMYZ74WOygXuQJnWtccbrjajftrmipHQo00IwkP1x0UzJ5ghQ2pJkw2Nv8ApykovSkwfwc6HDA==\n",
+          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/vorago/v1.0.5/Vorago-1.0.5-macOS.pkg",
+          "size": 7531857,
+          "sha256": "345fc9529cb2758b4dee2f709c6d7dc1bda6311cfde666738904c1dbd8eb770d",
+          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+Tbrn2GEmKn+dvKBJVE3gNPQ85fsIBtfL18TI8ZbpLcNoO8qC6UHOfzGjCTbuVZrkHBbzXhqQI2Vccpxs0znOU+S6Aw=\ntrusted comment: krate:1:Vorago:1.0.5:darwin-universal:Vorago-1.0.5-macOS.pkg\n31MuZtfcXH25fozNSQgu0/lc9y9tqhgLesxbwOnh7pUcf5LSYhqsLRP2y2r2L77jH+QVYxeK3yfsnw6MoVLUBg==\n",
           "format": "pkg",
           "min_os": "26.5"
         },
         "linux-x86_64": {
-          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/vorago/v1.0.4/Vorago-1.0.4-Linux-x64.tar.gz",
-          "size": 1732987,
-          "sha256": "7ae8bbfba15e32100f2f14a8a6b8a70d260f583f1b8134646bd7ae06ce80f4ac",
-          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+Tbrn5JYQv9ZHbISosQRa4ElXyMM0a0I4IH/0W1Qn2jMaO6lX1eGRaRT1wMtpDZu/3g9rTa6RE7Olo8/ikK3LoysfQ0=\ntrusted comment: krate:1:Vorago:1.0.4:linux-x86_64:Vorago-1.0.4-Linux-x64.tar.gz\n72t0H6D+7o6QMwbsV0MFMfN38VPA2Y61F0GsSWgZEFxn6LC2p5IUSmQ98q0PECcu2C59KluIa0/JjSktlZhoCA==\n",
+          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/vorago/v1.0.5/Vorago-1.0.5-Linux-x64.tar.gz",
+          "size": 1739464,
+          "sha256": "a96047d2c86f47aae39edac6e70ecbb228e056fcea03fa5ea9a067b8b96781ff",
+          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+Tbrn5Osg5ur9EJ9mQhBqC8XKcVFj2iVq5y9gjw9/oTvHZ7CYr1TVVZ06KsLWgAAXAJiTg9rZWmFQQjwVkJko3hDkw8=\ntrusted comment: krate:1:Vorago:1.0.5:linux-x86_64:Vorago-1.0.5-Linux-x64.tar.gz\nmBVDcq9/Ci0ujjdXszIR3A6uDYa0cGtB+NPy2skoe8MM3YETk+scj8mbDNhcCwQnEE2K3MZI0vKr/NVs3kIcDA==\n",
           "format": "tar.gz",
           "min_os": "2.38",
           "payload": {
@@ -402,10 +402,10 @@
           }
         },
         "windows-x86_64": {
-          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/vorago/v1.0.4/Vorago-1.0.4-Windows-x64.exe",
-          "size": 3563366,
-          "sha256": "807510ef22b6d7c1526f56cfaa27dcae98872f4192f2e59505c37b7a04b12f53",
-          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+Tbrn8c684ZiXMwRJM2o/3aT5QErHojZkgGW3M8ovKW5wpyIZ7rOlJR80zowhjEuZhvO+W34hK4/oO8tTHYYuGdBMAc=\ntrusted comment: krate:1:Vorago:1.0.4:windows-x86_64:Vorago-1.0.4-Windows-x64.exe\nzuXi9T+xZzZgSv9y3fUdRoDoiZuHmFGbgrnBbgZ4uUPh25FsoJSWBnCAS/4JnmqBc+u/TbFVrqvdtCkQqIm6Bw==\n",
+          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/vorago/v1.0.5/Vorago-1.0.5-Windows-x64.exe",
+          "size": 3564902,
+          "sha256": "23502f5f6a835597f6f41626086f80d3adeeb5b5adb8fd2e164b26d532be11e2",
+          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+TbrnxqR1hk0UbaU4bNZADUCwtXrcTbuQy8iMQUW0EmJR5aAevPKQprMIwnpzPwijW6fHlBCaMLRSbPRiODrKPm7KgE=\ntrusted comment: krate:1:Vorago:1.0.5:windows-x86_64:Vorago-1.0.5-Windows-x64.exe\n5iykNmcLaxRZk2csbkWrAfuo+Tv6wHa2FBNdt+bRXHQpI3Tzkjp0Pn+3n48lOrgqE45Di6W1CpVFwdNkjFrjBA==\n",
           "format": "inno-exe"
         }
       },
