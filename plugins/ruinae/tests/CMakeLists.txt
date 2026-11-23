@@ -12,6 +12,7 @@ add_executable(ruinae_tests
     unit/ruinae_engine_test.cpp
     unit/ruinae_engine_integration_test.cpp
     unit/ruinae_voice_test.cpp
+    unit/sound_source_regression_test.cpp
     unit/ruinae_effects_chain_test.cpp
 
     # Harmonizer Parameter Tests (067-ruinae-harmonizer)
@@ -140,11 +141,21 @@ add_executable(ruinae_tests
     # MPE (MIDI Polyphonic Expression) Support Tests
     integration/mpe_test.cpp
 
+    # Voice lifecycle and timing regression (audit fix plan T6.2)
+    integration/voice_lifecycle_regression_test.cpp
+
+    # Effects regression (audit fix plan T6.4)
+    integration/fx_regression_test.cpp
+
     # Modulation Type Switching Tests (126-ruinae-flanger)
     unit/processor/modulation_type_test.cpp
 
     # Reverb Type Selection Tests (125-dual-reverb)
     unit/processor/reverb_type_test.cpp
+
+    # Arpeggiator and modulation regression (audit fix plan T6.5)
+    unit/processor/arp_regression_test.cpp
+    integration/mod_regression_test.cpp
 
     # Processor/Controller implementation (needed by plugin shell tests)
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/processor/processor.cpp

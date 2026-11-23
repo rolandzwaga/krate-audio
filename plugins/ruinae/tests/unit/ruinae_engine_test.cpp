@@ -19,6 +19,7 @@
 #include <krate/dsp/core/db_utils.h>
 
 #include "test_helpers/reverb_metrics.h"
+#include "audit_rig.h"
 
 #include <algorithm>
 #include <array>
@@ -862,25 +863,6 @@ float renderRms(RuinaeEngine& engine, double seconds) {
     return computeRMS(out.data(), out.size());
 }
 
-/// Discontinuity at sample @p ev: max |dx| in +-win around ev against the
-/// steady max |dx| over refLen before and after the window (the audit probe's
-/// "jump ratio", specs/ruinae-audit/probes/audit_probes.cpp.txt clickAt).
-double jumpRatioAt(const std::vector<float>& x, size_t ev, size_t win, size_t refLen) {
-    auto maxD = [&](size_t a, size_t b) {
-        double m = 0.0;
-        b = std::min(b, x.size());
-        for (size_t i = std::max<size_t>(a, 1); i < b; ++i)
-            m = std::max(m, static_cast<double>(std::fabs(x[i] - x[i - 1])));
-        return m;
-    };
-    const size_t a = ev > win ? ev - win : 0;
-    const size_t b = std::min(ev + win, x.size());
-    const double refB = a > refLen ? maxD(a - refLen, a) : maxD(0, a);
-    const double refA = maxD(b, b + refLen);
-    const double ref = std::max({refB, refA, 1e-9});
-    return maxD(a, b) / ref;
-}
-
 } // namespace
 
 TEST_CASE("RuinaeEngine_PolyToMono_ReleasedNotesNotPromoted",
@@ -993,9 +975,9 @@ TEST_CASE("RuinaeEngine_PolyphonyReduction_ExcessVoicesReleaseSmoothly",
     engine->setPolyphony(2);
     renderSeconds(*engine, 0.3, out);
 
-    const double ratio = jumpRatioAt(out, changeAt,
+    const double ratio = RuinaeAuditRig::clickAt(out, changeAt,
                                      static_cast<size_t>(0.01 * kSwitchSampleRate),
-                                     static_cast<size_t>(0.05 * kSwitchSampleRate));
+                                     static_cast<size_t>(0.05 * kSwitchSampleRate)).ratio;
     INFO("jump ratio at the polyphony change: " << ratio);
     REQUIRE(ratio <= 1.5);
 

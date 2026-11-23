@@ -120,6 +120,27 @@ class HeldNoteRender {
 public:
     /// Initialize, activate, load the preset and drain its deferred snapshot.
     bool load(const std::filesystem::path& presetPath) {
+        activate();
+        if (!loadPresetFileIntoProcessor(presetPath, *proc_)) return false;
+        return finishLoad();
+    }
+
+    /// As load(), from a component state saved by savedState().
+    bool loadState(const std::vector<char>& bytes) {
+        activate();
+        MemoryStream in(const_cast<char*>(bytes.data()), static_cast<TSize>(bytes.size()));
+        if (proc_->setState(&in) != kResultTrue) return false;
+        return finishLoad();
+    }
+
+    /// The processor's component state (getState).
+    [[nodiscard]] std::vector<char> savedState() {
+        MemoryStream out;
+        proc_->getState(&out);
+        return std::vector<char>(out.getData(), out.getData() + out.getSize());
+    }
+
+    void activate() {
         proc_->initialize(nullptr);
 
         ProcessSetup setup{};
@@ -131,8 +152,11 @@ public:
 
         // Ruinae defers preset application through RTTransferT; activate first.
         proc_->setActive(static_cast<TBool>(true));
-        if (!loadPresetFileIntoProcessor(presetPath, *proc_)) return false;
+        // Set before loading so the destructor tears down a half-loaded render too.
+        loaded_ = true;
+    }
 
+    bool finishLoad() {
         // Drain the deferred preset snapshot.
         ProcessData drainData{};
         drainData.numSamples = 0;
@@ -149,7 +173,6 @@ public:
 
         // C4, moderately hard, so velocity-sensitive presets open up.
         inEvents_.addNoteOn(60, 0.8f, 0);
-        loaded_ = true;
         return true;
     }
 
@@ -970,4 +993,59 @@ TEST_CASE("Ruinae Formant factory presets play their re-authored vowel position"
         }
     }
     CHECK(matched == expected.size());
+}
+
+// T6.5: every factory preset loads, is audible, stays under 0 dBFS and renders the same
+// after a getState -> setState round trip (audit probe "presets shard"). The byte-level
+// round trip is "Every Ruinae factory preset state round-trips byte-identically".
+TEST_CASE("Every Ruinae factory preset loads, is audible, stays under 0 dBFS and round-trips its audio",
+          "[presets][regression][long]")
+{
+    const auto presets = enumerateAllPresets();
+    REQUIRE(presets.size() == size_t{168});
+    const int numBlocks = static_cast<int>((3.0 * kSampleRate) / kBlockSize);
+    const int noteOffBlock = static_cast<int>((2.0 * kSampleRate) / kBlockSize);
+
+    const auto renderNote = [&](HeldNoteRender& r, float& peak, size_t& nonFinite) {
+        std::vector<float> out;
+        for (int block = 0; block < numBlocks; ++block) {
+            if (block == noteOffBlock) r.releaseNote();
+            r.renderBlock();
+            for (size_t i = 0; i < static_cast<size_t>(kBlockSize); ++i) {
+                for (const float x : {r.left()[i], r.right()[i]}) {
+                    if (!Krate::DSP::detail::isFinite(x)) { ++nonFinite; out.push_back(0.0f); continue; }
+                    peak = std::max(peak, std::abs(x));
+                    out.push_back(x);
+                }
+            }
+        }
+        return out;
+    };
+
+    for (const auto& p : presets) {
+        const std::string stem = p.stem().string();
+        INFO("preset: " << stem);
+        HeldNoteRender first;
+        REQUIRE(first.load(p));
+        const std::vector<char> saved = first.savedState();
+        float peakA = 0.0f;
+        size_t nonFiniteA = 0;
+        const auto a = renderNote(first, peakA, nonFiniteA);
+
+        HeldNoteRender second;
+        REQUIRE(second.loadState(saved));
+        float peakB = 0.0f;
+        size_t nonFiniteB = 0;
+        const auto b = renderNote(second, peakB, nonFiniteB);
+
+        REQUIRE(a.size() == b.size());
+        float maxDiff = 0.0f;
+        for (size_t i = 0; i < a.size(); ++i) maxDiff = std::max(maxDiff, std::abs(a[i] - b[i]));
+        INFO("peak " << peakA << " round-trip max diff " << maxDiff);
+        CHECK(nonFiniteA == size_t{0});
+        CHECK(nonFiniteB == size_t{0});
+        CHECK(peakA > kAudibleThreshold);
+        CHECK(peakA <= 1.0f);
+        CHECK(maxDiff <= 1e-6f);
+    }
 }

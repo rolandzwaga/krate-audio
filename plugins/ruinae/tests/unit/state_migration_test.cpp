@@ -16,6 +16,8 @@
 #include "parameters/dropdown_mappings.h"
 #include "parameters/lfo_params.h"
 #include "drain_preset_transfer.h"
+#include "audit_rig.h"
+#include "public.sdk/source/vst/vstpresetfile.h"
 
 #include "vst_event_list.h"
 #include "vst_param_changes.h"
@@ -1837,5 +1839,96 @@ TEST_CASE("StateLoad_PartialOverNonDefault_DoesNotInheritPreviousPreset", "[stat
             INFO("param " << id);
             CHECK(overOther.at(id) == Catch::Approx(fresh.at(id)).margin(1e-6));
         }
+    }
+}
+
+// =============================================================================
+// T6.5: cut and garbage streams leave the plugin finite (audit probe "state
+// truncated and garbage")
+// =============================================================================
+
+namespace {
+
+std::vector<char> presetComponentBytes(const std::filesystem::path& p) {
+    std::vector<char> bytes;
+    auto* stream = Steinberg::Vst::FileStream::open(p.string().c_str(), "rb");
+    if (!stream) return bytes;
+    {
+        Steinberg::Vst::PresetFile pf(stream);
+        if (pf.readChunkList() && pf.seekToComponentState()) {
+            const auto* e = pf.getEntry(Steinberg::Vst::kComponentState);
+            if (e) {
+                bytes.resize(static_cast<size_t>(e->size));
+                stream->seek(e->offset, Steinberg::IBStream::kIBSeekSet, nullptr);
+                Steinberg::int32 got = 0;
+                stream->read(bytes.data(), static_cast<Steinberg::int32>(e->size), &got);
+                bytes.resize(static_cast<size_t>(std::max<Steinberg::int32>(got, 0)));
+            }
+        }
+    }
+    stream->release();
+    return bytes;
+}
+
+/// Load @p bytes with setState, play two notes for 1 s, and count non-finite samples.
+int64_t nonFiniteAfterLoading(const std::vector<char>& bytes) {
+    RuinaeAuditRig::Rig r(44100.0);
+    RuinaeAuditRig::basePatch(r);
+    r.render(512);
+    Steinberg::MemoryStream ms;
+    Steinberg::int32 w = 0;
+    if (!bytes.empty())
+        ms.write(const_cast<char*>(bytes.data()), static_cast<Steinberg::int32>(bytes.size()), &w);
+    ms.seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
+    r.proc->setState(&ms);  // the verdict on a damaged stream is not this case's subject
+    r.noteOn(48, 0.8f, r.now());
+    r.noteOn(60, 0.8f, r.now());
+    r.render(r.at(1.0));
+    r.noteOff(48, r.now());
+    r.noteOff(60, r.now());
+    r.render(r.at(1.0));
+    int64_t bad = 0;
+    for (const float v : r.L) bad += Krate::DSP::detail::isFinite(v) ? 0 : 1;
+    for (const float v : r.R) bad += Krate::DSP::detail::isFinite(v) ? 0 : 1;
+    return bad;
+}
+
+}  // namespace
+
+TEST_CASE("State: factory presets cut at 25, 50 and 99 percent load and render finite",
+          "[state][regression]") {
+    const std::filesystem::path root = std::filesystem::path(RUINAE_RESOURCES_DIR) / "presets";
+    std::vector<std::filesystem::path> presets;
+    for (const auto& d : std::filesystem::directory_iterator(root)) {
+        if (!d.is_directory()) continue;
+        for (const auto& f : std::filesystem::directory_iterator(d.path()))
+            if (f.is_regular_file() && f.path().extension() == ".vstpreset") presets.push_back(f.path());
+    }
+    std::sort(presets.begin(), presets.end());
+    REQUIRE(presets.size() >= 4);
+    for (size_t i = 0; i < presets.size(); i += presets.size() / 4) {
+        const auto bytes = presetComponentBytes(presets[i]);
+        REQUIRE_FALSE(bytes.empty());
+        for (const double frac : {0.25, 0.5, 0.99}) {
+            INFO(presets[i].stem().string() << " cut at " << frac * 100.0 << " %");
+            const std::vector<char> cut(
+                bytes.begin(),
+                bytes.begin() + static_cast<std::ptrdiff_t>(static_cast<double>(bytes.size()) * frac));
+            CHECK(nonFiniteAfterLoading(cut) == 0);
+        }
+    }
+}
+
+TEST_CASE("State: garbage streams load and render finite", "[state][regression]") {
+    std::mt19937 rng(1234);
+    for (int g = 0; g < 6; ++g) {
+        std::vector<char> junk(static_cast<size_t>(200 + 900 * g));
+        for (auto& c : junk) c = static_cast<char>(rng() & 0xFF);
+        if (g % 2 == 0) {
+            const Steinberg::int32 ver = 8;
+            std::memcpy(junk.data(), &ver, sizeof ver);
+        }
+        INFO("garbage stream " << g << ", " << junk.size() << " bytes");
+        CHECK(nonFiniteAfterLoading(junk) == 0);
     }
 }

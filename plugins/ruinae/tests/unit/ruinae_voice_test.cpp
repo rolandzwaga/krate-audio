@@ -16,6 +16,7 @@
 
 #include "engine/ruinae_voice.h"
 #include "engine/ruinae_engine.h"
+#include "audit_rig.h"
 #include <krate/dsp/core/pitch_utils.h>
 #include <krate/dsp/core/db_utils.h>
 #include <krate/dsp/primitives/fft.h>
@@ -546,25 +547,6 @@ TEST_CASE("RuinaeVoice: key tracking doubles cutoff for octave (AS-4.3)", "[ruin
 
 namespace {
 
-/// Discontinuity at sample @p ev: max |dx| in +-win around ev against the
-/// steady max |dx| over refLen before and after the window (the audit probe's
-/// "jump ratio", specs/ruinae-audit/probes/audit_probes.cpp.txt clickAt).
-double filterSwitchJumpRatio(const std::vector<float>& x, size_t ev, size_t win, size_t refLen) {
-    auto maxD = [&](size_t a, size_t b) {
-        double m = 0.0;
-        b = std::min(b, x.size());
-        for (size_t i = std::max<size_t>(a, 1); i < b; ++i)
-            m = std::max(m, static_cast<double>(std::fabs(x[i] - x[i - 1])));
-        return m;
-    };
-    const size_t a = ev > win ? ev - win : 0;
-    const size_t b = std::min(ev + win, x.size());
-    const double refB = a > refLen ? maxD(a - refLen, a) : maxD(0, a);
-    const double refA = maxD(b, b + refLen);
-    const double ref = std::max({refB, refA, 1e-9});
-    return maxD(a, b) / ref;
-}
-
 const char* filterTypeName(RuinaeFilterType t) {
     switch (t) {
         case RuinaeFilterType::SVF_LP: return "SVF LP";
@@ -614,7 +596,7 @@ TEST_CASE("FilterTypeSwitch_NoClick", "[ruinae-voice][filter]") {
                 voice->processBlock(out.data() + pos, std::min(kBlock, out.size() - pos));
             }
 
-            const double ratio = filterSwitchJumpRatio(out, kSwitchAt, kWin, kRef);
+            const double ratio = RuinaeAuditRig::clickAt(out, kSwitchAt, kWin, kRef).ratio;
             INFO(filterTypeName(from) << " -> " << filterTypeName(to)
                  << ": jump ratio " << ratio);
             CHECK(ratio <= 1.5);
@@ -3357,7 +3339,7 @@ TEST_CASE("RuinaeVoice: release 0 does not click", "[ruinae-voice][click]") {
         std::vector<float> mono(total);
         for (size_t i = 0; i < total; ++i) mono[i] = 0.5f * (left[i] + right[i]);
         REQUIRE(computeRMS(mono.data() + noteOffAt - kRef, kRef) > 0.01f);
-        const double ratio = filterSwitchJumpRatio(mono, noteOffAt, kWin, kRef);
+        const double ratio = RuinaeAuditRig::clickAt(mono, noteOffAt, kWin, kRef).ratio;
         ratios += " " + std::to_string(offset) + ":" + std::to_string(ratio);
         worst = std::max(worst, ratio);
     }
