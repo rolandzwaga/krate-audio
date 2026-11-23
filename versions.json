@@ -325,29 +325,29 @@
       }
     },
     "Seraphis": {
-      "version": "1.0.6",
+      "version": "1.0.7",
       "download_url": "https://krateaudio.com/seraphis/",
       "release_notes": "",
-      "tag": "seraphis/v1.0.6",
-      "pub_date": "2026-11-23T16:21:57Z",
+      "tag": "seraphis/v1.0.7",
+      "pub_date": "2026-11-23T20:29:54Z",
       "channel": "stable",
-      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/seraphis/v1.0.6",
+      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/seraphis/v1.0.7",
       "description": "Spectral Organism Synthesizer",
-      "notes_markdown": "### Fixed\n\n- **The FX delay's Feedback did almost nothing after the first repeat** *(shared DSP)* — The spectral delay's feedback limiter worked on unscaled FFT values, so it squashed every recirculated frequency down to the same tiny level: the repeats after the first fell away by tens of dB and lost their tone colour. The limiter now works in the signal's own scale, so Feedback sustains the repeats as set and keeps their spectrum. Presets and projects with FX delay feedback above 0 repeat noticeably longer than before.\n- **The FX delay stepped at every analysis frame** *(shared DSP)* — The spectral delay overlapped its frames without a synthesis window, so with feedback its output jumped at every frame edge. It now uses matched analysis and synthesis windows, and the steps are gone.\n- **The FX delay's return fade moved in steps** — The 20 ms fade of the FX delay's return level was updated once per processing slice, so it moved as a staircase with a small jump at each slice. It now moves sample by sample.",
+      "notes_markdown": "### Fixed\n\n- **The FX delay's Spread barely swept the sound** *(shared DSP)* — Spread was laid out evenly in Hz, so everything below about 2 kHz shared the first tenth of the spread time and the echo came back as one plain echo. Spread is now laid out by octave, from 20 Hz to 20 kHz, so each echo audibly sweeps from low to high (or high to low, or out from the middle). No factory preset uses Spread; projects that do sound different.\n- **The FX delay's echo got 1 to 6 dB quieter with Spread** *(shared DSP)* — Each sound covers several neighbouring frequency bands; with Spread they left the delay at different moments, their phases stopped lining up and the sound partly cancelled itself. The bands of one sound now leave together, and the echo keeps its level with Spread on.",
       "platforms": {
         "darwin-universal": {
-          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/seraphis/v1.0.6/Seraphis-1.0.6-macOS.pkg",
-          "size": 7274997,
-          "sha256": "57eb3f308dd46aae9c215d73475567c4f7edb058a01154c5f658f05275745664",
-          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+Tbrn13GmfU55A3NAYBrS0MI7cHhrMBCj/wQo8omLrfNdxCRJdAm2O/yNIjMmzHLY6HN8SafkarRkrKeRKRWF+1kow8=\ntrusted comment: krate:1:Seraphis:1.0.6:darwin-universal:Seraphis-1.0.6-macOS.pkg\nfef7Xo05cQSEBhXuxYfVdVmu88bm3Nm8+TYqJMSUoXd3V097YWLf0AEyzUVERtzGp9qhQxqQg5l1g19MSTwiDQ==\n",
+          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/seraphis/v1.0.7/Seraphis-1.0.7-macOS.pkg",
+          "size": 7282238,
+          "sha256": "29c109fe334df0b3faa4a4e2d0ce6e03112dc061527a1fed9026f34c45c5dd25",
+          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+TbrnxXd4cBPjk2cbPOgmYtgydHpykmaGy9L/yXmVzgh79l0bcqqj79HnNjT+G03KqTAG6pJUeUIxL6Dq1gK7wd0+gY=\ntrusted comment: krate:1:Seraphis:1.0.7:darwin-universal:Seraphis-1.0.7-macOS.pkg\na08Ua7WwSLdbTFrhpn5XPOQUNlGIp6wHfKbt1A49s+yrMxJKWNDCPit21w52lR8RbFTcFQAYQ3yefKpDprjZCw==\n",
           "format": "pkg",
           "min_os": "26.5"
         },
         "linux-x86_64": {
-          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/seraphis/v1.0.6/Seraphis-1.0.6-Linux-x64.tar.gz",
-          "size": 1710758,
-          "sha256": "4a0d4b73e077ad177660b91a741867318145d027116976ec61e98ebf611d5993",
-          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+Tbrn4oSIUMKm8F5NLHm8byC24TbPwzWTwC3QGH0o2ppqxTEQQO6Fdp0afiu2dcSgocwmpxcA/BhSwBwoKLqWaT5Sgo=\ntrusted comment: krate:1:Seraphis:1.0.6:linux-x86_64:Seraphis-1.0.6-Linux-x64.tar.gz\nIE4d0IzauK0bQoXhQdZCGY1d5m0A7Sbmk50lPcAK1A34FDDDSmAm4mB0dfjZXZdabRBmuV+r1lOwxvQmpsDFDg==\n",
+          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/seraphis/v1.0.7/Seraphis-1.0.7-Linux-x64.tar.gz",
+          "size": 1714135,
+          "sha256": "30c933112c8d8f7bdc27d6978016c893904ddbdf7c03267797bb4123df9d8646",
+          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+Tbrn4tILEDNRpqPcSL5+z80feFZaDN1gEMavXiPCBQh0S1IAv4/w9UNUCn2uxzv9VnW1ZFO5TKi4sR6Nafus8LMqgs=\ntrusted comment: krate:1:Seraphis:1.0.7:linux-x86_64:Seraphis-1.0.7-Linux-x64.tar.gz\nkPULzBzOz0YZgXa/vJk2dS4lu5dKku9ApsVnV0huMygzqAkuUrAktwSCQQJND60jK1tuTJLlVwZml+Hd0j2wAQ==\n",
           "format": "tar.gz",
           "min_os": "2.38",
           "payload": {
@@ -356,10 +356,10 @@
           }
         },
         "windows-x86_64": {
-          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/seraphis/v1.0.6/Seraphis-1.0.6-Windows-x64.exe",
-          "size": 3550246,
-          "sha256": "3c76e1cb6c6285dd22c763d346dae67b2d462b2031904853f9fd31e5d8f3d95b",
-          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+Tbrn8u4rTEtx1Yv1EyysKkMYN1moUd/gwNEtqpj4iW5Bgm+AhovpuDHIWsY0dKORvCzUHVygJ+l5nuEACcBoCrJOAg=\ntrusted comment: krate:1:Seraphis:1.0.6:windows-x86_64:Seraphis-1.0.6-Windows-x64.exe\ntsChrYSu+z7CVGfSrWBwWp7Dpd3f6PxxXS4/w5GTazdIf96t3SQ6/nWlylmXsv3QYM15TiuRnKkTXOpsatXUDg==\n",
+          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/seraphis/v1.0.7/Seraphis-1.0.7-Windows-x64.exe",
+          "size": 3550311,
+          "sha256": "c98f8e4e05f6e689cce339665445165de906dd33b9bc8ec57da3093908f77478",
+          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+Tbrn2om1nKFsyKa+raaNzIe9CvgiNHJi89HdrWGWNqBg8XPhK7V1Kb1fiY2Dm7V5RasinLKV4CtRAfzkQyDvzi/Ugk=\ntrusted comment: krate:1:Seraphis:1.0.7:windows-x86_64:Seraphis-1.0.7-Windows-x64.exe\nXV/6SgleA5soAEZKvaCXhd+fDCMUWHqN5Jw2LFAXdI4XmTubxCI3sb8q68mJDrOKUo+KInAO9Reaa2K6TSuoBg==\n",
           "format": "inno-exe"
         }
       },
