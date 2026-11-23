@@ -492,13 +492,26 @@ bool Controller::loadStateFields(Steinberg::IBStreamer& streamer,
     loadModMatrixParamsToController(streamer, synthSetter, version);
     loadGlobalFilterParamsToController(streamer, synthSetter);
     loadDelayParamsToController(streamer, synthSetter);
-    loadReverbParamsToController(streamer, synthSetter);
+    float reverbSize = ReverbLoad::kSize.def;
+    float reverbDamping = ReverbLoad::kDamping.def;
+    loadReverbParamsToController(streamer, [&](Steinberg::Vst::ParamID id, double value) {
+        if (id == kReverbSizeId) reverbSize = static_cast<float>(value);
+        if (id == kReverbDampingId) reverbDamping = static_cast<float>(value);
+        synthSetter(id, value);
+    });
     // Reverb type (125-dual-reverb, state version 5)
     if (version >= 5) {
         Steinberg::int32 reverbType = 0;
         if (streamer.readInt32(reverbType)) {
             // StringListParameter: normalized value = index / stepCount = index / 1
             synthSetter(kReverbTypeId, static_cast<double>(ReverbLoad::kType(reverbType)));
+            // Before v9 the Hall ignored its T60 map (R-220): the decay it had,
+            // as Processor::setState loads it
+            if (version < 9 && ReverbLoad::kType(reverbType) == 1) {
+                migratePreV9HallDecay(reverbSize, reverbDamping);
+                synthSetter(kReverbSizeId, static_cast<double>(reverbSize));
+                synthSetter(kReverbDampingId, static_cast<double>(reverbDamping));
+            }
         }
     } else {
         // Backward compat: default to Plate

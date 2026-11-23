@@ -21,6 +21,7 @@
 #include <chrono>
 #include <cmath>
 #include <cstddef>
+#include <memory>
 #include <numeric>
 #include <random>
 #include <set>
@@ -988,4 +989,236 @@ TEST_CASE("FDNReverb: LFO phasor stable after 1000 rate changes",
 
     REQUIRE(allFinite);
     REQUIRE(hasNonZero);
+}
+
+// =============================================================================
+// R-220: the decay follows Size and Damping (Ruinae audit T6.10)
+// =============================================================================
+// Before the fix the Jot per-line gain gDC / fbGain was clamped to 1 on every
+// line at every size, so the loop gain was the size-derived fbGain alone: T60
+// ran 0.44 s (size 0) to 2.2 s (size 1) instead of 0.5 + 9.5 * size, and
+// Damping barely moved the tail. Stimulus: a 200 ms white-noise burst, then
+// silence; T60 is the Schroeder T20 fit (TestUtils::schroederT60) of 10 ms hops
+// after the burst.
+
+namespace {
+
+struct FdnDecay {
+    double broadband = 0.0;
+    double octave4k = 0.0;
+};
+
+FdnDecay measureFdnDecay(double sampleRate, float roomSize, float damping,
+                         double tailSeconds) {
+    auto reverb = std::make_unique<FDNReverb>();
+    reverb->prepare(sampleRate);
+    ReverbParams params;
+    params.roomSize = roomSize;
+    params.damping = damping;
+    params.mix = 1.0f;
+    params.width = 1.0f;
+    params.modDepth = 0.0f;
+    reverb->setParams(params);
+
+    const auto burst = static_cast<size_t>(0.2 * sampleRate);
+    const size_t total = burst + static_cast<size_t>(tailSeconds * sampleRate);
+    std::vector<float> left(total, 0.0f);
+    std::vector<float> right(total, 0.0f);
+    std::mt19937 rng(7);
+    std::uniform_real_distribution<float> dist(-0.5f, 0.5f);
+    for (size_t i = 0; i < burst; ++i) {
+        left[i] = dist(rng);
+        right[i] = left[i];
+    }
+    for (size_t offset = 0; offset < total; offset += 512) {
+        const size_t n = std::min<size_t>(512, total - offset);
+        reverb->processBlock(left.data() + offset, right.data() + offset, n);
+    }
+
+    const auto hop = static_cast<size_t>(0.01 * sampleRate);
+    std::vector<double> broad;
+    std::vector<double> band;
+    auto octave = TestUtils::makeOctaveBand(sampleRate, 4000.0);
+    for (size_t i = 0; i < burst; ++i) {
+        (void)octave.process(0.5f * (left[i] + right[i]));
+    }
+    for (size_t start = burst; start + hop <= total; start += hop) {
+        double eBroad = 0.0;
+        double eBand = 0.0;
+        for (size_t i = start; i < start + hop; ++i) {
+            eBroad += (static_cast<double>(left[i]) * left[i])
+                    + (static_cast<double>(right[i]) * right[i]);
+            const float y = octave.process(0.5f * (left[i] + right[i]));
+            eBand += static_cast<double>(y) * y;
+        }
+        broad.push_back(eBroad);
+        band.push_back(eBand);
+    }
+    return {TestUtils::schroederT60(broad, 0.01), TestUtils::schroederT60(band, 0.01)};
+}
+
+} // namespace
+
+TEST_CASE("FDNReverb: broadband T60 follows 0.5 + 9.5 * size at damping 0 (R-220)",
+          "[effects][fdn][fdn_reverb]") {
+    for (double sr : {44100.0, 48000.0, 96000.0}) {
+        for (float size : {0.0f, 0.3f, 0.7f, 1.0f}) {
+            const double target = 0.5 + (9.5 * static_cast<double>(size));
+            const FdnDecay d = measureFdnDecay(sr, size, 0.0f, (1.2 * target) + 0.5);
+            INFO("sr " << sr << " size " << size << ": T60 " << d.broadband
+                       << " s, target " << target << " s");
+            CHECK(d.broadband >= 0.85 * target);
+            CHECK(d.broadband <= 1.15 * target);
+        }
+    }
+}
+
+TEST_CASE("FDNReverb: Damping 1 at least halves the 4 kHz-octave T60 at size 0.7 (R-220)",
+          "[effects][fdn][fdn_reverb]") {
+    const FdnDecay bright = measureFdnDecay(48000.0, 0.7f, 0.0f, 9.0);
+    const FdnDecay dark = measureFdnDecay(48000.0, 0.7f, 1.0f, 9.0);
+    INFO("4 kHz octave T60: damping 0 " << bright.octave4k << " s, damping 1 "
+                                        << dark.octave4k << " s");
+    REQUIRE(bright.octave4k > 0.0);
+    REQUIRE(dark.octave4k > 0.0);
+    CHECK(dark.octave4k <= 0.5 * bright.octave4k);
+}
+
+TEST_CASE("FDNReverb: process() and processBlock() give the same output (R-220)",
+          "[effects][fdn][fdn_reverb]") {
+    // The scalar path once scaled the damping filter's STATE by the Jot gain
+    // while the block path scaled only its output.
+    for (float damping : {0.0f, 0.5f, 1.0f}) {
+        ReverbParams params;
+        params.roomSize = 0.7f;
+        params.damping = damping;
+        params.mix = 1.0f;
+        params.modRate = 0.5f;
+        params.modDepth = 0.3f;
+        FDNReverb scalar;
+        FDNReverb block;
+        scalar.prepare(48000.0);
+        block.prepare(48000.0);
+        scalar.setParams(params);
+        block.setParams(params);
+
+        constexpr size_t kTotal = 48000 * 2;
+        std::vector<float> inL(kTotal, 0.0f);
+        std::vector<float> inR(kTotal, 0.0f);
+        std::mt19937 rng(11);
+        std::uniform_real_distribution<float> dist(-0.5f, 0.5f);
+        for (size_t i = 0; i < 9600; ++i) {
+            inL[i] = dist(rng);
+            inR[i] = dist(rng);
+        }
+        std::vector<float> blockL = inL;
+        std::vector<float> blockR = inR;
+        for (size_t offset = 0; offset < kTotal; offset += 512) {
+            block.processBlock(blockL.data() + offset, blockR.data() + offset,
+                               std::min<size_t>(512, kTotal - offset));
+        }
+        float maxDiff = 0.0f;
+        float peak = 0.0f;
+        for (size_t i = 0; i < kTotal; ++i) {
+            float l = inL[i];
+            float r = inR[i];
+            scalar.process(l, r);
+            maxDiff = std::max({maxDiff, std::abs(l - blockL[i]), std::abs(r - blockR[i])});
+            peak = std::max({peak, std::abs(blockL[i]), std::abs(blockR[i])});
+        }
+        INFO("damping " << damping << ": max |process - processBlock| " << maxDiff
+                        << ", peak " << peak);
+        REQUIRE(peak > 0.01f);
+        CHECK(maxDiff <= 1e-6f);
+    }
+}
+
+TEST_CASE("FDNReverb: freeze holds its level for 10 s (R-220)",
+          "[effects][fdn][fdn_reverb]") {
+    FDNReverb reverb;
+    reverb.prepare(48000.0);
+    ReverbParams params;
+    params.roomSize = 0.7f;
+    params.damping = 0.5f;
+    params.mix = 1.0f;
+    params.modDepth = 0.0f;
+    reverb.setParams(params);
+
+    std::mt19937 rng(5);
+    std::uniform_real_distribution<float> dist(-0.3f, 0.3f);
+    std::vector<float> l(48000);
+    std::vector<float> r(48000);
+    for (size_t i = 0; i < l.size(); ++i) {
+        l[i] = dist(rng);
+        r[i] = dist(rng);
+    }
+    reverb.processBlock(l.data(), r.data(), l.size());
+    params.freeze = true;
+    reverb.setParams(params);
+    std::vector<float> settleL(9600, 0.0f);
+    std::vector<float> settleR(9600, 0.0f);
+    reverb.processBlock(settleL.data(), settleR.data(), settleL.size());
+
+    // 20 windows of 0.5 s
+    std::vector<double> rms;
+    std::vector<float> wl(24000);
+    std::vector<float> wr(24000);
+    for (int w = 0; w < 20; ++w) {
+        std::fill(wl.begin(), wl.end(), 0.0f);
+        std::fill(wr.begin(), wr.end(), 0.0f);
+        reverb.processBlock(wl.data(), wr.data(), wl.size());
+        double acc = 0.0;
+        for (size_t i = 0; i < wl.size(); ++i) {
+            acc += (static_cast<double>(wl[i]) * wl[i]) + (static_cast<double>(wr[i]) * wr[i]);
+        }
+        rms.push_back(std::sqrt(acc / (2.0 * static_cast<double>(wl.size()))));
+    }
+    REQUIRE(rms.front() > 1e-3);
+    for (size_t w = 0; w < rms.size(); ++w) {
+        INFO("window " << w << " rms " << rms[w] << " vs first " << rms.front());
+        CHECK(rms[w] >= 0.95 * rms.front());
+        CHECK(rms[w] <= 1.05 * rms.front());
+    }
+}
+
+TEST_CASE("FDNReverb: size 1, damping 0 stays bounded under 60 s of noise (R-220)",
+          "[effects][fdn][fdn_reverb]") {
+    FDNReverb reverb;
+    reverb.prepare(48000.0);
+    ReverbParams params;
+    params.roomSize = 1.0f;
+    params.damping = 0.0f;
+    params.mix = 1.0f;
+    params.modDepth = 0.0f;
+    reverb.setParams(params);
+
+    std::mt19937 rng(9);
+    std::uniform_real_distribution<float> dist(-0.5f, 0.5f);
+    std::vector<float> l(480000);
+    std::vector<float> r(480000);
+    std::vector<double> rms;  // six windows of 10 s
+    bool allFinite = true;
+    for (int w = 0; w < 6; ++w) {
+        for (size_t i = 0; i < l.size(); ++i) {
+            l[i] = dist(rng);
+            r[i] = dist(rng);
+        }
+        for (size_t offset = 0; offset < l.size(); offset += 512) {
+            reverb.processBlock(l.data() + offset, r.data() + offset,
+                                std::min<size_t>(512, l.size() - offset));
+        }
+        double acc = 0.0;
+        for (size_t i = 0; i < l.size(); ++i) {
+            if (!std::isfinite(l[i]) || !std::isfinite(r[i])) allFinite = false;
+            acc += (static_cast<double>(l[i]) * l[i]) + (static_cast<double>(r[i]) * r[i]);
+        }
+        rms.push_back(std::sqrt(acc / (2.0 * static_cast<double>(l.size()))));
+    }
+    INFO("10 s window RMS: " << rms[0] << " " << rms[1] << " " << rms[2] << " "
+                             << rms[3] << " " << rms[4] << " " << rms[5]);
+    REQUIRE(allFinite);
+    // Stationary once the 10 s tail has built up: the last window is no louder
+    // than the third by more than 10 %.
+    CHECK(rms[5] <= 1.1 * rms[2]);
+    CHECK(rms[5] < 10.0);
 }

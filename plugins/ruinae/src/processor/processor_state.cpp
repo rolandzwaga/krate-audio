@@ -148,6 +148,14 @@ bool Processor::readStatePackFields(Packs& packs, ArpeggiatorParams& arp,
     }
     // Before v9 the Scale saturated the amount (R-053): keep the saved depth
     if (version < 9) migratePreV9ModMatrixAmounts(packs.modMatrixParams_);
+    // Before v9 the Hall ignored its T60 map (R-220): keep the decay it had
+    if (version < 9 && packs.reverbParams_.reverbType.load(std::memory_order_relaxed) == 1) {
+        float size = packs.reverbParams_.size.load(std::memory_order_relaxed);
+        float damping = packs.reverbParams_.damping.load(std::memory_order_relaxed);
+        migratePreV9HallDecay(size, damping);
+        packs.reverbParams_.size.store(size, std::memory_order_relaxed);
+        packs.reverbParams_.damping.store(damping, std::memory_order_relaxed);
+    }
 
     // Voice routes, sanitised by the reader the controller uses (R-003, R-211):
     // a damaged state must not hand the voice router an index past its tables.

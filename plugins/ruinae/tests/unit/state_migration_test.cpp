@@ -15,8 +15,10 @@
 #include "plugin_ids.h"
 #include "parameters/dropdown_mappings.h"
 #include "parameters/lfo_params.h"
+#include "parameters/reverb_params.h"
 #include "drain_preset_transfer.h"
 #include "audit_rig.h"
+#include "reverb_metrics.h"
 #include "public.sdk/source/vst/vstpresetfile.h"
 
 #include "vst_event_list.h"
@@ -1133,6 +1135,180 @@ TEST_CASE("State v8 loads LFO and Chaos depth as 1.0", "[state][migration]") {
 }
 
 // =============================================================================
+// R-220: before state v9 the Hall decayed by a size-derived loop gain alone
+// (0.44-2.2 s) and Damping barely reached it; since v9 Size sets a 0.5-10 s T60
+// and Damping darkens it. A v8 state using the Hall loads the size and damping
+// that keep its decay (migratePreV9HallDecay); Plate and v9 states are untouched.
+// =============================================================================
+
+namespace {
+
+std::vector<uint8_t> asVersion8(std::vector<uint8_t> blob) {
+    const Steinberg::int32 version8 = 8;
+    std::memcpy(blob.data(), &version8, sizeof(version8));
+    return blob;
+}
+
+/// A 200 ms white-noise note (OSC A Noise, no filter, no envelope shaping) into
+/// the reverb at mix 1, nothing else in the chain, soft limiter off.
+ParamList hallBurstPatch(double type, double size, double damping) {
+    using namespace Ruinae;
+    return {{kOscATypeId, 1.0},  // Noise
+            {kOscANoiseColorId, 0.0},  // White
+            {kOscALevelId, 1.0},
+            {kOscBLevelId, 0.0},
+            {kFilterTypeId, 0.0},
+            {kFilterCutoffId, 1.0},
+            {kFilterEnvAmountId, 0.5},
+            {kFilterKeyTrackId, 0.0},
+            {kDistortionTypeId, 0.0},
+            {kTranceGateEnabledId, 0.0},
+            {kSoftLimitId, 0.0},
+            {kAmpEnvAttackId, 0.0},
+            {kAmpEnvSustainId, 1.0},
+            {kAmpEnvReleaseId, RuinaeAuditRig::envNorm(10.0)},
+            {kDelayEnabledId, 0.0},
+            {kModulationTypeId, 0.0},
+            {kHarmonizerEnabledId, 0.0},
+            {kGlobalFilterEnabledId, 0.0},
+            {kReverbEnabledId, 1.0},
+            {kReverbTypeId, type},
+            {kReverbMixId, 1.0},
+            {kReverbSizeId, size},
+            {kReverbDampingId, damping}};
+}
+
+constexpr double kOctaveHz[7] = {125.0, 250.0, 500.0, 1000.0, 2000.0, 4000.0, 8000.0};
+
+struct TailDecay {
+    double broadband = 0.0;
+    double octave[7] = {};
+};
+
+constexpr double kTailRate = 48000.0;
+constexpr int64_t kBurstOn = 2400;      // 50 ms
+constexpr int64_t kBurstOff = 12000;    // 200 ms later
+constexpr int64_t kTailFrom = 13440;    // 30 ms after the note-off
+constexpr int64_t kTailEnd = 252000;    // 5 s after the note-off
+
+/// T60 of the tail of L/R from kTailFrom (Schroeder T20 over 10 ms hops),
+/// broadband and per octave.
+TailDecay analyseTailDecay(const std::vector<float>& left, const std::vector<float>& right) {
+    const auto from = static_cast<size_t>(kTailFrom);
+    constexpr size_t hop = 480;
+    TailDecay d;
+    std::vector<double> broad;
+    for (size_t s = from; s + hop <= left.size(); s += hop) {
+        double e = 0.0;
+        for (size_t i = s; i < s + hop; ++i) {
+            e += (static_cast<double>(left[i]) * left[i]) + (static_cast<double>(right[i]) * right[i]);
+        }
+        broad.push_back(e);
+    }
+    d.broadband = Krate::DSP::TestUtils::schroederT60(broad, 0.01);
+    for (size_t b = 0; b < 7; ++b) {
+        auto band = Krate::DSP::TestUtils::makeOctaveBand(kTailRate, kOctaveHz[b]);
+        std::vector<double> e;
+        double acc = 0.0;
+        for (size_t i = 0; i < left.size(); ++i) {
+            const float y = band.process(0.5f * (left[i] + right[i]));
+            if (i < from) continue;
+            acc += static_cast<double>(y) * y;
+            if ((i - from + 1) % hop == 0) {
+                e.push_back(acc);
+                acc = 0.0;
+            }
+        }
+        d.octave[b] = Krate::DSP::TestUtils::schroederT60(e, 0.01);
+    }
+    return d;
+}
+
+/// Loads `blob` into a 48 kHz processor and plays the burst; returns L and R.
+std::pair<std::vector<float>, std::vector<float>> renderBurst(const std::vector<uint8_t>& blob) {
+    RuinaeAuditRig::Rig r(kTailRate);
+    loadBlob(*r.proc, blob);
+    r.noteOn(69, 0.9f, kBurstOn);
+    r.noteOff(69, kBurstOff);
+    r.render(kTailEnd);
+    return {r.L, r.R};
+}
+
+}  // namespace
+
+TEST_CASE("State v8 loads the Hall's size and damping that keep its decay (R-220)",
+          "[state][migration]") {
+    using namespace Ruinae;
+    const std::vector<Steinberg::Vst::ParamID> ids = {kReverbSizeId, kReverbDampingId};
+    constexpr float kSize = 0.85f;
+    constexpr float kDamping = 0.35f;
+    float expectedSize = kSize;
+    float expectedDamping = kDamping;
+    migratePreV9HallDecay(expectedSize, expectedDamping);
+    INFO("remapped size " << expectedSize << " damping " << expectedDamping);
+    REQUIRE(expectedSize < 0.5f * kSize);
+
+    SECTION("version 8 Hall: remapped on the processor and the controller") {
+        const auto v8 = asVersion8(stateWithChanges({{kReverbTypeId, 1.0},
+                                                     {kReverbSizeId, kSize},
+                                                     {kReverbDampingId, kDamping}}));
+        const auto fromProcessor = controllerParamsAfterLoad(processorStateAfterLoad(v8), ids);
+        const auto fromController = controllerParamsAfterLoad(v8, ids);
+        for (const auto& values : {fromProcessor, fromController}) {
+            CHECK(std::abs(values[0] - static_cast<double>(expectedSize)) < 1e-6);
+            CHECK(std::abs(values[1] - static_cast<double>(expectedDamping)) < 1e-6);
+        }
+    }
+
+    SECTION("version 8 Plate and the current version keep the stored values") {
+        const auto plate = asVersion8(stateWithChanges({{kReverbTypeId, 0.0},
+                                                        {kReverbSizeId, kSize},
+                                                        {kReverbDampingId, kDamping}}));
+        const auto hallV9 = stateWithChanges({{kReverbTypeId, 1.0},
+                                              {kReverbSizeId, kSize},
+                                              {kReverbDampingId, kDamping}});
+        for (const auto* blob : {&plate, &hallV9}) {
+            const auto fromProcessor = controllerParamsAfterLoad(processorStateAfterLoad(*blob), ids);
+            const auto fromController = controllerParamsAfterLoad(*blob, ids);
+            for (const auto& values : {fromProcessor, fromController}) {
+                CHECK(std::abs(values[0] - static_cast<double>(kSize)) < 1e-6);
+                CHECK(std::abs(values[1] - static_cast<double>(kDamping)) < 1e-6);
+            }
+        }
+    }
+}
+
+TEST_CASE("A v8 Hall state renders the tail it had before R-220", "[state][migration]") {
+    // Reference: the same render on the DSP before R-220 (FDNReverb at f8ed81e1,
+    // loop gain 0.78 + 0.17 * size^2), T60 in seconds. Recorded 2026-11-23 by
+    // feeding this burst's dry render through the unmodified FDNReverb, 48 kHz
+    // (the chain is linear and time-invariant after the reverb: T6.9).
+    struct Case {
+        float size;
+        float damping;
+        TailDecay before;
+    };
+    const Case cases[] = {
+        {0.7f, 0.5f, {0.6997, {0.6909, 0.8190, 0.7310, 0.7534, 0.7469, 0.7357, 0.7113}}},
+        {0.95f, 0.25f, {1.5432, {1.2651, 1.5276, 1.5241, 1.5827, 1.5900, 1.5991, 1.5673}}},
+    };
+    for (const auto& c : cases) {
+        const auto [left, right] =
+            renderBurst(asVersion8(stateWithChanges(hallBurstPatch(1.0, c.size, c.damping))));
+        const TailDecay now = analyseTailDecay(left, right);
+        INFO("old size " << c.size << " damping " << c.damping);
+        INFO("broadband T60 " << now.broadband << " s, before " << c.before.broadband << " s");
+        CHECK(now.broadband >= 0.85 * c.before.broadband);
+        CHECK(now.broadband <= 1.15 * c.before.broadband);
+        for (size_t b = 0; b < 7; ++b) {
+            INFO(kOctaveHz[b] << " Hz octave T60 " << now.octave[b] << " s, before " << c.before.octave[b] << " s");
+            CHECK(now.octave[b] >= 0.75 * c.before.octave[b]);
+            CHECK(now.octave[b] <= 1.25 * c.before.octave[b]);
+        }
+    }
+}
+
+// =============================================================================
 // R-003 / R-169 / R-095: an enum or index loaded from a damaged state must land
 // in range before it reaches the DSP (mod source 200 wrote past sourceActive_;
 // an OSC type of 200 indexed SelectableOscillator::slots_ at the next prepare).
@@ -1376,6 +1552,13 @@ ValueMap migratedValues(ValueMap values, int version) {
         values[kVoiceLfoRateId] = lfoRateToNormalized(1.0f);
         values[kVoiceLfoShapeId] = 0.0;
         values[kAmpEnvVelocityAmountId] = 0.0;
+        if (values[kReverbTypeId] >= 0.5) {  // Hall (R-220)
+            auto size = static_cast<float>(values[kReverbSizeId]);
+            auto damping = static_cast<float>(values[kReverbDampingId]);
+            migratePreV9HallDecay(size, damping);
+            values[kReverbSizeId] = size;
+            values[kReverbDampingId] = damping;
+        }
     }
     return values;
 }
@@ -1555,9 +1738,19 @@ TEST_CASE("StateMigration_V4_V5_V6_V7_LoadsExpectedValues", "[state][migration]"
                 if (nonDefault) REQUIRE(savedState(*proc) != expected);
                 loadBlob(*proc, blob);
                 const auto loaded = savedState(*proc);
-                INFO("first differing byte " << firstDifference(loaded, expected));
                 REQUIRE(loaded.size() == expected.size());
-                CHECK(loaded == expected);
+                // The Hall's remapped size and damping (R-220) are computed in this
+                // TU and in the processor's: those two floats within 1e-6, every
+                // other byte exact.
+                auto expectedHere = expected;
+                const size_t reverbSizeAt = layout.reverbType - packSize<Ruinae::RuinaeReverbParams>(
+                    [](auto& p, auto& s) { Ruinae::saveReverbParams(p, s); });
+                for (const size_t at : {reverbSizeAt, reverbSizeAt + sizeof(float)}) {
+                    CHECK(std::abs(floatAt(loaded, at) - floatAt(expected, at)) < 1e-6f);
+                    std::memcpy(expectedHere.data() + at, loaded.data() + at, sizeof(float));
+                }
+                INFO("first differing byte " << firstDifference(loaded, expectedHere));
+                CHECK(loaded == expectedHere);
                 proc->terminate();
             }
 

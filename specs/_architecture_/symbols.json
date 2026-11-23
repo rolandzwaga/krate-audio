@@ -1017,7 +1017,7 @@
       "scope": "Krate::DSP",
       "layer": "effects",
       "header": "dsp/include/krate/dsp/effects/fdn_reverb.h",
-      "line": 112
+      "line": 109
     },
     {
       "name": "FeedbackComb",

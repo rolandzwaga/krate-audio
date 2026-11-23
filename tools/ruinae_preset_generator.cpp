@@ -507,9 +507,10 @@ std::vector<PresetDef> createAllPresets() {
         // --- Wrapper: a moderate HALL (not the reflex big diffuse pad wash) ---
         p.state.reverbEnabled = 1;
         p.state.reverbType = 1;           // Hall
-        p.state.reverb.size = 0.7f;
+        // was size 0.7 damping 0.45: R-220 remap
+        p.state.reverb.size = 0.0267f;
         p.state.reverb.mix = 0.35f;
-        p.state.reverb.damping = 0.45f;
+        p.state.reverb.damping = 0.0484f;
         presets.push_back(std::move(p));
     }
 
@@ -1292,9 +1293,10 @@ std::vector<PresetDef> createAllPresets() {
         // --- FX: drenched HALL - the "garden" is a big diffuse space ---
         p.state.reverbEnabled = 1;
         p.state.reverbType = 1;            // Hall
-        p.state.reverb.size = 0.85f;
+        // was size 0.85 damping 0.35: R-220 remap
+        p.state.reverb.size = 0.0625f;
         p.state.reverb.mix = 0.45f;
-        p.state.reverb.damping = 0.35f;
+        p.state.reverb.damping = 0.0383f;
         p.state.reverb.diffusion = 0.8f;
         p.state.reverb.preDelayMs = 20.0f;
 
@@ -1770,9 +1772,10 @@ std::vector<PresetDef> createAllPresets() {
         // --- FX: HALL reverb + SPECTRAL delay (distinct from the plate/digital siblings)
         s.reverbEnabled = 1;
         s.reverbType = 1;                // Hall
-        s.reverb.size = 0.85f;
+        // was size 0.85 damping 0.3: R-220 remap
+        s.reverb.size = 0.0625f;
         s.reverb.mix = 0.4f;
-        s.reverb.damping = 0.3f;
+        s.reverb.damping = 0.0305f;
         s.reverb.diffusion = 0.8f;
         s.delayEnabled = 1;
         s.delay.type = 4;                // Spectral delay
@@ -1858,9 +1861,10 @@ std::vector<PresetDef> createAllPresets() {
         // --- FX: enormous, diffuse, MODULATED hall (its unmistakable reverb identity)
         s.reverbEnabled = 1;
         s.reverbType = 1;                // Hall
-        s.reverb.size = 0.92f;
+        // was size 0.92 damping 0.25: R-220 remap
+        s.reverb.size = 0.097f;
         s.reverb.mix = 0.5f;
-        s.reverb.damping = 0.25f;
+        s.reverb.damping = 0.0281f;
         s.reverb.diffusion = 0.88f;
         s.reverb.preDelayMs = 25.0f;
         s.reverb.modRateHz = 0.3f;
@@ -2221,9 +2225,10 @@ std::vector<PresetDef> createAllPresets() {
         // Frozen hall = an infinite, evolving spectral bed (the pad's identity)
         s.reverbEnabled = 1;
         s.reverbType = 1; // Hall
-        s.reverb.size = 0.8f;
+        // was size 0.8 damping 0.4: R-220 remap
+        s.reverb.size = 0.0468f;
         s.reverb.mix = 0.3f; // moderate so the frozen bed sits under, not over, the dry
-        s.reverb.damping = 0.4f;
+        s.reverb.damping = 0.0436f;
         s.reverb.preDelayMs = 40.0f;
         s.reverb.diffusion = 0.85f;
         s.reverb.freeze = 1; // frozen tail -> continuous ambient bed
@@ -2296,9 +2301,10 @@ std::vector<PresetDef> createAllPresets() {
         // Cathedral hall
         s.reverbEnabled = 1;
         s.reverbType = 1; // Hall
-        s.reverb.size = 0.8f;
+        // was size 0.8 damping 0.5: R-220 remap
+        s.reverb.size = 0.0468f;
         s.reverb.mix = 0.35f;
-        s.reverb.damping = 0.5f;
+        s.reverb.damping = 0.0634f;
         s.reverb.preDelayMs = 25.0f;
         s.reverb.diffusion = 0.8f;
         // Warm 432 Hz tuning for the choir
@@ -2606,9 +2612,10 @@ std::vector<PresetDef> createAllPresets() {
         // HALL reverb (not the default plate) with a little pre-delay for depth
         s.reverbEnabled = 1;
         s.reverbType = 1; // Hall
-        s.reverb.size = 0.7f;
+        // was size 0.7 damping 0.4: R-220 remap
+        s.reverb.size = 0.0267f;
         s.reverb.mix = 0.35f;
-        s.reverb.damping = 0.4f;
+        s.reverb.damping = 0.0398f;
         s.reverb.preDelayMs = 20.0f;
         s.reverb.modDepth = 0.1f; // gentle shimmer on the tail
         // Additive partial sum no longer clips (2026-11-13):
@@ -3023,9 +3030,10 @@ std::vector<PresetDef> createAllPresets() {
         // --- Hall reverb with slow modulation = big moving air ---
         s.reverbEnabled = 1;
         s.reverbType = 1;                 // Hall (owns Hall)
-        s.reverb.size = 0.85f;
+        // was size 0.85 damping 0.5: R-220 remap
+        s.reverb.size = 0.0625f;
         s.reverb.mix = 0.4f;
-        s.reverb.damping = 0.5f;
+        s.reverb.damping = 0.0685f;
         s.reverb.modRateHz = 0.3f;
         s.reverb.modDepth = 0.12f;
         presets.push_back(std::move(p));
@@ -3096,9 +3104,10 @@ std::vector<PresetDef> createAllPresets() {
         // --- Modulated Hall reverb -> shimmering tail ---
         s.reverbEnabled = 1;
         s.reverbType = 1;                 // Hall
-        s.reverb.size = 0.95f;
+        // was size 0.95 damping 0.25: R-220 remap
+        s.reverb.size = 0.1199f;
         s.reverb.mix = 0.5f;
-        s.reverb.damping = 0.25f;
+        s.reverb.damping = 0.0311f;
         s.reverb.modRateHz = 0.2f;
         s.reverb.modDepth = 0.15f;        // owns reverb modulation
         // Additive partial sum no longer clips (2026-11-13):
@@ -3172,9 +3181,10 @@ std::vector<PresetDef> createAllPresets() {
         // --- Enormous diffuse Hall (distinct from Particle Cloud's plate) ---
         s.reverbEnabled = 1;
         s.reverbType = 1;                 // Hall
-        s.reverb.size = 0.95f;
+        // was size 0.95 damping 0.3: R-220 remap
+        s.reverb.size = 0.1199f;
         s.reverb.mix = 0.5f;
-        s.reverb.damping = 0.3f;
+        s.reverb.damping = 0.0401f;
         s.reverb.diffusion = 0.92f;
         s.global.width = 2.0f;
         s.global.spread = 0.6f;
@@ -3313,7 +3323,8 @@ std::vector<PresetDef> createAllPresets() {
         s.chorus.mix = 0.35f;
         s.reverbEnabled = 1;
         s.reverbType = 1;          // Hall
-        s.reverb.size = 0.7f; s.reverb.mix = 0.28f; s.reverb.damping = 0.4f;
+        // was size 0.7 damping 0.4: R-220 remap
+        s.reverb.size = 0.0267f; s.reverb.mix = 0.28f; s.reverb.damping = 0.0398f;
         s.global.width = 1.5f;
         s.global.spread = 0.35f;
         s.global.polyphony = 12;
@@ -3613,7 +3624,8 @@ std::vector<PresetDef> createAllPresets() {
         s.delay.granularPosSpray = 0.4f;
         s.reverbEnabled = 1;
         s.reverbType = 1;          // Hall
-        s.reverb.size = 0.8f; s.reverb.mix = 0.4f; s.reverb.diffusion = 0.9f;
+        // was size 0.8 damping 0.5: R-220 remap
+        s.reverb.size = 0.0468f; s.reverb.damping = 0.0634f; s.reverb.mix = 0.4f; s.reverb.diffusion = 0.9f;
         s.global.width = 1.4f;
         s.global.masterGain = 1.306f;  // keeps its level now the particle swarm no longer over-spawns
         presets.push_back(std::move(p));
@@ -3772,7 +3784,8 @@ std::vector<PresetDef> createAllPresets() {
         s.chorus.rateHz = 0.4f; s.chorus.depth = 0.5f; s.chorus.voices = 3; s.chorus.mix = 0.35f;
         s.reverbEnabled = 1;
         s.reverbType = 1; // Hall (not Plate)
-        s.reverb.size = 0.7f; s.reverb.mix = 0.28f;
+        // was size 0.7 damping 0.5: R-220 remap
+        s.reverb.size = 0.0267f; s.reverb.damping = 0.0581f; s.reverb.mix = 0.28f;
         s.global.masterGain = 0.85f; // headroom for ring-mod + harmonizer stack
         presets.push_back(std::move(p));
     }
@@ -4052,8 +4065,9 @@ std::vector<PresetDef> createAllPresets() {
         // Big MODULATED HALL with pre-delay = the frozen cathedral of ice.
         s.reverbType = 1;            // Hall
         s.reverbEnabled = 1;
-        s.reverb.size = 0.95f; s.reverb.mix = 0.5f;
-        s.reverb.damping = 0.15f; s.reverb.diffusion = 0.9f;
+        // was size 0.95 damping 0.15: R-220 remap
+        s.reverb.size = 0.1199f; s.reverb.mix = 0.5f;
+        s.reverb.damping = 0.0162f; s.reverb.diffusion = 0.9f;
         s.reverb.preDelayMs = 20.0f;
         s.reverb.modRateHz = 0.2f; s.reverb.modDepth = 0.15f; // shimmering tail
         // SPECTRAL delay: an icy FFT smear (Hall+Spectral pairing, unique in the batch)
@@ -4189,7 +4203,8 @@ std::vector<PresetDef> createAllPresets() {
         // HALL for the vast quantum space.
         s.reverbType = 1;            // Hall
         s.reverbEnabled = 1;
-        s.reverb.size = 0.85f; s.reverb.mix = 0.4f; s.reverb.diffusion = 0.85f;
+        // was size 0.85 damping 0.5: R-220 remap
+        s.reverb.size = 0.0625f; s.reverb.damping = 0.0685f; s.reverb.mix = 0.4f; s.reverb.diffusion = 0.85f;
         s.global.width = 1.6f; s.global.spread = 0.4f;
         // Additive partial sum no longer clips (2026-11-13):
         // re-levelled toward the Pads median (-10.2 dBFS), held to a -1 dBFS peak
@@ -4231,8 +4246,9 @@ std::vector<PresetDef> createAllPresets() {
         // Enormous PRE-DELAYED HALL = the nave.
         s.reverbType = 1;            // Hall
         s.reverbEnabled = 1;
-        s.reverb.size = 0.9f; s.reverb.mix = 0.4f;
-        s.reverb.damping = 0.35f; s.reverb.diffusion = 0.85f;
+        // was size 0.9 damping 0.35: R-220 remap
+        s.reverb.size = 0.085f; s.reverb.mix = 0.4f;
+        s.reverb.damping = 0.0429f; s.reverb.diffusion = 0.85f;
         s.reverb.preDelayMs = 40.0f; // distance to the far wall
         s.global.width = 1.3f;
         presets.push_back(std::move(p));
@@ -4299,8 +4315,9 @@ std::vector<PresetDef> createAllPresets() {
         // crushed wash like Spectral Drift.
         // Reverb: modulated HALL with pre-delay for a huge, gently-swirling space (NOT frozen)
         s.reverbEnabled = 1; s.reverbType = 1; // Hall
-        s.reverb.size = 0.9f; s.reverb.mix = 0.5f;
-        s.reverb.damping = 0.25f; s.reverb.diffusion = 0.9f;
+        // was size 0.9 damping 0.25: R-220 remap
+        s.reverb.size = 0.085f; s.reverb.mix = 0.5f;
+        s.reverb.damping = 0.0265f; s.reverb.diffusion = 0.9f;
         s.reverb.preDelayMs = 40.0f;
         s.reverb.modRateHz = 0.3f; s.reverb.modDepth = 0.25f; // chorused tail
         s.global.width = 1.5f; s.global.spread = 0.4f;
@@ -4478,7 +4495,8 @@ std::vector<PresetDef> createAllPresets() {
         s.delay.spectralDiffusion = 0.5f; s.delay.spectralWidth = 0.6f;
         // Moderate Hall
         s.reverbEnabled = 1; s.reverbType = 1; // Hall
-        s.reverb.size = 0.7f; s.reverb.mix = 0.32f; s.reverb.damping = 0.45f;
+        // was size 0.7 damping 0.45: R-220 remap
+        s.reverb.size = 0.0267f; s.reverb.mix = 0.32f; s.reverb.damping = 0.0484f;
         s.global.width = 1.3f; s.global.spread = 0.4f;
         presets.push_back(std::move(p));
     }
@@ -4525,8 +4543,9 @@ std::vector<PresetDef> createAllPresets() {
         setVoiceRoute(s, 0, kVSrcEnv3, kVDstOscAPitch, 0.1f); // vocal pitch-scoop onset
         // Reverb: FROZEN Hall - the infinite crystalline cathedral tail
         s.reverbEnabled = 1; s.reverbType = 1; // Hall
-        s.reverb.size = 0.8f; s.reverb.mix = 0.38f;
-        s.reverb.damping = 0.3f; s.reverb.diffusion = 0.88f;
+        // was size 0.8 damping 0.3: R-220 remap
+        s.reverb.size = 0.0468f; s.reverb.mix = 0.38f;
+        s.reverb.damping = 0.0281f; s.reverb.diffusion = 0.88f;
         s.reverb.preDelayMs = 30.0f;
         s.reverb.freeze = 1; // holds the wash indefinitely for a suspended cathedral
         s.global.width = 1.6f; s.global.spread = 0.35f;
@@ -4578,8 +4597,9 @@ std::vector<PresetDef> createAllPresets() {
         s.delay.granularTexture = 0.3f; s.delay.granularWidth = 1.0f; // width was 1.2: the parameter range is 0..1
         // --- Huge diffuse HALL with pre-delay for the sense of distance
         s.reverbEnabled = 1; s.reverbType = 1;     // Hall
-        s.reverb.size = 0.95f; s.reverb.mix = 0.45f;
-        s.reverb.damping = 0.7f; s.reverb.diffusion = 0.85f;
+        // was size 0.95 damping 0.7: R-220 remap
+        s.reverb.size = 0.1199f; s.reverb.mix = 0.45f;
+        s.reverb.damping = 0.1623f; s.reverb.diffusion = 0.85f;
         s.reverb.preDelayMs = 40.0f;               // reflections arrive before the tail
         s.global.width = 1.4f; s.global.spread = 0.2f;
         presets.push_back(std::move(p));
@@ -4642,7 +4662,8 @@ std::vector<PresetDef> createAllPresets() {
         s.delay.pingPongModDepth = 0.15f;
         s.delay.pingPongModRateHz = 0.3f;
         s.reverbEnabled = 1; s.reverbType = 1;     // Hall
-        s.reverb.size = 0.85f; s.reverb.mix = 0.3f; s.reverb.damping = 0.35f;
+        // was size 0.85 damping 0.35: R-220 remap
+        s.reverb.size = 0.0625f; s.reverb.mix = 0.3f; s.reverb.damping = 0.0383f;
         s.reverb.preDelayMs = 20.0f;
         s.reverb.modRateHz = 0.3f; s.reverb.modDepth = 0.15f; // chorused tail
         s.global.width = 1.5f; s.global.spread = 0.3f;
@@ -4758,8 +4779,9 @@ std::vector<PresetDef> createAllPresets() {
         // --- Big diffuse HALL. Wet kept below the original 0.4 so the dry chaos
         //     body still carries the patch rather than dissolving into the tail.
         s.reverbEnabled = 1; s.reverbType = 1;     // Hall
-        s.reverb.size = 0.85f; s.reverb.mix = 0.3f;
-        s.reverb.damping = 0.5f; s.reverb.diffusion = 0.8f;
+        // was size 0.85 damping 0.5: R-220 remap
+        s.reverb.size = 0.0625f; s.reverb.mix = 0.3f;
+        s.reverb.damping = 0.0685f; s.reverb.diffusion = 0.8f;
         s.global.width = 1.3f; s.global.spread = 0.4f;
         s.global.masterGain = 2.0f;                // chaos+ringmod chain still loses level
         presets.push_back(std::move(p));
@@ -5430,7 +5452,8 @@ std::vector<PresetDef> createAllPresets() {
         s.delay.timeMs = 380.0f; s.delay.feedback = 0.27f; s.delay.mix = 0.2f;
         s.delay.tapeSaturation = 0.4f;
         s.reverbEnabled = 1; s.reverbType = 1; // Hall
-        s.reverb.size = 0.75f; s.reverb.mix = 0.3f; s.reverb.damping = 0.35f;
+        // was size 0.75 damping 0.35: R-220 remap
+        s.reverb.size = 0.0353f; s.reverb.mix = 0.3f; s.reverb.damping = 0.0334f;
         s.global.voiceMode = 1; // Mono
         s.monoMode.priority = 0; // Last-note
         s.monoMode.legato = 1; s.monoMode.portamentoTimeMs = 80.0f; // long glide
@@ -6309,8 +6332,9 @@ std::vector<PresetDef> createAllPresets() {
         // REVERB: big FROZEN, MODULATED Hall - the signature. Dry voice (mix 0.45)
         // stays fully audible even if the freeze holds the tail.
         s.reverbEnabled = 1; s.reverbType = 1;    // Hall
-        s.reverb.size = 0.9f; s.reverb.mix = 0.45f;
-        s.reverb.damping = 0.2f; s.reverb.diffusion = 0.9f;
+        // was size 0.9 damping 0.2: R-220 remap
+        s.reverb.size = 0.085f; s.reverb.mix = 0.45f;
+        s.reverb.damping = 0.0197f; s.reverb.diffusion = 0.9f;
         s.reverb.preDelayMs = 40.0f;
         s.reverb.modRateHz = 0.2f; s.reverb.modDepth = 0.25f;
         s.reverb.freeze = 1;                       // frozen shimmer bed
@@ -6594,7 +6618,8 @@ std::vector<PresetDef> createAllPresets() {
         s.delay.granularFreeze = 1;                // frozen grain cloud
         // REVERB: large modulated Hall
         s.reverbEnabled = 1; s.reverbType = 1;     // Hall
-        s.reverb.size = 0.85f; s.reverb.mix = 0.4f; s.reverb.damping = 0.25f;
+        // was size 0.85 damping 0.25: R-220 remap
+        s.reverb.size = 0.0625f; s.reverb.mix = 0.4f; s.reverb.damping = 0.0236f;
         s.reverb.diffusion = 0.85f; s.reverb.preDelayMs = 30.0f;
         s.reverb.modRateHz = 0.3f; s.reverb.modDepth = 0.15f;
         s.global.width = 1.6f; s.global.spread = 0.45f;
@@ -6649,7 +6674,8 @@ std::vector<PresetDef> createAllPresets() {
         // --- Space: big diffuse Hall with pre-delay (no delay line) ---
         s.reverbEnabled = 1;
         s.reverbType = 1;             // Hall
-        s.reverb.size = 0.75f;
+        // was size 0.75 damping 0.5: R-220 remap
+        s.reverb.size = 0.0353f; s.reverb.damping = 0.0601f;
         s.reverb.mix = 0.32f;
         s.reverb.preDelayMs = 40.0f;  // air before the wash
         s.reverb.diffusion = 0.85f;
@@ -6774,7 +6800,8 @@ std::vector<PresetDef> createAllPresets() {
         s.delay.spectralTilt = 0.3f;
         s.reverbEnabled = 1;
         s.reverbType = 1;             // Hall
-        s.reverb.size = 0.7f;
+        // was size 0.7 damping 0.5: R-220 remap
+        s.reverb.size = 0.0267f; s.reverb.damping = 0.0581f;
         s.reverb.mix = 0.3f;
         s.reverb.modDepth = 0.3f;     // chorused reverb tail -> shimmer
         s.reverb.modRateHz = 0.4f;
@@ -6907,7 +6934,8 @@ std::vector<PresetDef> createAllPresets() {
         s.delay.granularPitch = 12.0f;   // octave-up shimmer grains
         s.reverbEnabled = 1;
         s.reverbType = 1;             // Hall
-        s.reverb.size = 0.85f;
+        // was size 0.85 damping 0.5: R-220 remap
+        s.reverb.size = 0.0625f; s.reverb.damping = 0.0685f;
         s.reverb.mix = 0.4f;
         s.reverb.diffusion = 0.9f;
         s.global.width = 1.7f;
@@ -7052,8 +7080,9 @@ std::vector<PresetDef> createAllPresets() {
         s.delay.granularTexture = 0.6f; s.delay.granularWidth = 1.0f;
         // Near-max dark Hall.
         s.reverbEnabled = 1; s.reverbType = 1;         // Hall
-        s.reverb.size = 0.95f; s.reverb.mix = 0.45f;
-        s.reverb.damping = 0.8f; s.reverb.diffusion = 0.88f; s.reverb.preDelayMs = 40.0f;
+        // was size 0.95 damping 0.8: R-220 remap
+        s.reverb.size = 0.1199f; s.reverb.mix = 0.45f;
+        s.reverb.damping = 0.2099f; s.reverb.diffusion = 0.88f; s.reverb.preDelayMs = 40.0f;
         s.global.width = 1.3f;
         presets.push_back(std::move(p));
     }
@@ -7150,8 +7179,9 @@ std::vector<PresetDef> createAllPresets() {
         s.delay.tapeHead1Level = 0.0f;                  // 0 dB main head
         // Modulated Hall with pre-delay = a wide breathing cathedral.
         s.reverbEnabled = 1; s.reverbType = 1;         // Hall
-        s.reverb.size = 0.9f; s.reverb.mix = 0.4f;
-        s.reverb.damping = 0.35f; s.reverb.diffusion = 0.88f;
+        // was size 0.9 damping 0.35: R-220 remap
+        s.reverb.size = 0.085f; s.reverb.mix = 0.4f;
+        s.reverb.damping = 0.0429f; s.reverb.diffusion = 0.88f;
         s.reverb.preDelayMs = 45.0f;
         s.reverb.modRateHz = 0.4f; s.reverb.modDepth = 0.3f;
         // Wide stereo + voice spread = the choral cloud fans across the field.
@@ -7224,7 +7254,8 @@ std::vector<PresetDef> createAllPresets() {
         s.phaser.rateHz = 0.25f; s.phaser.depth = 0.5f; s.phaser.feedback = 0.4f;
         s.phaser.mix = 0.35f; s.phaser.stages = 2; s.phaser.centerFreqHz = 900.0f;
         s.reverbEnabled = 1; s.reverbType = 1;     // Hall
-        s.reverb.size = 0.6f; s.reverb.mix = 0.25f; s.reverb.damping = 0.4f;
+        // was size 0.6 damping 0.4: R-220 remap
+        s.reverb.size = 0.0145f; s.reverb.mix = 0.25f; s.reverb.damping = 0.0391f;
         presets.push_back(std::move(p));
     }
 
@@ -7418,7 +7449,8 @@ std::vector<PresetDef> createAllPresets() {
         s.delay.granularSizeMs = 60.0f; s.delay.granularDensity = 20.0f;
         s.delay.granularPitchSpray = 0.3f; s.delay.granularPanSpray = 0.6f;
         s.reverbEnabled = 1; s.reverbType = 1;  // Hall
-        s.reverb.size = 0.55f; s.reverb.mix = 0.22f;
+        // was size 0.55 damping 0.5: R-220 remap
+        s.reverb.size = 0.0102f; s.reverb.damping = 0.0578f; s.reverb.mix = 0.22f;
         presets.push_back(std::move(p));
     }
 
@@ -7574,7 +7606,8 @@ std::vector<PresetDef> createAllPresets() {
         // Hall reverb (not the default plate) smears fragments into a cathedral
         s.reverbEnabled = 1;
         s.reverbType = 1; // Hall
-        s.reverb.size = 0.65f; s.reverb.mix = 0.28f; s.reverb.damping = 0.35f;
+        // was size 0.65 damping 0.35: R-220 remap
+        s.reverb.size = 0.0199f; s.reverb.mix = 0.28f; s.reverb.damping = 0.0317f;
         s.reverb.preDelayMs = 20.0f;
         // Additive partial sum no longer clips (2026-11-13):
         // re-levelled to the Rhythmic median (-15.8 dBFS)
@@ -7773,7 +7806,8 @@ std::vector<PresetDef> createAllPresets() {
         s.delay.sync = 1; s.delay.noteValue = kNote1_8; s.delay.feedback = 0.25f; s.delay.mix = 0.18f;
         s.delay.tapeSaturation = 0.4f; s.delay.tapeWear = 0.2f;
         s.reverbEnabled = 1; s.reverbType = 1; // Hall
-        s.reverb.size = 0.8f; s.reverb.mix = 0.32f; s.reverb.damping = 0.35f; s.reverb.preDelayMs = 20.0f;
+        // was size 0.8 damping 0.35: R-220 remap
+        s.reverb.size = 0.0468f; s.reverb.mix = 0.32f; s.reverb.damping = 0.0353f; s.reverb.preDelayMs = 20.0f;
         s.global.width = 1.5f; s.global.spread = 0.4f; s.global.polyphony = 8;
         presets.push_back(std::move(p));
     }
@@ -8118,7 +8152,8 @@ std::vector<PresetDef> createAllPresets() {
         // --- Reverb FREEZE: infinite cathedral wash under the drone ---
         s.reverbEnabled = 1;
         s.reverbType = 1;            // Hall
-        s.reverb.size = 0.95f; s.reverb.mix = 0.42f; s.reverb.damping = 0.55f;
+        // was size 0.95 damping 0.55: R-220 remap
+        s.reverb.size = 0.1199f; s.reverb.mix = 0.42f; s.reverb.damping = 0.1045f;
         s.reverb.freeze = 1;         // frozen tail = endless sustain bed
         s.reverb.modRateHz = 0.15f; s.reverb.modDepth = 0.3f; // slow chorus on the wash
         // keeps its level now the brown noise, the spectral distortion and the Pitch Follower no
@@ -8304,7 +8339,8 @@ std::vector<PresetDef> createAllPresets() {
         // --- Reverb: Hall, medium-small - a room for the voice ---
         s.reverbEnabled = 1;
         s.reverbType = 1;          // Hall
-        s.reverb.size = 0.5f; s.reverb.mix = 0.24f; s.reverb.preDelayMs = 20.0f;
+        // was size 0.5 damping 0.5: R-220 remap
+        s.reverb.size = 0.0066f; s.reverb.damping = 0.0594f; s.reverb.mix = 0.24f; s.reverb.preDelayMs = 20.0f;
 
         presets.push_back(std::move(p));
     }
@@ -8468,7 +8504,8 @@ std::vector<PresetDef> createAllPresets() {
         s.delay.granularJitter = 0.2f;
         // Airy HALL
         s.reverbEnabled = 1; s.reverbType = 1;  // Hall
-        s.reverb.size = 0.7f; s.reverb.mix = 0.32f; s.reverb.damping = 0.5f;
+        // was size 0.7 damping 0.5: R-220 remap
+        s.reverb.size = 0.0267f; s.reverb.mix = 0.32f; s.reverb.damping = 0.0581f;
         // +2 dB: its noise peaks sat 19.5 dB under the bank's median, at the quietness floor, and the
         // noise-colour fix (2026-11-13) moved its single-note peak by 1.4 dB (its RMS by 0.15 dB)
         s.global.masterGain = 1.259f;
@@ -8575,7 +8612,8 @@ std::vector<PresetDef> createAllPresets() {
         s.delay.sync = 0; s.delay.timeMs = 500.0f; s.delay.mix = 0.18f; s.delay.feedback = 0.3f;
         s.delay.spectralDiffusion = 0.4f; s.delay.spectralTilt = 0.2f; s.delay.spectralSpreadMs = 300.0f;
         s.reverbEnabled = 1; s.reverbType = 1; // Hall
-        s.reverb.size = 0.85f; s.reverb.mix = 0.35f;
+        // was size 0.85 damping 0.5: R-220 remap
+        s.reverb.size = 0.0625f; s.reverb.damping = 0.0685f; s.reverb.mix = 0.35f;
         s.reverb.modRateHz = 0.3f; s.reverb.modDepth = 0.2f; // shimmering reverb mod (unused)
         // Additive partial sum no longer clips (2026-11-13):
         // re-levelled to the Experimental median (-13.8 dBFS)
@@ -8673,8 +8711,9 @@ std::vector<PresetDef> createAllPresets() {
         // Frozen Hall reverb: the tail literally freezes and holds.
         s.reverbEnabled = 1;
         s.reverbType = 1;              // Hall (bigger/darker than Plate)
-        s.reverb.size = 0.95f; s.reverb.mix = 0.5f;
-        s.reverb.damping = 0.15f; s.reverb.freeze = 1;
+        // was size 0.95 damping 0.15: R-220 remap
+        s.reverb.size = 0.1199f; s.reverb.mix = 0.5f;
+        s.reverb.damping = 0.0162f; s.reverb.freeze = 1;
         presets.push_back(std::move(p));
     }
 
@@ -9028,7 +9067,8 @@ std::vector<PresetDef> createAllPresets() {
         // FX: lush HALL only - vocal pad space, no delay clutter to muddy the words
         s.reverbEnabled = 1;
         s.reverbType = 1;                              // Hall
-        s.reverb.size = 0.72f; s.reverb.mix = 0.3f; s.reverb.damping = 0.3f;
+        // was size 0.72 damping 0.3: R-220 remap
+        s.reverb.size = 0.0299f; s.reverb.mix = 0.3f; s.reverb.damping = 0.0259f;
         s.reverb.preDelayMs = 25.0f;
         // Additive partial sum no longer clips (2026-11-13):
         // re-levelled to the Arp Modulation median (-15.1 dBFS)
@@ -9224,7 +9264,8 @@ std::vector<PresetDef> createAllPresets() {
         s.delay.digitalModDepth = 0.2f; s.delay.digitalWidth = 130.0f;
         s.reverbEnabled = 1;
         s.reverbType = 1;                              // Hall
-        s.reverb.size = 0.62f; s.reverb.mix = 0.3f;
+        // was size 0.62 damping 0.5: R-220 remap
+        s.reverb.size = 0.0165f; s.reverb.damping = 0.057f; s.reverb.mix = 0.3f;
         presets.push_back(std::move(p));
     }
 
@@ -9415,8 +9456,9 @@ std::vector<PresetDef> createAllPresets() {
         // Wrapper: big frozen HALL + spectral delay = infinite evolving space.
         // freeze=1 holds an evolving bed; damping 0.6 + mix 0.3 + soft-limit keep level bounded.
         s.reverbEnabled = 1; s.reverbType = 1;   // Hall
-        s.reverb.size = 0.85f; s.reverb.mix = 0.3f;
-        s.reverb.damping = 0.6f;
+        // was size 0.85 damping 0.6: R-220 remap
+        s.reverb.size = 0.0625f; s.reverb.mix = 0.3f;
+        s.reverb.damping = 0.0953f;
         s.reverb.diffusion = 0.85f;
         s.reverb.freeze = 1;
         s.delayEnabled = 1;
@@ -9743,7 +9785,8 @@ std::vector<PresetDef> createAllPresets() {
         s.delay.mix = 0.26f; s.delay.feedback = 0.26f;
         s.delay.tapeSaturation = 0.45f; s.delay.tapeWear = 0.3f;
         s.reverbEnabled = 1; s.reverbType = 1;  // Hall
-        s.reverb.size = 0.5f; s.reverb.mix = 0.22f; s.reverb.damping = 0.45f;
+        // was size 0.5 damping 0.45: R-220 remap
+        s.reverb.size = 0.0066f; s.reverb.mix = 0.22f; s.reverb.damping = 0.0495f;
         s.global.masterGain = 1.4f;             // noise-excited comb is a quiet source
         presets.push_back(std::move(p));
     }
@@ -9835,7 +9878,8 @@ std::vector<PresetDef> createAllPresets() {
         s.modulationType = 3;               // Chorus widens the choir
         s.chorus.rateHz = 0.45f; s.chorus.depth = 0.5f; s.chorus.mix = 0.35f;
         s.reverbEnabled = 1; s.reverbType = 1;  // Hall
-        s.reverb.size = 0.55f; s.reverb.mix = 0.26f; s.reverb.damping = 0.4f;
+        // was size 0.55 damping 0.4: R-220 remap
+        s.reverb.size = 0.0102f; s.reverb.mix = 0.26f; s.reverb.damping = 0.0396f;
         presets.push_back(std::move(p));
     }
 
@@ -9919,7 +9963,8 @@ std::vector<PresetDef> createAllPresets() {
         s.delay.mix = 0.28f; s.delay.feedback = 0.4f;
         s.delay.pingPongWidth = 160.0f; s.delay.pingPongCrossFeed = 0.7f;
         s.reverbEnabled = 1; s.reverbType = 1;  // Hall
-        s.reverb.size = 0.7f; s.reverb.mix = 0.3f; s.reverb.damping = 0.35f;
+        // was size 0.7 damping 0.35: R-220 remap
+        s.reverb.size = 0.0267f; s.reverb.mix = 0.3f; s.reverb.damping = 0.0323f;
         // Additive partial sum no longer clips (2026-11-13):
         // re-levelled toward the Rhythmic median (-15.8 dBFS), held to a -1 dBFS peak
         p.state.global.masterGain = 0.549f;
@@ -10056,7 +10101,8 @@ std::vector<PresetDef> createAllPresets() {
         s.delay.sync = 1; s.delay.noteValue = kNote1_8;
         s.delay.mix = 0.3f; s.delay.feedback = 0.42f;
         s.reverbEnabled = 1; s.reverbType = 1;  // Hall
-        s.reverb.size = 0.6f; s.reverb.mix = 0.25f; s.reverb.damping = 0.4f;
+        // was size 0.6 damping 0.4: R-220 remap
+        s.reverb.size = 0.0145f; s.reverb.mix = 0.25f; s.reverb.damping = 0.0391f;
         s.global.masterGain = 1.2f;
         presets.push_back(std::move(p));
     }
@@ -10101,7 +10147,8 @@ std::vector<PresetDef> createAllPresets() {
         s.lfo1.rateHz = 0.22f; s.lfo1.shape = 2; s.lfo1.depth = 1.0f; s.lfo1.sync = 0;
         setModSlot(s, 0, kSrcLFO1, kDstEffectMix, 0.3f, kCurveSCurve);
         s.reverbEnabled = 1; s.reverbType = 1;  // Hall
-        s.reverb.size = 0.65f; s.reverb.mix = 0.28f; s.reverb.damping = 0.4f;
+        // was size 0.65 damping 0.4: R-220 remap
+        s.reverb.size = 0.0199f; s.reverb.mix = 0.28f; s.reverb.damping = 0.0391f;
         s.global.masterGain = 1.25f;
         presets.push_back(std::move(p));
     }
@@ -10379,7 +10426,8 @@ std::vector<PresetDef> createAllPresets() {
         s.delay.mix = 0.24f; s.delay.feedback = 0.28f;
         s.delay.tapeSaturation = 0.4f;
         s.reverbEnabled = 1; s.reverbType = 1;
-        s.reverb.size = 0.55f; s.reverb.mix = 0.24f; s.reverb.damping = 0.45f;
+        // was size 0.55 damping 0.45: R-220 remap
+        s.reverb.size = 0.0102f; s.reverb.mix = 0.24f; s.reverb.damping = 0.0481f;
         s.global.masterGain = 1.3f;
         presets.push_back(std::move(p));
     }
@@ -10528,7 +10576,8 @@ std::vector<PresetDef> createAllPresets() {
         s.delay.sync = 1; s.delay.noteValue = kNote1_4D;
         s.delay.mix = 0.3f; s.delay.feedback = 0.45f;
         s.reverbEnabled = 1; s.reverbType = 1;  // Hall
-        s.reverb.size = 0.8f; s.reverb.mix = 0.38f; s.reverb.damping = 0.3f;
+        // was size 0.8 damping 0.3: R-220 remap
+        s.reverb.size = 0.0468f; s.reverb.mix = 0.38f; s.reverb.damping = 0.0281f;
         // Additive partial sum no longer clips (2026-11-13):
         // re-levelled toward the Rhythmic median (-15.8 dBFS), held to a -1 dBFS peak
         // lowered until a held chord peaks at -1 dBFS
