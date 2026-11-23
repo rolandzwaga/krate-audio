@@ -1,0 +1,1291 @@
+// ==============================================================================
+// audit_quality_probes.cpp -- TEMPORARY membrum-audit kit-quality probe TU.
+//
+// Hidden ([.][audit-probe]); prints PROBE lines and writes CSV parts under
+// f:/tmp/membrum-audit/parts/. Asserts only that the rendered output is finite.
+//
+// Harness: a real Membrum::Processor at 48 kHz, block 256, 16 stereo output
+// buses wired (aux buses activated only for the output-bus probe). Note events
+// carry sample offsets; the processor applies them at the block start.
+//
+// FEATURES per rendered hit (mono = (L+R)/2 unless stated):
+//   peak dBFS       max |L|,|R| over the render
+//   rms500 dBFS     RMS of mono over the first 500 ms
+//   dc              mean of mono over the whole render
+//   nonFinite       count of non-finite samples in L and R
+//   decay s         10 ms RMS frames of mono; time until the envelope stays
+//                   60 dB under its maximum (last frame above max-60 dB, +10 ms);
+//                   ">cap" when still above at the end of the render
+//   centroid Hz     magnitude-weighted spectral centroid of the first 200 ms
+//                   (Hann 4096, hop 1024, zero-padded edge frames, DC skipped)
+//   bands           24 log-spaced bands 40 Hz..16 kHz, power averaged over the
+//                   first 1 s (Hann 8192, hop 2048), dB normalised to the
+//                   loudest band, floored at -80 dB
+//   bandDist(a,b)   RMS over the 24 bands of (a - b) in dB
+// ==============================================================================
+#include <catch2/catch_test_macros.hpp>
+
+#include "processor/processor.h"
+#include "plugin_ids.h"
+#include "dsp/pad_config.h"
+#include "dsp/pad_category.h"
+#include "state/state_codec.h"
+
+#include "vst_event_list.h"
+#include "vst_param_changes.h"
+
+#include <krate/dsp/core/db_utils.h>
+#include <krate/dsp/primitives/fft.h>
+
+#include "public.sdk/source/common/memorystream.h"
+#include "public.sdk/source/vst/vstpresetfile.h"
+#include "pluginterfaces/base/ibstream.h"
+#include "pluginterfaces/vst/ivstaudioprocessor.h"
+#include "pluginterfaces/vst/ivstevents.h"
+
+#include <algorithm>
+#include <array>
+#include <cmath>
+#include <cstdint>
+#include <cstdio>
+#include <filesystem>
+#include <fstream>
+#include <iterator>
+#include <memory>
+#include <sstream>
+#include <string>
+#include <utility>
+#include <vector>
+
+using namespace Steinberg;
+using namespace Steinberg::Vst;
+
+namespace {
+
+constexpr double kSR = 48000.0;
+constexpr int kBS = 256;
+constexpr int kBuses = Membrum::kMaxOutputBuses;
+constexpr int kNumBands = 24;
+constexpr float kVel100 = 100.0f / 127.0f;
+
+const char* kPartsDir = "f:/tmp/membrum-audit/parts";
+
+// ------------------------------------------------------------------------------
+// Rig: one Processor with 16 output buses.
+// ------------------------------------------------------------------------------
+struct Rig
+{
+    std::unique_ptr<Membrum::Processor> proc;
+    std::vector<float> buf;
+    std::array<float*, static_cast<std::size_t>(kBuses * 2)> chans{};
+    std::array<AudioBusBuffers, static_cast<std::size_t>(kBuses)> bus{};
+    ProcessData data{};
+    Krate::Test::EventList events;
+    Krate::Test::ParameterChanges params;
+
+    explicit Rig(bool activateAux = false)
+    {
+        proc = std::make_unique<Membrum::Processor>();
+        proc->initialize(nullptr);
+        if (activateAux)
+            for (int b = 1; b < kBuses; ++b)
+                proc->activateBus(kAudio, kOutput, b, true);
+        ProcessSetup s{};
+        s.processMode = kRealtime;
+        s.symbolicSampleSize = kSample32;
+        s.maxSamplesPerBlock = kBS;
+        s.sampleRate = kSR;
+        proc->setupProcessing(s);
+        proc->setActive(true);
+
+        buf.assign(static_cast<std::size_t>(kBuses * 2 * kBS), 0.0f);
+        for (int c = 0; c < kBuses * 2; ++c)
+            chans[static_cast<std::size_t>(c)] = buf.data() + static_cast<std::size_t>(c * kBS);
+        for (int b = 0; b < kBuses; ++b)
+        {
+            auto& bb = bus[static_cast<std::size_t>(b)];
+            bb.numChannels = 2;
+            bb.channelBuffers32 = &chans[static_cast<std::size_t>(b * 2)];
+            bb.silenceFlags = 0;
+        }
+        data.processMode = kRealtime;
+        data.symbolicSampleSize = kSample32;
+        data.numSamples = kBS;
+        data.numOutputs = kBuses;
+        data.outputs = bus.data();
+        data.numInputs = 0;
+        data.inputs = nullptr;
+        data.inputParameterChanges = &params;
+        data.outputParameterChanges = nullptr;
+        data.inputEvents = &events;
+        data.outputEvents = nullptr;
+        data.processContext = nullptr;
+    }
+    ~Rig()
+    {
+        proc->setActive(false);
+        proc->terminate();
+    }
+    Rig(const Rig&) = delete;
+    Rig& operator=(const Rig&) = delete;
+};
+
+enum class EvKind { On, Off, Param };
+struct Ev
+{
+    int at = 0;
+    EvKind kind = EvKind::On;
+    int pitch = 0;
+    float vel = 0.0f;
+    ParamID id = 0;
+    double value = 0.0;
+};
+
+Ev mkOn(int at, int pitch, float vel) { Ev e; e.at = at; e.kind = EvKind::On; e.pitch = pitch; e.vel = vel; return e; }
+Ev mkOff(int at, int pitch) { Ev e; e.at = at; e.kind = EvKind::Off; e.pitch = pitch; return e; }
+Ev mkParam(int at, ParamID id, double v) { Ev e; e.at = at; e.kind = EvKind::Param; e.id = id; e.value = v; return e; }
+
+struct Render
+{
+    std::vector<float> L, R;
+    std::array<double, static_cast<std::size_t>(kBuses)> auxEnergy{};
+    int nonFinite = 0;
+};
+
+Render render(Rig& rig, std::vector<Ev> evs, int numSamples, bool earlyStop = true)
+{
+    Render r;
+    r.L.assign(static_cast<std::size_t>(numSamples), 0.0f);
+    r.R.assign(static_cast<std::size_t>(numSamples), 0.0f);
+    std::stable_sort(evs.begin(), evs.end(), [](const Ev& a, const Ev& b) { return a.at < b.at; });
+    int lastEv = 0;
+    for (const auto& e : evs) lastEv = std::max(lastEv, e.at);
+    std::size_t next = 0;
+    int quietBlocks = 0;
+    for (int b = 0; b < numSamples; b += kBS)
+    {
+        const int ns = std::min(kBS, numSamples - b);
+        rig.events.clear();
+        rig.params.clear();
+        while (next < evs.size() && evs[next].at < b + ns)
+        {
+            const auto& e = evs[next];
+            const int off = std::max(0, e.at - b);
+            if (e.kind == EvKind::On)
+                rig.events.addNoteOn(static_cast<int16>(e.pitch), e.vel, off);
+            else if (e.kind == EvKind::Off)
+                rig.events.addNoteOff(static_cast<int16>(e.pitch), off);
+            else
+                rig.params.addChange(e.id, e.value);
+            ++next;
+        }
+        std::fill(rig.buf.begin(), rig.buf.end(), 0.0f);
+        rig.data.numSamples = ns;
+        rig.proc->process(rig.data);
+        float blockPeak = 0.0f;
+        const float* l = rig.chans[0];
+        const float* rr = rig.chans[1];
+        for (int s = 0; s < ns; ++s)
+        {
+            const float a = l[s];
+            const float c = rr[s];
+            if (!Krate::DSP::detail::isFinite(a)) ++r.nonFinite;
+            if (!Krate::DSP::detail::isFinite(c)) ++r.nonFinite;
+            r.L[static_cast<std::size_t>(b + s)] = a;
+            r.R[static_cast<std::size_t>(b + s)] = c;
+            blockPeak = std::max(blockPeak, std::max(std::abs(a), std::abs(c)));
+        }
+        for (int bus = 1; bus < kBuses; ++bus)
+        {
+            const float* al = rig.chans[static_cast<std::size_t>(bus * 2)];
+            const float* ar = rig.chans[static_cast<std::size_t>(bus * 2 + 1)];
+            double e = 0.0;
+            for (int s = 0; s < ns; ++s)
+                e += static_cast<double>(al[s]) * al[s] + static_cast<double>(ar[s]) * ar[s];
+            r.auxEnergy[static_cast<std::size_t>(bus)] += e;
+        }
+        if (earlyStop && b >= lastEv)
+        {
+            if (!rig.proc->voicePoolForTest().isAnyVoiceActive() && blockPeak < 1e-8f)
+                ++quietBlocks;
+            else
+                quietBlocks = 0;
+            if (quietBlocks >= 16)
+                break;
+        }
+    }
+    return r;
+}
+
+// ------------------------------------------------------------------------------
+// Feature extraction
+// ------------------------------------------------------------------------------
+struct Feat
+{
+    double peakDb = -160.0;
+    double rms500Db = -160.0;
+    double dc = 0.0;
+    int nonFinite = 0;
+    double decayS = 0.0;
+    bool decayOver = false;
+    double centroidHz = 0.0;
+    std::array<double, kNumBands> bands{};
+    bool silent() const { return peakDb < -100.0; }
+};
+
+double toDb(double lin) { return lin > 1e-8 ? 20.0 * std::log10(lin) : -160.0; }
+
+// Average spectrum (magnitude or power) of x[0, len) with zero-padded Hann frames.
+std::vector<double> avgSpectrum(const std::vector<float>& x, int len, int fftSize, int hop, bool power)
+{
+    Krate::DSP::FFT fft;
+    fft.prepare(static_cast<std::size_t>(fftSize));
+    std::vector<float> win(static_cast<std::size_t>(fftSize));
+    for (int i = 0; i < fftSize; ++i)
+        win[static_cast<std::size_t>(i)] = 0.5f * (1.0f - std::cos(2.0f * 3.14159265358979f * static_cast<float>(i)
+                                                                    / static_cast<float>(fftSize)));
+    std::vector<float> frame(static_cast<std::size_t>(fftSize));
+    std::vector<Krate::DSP::Complex> spec(static_cast<std::size_t>(fftSize / 2 + 1));
+    std::vector<double> acc(static_cast<std::size_t>(fftSize / 2 + 1), 0.0);
+    const int n = std::min(len, static_cast<int>(x.size()));
+    int frames = 0;
+    for (int start = -fftSize / 2; start < n - fftSize / 2 + hop; start += hop)
+    {
+        for (int i = 0; i < fftSize; ++i)
+        {
+            const int idx = start + i;
+            float v = (idx >= 0 && idx < n) ? x[static_cast<std::size_t>(idx)] : 0.0f;
+            if (!Krate::DSP::detail::isFinite(v)) v = 0.0f;
+            frame[static_cast<std::size_t>(i)] = v * win[static_cast<std::size_t>(i)];
+        }
+        fft.forward(frame.data(), spec.data());
+        for (std::size_t k = 0; k < spec.size(); ++k)
+        {
+            const double m = spec[k].magnitude();
+            acc[k] += power ? m * m : m;
+        }
+        ++frames;
+    }
+    if (frames > 0)
+        for (double& a : acc) a /= static_cast<double>(frames);
+    return acc;
+}
+
+Feat analyse(const std::vector<float>& L, const std::vector<float>& R, bool useL, int nonFinite)
+{
+    Feat f;
+    f.nonFinite = nonFinite;
+    const std::size_t n = L.size();
+    std::vector<float> mono(n);
+    double peak = 0.0;
+    for (std::size_t i = 0; i < n; ++i)
+    {
+        float l = L[i];
+        float r = R[i];
+        if (!Krate::DSP::detail::isFinite(l)) l = 0.0f;
+        if (!Krate::DSP::detail::isFinite(r)) r = 0.0f;
+        mono[i] = useL ? l : 0.5f * (l + r);
+        peak = std::max(peak, static_cast<double>(std::max(std::abs(l), std::abs(r))));
+    }
+    f.peakDb = toDb(peak);
+
+    const std::size_t n500 = std::min(n, static_cast<std::size_t>(kSR * 0.5));
+    double ss = 0.0;
+    double sum = 0.0;
+    for (std::size_t i = 0; i < n; ++i)
+    {
+        if (i < n500) ss += static_cast<double>(mono[i]) * mono[i];
+        sum += mono[i];
+    }
+    f.rms500Db = toDb(std::sqrt(ss / static_cast<double>(std::max<std::size_t>(1, n500))));
+    f.dc = sum / static_cast<double>(std::max<std::size_t>(1, n));
+
+    // Decay: 10 ms RMS frames.
+    const std::size_t fl = static_cast<std::size_t>(kSR * 0.01);
+    const std::size_t nFrames = n / fl;
+    std::vector<double> fr(nFrames, 0.0);
+    double maxR = 0.0;
+    for (std::size_t k = 0; k < nFrames; ++k)
+    {
+        double e = 0.0;
+        for (std::size_t i = 0; i < fl; ++i)
+        {
+            const double v = mono[k * fl + i];
+            e += v * v;
+        }
+        fr[k] = std::sqrt(e / static_cast<double>(fl));
+        maxR = std::max(maxR, fr[k]);
+    }
+    if (maxR > 0.0 && nFrames > 0)
+    {
+        const double th = maxR * 1e-3;
+        std::size_t last = 0;
+        for (std::size_t k = 0; k < nFrames; ++k)
+            if (fr[k] > th) last = k;
+        f.decayS = static_cast<double>(last + 1) * 0.01;
+        f.decayOver = (last + 1 == nFrames);
+    }
+
+    if (!f.silent())
+    {
+        // Centroid over the first 200 ms.
+        const int n200 = static_cast<int>(kSR * 0.2);
+        const auto mag = avgSpectrum(mono, n200, 4096, 1024, false);
+        const double binHz = kSR / 4096.0;
+        double num = 0.0, den = 0.0;
+        for (std::size_t k = 1; k < mag.size(); ++k)
+        {
+            num += static_cast<double>(k) * binHz * mag[k];
+            den += mag[k];
+        }
+        f.centroidHz = den > 0.0 ? num / den : 0.0;
+
+        // 24 bands over the first 1 s.
+        const auto pw = avgSpectrum(mono, static_cast<int>(kSR), 8192, 2048, true);
+        const double binHz2 = kSR / 8192.0;
+        std::array<double, kNumBands + 1> edges{};
+        for (int b = 0; b <= kNumBands; ++b)
+            edges[static_cast<std::size_t>(b)] = 40.0 * std::pow(400.0, static_cast<double>(b) / kNumBands);
+        std::array<double, kNumBands> e{};
+        for (std::size_t k = 1; k < pw.size(); ++k)
+        {
+            const double fq = static_cast<double>(k) * binHz2;
+            for (int b = 0; b < kNumBands; ++b)
+                if (fq >= edges[static_cast<std::size_t>(b)] && fq < edges[static_cast<std::size_t>(b + 1)])
+                {
+                    e[static_cast<std::size_t>(b)] += pw[k];
+                    break;
+                }
+        }
+        double mx = -400.0;
+        for (int b = 0; b < kNumBands; ++b)
+        {
+            const double db = 10.0 * std::log10(e[static_cast<std::size_t>(b)] + 1e-30);
+            f.bands[static_cast<std::size_t>(b)] = db;
+            mx = std::max(mx, db);
+        }
+        for (auto& v : f.bands) v = std::max(v - mx, -80.0);
+    }
+    else
+    {
+        for (auto& v : f.bands) v = -80.0;
+    }
+    return f;
+}
+
+double bandDist(const Feat& a, const Feat& b)
+{
+    double s = 0.0;
+    for (int i = 0; i < kNumBands; ++i)
+    {
+        const double d = a.bands[static_cast<std::size_t>(i)] - b.bands[static_cast<std::size_t>(i)];
+        s += d * d;
+    }
+    return std::sqrt(s / kNumBands);
+}
+
+double ratioHiLo(double a, double b)
+{
+    const double lo = std::min(a, b);
+    const double hi = std::max(a, b);
+    return lo > 0.0 ? hi / lo : 1e9;
+}
+
+const char* exciterName(Membrum::ExciterType t)
+{
+    static const char* names[] = {"Impulse", "Mallet", "NoiseBurst", "Friction", "FMImpulse", "Feedback", "Clap"};
+    const int i = static_cast<int>(t);
+    return (i >= 0 && i < 7) ? names[i] : "?";
+}
+const char* bodyName(Membrum::BodyModelType t)
+{
+    static const char* names[] = {"Membrane", "Plate", "Shell", "String", "Bell", "NoiseBody"};
+    const int i = static_cast<int>(t);
+    return (i >= 0 && i < 6) ? names[i] : "?";
+}
+const char* categoryName(Membrum::PadCategory c)
+{
+    switch (c)
+    {
+    case Membrum::PadCategory::Kick: return "Kick";
+    case Membrum::PadCategory::Snare: return "Snare";
+    case Membrum::PadCategory::Tom: return "Tom";
+    case Membrum::PadCategory::HatCymbal: return "HatCymbal";
+    case Membrum::PadCategory::Perc: return "Perc";
+    default: return "?";
+    }
+}
+
+void probe(const std::string& name, const std::string& setup, const std::string& metric,
+           const std::string& value, const std::string& threshold, const char* verdict)
+{
+    std::printf("PROBE %s | %s | %s = %s | threshold %s | %s\n", name.c_str(), setup.c_str(), metric.c_str(),
+                value.c_str(), threshold.c_str(), verdict);
+    std::fflush(stdout);
+}
+
+std::string fmt(const char* f, double v)
+{
+    char b[64];
+    std::snprintf(b, sizeof(b), f, v);
+    return b;
+}
+
+void writePart(const std::string& file, const std::string& header, const std::string& body)
+{
+    std::filesystem::create_directories(kPartsDir);
+    std::ofstream o(std::string(kPartsDir) + "/" + file, std::ios::binary | std::ios::trunc);
+    o << header << "\n" << body;
+}
+
+// ------------------------------------------------------------------------------
+// Factory kits
+// ------------------------------------------------------------------------------
+struct KitRef { const char* cat; const char* name; };
+constexpr std::array<KitRef, 20> kKits{{
+    {"Acoustic", "Acoustic Studio Kit"}, {"Acoustic", "Jazz Brushes"}, {"Acoustic", "Orchestral"},
+    {"Acoustic", "Rock Big Room"}, {"Acoustic", "Vintage Wood"},
+    {"Electronic", "808 Electronic Kit"}, {"Electronic", "909 Drum Machine"}, {"Electronic", "LinnDrum CR-78"},
+    {"Electronic", "Modular West Coast"}, {"Electronic", "Trap Modern"},
+    {"Percussive", "Cajon and Frames"}, {"Percussive", "Hand Drums"}, {"Percussive", "Latin Perc"},
+    {"Percussive", "Tabla"}, {"Percussive", "World Metal"},
+    {"Unnatural", "Chaos Engine"}, {"Unnatural", "Drone and Sustain"}, {"Unnatural", "Experimental FX Kit"},
+    {"Unnatural", "Ghost Bones"}, {"Unnatural", "Glass Bell Garden"},
+}};
+
+struct KitData
+{
+    std::string cat, name;
+    std::vector<std::uint8_t> comp;
+    Membrum::State::KitSnapshot snap;
+    bool ok = false;
+};
+
+KitData loadKit(int idx)
+{
+    KitData k;
+    k.cat = kKits[static_cast<std::size_t>(idx)].cat;
+    k.name = kKits[static_cast<std::size_t>(idx)].name;
+    const auto path = std::filesystem::path(MEMBRUM_RESOURCES_DIR) / "presets" / "Kit Presets" / k.cat / (k.name + ".vstpreset");
+    std::ifstream in(path, std::ios::binary);
+    if (!in) return k;
+    std::vector<std::uint8_t> bytes((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+    if (bytes.empty()) return k;
+    auto presetStream = owned(new MemoryStream(bytes.data(), static_cast<TSize>(bytes.size())));
+    presetStream->seek(0, IBStream::kIBSeekSet, nullptr);
+    PresetFile pf(presetStream);
+    if (!pf.readChunkList()) return k;
+    const auto* compEntry = pf.getEntry(kComponentState);
+    if (!compEntry) return k;
+    k.comp.resize(static_cast<std::size_t>(compEntry->size));
+    presetStream->seek(compEntry->offset, IBStream::kIBSeekSet, nullptr);
+    int32 got = 0;
+    presetStream->read(k.comp.data(), static_cast<int32>(k.comp.size()), &got);
+    if (got != static_cast<int32>(k.comp.size())) return k;
+    MemoryStream ms;
+    int32 w = 0;
+    ms.write(k.comp.data(), static_cast<int32>(k.comp.size()), &w);
+    ms.seek(0, IBStream::kIBSeekSet, nullptr);
+    k.ok = (Membrum::State::readKitBlob(&ms, k.snap) == kResultOk);
+    return k;
+}
+
+void loadInto(Rig& rig, const KitData& k)
+{
+    rig.proc->setActive(false);
+    MemoryStream ms;
+    int32 w = 0;
+    ms.write(const_cast<std::uint8_t*>(k.comp.data()), static_cast<int32>(k.comp.size()), &w);
+    ms.seek(0, IBStream::kIBSeekSet, nullptr);
+    rig.proc->setState(&ms);
+    rig.proc->setActive(true);
+}
+
+Render hitKit(Rig& rig, const KitData& k, int note, float vel, int samples, int noteOffAt)
+{
+    loadInto(rig, k);
+    std::vector<Ev> evs{mkOn(0, note, vel)};
+    if (noteOffAt >= 0) evs.push_back(mkOff(noteOffAt, note));
+    return render(rig, evs, samples);
+}
+
+double masterDbOf(const KitData& k) { return -24.0 + 36.0 * k.snap.masterGainNorm; }
+
+std::string decayStr(const Feat& f, double cap)
+{
+    return f.decayOver ? (">" + fmt("%.0f", cap) + " s") : fmt("%.2f s", f.decayS);
+}
+
+// ------------------------------------------------------------------------------
+// A. KIT TABLE + B1 within-kit sameness + B3 velocity response (one kit / case)
+// ------------------------------------------------------------------------------
+struct PadRow
+{
+    int note = 0;
+    Membrum::PadConfig cfg{};
+    Membrum::PadCategory cat{};
+    Feat f;
+    Feat fOff;
+};
+
+void runKit(int idx)
+{
+    const KitData k = loadKit(idx);
+    if (!k.ok)
+    {
+        probe("kit:" + std::string(kKits[static_cast<std::size_t>(idx)].name), "load", "loaded", "no", "loads", "error");
+        CHECK(k.ok);
+        return;
+    }
+    const double masterDb = masterDbOf(k);
+    const double ceilingDb = masterDb - 1.0;
+    Rig rig;
+    loadInto(rig, k);
+    std::array<Membrum::PadConfig, Membrum::kNumPads> cfgs{};
+    for (int p = 0; p < Membrum::kNumPads; ++p) cfgs[static_cast<std::size_t>(p)] = rig.proc->voicePoolForTest().padConfig(p);
+
+    const int n4 = static_cast<int>(kSR * 4.0);
+    const int off100 = static_cast<int>(kSR * 0.1);
+    std::vector<PadRow> rows;
+    int totalNonFinite = 0;
+    std::ostringstream csv;
+    int flaggedSilent = 0, flaggedLimiter = 0, flaggedDc = 0, flaggedNan = 0, flaggedRing = 0, flaggedRingUnexpl = 0;
+    double loud = -1000.0, quiet = 1000.0;
+    int loudNote = 0, quietNote = 0;
+    const std::string setupBase = "kit '" + k.name + "' (" + k.cat + "), Processor 48k bs256, vel 100/127, master " + fmt("%.1f dB", masterDb);
+
+    for (int p = 0; p < Membrum::kNumPads; ++p)
+    {
+        const auto& cfg = cfgs[static_cast<std::size_t>(p)];
+        const int note = 36 + p;
+        const bool enabled = cfg.enabled >= 0.5f;
+        const auto cat = Membrum::classifyPad(cfg);
+        if (!enabled)
+        {
+            csv << k.cat << "," << k.name << "," << note << "," << p << ",0," << exciterName(cfg.exciterType) << ","
+                << bodyName(cfg.bodyModel) << "," << categoryName(cat) << ",,,,,,,,,,,disabled," << cfg.modeInjectAmount;
+            for (int b = 0; b < kNumBands; ++b) csv << ",";
+            csv << "\n";
+            continue;
+        }
+        const auto r = hitKit(rig, k, note, kVel100, n4, -1);
+        const auto rOff = hitKit(rig, k, note, kVel100, n4, off100);
+        PadRow row;
+        row.note = note;
+        row.cfg = cfg;
+        row.cat = cat;
+        row.f = analyse(r.L, r.R, false, r.nonFinite);
+        row.fOff = analyse(rOff.L, rOff.R, false, rOff.nonFinite);
+        totalNonFinite += r.nonFinite + rOff.nonFinite;
+
+        std::string flags;
+        const bool silent = row.f.peakDb < -60.0;
+        const double margin = row.f.peakDb - ceilingDb;
+        const bool lim = !silent && margin >= -0.5;
+        const bool dc = std::abs(row.f.dc) > 1e-3;
+        const bool hasNan = (row.f.nonFinite + row.fOff.nonFinite) > 0;
+        const bool ring = row.f.decayOver;
+        std::string ringWhy;
+        if (ring)
+        {
+            if (cfg.modeInjectAmount > 0.0f) ringWhy += "modeInject>0 ";
+            if (cfg.exciterType == Membrum::ExciterType::Friction) ringWhy += "Friction ";
+            if (cfg.exciterType == Membrum::ExciterType::Feedback) ringWhy += "Feedback ";
+            if (ringWhy.empty()) ringWhy = "unexplained";
+        }
+        if (silent) { flags += "silent;"; ++flaggedSilent; }
+        if (lim) { flags += "limiter;"; ++flaggedLimiter; }
+        if (dc) { flags += "dc;"; ++flaggedDc; }
+        if (hasNan) { flags += "nan;"; ++flaggedNan; }
+        if (ring) { flags += "longring(" + ringWhy + ");"; ++flaggedRing; if (ringWhy == "unexplained") ++flaggedRingUnexpl; }
+        if (!silent)
+        {
+            if (row.f.peakDb > loud) { loud = row.f.peakDb; loudNote = note; }
+            if (row.f.peakDb < quiet) { quiet = row.f.peakDb; quietNote = note; }
+        }
+
+        csv << k.cat << "," << k.name << "," << note << "," << p << ",1," << exciterName(cfg.exciterType) << ","
+            << bodyName(cfg.bodyModel) << "," << categoryName(cat) << "," << fmt("%.2f", row.f.peakDb) << ","
+            << fmt("%.2f", row.f.rms500Db) << "," << fmt("%.6f", row.f.dc) << "," << (row.f.nonFinite + row.fOff.nonFinite) << ","
+            << (row.f.decayOver ? std::string(">4") : fmt("%.2f", row.f.decayS)) << ","
+            << (row.fOff.decayOver ? std::string(">4") : fmt("%.2f", row.fOff.decayS)) << ","
+            << fmt("%.1f", row.f.centroidHz) << "," << fmt("%.2f", margin) << "," << fmt("%.1f", masterDb) << ","
+            << fmt("%.4f", static_cast<double>(cfg.noiseLayerGain)) << "," << (flags.empty() ? "-" : flags) << ","
+            << cfg.modeInjectAmount;
+        for (int b = 0; b < kNumBands; ++b) csv << "," << fmt("%.1f", row.f.bands[static_cast<std::size_t>(b)]);
+        csv << "\n";
+
+        if (!flags.empty())
+        {
+            const char* v = (silent || hasNan) ? "bad" : ((lim || dc || (ring && ringWhy == "unexplained")) ? "suspicious" : "ok");
+            probe("kit:" + k.name + ":note=" + std::to_string(note),
+                  setupBase + ", " + exciterName(cfg.exciterType) + "/" + bodyName(cfg.bodyModel) + "/" + categoryName(cat),
+                  "flags / peak dBFS / margin to bus ceiling dB / dc / decay(no off) / decay(off@100ms)",
+                  flags + " / " + fmt("%.2f", row.f.peakDb) + " / " + fmt("%.2f", margin) + " / " + fmt("%.5f", row.f.dc) + " / " +
+                      decayStr(row.f, 4.0) + " / " + decayStr(row.fOff, 4.0),
+                  "silent peak<-60; limiter margin>=-0.5 dB; |dc|>1e-3; long ring >4 s explained by modeInject/Friction/Feedback", v);
+        }
+        rows.push_back(row);
+    }
+    writePart("kit-pads-" + std::to_string(100 + idx) + ".csv",
+              "kitCategory,kit,note,pad,enabled,exciter,body,padCategory,peakDbfs,rms500Dbfs,dc,nonFinite,decayS,decayNoteOff100msS,"
+              "centroidHz,limiterMarginDb,masterDb,noiseLayerGain,flags,modeInject,b0,b1,b2,b3,b4,b5,b6,b7,b8,b9,b10,b11,b12,b13,b14,"
+              "b15,b16,b17,b18,b19,b20,b21,b22,b23",
+              csv.str());
+
+    {
+        const int enabledCount = static_cast<int>(rows.size());
+        const char* v = (flaggedSilent + flaggedNan) > 0 ? "bad"
+                        : ((flaggedLimiter + flaggedDc + flaggedRingUnexpl) > 0 ? "suspicious" : "ok");
+        probe("kit:" + k.name + ":summary", setupBase + ", every enabled pad from silence, 4 s",
+              "enabled / silent / limiter / dc / nan / longring(unexplained) / level spread dB (peak, loudest note-quietest note)",
+              std::to_string(enabledCount) + " / " + std::to_string(flaggedSilent) + " / " + std::to_string(flaggedLimiter) + " / " +
+                  std::to_string(flaggedDc) + " / " + std::to_string(flaggedNan) + " / " + std::to_string(flaggedRing) + "(" +
+                  std::to_string(flaggedRingUnexpl) + ") / " + fmt("%.1f", loud - quiet) + " (" + std::to_string(loudNote) + "-" +
+                  std::to_string(quietNote) + ")",
+              "0 silent, 0 nan (bad); 0 limiter/dc/unexplained ring (suspicious)", v);
+    }
+
+    // ---- B1: within-kit sameness ----
+    struct Pair { int a, b; double bd, cr, dr; bool dup, same; };
+    std::vector<Pair> pairs;
+    std::ostringstream pcsv;
+    for (std::size_t i = 0; i < rows.size(); ++i)
+        for (std::size_t j = i + 1; j < rows.size(); ++j)
+        {
+            const auto& A = rows[i];
+            const auto& B = rows[j];
+            if (A.f.silent() || B.f.silent()) continue;
+            Pair pr{};
+            pr.a = A.note;
+            pr.b = B.note;
+            pr.bd = bandDist(A.f, B.f);
+            pr.cr = ratioHiLo(A.f.centroidHz, B.f.centroidHz);
+            pr.dr = ratioHiLo(A.f.decayS, B.f.decayS);
+            pr.dup = pr.bd < 3.0 && pr.cr <= 1.10 && pr.dr <= 1.20;
+            pr.same = A.cat == B.cat;
+            pairs.push_back(pr);
+            pcsv << k.cat << "," << k.name << "," << pr.a << "," << pr.b << "," << categoryName(A.cat) << "," << categoryName(B.cat)
+                 << "," << fmt("%.2f", pr.bd) << "," << fmt("%.3f", pr.cr) << "," << fmt("%.3f", pr.dr) << "," << (pr.dup ? 1 : 0)
+                 << "," << (pr.same ? 1 : 0) << "\n";
+        }
+    writePart("kit-pairs-" + std::to_string(100 + idx) + ".csv",
+              "kitCategory,kit,noteA,noteB,catA,catB,bandDistDb,centroidRatio,decayRatio,nearDuplicate,sameCategory", pcsv.str());
+    int dups = 0, dupsSame = 0;
+    for (const auto& pr : pairs) if (pr.dup) { ++dups; if (pr.same) ++dupsSame; }
+    probe("sameness:" + k.name, setupBase + ", all pairs of sounding enabled pads",
+          "near-duplicate pairs (same PadCategory) of pairs", std::to_string(dups) + " (" + std::to_string(dupsSame) + ") of " +
+              std::to_string(pairs.size()),
+          "near-dup = bandDist<3 dB & centroid ratio<=1.10 & decay ratio<=1.20; 0 expected", dups > 0 ? "suspicious" : "ok");
+    std::sort(pairs.begin(), pairs.end(), [](const Pair& x, const Pair& y) { return x.bd < y.bd; });
+    for (std::size_t i = 0; i < std::min<std::size_t>(10, pairs.size()); ++i)
+    {
+        const auto& pr = pairs[i];
+        probe("sameness:" + k.name + ":closest" + std::to_string(i + 1),
+              "notes " + std::to_string(pr.a) + " vs " + std::to_string(pr.b) + (pr.same ? " (same category)" : " (different category)"),
+              "bandDist dB / centroid ratio / decay ratio", fmt("%.2f", pr.bd) + " / " + fmt("%.3f", pr.cr) + " / " + fmt("%.3f", pr.dr),
+              "near-dup if <3 dB & <=1.10 & <=1.20", pr.dup ? "suspicious" : "ok");
+    }
+
+    // ---- B3: velocity response ----
+    const int n1 = static_cast<int>(kSR * 1.0);
+    for (int note : {36, 38, 42})
+    {
+        const auto& cfg = cfgs[static_cast<std::size_t>(note - 36)];
+        if (cfg.enabled < 0.5f) continue;
+        const auto lo = hitKit(rig, k, note, 40.0f / 127.0f, n1, -1);
+        const auto hi = hitKit(rig, k, note, 1.0f, n1, -1);
+        totalNonFinite += lo.nonFinite + hi.nonFinite;
+        const auto fl = analyse(lo.L, lo.R, false, lo.nonFinite);
+        const auto fh = analyse(hi.L, hi.R, false, hi.nonFinite);
+        const double dRms = fh.rms500Db - fl.rms500Db;
+        const double dPk = fh.peakDb - fl.peakDb;
+        const double cr = fl.centroidHz > 0.0 ? fh.centroidHz / fl.centroidHz : 0.0;
+        const bool flat = dRms < 6.0 && std::abs(cr - 1.0) < 0.05;
+        probe("velocity:" + k.name + ":note=" + std::to_string(note),
+              setupBase + ", vel 40/127 vs 127/127, " + exciterName(cfg.exciterType) + "/" + bodyName(cfg.bodyModel),
+              "rms500 diff dB / peak diff dB / centroid ratio hi/lo",
+              fmt("%.2f", dRms) + " / " + fmt("%.2f", dPk) + " / " + fmt("%.3f", cr),
+              "flag if rms diff <6 dB AND centroid change <5%", flat ? "suspicious" : "ok");
+    }
+    CHECK(totalNonFinite == 0);
+}
+
+// ------------------------------------------------------------------------------
+// B2: across kits (notes 36, 38, 42, 45, 49)
+// ------------------------------------------------------------------------------
+void runCrossKit()
+{
+    constexpr std::array<int, 5> notes{36, 38, 42, 45, 49};
+    std::vector<KitData> kits;
+    for (int i = 0; i < 20; ++i) kits.push_back(loadKit(i));
+    // feats[kit][note] ; present flag
+    std::vector<std::array<Feat, 5>> feats(20);
+    std::vector<std::array<bool, 5>> present(20);
+    const int n4 = static_cast<int>(kSR * 4.0);
+    int totalNonFinite = 0;
+    Rig rig;
+    for (int ki = 0; ki < 20; ++ki)
+    {
+        present[static_cast<std::size_t>(ki)].fill(false);
+        if (!kits[static_cast<std::size_t>(ki)].ok) continue;
+        loadInto(rig, kits[static_cast<std::size_t>(ki)]);
+        for (std::size_t ni = 0; ni < notes.size(); ++ni)
+        {
+            const auto& cfg = rig.proc->voicePoolForTest().padConfig(notes[ni] - 36);
+            if (cfg.enabled < 0.5f) continue;
+            const auto r = hitKit(rig, kits[static_cast<std::size_t>(ki)], notes[ni], kVel100, n4, -1);
+            totalNonFinite += r.nonFinite;
+            const auto f = analyse(r.L, r.R, false, r.nonFinite);
+            if (f.silent()) continue;
+            feats[static_cast<std::size_t>(ki)][ni] = f;
+            present[static_cast<std::size_t>(ki)][ni] = true;
+        }
+    }
+    for (std::size_t ni = 0; ni < notes.size(); ++ni)
+    {
+        double sumBd = 0.0;
+        int cnt = 0;
+        std::vector<double> lc, ld;
+        for (int a = 0; a < 20; ++a)
+        {
+            if (!present[static_cast<std::size_t>(a)][ni]) continue;
+            const auto& fa = feats[static_cast<std::size_t>(a)][ni];
+            if (fa.centroidHz > 0.0) lc.push_back(std::log2(fa.centroidHz));
+            if (fa.decayS > 0.0) ld.push_back(std::log(fa.decayS));
+            for (int b = a + 1; b < 20; ++b)
+            {
+                if (!present[static_cast<std::size_t>(b)][ni]) continue;
+                sumBd += bandDist(fa, feats[static_cast<std::size_t>(b)][ni]);
+                ++cnt;
+            }
+        }
+        auto stdev = [](const std::vector<double>& v) {
+            if (v.size() < 2) return 0.0;
+            double m = 0.0;
+            for (double x : v) m += x;
+            m /= static_cast<double>(v.size());
+            double s = 0.0;
+            for (double x : v) s += (x - m) * (x - m);
+            return std::sqrt(s / static_cast<double>(v.size() - 1));
+        };
+        const double meanBd = cnt > 0 ? sumBd / cnt : 0.0;
+        const double sdOct = stdev(lc);
+        const double sdDecay = std::exp(stdev(ld));
+        probe("crosskit:note=" + std::to_string(notes[ni]),
+              "same note in all 20 factory kits (" + std::to_string(lc.size()) + " sounding), Processor 48k, vel 100/127, 4 s",
+              "mean pairwise bandDist dB / centroid sd octaves / decay sd (x ratio)",
+              fmt("%.2f", meanBd) + " / " + fmt("%.2f", sdOct) + " / " + fmt("%.2f", sdDecay),
+              "mean bandDist >=3 dB (kits distinguishable)", meanBd < 3.0 ? "suspicious" : "ok");
+    }
+    for (int a = 0; a < 20; ++a)
+    {
+        double best = 1e9;
+        int bestK = -1;
+        for (int b = 0; b < 20; ++b)
+        {
+            if (a == b) continue;
+            double s = 0.0;
+            int c = 0;
+            for (std::size_t ni = 0; ni < notes.size(); ++ni)
+                if (present[static_cast<std::size_t>(a)][ni] && present[static_cast<std::size_t>(b)][ni])
+                {
+                    s += bandDist(feats[static_cast<std::size_t>(a)][ni], feats[static_cast<std::size_t>(b)][ni]);
+                    ++c;
+                }
+            if (c == 0) continue;
+            const double m = s / c;
+            if (m < best) { best = m; bestK = b; }
+        }
+        probe("crosskit:nearest:" + kits[static_cast<std::size_t>(a)].name,
+              "mean bandDist over notes 36/38/42/45/49 present in both kits",
+              "nearest kit / mean bandDist dB",
+              (bestK >= 0 ? kits[static_cast<std::size_t>(bestK)].name : std::string("-")) + " / " + fmt("%.2f", best),
+              "flag kit pairs under 3 dB", best < 3.0 ? "suspicious" : "ok");
+    }
+    CHECK(totalNonFinite == 0);
+}
+
+// ------------------------------------------------------------------------------
+// C. Parameter audibility
+// ------------------------------------------------------------------------------
+const char* kOffsetNames[66] = {
+    "exciterType", "bodyModel", "material", "size", "decay", "strikePosition", "level", "tsFilterType",
+    "tsFilterCutoff", "tsFilterResonance", "tsFilterEnvAmount", "tsDriveAmount", "tsFoldAmount", "tsPitchEnvStart",
+    "tsPitchEnvEnd", "tsPitchEnvTime", "tsPitchEnvCurve", "tsFilterEnvAttack", "tsFilterEnvDecay", "tsFilterEnvSustain",
+    "tsFilterEnvRelease", "modeStretch", "decaySkew", "modeInjectAmount", "nonlinearCoupling", "morphEnabled",
+    "morphStart", "morphEnd", "morphDuration", "morphCurve", "chokeGroup", "outputBus", "fmRatio", "feedbackAmount",
+    "noiseBurstDuration", "frictionPressure", "couplingAmount", "macroTightness", "macroBrightness", "macroBodySize",
+    "macroPunch", "macroComplexity", "noiseLayerMix", "noiseLayerCutoff", "noiseLayerResonance", "noiseLayerDecay",
+    "noiseLayerColor", "clickLayerMix", "clickLayerContactMs", "clickLayerBrightness", "bodyDampingB1", "bodyDampingB3",
+    "airLoading", "modeScatter", "couplingStrength", "secondaryEnabled", "secondarySize", "secondaryMaterial",
+    "tensionModAmt", "enabled", "tsPitchEnvKneeEnabled", "tsPitchEnvMidPitch", "tsPitchEnvMidFraction",
+    "tsPitchEnvCurve2", "pan", "wireCoupling"};
+
+struct Ctx
+{
+    std::vector<std::pair<int, double>> pad;            // per-pad offsets on the base pad
+    std::vector<std::pair<ParamID, double>> glob;       // global ids
+    int secondNote = -1;
+    int secondAt = 0;
+    int noteOffAt = -1;
+    bool useL = false;
+    bool aux = false;
+    std::string desc = "none";
+};
+
+int couplingPartner(int baseNote)
+{
+    switch (baseNote)
+    {
+    case 36: return 38;
+    case 38: return 45;
+    default: return 38;
+    }
+}
+
+// key: per-pad offset (0..65) or global ParamID (>= 100)
+Ctx contextFor(int key, int baseNote)
+{
+    using namespace Membrum;
+    Ctx c;
+    const double exNorm = 1.0 / 6.0;
+    switch (key)
+    {
+    case kPadTSFilterType:
+        c.pad = {{kPadTSFilterCutoff, 0.5}};
+        c.desc = "cutoff 0.5 (632 Hz)";
+        break;
+    case kPadTSFilterCutoff:
+        c.pad = {{kPadTSFilterType, 0.0}, {kPadTSFilterEnvAmount, 0.5}};
+        c.desc = "LP, env amount 0";
+        break;
+    case kPadTSFilterResonance:
+        c.pad = {{kPadTSFilterType, 0.0}, {kPadTSFilterCutoff, 0.5}};
+        c.desc = "LP cutoff 0.5";
+        break;
+    case kPadTSFilterEnvAmount:
+        c.pad = {{kPadTSFilterType, 0.0}, {kPadTSFilterCutoff, 0.4}, {kPadTSFilterEnvDecay, 0.5}, {kPadTSFilterEnvSustain, 0.0}};
+        c.desc = "LP cutoff 0.4, env decay 0.5";
+        break;
+    case kPadTSFilterEnvAttack:
+    case kPadTSFilterEnvDecay:
+        c.pad = {{kPadTSFilterType, 0.0}, {kPadTSFilterCutoff, 0.3}, {kPadTSFilterEnvAmount, 1.0}, {kPadTSFilterEnvSustain, 0.0}};
+        if (key == kPadTSFilterEnvAttack) c.pad.push_back({kPadTSFilterEnvDecay, 0.5});
+        c.desc = "LP cutoff 0.3, env amount +1";
+        break;
+    case kPadTSFilterEnvSustain:
+        c.pad = {{kPadTSFilterType, 0.0}, {kPadTSFilterCutoff, 0.3}, {kPadTSFilterEnvAmount, 1.0}, {kPadTSFilterEnvDecay, 0.4}};
+        c.noteOffAt = static_cast<int>(kSR * 0.5);
+        c.desc = "LP cutoff 0.3, env amount +1, env decay 0.4, note-off 500 ms";
+        break;
+    case kPadTSFilterEnvRelease:
+        c.pad = {{kPadTSFilterType, 0.0}, {kPadTSFilterCutoff, 0.3}, {kPadTSFilterEnvAmount, 1.0}, {kPadTSFilterEnvDecay, 0.4},
+                 {kPadTSFilterEnvSustain, 0.6}};
+        c.noteOffAt = static_cast<int>(kSR * 0.1);
+        c.desc = "LP cutoff 0.3, env amount +1, sustain 0.6, note-off 100 ms";
+        break;
+    case kPadTSPitchEnvStart:
+        c.pad = {{kPadTSPitchEnvTime, 0.3}, {kPadTSPitchEnvEnd, 0.3}};
+        c.desc = "pitch env time 150 ms, end 0.3";
+        break;
+    case kPadTSPitchEnvEnd:
+        c.pad = {{kPadTSPitchEnvTime, 0.3}, {kPadTSPitchEnvStart, 0.7}};
+        c.desc = "pitch env time 150 ms, start 0.7";
+        break;
+    case kPadTSPitchEnvTime:
+        c.pad = {{kPadTSPitchEnvStart, 0.7}, {kPadTSPitchEnvEnd, 0.3}};
+        c.desc = "pitch env start 0.7 end 0.3";
+        break;
+    case kPadTSPitchEnvCurve:
+        c.pad = {{kPadTSPitchEnvTime, 0.3}, {kPadTSPitchEnvStart, 0.7}, {kPadTSPitchEnvEnd, 0.2}};
+        c.desc = "pitch env 150 ms, start 0.7 end 0.2";
+        break;
+    case kPadMorphEnabled:
+        c.pad = {{kPadMorphStart, 1.0}, {kPadMorphEnd, 0.0}, {kPadMorphDuration, 0.3}};
+        c.desc = "morph 1->0 over 607 ms";
+        break;
+    case kPadMorphStart:
+        c.pad = {{kPadMorphEnabled, 1.0}, {kPadMorphEnd, 0.5}, {kPadMorphDuration, 0.3}};
+        c.desc = "morph on, end 0.5, 607 ms";
+        break;
+    case kPadMorphEnd:
+        c.pad = {{kPadMorphEnabled, 1.0}, {kPadMorphStart, 0.5}, {kPadMorphDuration, 0.3}};
+        c.desc = "morph on, start 0.5, 607 ms";
+        break;
+    case kPadMorphDuration:
+    case kPadMorphCurve:
+        c.pad = {{kPadMorphEnabled, 1.0}, {kPadMorphStart, 1.0}, {kPadMorphEnd, 0.0}};
+        if (key == kPadMorphCurve) c.pad.push_back({kPadMorphDuration, 0.3});
+        c.desc = "morph on, 1->0";
+        break;
+    case kPadChokeGroup:
+        c.secondNote = 46;
+        c.secondAt = static_cast<int>(kSR * 0.15);
+        // Pad 10 (note 46) group re-sent as a parameter: on a fresh instance the
+        // choke TABLE is not synced from DefaultKit (see the choke probe).
+        c.glob = {{static_cast<ParamID>(Membrum::padParamId(10, kPadChokeGroup)), 1.0 / 8.0}};
+        c.desc = "note 46 (choke group 1, re-sent as param) hit at 150 ms";
+        break;
+    case kPadOutputBus:
+        c.aux = true;
+        c.desc = "aux buses 1-15 active; features on main, routing checked per step";
+        break;
+    case kPadFMRatio:
+        c.pad = {{kPadExciterType, 4.0 * exNorm}};
+        c.desc = "FMImpulse exciter";
+        break;
+    case kPadFeedbackAmount:
+        c.pad = {{kPadExciterType, 5.0 * exNorm}};
+        c.desc = "Feedback exciter";
+        break;
+    case kPadNoiseBurstDuration:
+        c.pad = {{kPadExciterType, 2.0 * exNorm}};
+        c.desc = "NoiseBurst exciter";
+        break;
+    case kPadFrictionPressure:
+        c.pad = {{kPadExciterType, 3.0 * exNorm}};
+        c.noteOffAt = static_cast<int>(kSR * 0.5);
+        c.desc = "Friction exciter, note-off 500 ms";
+        break;
+    case kPadCouplingAmount:
+        c.glob = {{Membrum::kGlobalCouplingId, 1.0}, {Membrum::kSnareBuzzId, 1.0}, {Membrum::kTomResonanceId, 1.0}};
+        c.secondNote = couplingPartner(baseNote);
+        c.desc = "global coupling 1, snare buzz 1, tom res 1, note " + std::to_string(c.secondNote) + " hit together";
+        break;
+    case kPadNoiseLayerCutoff:
+    case kPadNoiseLayerResonance:
+    case kPadNoiseLayerDecay:
+    case kPadNoiseLayerColor:
+    case kPadWireCoupling:
+        c.pad = {{kPadNoiseLayerMix, 0.8}};
+        c.desc = "noise mix 0.8";
+        break;
+    case kPadClickLayerContactMs:
+    case kPadClickLayerBrightness:
+        c.pad = {{kPadClickLayerMix, 0.8}};
+        c.desc = "click mix 0.8";
+        break;
+    case kPadCouplingStrength:
+        c.pad = {{kPadSecondaryEnabled, 1.0}};
+        c.desc = "secondary shell on";
+        break;
+    case kPadSecondaryEnabled:
+        c.pad = {{kPadCouplingStrength, 0.5}};
+        c.desc = "coupling strength 0.5";
+        break;
+    case kPadSecondarySize:
+    case kPadSecondaryMaterial:
+        c.pad = {{kPadSecondaryEnabled, 1.0}, {kPadCouplingStrength, 0.5}};
+        c.desc = "secondary on, strength 0.5";
+        break;
+    case kPadTensionModAmt:
+        c.pad = {{kPadBodyModel, 0.0}};
+        c.desc = "Membrane body forced";
+        break;
+    case kPadTSPitchEnvKneeEnabled:
+        c.pad = {{kPadTSPitchEnvTime, 0.4}, {kPadTSPitchEnvStart, 0.7}, {kPadTSPitchEnvEnd, 0.2}, {kPadTSPitchEnvMidPitch, 0.9}};
+        c.desc = "pitch env 200 ms 0.7->0.2, mid pitch 0.9";
+        break;
+    case kPadTSPitchEnvMidPitch:
+        c.pad = {{kPadTSPitchEnvKneeEnabled, 1.0}, {kPadTSPitchEnvTime, 0.4}, {kPadTSPitchEnvStart, 0.7}, {kPadTSPitchEnvEnd, 0.2}};
+        c.desc = "knee on, pitch env 200 ms 0.7->0.2";
+        break;
+    case kPadTSPitchEnvMidFraction:
+    case kPadTSPitchEnvCurve2:
+        c.pad = {{kPadTSPitchEnvKneeEnabled, 1.0}, {kPadTSPitchEnvTime, 0.4}, {kPadTSPitchEnvStart, 0.7},
+                 {kPadTSPitchEnvEnd, 0.2}, {kPadTSPitchEnvMidPitch, 0.9}};
+        c.desc = "knee on, pitch env 200 ms 0.7->0.9->0.2";
+        break;
+    case kPadPan:
+        c.useL = true;
+        c.desc = "features on L channel";
+        break;
+    case static_cast<int>(Membrum::kGlobalCouplingId):
+        c.glob = {{Membrum::kSnareBuzzId, 1.0}, {Membrum::kTomResonanceId, 1.0}};
+        c.secondNote = couplingPartner(baseNote);
+        c.desc = "snare buzz 1, tom res 1, note " + std::to_string(c.secondNote) + " hit together";
+        break;
+    case static_cast<int>(Membrum::kSnareBuzzId):
+        c.glob = {{Membrum::kGlobalCouplingId, 1.0}, {Membrum::kTomResonanceId, 0.5}};
+        c.secondNote = couplingPartner(baseNote);
+        c.desc = "global coupling 1, tom res 0.5, note " + std::to_string(c.secondNote) + " hit together";
+        break;
+    case static_cast<int>(Membrum::kTomResonanceId):
+        c.glob = {{Membrum::kGlobalCouplingId, 1.0}, {Membrum::kSnareBuzzId, 0.5}};
+        c.secondNote = couplingPartner(baseNote);
+        c.desc = "global coupling 1, snare buzz 0.5, note " + std::to_string(c.secondNote) + " hit together";
+        break;
+    case static_cast<int>(Membrum::kCouplingDelayId):
+        c.glob = {{Membrum::kGlobalCouplingId, 1.0}, {Membrum::kSnareBuzzId, 1.0}, {Membrum::kTomResonanceId, 1.0}};
+        c.secondNote = couplingPartner(baseNote);
+        c.desc = "global coupling 1, buzz 1, tom res 1, note " + std::to_string(c.secondNote) + " hit together";
+        break;
+    default:
+        break;
+    }
+    return c;
+}
+
+std::vector<double> stepsFor(int key, bool& discrete)
+{
+    using namespace Membrum;
+    discrete = true;
+    std::vector<double> s;
+    auto lin = [&](int n) { for (int i = 0; i < n; ++i) s.push_back(static_cast<double>(i) / (n - 1)); };
+    switch (key)
+    {
+    case kPadExciterType: lin(7); break;
+    case kPadBodyModel: lin(6); break;
+    case kPadTSFilterType: lin(3); break;
+    case kPadMorphEnabled:
+    case kPadMorphCurve:
+    case kPadSecondaryEnabled:
+    case kPadEnabled:
+    case kPadTSPitchEnvKneeEnabled: lin(2); break;
+    case kPadChokeGroup: lin(9); break;
+    case kPadOutputBus: lin(16); break;
+    default:
+        discrete = false;
+        s = {0.0, 0.25, 0.5, 0.75, 1.0};
+        break;
+    }
+    return s;
+}
+
+std::string keyName(int key)
+{
+    if (key < 100) return "offset=" + std::to_string(key) + ":" + kOffsetNames[key];
+    switch (key)
+    {
+    case Membrum::kGlobalCouplingId: return "global=270:globalCoupling";
+    case Membrum::kSnareBuzzId: return "global=271:snareBuzz";
+    case Membrum::kTomResonanceId: return "global=272:tomResonance";
+    case Membrum::kCouplingDelayId: return "global=273:couplingDelay";
+    case Membrum::kMasterGainId: return "global=320:masterGain";
+    default: return "global=" + std::to_string(key);
+    }
+}
+
+Render renderParam(int key, int baseNote, const Ctx& c, double value, int samples, int changeAt = -1, bool earlyStop = true)
+{
+    Rig rig(c.aux);
+    const int pad = baseNote - 36;
+    std::vector<Ev> evs;
+    for (const auto& pv : c.pad) evs.push_back(mkParam(0, static_cast<ParamID>(Membrum::padParamId(pad, pv.first)), pv.second));
+    for (const auto& gv : c.glob) evs.push_back(mkParam(0, gv.first, gv.second));
+    const ParamID pid = key < 100 ? static_cast<ParamID>(Membrum::padParamId(pad, key)) : static_cast<ParamID>(key);
+    if (changeAt < 0)
+        evs.push_back(mkParam(0, pid, value));
+    evs.push_back(mkOn(0, baseNote, kVel100));
+    if (c.secondNote >= 0) evs.push_back(mkOn(c.secondAt, c.secondNote, kVel100));
+    if (c.noteOffAt >= 0) evs.push_back(mkOff(c.noteOffAt, baseNote));
+    if (changeAt >= 0) evs.push_back(mkParam(changeAt, pid, value));
+    return render(rig, evs, samples, earlyStop);
+}
+
+bool identical(const Render& a, const Render& b, std::size_t from = 0)
+{
+    if (a.L.size() != b.L.size()) return false;
+    for (std::size_t i = from; i < a.L.size(); ++i)
+        if (a.L[i] != b.L[i] || a.R[i] != b.R[i]) return false;
+    return true;
+}
+
+void runParam(int key)
+{
+    bool discrete = false;
+    const auto steps = stepsFor(key, discrete);
+    const int n3 = static_cast<int>(kSR * 3.0);
+    const std::array<int, 3> bases{36, 38, 42};
+    int totalNonFinite = 0;
+    bool allIdentical = true;
+    bool anyJump = false;
+    double worstJump = 0.0;
+    int routingOk = 0, routingTotal = 0;
+    std::ostringstream csv;
+    std::string ctxDesc;
+
+    struct PadRes { double lvl, cen, dec, bd, jump; bool ident; };
+    std::vector<PadRes> res;
+    for (int base : bases)
+    {
+        const Ctx c = contextFor(key, base);
+        ctxDesc = c.desc;
+        std::vector<Render> rs;
+        std::vector<Feat> fs;
+        for (double v : steps)
+        {
+            rs.push_back(renderParam(key, base, c, v, n3));
+            const auto& r = rs.back();
+            totalNonFinite += r.nonFinite;
+            fs.push_back(analyse(r.L, r.R, c.useL, r.nonFinite));
+            if (key == Membrum::kPadOutputBus)
+            {
+                const int busIdx = static_cast<int>(std::lround(v * 15.0));
+                bool ok = true;
+                for (int b = 1; b < kBuses; ++b)
+                {
+                    const bool has = r.auxEnergy[static_cast<std::size_t>(b)] > 1e-12;
+                    if (has != (b == busIdx)) ok = false;
+                }
+                ++routingTotal;
+                if (ok) ++routingOk;
+            }
+        }
+        bool ident = true;
+        for (std::size_t i = 1; i < rs.size(); ++i)
+            if (!identical(rs[0], rs[i])) { ident = false; break; }
+        double lmin = 1e9, lmax = -1e9, cmin = 1e12, cmax = 0.0, dmin = 1e9, dmax = 0.0, bd = 0.0, jump = 0.0;
+        for (std::size_t i = 0; i < fs.size(); ++i)
+        {
+            const double l = std::max(fs[i].rms500Db, -100.0);
+            lmin = std::min(lmin, l);
+            lmax = std::max(lmax, l);
+            if (!fs[i].silent())
+            {
+                if (fs[i].centroidHz > 0.0) { cmin = std::min(cmin, fs[i].centroidHz); cmax = std::max(cmax, fs[i].centroidHz); }
+                if (fs[i].decayS > 0.0) { dmin = std::min(dmin, fs[i].decayS); dmax = std::max(dmax, fs[i].decayS); }
+                for (std::size_t j = i + 1; j < fs.size(); ++j)
+                    if (!fs[j].silent()) bd = std::max(bd, bandDist(fs[i], fs[j]));
+            }
+            if (!discrete && i > 0 && fs[i].rms500Db > -100.0 && fs[i - 1].rms500Db > -100.0)
+                jump = std::max(jump, std::abs(fs[i].rms500Db - fs[i - 1].rms500Db));
+        }
+        const double lvl = lmax - lmin;
+        const double cen = cmax > 0.0 && cmin < 1e11 ? (cmax / cmin - 1.0) * 100.0 : 0.0;
+        const double dec = dmax > 0.0 && dmin < 1e8 ? (dmax / dmin - 1.0) * 100.0 : 0.0;
+        if (!ident) allIdentical = false;
+        if (jump > 12.0) anyJump = true;
+        worstJump = std::max(worstJump, jump);
+        res.push_back({lvl, cen, dec, bd, jump, ident});
+
+        csv << keyName(key) << ",\"" << c.desc << "\"," << base << "," << steps.size() << ",\"";
+        for (std::size_t i = 0; i < fs.size(); ++i) csv << (i ? " " : "") << fmt("%.1f", fs[i].rms500Db);
+        csv << "\",\"";
+        for (std::size_t i = 0; i < fs.size(); ++i) csv << (i ? " " : "") << fmt("%.0f", fs[i].centroidHz);
+        csv << "\",\"";
+        for (std::size_t i = 0; i < fs.size(); ++i) csv << (i ? " " : "") << (fs[i].decayOver ? std::string(">3") : fmt("%.2f", fs[i].decayS));
+        csv << "\"," << fmt("%.2f", lvl) << "," << fmt("%.1f", cen) << "," << fmt("%.1f", dec) << "," << fmt("%.2f", bd) << ","
+            << (ident ? 1 : 0) << "," << fmt("%.2f", jump);
+        csv << "@@LIVE@@\n";
+    }
+    bool allWeak = !allIdentical;
+    for (const auto& r : res) if (!(r.lvl < 1.0 && r.cen < 5.0 && r.dec < 5.0 && r.bd < 1.0)) allWeak = false;
+
+    // Live-change: long tom (note 41) ringing, parameter moved at 299 ms, compared with no move.
+    const int liveN = static_cast<int>(kSR * 0.8);
+    const int changeAt = 56 * kBS;
+    const Ctx lc = contextFor(key, 41);
+    const Render ref = renderParam(key, 41, lc, 0.0, liveN, changeAt + liveN, false);
+    bool live = false;
+    for (double v : {0.0, 1.0})
+    {
+        const Render r = renderParam(key, 41, lc, v, liveN, changeAt, false);
+        totalNonFinite += r.nonFinite + ref.nonFinite;
+        if (!identical(ref, r, static_cast<std::size_t>(changeAt))) live = true;
+    }
+
+    const char* verdict = "ok";
+    std::string why;
+    if (allIdentical)
+    {
+        verdict = "bad";
+        why = "bit-identical on all 3 base pads";
+    }
+    else if (allWeak)
+    {
+        verdict = "suspicious";
+        why = "inaudibly weak on all 3 base pads";
+    }
+    else if (anyJump)
+    {
+        verdict = "suspicious";
+        why = "adjacent-step jump " + fmt("%.1f", worstJump) + " dB";
+    }
+    if (key == Membrum::kPadOutputBus)
+    {
+        why = "main unchanged by design; aux routing correct " + std::to_string(routingOk) + "/" + std::to_string(routingTotal);
+        verdict = routingOk == routingTotal ? "ok" : "bad";
+    }
+
+    std::string body = csv.str();
+    const std::string liveStr = std::string(",") + (live ? "live" : "next-note") + "," + verdict + ",\"" + why + "\"";
+    for (std::size_t p = body.find("@@LIVE@@"); p != std::string::npos; p = body.find("@@LIVE@@"))
+        body.replace(p, 8, liveStr);
+    writePart("param-" + std::to_string(1000 + key) + ".csv",
+              "param,context,baseNote,steps,rms500DbPerStep,centroidHzPerStep,decaySPerStep,maxLevelChangeDb,maxCentroidChangePct,"
+              "maxDecayChangePct,maxBandDistDb,bitIdentical,maxAdjacentJumpDb,liveWhileRinging,verdict,why",
+              body);
+
+    std::string val;
+    for (std::size_t i = 0; i < res.size(); ++i)
+    {
+        const auto& r = res[i];
+        val += (i ? " ; " : "") + std::to_string(bases[i]) + ": " + fmt("%.1f", r.lvl) + "/" + fmt("%.0f", r.cen) + "/" +
+               fmt("%.0f", r.dec) + "/" + fmt("%.1f", r.bd) + (r.ident ? "/IDENT" : "") + (r.jump > 12.0 ? "/JUMP" + fmt("%.1f", r.jump) : "");
+    }
+    val += " ; live=" + std::string(live ? "yes" : "no(next note)");
+    probe("param:" + keyName(key),
+          "default kit, Processor 48k bs256, vel 100/127, 3 s, " + std::to_string(steps.size()) + " steps, base 36/38/42, ctx: " + ctxDesc +
+              (why.empty() ? std::string() : " [" + why + "]"),
+          "per base: level dB / centroid % / decay % / bandDist dB", val,
+          "bad = bit-identical on all 3; suspicious = all <1 dB/5%/5%/1 dB on all 3, or continuous adjacent jump >12 dB", verdict);
+    CHECK(totalNonFinite == 0);
+}
+
+} // namespace
+
+#define AQ_KIT(N) TEST_CASE("audit quality: kit " #N, "[.][audit-probe]") { runKit(N); }
+AQ_KIT(0) AQ_KIT(1) AQ_KIT(2) AQ_KIT(3) AQ_KIT(4) AQ_KIT(5) AQ_KIT(6) AQ_KIT(7) AQ_KIT(8) AQ_KIT(9)
+AQ_KIT(10) AQ_KIT(11) AQ_KIT(12) AQ_KIT(13) AQ_KIT(14) AQ_KIT(15) AQ_KIT(16) AQ_KIT(17) AQ_KIT(18) AQ_KIT(19)
+
+TEST_CASE("audit quality: cross-kit sameness", "[.][audit-probe]") { runCrossKit(); }
+
+// Verification for the chokeGroup sweep result: is the hat choke live on a fresh
+// instance (DefaultKit::apply in initialize, no setState) vs after a state round trip?
+TEST_CASE("audit quality: default-kit choke table", "[.][audit-probe]")
+{
+    auto measure = [](bool roundTrip, std::string& tableStr) {
+        Rig rig;
+        if (roundTrip)
+        {
+            MemoryStream ms;
+            rig.proc->getState(&ms);
+            ms.seek(0, IBStream::kIBSeekSet, nullptr);
+            rig.proc->setActive(false);
+            rig.proc->setState(&ms);
+            rig.proc->setActive(true);
+        }
+        const auto t = rig.proc->voicePoolForTest().getChokeGroupAssignments();
+        tableStr = "cfg(42,44,46)=" + std::to_string(rig.proc->voicePoolForTest().padConfig(6).chokeGroup) + "," +
+                   std::to_string(rig.proc->voicePoolForTest().padConfig(8).chokeGroup) + "," +
+                   std::to_string(rig.proc->voicePoolForTest().padConfig(10).chokeGroup) + " table(42,44,46)=" +
+                   std::to_string(t[6]) + "," + std::to_string(t[8]) + "," + std::to_string(t[10]);
+        // Open hat 46 at 0, closed hat 42 at 150 ms; energy 200..1000 ms of the result.
+        const int at = 28 * kBS;
+        const auto r = render(rig, {mkOn(0, 46, kVel100), mkOn(at, 42, kVel100)}, static_cast<int>(kSR * 1.0), false);
+        double e = 0.0;
+        for (std::size_t i = static_cast<std::size_t>(kSR * 0.2); i < r.L.size(); ++i) e += static_cast<double>(r.L[i]) * r.L[i];
+        return std::make_pair(toDb(std::sqrt(e / (kSR * 0.8))), r.nonFinite);
+    };
+    std::string fresh, synced;
+    const auto a = measure(false, fresh);
+    const auto b = measure(true, synced);
+    probe("choke:default-kit-fresh-instance", "fresh Processor (initialize -> DefaultKit::apply, no setState), 46 at 0 then 42 at 150 ms",
+          "choke config / table and RMS 200-1000 ms dBFS", fresh + " / " + fmt("%.2f", a.first), "open hat choked (table = 1,1,1)",
+          (a.first - b.first) > 3.0 ? "bad" : "ok");
+    probe("choke:default-kit-after-state-roundtrip", "same Processor after getState -> setState", "choke config / table and RMS 200-1000 ms dBFS",
+          synced + " / " + fmt("%.2f", b.first), "open hat choked", "ok");
+    CHECK(a.second + b.second == 0);
+}
+
+#define AQ_PARAM(N) TEST_CASE("audit quality: param " #N, "[.][audit-probe]") { runParam(N); }
+AQ_PARAM(0) AQ_PARAM(1) AQ_PARAM(2) AQ_PARAM(3) AQ_PARAM(4) AQ_PARAM(5) AQ_PARAM(6) AQ_PARAM(7) AQ_PARAM(8) AQ_PARAM(9)
+AQ_PARAM(10) AQ_PARAM(11) AQ_PARAM(12) AQ_PARAM(13) AQ_PARAM(14) AQ_PARAM(15) AQ_PARAM(16) AQ_PARAM(17) AQ_PARAM(18) AQ_PARAM(19)
+AQ_PARAM(20) AQ_PARAM(21) AQ_PARAM(22) AQ_PARAM(23) AQ_PARAM(24) AQ_PARAM(25) AQ_PARAM(26) AQ_PARAM(27) AQ_PARAM(28) AQ_PARAM(29)
+AQ_PARAM(30) AQ_PARAM(31) AQ_PARAM(32) AQ_PARAM(33) AQ_PARAM(34) AQ_PARAM(35) AQ_PARAM(36) AQ_PARAM(37) AQ_PARAM(38) AQ_PARAM(39)
+AQ_PARAM(40) AQ_PARAM(41) AQ_PARAM(42) AQ_PARAM(43) AQ_PARAM(44) AQ_PARAM(45) AQ_PARAM(46) AQ_PARAM(47) AQ_PARAM(48) AQ_PARAM(49)
+AQ_PARAM(50) AQ_PARAM(51) AQ_PARAM(52) AQ_PARAM(53) AQ_PARAM(54) AQ_PARAM(55) AQ_PARAM(56) AQ_PARAM(57) AQ_PARAM(58) AQ_PARAM(59)
+AQ_PARAM(60) AQ_PARAM(61) AQ_PARAM(62) AQ_PARAM(63) AQ_PARAM(64) AQ_PARAM(65)
+AQ_PARAM(270) AQ_PARAM(271) AQ_PARAM(272) AQ_PARAM(273) AQ_PARAM(320)

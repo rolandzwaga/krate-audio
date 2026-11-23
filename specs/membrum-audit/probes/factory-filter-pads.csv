@@ -1,0 +1,86 @@
+cat,kit,note,exciter,body,type,cutoffHz,envAmt,envAttackMs,envDecayMs,envSustain
+Acoustic,Acoustic Studio Kit,38,Imp,Mem,LP,11509,0.44,0.0,66,0.00
+Acoustic,Acoustic Studio Kit,46,NBu,NBo,HP,800,0.00,0.0,2,0.00
+Acoustic,Jazz Brushes,38,NBu,Mem,HP,112,-0.40,0.1,16,0.30
+Acoustic,Jazz Brushes,39,NBu,Mem,LP,893,0.00,0.0,2,0.00
+Acoustic,Jazz Brushes,40,NBu,Mem,LP,4376,0.30,0.0,114,0.00
+Acoustic,Orchestral,38,NBu,Mem,LP,11509,0.10,0.0,66,0.00
+Acoustic,Orchestral,42,NBu,NBo,HP,1449,0.00,0.0,2,0.00
+Acoustic,Orchestral,44,NBu,NBo,HP,1449,0.00,0.0,2,0.00
+Acoustic,Orchestral,52,Mal,Bel,HP,778,0.00,0.0,2,0.00
+Acoustic,Orchestral,53,Mal,Bel,HP,778,0.00,0.0,2,0.00
+Acoustic,Orchestral,55,NBu,NBo,HP,1449,0.00,0.0,2,0.00
+Acoustic,Rock Big Room,38,Imp,Mem,LP,7096,0.56,0.0,114,0.00
+Acoustic,Vintage Wood,38,Imp,Mem,LP,5024,0.44,0.0,114,0.00
+Electronic,808 Electronic Kit,38,NBu,Mem,LP,5024,0.20,0.0,114,0.00
+Electronic,808 Electronic Kit,40,NBu,Mem,LP,5024,0.20,0.0,114,0.00
+Electronic,808 Electronic Kit,46,NBu,NBo,HP,800,0.00,0.0,2,0.00
+Electronic,909 Drum Machine,38,NBu,Mem,LP,5768,0.20,0.0,114,0.00
+Electronic,LinnDrum CR-78,38,NBu,Mem,LP,5768,0.36,0.0,114,0.00
+Electronic,Modular West Coast,38,FM,Plt,LP,7096,0.40,0.0,114,0.00
+Electronic,Modular West Coast,54,Fb,Plt,BP,893,0.30,45.6,432,0.55
+Electronic,Trap Modern,38,NBu,Mem,LP,11509,0.56,0.0,114,0.00
+Percussive,Cajon and Frames,40,NBu,Plt,LP,8975,0.00,0.0,2,0.00
+Percussive,Cajon and Frames,50,Imp,Mem,LP,5768,0.00,0.0,2,0.00
+Unnatural,Chaos Engine,37,Fb,Shl,BP,1262,-0.10,0.0,2,0.00
+Unnatural,Chaos Engine,39,Fb,Plt,BP,632,0.10,0.1,16,0.00
+Unnatural,Chaos Engine,48,Fb,Plt,BP,893,0.30,45.6,432,0.55
+Unnatural,Chaos Engine,49,Fb,Shl,BP,893,0.30,45.6,432,0.55
+Unnatural,Chaos Engine,51,Fri,Str,LP,551,0.24,4.0,128,0.55
+Unnatural,Chaos Engine,52,FM,Bel,HP,105,-0.10,0.0,2,0.00
+Unnatural,Drone and Sustain,36,Fri,Str,LP,448,0.24,4.0,128,0.55
+Unnatural,Drone and Sustain,37,Fri,Mem,LP,551,0.10,4.0,128,0.55
+Unnatural,Drone and Sustain,38,Fri,Str,LP,514,0.24,4.0,128,0.55
+Unnatural,Drone and Sustain,39,Fri,Mem,LP,551,0.10,4.0,128,0.55
+Unnatural,Drone and Sustain,40,Fri,Str,LP,632,0.24,4.0,128,0.55
+Unnatural,Drone and Sustain,41,Fri,Mem,LP,551,0.10,4.0,128,0.55
+Unnatural,Drone and Sustain,42,Fri,Str,LP,726,0.24,4.0,128,0.55
+Unnatural,Drone and Sustain,43,Fri,Mem,LP,551,0.10,4.0,128,0.55
+Unnatural,Drone and Sustain,44,Fb,Plt,BP,893,0.30,45.6,432,0.55
+Unnatural,Drone and Sustain,45,Fb,Shl,BP,957,0.30,45.6,432,0.55
+Unnatural,Drone and Sustain,46,Fb,Plt,BP,1026,0.30,45.6,432,0.55
+Unnatural,Drone and Sustain,47,Fb,Shl,BP,957,0.30,45.6,432,0.55
+Unnatural,Drone and Sustain,48,Fb,Plt,BP,1026,0.30,45.6,432,0.55
+Unnatural,Drone and Sustain,49,Fb,Shl,BP,1099,0.30,45.6,432,0.55
+Unnatural,Drone and Sustain,56,Mal,Bel,HP,105,-0.10,0.0,2,0.00
+Unnatural,Drone and Sustain,57,FM,Str,HP,105,-0.10,0.0,2,0.00
+Unnatural,Drone and Sustain,58,Mal,Bel,HP,159,-0.10,0.0,2,0.00
+Unnatural,Drone and Sustain,59,Fri,Str,HP,121,-0.10,0.0,2,0.00
+Unnatural,Experimental FX Kit,38,Fb,Shl,LP,5024,0.40,0.0,114,0.00
+Unnatural,Experimental FX Kit,39,Fri,Str,LP,448,0.20,4.0,128,0.55
+Unnatural,Experimental FX Kit,40,FM,Plt,LP,5768,0.20,0.0,114,0.00
+Unnatural,Experimental FX Kit,51,Fb,Plt,LP,317,0.00,0.0,2,0.00
+Unnatural,Experimental FX Kit,52,FM,Shl,HP,551,0.00,0.0,2,0.00
+Unnatural,Experimental FX Kit,53,Fri,Str,BP,957,0.00,0.0,2,0.00
+Unnatural,Experimental FX Kit,54,Fb,Bel,LP,1664,0.00,0.0,2,0.00
+Unnatural,Experimental FX Kit,55,FM,Mem,HP,2891,0.00,0.0,2,0.00
+Unnatural,Experimental FX Kit,56,Fri,NBo,BP,317,0.00,0.0,2,0.00
+Unnatural,Experimental FX Kit,57,Fb,Plt,LP,551,0.00,0.0,2,0.00
+Unnatural,Experimental FX Kit,58,FM,Shl,HP,957,0.00,0.0,2,0.00
+Unnatural,Experimental FX Kit,59,Fri,Str,BP,1664,0.00,0.0,2,0.00
+Unnatural,Experimental FX Kit,60,Fb,Bel,LP,2891,0.00,0.0,2,0.00
+Unnatural,Experimental FX Kit,61,Fb,Plt,BP,893,0.30,45.6,432,0.55
+Unnatural,Experimental FX Kit,62,FM,Mem,HP,317,0.00,0.0,2,0.00
+Unnatural,Experimental FX Kit,63,Fb,Shl,BP,893,0.30,45.6,432,0.55
+Unnatural,Experimental FX Kit,64,Fri,NBo,BP,551,0.00,0.0,2,0.00
+Unnatural,Experimental FX Kit,65,Mal,Bel,HP,105,-0.10,0.0,2,0.00
+Unnatural,Ghost Bones,36,Mal,Bel,HP,60,-0.10,0.0,54,0.00
+Unnatural,Ghost Bones,37,Fri,Str,HP,80,0.20,0.0,182,0.00
+Unnatural,Ghost Bones,38,Imp,Bel,HP,105,-0.10,0.0,54,0.00
+Unnatural,Ghost Bones,39,FM,Str,HP,138,-0.10,0.0,54,0.00
+Unnatural,Ghost Bones,40,FM,Bel,HP,159,-0.10,0.0,54,0.00
+Unnatural,Ghost Bones,41,Mal,Str,HP,209,0.00,0.0,54,0.00
+Unnatural,Ghost Bones,42,Mal,Bel,HP,240,-0.10,0.0,54,0.00
+Unnatural,Ghost Bones,43,Imp,Str,HP,317,-0.10,0.0,54,0.00
+Unnatural,Ghost Bones,44,FM,Bel,HP,364,-0.10,0.0,54,0.00
+Unnatural,Ghost Bones,45,FM,Bel,HP,418,-0.10,0.0,54,0.00
+Unnatural,Ghost Bones,46,Mal,Bel,HP,480,-0.10,0.0,54,0.00
+Unnatural,Ghost Bones,47,Fri,Str,HP,317,0.20,0.0,182,0.00
+Unnatural,Ghost Bones,48,Imp,Bel,HP,551,-0.10,0.0,54,0.00
+Unnatural,Ghost Bones,49,Imp,Str,HP,418,0.00,0.0,54,0.00
+Unnatural,Ghost Bones,50,Mal,Bel,HP,551,-0.10,0.0,54,0.00
+Unnatural,Ghost Bones,51,Mal,Str,HP,480,0.00,0.0,54,0.00
+Unnatural,Glass Bell Garden,58,Mal,Bel,HP,91,-0.10,0.0,2,0.00
+Unnatural,Glass Bell Garden,59,FM,Bel,HP,105,-0.10,0.0,2,0.00
+Unnatural,Glass Bell Garden,60,Mal,Bel,HP,159,-0.10,0.0,2,0.00
+Unnatural,Glass Bell Garden,61,Fri,Bel,HP,121,-0.10,0.0,2,0.00

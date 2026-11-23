@@ -1,0 +1,397 @@
+// ==============================================================================
+// audit_filter_glide_probe.cpp -- TEMPORARY membrum-audit probe (hidden).
+//
+// Question: does the tone-shaper SVF reach its configured cutoff / type on a
+// drum hit, or does the per-voice-slot coefficient smoother (svf.h one-pole on
+// g = tan(pi fc / fs), 5 ms tau, never snapped at note-on) dominate the attack?
+//
+// Harness: real Membrum::Processor, 16 stereo output buses wired (multi-bus
+// pool path), block 256, max polyphony 4, note-off 100 ms after each hit, hits
+// 1 s apart so every voice has retired and its allocator slot is Idle again.
+//
+// Per hit (mono = (L+R)/2, from the note-on sample):
+//   rms50 / rms500  dBFS over the first 50 / 500 ms
+//   cen50           magnitude-weighted centroid of the first 50 ms (Hann over
+//                   50 ms, zero-padded to 4096 at 48 kHz / 4096 at 44.1 kHz)
+//   hi50            energy above 2 kHz in the first 50 ms (dB, power sum)
+//   lo50            energy below 400 Hz in the first 50 ms (dB, power sum)
+//   hi50_450        energy above 2 kHz in 50..500 ms (dB)
+// The slot each hit landed on is read from VoicePool::voiceMeta.
+// ==============================================================================
+#include <catch2/catch_test_macros.hpp>
+
+#include "processor/processor.h"
+#include "plugin_ids.h"
+#include "dsp/pad_config.h"
+
+#include "vst_event_list.h"
+#include "vst_param_changes.h"
+
+#include <krate/dsp/core/db_utils.h>
+#include <krate/dsp/primitives/fft.h>
+
+#include "pluginterfaces/vst/ivstaudioprocessor.h"
+#include "pluginterfaces/vst/ivstevents.h"
+
+#include <algorithm>
+#include <array>
+#include <cmath>
+#include <cstdio>
+#include <filesystem>
+#include <fstream>
+#include <memory>
+#include <sstream>
+#include <string>
+#include <vector>
+
+using namespace Steinberg;
+using namespace Steinberg::Vst;
+
+namespace {
+
+constexpr int kBS = 256;
+constexpr int kBuses = Membrum::kMaxOutputBuses;
+constexpr float kVel = 100.0f / 127.0f;
+
+struct Rig
+{
+    std::unique_ptr<Membrum::Processor> proc;
+    std::vector<float> buf;
+    std::array<float*, static_cast<std::size_t>(kBuses * 2)> chans{};
+    std::array<AudioBusBuffers, static_cast<std::size_t>(kBuses)> bus{};
+    ProcessData data{};
+    Krate::Test::EventList events;
+    Krate::Test::ParameterChanges params;
+    double sr;
+
+    explicit Rig(double sampleRate) : sr(sampleRate)
+    {
+        proc = std::make_unique<Membrum::Processor>();
+        proc->initialize(nullptr);
+        ProcessSetup s{};
+        s.processMode = kRealtime;
+        s.symbolicSampleSize = kSample32;
+        s.maxSamplesPerBlock = kBS;
+        s.sampleRate = sr;
+        proc->setupProcessing(s);
+        proc->setActive(true);
+        buf.assign(static_cast<std::size_t>(kBuses * 2 * kBS), 0.0f);
+        for (int c = 0; c < kBuses * 2; ++c)
+            chans[static_cast<std::size_t>(c)] = buf.data() + static_cast<std::size_t>(c * kBS);
+        for (int b = 0; b < kBuses; ++b)
+        {
+            auto& bb = bus[static_cast<std::size_t>(b)];
+            bb.numChannels = 2;
+            bb.channelBuffers32 = &chans[static_cast<std::size_t>(b * 2)];
+            bb.silenceFlags = 0;
+        }
+        data.processMode = kRealtime;
+        data.symbolicSampleSize = kSample32;
+        data.numSamples = kBS;
+        data.numOutputs = kBuses;
+        data.outputs = bus.data();
+        data.numInputs = 0;
+        data.inputs = nullptr;
+        data.inputParameterChanges = &params;
+        data.outputParameterChanges = nullptr;
+        data.inputEvents = &events;
+        data.outputEvents = nullptr;
+        data.processContext = nullptr;
+    }
+    ~Rig()
+    {
+        proc->setActive(false);
+        proc->terminate();
+    }
+    Rig(const Rig&) = delete;
+    Rig& operator=(const Rig&) = delete;
+};
+
+struct Ev
+{
+    int at = 0;
+    int kind = 0;  // 0 on, 1 off, 2 param
+    int pitch = 0;
+    ParamID id = 0;
+    double value = 0.0;
+};
+
+Ev on(int at, int p) { Ev e; e.at = at; e.kind = 0; e.pitch = p; return e; }
+Ev off(int at, int p) { Ev e; e.at = at; e.kind = 1; e.pitch = p; return e; }
+Ev par(int at, ParamID id, double v) { Ev e; e.at = at; e.kind = 2; e.id = id; e.value = v; return e; }
+
+struct Out
+{
+    std::vector<float> mono;
+    std::vector<int> hitSlot;  // per note-on, in order
+    std::vector<int> hitStole; // 1 when a fast-release began on that slot in that block
+    int nonFinite = 0;
+};
+
+Out render(Rig& rig, std::vector<Ev> evs, int numSamples)
+{
+    Out o;
+    o.mono.assign(static_cast<std::size_t>(numSamples), 0.0f);
+    std::stable_sort(evs.begin(), evs.end(), [](const Ev& a, const Ev& b) { return a.at < b.at; });
+    std::size_t next = 0;
+    auto& pool = rig.proc->voicePoolForTest();
+    for (int b = 0; b < numSamples; b += kBS)
+    {
+        const int ns = std::min(kBS, numSamples - b);
+        rig.events.clear();
+        rig.params.clear();
+        std::vector<int> onPitches;
+        while (next < evs.size() && evs[next].at < b + ns)
+        {
+            const auto& e = evs[next];
+            const int offs = std::max(0, e.at - b);
+            if (e.kind == 0) { rig.events.addNoteOn(static_cast<int16>(e.pitch), kVel, offs); onPitches.push_back(e.pitch); }
+            else if (e.kind == 1) rig.events.addNoteOff(static_cast<int16>(e.pitch), offs);
+            else rig.params.addChange(e.id, e.value);
+            ++next;
+        }
+        std::array<std::uint64_t, 16> prevCount{};
+        std::array<int, 16> prevState{};
+        std::array<int, 16> prevRel{};
+        for (int s = 0; s < 16; ++s)
+        {
+            prevCount[static_cast<std::size_t>(s)] = pool.voiceMeta(s).noteOnSampleCount;
+            prevState[static_cast<std::size_t>(s)] = static_cast<int>(pool.voiceMeta(s).state);
+            prevRel[static_cast<std::size_t>(s)] = static_cast<int>(pool.releasingMeta(s).state);
+        }
+        std::fill(rig.buf.begin(), rig.buf.end(), 0.0f);
+        rig.data.numSamples = ns;
+        rig.proc->process(rig.data);
+        for (int p : onPitches)
+        {
+            int slot = -1;
+            int stole = 0;
+            for (int s = 0; s < 16; ++s)
+            {
+                const auto& m = pool.voiceMeta(s);
+                const bool fresh = static_cast<int>(m.state) != prevState[static_cast<std::size_t>(s)]
+                                   || m.noteOnSampleCount != prevCount[static_cast<std::size_t>(s)];
+                if (m.state == Membrum::VoiceSlotState::Active && m.originatingNote == p && fresh)
+                {
+                    slot = s;
+                    stole = (static_cast<int>(pool.releasingMeta(s).state) != prevRel[static_cast<std::size_t>(s)]) ? 1 : 0;
+                }
+            }
+            o.hitSlot.push_back(slot);
+            o.hitStole.push_back(stole);
+        }
+        for (int s = 0; s < ns; ++s)
+        {
+            const float l = rig.chans[0][s];
+            const float r = rig.chans[1][s];
+            if (!Krate::DSP::detail::isFinite(l) || !Krate::DSP::detail::isFinite(r)) ++o.nonFinite;
+            o.mono[static_cast<std::size_t>(b + s)] = 0.5f * (l + r);
+        }
+    }
+    return o;
+}
+
+double toDb(double p) { return p > 1e-20 ? 10.0 * std::log10(p) : -200.0; }
+
+struct Feat
+{
+    double rms50 = -200, rms500 = -200, cen50 = 0, hi50 = -200, lo50 = -200, hiLate = -200;
+};
+
+// Power spectrum of x[start, start+len) under a Hann window, zero-padded to fftN.
+void bandPowers(const std::vector<float>& x, int start, int len, double sr, double& hi, double& lo, double& cen)
+{
+    const int fftN = 32768;
+    Krate::DSP::FFT fft;
+    fft.prepare(static_cast<std::size_t>(fftN));
+    std::vector<float> frame(static_cast<std::size_t>(fftN), 0.0f);
+    for (int i = 0; i < len; ++i)
+    {
+        const int idx = start + i;
+        const float v = (idx >= 0 && idx < static_cast<int>(x.size())) ? x[static_cast<std::size_t>(idx)] : 0.0f;
+        const float w = 0.5f - 0.5f * std::cos(2.0f * 3.14159265358979f * (static_cast<float>(i) + 0.5f) / static_cast<float>(len));
+        frame[static_cast<std::size_t>(i)] = v * w;
+    }
+    std::vector<Krate::DSP::Complex> spec(static_cast<std::size_t>(fftN / 2 + 1));
+    fft.forward(frame.data(), spec.data());
+    double ph = 0, pl = 0, num = 0, den = 0;
+    for (int k = 1; k <= fftN / 2; ++k)
+    {
+        const double re = spec[static_cast<std::size_t>(k)].real;
+        const double im = spec[static_cast<std::size_t>(k)].imag;
+        const double p = re * re + im * im;
+        const double f = k * sr / fftN;
+        if (f >= 2000.0) ph += p;
+        if (f < 400.0) pl += p;
+        const double mag = std::sqrt(p);
+        num += mag * f;
+        den += mag;
+    }
+    hi = toDb(ph);
+    lo = toDb(pl);
+    cen = den > 0 ? num / den : 0.0;
+}
+
+Feat analyse(const std::vector<float>& m, int start, double sr)
+{
+    Feat f;
+    const int n50 = static_cast<int>(sr * 0.05);
+    const int n500 = static_cast<int>(sr * 0.5);
+    double s50 = 0, s500 = 0;
+    for (int i = 0; i < n500 && start + i < static_cast<int>(m.size()); ++i)
+    {
+        const double v = m[static_cast<std::size_t>(start + i)];
+        if (i < n50) s50 += v * v;
+        s500 += v * v;
+    }
+    f.rms50 = toDb(s50 / n50);
+    f.rms500 = toDb(s500 / n500);
+    double dummyLo = 0, dummyCen = 0;
+    bandPowers(m, start, n50, sr, f.hi50, f.lo50, f.cen50);
+    bandPowers(m, start + n50, n500 - n50, sr, f.hiLate, dummyLo, dummyCen);
+    return f;
+}
+
+struct Cfg
+{
+    const char* name;
+    double type, cutoff, envAmt;
+    bool envShape;  // env decay 0.5, sustain 0
+};
+
+const Cfg kCfgs[] = {
+    {"bypass(1.0)", 0.0, 1.0, 0.5, false},
+    {"LP20Hz", 0.0, 0.0, 0.5, false},
+    {"LP317Hz", 0.0, 0.4, 0.5, false},
+    {"HP632Hz", 0.5, 0.5, 0.5, false},
+    {"LP317_env-1", 0.0, 0.4, 0.0, true},
+    {"LP317_env0", 0.0, 0.4, 0.5, true},
+    {"LP317_env+1", 0.0, 0.4, 1.0, true},
+};
+
+void pushCfg(std::vector<Ev>& evs, int at, int pad, const Cfg& c)
+{
+    using namespace Membrum;
+    evs.push_back(par(at, static_cast<ParamID>(padParamId(pad, kPadTSFilterType)), c.type));
+    evs.push_back(par(at, static_cast<ParamID>(padParamId(pad, kPadTSFilterCutoff)), c.cutoff));
+    evs.push_back(par(at, static_cast<ParamID>(padParamId(pad, kPadTSFilterEnvAmount)), c.envAmt));
+    if (c.envShape)
+    {
+        evs.push_back(par(at, static_cast<ParamID>(padParamId(pad, kPadTSFilterEnvAttack)), 0.0));
+        evs.push_back(par(at, static_cast<ParamID>(padParamId(pad, kPadTSFilterEnvDecay)), 0.5));
+        evs.push_back(par(at, static_cast<ParamID>(padParamId(pad, kPadTSFilterEnvSustain)), 0.0));
+    }
+}
+
+std::string fmt(const char* f, double v)
+{
+    char b[64];
+    std::snprintf(b, sizeof(b), f, v);
+    return b;
+}
+
+} // namespace
+
+TEST_CASE("audit probe: tone-shaper SVF glide per voice slot", "[.][audit-probe]")
+{
+    std::filesystem::create_directories("f:/tmp/membrum-audit");
+    std::ofstream csv("f:/tmp/membrum-audit/filter-glide.csv");
+    csv << "sr,note,cfg,scenario,hit,slot,stole,rms50,rms500,cen50,hi50,lo50,hiLate\n";
+    int nonFinite = 0;
+    const Cfg bypassPrimer{"primerLP20", 0.0, 0.0, 0.5, false};
+    const Cfg openPrimer{"primerLP19.9k", 0.0, 0.999, 0.5, false};
+    const Cfg bypassCfg = kCfgs[0];
+
+    for (double sr : {48000.0, 44100.0})
+    {
+        const int sec = static_cast<int>(sr);
+        const int off100 = static_cast<int>(sr * 0.1);
+        for (int note : {36, 38, 42})
+        {
+            const int pad = note - 36;
+            for (const auto& c : kCfgs)
+            {
+                auto emit = [&](const std::string& scen, const Out& o, int hit, int start) {
+                    const Feat f = analyse(o.mono, start, sr);
+                    const int slot = hit < static_cast<int>(o.hitSlot.size()) ? o.hitSlot[static_cast<std::size_t>(hit)] : -9;
+                    const int stole = hit < static_cast<int>(o.hitStole.size()) ? o.hitStole[static_cast<std::size_t>(hit)] : -9;
+                    csv << sr << "," << note << "," << c.name << "," << scen << "," << hit << "," << slot << "," << stole << ","
+                        << fmt("%.2f", f.rms50) << "," << fmt("%.2f", f.rms500) << "," << fmt("%.0f", f.cen50) << ","
+                        << fmt("%.2f", f.hi50) << "," << fmt("%.2f", f.lo50) << "," << fmt("%.2f", f.hiLate) << "\n";
+                    std::printf("PROBE sr=%.0f note=%d cfg=%-12s %-26s hit%d slot=%d stole=%d rms50=%.2f rms500=%.2f cen50=%.0f hi50=%.2f lo50=%.2f hiLate=%.2f\n",
+                                sr, note, c.name, scen.c_str(), hit, slot, stole, f.rms50, f.rms500, f.cen50, f.hi50, f.lo50, f.hiLate);
+                };
+                // A. Priority policy: hit 1 fresh slot, hit 2 reuses slot 0 (warm, same pad).
+                {
+                    Rig rig(sr);
+                    std::vector<Ev> evs;
+                    evs.push_back(par(0, Membrum::kMaxPolyphonyId, 0.0));
+                    evs.push_back(par(0, Membrum::kVoiceStealingId, 1.0));
+                    pushCfg(evs, 0, pad, c);
+                    evs.push_back(on(0, note));
+                    evs.push_back(off(off100, note));
+                    evs.push_back(on(sec, note));
+                    evs.push_back(off(sec + off100, note));
+                    const Out o = render(rig, evs, 2 * sec);
+                    nonFinite += o.nonFinite;
+                    emit("priority_fresh", o, 0, 0);
+                    emit("priority_warm_samepad", o, 1, sec);
+                }
+                // B. Oldest policy (default): hit 2 rotates to a never-used slot.
+                {
+                    Rig rig(sr);
+                    std::vector<Ev> evs;
+                    evs.push_back(par(0, Membrum::kMaxPolyphonyId, 0.0));
+                    evs.push_back(par(0, Membrum::kVoiceStealingId, 0.0));
+                    pushCfg(evs, 0, pad, c);
+                    for (int h = 0; h < 5; ++h)
+                    {
+                        evs.push_back(on(h * sec, note));
+                        evs.push_back(off(h * sec + off100, note));
+                    }
+                    const Out o = render(rig, evs, 5 * sec);
+                    nonFinite += o.nonFinite;
+                    for (int h = 0; h < 5; ++h)
+                        emit("oldest_rotation", o, h, h * sec);
+                }
+                // C. Priority: slot 0 primed by ANOTHER pad (note 37) at LP 20 Hz or LP 19.9 kHz.
+                for (int pr = 0; pr < 2; ++pr)
+                {
+                    Rig rig(sr);
+                    std::vector<Ev> evs;
+                    evs.push_back(par(0, Membrum::kMaxPolyphonyId, 0.0));
+                    evs.push_back(par(0, Membrum::kVoiceStealingId, 1.0));
+                    pushCfg(evs, 0, 1, pr == 0 ? bypassPrimer : openPrimer);
+                    pushCfg(evs, 0, pad, c);
+                    evs.push_back(on(0, 37));
+                    evs.push_back(off(off100, 37));
+                    evs.push_back(on(sec, note));
+                    evs.push_back(off(sec + off100, note));
+                    const Out o = render(rig, evs, 2 * sec);
+                    nonFinite += o.nonFinite;
+                    emit(pr == 0 ? "priority_after_pad37_LP20" : "priority_after_pad37_LP19.9k", o, 1, sec);
+                }
+                // D. Priority: pad 37 LP 20 Hz, then pad 39 BYPASSED, then target: is g frozen?
+                {
+                    Rig rig(sr);
+                    std::vector<Ev> evs;
+                    evs.push_back(par(0, Membrum::kMaxPolyphonyId, 0.0));
+                    evs.push_back(par(0, Membrum::kVoiceStealingId, 1.0));
+                    pushCfg(evs, 0, 1, bypassPrimer);
+                    pushCfg(evs, 0, 3, bypassCfg);
+                    pushCfg(evs, 0, pad, c);
+                    evs.push_back(on(0, 37));
+                    evs.push_back(off(off100, 37));
+                    evs.push_back(on(sec, 39));
+                    evs.push_back(off(sec + off100, 39));
+                    evs.push_back(on(2 * sec, note));
+                    evs.push_back(off(2 * sec + off100, note));
+                    const Out o = render(rig, evs, 3 * sec);
+                    nonFinite += o.nonFinite;
+                    emit("priority_after_37LP20_then_39bypass", o, 2, 2 * sec);
+                }
+            }
+        }
+    }
+    CHECK(nonFinite == 0);
+}

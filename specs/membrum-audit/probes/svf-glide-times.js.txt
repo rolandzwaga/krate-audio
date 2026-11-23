@@ -1,0 +1,27 @@
+// Simulate Krate::DSP::SVF g smoother (svf.h advanceSmoother: g += c*(gT-g), c = 1-exp(-1/(0.005*fs)))
+const f32 = Math.fround;
+function sim(fs, f0, f1) {
+  const clamp = (hz) => Math.min(Math.max(hz, 1), fs * 0.495);
+  const gOf = (hz) => f32(Math.tan(f32(Math.PI * clamp(hz) / fs)));
+  const c = f32(1 - Math.exp(-1 / (0.005 * fs)));
+  let g = gOf(f0); const T = gOf(f1);
+  let t2 = null, t12 = null; const snaps = {};
+  const marks = [1, 2, 5, 10, 20, 30, 50].map(ms => Math.round(ms * fs / 1000));
+  for (let n = 1; n <= fs; ++n) {
+    g = f32(g + f32(c * f32(T - g)));
+    if (t2 === null && (f1 < f0 ? g <= 2 * T : g >= T / 2)) t2 = n;
+    // within one semitone of target cutoff
+    const fc = Math.atan(g) * fs / Math.PI;
+    if (t12 === null && Math.abs(Math.log2(fc / f1)) < 1 / 12) t12 = n;
+    const mi = marks.indexOf(n);
+    if (mi >= 0) snaps[[1, 2, 5, 10, 20, 30, 50][mi]] = fc;
+  }
+  return { fs, f0, f1, gStart: gOf(f0), gTarget: T, t2ms: (t2 / fs * 1000).toFixed(1), tSemitoneMs: (t12 / fs * 1000).toFixed(1), fcAt: Object.fromEntries(Object.entries(snaps).map(([k, v]) => [k + 'ms', Math.round(v)])) };
+}
+for (const fs of [44100, 48000, 96000])
+  for (const f1 of [20, 317, 300, 632, 1000, 1449, 5024])
+    console.log(JSON.stringify(sim(fs, 20000, f1)));
+console.log('--- upward (slot warmed at 20 Hz -> target)');
+for (const fs of [44100, 48000, 96000])
+  for (const f1 of [632, 1449, 20000 * 0.999])
+    console.log(JSON.stringify(sim(fs, 20, f1)));

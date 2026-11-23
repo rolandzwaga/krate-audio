@@ -1,0 +1,408 @@
+// ==============================================================================
+// audit_limiter_probe.cpp -- TEMPORARY membrum-audit probe (hidden [.][audit-probe]).
+//
+// Question: why do single velocity-100 hits of some modal (non-Feedback,
+// non-Friction, non-String) factory pads reach the -1 dBTP bus limiter, when
+// every modal strike is supposed to be normalised to kBodyHeadroom (0.5)?
+// And: what makes FM Ratio jump ~12 dB between adjacent steps on the hat?
+//
+// Harness: one DrumVoice per pad (heap), 48 kHz, block 256, the kit's PadConfig
+// from State::readKitBlob + State::applyPadSnapshot + applyPadConfigToVoice
+// (exactly the processor's apply path). Pre-limiter peak = voice peak x the
+// pool's equal-power pan gain (max of L/R). Coupling engine not included.
+//
+// Per pad:
+//   stale  : first hit on a fresh voice (mallet size hint = default 1.0)
+//   asis   : second hit after a 1e-4 clickContact nudge forces a re-probe
+//            (the probe now sees the hint the previous noteOn set = this pad)
+//   -X     : asis with ONE post-bank stage neutralised
+//   neutral: every post-bank stage neutralised (drive/fold 0, filter bypass,
+//            modeInject 0, NLC 0, noise mix 0, click mix 0, shell off,
+//            pitch env off, tension 0, morph off) at vel 100/127 and 1.0
+//   norm = peak / (level x envPeak=vel) -> 0.5 when the strike probe is right
+// ==============================================================================
+
+#include <catch2/catch_test_macros.hpp>
+
+#include "dsp/drum_voice.h"
+#include "dsp/pad_config.h"
+#include "dsp/pad_config_apply.h"
+#include "dsp/default_kit.h"
+#include "state/state_codec.h"
+
+#include "public.sdk/source/common/memorystream.h"
+#include "public.sdk/source/vst/vstpresetfile.h"
+#include "pluginterfaces/base/ibstream.h"
+
+#include <algorithm>
+#include <array>
+#include <cmath>
+#include <cstdio>
+#include <filesystem>
+#include <fstream>
+#include <iterator>
+#include <memory>
+#include <string>
+#include <vector>
+
+using namespace Steinberg;
+using namespace Steinberg::Vst;
+
+namespace {
+
+constexpr double kSR = 48000.0;
+constexpr int kBS = 256;
+constexpr float kVel100 = 100.0f / 127.0f;
+constexpr float kPi = 3.14159265358979f;
+const char* kOutDir = "f:/tmp/membrum-audit/limiter-probe";
+
+struct KitRef { const char* cat; const char* name; };
+constexpr std::array<KitRef, 20> kKits{{
+    {"Acoustic", "Acoustic Studio Kit"}, {"Acoustic", "Jazz Brushes"}, {"Acoustic", "Orchestral"},
+    {"Acoustic", "Rock Big Room"}, {"Acoustic", "Vintage Wood"},
+    {"Electronic", "808 Electronic Kit"}, {"Electronic", "909 Drum Machine"}, {"Electronic", "LinnDrum CR-78"},
+    {"Electronic", "Modular West Coast"}, {"Electronic", "Trap Modern"},
+    {"Percussive", "Cajon and Frames"}, {"Percussive", "Hand Drums"}, {"Percussive", "Latin Perc"},
+    {"Percussive", "Tabla"}, {"Percussive", "World Metal"},
+    {"Unnatural", "Chaos Engine"}, {"Unnatural", "Drone and Sustain"}, {"Unnatural", "Experimental FX Kit"},
+    {"Unnatural", "Ghost Bones"}, {"Unnatural", "Glass Bell Garden"},
+}};
+
+bool loadKit(int idx, Membrum::State::KitSnapshot& snap)
+{
+    const auto& k = kKits[static_cast<std::size_t>(idx)];
+    const auto path = std::filesystem::path(MEMBRUM_RESOURCES_DIR) / "presets" / "Kit Presets" / k.cat /
+                      (std::string(k.name) + ".vstpreset");
+    std::ifstream in(path, std::ios::binary);
+    if (!in) return false;
+    std::vector<std::uint8_t> bytes((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+    auto ps = owned(new MemoryStream(bytes.data(), static_cast<TSize>(bytes.size())));
+    ps->seek(0, IBStream::kIBSeekSet, nullptr);
+    PresetFile pf(ps);
+    if (!pf.readChunkList()) return false;
+    const auto* e = pf.getEntry(kComponentState);
+    if (!e) return false;
+    std::vector<std::uint8_t> comp(static_cast<std::size_t>(e->size));
+    ps->seek(e->offset, IBStream::kIBSeekSet, nullptr);
+    int32 got = 0;
+    ps->read(comp.data(), static_cast<int32>(comp.size()), &got);
+    MemoryStream ms;
+    int32 w = 0;
+    ms.write(comp.data(), static_cast<int32>(comp.size()), &w);
+    ms.seek(0, IBStream::kIBSeekSet, nullptr);
+    return Membrum::State::readKitBlob(&ms, snap) == kResultOk;
+}
+
+float panMax(float pan)
+{
+    const float a = std::clamp(pan, 0.0f, 1.0f) * kPi * 0.5f;
+    return std::max(std::sqrt(2.0f) * std::cos(a), std::sqrt(2.0f) * std::sin(a));
+}
+
+struct Meas
+{
+    float peak = 0.0f;   // voice output peak (pre-pan)
+    float peakMs = 0.0f;
+    float peak30 = 0.0f; // peak inside the first 30 ms
+    float rms500 = 0.0f;
+    float domHz = 0.0f;  // dominant frequency 100..600 ms (Goertzel scan)
+    bool finite = true;
+};
+
+float goertzelPow(const float* x, int n, float f)
+{
+    const float w = 2.0f * kPi * f / static_cast<float>(kSR);
+    const float c = 2.0f * std::cos(w);
+    float s1 = 0.0f, s2 = 0.0f;
+    for (int i = 0; i < n; ++i)
+    {
+        const float hann = 0.5f - 0.5f * std::cos(2.0f * kPi * static_cast<float>(i) / static_cast<float>(n - 1));
+        const float s0 = x[i] * hann + c * s1 - s2;
+        s2 = s1;
+        s1 = s0;
+    }
+    return s1 * s1 + s2 * s2 - c * s1 * s2;
+}
+
+Meas hit(Membrum::DrumVoice& v, const Membrum::PadConfig& cfg, float vel, float seconds, bool wantDom)
+{
+    Membrum::applyPadConfigToVoice(v, cfg);
+    v.noteOn(vel);
+    const int total = static_cast<int>(seconds * kSR);
+    std::vector<float> y(static_cast<std::size_t>(total), 0.0f);
+    for (int off = 0; off < total; off += kBS)
+    {
+        const int n = std::min(kBS, total - off);
+        v.processBlock(y.data() + off, n);
+    }
+    Meas m;
+    const int n30 = static_cast<int>(0.030 * kSR);
+    const int n500 = std::min(total, static_cast<int>(0.5 * kSR));
+    double acc = 0.0;
+    for (int i = 0; i < total; ++i)
+    {
+        const float a = std::fabs(y[static_cast<std::size_t>(i)]);
+        if (!(a <= 1.0e30f)) { m.finite = false; continue; }
+        if (a > m.peak) { m.peak = a; m.peakMs = static_cast<float>(i) * 1000.0f / static_cast<float>(kSR); }
+        if (i < n30) m.peak30 = std::max(m.peak30, a);
+        if (i < n500) acc += static_cast<double>(a) * a;
+    }
+    m.rms500 = static_cast<float>(std::sqrt(acc / std::max(1, n500)));
+    if (wantDom && total > static_cast<int>(0.6 * kSR))
+    {
+        const int s0 = static_cast<int>(0.1 * kSR);
+        const int len = 16384;
+        float best = 0.0f;
+        for (float f = 30.0f; f < 16000.0f; f *= 1.002f)
+        {
+            const float p = goertzelPow(y.data() + s0, len, f);
+            if (p > best) { best = p; m.domHz = f; }
+        }
+    }
+    return m;
+}
+
+float db(float x) { return 20.0f * std::log10(std::max(x, 1.0e-9f)); }
+
+Membrum::PadConfig neutralAll(Membrum::PadConfig c)
+{
+    c.tsDriveAmount = 0.0f; c.tsFoldAmount = 0.0f;
+    c.tsFilterCutoff = 1.0f; c.tsFilterEnvAmount = 0.5f;
+    c.modeInjectAmount = 0.0f; c.nonlinearCoupling = 0.0f;
+    c.noiseLayerMix = 0.0f; c.clickLayerMix = 0.0f;
+    c.secondaryEnabled = 0.0f; c.tsPitchEnvTime = 0.0f;
+    c.tensionModAmt = 0.0f; c.morphEnabled = 0.0f;
+    return c;
+}
+
+const char* kExc[] = {"Impulse", "Mallet", "NoiseBurst", "Friction", "FMImpulse", "Feedback", "Clap"};
+const char* kBody[] = {"Membrane", "Plate", "Shell", "String", "Bell", "NoiseBody"};
+
+std::unique_ptr<Membrum::DrumVoice> freshVoice()
+{
+    auto v = std::make_unique<Membrum::DrumVoice>();
+    v->prepare(kSR, 0u);
+    return v;
+}
+
+} // namespace
+
+TEST_CASE("audit limiter probe: strike normalisation misses on factory pads", "[.][audit-probe]")
+{
+    std::filesystem::create_directories(kOutDir);
+    std::ofstream csv(std::string(kOutDir) + "/limiter-pads.csv", std::ios::trunc);
+    csv << "kit,note,exciter,body,size,material,level,pan,panGain,fmRatio,pitchEnvTime,morph,secondary,coupling,"
+           "drive,fold,cutoff,res,envAmt,modeInject,nlc,noiseMix,noiseGain,clickMix,tension,"
+           "stalePreLimDb,asisPreLimDb,limiterStale,limiterAsis,asisNorm,"
+           "dDriveFold,dFilter,dModeInject,dNlc,dNoise,dClick,dShell,dPitchEnv,dTension,dMorph,"
+           "neutral787Norm,neutral1Norm,neutral1PeakMs,neutral1Peak30Norm,neutral787PeakMs,hintEffectDb\n";
+
+    int limiterPads = 0;
+    bool allFinite = true;
+    for (int k = 0; k < 20; ++k)
+    {
+        Membrum::State::KitSnapshot snap;
+        REQUIRE(loadKit(k, snap));
+        for (int p = 0; p < 32; ++p)
+        {
+            Membrum::PadConfig cfg;
+            Membrum::State::applyPadSnapshot(snap.pads[static_cast<std::size_t>(p)], cfg);
+            if (cfg.enabled < 0.5f) continue;
+            const int e = static_cast<int>(cfg.exciterType);
+            const int b = static_cast<int>(cfg.bodyModel);
+            if (cfg.exciterType == Membrum::ExciterType::Feedback || cfg.exciterType == Membrum::ExciterType::Friction ||
+                cfg.bodyModel == Membrum::BodyModelType::String)
+                continue;
+            const float pg = panMax(cfg.pan);
+            auto v = freshVoice();
+            const Meas stale = hit(*v, cfg, kVel100, 1.5f, false);
+            Membrum::PadConfig base = cfg;
+            base.clickLayerContactMs = std::min(1.0f, cfg.clickLayerContactMs + 1.0e-4f);
+            if (base.clickLayerContactMs == cfg.clickLayerContactMs) base.clickLayerContactMs -= 1.0e-4f;
+            const Meas asis = hit(*v, base, kVel100, 1.5f, false);
+
+            auto stage = [&](auto mod) {
+                Membrum::PadConfig c = base;
+                mod(c);
+                const Meas m = hit(*v, c, kVel100, 1.5f, false);
+                return db(asis.peak) - db(m.peak);
+            };
+            const float dDF = stage([](auto& c) { c.tsDriveAmount = 0.0f; c.tsFoldAmount = 0.0f; });
+            const float dFi = stage([](auto& c) { c.tsFilterCutoff = 1.0f; c.tsFilterEnvAmount = 0.5f; });
+            const float dMI = stage([](auto& c) { c.modeInjectAmount = 0.0f; });
+            const float dNl = stage([](auto& c) { c.nonlinearCoupling = 0.0f; });
+            const float dNo = stage([](auto& c) { c.noiseLayerMix = 0.0f; });
+            const float dCl = stage([](auto& c) { c.clickLayerMix = 0.0f; });
+            const float dSh = stage([](auto& c) { c.secondaryEnabled = 0.0f; });
+            const float dPe = stage([](auto& c) { c.tsPitchEnvTime = 0.0f; });
+            const float dTe = stage([](auto& c) { c.tensionModAmt = 0.0f; });
+            const float dMo = stage([](auto& c) { c.morphEnabled = 0.0f; });
+
+            const Membrum::PadConfig nc = neutralAll(base);
+            const Meas n787 = hit(*v, nc, kVel100, 1.5f, false);
+            const Meas n1 = hit(*v, nc, 1.0f, 1.5f, false);
+            allFinite = allFinite && stale.finite && asis.finite && n787.finite && n1.finite;
+
+            const float lvl = std::max(cfg.level, 1.0e-6f);
+            const float stalePre = stale.peak * pg;
+            const float asisPre = asis.peak * pg;
+            const bool limS = stalePre > 0.8913f;
+            const bool limA = asisPre > 0.8913f;
+            if (limS || limA) ++limiterPads;
+
+            char line[1600];
+            std::snprintf(line, sizeof(line),
+                "\"%s\",%d,%s,%s,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.2f,%.2f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.2f,%.3f,%.3f,"
+                "%.2f,%.2f,%d,%d,%.3f,"
+                "%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,"
+                "%.3f,%.3f,%.1f,%.3f,%.1f,%.2f\n",
+                kKits[static_cast<std::size_t>(k)].name, 36 + p, kExc[e], kBody[b], cfg.size, cfg.material, cfg.level,
+                cfg.pan, pg, cfg.fmRatio, cfg.tsPitchEnvTime, cfg.morphEnabled, cfg.secondaryEnabled,
+                cfg.couplingStrength, cfg.tsDriveAmount, cfg.tsFoldAmount, cfg.tsFilterCutoff, cfg.tsFilterResonance,
+                cfg.tsFilterEnvAmount, cfg.modeInjectAmount, cfg.nonlinearCoupling, cfg.noiseLayerMix,
+                cfg.noiseLayerGain, cfg.clickLayerMix, cfg.tensionModAmt,
+                db(stalePre), db(asisPre), limS ? 1 : 0, limA ? 1 : 0, asis.peak / (lvl * kVel100),
+                dDF, dFi, dMI, dNl, dNo, dCl, dSh, dPe, dTe, dMo,
+                n787.peak / (lvl * kVel100), n1.peak / lvl, n1.peakMs, n1.peak30 / lvl, n787.peakMs,
+                db(stale.peak) - db(asis.peak));
+            csv << line;
+            if (limS || limA)
+                std::printf("LIMPAD %s", line);
+        }
+    }
+    std::printf("LIMPAD-COUNT %d\n", limiterPads);
+    CHECK(allFinite);
+}
+
+// Slot history: DrumVoice::noteOn probes the strike gain (drum_voice.h:302)
+// BEFORE it sets the mallet size hint (drum_voice.h:340), so the probe uses the
+// hint the PREVIOUS note on this voice slot left (every noteOn writes it, any
+// exciter). For every Mallet pad of every kit: prime the voice with each other
+// enabled pad of the same kit (one block), then hit the target at vel 100/127.
+TEST_CASE("audit limiter probe: mallet size-hint slot history", "[.][audit-probe][hint]")
+{
+    std::filesystem::create_directories(kOutDir);
+    std::ofstream csv(std::string(kOutDir) + "/mallet-hint-history.csv", std::ios::trunc);
+    csv << "kit,note,size,level,panGain,freshPreLimDb,correctHintPreLimDb,prevNote,prevSize,afterPrevPreLimDb,"
+           "minPreLimDb,minPriorNote,minPriorSize,maxPreLimDb,maxPriorNote,maxPriorSize,priorsOverLimiter\n";
+    for (int k = 0; k < 20; ++k)
+    {
+        Membrum::State::KitSnapshot snap;
+        REQUIRE(loadKit(k, snap));
+        std::array<Membrum::PadConfig, 32> cfgs{};
+        for (int p = 0; p < 32; ++p)
+            Membrum::State::applyPadSnapshot(snap.pads[static_cast<std::size_t>(p)], cfgs[static_cast<std::size_t>(p)]);
+        for (int t = 0; t < 32; ++t)
+        {
+            const auto& tc = cfgs[static_cast<std::size_t>(t)];
+            if (tc.enabled < 0.5f || tc.exciterType != Membrum::ExciterType::Mallet ||
+                tc.bodyModel == Membrum::BodyModelType::String)
+                continue;
+            const float pg = panMax(tc.pan);
+            auto v = freshVoice();
+            const float fresh = hit(*v, tc, kVel100, 0.6f, false).peak * pg;
+            // correct hint: the previous noteOn was this pad -> nudge the key so it re-probes
+            Membrum::PadConfig nudged = tc;
+            nudged.clickLayerContactMs = tc.clickLayerContactMs > 0.5f ? tc.clickLayerContactMs - 1.0e-4f
+                                                                       : tc.clickLayerContactMs + 1.0e-4f;
+            const float correct = hit(*v, nudged, kVel100, 0.6f, false).peak * pg;
+            float mn = 1e9f, mx = 0.0f, prevPk = -1.0f;
+            int mnN = -1, mxN = -1, prevN = -1, over = 0;
+            for (int p = t - 1; p >= 0; --p)
+                if (cfgs[static_cast<std::size_t>(p)].enabled >= 0.5f) { prevN = p; break; }
+            for (int p = 0; p < 32; ++p)
+            {
+                const auto& pc = cfgs[static_cast<std::size_t>(p)];
+                if (p == t || pc.enabled < 0.5f) continue;
+                auto vv = freshVoice();
+                Membrum::applyPadConfigToVoice(*vv, pc);
+                vv->noteOn(kVel100);
+                std::array<float, kBS> scratch{};
+                vv->processBlock(scratch.data(), kBS);
+                const float pk = hit(*vv, tc, kVel100, 0.6f, false).peak * pg;
+                if (pk < mn) { mn = pk; mnN = p; }
+                if (pk > mx) { mx = pk; mxN = p; }
+                if (pk > 0.8913f) ++over;
+                if (p == prevN) prevPk = pk;
+            }
+            char line[600];
+            std::snprintf(line, sizeof(line), "\"%s\",%d,%.3f,%.3f,%.3f,%.2f,%.2f,%d,%.3f,%.2f,%.2f,%d,%.3f,%.2f,%d,%.3f,%d\n",
+                          kKits[static_cast<std::size_t>(k)].name, 36 + t, tc.size, tc.level, pg, db(fresh), db(correct),
+                          prevN >= 0 ? 36 + prevN : -1, prevN >= 0 ? cfgs[static_cast<std::size_t>(prevN)].size : -1.0f,
+                          prevPk >= 0.0f ? db(prevPk) : -999.0f, db(mn), 36 + mnN,
+                          cfgs[static_cast<std::size_t>(mnN)].size, db(mx), 36 + mxN,
+                          cfgs[static_cast<std::size_t>(mxN)].size, over);
+            csv << line;
+            std::printf("HINT %s", line);
+        }
+    }
+}
+
+TEST_CASE("audit limiter probe: FM ratio sweep on the default-kit hat and a velocity sweep", "[.][audit-probe]")
+{
+    std::filesystem::create_directories(kOutDir);
+    std::ofstream csv(std::string(kOutDir) + "/fm-ratio-sweep.csv", std::ios::trunc);
+    csv << "pad,vel,fmRatioNorm,ratio,asisPeakDb,asisRms500Db,asisPeakMs,neutralPeakDb,neutralRms500Db,neutralNorm,"
+           "neutralPeakMs,neutralPeak30Norm,domHz,carrierHz,modHz,sidebands\n";
+    std::array<Membrum::PadConfig, Membrum::kNumPads> kit{};
+    Membrum::DefaultKit::apply(kit);
+    for (int pad : {6, 0, 2})  // MIDI 42 hat, 36 kick, 38 snare (the param-audibility base pads)
+    {
+        Membrum::PadConfig base = kit[static_cast<std::size_t>(pad)];
+        base.exciterType = Membrum::ExciterType::FMImpulse;
+        for (float vel : {kVel100, 1.0f})
+        {
+            for (int s = 0; s <= 32; ++s)
+            {
+                Membrum::PadConfig c = base;
+                c.fmRatio = static_cast<float>(s) / 32.0f;
+                auto v1 = freshVoice();
+                const Meas a = hit(*v1, c, vel, 1.5f, false);
+                auto v2 = freshVoice();
+                const Meas n = hit(*v2, neutralAll(c), vel, 1.5f, true);
+                const float fc = 400.0f * std::pow(6.25f, vel);
+                const float r = 1.0f + 3.0f * c.fmRatio;
+                const float fm = fc * r;
+                std::string sb;
+                for (int kk = -3; kk <= 3; ++kk)
+                {
+                    char t[24];
+                    std::snprintf(t, sizeof(t), "%.0f ", std::fabs(fc + static_cast<float>(kk) * fm));
+                    sb += t;
+                }
+                const float lvl = std::max(c.level, 1.0e-6f);
+                char line[700];
+                std::snprintf(line, sizeof(line), "%d,%.3f,%.4f,%.3f,%.2f,%.2f,%.1f,%.2f,%.2f,%.3f,%.1f,%.3f,%.0f,%.0f,%.0f,%s\n",
+                              36 + pad, vel, c.fmRatio, r, db(a.peak), db(a.rms500), a.peakMs, db(n.peak), db(n.rms500),
+                              n.peak / (lvl * vel), n.peakMs, n.peak30 / (lvl * vel), n.domHz, fc, fm, sb.c_str());
+                csv << line;
+                std::printf("FMSWEEP %s", line);
+            }
+        }
+    }
+    // Velocity sweep for the five limiter pads (neutral post chain): is the
+    // normalised peak monotonic in velocity?
+    std::ofstream vcsv(std::string(kOutDir) + "/velocity-sweep.csv", std::ios::trunc);
+    vcsv << "kit,note,vel,asisPeakDb,neutralNorm,neutralPeakMs,neutralDomHz\n";
+    const std::array<std::pair<int, int>, 5> targets{{{19, 46 - 36}, {19, 57 - 36}, {12, 46 - 36}, {7, 40 - 36}, {14, 55 - 36}}};
+    for (const auto& [ki, pi] : targets)
+    {
+        Membrum::State::KitSnapshot snap;
+        REQUIRE(loadKit(ki, snap));
+        Membrum::PadConfig cfg;
+        Membrum::State::applyPadSnapshot(snap.pads[static_cast<std::size_t>(pi)], cfg);
+        for (int s = 4; s <= 32; ++s)
+        {
+            const float vel = static_cast<float>(s) / 32.0f;
+            auto v1 = freshVoice();
+            const Meas a = hit(*v1, cfg, vel, 1.5f, false);
+            auto v2 = freshVoice();
+            const Meas n = hit(*v2, neutralAll(cfg), vel, 1.5f, true);
+            char line[300];
+            std::snprintf(line, sizeof(line), "\"%s\",%d,%.4f,%.2f,%.3f,%.1f,%.0f\n", kKits[static_cast<std::size_t>(ki)].name,
+                          36 + pi, vel, db(a.peak * panMax(cfg.pan)), n.peak / (std::max(cfg.level, 1e-6f) * vel), n.peakMs, n.domHz);
+            vcsv << line;
+            std::printf("VELSWEEP %s", line);
+        }
+    }
+}

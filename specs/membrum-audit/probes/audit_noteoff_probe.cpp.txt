@@ -1,0 +1,201 @@
+// ==============================================================================
+// audit_noteoff_probe.cpp -- TEMPORARY membrum-audit probe (note-off vs FR-114).
+//
+// Hidden ([.][audit-probe]). Real Membrum::Processor (default kit), 48 kHz,
+// 16 stereo buses. For each default-kit pad renders one velocity-100 hit with
+//   none   : no note-off (FR-114 drum semantics)
+//   off125 : note-off 125 ms after the note-on (a 1/16 note at 120 BPM)
+//   off5   : note-off 5 ms after the note-on (short sequencer gate / velocity-0 tap)
+// at host block sizes 64, 256, 1024. Reports the -60 dB decay (10 ms RMS frames
+// of mono, relative to the hit's own maximum), the tail energy after 125 ms
+// relative to 'none', and the level 250 ms after the hit relative to 'none'.
+// ==============================================================================
+#include <catch2/catch_test_macros.hpp>
+
+#include "processor/processor.h"
+#include "plugin_ids.h"
+
+#include "vst_event_list.h"
+#include "vst_param_changes.h"
+
+#include <krate/dsp/core/db_utils.h>
+
+#include "pluginterfaces/vst/ivstaudioprocessor.h"
+#include "pluginterfaces/vst/ivstevents.h"
+
+#include <algorithm>
+#include <array>
+#include <cmath>
+#include <cstdio>
+#include <filesystem>
+#include <fstream>
+#include <memory>
+#include <string>
+#include <vector>
+
+using namespace Steinberg;
+using namespace Steinberg::Vst;
+
+namespace {
+
+constexpr double kSR = 48000.0;
+constexpr int kBuses = Membrum::kMaxOutputBuses;
+constexpr int kMaxBS = 1024;
+
+struct Rig
+{
+    std::unique_ptr<Membrum::Processor> proc;
+    std::vector<float> buf;
+    std::array<float*, static_cast<std::size_t>(kBuses * 2)> chans{};
+    std::array<AudioBusBuffers, static_cast<std::size_t>(kBuses)> bus{};
+    ProcessData data{};
+    Krate::Test::EventList events;
+    Krate::Test::ParameterChanges params;
+
+    Rig()
+    {
+        proc = std::make_unique<Membrum::Processor>();
+        proc->initialize(nullptr);
+        ProcessSetup s{};
+        s.processMode = kRealtime;
+        s.symbolicSampleSize = kSample32;
+        s.maxSamplesPerBlock = kMaxBS;
+        s.sampleRate = kSR;
+        proc->setupProcessing(s);
+        proc->setActive(true);
+        buf.assign(static_cast<std::size_t>(kBuses * 2 * kMaxBS), 0.0f);
+        for (int c = 0; c < kBuses * 2; ++c)
+            chans[static_cast<std::size_t>(c)] = buf.data() + static_cast<std::size_t>(c * kMaxBS);
+        for (int b = 0; b < kBuses; ++b)
+        {
+            auto& bb = bus[static_cast<std::size_t>(b)];
+            bb.numChannels = 2;
+            bb.channelBuffers32 = &chans[static_cast<std::size_t>(b * 2)];
+            bb.silenceFlags = 0;
+        }
+        data.processMode = kRealtime;
+        data.symbolicSampleSize = kSample32;
+        data.numOutputs = kBuses;
+        data.outputs = bus.data();
+        data.inputParameterChanges = &params;
+        data.inputEvents = &events;
+    }
+    ~Rig()
+    {
+        proc->setActive(false);
+        proc->terminate();
+    }
+};
+
+std::vector<float> renderHit(int note, int offAt, int bs, int total)
+{
+    Rig rig;
+    std::vector<float> mono(static_cast<std::size_t>(total), 0.0f);
+    bool onSent = false;
+    bool offSent = offAt < 0;
+    for (int b = 0; b < total; b += bs)
+    {
+        const int ns = std::min(bs, total - b);
+        rig.events.clear();
+        rig.params.clear();
+        if (!onSent)
+        {
+            rig.events.addNoteOn(static_cast<int16>(note), 100.0f / 127.0f, 0);
+            onSent = true;
+        }
+        if (!offSent && offAt < b + ns)
+        {
+            rig.events.addNoteOff(static_cast<int16>(note), std::max(0, offAt - b));
+            offSent = true;
+        }
+        std::fill(rig.buf.begin(), rig.buf.end(), 0.0f);
+        rig.data.numSamples = ns;
+        rig.proc->process(rig.data);
+        for (int s = 0; s < ns; ++s)
+            mono[static_cast<std::size_t>(b + s)] = 0.5f * (rig.chans[0][s] + rig.chans[1][s]);
+    }
+    return mono;
+}
+
+struct Feat
+{
+    double decayS = 0.0;
+    bool over = false;
+    double tailEnergy = 0.0;   // sum x^2 from 125 ms on
+    double rms250 = 0.0;       // RMS of the 10 ms frame at 250 ms
+};
+
+Feat analyse(const std::vector<float>& x)
+{
+    Feat f;
+    const int frame = static_cast<int>(kSR * 0.01);
+    const int nF = static_cast<int>(x.size()) / frame;
+    std::vector<double> rms(static_cast<std::size_t>(nF), 0.0);
+    double mx = 0.0;
+    for (int i = 0; i < nF; ++i)
+    {
+        double e = 0.0;
+        for (int s = 0; s < frame; ++s)
+        {
+            const double v = x[static_cast<std::size_t>(i * frame + s)];
+            e += v * v;
+        }
+        rms[static_cast<std::size_t>(i)] = std::sqrt(e / frame);
+        mx = std::max(mx, rms[static_cast<std::size_t>(i)]);
+    }
+    int last = -1;
+    for (int i = 0; i < nF; ++i)
+        if (rms[static_cast<std::size_t>(i)] > mx * 1e-3) last = i;
+    f.decayS = (last + 1) * 0.01;
+    f.over = last == nF - 1;
+    for (std::size_t s = static_cast<std::size_t>(kSR * 0.125); s < x.size(); ++s)
+        f.tailEnergy += static_cast<double>(x[s]) * x[s];
+    f.rms250 = rms[25];
+    return f;
+}
+
+double dbRatio(double a, double b)
+{
+    if (b <= 1e-30) return 0.0;
+    if (a <= 1e-30) return -300.0;
+    return 10.0 * std::log10(a / b);
+}
+
+} // namespace
+
+TEST_CASE("audit probe: note-off tail cut vs FR-114", "[.][audit-probe]")
+{
+    struct PadInfo { int note; const char* name; };
+    const PadInfo pads[] = {
+        {36, "Kick"}, {38, "Snare"}, {41, "LowFloorTom"}, {45, "LowTom"}, {48, "HiMidTom"}, {50, "HighTom"},
+        {42, "ClosedHat"}, {44, "PedalHat"}, {46, "OpenHat"}, {49, "Crash1"}, {51, "Ride1"}, {55, "Splash"},
+        {37, "SideStick"}, {39, "Clap"}, {56, "Cowbell"}, {60, "HiBongo"}, {64, "LowConga"},
+    };
+    const int bss[] = {64, 256, 1024};
+    const int total = static_cast<int>(kSR * 4.0);
+
+    std::filesystem::create_directories("f:/tmp/membrum-audit");
+    std::ofstream csv("f:/tmp/membrum-audit/noteoff-probe.csv");
+    csv << "note,pad,blockSize,decayNoneS,decayOff125S,decayOff5S,tailOff125Db,tailOff5Db,lvl250Off125Db,lvl250Off5Db\n";
+
+    for (const auto& p : pads)
+    {
+        for (int bs : bss)
+        {
+            const auto xn = renderHit(p.note, -1, bs, total);
+            const auto x125 = renderHit(p.note, static_cast<int>(kSR * 0.125), bs, total);
+            const auto x5 = renderHit(p.note, static_cast<int>(kSR * 0.005), bs, total);
+            for (const auto* v : {&xn, &x125, &x5})
+                for (float s : *v) REQUIRE(Krate::DSP::detail::isFinite(s));
+            const Feat fn = analyse(xn), f125 = analyse(x125), f5 = analyse(x5);
+            char line[512];
+            std::snprintf(line, sizeof line, "%d,%s,%d,%s%.2f,%.2f,%.2f,%.1f,%.1f,%.1f,%.1f",
+                          p.note, p.name, bs, fn.over ? ">" : "", fn.decayS, f125.decayS, f5.decayS,
+                          dbRatio(f125.tailEnergy, fn.tailEnergy), dbRatio(f5.tailEnergy, fn.tailEnergy),
+                          dbRatio(f125.rms250 * f125.rms250, fn.rms250 * fn.rms250),
+                          dbRatio(f5.rms250 * f5.rms250, fn.rms250 * fn.rms250));
+            csv << line << "\n";
+            std::printf("PROBE noteoff | %s\n", line);
+        }
+    }
+}

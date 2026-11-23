@@ -1,0 +1,2626 @@
+// ==============================================================================
+// Membrum audit probes (TEMPORARY -- membrum-audit measurement lane).
+// Every case is hidden ([.][audit-probe]) and prints
+//   PROBE <name> | <setup> | <metric> = <value> | threshold <bar> | <verdict>
+// It asserts only that the printed statistics are finite.
+// ==============================================================================
+
+#include <catch2/catch_test_macros.hpp>
+
+#include "processor/processor.h"
+#include "controller/controller.h"
+#include "plugin_ids.h"
+#include "dsp/pad_config.h"
+#include "dsp/pad_config_apply.h"
+#include "dsp/drum_voice.h"
+#include "dsp/default_kit.h"
+#include "dsp/membrane_modes.h"
+#include "dsp/bodies/plate_modes.h"
+#include "dsp/bodies/shell_modes.h"
+#include "dsp/bodies/bell_modes.h"
+#include "dsp/bodies/natural_fundamental.h"
+#include "voice_pool/voice_pool.h"
+#include "state/state_codec.h"
+
+#include <krate/dsp/core/db_utils.h>
+#include <krate/dsp/primitives/fft.h>
+
+#include "artifact_detection.h"
+#include "vst_event_list.h"
+#include "vst_param_changes.h"
+
+#include "public.sdk/source/common/memorystream.h"
+#include "public.sdk/source/vst/vstpresetfile.h"
+#include "public.sdk/source/vst/hosting/hostclasses.h"
+#include "pluginterfaces/vst/ivstaudioprocessor.h"
+#include "pluginterfaces/vst/ivsteditcontroller.h"
+
+#include <algorithm>
+#include <array>
+#include <cmath>
+#include <cstdint>
+#include <cstdio>
+#include <cstring>
+#include <filesystem>
+#include <fstream>
+#include <functional>
+#include <map>
+#include <memory>
+#include <numbers>
+#include <string>
+#include <vector>
+
+using namespace Steinberg;
+using namespace Steinberg::Vst;
+using Membrum::PadConfig;
+using Membrum::ExciterType;
+using Membrum::BodyModelType;
+
+namespace {
+
+using Buf = std::vector<float>;
+
+// ---------------------------------------------------------------- printing
+std::string fmt(double v, int prec = 2)
+{
+    char b[64];
+    std::snprintf(b, sizeof(b), "%.*f", prec, v);
+    return b;
+}
+
+void probe(const std::string& name, const std::string& setup, const std::string& metric,
+           const std::string& value, const std::string& thr, const char* verdict)
+{
+    std::printf("PROBE %s | %s | %s = %s | threshold %s | %s\n", name.c_str(), setup.c_str(),
+                metric.c_str(), value.c_str(), thr.c_str(), verdict);
+    std::fflush(stdout);
+}
+
+bool fin(double v) { return Krate::DSP::detail::isFinite(v); }
+
+const char* exName(int e)
+{
+    static const char* n[] = {"Impulse", "Mallet", "NoiseBurst", "Friction", "FMImpulse", "Feedback", "Clap"};
+    return (e >= 0 && e < 7) ? n[e] : "?";
+}
+const char* bodyName(int b)
+{
+    static const char* n[] = {"Membrane", "Plate", "Shell", "String", "Bell", "NoiseBody"};
+    return (b >= 0 && b < 6) ? n[b] : "?";
+}
+
+// ---------------------------------------------------------------- analysis
+double toDb(double lin) { return 20.0 * std::log10(std::max(lin, 1e-12)); }
+
+struct Stats
+{
+    double peak = 0.0;
+    double rms = 0.0;
+    double dc = 0.0;
+    int nonFinite = 0;
+};
+
+Stats stats(const float* x, std::size_t n)
+{
+    Stats s;
+    double sq = 0.0;
+    double sum = 0.0;
+    std::size_t cnt = 0;
+    for (std::size_t i = 0; i < n; ++i)
+    {
+        const float v = x[i];
+        if (!Krate::DSP::detail::isFinite(v)) { ++s.nonFinite; continue; }
+        s.peak = std::max(s.peak, static_cast<double>(std::fabs(v)));
+        sq += static_cast<double>(v) * v;
+        sum += v;
+        ++cnt;
+    }
+    if (cnt > 0)
+    {
+        s.rms = std::sqrt(sq / static_cast<double>(cnt));
+        s.dc = sum / static_cast<double>(cnt);
+    }
+    return s;
+}
+Stats stats(const Buf& b, std::size_t from = 0, std::size_t to = SIZE_MAX)
+{
+    to = std::min(to, b.size());
+    if (from >= to) return {};
+    return stats(b.data() + from, to - from);
+}
+
+// Time (s) until the 10 ms RMS envelope stays 60 dB below its maximum. -1 = never.
+double decay60(const Buf& x, double sr, double belowDb = 60.0)
+{
+    const std::size_t win = static_cast<std::size_t>(sr * 0.01);
+    const std::size_t nw = x.size() / win;
+    if (nw == 0) return -1.0;
+    std::vector<double> r(nw);
+    double mx = 0.0;
+    for (std::size_t w = 0; w < nw; ++w)
+    {
+        double sq = 0.0;
+        for (std::size_t i = 0; i < win; ++i)
+        {
+            const float v = x[w * win + i];
+            if (Krate::DSP::detail::isFinite(v)) sq += static_cast<double>(v) * v;
+        }
+        r[w] = std::sqrt(sq / static_cast<double>(win));
+        mx = std::max(mx, r[w]);
+    }
+    if (mx <= 0.0) return 0.0;
+    const double thr = mx * std::pow(10.0, -belowDb / 20.0);
+    std::size_t last = 0;
+    for (std::size_t w = 0; w < nw; ++w)
+        if (r[w] > thr) last = w;
+    if (last + 1 >= nw) return -1.0;
+    return static_cast<double>(last + 1) * static_cast<double>(win) / sr;
+}
+
+std::string decayStr(double d, double maxS)
+{
+    return d < 0.0 ? (">" + fmt(maxS, 1) + " s") : (fmt(d, 3) + " s");
+}
+
+// Last time (s) the absolute sample exceeds `thrLin`. -1 = still above at the end.
+double lastAbove(const Buf& x, double sr, double thrLin)
+{
+    std::size_t last = 0;
+    bool any = false;
+    for (std::size_t i = 0; i < x.size(); ++i)
+        if (std::fabs(x[i]) > thrLin) { last = i; any = true; }
+    if (!any) return 0.0;
+    if (last + static_cast<std::size_t>(sr * 0.05) >= x.size()) return -1.0;
+    return static_cast<double>(last) / sr;
+}
+
+std::vector<double> hann(std::size_t n)
+{
+    std::vector<double> w(n);
+    for (std::size_t i = 0; i < n; ++i)
+        w[i] = 0.5 - 0.5 * std::cos(2.0 * std::numbers::pi * static_cast<double>(i) / static_cast<double>(n - 1));
+    return w;
+}
+
+// Magnitude spectrum (Hann) of n samples starting at x; returns bins 0..N/2.
+std::vector<double> magSpectrum(const float* x, std::size_t n, std::size_t& N)
+{
+    N = 8192;
+    while (N > n && N > 256) N /= 2;
+    std::vector<double> mag;
+    if (n < 256) return mag;
+    Krate::DSP::FFT fft;
+    fft.prepare(N);
+    std::vector<float> in(N);
+    std::vector<Krate::DSP::Complex> out(N / 2 + 1);
+    const auto w = hann(N);
+    for (std::size_t i = 0; i < N; ++i)
+    {
+        const float v = x[i];
+        in[i] = Krate::DSP::detail::isFinite(v) ? static_cast<float>(v * w[i]) : 0.0f;
+    }
+    fft.forward(in.data(), out.data());
+    mag.resize(N / 2 + 1);
+    for (std::size_t k = 0; k <= N / 2; ++k)
+        mag[k] = std::sqrt(static_cast<double>(out[k].real) * out[k].real + static_cast<double>(out[k].imag) * out[k].imag);
+    return mag;
+}
+
+double centroid(const Buf& x, double sr, std::size_t start, std::size_t len)
+{
+    if (start >= x.size()) return 0.0;
+    len = std::min(len, x.size() - start);
+    std::size_t N = 0;
+    const auto m = magSpectrum(x.data() + start, len, N);
+    if (m.empty()) return 0.0;
+    double num = 0.0;
+    double den = 0.0;
+    for (std::size_t k = 1; k < m.size(); ++k)
+    {
+        const double f = static_cast<double>(k) * sr / static_cast<double>(N);
+        num += f * m[k];
+        den += m[k];
+    }
+    return den > 0.0 ? num / den : 0.0;
+}
+
+// Fraction (dB) of spectral energy above fLo in a window.
+double energyAboveDb(const Buf& x, double sr, std::size_t start, std::size_t len, double fLo)
+{
+    if (start >= x.size()) return -200.0;
+    len = std::min(len, x.size() - start);
+    std::size_t N = 0;
+    const auto m = magSpectrum(x.data() + start, len, N);
+    if (m.empty()) return -200.0;
+    double hi = 0.0;
+    double tot = 0.0;
+    for (std::size_t k = 1; k < m.size(); ++k)
+    {
+        const double f = static_cast<double>(k) * sr / static_cast<double>(N);
+        tot += m[k] * m[k];
+        if (f >= fLo) hi += m[k] * m[k];
+    }
+    return tot > 0.0 ? 10.0 * std::log10(std::max(hi / tot, 1e-20)) : -200.0;
+}
+
+// Hann-windowed DTFT magnitude at f.
+double dtftMag(const float* x, const std::vector<double>& w, double f, double sr)
+{
+    const std::size_t n = w.size();
+    const double dph = 2.0 * std::numbers::pi * f / sr;
+    const double c = std::cos(dph);
+    const double s = std::sin(dph);
+    double re = 1.0;
+    double im = 0.0;
+    double ar = 0.0;
+    double ai = 0.0;
+    for (std::size_t i = 0; i < n; ++i)
+    {
+        const double v = Krate::DSP::detail::isFinite(x[i]) ? static_cast<double>(x[i]) * w[i] : 0.0;
+        ar += v * re;
+        ai -= v * im;
+        const double nr = re * c - im * s;
+        im = re * s + im * c;
+        re = nr;
+    }
+    return std::sqrt(ar * ar + ai * ai);
+}
+
+// Best peak within +-cents of fGuess (grid then golden refinement).
+double refinePeak(const float* x, const std::vector<double>& w, double sr, double fGuess,
+                  double cents, double* magOut = nullptr)
+{
+    const int kGrid = 61;
+    double bestF = fGuess;
+    double bestM = -1.0;
+    for (int g = 0; g < kGrid; ++g)
+    {
+        const double c = -cents + 2.0 * cents * static_cast<double>(g) / (kGrid - 1);
+        const double f = fGuess * std::pow(2.0, c / 1200.0);
+        if (f <= 0.0 || f >= sr * 0.5) continue;
+        const double m = dtftMag(x, w, f, sr);
+        if (m > bestM) { bestM = m; bestF = f; }
+    }
+    const double step = 2.0 * cents / (kGrid - 1);
+    double lo = bestF * std::pow(2.0, -step / 1200.0);
+    double hi = bestF * std::pow(2.0, step / 1200.0);
+    const double gr = 0.6180339887;
+    for (int it = 0; it < 30; ++it)
+    {
+        const double a = hi - gr * (hi - lo);
+        const double b = lo + gr * (hi - lo);
+        if (dtftMag(x, w, a, sr) > dtftMag(x, w, b, sr)) hi = b; else lo = a;
+    }
+    const double f = 0.5 * (lo + hi);
+    if (magOut) *magOut = dtftMag(x, w, f, sr);
+    return f;
+}
+
+// Dominant spectral peak between fLo..fHi, refined.
+double dominantPeak(const Buf& x, double sr, std::size_t start, std::size_t len, double fLo, double fHi)
+{
+    if (start >= x.size()) return 0.0;
+    len = std::min(len, x.size() - start);
+    std::size_t N = 0;
+    const auto m = magSpectrum(x.data() + start, len, N);
+    if (m.empty()) return 0.0;
+    std::size_t best = 0;
+    double bm = -1.0;
+    for (std::size_t k = 1; k < m.size(); ++k)
+    {
+        const double f = static_cast<double>(k) * sr / static_cast<double>(N);
+        if (f < fLo || f > fHi) continue;
+        if (m[k] > bm) { bm = m[k]; best = k; }
+    }
+    if (best == 0) return 0.0;
+    const double fCoarse = static_cast<double>(best) * sr / static_cast<double>(N);
+    const std::size_t n2 = std::min<std::size_t>(len, static_cast<std::size_t>(sr * 0.5));
+    const auto w = hann(n2);
+    const double cents = 1200.0 * std::log2((fCoarse + 1.5 * sr / static_cast<double>(N)) / fCoarse);
+    return refinePeak(x.data() + start, w, sr, fCoarse, std::min(cents, 600.0));
+}
+
+double cents(double f, double ref) { return (f > 0.0 && ref > 0.0) ? 1200.0 * std::log2(f / ref) : 0.0; }
+
+double maxJump(const Buf& x, std::size_t from = 0, std::size_t to = SIZE_MAX)
+{
+    to = std::min(to, x.size());
+    double j = 0.0;
+    for (std::size_t i = std::max<std::size_t>(from, 1); i < to; ++i)
+        j = std::max(j, static_cast<double>(std::fabs(x[i] - x[i - 1])));
+    return j;
+}
+
+int clickCount(const Buf& x, double sr, std::size_t from = 0, std::size_t to = SIZE_MAX)
+{
+    to = std::min(to, x.size());
+    if (to <= from + 1024) return 0;
+    Krate::DSP::TestUtils::ClickDetectorConfig cfg;
+    cfg.sampleRate = static_cast<float>(std::min(sr, 192000.0));
+    cfg.frameSize = 512;
+    cfg.hopSize = 256;
+    cfg.detectionThreshold = 5.0f;
+    Krate::DSP::TestUtils::ClickDetector det(cfg);
+    det.prepare();
+    return static_cast<int>(det.detect(x.data() + from, to - from).size());
+}
+
+double maxAbsDiff(const Buf& a, const Buf& b)
+{
+    const std::size_t n = std::min(a.size(), b.size());
+    double d = 0.0;
+    for (std::size_t i = 0; i < n; ++i)
+        d = std::max(d, static_cast<double>(std::fabs(a[i] - b[i])));
+    return d;
+}
+
+long firstAbove(const Buf& x, double thr, std::size_t from = 0)
+{
+    for (std::size_t i = from; i < x.size(); ++i)
+        if (std::fabs(x[i]) > thr) return static_cast<long>(i);
+    return -1;
+}
+
+// ---------------------------------------------------------------- pad configs
+PadConfig detPad(BodyModelType b = BodyModelType::Membrane, ExciterType e = ExciterType::Impulse,
+                 float size = 0.5f)
+{
+    PadConfig c;
+    c.bodyModel = b;
+    c.exciterType = e;
+    c.size = size;
+    c.noiseLayerMix = 0.0f;
+    c.clickLayerMix = 0.0f;
+    return c;
+}
+
+// ---------------------------------------------------------------- voice rig
+Buf renderVoice(const PadConfig& cfg, float vel, double sr, long total, int bs = 256,
+                long noteOffAt = -1,
+                const std::function<void(Membrum::DrumVoice&, long)>& perBlock = {},
+                bool* activeAtEnd = nullptr)
+{
+    auto v = std::make_unique<Membrum::DrumVoice>();
+    v->prepare(sr, 0u);
+    Membrum::applyPadConfigToVoice(*v, cfg);
+    v->noteOn(vel);
+    Buf out(static_cast<std::size_t>(total), 0.0f);
+    long pos = 0;
+    while (pos < total)
+    {
+        const int n = static_cast<int>(std::min<long>(bs, total - pos));
+        if (noteOffAt >= 0 && pos <= noteOffAt && noteOffAt < pos + n) v->noteOff();
+        if (perBlock) perBlock(*v, pos);
+        v->processBlock(out.data() + pos, n);
+        pos += n;
+    }
+    if (activeAtEnd) *activeAtEnd = v->isActive();
+    return out;
+}
+
+// ---------------------------------------------------------------- processor rig
+struct Ev
+{
+    long pos;
+    int pitch;
+    float vel;  // <= 0 -> note-off
+};
+struct Pc
+{
+    long pos;
+    ParamID id;
+    double v;
+};
+
+struct Render
+{
+    std::vector<Buf> L;
+    std::vector<Buf> R;
+    std::vector<std::uint64_t> mainFlags;  // per block
+    std::vector<std::vector<std::uint64_t>> busFlags;
+    std::vector<int> activeVoices;          // per block
+};
+
+class Host
+{
+public:
+    Host(double sr, int maxBlock, int numBuses = 1) : sr_(sr), maxBlock_(maxBlock), numBuses_(numBuses)
+    {
+        p = std::make_unique<Membrum::Processor>();
+        p->initialize(nullptr);
+        ProcessSetup s{};
+        s.processMode = kRealtime;
+        s.symbolicSampleSize = kSample32;
+        s.maxSamplesPerBlock = maxBlock;
+        s.sampleRate = sr;
+        p->setupProcessing(s);
+        p->setActive(true);
+    }
+    ~Host()
+    {
+        p->setActive(false);
+        p->terminate();
+    }
+    Host(const Host&) = delete;
+    Host& operator=(const Host&) = delete;
+
+    void activate(int bus, bool on) { p->activateBus(kAudio, kOutput, bus, on ? 1 : 0); }
+
+    Render render(long total, int bs, const std::vector<Ev>& evs, const std::vector<Pc>& pcs = {},
+                  int nullBus = -1, const std::function<void(long)>& preBlock = {})
+    {
+        bs = std::min(bs, maxBlock_);
+        Render r;
+        r.L.assign(static_cast<std::size_t>(numBuses_), Buf(static_cast<std::size_t>(total), 0.0f));
+        r.R.assign(static_cast<std::size_t>(numBuses_), Buf(static_cast<std::size_t>(total), 0.0f));
+        r.busFlags.resize(static_cast<std::size_t>(numBuses_));
+        std::vector<Buf> bl(static_cast<std::size_t>(numBuses_), Buf(static_cast<std::size_t>(bs)));
+        std::vector<Buf> br(static_cast<std::size_t>(numBuses_), Buf(static_cast<std::size_t>(bs)));
+        std::vector<std::array<float*, 2>> ptrs(static_cast<std::size_t>(numBuses_));
+        std::vector<AudioBusBuffers> buses(static_cast<std::size_t>(numBuses_));
+        for (int b = 0; b < numBuses_; ++b)
+        {
+            auto ub = static_cast<std::size_t>(b);
+            ptrs[ub] = {bl[ub].data(), br[ub].data()};
+            buses[ub].numChannels = 2;
+            buses[ub].channelBuffers32 = (b == nullBus) ? nullptr : ptrs[ub].data();
+            buses[ub].silenceFlags = 0;
+        }
+        long pos = 0;
+        while (pos < total)
+        {
+            const int n = static_cast<int>(std::min<long>(bs, total - pos));
+            if (preBlock) preBlock(pos);
+            Krate::Test::EventList el;
+            for (const auto& e : evs)
+            {
+                if (e.pos >= pos && e.pos < pos + n)
+                {
+                    const auto off = static_cast<int32>(e.pos - pos);
+                    if (e.vel > 0.0f) el.addNoteOn(static_cast<int16>(e.pitch), e.vel, off);
+                    else el.addNoteOff(static_cast<int16>(e.pitch), off);
+                }
+            }
+            Krate::Test::ParameterChanges pc;
+            for (const auto& c : pcs)
+                if (c.pos >= pos && c.pos < pos + n) pc.addChange(c.id, c.v);
+            for (int b = 0; b < numBuses_; ++b)
+            {
+                auto ub = static_cast<std::size_t>(b);
+                std::fill(bl[ub].begin(), bl[ub].end(), 0.0f);
+                std::fill(br[ub].begin(), br[ub].end(), 0.0f);
+                buses[ub].silenceFlags = 0;
+            }
+            ProcessData d{};
+            d.processMode = kRealtime;
+            d.symbolicSampleSize = kSample32;
+            d.numSamples = n;
+            d.numOutputs = numBuses_;
+            d.outputs = buses.data();
+            d.numInputs = 0;
+            d.inputs = nullptr;
+            d.inputEvents = &el;
+            d.inputParameterChanges = pc.getParameterCount() > 0 ? &pc : nullptr;
+            p->process(d);
+            for (int b = 0; b < numBuses_; ++b)
+            {
+                auto ub = static_cast<std::size_t>(b);
+                if (b != nullBus)
+                {
+                    std::copy(bl[ub].begin(), bl[ub].begin() + n, r.L[ub].begin() + pos);
+                    std::copy(br[ub].begin(), br[ub].begin() + n, r.R[ub].begin() + pos);
+                }
+                r.busFlags[ub].push_back(buses[ub].silenceFlags);
+            }
+            r.mainFlags.push_back(buses[0].silenceFlags);
+            r.activeVoices.push_back(p->voicePoolForTest().getActiveVoiceCount());
+            pos += n;
+        }
+        return r;
+    }
+
+    std::unique_ptr<Membrum::Processor> p;
+
+private:
+    double sr_;
+    int maxBlock_;
+    int numBuses_;
+};
+
+// ---------------------------------------------------------------- state helpers
+std::vector<char> getStateBytes(Membrum::Processor& p)
+{
+    Steinberg::MemoryStream s;
+    p.getState(&s);
+    return std::vector<char>(s.getData(), s.getData() + s.getSize());
+}
+
+tresult setStateBytes(Membrum::Processor& p, const std::vector<char>& b)
+{
+    Steinberg::MemoryStream s(const_cast<char*>(b.data()), static_cast<TSize>(b.size()));
+    return p.setState(&s);
+}
+
+bool decodeKit(const std::vector<char>& b, Membrum::State::KitSnapshot& k)
+{
+    Steinberg::MemoryStream s(const_cast<char*>(b.data()), static_cast<TSize>(b.size()));
+    return Membrum::State::readKitBlob(&s, k) == kResultOk;
+}
+
+std::vector<char> readAll(IBStream* s)
+{
+    std::vector<char> out;
+    s->seek(0, IBStream::kIBSeekSet, nullptr);
+    std::array<char, 4096> chunk{};
+    int32 got = 0;
+    while (s->read(chunk.data(), static_cast<int32>(chunk.size()), &got) == kResultOk && got > 0)
+        out.insert(out.end(), chunk.data(), chunk.data() + got);
+    return out;
+}
+
+tresult sendBytesMessage(Membrum::Processor& p, const char* id, const std::vector<char>& b, int pad = -1)
+{
+    auto msg = owned(new HostMessage());
+    msg->setMessageID(id);
+    auto* a = msg->getAttributes();
+    a->setBinary("bytes", b.data(), static_cast<uint32>(b.size()));
+    if (pad >= 0) a->setInt("pad", pad);
+    return p.notify(msg);
+}
+
+// Field-level diff between two kits; returns map name -> number of pads differing.
+std::map<std::string, int> diffKits(const Membrum::State::KitSnapshot& a, const Membrum::State::KitSnapshot& b)
+{
+    std::map<std::string, int> d;
+    if (a.maxPolyphony != b.maxPolyphony) d["maxPolyphony"]++;
+    if (a.voiceStealingPolicy != b.voiceStealingPolicy) d["stealing"]++;
+    if (a.globalCoupling != b.globalCoupling) d["globalCoupling"]++;
+    if (a.snareBuzz != b.snareBuzz) d["snareBuzz"]++;
+    if (a.tomResonance != b.tomResonance) d["tomResonance"]++;
+    if (a.couplingDelayMs != b.couplingDelayMs) d["couplingDelay"]++;
+    if (a.masterGainNorm != b.masterGainNorm) d["masterGain"]++;
+    if (a.selectedPadIndex != b.selectedPadIndex) d["selectedPad"]++;
+    for (std::size_t p = 0; p < a.pads.size(); ++p)
+    {
+        const auto& x = a.pads[p];
+        const auto& y = b.pads[p];
+        if (x.exciterType != y.exciterType) d["exciterType"]++;
+        if (x.bodyModel != y.bodyModel) d["bodyModel"]++;
+        for (std::size_t s = 0; s < x.sound.size(); ++s)
+            if (std::memcmp(&x.sound[s], &y.sound[s], sizeof(double)) != 0) d["slot" + std::to_string(s)]++;
+        if (x.chokeGroup != y.chokeGroup) d["choke"]++;
+        if (x.outputBus != y.outputBus) d["bus"]++;
+        if (x.couplingAmount != y.couplingAmount) d["couplingAmount"]++;
+        for (std::size_t m = 0; m < 5; ++m)
+            if (x.macros[m] != y.macros[m]) d["macro" + std::to_string(m)]++;
+    }
+    return d;
+}
+
+std::string diffStr(const std::map<std::string, int>& d)
+{
+    if (d.empty()) return "none";
+    std::string s;
+    for (const auto& [k, v] : d)
+        s += k + "x" + std::to_string(v) + " ";
+    return s;
+}
+
+std::vector<std::uint8_t> readFileBytes(const std::filesystem::path& p)
+{
+    std::ifstream in(p, std::ios::binary);
+    if (!in) return {};
+    in.seekg(0, std::ios::end);
+    const auto size = static_cast<std::streamsize>(in.tellg());
+    in.seekg(0, std::ios::beg);
+    std::vector<std::uint8_t> buf(static_cast<std::size_t>(size));
+    if (size > 0) in.read(reinterpret_cast<char*>(buf.data()), size);
+    return buf;
+}
+
+struct FactoryKit
+{
+    std::string name;
+    std::vector<char> component;
+};
+
+std::vector<FactoryKit> factoryKits()
+{
+    std::vector<FactoryKit> kits;
+    const std::filesystem::path root =
+        std::filesystem::path(MEMBRUM_RESOURCES_DIR) / "presets" / "Kit Presets";
+    if (!std::filesystem::exists(root)) return kits;
+    std::vector<std::filesystem::path> files;
+    for (const auto& e : std::filesystem::recursive_directory_iterator(root))
+        if (e.is_regular_file() && e.path().extension() == ".vstpreset") files.push_back(e.path());
+    std::sort(files.begin(), files.end());
+    for (const auto& f : files)
+    {
+        auto bytes = readFileBytes(f);
+        auto ps = owned(new MemoryStream(bytes.data(), static_cast<TSize>(bytes.size())));
+        PresetFile pf(ps);
+        if (!pf.readChunkList()) continue;
+        const auto* ce = pf.getEntry(kComponentState);
+        if (!ce) continue;
+        std::vector<char> comp(static_cast<std::size_t>(ce->size));
+        ps->seek(ce->offset, IBStream::kIBSeekSet, nullptr);
+        int32 got = 0;
+        ps->read(comp.data(), static_cast<int32>(comp.size()), &got);
+        kits.push_back({f.parent_path().filename().string() + "/" + f.stem().string(), comp});
+    }
+    return kits;
+}
+
+class EditRecorder : public IComponentHandler
+{
+public:
+    std::vector<std::pair<ParamID, double>> edits;
+    int begins = 0;
+    int ends = 0;
+    tresult PLUGIN_API beginEdit(ParamID) override { ++begins; return kResultOk; }
+    tresult PLUGIN_API performEdit(ParamID id, ParamValue v) override
+    {
+        edits.emplace_back(id, v);
+        return kResultOk;
+    }
+    tresult PLUGIN_API endEdit(ParamID) override { ++ends; return kResultOk; }
+    tresult PLUGIN_API restartComponent(int32) override { return kResultOk; }
+    tresult PLUGIN_API queryInterface(const TUID, void** obj) override
+    {
+        *obj = nullptr;
+        return kNoInterface;
+    }
+    uint32 PLUGIN_API addRef() override { return 1; }
+    uint32 PLUGIN_API release() override { return 1; }
+};
+
+ParamID padId(int pad, int off) { return static_cast<ParamID>(Membrum::padParamId(pad, off)); }
+
+double hzToPitchNorm(double hz) { return std::log(hz / 20.0) / std::log(100.0); }
+
+std::vector<Pc> editsToPcs(const std::vector<std::pair<ParamID, double>>& e, long pos = 0)
+{
+    std::vector<Pc> v;
+    v.reserve(e.size());
+    for (const auto& [id, val] : e) v.push_back({pos, id, val});
+    return v;
+}
+
+}  // namespace
+
+// ==============================================================================
+// 1. Exciter x body matrix
+// ==============================================================================
+static void runMatrix(int exFrom, int exTo)
+{
+    const double sr = 48000.0;
+    for (int e = exFrom; e < exTo; ++e)
+    {
+        for (int b = 0; b < 6; ++b)
+        {
+            PadConfig c;
+            c.exciterType = static_cast<ExciterType>(e);
+            c.bodyModel = static_cast<BodyModelType>(b);
+            if (c.exciterType == ExciterType::Friction) c.frictionPressure = 0.5f;
+            const Buf hi = renderVoice(c, 1.0f, sr, static_cast<long>(sr * 10.0));
+            const Buf lo = renderVoice(c, 0.25f, sr, static_cast<long>(sr * 2.0));
+            const auto sh = stats(hi);
+            const auto sl = stats(lo);
+            const double d60 = decay60(hi, sr);
+            const double cen = centroid(hi, sr, 0, 8192);
+            const double velDb = toDb(sh.peak) - toDb(sl.peak);
+            const std::string nm = std::string("matrix:exciter=") + exName(e) + ":body=" + bodyName(b);
+            const std::string setup = "DrumVoice 48k PadConfig defaults, vel 1.0 vs 0.25";
+            const bool sustain = c.exciterType == ExciterType::Friction || c.exciterType == ExciterType::Feedback;
+            probe(nm, setup, "peak dBFS / rms dBFS / dc", fmt(toDb(sh.peak)) + " / " + fmt(toDb(sh.rms)) + " / " + fmt(sh.dc, 6),
+                  "peak <= 0 dBFS, |dc| < 1e-3", (sh.peak > 1.0 || std::fabs(sh.dc) > 1e-3) ? "suspicious" : "ok");
+            probe(nm, setup, "nonFinite", std::to_string(sh.nonFinite + sl.nonFinite), "0", (sh.nonFinite + sl.nonFinite) ? "bad" : "ok");
+            probe(nm, setup, "decay -60 dB", decayStr(d60, 10.0), sustain ? "sustain expected (Friction/Feedback)" : "< 10 s",
+                  (d60 < 0.0 && !sustain) ? "suspicious" : "ok");
+            probe(nm, setup, "centroid first 8192 samples Hz", fmt(cen, 0), "info", "ok");
+            probe(nm, setup, "peak(vel1.0) - peak(vel0.25) dB", fmt(velDb), ">= 3 dB (else flattened dynamics)",
+                  velDb < 3.0 ? "suspicious" : "ok");
+            CHECK(fin(sh.peak));
+        }
+    }
+}
+
+TEST_CASE("audit probe 01a matrix exciters 0-1", "[.][audit-probe]") { runMatrix(0, 2); }
+TEST_CASE("audit probe 01b matrix exciters 2-3", "[.][audit-probe]") { runMatrix(2, 4); }
+TEST_CASE("audit probe 01c matrix exciters 4-5", "[.][audit-probe]") { runMatrix(4, 6); }
+TEST_CASE("audit probe 01d matrix exciter 6", "[.][audit-probe]") { runMatrix(6, 7); }
+
+// ==============================================================================
+// 2. Mode accuracy
+// ==============================================================================
+TEST_CASE("audit probe 02 mode accuracy", "[.][audit-probe]")
+{
+    const double sr = 48000.0;
+    const BodyModelType bodies[] = {BodyModelType::Membrane, BodyModelType::Plate, BodyModelType::Shell, BodyModelType::Bell};
+    const float sizes[] = {0.0f, 0.5f, 1.0f};
+    for (auto body : bodies)
+    {
+        const float* ratios = nullptr;
+        int nr = 0;
+        switch (body)
+        {
+        case BodyModelType::Membrane: ratios = Membrum::kMembraneRatios.data(); nr = static_cast<int>(Membrum::kMembraneRatios.size()); break;
+        case BodyModelType::Plate: ratios = Membrum::Bodies::kPlateRatios; nr = Membrum::Bodies::kPlateMaxModeCount; break;
+        case BodyModelType::Shell: ratios = Membrum::Bodies::kShellRatios; nr = Membrum::Bodies::kShellModeCount; break;
+        default: ratios = Membrum::Bodies::kBellRatios; nr = Membrum::Bodies::kBellModeCount; break;
+        }
+        for (float sz : sizes)
+        {
+            PadConfig c = detPad(body, ExciterType::Impulse, sz);
+            c.airLoading = 0.0f;
+            c.modeScatter = 0.0f;
+            c.decay = 0.7f;
+            c.strikePosition = 0.3f;
+            std::array<float, 8> bankF{};
+            int nModes = 0;
+            const Buf x = renderVoice(c, 1.0f, sr, static_cast<long>(sr * 1.5), 256, -1,
+                                      [&](Membrum::DrumVoice& v, long pos) {
+                                          if (pos == 256)
+                                          {
+                                              auto& bank = v.getBodyBankForTest().getSharedBank();
+                                              nModes = bank.getNumModes();
+                                              for (int k = 0; k < 8; ++k) bankF[static_cast<std::size_t>(k)] = bank.getModeFrequency(k);
+                                          }
+                                      });
+            const double f0 = static_cast<double>(Membrum::Bodies::naturalFundamentalHz(body, sz));
+            const std::size_t start = static_cast<std::size_t>(sr * 0.005);
+            const std::size_t n = std::min<std::size_t>(x.size() - start, static_cast<std::size_t>(sr * 0.6));
+            const auto w = hann(n);
+            double maxErrTable = 0.0;
+            double maxErrBank = 0.0;
+            double strongest = 0.0;
+            std::array<double, 8> meas{};
+            std::array<double, 8> mags{};
+            const int nk = std::min(8, nr);
+            for (int k = 0; k < nk; ++k)
+            {
+                const double target = bankF[static_cast<std::size_t>(k)] > 0.0f ? bankF[static_cast<std::size_t>(k)] : f0 * ratios[k];
+                if (target >= sr * 0.5) { meas[static_cast<std::size_t>(k)] = 0.0; continue; }
+                double mg = 0.0;
+                meas[static_cast<std::size_t>(k)] = refinePeak(x.data() + start, w, sr, target, 40.0, &mg);
+                mags[static_cast<std::size_t>(k)] = mg;
+                strongest = std::max(strongest, mg);
+            }
+            std::string detail;
+            for (int k = 0; k < nk; ++k)
+            {
+                const auto uk = static_cast<std::size_t>(k);
+                const double table = f0 * ratios[k];
+                const bool present = mags[uk] > strongest * 0.003;  // > -50 dB rel
+                const double eT = cents(meas[uk], table);
+                const double eB = cents(meas[uk], bankF[uk]);
+                if (present && meas[uk] > 0.0)
+                {
+                    maxErrTable = std::max(maxErrTable, std::fabs(eT));
+                    maxErrBank = std::max(maxErrBank, std::fabs(eB));
+                }
+                detail += "k" + std::to_string(k) + ":tab=" + fmt(table, 1) + ",bank=" + fmt(bankF[uk], 1) + ",meas=" +
+                          (present ? fmt(meas[uk], 1) : std::string("absent")) + ",dT=" + fmt(eT, 1) + "c ";
+            }
+            const std::string nm = std::string("modes:body=") + bodyName(static_cast<int>(body)) + ":size=" + fmt(sz, 1);
+            const std::string setup = "DrumVoice 48k Impulse, noise/click 0, airLoading 0, scatter 0, decay 0.7";
+            probe(nm, setup, "partials (table/bank/measured Hz, cents vs table)", detail, "info", "ok");
+            probe(nm, setup, "max |cents| measured vs table (first 8)", fmt(maxErrTable, 1), "< 5 cents",
+                  maxErrTable > 5.0 ? "suspicious" : "ok");
+            probe(nm, setup, "max |cents| measured vs installed bank freq", fmt(maxErrBank, 1), "< 5 cents",
+                  maxErrBank > 5.0 ? "suspicious" : "ok");
+            const double fund = meas[0];
+            probe(nm, setup, "mode0 measured Hz vs naturalFundamentalHz", fmt(fund, 2) + " vs " + fmt(f0, 2) + " (" + fmt(cents(fund, f0), 1) + " c)",
+                  "< 5 cents; plugin_ids.h documents 500 Hz..50 Hz (Membrane)", std::fabs(cents(fund, f0)) > 5.0 ? "suspicious" : "ok");
+            probe(nm, setup, "installed mode count", std::to_string(nModes), "info", "ok");
+            CHECK(fin(maxErrTable));
+        }
+    }
+    // String body
+    for (float sz : sizes)
+    {
+        PadConfig c = detPad(BodyModelType::String, ExciterType::Impulse, sz);
+        c.decay = 0.7f;
+        const Buf x = renderVoice(c, 1.0f, sr, static_cast<long>(sr * 1.5));
+        const double f0 = static_cast<double>(Membrum::Bodies::naturalFundamentalHz(BodyModelType::String, sz));
+        const std::size_t start = static_cast<std::size_t>(sr * 0.02);
+        const auto w = hann(static_cast<std::size_t>(sr * 0.6));
+        double mg = 0.0;
+        const double meas = refinePeak(x.data() + start, w, sr, f0, 100.0, &mg);
+        const double dom = dominantPeak(x, sr, start, static_cast<std::size_t>(sr * 0.6), 20.0, 5000.0);
+        probe("modes:body=String:size=" + fmt(sz, 1), "DrumVoice 48k Impulse, noise/click 0, decay 0.7",
+              "fundamental Hz near f0 / dominant Hz / f0", fmt(meas, 2) + " / " + fmt(dom, 2) + " / " + fmt(f0, 2) + " (" + fmt(cents(meas, f0), 1) + " c)",
+              "< 5 cents", std::fabs(cents(meas, f0)) > 5.0 ? "suspicious" : "ok");
+        CHECK(fin(meas));
+    }
+}
+
+// ==============================================================================
+// 3. Sample-rate consistency + Nyquist at 44.1 k size 0
+// ==============================================================================
+TEST_CASE("audit probe 03a sample-rate consistency", "[.][audit-probe]")
+{
+    const double rates[] = {44100.0, 48000.0, 96000.0, 192000.0};
+    const int pads[] = {36, 38, 49};
+    const char* names[] = {"kick36", "snare38", "crash49"};
+    for (int pi = 0; pi < 3; ++pi)
+    {
+        std::array<double, 4> f{}, dec{}, rmsDb{}, cen{};
+        int nonFin = 0;
+        for (int ri = 0; ri < 4; ++ri)
+        {
+            const double sr = rates[ri];
+            Host h(sr, 512);
+            const long total = static_cast<long>(sr * 4.0);
+            auto r = h.render(total, 512, {{0, pads[pi], 1.0f}});
+            const Buf& x = r.L[0];
+            const auto s = stats(x);
+            nonFin += s.nonFinite;
+            f[static_cast<std::size_t>(ri)] = dominantPeak(x, sr, static_cast<std::size_t>(sr * 0.08), static_cast<std::size_t>(sr * 0.5), 20.0, 4000.0);
+            dec[static_cast<std::size_t>(ri)] = decay60(x, sr);
+            rmsDb[static_cast<std::size_t>(ri)] = toDb(stats(x, 0, static_cast<std::size_t>(sr * 1.0)).rms);
+            // centroid over the first 40 ms (same duration at every rate)
+            cen[static_cast<std::size_t>(ri)] = centroid(x, sr, 0, static_cast<std::size_t>(sr * 0.04));
+        }
+        double maxC = 0.0, maxD = 0.0, maxR = 0.0, maxCen = 0.0;
+        for (int ri = 0; ri < 4; ++ri)
+        {
+            const auto u = static_cast<std::size_t>(ri);
+            maxC = std::max(maxC, std::fabs(cents(f[u], f[1])));
+            if (dec[u] > 0 && dec[1] > 0) maxD = std::max(maxD, std::fabs(dec[u] / dec[1] - 1.0) * 100.0);
+            maxR = std::max(maxR, std::fabs(rmsDb[u] - rmsDb[1]));
+            if (cen[1] > 0) maxCen = std::max(maxCen, std::fabs(cen[u] / cen[1] - 1.0) * 100.0);
+        }
+        std::string det;
+        for (int ri = 0; ri < 4; ++ri)
+        {
+            const auto u = static_cast<std::size_t>(ri);
+            det += fmt(rates[ri] / 1000.0, 1) + "k:f=" + fmt(f[u], 2) + ",dec=" + decayStr(dec[u], 4.0) + ",rms1s=" + fmt(rmsDb[u]) + ",cen=" + fmt(cen[u], 0) + " ";
+        }
+        const std::string nm = std::string("srate:") + names[pi];
+        const std::string setup = "Processor default kit, vel 1.0, bs 512, 44.1/48/96/192k";
+        probe(nm, setup, "per-rate values", det, "info", "ok");
+        probe(nm, setup, "max fundamental deviation vs 48k (cents)", fmt(maxC, 1), "<= 5 cents", maxC > 5 ? "bad" : "ok");
+        probe(nm, setup, "max decay deviation vs 48k (%)", fmt(maxD, 1), "<= 10 %", maxD > 10 ? "bad" : "ok");
+        probe(nm, setup, "max RMS(1 s) deviation vs 48k (dB)", fmt(maxR), "<= 1 dB", maxR > 1 ? "bad" : "ok");
+        probe(nm, setup, "max centroid(40 ms) deviation vs 48k (%)", fmt(maxCen, 1), "<= 10 % (info: band-limit differs)", maxCen > 10 ? "suspicious" : "ok");
+        probe(nm, setup, "nonFinite", std::to_string(nonFin), "0", nonFin ? "bad" : "ok");
+        CHECK(fin(maxC));
+    }
+}
+
+TEST_CASE("audit probe 03b nyquist at 44.1k size 0", "[.][audit-probe]")
+{
+    const double sr = 44100.0;
+    for (int b = 0; b < 6; ++b)
+    {
+        if (b == static_cast<int>(BodyModelType::String)) continue;
+        PadConfig c = detPad(static_cast<BodyModelType>(b), ExciterType::Impulse, 0.0f);
+        c.airLoading = 0.0f;
+        int nModes = 0;
+        int above = 0;
+        float maxF = 0.0f;
+        const Buf x = renderVoice(c, 1.0f, sr, static_cast<long>(sr * 1.0), 256, -1,
+                                  [&](Membrum::DrumVoice& v, long pos) {
+                                      if (pos == 256)
+                                      {
+                                          auto& bank = v.getBodyBankForTest().getSharedBank();
+                                          nModes = bank.getNumModes();
+                                          for (int k = 0; k < nModes; ++k)
+                                          {
+                                              const float fk = bank.getModeFrequency(k);
+                                              maxF = std::max(maxF, fk);
+                                              if (fk >= static_cast<float>(sr * 0.5) * 0.98f) ++above;
+                                          }
+                                      }
+                                  });
+        const double hiDb = energyAboveDb(x, sr, 0, 8192, sr * 0.45);
+        const auto s = stats(x);
+        const std::string nm = std::string("nyquist44k:body=") + bodyName(b) + ":size=0";
+        probe(nm, "DrumVoice 44.1k Impulse noise/click 0", "installed modes / modes >= 0.98*Nyquist / max installed Hz",
+              std::to_string(nModes) + " / " + std::to_string(above) + " / " + fmt(maxF, 0),
+              "0 modes at/above Nyquist", above > 0 ? "suspicious" : "ok");
+        probe(nm, "DrumVoice 44.1k Impulse noise/click 0", "energy above 0.45*sr (dB rel total) / nonFinite",
+              fmt(hiDb) + " / " + std::to_string(s.nonFinite), "info", s.nonFinite ? "bad" : "ok");
+        CHECK(fin(hiDb));
+    }
+}
+
+// ==============================================================================
+// 4. Timing
+// ==============================================================================
+TEST_CASE("audit probe 04a note-on sample offset", "[.][audit-probe]")
+{
+    const double sr = 48000.0;
+    const int bs = 512;
+    const int offsets[] = {0, 1, 100, bs - 1};
+    for (int off : offsets)
+    {
+        Host h(sr, bs);
+        h.p->voicePoolForTest().padConfigMut(0) = detPad();
+        auto r = h.render(4L * bs, bs, {{static_cast<long>(off), 36, 1.0f}});
+        const long first = firstAbove(r.L[0], 1e-9);
+        probe("timing:offset=" + std::to_string(off), "Processor 48k bs 512, pad 36 Impulse/Membrane noise/click 0",
+              "first non-zero sample minus sampleOffset", std::to_string(first - off), "0 (processor reports no latency)",
+              (first - off) != 0 ? "bad" : "ok");
+        CHECK(first >= 0);
+    }
+}
+
+TEST_CASE("audit probe 04b block-size invariance", "[.][audit-probe]")
+{
+    const double sr = 48000.0;
+    const int sizes[] = {32, 64, 512, 2048, 16384};
+    const std::vector<Ev> evs = {{0, 36, 1.0f}, {3001, 38, 0.8f}, {7003, 41, 0.9f}, {12345, 43, 0.7f},
+                                 {20000, 36, 0.6f}, {26011, 38, 1.0f}, {33333, 41, 0.5f}, {40000, 43, 0.9f}};
+    auto configure = [](Host& h) {
+        h.p->voicePoolForTest().padConfigMut(0) = detPad(BodyModelType::Membrane, ExciterType::Impulse, 0.7f);
+        h.p->voicePoolForTest().padConfigMut(2) = detPad(BodyModelType::Plate, ExciterType::Mallet, 0.4f);
+        h.p->voicePoolForTest().padConfigMut(5) = detPad(BodyModelType::Shell, ExciterType::Impulse, 0.5f);
+        h.p->voicePoolForTest().padConfigMut(7) = detPad(BodyModelType::Bell, ExciterType::Mallet, 0.3f);
+    };
+    const long total = 60000;
+    std::vector<Buf> full;
+    for (int bs : sizes)
+    {
+        Host h(sr, bs);
+        configure(h);
+        full.push_back(h.render(total, bs, evs).L[0]);
+        // per-hit onset on isolated renders
+        std::string on;
+        long worst = 0;
+        for (const auto& e : evs)
+        {
+            Host hi(sr, bs);
+            configure(hi);
+            auto r = hi.render(e.pos + 4096, bs, {e});
+            const long first = firstAbove(r.L[0], 1e-9);
+            on += std::to_string(first - e.pos) + " ";
+            worst = std::max(worst, std::labs(first - e.pos));
+        }
+        probe("blocksize:bs=" + std::to_string(bs), "Processor 48k, 8 hits / 4 deterministic pads",
+              "onset - event position per hit (samples)", on, "0 for every hit", worst != 0 ? "bad" : "ok");
+    }
+    for (std::size_t i = 1; i < full.size(); ++i)
+    {
+        const double d = maxAbsDiff(full[0], full[i]);
+        probe("blocksize:bs=" + std::to_string(sizes[i]) + "_vs_32", "Processor 48k, same 8-hit stream",
+              "max |sample diff| vs bs 32 render (dBFS)", fmt(toDb(d)), "< -90 dBFS (block-size independent)",
+              d > 3e-5 ? "bad" : "ok");
+        CHECK(fin(d));
+    }
+}
+
+// ==============================================================================
+// 5. Voice lifecycle
+// ==============================================================================
+TEST_CASE("audit probe 05a roll + same-slot steals", "[.][audit-probe]")
+{
+    const double sr = 48000.0;
+    // Roll on the default-kit snare
+    {
+        Host h(sr, 256);
+        std::vector<Ev> evs;
+        for (int i = 0; i < 20; ++i) evs.push_back({static_cast<long>(i * 480), 38, 1.0f});
+        auto r = h.render(static_cast<long>(sr * 1.5), 256, evs);
+        const Buf& x = r.L[0];
+        const double firstPk = stats(x, 0, 480).peak;
+        const double lastPk = stats(x, 19 * 480, 20 * 480).peak;
+        double maxPk = 0.0;
+        for (int i = 0; i < 20; ++i) maxPk = std::max(maxPk, stats(x, static_cast<std::size_t>(i * 480), static_cast<std::size_t>((i + 1) * 480)).peak);
+        probe("lifecycle:roll:snare38", "Processor 48k bs 256, default kit, 20 hits @10 ms vel 1.0",
+              "click count / max jump / peak growth last-first dB / max hit peak dBFS",
+              std::to_string(clickCount(x, sr)) + " / " + fmt(maxJump(x), 4) + " / " + fmt(toDb(lastPk) - toDb(firstPk)) + " / " + fmt(toDb(maxPk)),
+              "peak growth < 3 dB; clicks only at hit onsets (20)", (toDb(lastPk) - toDb(firstPk)) > 3.0 ? "suspicious" : "ok");
+    }
+    // Roll on a deterministic membrane: residual jump at each retrigger
+    {
+        Host h(sr, 32);
+        h.p->voicePoolForTest().padConfigMut(0) = detPad(BodyModelType::Membrane, ExciterType::Mallet, 0.6f);
+        std::vector<Ev> evs;
+        for (int i = 0; i < 20; ++i) evs.push_back({static_cast<long>(i * 480), 36, 1.0f});
+        auto r = h.render(static_cast<long>(sr * 1.0), 32, evs);
+        Host h1(sr, 32);
+        h1.p->voicePoolForTest().padConfigMut(0) = detPad(BodyModelType::Membrane, ExciterType::Mallet, 0.6f);
+        auto one = h1.render(480, 32, {{0, 36, 1.0f}});
+        const double singleJump = maxJump(one.L[0]);
+        const double rollJump = maxJump(r.L[0]);
+        probe("lifecycle:roll:det-membrane", "Processor 48k bs 32, Mallet/Membrane noise/click 0, 20 hits @10 ms",
+              "max jump roll / max jump single hit", fmt(rollJump, 4) + " / " + fmt(singleJump, 4),
+              "ratio < 1.5", rollJump > 1.5 * singleJump ? "suspicious" : "ok");
+    }
+    // Three steals of the same slot inside 5 ms
+    {
+        Host h(sr, 32);
+        h.p->voicePoolForTest().padConfigMut(0) = detPad(BodyModelType::Membrane, ExciterType::Mallet, 0.6f);
+        auto r = h.render(static_cast<long>(sr * 0.5), 32, {{0, 36, 1.0f}, {72, 36, 1.0f}, {144, 36, 1.0f}, {216, 36, 1.0f}});
+        const auto s = stats(r.L[0]);
+        probe("lifecycle:triple-steal-5ms", "Processor 48k bs 32, same pad at 0/1.5/3/4.5 ms",
+              "peak dBFS / max jump / nonFinite", fmt(toDb(s.peak)) + " / " + fmt(maxJump(r.L[0]), 4) + " / " + std::to_string(s.nonFinite),
+              "finite, peak <= -1 dBTP limiter", s.nonFinite ? "bad" : "ok");
+        CHECK(fin(s.peak));
+    }
+}
+
+TEST_CASE("audit probe 05b polyphony steals per policy", "[.][audit-probe]")
+{
+    const double sr = 48000.0;
+    const int polys[] = {4, 8, 16};
+    const char* pol[] = {"Oldest", "Quietest", "Priority"};
+    for (int poly : polys)
+    {
+        for (int policy = 0; policy < 3; ++policy)
+        {
+            Host h(sr, 64);
+            for (int p = 0; p < 32; ++p)
+                h.p->voicePoolForTest().padConfigMut(p) = detPad(BodyModelType::Membrane, ExciterType::Mallet, 0.3f + 0.02f * static_cast<float>(p));
+            std::vector<Pc> pcs = {{0, Membrum::kMaxPolyphonyId, static_cast<double>(poly - 4) / 12.0},
+                                   {0, Membrum::kVoiceStealingId, (policy + 0.5) / 3.0}};
+            std::vector<Ev> evs;
+            const long spacing = 960;  // 20 ms
+            for (int i = 0; i < poly + 4; ++i) evs.push_back({64 + i * spacing, 36 + i, 0.9f});
+            auto r = h.render(64 + (poly + 6) * spacing, 64, evs, pcs);
+            const Buf& x = r.L[0];
+            double jNo = 0.0, jSteal = 0.0;
+            for (int i = 0; i < poly + 4; ++i)
+            {
+                const std::size_t a = static_cast<std::size_t>(64 + i * spacing);
+                const double j = maxJump(x, a > 64 ? a - 64 : 0, a + 64);
+                if (i < poly) jNo = std::max(jNo, j); else jSteal = std::max(jSteal, j);
+            }
+            const int clicks = clickCount(x, sr);
+            const int maxActive = *std::max_element(r.activeVoices.begin(), r.activeVoices.end());
+            probe("lifecycle:steal:poly=" + std::to_string(poly) + ":policy=" + pol[policy],
+                  "Processor 48k bs 64, poly+4 deterministic pads 20 ms apart",
+                  "max jump at steal hits / at non-steal hits / clicks / max active voices",
+                  fmt(jSteal, 4) + " / " + fmt(jNo, 4) + " / " + std::to_string(clicks) + " / " + std::to_string(maxActive),
+                  "steal jump <= 1.5x non-steal jump; active <= poly",
+                  (jSteal > 1.5 * jNo || maxActive > poly) ? "suspicious" : "ok");
+            CHECK(fin(jSteal));
+        }
+    }
+}
+
+TEST_CASE("audit probe 05c choke, poly shrink, pad disable", "[.][audit-probe]")
+{
+    const double sr = 48000.0;
+    // Open hat (46, pad 10) choked by closed hat (42, pad 6) whose level is 0
+    {
+        const long chokeAt = static_cast<long>(sr * 0.2);
+        Host a(sr, 32);
+        auto ra = a.render(static_cast<long>(sr * 0.5), 32, {{0, 46, 1.0f}});
+        Host b(sr, 32);
+        b.p->voicePoolForTest().padConfigMut(6).level = 0.0f;
+        auto rb = b.render(static_cast<long>(sr * 0.5), 32, {{0, 46, 1.0f}, {chokeAt, 42, 1.0f}});
+        const std::size_t c = static_cast<std::size_t>(chokeAt);
+        const std::size_t ms1 = static_cast<std::size_t>(sr * 0.001);
+        const double ref5 = stats(ra.L[0], c + 5 * ms1, c + 6 * ms1).rms;
+        const double res5 = stats(rb.L[0], c + 5 * ms1, c + 6 * ms1).rms;
+        const double res20 = stats(rb.L[0], c + 20 * ms1, c + 21 * ms1).rms;
+        const double pre = stats(rb.L[0], c - 2 * ms1, c).rms;
+        const double jChoke = maxJump(rb.L[0], c - 32, c + 64);
+        const double jRef = maxJump(ra.L[0], c - 32, c + 64);
+        probe("lifecycle:choke:openhat46-by-closedhat42", "Processor 48k bs 32, default kit, closed hat level 0, choke at 200 ms",
+              "residual rms 5 ms / 20 ms after choke (dB rel. pre) / unchoked at 5 ms",
+              fmt(toDb(res5) - toDb(pre)) + " / " + fmt(toDb(res20) - toDb(pre)) + " / " + fmt(toDb(ref5) - toDb(pre)),
+              "<= -60 dB at 20 ms (5 ms fast release)", (toDb(res20) - toDb(pre)) > -60 ? "suspicious" : "ok");
+        probe("lifecycle:choke:jump", "same", "max jump at choke / same window unchoked", fmt(jChoke, 5) + " / " + fmt(jRef, 5),
+              "<= 1.5x unchoked", jChoke > 1.5 * jRef + 1e-4 ? "suspicious" : "ok");
+    }
+    // maxPolyphony 16 -> 4 while 12 voices ring
+    {
+        Host h(sr, 64);
+        for (int p = 0; p < 32; ++p)
+            h.p->voicePoolForTest().padConfigMut(p) = detPad(BodyModelType::Membrane, ExciterType::Mallet, 0.3f + 0.02f * static_cast<float>(p));
+        std::vector<Ev> evs;
+        for (int i = 0; i < 12; ++i) evs.push_back({64 + i * 64, 36 + i, 0.8f});
+        const long changeAt = static_cast<long>(sr * 0.1);
+        auto r = h.render(static_cast<long>(sr * 0.4), 64, evs,
+                          {{0, Membrum::kMaxPolyphonyId, 1.0}, {changeAt, Membrum::kMaxPolyphonyId, 0.0}});
+        const std::size_t c = static_cast<std::size_t>(changeAt);
+        const double jAt = maxJump(r.L[0], c - 64, c + 128);
+        const double jBefore = maxJump(r.L[0], c - 1200, c - 200);
+        const auto s = stats(r.L[0]);
+        probe("lifecycle:poly16to4-ringing12", "Processor 48k bs 64, 12 deterministic voices, poly 16->4 at 100 ms",
+              "max jump at change / typical jump 25-4 ms before / nonFinite / active after",
+              fmt(jAt, 5) + " / " + fmt(jBefore, 5) + " / " + std::to_string(s.nonFinite) + " / " + std::to_string(r.activeVoices.back()),
+              "jump <= 1.5x before, finite", (jAt > 1.5 * jBefore || s.nonFinite) ? "suspicious" : "ok");
+    }
+    // Pad disabled while ringing
+    {
+        Host a(sr, 64);
+        auto ra = a.render(static_cast<long>(sr * 0.6), 64, {{0, 41, 1.0f}});
+        Host b(sr, 64);
+        const long at = static_cast<long>(sr * 0.1);
+        auto rb = b.render(static_cast<long>(sr * 0.6), 64, {{0, 41, 1.0f}}, {{at, padId(5, Membrum::kPadEnabled), 0.0}});
+        const std::size_t c = static_cast<std::size_t>(at);
+        const double after = toDb(stats(rb.L[0], c + 2400, c + 4800).rms) - toDb(stats(ra.L[0], c + 2400, c + 4800).rms);
+        probe("lifecycle:pad-disable-while-ringing:tom41", "Processor 48k bs 64, default kit, kPadEnabled=0 at 100 ms",
+              "RMS 50-100 ms after disable vs not disabled (dB) / max diff",
+              fmt(after) + " / " + fmt(maxAbsDiff(ra.L[0], rb.L[0]), 6), "info (0 dB = ringing voice keeps sounding)", "ok");
+    }
+}
+
+// ==============================================================================
+// 6. Tails and idle
+// ==============================================================================
+static void runTails(BodyModelType body)
+{
+    const double sr = 48000.0;
+    for (int e = 0; e < 7; ++e)
+    {
+        Host h(sr, 512);
+        PadConfig c;
+        c.bodyModel = body;
+        c.exciterType = static_cast<ExciterType>(e);
+        if (c.exciterType == ExciterType::Friction) c.frictionPressure = 0.5f;
+        h.p->voicePoolForTest().padConfigMut(0) = c;
+        auto r = h.render(static_cast<long>(sr * 30.0), 512, {{0, 36, 1.0f}});
+        const double t100 = lastAbove(r.L[0], sr, 1e-5);
+        const int act = r.activeVoices.back();
+        int firstZero = -1;
+        for (std::size_t i = 0; i < r.activeVoices.size(); ++i)
+            if (r.activeVoices[i] == 0) { firstZero = static_cast<int>(i); break; }
+        const bool sustain = c.exciterType == ExciterType::Friction || c.exciterType == ExciterType::Feedback;
+        probe(std::string("tail:body=") + bodyName(static_cast<int>(body)) + ":exciter=" + exName(e),
+              "Processor 48k bs 512, PadConfig defaults, no note-off, 30 s",
+              "time until < -100 dBFS / active voices at end / voice retired at",
+              (t100 < 0 ? std::string(">30 s") : fmt(t100, 2) + " s") + " / " + std::to_string(act) + " / " +
+                  (firstZero < 0 ? std::string("never") : fmt(firstZero * 512.0 / sr, 2) + " s"),
+              sustain ? "sustain is intended for Friction/Feedback" : "retires (< 30 s)",
+              (!sustain && (t100 < 0 || act != 0)) ? "suspicious" : "ok");
+        CHECK(fin(t100));
+    }
+}
+TEST_CASE("audit probe 06a tails membrane", "[.][audit-probe]") { runTails(BodyModelType::Membrane); }
+TEST_CASE("audit probe 06b tails plate", "[.][audit-probe]") { runTails(BodyModelType::Plate); }
+
+TEST_CASE("audit probe 06c sustain stoppers + note length", "[.][audit-probe]")
+{
+    const double sr = 48000.0;
+    struct Case { const char* name; ExciterType ex; float inject; };
+    const Case cases[] = {{"Friction", ExciterType::Friction, 0.0f}, {"Feedback", ExciterType::Feedback, 0.0f},
+                          {"modeInject0.5", ExciterType::Impulse, 0.5f}};
+    for (const auto& cs : cases)
+    {
+        auto setup = [&](Host& h) {
+            PadConfig c;
+            c.exciterType = cs.ex;
+            if (cs.ex == ExciterType::Friction) c.frictionPressure = 0.5f;
+            c.modeInjectAmount = cs.inject;
+            h.p->voicePoolForTest().padConfigMut(0) = c;
+            h.p->voicePoolForTest().padConfigMut(0).chokeGroup = 3;
+            h.p->voicePoolForTest().setPadChokeGroup(0, 3);
+            h.p->voicePoolForTest().padConfigMut(1).level = 0.0f;
+            h.p->voicePoolForTest().setPadChokeGroup(1, 3);
+        };
+        const long t1 = static_cast<long>(sr * 1.0);
+        const long total = static_cast<long>(sr * 3.0);
+        Host n(sr, 512);
+        setup(n);
+        auto rn = n.render(total, 512, {{0, 36, 1.0f}});
+        Host off(sr, 512);
+        setup(off);
+        auto ro = off.render(total, 512, {{0, 36, 1.0f}, {t1, 36, 0.0f}});
+        Host ch(sr, 512);
+        setup(ch);
+        auto rc = ch.render(total, 512, {{0, 36, 1.0f}, {t1, 37, 1.0f}});
+        Host ks(sr, 512);
+        setup(ks);
+        const auto defState = [] {
+            Host tmp(48000.0, 512);
+            return getStateBytes(*tmp.p);
+        }();
+        auto rk = ks.render(total, 512, {{0, 36, 1.0f}}, {}, -1, [&](long pos) {
+            if (pos == (t1 / 512) * 512) setStateBytes(*ks.p, defState);
+        });
+        const std::size_t w0 = static_cast<std::size_t>(sr * 2.0);
+        const std::size_t w1 = static_cast<std::size_t>(sr * 2.1);
+        const double base = toDb(stats(rn.L[0], w0, w1).rms);
+        probe(std::string("tail:sustain-stop:") + cs.name, "Processor 48k bs 512, pad 36 Membrane; stopper at 1 s, level 1 s later (2.0-2.1 s)",
+              "RMS dBFS none / note-off / choke / kit switch",
+              fmt(base) + " / " + fmt(toDb(stats(ro.L[0], w0, w1).rms)) + " / " + fmt(toDb(stats(rc.L[0], w0, w1).rms)) + " / " +
+                  fmt(toDb(stats(rk.L[0], w0, w1).rms)),
+              "intended sustain; each stopper should bring it below -80 dBFS",
+              (toDb(stats(ro.L[0], w0, w1).rms) > -80 || toDb(stats(rc.L[0], w0, w1).rms) > -80 || toDb(stats(rk.L[0], w0, w1).rms) > -80) ? "suspicious" : "ok");
+    }
+    // Note length: note-off after 10 ms vs none
+    const int pads[] = {36, 38, 41, 49};
+    for (int pad : pads)
+    {
+        Host a(sr, 256);
+        auto ra = a.render(static_cast<long>(sr * 6.0), 256, {{0, pad, 1.0f}});
+        Host b(sr, 256);
+        auto rb = b.render(static_cast<long>(sr * 6.0), 256, {{0, pad, 1.0f}, {480, pad, 0.0f}});
+        const double da = decay60(ra.L[0], sr);
+        const double db = decay60(rb.L[0], sr);
+        probe("tail:noteoff10ms:pad" + std::to_string(pad), "Processor 48k bs 256, default kit",
+              "decay60 no note-off / note-off at 10 ms / ratio", decayStr(da, 6) + " / " + decayStr(db, 6) + " / " + (da > 0 && db > 0 ? fmt(db / da, 3) : std::string("n/a")),
+              "info: a drum hit should barely depend on note length (ratio ~1)",
+              (da > 0 && db > 0 && db / da < 0.5) ? "suspicious" : "ok");
+    }
+}
+
+// ==============================================================================
+// 7. Level
+// ==============================================================================
+TEST_CASE("audit probe 07a level per body and velocity curve", "[.][audit-probe]")
+{
+    const double sr = 48000.0;
+    for (int b = 0; b < 6; ++b)
+    {
+        PadConfig c;
+        c.bodyModel = static_cast<BodyModelType>(b);
+        c.level = 1.0f;
+        const auto sDef = stats(renderVoice(c, 1.0f, sr, static_cast<long>(sr * 0.5)));
+        PadConfig cb = detPad(static_cast<BodyModelType>(b));
+        cb.level = 1.0f;
+        const auto sBody = stats(renderVoice(cb, 1.0f, sr, static_cast<long>(sr * 0.5)));
+        probe(std::string("level:body=") + bodyName(b), "DrumVoice 48k Impulse vel 1.0 level 1.0",
+              "peak dBFS body-only / with default noise+click", fmt(toDb(sBody.peak)) + " / " + fmt(toDb(sDef.peak)),
+              "body-only ~ -6.02 dBFS (kBodyHeadroom 0.5)", std::fabs(toDb(sBody.peak) + 6.02) > 1.5 ? "suspicious" : "ok");
+    }
+    // velocity curve on the default kit, pre-limiter (VoicePool direct)
+    const int pads[] = {36, 38, 42, 41};
+    for (int pad : pads)
+    {
+        std::string det;
+        double prev = -1e9;
+        bool mono = true;
+        double lo = 0.0, hi = 0.0;
+        for (int v = 1; v <= 10; ++v)
+        {
+            auto pool = std::make_unique<Membrum::VoicePool>();
+            pool->prepare(sr, 512);
+            Membrum::DefaultKit::apply(pool->padConfigsArray());
+            pool->noteOn(static_cast<std::uint8_t>(pad), static_cast<float>(v) / 10.0f);
+            Buf L(static_cast<std::size_t>(sr * 0.5)), R(L.size());
+            for (std::size_t pos = 0; pos < L.size(); pos += 512)
+                pool->processBlock(L.data() + pos, R.data() + pos, static_cast<int>(std::min<std::size_t>(512, L.size() - pos)));
+            const double pk = toDb(stats(L).peak);
+            det += fmt(pk, 1) + " ";
+            if (pk < prev - 0.01) mono = false;
+            prev = pk;
+            if (v == 1) lo = pk;
+            if (v == 10) hi = pk;
+        }
+        probe("level:velocity-curve:pad" + std::to_string(pad), "VoicePool 48k default kit, vel 0.1..1.0 (pre-limiter peak dBFS)",
+              "curve / monotonic / range dB", det + "/ " + (mono ? "yes" : "no") + " / " + fmt(hi - lo),
+              "monotonic, range >= 20 dB", (!mono || hi - lo < 20.0) ? "suspicious" : "ok");
+    }
+}
+
+TEST_CASE("audit probe 07b bus limiter, master gain, pan", "[.][audit-probe]")
+{
+    const double sr = 48000.0;
+    auto poolPeak = [&](const std::vector<std::pair<int, float>>& hits, double& rmsOut) {
+        auto pool = std::make_unique<Membrum::VoicePool>();
+        pool->prepare(sr, 512);
+        Membrum::DefaultKit::apply(pool->padConfigsArray());
+        pool->setMaxPolyphony(16);
+        for (const auto& [n, v] : hits) pool->noteOn(static_cast<std::uint8_t>(n), v);
+        Buf L(static_cast<std::size_t>(sr * 0.5)), R(L.size());
+        for (std::size_t pos = 0; pos < L.size(); pos += 512)
+            pool->processBlock(L.data() + pos, R.data() + pos, static_cast<int>(std::min<std::size_t>(512, L.size() - pos)));
+        rmsOut = stats(L, 0, static_cast<std::size_t>(sr * 0.05)).rms;
+        return std::max(stats(L).peak, stats(R).peak);
+    };
+    // 16 coincident hits
+    {
+        std::vector<std::pair<int, float>> hits;
+        for (int i = 0; i < 16; ++i) hits.push_back({36 + i, 1.0f});
+        double rmsPre = 0.0;
+        const double pre = poolPeak(hits, rmsPre);
+        for (double mg : {0.0, 0.5, 1.0})
+        {
+            Host h(sr, 512);
+            std::vector<Ev> evs;
+            for (const auto& [n, v] : hits) evs.push_back({0, n, v});
+            auto r = h.render(static_cast<long>(sr * 0.5), 512, evs,
+                              {{0, Membrum::kMaxPolyphonyId, 1.0}, {0, Membrum::kMasterGainId, mg}});
+            const double post = std::max(stats(r.L[0]).peak, stats(r.R[0]).peak);
+            probe("level:16-hits:master=" + fmt(mg, 1), "Processor 48k bs 512, default kit pads 36-51 vel 1.0 same block",
+                  "pre-limiter peak dBFS / post-master peak dBFS / expected master dB",
+                  fmt(toDb(pre)) + " / " + fmt(toDb(post)) + " / " + fmt(-24.0 + 36.0 * mg, 1),
+                  "post = min(pre,-1 dBTP) + master dB", (toDb(post) > -1.0 + (-24.0 + 36.0 * mg) + 0.5) ? "bad" : "ok");
+        }
+    }
+    // master gain measured on a quiet hit
+    {
+        double rmsPre = 0.0;
+        const double pre = poolPeak({{36, 0.2f}}, rmsPre);
+        for (double mg : {0.0, 0.5, 1.0})
+        {
+            Host h(sr, 512);
+            auto r = h.render(static_cast<long>(sr * 0.5), 512, {{0, 36, 0.2f}}, {{0, Membrum::kMasterGainId, mg}});
+            const double post = stats(r.L[0]).peak;
+            const double meas = toDb(post) - toDb(pre);
+            const double exp = -24.0 + 36.0 * mg;
+            probe("level:master-gain=" + fmt(mg, 1), "Processor 48k, kick vel 0.2 (below limiter)",
+                  "measured gain dB / expected", fmt(meas) + " / " + fmt(exp), "|diff| < 0.1 dB (if pre+gain < -1 dBTP)",
+                  (toDb(pre) + exp < -1.5 && std::fabs(meas - exp) > 0.1) ? "bad" : "ok");
+        }
+    }
+    // kick + snare + hat at vel 100/127, master 0 dB
+    {
+        const float v = 100.0f / 127.0f;
+        double rmsPre = 0.0;
+        const double pre = poolPeak({{36, v}, {38, v}, {42, v}}, rmsPre);
+        Host h(sr, 512);
+        auto r = h.render(static_cast<long>(sr * 0.5), 512, {{0, 36, v}, {0, 38, v}, {0, 42, v}},
+                          {{0, Membrum::kMasterGainId, 24.0 / 36.0}});
+        const double post = std::max(stats(r.L[0]).peak, stats(r.R[0]).peak);
+        const double rmsPost = stats(r.L[0], 0, static_cast<std::size_t>(sr * 0.05)).rms;
+        probe("level:kick+snare+hat-vel100", "Processor 48k, default kit, master 0 dB",
+              "pre-limiter peak dBFS / post peak dBFS / RMS(50ms) reduction dB",
+              fmt(toDb(pre)) + " / " + fmt(toDb(post)) + " / " + fmt(toDb(rmsPre) - toDb(rmsPost)),
+              "limiter reduction <= 1 dB on ordinary playing", (toDb(rmsPre) - toDb(rmsPost)) > 1.0 ? "suspicious" : "ok");
+    }
+    // single kick at vel 1.0: limiter involvement
+    {
+        double rmsPre = 0.0;
+        const double pre = poolPeak({{36, 1.0f}}, rmsPre);
+        Host h(sr, 512);
+        auto r = h.render(static_cast<long>(sr * 0.5), 512, {{0, 36, 1.0f}}, {{0, Membrum::kMasterGainId, 24.0 / 36.0}});
+        const double rmsPost = stats(r.L[0], 0, static_cast<std::size_t>(sr * 0.05)).rms;
+        probe("level:single-kick-vel1", "Processor 48k default kit master 0 dB",
+              "pre peak dBFS / post peak dBFS / RMS(50ms) reduction dB",
+              fmt(toDb(pre)) + " / " + fmt(toDb(stats(r.L[0]).peak)) + " / " + fmt(toDb(rmsPre) - toDb(rmsPost)),
+              "single hit not limited (< 0.5 dB)", (toDb(rmsPre) - toDb(rmsPost)) > 0.5 ? "suspicious" : "ok");
+    }
+    // pan
+    for (double pan : {0.0, 0.5, 1.0})
+    {
+        auto pool = std::make_unique<Membrum::VoicePool>();
+        pool->prepare(sr, 512);
+        Membrum::DefaultKit::apply(pool->padConfigsArray());
+        pool->setPadConfigField(0, Membrum::kPadPan, static_cast<float>(pan));
+        pool->noteOn(36, 1.0f);
+        Buf L(static_cast<std::size_t>(sr * 0.3)), R(L.size());
+        for (std::size_t pos = 0; pos < L.size(); pos += 512)
+            pool->processBlock(L.data() + pos, R.data() + pos, static_cast<int>(std::min<std::size_t>(512, L.size() - pos)));
+        probe("level:pan=" + fmt(pan, 1), "VoicePool 48k kick vel 1.0", "L / R RMS dBFS",
+              fmt(toDb(stats(L).rms)) + " / " + fmt(toDb(stats(R).rms)), "equal power: centre +0 dB each, hard side +3 dB / -inf", "ok");
+    }
+}
+
+// ==============================================================================
+// 8. Multi-bus
+// ==============================================================================
+TEST_CASE("audit probe 08 multi-bus", "[.][audit-probe]")
+{
+    const double sr = 48000.0;
+    for (int active = 1; active >= 0; --active)
+    {
+        Host h(sr, 512, 16);
+        if (active) h.activate(3, true);
+        h.p->voicePoolForTest().padConfigMut(0).outputBus = 3;
+        auto r = h.render(static_cast<long>(sr * 0.5), 512, {{0, 36, 1.0f}}, {{0, Membrum::kMasterGainId, 1.0}});
+        const double mainRms = toDb(stats(r.L[0]).rms);
+        const double auxRms = toDb(stats(r.L[3]).rms);
+        int auxSilentWithAudio = 0;
+        for (std::size_t bI = 0; bI < r.busFlags[3].size(); ++bI)
+            if (r.busFlags[3][bI] != 0 && stats(r.L[3], bI * 512, bI * 512 + 512).peak > 0.0) ++auxSilentWithAudio;
+        int otherBusEnergy = 0;
+        for (int b = 1; b < 16; ++b)
+            if (b != 3 && stats(r.L[static_cast<std::size_t>(b)]).peak > 0.0) ++otherBusEnergy;
+        probe(std::string("multibus:pad36-bus3:") + (active ? "active" : "inactive"), "Processor 48k 16 buses, master gain +12 dB",
+              "main RMS / aux3 RMS / aux-main dB / wrong silence flags / other buses with audio",
+              fmt(mainRms) + " / " + fmt(auxRms) + " / " + fmt(auxRms - mainRms) + " / " + std::to_string(auxSilentWithAudio) + " / " + std::to_string(otherBusEnergy),
+              "aux = pre-master send (main +12 dB master -> aux ~ -12 dB rel main)", (auxSilentWithAudio || otherBusEnergy) ? "bad" : "ok");
+    }
+    // all 16 buses active, one pad per bus
+    {
+        Host h(sr, 512, 16);
+        for (int b = 1; b < 16; ++b) h.activate(b, true);
+        std::vector<Ev> evs;
+        for (int b = 0; b < 16; ++b)
+        {
+            h.p->voicePoolForTest().padConfigMut(b).outputBus = static_cast<std::uint8_t>(b);
+            evs.push_back({0, 36 + b, 1.0f});
+        }
+        auto r = h.render(static_cast<long>(sr * 0.5), 512, evs, {{0, Membrum::kMaxPolyphonyId, 1.0}});
+        std::string det;
+        int silentBus = 0;
+        for (int b = 0; b < 16; ++b)
+        {
+            const double pk = stats(r.L[static_cast<std::size_t>(b)]).peak;
+            det += fmt(toDb(pk), 1) + " ";
+            if (pk <= 0.0) ++silentBus;
+        }
+        probe("multibus:16-buses", "Processor 48k all 16 buses active, pad b -> bus b, 16 hits", "peak dBFS per bus / buses silent",
+              det + "/ " + std::to_string(silentBus), "every bus carries its pad", silentBus ? "bad" : "ok");
+    }
+    // null channel buffer on an active aux bus
+    {
+        Host h(sr, 512, 4);
+        h.activate(2, true);
+        h.p->voicePoolForTest().padConfigMut(0).outputBus = 2;
+        auto r = h.render(static_cast<long>(sr * 0.2), 512, {{0, 36, 1.0f}}, {}, 2);
+        const auto s = stats(r.L[0]);
+        probe("multibus:null-aux-buffer", "Processor 48k 4 buses, bus 2 active with channelBuffers32 = nullptr",
+              "survived / main peak dBFS / nonFinite", std::string("yes / ") + fmt(toDb(s.peak)) + " / " + std::to_string(s.nonFinite),
+              "no crash", "ok");
+    }
+}
+
+// ==============================================================================
+// 9. Coupling
+// ==============================================================================
+TEST_CASE("audit probe 09 coupling", "[.][audit-probe]")
+{
+    const double sr = 48000.0;
+    const std::vector<Pc> maxC = {{0, Membrum::kGlobalCouplingId, 1.0}, {0, Membrum::kSnareBuzzId, 1.0}, {0, Membrum::kTomResonanceId, 1.0}};
+    {
+        Host a(sr, 512);
+        auto r0 = a.render(static_cast<long>(sr * 1.5), 512, {{0, 36, 1.0f}});
+        Host b(sr, 512);
+        auto r1 = b.render(static_cast<long>(sr * 1.5), 512, {{0, 36, 1.0f}}, maxC);
+        Buf d(r0.L[0].size());
+        for (std::size_t i = 0; i < d.size(); ++i) d[i] = r1.L[0][i] - r0.L[0][i];
+        const double e0 = stats(r0.L[0]).rms;
+        const double e1 = stats(r1.L[0]).rms;
+        probe("coupling:kick-added-energy", "Processor 48k default kit, kick vel 1, coupling 0 vs 1 (buzz 1, tom 1)",
+              "RMS change dB / coupling-only component RMS dB rel dry", fmt(toDb(e1) - toDb(e0)) + " / " + fmt(toDb(stats(d).rms) - toDb(e0)),
+              "audible but bounded (< -20 dB rel dry)", "ok");
+    }
+    {
+        Host h(sr, 512);
+        std::vector<Ev> evs;
+        for (long t = 0; t < static_cast<long>(sr * 30.0); t += 6000) evs.push_back({t, 36, 1.0f});
+        auto r = h.render(static_cast<long>(sr * 30.0), 512, evs, maxC);
+        const double first = stats(r.L[0], 0, static_cast<std::size_t>(sr)).rms;
+        const double last = stats(r.L[0], static_cast<std::size_t>(sr * 29.0), static_cast<std::size_t>(sr * 30.0)).rms;
+        const auto s = stats(r.L[0]);
+        probe("coupling:30s-16th-kicks", "Processor 48k, 16th kicks @120 BPM, coupling max",
+              "RMS last 1 s - first 1 s dB / peak dBFS / nonFinite", fmt(toDb(last) - toDb(first)) + " / " + fmt(toDb(s.peak)) + " / " + std::to_string(s.nonFinite),
+              "< +1 dB (no runaway)", (toDb(last) - toDb(first)) > 1.0 ? "bad" : "ok");
+    }
+    {
+        Host h(sr, 512);
+        auto r = h.render(static_cast<long>(sr * 5.0), 512, {}, maxC);
+        int notSilent = 0;
+        for (auto f : r.mainFlags)
+            if (f == 0) ++notSilent;
+        probe("coupling:idle-no-notes", "Processor 48k coupling max, no notes, 5 s",
+              "RMS dBFS / blocks with silence flag cleared (of " + std::to_string(r.mainFlags.size()) + ")",
+              fmt(toDb(stats(r.L[0]).rms)) + " / " + std::to_string(notSilent), "silent output with silence flag set",
+              (stats(r.L[0]).rms > 1e-7 ? "bad" : (notSilent > 0 ? "suspicious" : "ok")));
+    }
+    {
+        Host h(sr, 64);
+        std::vector<Pc> pcs = maxC;
+        pcs.push_back({0, Membrum::kCouplingDelayId, 0.0});
+        const long at = static_cast<long>(sr * 0.3);
+        pcs.push_back({at, Membrum::kCouplingDelayId, 1.0});
+        auto r = h.render(static_cast<long>(sr * 0.8), 64, {{0, 36, 1.0f}, {0, 38, 1.0f}, {0, 41, 1.0f}}, pcs);
+        Host h2(sr, 64);
+        std::vector<Pc> pcs2 = maxC;
+        pcs2.push_back({0, Membrum::kCouplingDelayId, 0.0});
+        auto r2 = h2.render(static_cast<long>(sr * 0.8), 64, {{0, 36, 1.0f}, {0, 38, 1.0f}, {0, 41, 1.0f}}, pcs2);
+        const std::size_t c = static_cast<std::size_t>(at);
+        probe("coupling:delay-step-0.5to2ms", "Processor 48k bs 64, coupling max, kick+snare+tom ringing, delay step at 300 ms",
+              "max jump at step / same window without step / clicks at step", fmt(maxJump(r.L[0], c - 64, c + 128), 5) + " / " +
+                  fmt(maxJump(r2.L[0], c - 64, c + 128), 5) + " / " + std::to_string(clickCount(r.L[0], sr, c - 2048, c + 2048)),
+              "jump <= 1.5x without step", maxJump(r.L[0], c - 64, c + 128) > 1.5 * maxJump(r2.L[0], c - 64, c + 128) + 1e-5 ? "suspicious" : "ok");
+    }
+    {
+        Host h(sr, 512);
+        const long hop = static_cast<long>(sr * 1.0);
+        std::vector<Pc> pcs = {{0, Membrum::kSnareBuzzId, 1.0}, {0, Membrum::kTomResonanceId, 1.0},
+                               {0, Membrum::kGlobalCouplingId, 1.0}, {hop - 1000, Membrum::kGlobalCouplingId, 0.0},
+                               {2 * hop - 1000, Membrum::kGlobalCouplingId, 1.0}};
+        auto r = h.render(3 * hop, 512, {{0, 36, 1.0f}, {2 * hop, 36, 1.0f}}, pcs);
+        Host ref(sr, 512);
+        auto rr = ref.render(hop, 512, {{0, 36, 1.0f}}, {{0, Membrum::kSnareBuzzId, 1.0}, {0, Membrum::kTomResonanceId, 1.0}, {0, Membrum::kGlobalCouplingId, 1.0}});
+        const std::size_t s0 = static_cast<std::size_t>(2 * hop - 1000);
+        const double burst = toDb(stats(r.L[0], s0, static_cast<std::size_t>(2 * hop)).rms);
+        const double hitRe = toDb(stats(r.L[0], static_cast<std::size_t>(2 * hop), static_cast<std::size_t>(3 * hop)).rms);
+        const double hitRef = toDb(stats(rr.L[0]).rms);
+        probe("coupling:toggle-0-1-0-1", "Processor 48k, coupling on/off/on between kicks 1 s apart",
+              "RMS in the 1000 samples after re-enable (before hit) / hit RMS after re-enable vs fresh dB",
+              fmt(burst) + " / " + fmt(hitRe - hitRef), "no stale burst (< -80 dBFS), hit within 0.5 dB",
+              (burst > -80.0 || std::fabs(hitRe - hitRef) > 0.5) ? "suspicious" : "ok");
+    }
+}
+
+// ==============================================================================
+// 10. Tone shaper + pitch envelope
+// ==============================================================================
+TEST_CASE("audit probe 10a filter sweep", "[.][audit-probe]")
+{
+    for (double sr : {48000.0, 192000.0})
+    {
+        for (int type = 0; type < 3; ++type)
+        {
+            for (float res : {0.0f, 0.5f, 1.0f})
+            {
+                PadConfig c;
+                c.exciterType = ExciterType::Friction;
+                c.frictionPressure = 0.5f;
+                c.tsFilterEnvAmount = 0.5f;
+                const long total = static_cast<long>(sr * 2.0);
+                const Buf x = renderVoice(c, 1.0f, sr, total, 64, -1, [&](Membrum::DrumVoice& v, long pos) {
+                    const double t = static_cast<double>(pos) / static_cast<double>(total);
+                    v.toneShaper().setFilterType(static_cast<Membrum::ToneShaperFilterType>(type));
+                    v.toneShaper().setFilterResonance(res);
+                    v.toneShaper().setFilterCutoff(static_cast<float>(20.0 * std::pow(1000.0, t)));
+                });
+                const auto s = stats(x);
+                static const char* tn[] = {"LP", "HP", "BP"};
+                probe(std::string("toneshaper:sweep:") + tn[type] + ":res=" + fmt(res, 1) + ":sr=" + fmt(sr / 1000.0, 0) + "k",
+                      "DrumVoice Friction/Membrane, cutoff 20 Hz->20 kHz log over 2 s, set per 64-sample block",
+                      "peak dBFS / nonFinite / clicks / max jump",
+                      fmt(toDb(s.peak)) + " / " + std::to_string(s.nonFinite) + " / " + std::to_string(clickCount(x, sr)) + " / " + fmt(maxJump(x), 4),
+                      "peak <= +6 dBFS, finite, no clicks", (s.nonFinite || s.peak > 2.0) ? "bad" : "ok");
+                CHECK(fin(s.peak));
+            }
+        }
+    }
+}
+
+TEST_CASE("audit probe 10b drive and fold", "[.][audit-probe]")
+{
+    const double sr = 48000.0;
+    PadConfig base = detPad(BodyModelType::Membrane, ExciterType::Mallet, static_cast<float>(std::log10(5.0)));
+    base.level = 1.0f;
+    const Buf neutral = renderVoice(base, 1.0f, sr, static_cast<long>(sr * 0.5));
+    const auto sn = stats(neutral);
+    const double hiN = energyAboveDb(neutral, sr, 0, 8192, 15000.0);
+    for (int which = 0; which < 2; ++which)
+    {
+        for (float amt : {0.25f, 0.75f, 1.0f})
+        {
+            PadConfig c = base;
+            if (which == 0) c.tsDriveAmount = amt; else c.tsFoldAmount = amt;
+            const Buf x = renderVoice(c, 1.0f, sr, static_cast<long>(sr * 0.5));
+            const auto s = stats(x);
+            const double hi = energyAboveDb(x, sr, 0, 8192, 15000.0);
+            probe(std::string("toneshaper:") + (which == 0 ? "drive=" : "fold=") + fmt(amt, 2), "DrumVoice 100 Hz Membrane Mallet, noise/click 0, level 1",
+                  "DC / RMS change vs neutral dB / energy >15 kHz dB rel total (neutral " + fmt(hiN) + ")",
+                  fmt(s.dc, 6) + " / " + fmt(toDb(s.rms) - toDb(sn.rms)) + " / " + fmt(hi),
+                  "|DC| < 1e-3; >15 kHz energy is an aliasing indicator", std::fabs(s.dc) > 1e-3 ? "suspicious" : "ok");
+        }
+    }
+}
+
+TEST_CASE("audit probe 10c pitch envelope staircase", "[.][audit-probe]")
+{
+    const double sr = 48000.0;
+    const long total = static_cast<long>(sr * 0.12);
+    for (int b = 0; b < 6; ++b)
+    {
+        if (b == static_cast<int>(BodyModelType::String)) continue;
+        for (int knee = 0; knee < 2; ++knee)
+        {
+            auto track = [&](int bs) {
+                PadConfig c = detPad(static_cast<BodyModelType>(b));
+                c.tsPitchEnvStart = static_cast<float>(hzToPitchNorm(160.0));
+                c.tsPitchEnvEnd = static_cast<float>(hzToPitchNorm(50.0));
+                c.tsPitchEnvTime = 0.1f;  // 50 ms
+                c.tsPitchEnvKneeEnabled = static_cast<float>(knee);
+                c.tsPitchEnvMidPitch = static_cast<float>(hzToPitchNorm(120.0));
+                std::vector<double> f(static_cast<std::size_t>(total), 0.0);
+                float cur = 0.0f;
+                // Render while sampling the bank after each block.
+                auto v = std::make_unique<Membrum::DrumVoice>();
+                v->prepare(sr, 0u);
+                Membrum::applyPadConfigToVoice(*v, c);
+                v->noteOn(1.0f);
+                Buf out(static_cast<std::size_t>(bs));
+                for (long pos = 0; pos < total; pos += bs)
+                {
+                    const int n = static_cast<int>(std::min<long>(bs, total - pos));
+                    v->processBlock(out.data(), n);
+                    cur = v->getBodyBankForTest().getSharedBank().getModeFrequency(0);
+                    for (int i = 0; i < n; ++i) f[static_cast<std::size_t>(pos + i)] = cur;
+                }
+                return f;
+            };
+            const auto ref = track(8);
+            const double fEnd = ref.back();
+            auto at = [&](const std::vector<double>& f, double ms) {
+                return f[std::min<std::size_t>(f.size() - 1, static_cast<std::size_t>(sr * ms / 1000.0))];
+            };
+            for (int bs : {64, 1024})
+            {
+                const auto f = track(bs);
+                double maxErr = 0.0;
+                double maxStep = 0.0;
+                for (std::size_t i = 1; i < static_cast<std::size_t>(sr * 0.05); ++i)
+                {
+                    if (f[i] > 0 && ref[i] > 0) maxErr = std::max(maxErr, std::fabs(cents(f[i], ref[i])));
+                    if (f[i] > 0 && f[i - 1] > 0) maxStep = std::max(maxStep, std::fabs(cents(f[i], f[i - 1])));
+                }
+                probe(std::string("pitchenv:body=") + bodyName(b) + ":knee=" + std::to_string(knee) + ":bs=" + std::to_string(bs),
+                      "DrumVoice 48k, 160->50 Hz in 50 ms (mid 120 Hz if knee), bank mode0 per block",
+                      "mode0 rel end at 0/25/100 ms (target 3.20/-/1.00) / max err vs bs8 (c) / max step (c)",
+                      fmt(at(f, 0.5) / fEnd, 3) + "/" + fmt(at(f, 25) / fEnd, 3) + "/" + fmt(at(f, 100) / fEnd, 3) + " / " + fmt(maxErr, 0) + " / " + fmt(maxStep, 0),
+                      "staircase error < 50 cents", maxErr > 50 ? "suspicious" : "ok");
+            }
+            probe(std::string("pitchenv:body=") + bodyName(b) + ":knee=" + std::to_string(knee) + ":ref",
+                  "DrumVoice bs 8", "mode0 Hz at 0.5/25/100 ms", fmt(at(ref, 0.5), 1) + " / " + fmt(at(ref, 25), 1) + " / " + fmt(at(ref, 100), 1),
+                  "start ~160 x ratio0, end ~50 x ratio0", "ok");
+        }
+    }
+}
+
+// ==============================================================================
+// 11. Unnatural zone + morph
+// ==============================================================================
+TEST_CASE("audit probe 11 unnatural zone and morph", "[.][audit-probe]")
+{
+    const double sr = 48000.0;
+    // mode stretch
+    {
+        double r1 = 0.0;
+        for (float stretch : {1.0f, 0.5f, 2.0f})
+        {
+            PadConfig c = detPad(BodyModelType::Membrane);
+            c.airLoading = 0.0f;
+            c.modeStretch = (stretch - 0.5f) / 1.5f;
+            double ratio = 0.0;
+            renderVoice(c, 1.0f, sr, 1024, 256, -1, [&](Membrum::DrumVoice& v, long pos) {
+                if (pos == 256)
+                {
+                    auto& bank = v.getBodyBankForTest().getSharedBank();
+                    ratio = bank.getModeFrequency(3) / std::max(1e-6f, bank.getModeFrequency(0));
+                }
+            });
+            if (stretch == 1.0f) r1 = ratio;
+            probe("unnatural:stretch=" + fmt(stretch, 1), "DrumVoice Membrane airLoading 0", "f(mode3)/f(mode0) / unstretched / implied exponent",
+                  fmt(ratio, 3) + " / " + fmt(r1, 3) + " / " + fmt(std::log(ratio) / std::log(std::max(r1, 1.0001)), 3), "changes with stretch", "ok");
+        }
+    }
+    // decay skew
+    for (float skew : {-1.0f, 0.0f, 1.0f})
+    {
+        PadConfig c = detPad(BodyModelType::Membrane, ExciterType::Impulse, 0.6f);
+        c.airLoading = 0.0f;
+        c.decay = 0.6f;
+        c.decaySkew = (skew + 1.0f) * 0.5f;
+        std::array<float, 8> bf{};
+        const Buf x = renderVoice(c, 1.0f, sr, static_cast<long>(sr * 1.0), 256, -1, [&](Membrum::DrumVoice& v, long pos) {
+            if (pos == 256)
+                for (int k = 0; k < 8; ++k) bf[static_cast<std::size_t>(k)] = v.getBodyBankForTest().getSharedBank().getModeFrequency(k);
+        });
+        const auto w = hann(4096);
+        auto rate = [&](double f) {
+            const double a = dtftMag(x.data() + static_cast<std::size_t>(sr * 0.03), w, f, sr);
+            const double b2 = dtftMag(x.data() + static_cast<std::size_t>(sr * 0.33), w, f, sr);
+            return (toDb(b2) - toDb(a)) / 0.3;  // dB/s
+        };
+        const double lo = rate(bf[0]);
+        const double hi = rate(bf[7]);
+        probe("unnatural:decaySkew=" + fmt(skew, 0), "DrumVoice Membrane Impulse decay 0.6", "decay rate mode0 / mode7 dB/s",
+              fmt(lo, 1) + " / " + fmt(hi, 1), "skew +1 -> high modes slower than at 0; -1 -> faster", "ok");
+    }
+    // modeInject + nonlinear coupling
+    for (float inj : {0.5f, 1.0f})
+    {
+        PadConfig c;
+        c.modeInjectAmount = inj;
+        const Buf x = renderVoice(c, 1.0f, sr, static_cast<long>(sr * 10.0));
+        const auto s = stats(x);
+        const double last = toDb(stats(x, static_cast<std::size_t>(sr * 9.0), x.size()).rms);
+        const double first = toDb(stats(x, 0, static_cast<std::size_t>(sr * 1.0)).rms);
+        probe("unnatural:modeInject=" + fmt(inj, 1), "DrumVoice defaults, 10 s", "RMS last 1 s / first 1 s / peak dBFS / nonFinite",
+              fmt(last) + " / " + fmt(first) + " / " + fmt(toDb(s.peak)) + " / " + std::to_string(s.nonFinite),
+              "intended sustain; bounded (last <= first + 1 dB)", (last > first + 1.0 || s.nonFinite) ? "bad" : "ok");
+    }
+    {
+        PadConfig c;
+        c.nonlinearCoupling = 1.0f;
+        const Buf x = renderVoice(c, 1.0f, sr, static_cast<long>(sr * 3.0));
+        const auto s = stats(x);
+        probe("unnatural:nonlinearCoupling=1", "DrumVoice defaults, 3 s", "peak dBFS / nonFinite / decay60",
+              fmt(toDb(s.peak)) + " / " + std::to_string(s.nonFinite) + " / " + decayStr(decay60(x, sr), 3.0), "finite, bounded", s.nonFinite ? "bad" : "ok");
+    }
+    // all unnatural at neutral vs exact neutral values
+    {
+        PadConfig c;
+        const Buf a = renderVoice(c, 1.0f, sr, static_cast<long>(sr * 0.5));
+        auto v = std::make_unique<Membrum::DrumVoice>();
+        v->prepare(sr, 0u);
+        Membrum::applyPadConfigToVoice(*v, c);
+        const float stretchFromNorm = v->unnaturalZone().getModeStretch();
+        v->unnaturalZone().setModeStretch(1.0f);
+        v->unnaturalZone().setDecaySkew(0.0f);
+        v->noteOn(1.0f);
+        Buf b(a.size());
+        for (std::size_t pos = 0; pos < b.size(); pos += 256)
+            v->processBlock(b.data() + pos, static_cast<int>(std::min<std::size_t>(256, b.size() - pos)));
+        probe("unnatural:neutral-default-vs-exact", "DrumVoice PadConfig defaults (modeStretch norm 0.333333)",
+              "denormalised stretch / max diff vs stretch exactly 1.0, skew 0", fmt(stretchFromNorm, 8) + " / " + fmt(toDb(maxAbsDiff(a, b))) + " dBFS",
+              "bit-identical (diff = 0)", maxAbsDiff(a, b) > 0.0 ? "suspicious" : "ok");
+    }
+    // material morph per body
+    for (int b = 0; b < 6; ++b)
+    {
+        PadConfig c;
+        c.bodyModel = static_cast<BodyModelType>(b);
+        c.exciterType = ExciterType::Friction;
+        c.frictionPressure = 0.5f;
+        c.noiseLayerMix = 0.0f;
+        c.clickLayerMix = 0.0f;
+        c.morphEnabled = 1.0f;
+        c.morphStart = 1.0f;
+        c.morphEnd = 0.0f;
+        c.morphDuration = (500.0f - 10.0f) / 1990.0f;
+        const Buf x = renderVoice(c, 1.0f, sr, static_cast<long>(sr * 0.6));
+        PadConfig off = c;
+        off.morphEnabled = 0.0f;
+        const Buf y = renderVoice(off, 1.0f, sr, static_cast<long>(sr * 0.6));
+        const std::size_t win = 4096;
+        const double c0 = centroid(x, sr, static_cast<std::size_t>(sr * 0.01), win);
+        const double c1 = centroid(x, sr, static_cast<std::size_t>(sr * 0.25) - win / 2, win);
+        const double c2 = centroid(x, sr, static_cast<std::size_t>(sr * 0.5) - win / 2, win);
+        const double o2 = centroid(y, sr, static_cast<std::size_t>(sr * 0.5) - win / 2, win);
+        probe(std::string("morph:body=") + bodyName(b), "DrumVoice Friction, morph 1->0 over 500 ms",
+              "centroid Hz at ~0/250/500 ms (no-morph at 500)", fmt(c0, 0) + " / " + fmt(c1, 0) + " / " + fmt(c2, 0) + " (" + fmt(o2, 0) + ")",
+              "centroid moves as material moves", std::fabs(c2 - c0) < 0.02 * c0 ? "suspicious" : "ok");
+    }
+}
+
+// ==============================================================================
+// 12. Parameter automation mid-note + kit switch while ringing
+// ==============================================================================
+TEST_CASE("audit probe 12a per-pad params stepped mid-note", "[.][audit-probe]")
+{
+    const double sr = 48000.0;
+    const long at = static_cast<long>(sr * 0.1);
+    const long total = static_cast<long>(sr * 0.4);
+    Host refH(sr, 256);
+    const Buf ref = refH.render(total, 256, {{0, 41, 1.0f}}).L[0];
+    int changed = 0;
+    int nanParams = 0;
+    std::string changedList;
+    for (int off = 2; off < Membrum::kPadActiveParamCountV12; ++off)
+    {
+        if (off == Membrum::kPadEnabled) continue;
+        Host h(sr, 256);
+        auto r = h.render(total, 256, {{0, 41, 1.0f}}, {{at, padId(5, off), 1.0}, {at + 256, padId(5, off), 0.0}});
+        const double d = maxAbsDiff(ref, r.L[0]);
+        const auto s = stats(r.L[0]);
+        if (s.nonFinite) ++nanParams;
+        if (d > 1e-6) { ++changed; changedList += std::to_string(off) + " "; }
+        if (d > 1e-6 || s.nonFinite)
+            probe("automation:offset=" + std::to_string(off), "Processor 48k bs 256, tom41 ringing, offset ->1 at 100 ms then ->0",
+                  "max diff vs no automation / clicks / nonFinite", fmt(d, 6) + " / " + std::to_string(clickCount(r.L[0], sr, static_cast<std::size_t>(at) - 2048, static_cast<std::size_t>(at) + 4096)) + " / " + std::to_string(s.nonFinite),
+                  "info", s.nonFinite ? "bad" : "ok");
+    }
+    probe("automation:summary", "Processor 48k bs 256, tom41 ringing; 63 per-pad offsets stepped 1 then 0 mid-note",
+          "offsets that change the ringing voice / offsets producing NaN", std::to_string(changed) + " [" + changedList + "] / " + std::to_string(nanParams),
+          "info: params latch at note-on (0 = no mid-note automation at all)", changed == 0 ? "suspicious" : "ok");
+    // exciter/body switch while ringing and on the next hit
+    {
+        Host h(sr, 256);
+        auto r = h.render(static_cast<long>(sr * 0.8), 256, {{0, 41, 1.0f}, {static_cast<long>(sr * 0.4), 41, 1.0f}},
+                          {{at, padId(5, Membrum::kPadExciterType), (3.5) / 7.0}, {at, padId(5, Membrum::kPadBodyModel), 4.5 / 6.0}});
+        const double dRing = maxAbsDiff(Buf(ref.begin(), ref.begin() + static_cast<long>(sr * 0.4)), Buf(r.L[0].begin(), r.L[0].begin() + static_cast<long>(sr * 0.4)));
+        const auto s = stats(r.L[0]);
+        probe("automation:exciter+body-switch", "Processor 48k, tom41 ringing, exciter->Friction body->Bell at 100 ms, re-hit at 400 ms",
+              "diff while ringing / nonFinite / clicks / peak after re-hit dBFS",
+              fmt(dRing, 6) + " / " + std::to_string(s.nonFinite) + " / " + std::to_string(clickCount(r.L[0], sr)) + " / " +
+                  fmt(toDb(stats(r.L[0], static_cast<std::size_t>(sr * 0.4), r.L[0].size()).peak)),
+              "deferred to next hit, finite", s.nonFinite ? "bad" : "ok");
+    }
+}
+
+TEST_CASE("audit probe 12b kit switch while 8 voices ring", "[.][audit-probe]")
+{
+    const double sr = 48000.0;
+    const auto kits = factoryKits();
+    if (kits.empty()) { WARN("no factory kits"); return; }
+    for (int via = 0; via < 2; ++via)
+    {
+        Host h(sr, 256);
+        std::vector<Ev> evs;
+        for (int i = 0; i < 8; ++i) evs.push_back({0, 36 + i, 1.0f});
+        const long at = static_cast<long>(sr * 0.2) / 256 * 256;
+        auto r = h.render(static_cast<long>(sr * 1.5), 256, evs, {}, -1, [&](long pos) {
+            if (pos == at)
+            {
+                if (via == 0) setStateBytes(*h.p, kits[0].component);
+                else sendBytesMessage(*h.p, "LoadPresetState", kits[0].component);
+            }
+        });
+        const std::size_t c = static_cast<std::size_t>(at);
+        const double pre = stats(r.L[0], c - 256, c).peak;
+        const double jump = maxJump(r.L[0], c - 8, c + 8);
+        const auto s = stats(r.L[0]);
+        probe(std::string("kitswitch:") + (via == 0 ? "setState" : "LoadPresetState") + ":8-ringing",
+              "Processor 48k bs 256, default kit 8 hits, switch to " + kits[0].name + " at 200 ms",
+              "level just before (dBFS) / jump at switch / clicks / nonFinite / RMS 1.2-1.3 s dBFS",
+              fmt(toDb(pre)) + " / " + fmt(jump, 4) + " / " + std::to_string(clickCount(r.L[0], sr, c - 2048, c + 2048)) + " / " + std::to_string(s.nonFinite) + " / " +
+                  fmt(toDb(stats(r.L[0], static_cast<std::size_t>(sr * 1.2), static_cast<std::size_t>(sr * 1.3)).rms)),
+              "no hard cut (jump << level), no ring", (jump > 0.25 * pre || s.nonFinite) ? "suspicious" : "ok");
+    }
+}
+
+// ==============================================================================
+// 13. State
+// ==============================================================================
+static void runFactoryRoundTrip(std::size_t from, std::size_t to)
+{
+    const double sr = 48000.0;
+    const auto kits = factoryKits();
+    if (kits.empty()) { WARN("no factory kits"); return; }
+    to = std::min(to, kits.size());
+    for (std::size_t k = from; k < to; ++k)
+    {
+        Host h(sr, 256);
+        const tresult rc = setStateBytes(*h.p, kits[k].component);
+        const auto s1 = getStateBytes(*h.p);
+        const Buf r1 = h.render(static_cast<long>(sr * 0.5), 256, {{0, 36, 1.0f}}).L[0];
+        setStateBytes(*h.p, s1);
+        const auto s2 = getStateBytes(*h.p);
+        const Buf r2 = h.render(static_cast<long>(sr * 0.5), 256, {{0, 36, 1.0f}}).L[0];
+        Membrum::State::KitSnapshot kc, k1;
+        decodeKit(kits[k].component, kc);
+        decodeKit(s1, k1);
+        Host hb(sr, 256);
+        sendBytesMessage(*hb.p, "LoadPresetState", kits[k].component);
+        const auto sb = getStateBytes(*hb.p);
+        Membrum::State::KitSnapshot kb;
+        decodeKit(sb, kb);
+        const auto dAB = diffKits(k1, kb);
+        probe("state:factory:" + kits[k].name, "Processor 48k: setState(component) -> getState -> setState -> getState",
+              "setState rc / s1==s2 / component vs s1 diff / render pad36 max diff",
+              std::to_string(rc) + " / " + (s1 == s2 ? "yes" : "no") + " / " + diffStr(diffKits(kc, k1)) + " / " + fmt(maxAbsDiff(r1, r2), 8),
+              "identical bytes, render diff 0 (noise layer may be seeded per voice)", (s1 != s2) ? "bad" : "ok");
+        probe("state:pathA-vs-pathB:" + kits[k].name, "setState vs LoadPresetState message, fresh processors",
+              "decoded getState diff", diffStr(dAB), "only selectedPad (FR-052 keeps it)",
+              (dAB.size() > (dAB.count("selectedPad") ? 1u : 0u)) ? "bad" : "ok");
+    }
+}
+TEST_CASE("audit probe 13a factory kits 0-9", "[.][audit-probe]") { runFactoryRoundTrip(0, 10); }
+TEST_CASE("audit probe 13b factory kits 10-19", "[.][audit-probe]") { runFactoryRoundTrip(10, 20); }
+
+TEST_CASE("audit probe 13c malformed setState", "[.][audit-probe]")
+{
+    const double sr = 48000.0;
+    const auto kits = factoryKits();
+    if (kits.empty()) { WARN("no factory kits"); return; }
+    const auto good = kits[0].component;
+    auto patchInt = [](std::vector<char> b, std::size_t off, std::int32_t v) {
+        std::memcpy(b.data() + off, &v, 4);
+        return b;
+    };
+    auto patchDoubleBits = [](std::vector<char> b, std::size_t off, std::uint64_t bits) {
+        std::memcpy(b.data() + off, &bits, 8);
+        return b;
+    };
+    std::vector<std::pair<std::string, std::vector<char>>> cases;
+    cases.push_back({"truncated25", std::vector<char>(good.begin(), good.begin() + static_cast<long>(good.size() / 4))});
+    cases.push_back({"truncated50", std::vector<char>(good.begin(), good.begin() + static_cast<long>(good.size() / 2))});
+    cases.push_back({"truncated99", std::vector<char>(good.begin(), good.begin() + static_cast<long>(good.size() * 99 / 100))});
+    {
+        std::vector<char> g(good.size());
+        std::uint32_t seed = 12345u;
+        for (auto& c : g) { seed = seed * 1664525u + 1013904223u; c = static_cast<char>(seed >> 24); }
+        cases.push_back({"garbage", g});
+    }
+    for (int v : {1, 2, 4, 6}) cases.push_back({"version" + std::to_string(v), patchInt(good, 0, v)});
+    cases.push_back({"exciterType200", patchInt(good, 12, 200)});
+    cases.push_back({"maxPoly99", patchInt(good, 4, 99)});
+    const std::size_t pad0Sound = 20;
+    cases.push_back({"NaN-slot0-material", patchDoubleBits(good, pad0Sound + 0 * 8, 0x7FF8000000000000ULL)});
+    cases.push_back({"NaN-slot2-decay", patchDoubleBits(good, pad0Sound + 2 * 8, 0x7FF8000000000000ULL)});
+    cases.push_back({"Inf-slot1-size", patchDoubleBits(good, pad0Sound + 1 * 8, 0x7FF0000000000000ULL)});
+    cases.push_back({"NaN-slot57-noiseGain", patchDoubleBits(good, pad0Sound + 57 * 8, 0x7FF8000000000000ULL)});
+    for (const auto& [name, blob] : cases)
+    {
+        Host h(sr, 256);
+        setStateBytes(*h.p, kits.size() > 1 ? kits[1].component : good);
+        const auto before = getStateBytes(*h.p);
+        const tresult rc = setStateBytes(*h.p, blob);
+        const auto after = getStateBytes(*h.p);
+        auto r = h.render(static_cast<long>(sr * 0.5), 256, {{0, 36, 1.0f}});
+        const auto s = stats(r.L[0]);
+        const bool intact = before == after;
+        const bool rejected = rc != kResultOk;
+        probe("state:malformed:" + name, "Processor 48k, kit loaded, then setState(blob); pad 36 rendered after",
+              "rc / previous kit intact / out peak dBFS / nonFinite", std::to_string(rc) + " / " + (intact ? "yes" : "no") + " / " + fmt(toDb(s.peak)) + " / " + std::to_string(s.nonFinite),
+              "rejected blobs leave the kit intact; accepted blobs clamp; output finite",
+              (s.nonFinite || (rejected && !intact)) ? "bad" : "ok");
+    }
+    probe("state:released-versions", "git show membrum/v0.9.0..v0.12.5:plugins/membrum/src/plugin_ids.h",
+          "kCurrentStateVersion per release", "v0.9.0/0.9.1=1, v0.10.1/0.10.2=2, v0.12.0..0.12.5=5",
+          "projects saved by released builds load", "bad");
+}
+
+// --- EXTRA FOCUS (1): save paths diverge
+TEST_CASE("audit probe 13d kit-preset and pad-preset save paths", "[.][audit-probe]")
+{
+    const double sr = 48000.0;
+    const auto kits = factoryKits();
+    std::vector<std::pair<std::string, std::vector<char>>> starts;
+    {
+        Host d(sr, 256);
+        starts.push_back({"default-kit", getStateBytes(*d.p)});
+    }
+    if (!kits.empty()) starts.push_back({kits[0].name, kits[0].component});
+    if (kits.size() > 5) starts.push_back({kits[5].name, kits[5].component});
+    for (const auto& [startName, startBlob] : starts)
+    {
+        Host hp(sr, 256);
+        setStateBytes(*hp.p, startBlob);
+        const auto orig = getStateBytes(*hp.p);
+        Membrum::Controller ctl;
+        ctl.initialize(nullptr);
+        {
+            MemoryStream ms(const_cast<char*>(orig.data()), static_cast<TSize>(orig.size()));
+            ctl.setComponentState(&ms);
+        }
+        IBStream* ks = ctl.kitPresetStateProvider();
+        const auto kitBytes = readAll(ks);
+        ks->release();
+        ctl.terminate();
+        Host hq(sr, 256);
+        const tresult rc = setStateBytes(*hq.p, kitBytes);
+        const auto reloaded = getStateBytes(*hq.p);
+        Membrum::State::KitSnapshot ko, kr;
+        decodeKit(orig, ko);
+        decodeKit(reloaded, kr);
+        const auto d = diffKits(ko, kr);
+        probe("save-path:kit:" + startName, "processor getState -> Controller::setComponentState -> kitPresetStateProvider -> setState(fresh) -> getState",
+              "rc / bytes identical / differing fields (pads)", std::to_string(rc) + " / " + (orig == reloaded ? "yes" : "no") + " / " + diffStr(d),
+              "byte-identical sound", d.empty() ? "ok" : "bad");
+        const int padsOfInterest[] = {0, 2, 5, 6, 13};
+        for (int pad : padsOfInterest)
+        {
+            const auto& a = ko.pads[static_cast<std::size_t>(pad)];
+            const auto& b = kr.pads[static_cast<std::size_t>(pad)];
+            const int midi = 36 + pad;
+            Host ra(sr, 256);
+            setStateBytes(*ra.p, orig);
+            Host rb(sr, 256);
+            setStateBytes(*rb.p, reloaded);
+            const Buf xa = ra.render(static_cast<long>(sr * 4.0), 256, {{0, midi, 1.0f}}).L[0];
+            const Buf xb = rb.render(static_cast<long>(sr * 4.0), 256, {{0, midi, 1.0f}}).L[0];
+            const double da = decay60(xa, sr);
+            const double db = decay60(xb, sr);
+            const double hpWire = energyAboveDb(xa, sr, static_cast<std::size_t>(sr * 0.01), 8192, 3000.0);
+            const double hpWire2 = energyAboveDb(xb, sr, static_cast<std::size_t>(sr * 0.01), 8192, 3000.0);
+            probe("save-path:kit:" + startName + ":pad" + std::to_string(midi),
+                  "same; values before -> after kit-preset save/reload",
+                  "noiseLayerGain / dampB1 / dampB3 / RMS(1s) dB / peak dB / decay60 / energy>3k dB",
+                  fmt(a.sound[57], 3) + "->" + fmt(b.sound[57], 3) + " / " + fmt(a.sound[42], 3) + "->" + fmt(b.sound[42], 3) + " / " +
+                      fmt(a.sound[43], 3) + "->" + fmt(b.sound[43], 3) + " / " +
+                      fmt(toDb(stats(xa, 0, static_cast<std::size_t>(sr)).rms)) + "->" + fmt(toDb(stats(xb, 0, static_cast<std::size_t>(sr)).rms)) + " / " +
+                      fmt(toDb(stats(xa).peak)) + "->" + fmt(toDb(stats(xb).peak)) + " / " + decayStr(da, 4) + "->" + decayStr(db, 4) + " / " +
+                      fmt(hpWire) + "->" + fmt(hpWire2),
+                  "unchanged", (a.sound[57] != b.sound[57] || a.sound[42] != b.sound[42] || a.sound[43] != b.sound[43]) ? "bad" : "ok");
+        }
+    }
+    // pad preset: save pad 2 (snare) and pad 5 (tom) and load it back onto the same pad of a fresh processor
+    for (int pad : {2, 5})
+    {
+        Host hp(sr, 256);
+        hp.p->setSelectedPadIndexForTest(pad);
+        const auto orig = getStateBytes(*hp.p);
+        Membrum::Controller ctl;
+        ctl.initialize(nullptr);
+        {
+            MemoryStream ms(const_cast<char*>(orig.data()), static_cast<TSize>(orig.size()));
+            ctl.setComponentState(&ms);
+        }
+        IBStream* ps = ctl.padPresetStateProvider();
+        const auto padBytes = readAll(ps);
+        ps->release();
+        ctl.terminate();
+        Host hq(sr, 256);
+        hq.p->setSelectedPadIndexForTest(pad);
+        const tresult rc = sendBytesMessage(*hq.p, "LoadPadPreset", padBytes, pad);
+        const auto reloaded = getStateBytes(*hq.p);
+        Membrum::State::KitSnapshot ko, kr;
+        decodeKit(orig, ko);
+        decodeKit(reloaded, kr);
+        const auto d = diffKits(ko, kr);
+        const auto& a = ko.pads[static_cast<std::size_t>(pad)];
+        const auto& b = kr.pads[static_cast<std::size_t>(pad)];
+        const Buf xa = hp.render(static_cast<long>(sr * 4.0), 256, {{0, 36 + pad, 1.0f}}).L[0];
+        const Buf xb = hq.render(static_cast<long>(sr * 4.0), 256, {{0, 36 + pad, 1.0f}}).L[0];
+        probe("save-path:pad:pad" + std::to_string(36 + pad), "default kit; Controller padPresetStateProvider -> LoadPadPreset onto same pad of fresh processor",
+              "rc / differing fields / noiseLayerGain / dampB1 / dampB3 / RMS(1s) dB / decay60",
+              std::to_string(rc) + " / " + diffStr(d) + " / " + fmt(a.sound[57], 3) + "->" + fmt(b.sound[57], 3) + " / " + fmt(a.sound[42], 3) + "->" +
+                  fmt(b.sound[42], 3) + " / " + fmt(a.sound[43], 3) + "->" + fmt(b.sound[43], 3) + " / " +
+                  fmt(toDb(stats(xa, 0, static_cast<std::size_t>(sr)).rms)) + "->" + fmt(toDb(stats(xb, 0, static_cast<std::size_t>(sr)).rms)) + " / " +
+                  decayStr(decay60(xa, sr), 4) + "->" + decayStr(decay60(xb, sr), 4),
+              "identical pad", d.empty() ? "ok" : "bad");
+    }
+}
+
+// --- EXTRA FOCUS (2): double apply on kit-browser load
+TEST_CASE("audit probe 13e kit-browser double apply", "[.][audit-probe]")
+{
+    const double sr = 48000.0;
+    const auto kits = factoryKits();
+    if (kits.size() < 2) { WARN("need 2 factory kits"); return; }
+    auto recordEdits = [](const std::vector<char>& blob, int& begins, int& ends) {
+        EditRecorder rec;
+        Membrum::Controller ctl;
+        ctl.initialize(nullptr);
+        ctl.setComponentHandler(&rec);
+        auto st = owned(new MemoryStream(const_cast<char*>(blob.data()), static_cast<TSize>(blob.size())));
+        ctl.kitPresetLoadProvider(st);
+        ctl.setComponentHandler(nullptr);
+        ctl.terminate();
+        begins = rec.begins;
+        ends = rec.ends;
+        return rec.edits;
+    };
+    for (std::size_t k : {std::size_t{0}, std::size_t{7}})
+    {
+        if (k >= kits.size()) continue;
+        int begins = 0, ends = 0;
+        const auto edits = recordEdits(kits[k].component, begins, ends);
+        int recompute = 0;
+        int perPad = 0;
+        int global = 0;
+        for (const auto& [id, v] : edits)
+        {
+            (void)v;
+            const int off = Membrum::padOffsetFromParamId(static_cast<int>(id));
+            if (off >= 0)
+            {
+                ++perPad;
+                if (off == Membrum::kPadExciterType || off == Membrum::kPadBodyModel || off == Membrum::kPadTSPitchEnvTime ||
+                    off == Membrum::kPadCouplingAmount || off == Membrum::kPadMacroComplexity)
+                    ++recompute;
+            }
+            else
+            {
+                ++global;
+                if (id == Membrum::kSnareBuzzId || id == Membrum::kTomResonanceId) ++recompute;
+            }
+        }
+        probe("double-apply:edits:" + kits[k].name, "Controller::kitPresetLoadProvider with a recording IComponentHandler",
+              "performEdit count (per-pad / global) / beginEdit / endEdit / recomputeCouplingMatrix calls in the next block (processor.cpp:187-227,415,422)",
+              std::to_string(edits.size()) + " (" + std::to_string(perPad) + " / " + std::to_string(global) + ") / " + std::to_string(begins) + " / " +
+                  std::to_string(ends) + " / " + std::to_string(recompute),
+              "one undoable action; matrix rebuilt once", "suspicious");
+        // Message path then edits path
+        Host h(sr, 256);
+        sendBytesMessage(*h.p, "LoadPresetState", kits[k].component);
+        const auto stA = getStateBytes(*h.p);
+        h.render(256, 256, {}, editsToPcs(edits));
+        const auto stB = getStateBytes(*h.p);
+        Membrum::State::KitSnapshot ka, kb;
+        decodeKit(stA, ka);
+        decodeKit(stB, kb);
+        probe("double-apply:message-vs-edits:" + kits[k].name, "Processor: LoadPresetState, getState A; then the recorded edits in one block, getState B",
+              "fields differing A vs B", diffStr(diffKits(ka, kb)), "none", diffKits(ka, kb).empty() ? "ok" : "bad");
+    }
+    // Out-of-range slot values: message path vs edit path
+    {
+        auto blob = kits[0].component;
+        const double bad = 1.7;
+        const double neg = -0.3;
+        std::memcpy(blob.data() + 20 + 2 * 8, &bad, 8);   // pad 0 decay
+        std::memcpy(blob.data() + 20 + 0 * 8, &neg, 8);   // pad 0 material
+        int b = 0, e = 0;
+        const auto edits = recordEdits(blob, b, e);
+        Host h(sr, 256);
+        sendBytesMessage(*h.p, "LoadPresetState", blob);
+        const float decMsg = h.p->voicePoolForTest().padConfig(0).decay;
+        const float matMsg = h.p->voicePoolForTest().padConfig(0).material;
+        Host hm(sr, 256);
+        sendBytesMessage(*hm.p, "LoadPresetState", blob);
+        const Buf xm = hm.render(static_cast<long>(sr * 6.0), 256, {{0, 36, 1.0f}}).L[0];
+        h.render(256, 256, {}, editsToPcs(edits));
+        const float decEd = h.p->voicePoolForTest().padConfig(0).decay;
+        const float matEd = h.p->voicePoolForTest().padConfig(0).material;
+        const auto s = stats(xm);
+        probe("double-apply:out-of-range-slots", "kit blob with pad0 decay=1.7, material=-0.3",
+              "decay msg/edits / material msg/edits / render (msg only) peak dBFS, decay60, nonFinite",
+              fmt(decMsg, 3) + "/" + fmt(decEd, 3) + " / " + fmt(matMsg, 3) + "/" + fmt(matEd, 3) + " / " + fmt(toDb(s.peak)) + ", " +
+                  decayStr(decay60(xm, sr), 6) + ", " + std::to_string(s.nonFinite),
+              "both routes clamp to [0,1] identically", (decMsg != decEd || matMsg != matEd) ? "bad" : "ok");
+    }
+    // Interleave: msg(K1), msg(K2), then K1's edits arrive, then K2's
+    {
+        int b = 0, e = 0;
+        const auto e1 = recordEdits(kits[0].component, b, e);
+        const auto e2 = recordEdits(kits[1].component, b, e);
+        Host h(sr, 256);
+        sendBytesMessage(*h.p, "LoadPresetState", kits[0].component);
+        sendBytesMessage(*h.p, "LoadPresetState", kits[1].component);
+        Host pure(sr, 256);
+        sendBytesMessage(*pure.p, "LoadPresetState", kits[1].component);
+        Membrum::State::KitSnapshot kPure;
+        decodeKit(getStateBytes(*pure.p), kPure);
+        const Buf xPure = pure.render(static_cast<long>(sr * 1.0), 256, {{0, 38, 1.0f}}).L[0];
+        // block carrying K1's edits plus a snare hit
+        auto pcs = editsToPcs(e1);
+        const Buf xMix = h.render(static_cast<long>(sr * 1.0), 256, {{0, 38, 1.0f}}, pcs).L[0];
+        Membrum::State::KitSnapshot kMix;
+        decodeKit(getStateBytes(*h.p), kMix);
+        h.render(256, 256, {}, editsToPcs(e2));
+        Membrum::State::KitSnapshot kEnd;
+        decodeKit(getStateBytes(*h.p), kEnd);
+        probe("double-apply:interleave", "msg(" + kits[0].name + ") msg(" + kits[1].name + ") then K1 edits + snare hit, then K2 edits",
+              "fields != K2 after K1 edits / snare max diff vs pure K2 / fields != K2 after K2 edits",
+              diffStr(diffKits(kPure, kMix)) + " / " + fmt(maxAbsDiff(xPure, xMix), 4) + " / " + diffStr(diffKits(kPure, kEnd)),
+              "a stale edit batch must not produce a hybrid kit", diffKits(kPure, kMix).empty() ? "ok" : "suspicious");
+    }
+}
+
+// --- EXTRA FOCUS (3): mapping tables agree
+TEST_CASE("audit probe 13f field-map consistency", "[.][audit-probe]")
+{
+    // For each per-pad offset with a slot, write a distinctive value through
+    // VoicePool::setPadConfigField and check which snapshot slot moved
+    // (toPadSnapshot), then through applyPadSnapshot / applyPadPresetSnapshot.
+    std::string mismatches;
+    int moved = 0;
+    for (int off = 2; off < Membrum::kPadActiveParamCountV12; ++off)
+    {
+        if (off >= Membrum::kPadMacroTightness && off <= Membrum::kPadMacroComplexity) continue;
+        if (off == Membrum::kPadCouplingAmount || off == Membrum::kPadChokeGroup || off == Membrum::kPadOutputBus) continue;
+        auto pool = std::make_unique<Membrum::VoicePool>();
+        const auto before = Membrum::State::toPadSnapshot(pool->padConfig(0));
+        pool->setPadConfigField(0, off, 0.123f);
+        const auto after = Membrum::State::toPadSnapshot(pool->padConfig(0));
+        int slot = -1;
+        int count = 0;
+        for (std::size_t s = 0; s < after.sound.size(); ++s)
+            if (after.sound[s] != before.sound[s]) { slot = static_cast<int>(s); ++count; }
+        // round-trip through applyPadSnapshot and applyPadPresetSnapshot
+        PadConfig c1;
+        Membrum::State::applyPadSnapshot(after, c1);
+        const auto back = Membrum::State::toPadSnapshot(c1);
+        Membrum::State::PadPresetSnapshot pp = Membrum::State::toPadPresetSnapshot(pool->padConfig(0));
+        PadConfig c2;
+        Membrum::State::applyPadPresetSnapshot(pp, c2);
+        const auto back2 = Membrum::State::toPadSnapshot(c2);
+        const bool okFull = slot >= 0 && back.sound[static_cast<std::size_t>(slot)] == after.sound[static_cast<std::size_t>(slot)];
+        const bool okPreset = slot >= 0 && back2.sound[static_cast<std::size_t>(slot)] == after.sound[static_cast<std::size_t>(slot)];
+        if (count == 1) ++moved;
+        if (count != 1 || !okFull || !okPreset)
+            mismatches += "off" + std::to_string(off) + "(slots=" + std::to_string(count) + ",slot=" + std::to_string(slot) + ",kitRT=" + (okFull ? "y" : "n") +
+                          ",padRT=" + (okPreset ? "y" : "n") + ") ";
+    }
+    probe("fieldmap:offset->slot->cfg", "VoicePool::setPadConfigField(0.123) -> toPadSnapshot -> applyPadSnapshot / applyPadPresetSnapshot",
+          "offsets mapping to exactly one slot / mismatches (padRT=n is expected only for FR-061 enabled 59 and pan 64)",
+          std::to_string(moved) + " / " + (mismatches.empty() ? std::string("none") : mismatches), "1:1 for every sound offset", "ok");
+    // Unclamped slot range in applyPadSnapshot
+    Membrum::State::PadSnapshot s{};
+    for (auto& v : s.sound) v = 5.0;
+    PadConfig c;
+    Membrum::State::applyPadSnapshot(s, c);
+    const auto out = Membrum::State::toPadSnapshot(c);
+    std::string unclamped;
+    for (std::size_t i = 0; i < out.sound.size(); ++i)
+        if (out.sound[i] > 1.0 && i != 57u && i != 28u && i != 29u) unclamped += std::to_string(i) + " ";
+    probe("fieldmap:applyPadSnapshot-clamp", "every sound slot = 5.0 -> applyPadSnapshot -> toPadSnapshot",
+          "slots kept > 1.0 (not clamped)", unclamped.empty() ? std::string("none") : unclamped, "all normalized slots clamped to [0,1]",
+          unclamped.empty() ? "ok" : "suspicious");
+}
+
+// ==============================================================================
+// 14. Proxy and macro plumbing
+// ==============================================================================
+TEST_CASE("audit probe 14 proxies and macros", "[.][audit-probe]")
+{
+    const double sr = 48000.0;
+    struct Map { ParamID g; int off; };
+    const Map maps[] = {
+        {Membrum::kMaterialId, Membrum::kPadMaterial}, {Membrum::kSizeId, Membrum::kPadSize}, {Membrum::kDecayId, Membrum::kPadDecay},
+        {Membrum::kStrikePositionId, Membrum::kPadStrikePosition}, {Membrum::kLevelId, Membrum::kPadLevel},
+        {Membrum::kExciterTypeId, Membrum::kPadExciterType}, {Membrum::kBodyModelId, Membrum::kPadBodyModel},
+        {Membrum::kExciterFMRatioId, Membrum::kPadFMRatio}, {Membrum::kExciterFeedbackAmountId, Membrum::kPadFeedbackAmount},
+        {Membrum::kExciterNoiseBurstDurationId, Membrum::kPadNoiseBurstDuration}, {Membrum::kExciterFrictionPressureId, Membrum::kPadFrictionPressure},
+        {Membrum::kToneShaperFilterTypeId, Membrum::kPadTSFilterType}, {Membrum::kToneShaperFilterCutoffId, Membrum::kPadTSFilterCutoff},
+        {Membrum::kToneShaperFilterResonanceId, Membrum::kPadTSFilterResonance}, {Membrum::kToneShaperFilterEnvAmountId, Membrum::kPadTSFilterEnvAmount},
+        {Membrum::kToneShaperDriveAmountId, Membrum::kPadTSDriveAmount}, {Membrum::kToneShaperFoldAmountId, Membrum::kPadTSFoldAmount},
+        {Membrum::kToneShaperPitchEnvStartId, Membrum::kPadTSPitchEnvStart}, {Membrum::kToneShaperPitchEnvEndId, Membrum::kPadTSPitchEnvEnd},
+        {Membrum::kToneShaperPitchEnvTimeId, Membrum::kPadTSPitchEnvTime}, {Membrum::kToneShaperPitchEnvCurveId, Membrum::kPadTSPitchEnvCurve},
+        {Membrum::kToneShaperFilterEnvAttackId, Membrum::kPadTSFilterEnvAttack}, {Membrum::kToneShaperFilterEnvDecayId, Membrum::kPadTSFilterEnvDecay},
+        {Membrum::kToneShaperFilterEnvSustainId, Membrum::kPadTSFilterEnvSustain}, {Membrum::kToneShaperFilterEnvReleaseId, Membrum::kPadTSFilterEnvRelease},
+        {Membrum::kUnnaturalModeStretchId, Membrum::kPadModeStretch}, {Membrum::kUnnaturalDecaySkewId, Membrum::kPadDecaySkew},
+        {Membrum::kUnnaturalModeInjectAmountId, Membrum::kPadModeInjectAmount}, {Membrum::kUnnaturalNonlinearCouplingId, Membrum::kPadNonlinearCoupling},
+        {Membrum::kMorphEnabledId, Membrum::kPadMorphEnabled}, {Membrum::kMorphStartId, Membrum::kPadMorphStart}, {Membrum::kMorphEndId, Membrum::kPadMorphEnd},
+        {Membrum::kMorphDurationMsId, Membrum::kPadMorphDuration}, {Membrum::kMorphCurveId, Membrum::kPadMorphCurve},
+        {Membrum::kChokeGroupId, Membrum::kPadChokeGroup}, {Membrum::kOutputBusId, Membrum::kPadOutputBus},
+        {Membrum::kNoiseLayerMixId, Membrum::kPadNoiseLayerMix}, {Membrum::kNoiseLayerCutoffId, Membrum::kPadNoiseLayerCutoff},
+        {Membrum::kNoiseLayerResonanceId, Membrum::kPadNoiseLayerResonance}, {Membrum::kNoiseLayerDecayId, Membrum::kPadNoiseLayerDecay},
+        {Membrum::kNoiseLayerColorId, Membrum::kPadNoiseLayerColor}, {Membrum::kClickLayerMixId, Membrum::kPadClickLayerMix},
+        {Membrum::kClickLayerContactMsId, Membrum::kPadClickLayerContactMs}, {Membrum::kClickLayerBrightnessId, Membrum::kPadClickLayerBrightness},
+        {Membrum::kBodyDampingB1Id, Membrum::kPadBodyDampingB1}, {Membrum::kBodyDampingB3Id, Membrum::kPadBodyDampingB3},
+        {Membrum::kAirLoadingId, Membrum::kPadAirLoading}, {Membrum::kModeScatterId, Membrum::kPadModeScatter},
+        {Membrum::kCouplingStrengthId, Membrum::kPadCouplingStrength}, {Membrum::kSecondaryEnabledId, Membrum::kPadSecondaryEnabled},
+        {Membrum::kSecondarySizeId, Membrum::kPadSecondarySize}, {Membrum::kSecondaryMaterialId, Membrum::kPadSecondaryMaterial},
+        {Membrum::kTensionModAmtId, Membrum::kPadTensionModAmt}, {Membrum::kPadEnabledId, Membrum::kPadEnabled},
+        {Membrum::kPitchEnvKneeEnabledId, Membrum::kPadTSPitchEnvKneeEnabled}, {Membrum::kPitchEnvMidPitchId, Membrum::kPadTSPitchEnvMidPitch},
+        {Membrum::kPitchEnvMidFractionId, Membrum::kPadTSPitchEnvMidFraction}, {Membrum::kPitchEnvCurve2Id, Membrum::kPadTSPitchEnvCurve2},
+        {Membrum::kPadPanId, Membrum::kPadPan}, {Membrum::kWireCouplingId, Membrum::kPadWireCoupling},
+    };
+    const int P = 5;
+    int mismatch = 0;
+    int audible = 0;
+    std::string list;
+    for (const auto& m : maps)
+    {
+        Host a(sr, 256);
+        a.render(256, 256, {}, {{0, Membrum::kSelectedPadId, P / 31.0}});
+        a.render(256, 256, {}, {{0, m.g, 0.73}});
+        Host b(sr, 256);
+        b.render(256, 256, {}, {{0, padId(P, m.off), 0.73}});
+        const auto sa = getStateBytes(*a.p);
+        auto sbv = getStateBytes(*b.p);
+        Membrum::State::KitSnapshot ka, kb;
+        decodeKit(sa, ka);
+        decodeKit(sbv, kb);
+        auto d = diffKits(ka, kb);
+        d.erase("selectedPad");
+        if (!d.empty())
+        {
+            ++mismatch;
+            const Buf xa = a.render(static_cast<long>(sr * 0.5), 256, {{0, 36 + P, 1.0f}}).L[0];
+            const Buf xb = b.render(static_cast<long>(sr * 0.5), 256, {{0, 36 + P, 1.0f}}).L[0];
+            const double md = maxAbsDiff(xa, xb);
+            if (md > 0.0) ++audible;
+            list += std::to_string(m.g) + "(" + diffStr(d) + "render " + fmt(toDb(md)) + "dB) ";
+        }
+    }
+    probe("proxy:global-vs-perpad", "Processor 48k: select pad 5 then write proxy 0.73 vs write pad-5 ID 0.73",
+          "proxies whose resulting pad state differs / audible", std::to_string(mismatch) + " / " + std::to_string(audible) + " " + list,
+          "0 (proxy == per-pad write)", mismatch ? "bad" : "ok");
+
+    // macros at 0.5 are neutral; 1 -> 0.5 restores
+    const int macros[] = {Membrum::kPadMacroTightness, Membrum::kPadMacroBrightness, Membrum::kPadMacroBodySize,
+                          Membrum::kPadMacroPunch, Membrum::kPadMacroComplexity};
+    const char* mn[] = {"Tightness", "Brightness", "BodySize", "Punch", "Complexity"};
+    for (int i = 0; i < 5; ++i)
+    {
+        Host base(sr, 256);
+        const auto s0 = getStateBytes(*base.p);
+        Host h(sr, 256);
+        h.render(256, 256, {}, {{0, padId(P, macros[i]), 0.5}});
+        const auto sHalf = getStateBytes(*h.p);
+        h.render(256, 256, {}, {{0, padId(P, macros[i]), 1.0}});
+        const auto sOne = getStateBytes(*h.p);
+        h.render(256, 256, {}, {{0, padId(P, macros[i]), 0.5}});
+        const auto sBack = getStateBytes(*h.p);
+        Membrum::State::KitSnapshot k0, kHalf, kOne, kBack;
+        decodeKit(s0, k0);
+        decodeKit(sHalf, kHalf);
+        decodeKit(sOne, kOne);
+        decodeKit(sBack, kBack);
+        // also a direct edit between the moves: decay set to 0.9 while macro at 1, then macro back to 0.5
+        Host e(sr, 256);
+        e.render(256, 256, {}, {{0, padId(P, macros[i]), 1.0}});
+        e.render(256, 256, {}, {{0, padId(P, Membrum::kPadDecay), 0.9}, {0, padId(P, Membrum::kPadMaterial), 0.9}});
+        e.render(256, 256, {}, {{0, padId(P, macros[i]), 0.5}});
+        const auto& pe = e.p->voicePoolForTest().padConfig(P);
+        probe(std::string("macro:") + mn[i], "Processor 48k, pad 5 (tom41) default kit",
+              "fields changed by 0.5 / by 1.0 / not restored after 1->0.5 / decay,material after direct edit 0.9 then macro->0.5",
+              diffStr(diffKits(k0, kHalf)) + " / " + diffStr(diffKits(k0, kOne)) + " / " + diffStr(diffKits(k0, kBack)) + " / " + fmt(pe.decay, 3) + "," +
+                  fmt(pe.material, 3),
+              "0.5 neutral; 1->0.5 restores (except the macro field itself)", "ok");
+    }
+    // Brightness round trip detail (slot 6 = tsFilterCutoff, slot 21 = modeInject)
+    {
+        Host h(sr, 256);
+        const float c0 = h.p->voicePoolForTest().padConfig(P).tsFilterCutoff;
+        const float i0 = h.p->voicePoolForTest().padConfig(P).modeInjectAmount;
+        h.render(256, 256, {}, {{0, padId(P, Membrum::kPadMacroBrightness), 1.0}});
+        const float c1 = h.p->voicePoolForTest().padConfig(P).tsFilterCutoff;
+        h.render(256, 256, {}, {{0, padId(P, Membrum::kPadMacroBrightness), 0.5}});
+        const float c2 = h.p->voicePoolForTest().padConfig(P).tsFilterCutoff;
+        const float i2 = h.p->voicePoolForTest().padConfig(P).modeInjectAmount;
+        probe("macro:Brightness-roundtrip-detail", "Processor 48k pad 5 default kit, Brightness 0.5 -> 1 -> 0.5",
+              "tsFilterCutoff before / at 1 / after back to 0.5 ; modeInject before / after",
+              fmt(c0, 4) + " / " + fmt(c1, 4) + " / " + fmt(c2, 4) + " ; " + fmt(i0, 4) + " / " + fmt(i2, 4),
+              "restored to the starting value", std::fabs(c2 - c0) > 1e-5f ? "bad" : "ok");
+    }
+}
+
+// ==============================================================================
+// 15. Follow-ups (controls for pass-1 readings)
+// ==============================================================================
+TEST_CASE("audit probe 15a choke on a fresh instance vs after setState", "[.][audit-probe]")
+{
+    const double sr = 48000.0;
+    for (int synced = 0; synced < 2; ++synced)
+    {
+        const long chokeAt = static_cast<long>(sr * 0.2);
+        Host a(sr, 32);
+        if (synced) setStateBytes(*a.p, getStateBytes(*a.p));
+        auto ra = a.render(static_cast<long>(sr * 0.5), 32, {{0, 46, 1.0f}});
+        Host b(sr, 32);
+        if (synced) setStateBytes(*b.p, getStateBytes(*b.p));
+        b.p->voicePoolForTest().padConfigMut(6).level = 0.0f;
+        auto rb = b.render(static_cast<long>(sr * 0.5), 32, {{0, 46, 1.0f}, {chokeAt, 42, 1.0f}});
+        const std::size_t c = static_cast<std::size_t>(chokeAt);
+        const std::size_t ms1 = static_cast<std::size_t>(sr * 0.001);
+        const double pre = stats(rb.L[0], c - 2 * ms1, c).rms;
+        const double res5 = stats(rb.L[0], c + 5 * ms1, c + 6 * ms1).rms;
+        const double res20 = stats(rb.L[0], c + 20 * ms1, c + 21 * ms1).rms;
+        const double ref20 = stats(ra.L[0], c + 20 * ms1, c + 21 * ms1).rms;
+        probe(std::string("choke:openhat46-by-42:") + (synced ? "after-setState(getState)" : "fresh-instance"),
+              "Processor 48k bs 32, default kit, closed hat level 0, choke at 200 ms",
+              "residual 5 ms / 20 ms after choke (dB rel pre) / unchoked at 20 ms (dB rel pre) / choke-table entry pad 6,10",
+              fmt(toDb(res5) - toDb(pre)) + " / " + fmt(toDb(res20) - toDb(pre)) + " / " + fmt(toDb(ref20) - toDb(pre)) + " / " +
+                  std::to_string(b.p->voicePoolForTest().getChokeGroupAssignments()[6]) + "," +
+                  std::to_string(b.p->voicePoolForTest().getChokeGroupAssignments()[10]) + " (padConfig.chokeGroup " +
+                  std::to_string(b.p->voicePoolForTest().padConfig(6).chokeGroup) + ")",
+              "<= -60 dB at 20 ms", (toDb(res20) - toDb(pre)) > -60 ? "bad" : "ok");
+    }
+}
+
+TEST_CASE("audit probe 15b pitch envelope staircase, linear curve", "[.][audit-probe]")
+{
+    const double sr = 48000.0;
+    const long total = static_cast<long>(sr * 0.12);
+    for (double timeMs : {20.0, 50.0})
+    {
+        auto track = [&](int bs) {
+            PadConfig c = detPad(BodyModelType::Membrane);
+            c.airLoading = 0.0f;
+            c.tsPitchEnvStart = static_cast<float>(hzToPitchNorm(160.0));
+            c.tsPitchEnvEnd = static_cast<float>(hzToPitchNorm(50.0));
+            c.tsPitchEnvTime = static_cast<float>(timeMs / 500.0);
+            c.tsPitchEnvCurve = 0.5f;  // linear
+            std::vector<double> f(static_cast<std::size_t>(total), 0.0);
+            auto v = std::make_unique<Membrum::DrumVoice>();
+            v->prepare(sr, 0u);
+            Membrum::applyPadConfigToVoice(*v, c);
+            v->noteOn(1.0f);
+            Buf out(static_cast<std::size_t>(bs));
+            for (long pos = 0; pos < total; pos += bs)
+            {
+                const int n = static_cast<int>(std::min<long>(bs, total - pos));
+                v->processBlock(out.data(), n);
+                const float cur = v->getBodyBankForTest().getSharedBank().getModeFrequency(0);
+                for (int i = 0; i < n; ++i) f[static_cast<std::size_t>(pos + i)] = cur;
+            }
+            return f;
+        };
+        const auto ref = track(1);
+        for (int bs : {32, 64, 256, 1024})
+        {
+            const auto f = track(bs);
+            double maxErr = 0.0;
+            double rmsErr = 0.0;
+            const std::size_t nS = static_cast<std::size_t>(sr * timeMs / 1000.0);
+            for (std::size_t i = 0; i < nS; ++i)
+            {
+                const double e = cents(f[i], ref[i]);
+                maxErr = std::max(maxErr, std::fabs(e));
+                rmsErr += e * e;
+            }
+            rmsErr = std::sqrt(rmsErr / static_cast<double>(nS));
+            probe("pitchenv-linear:time=" + fmt(timeMs, 0) + "ms:bs=" + std::to_string(bs),
+                  "DrumVoice 48k Membrane, 160->50 Hz linear curve, bank mode0 vs per-sample (bs 1) reference",
+                  "max / rms pitch error during the sweep (cents) / ref at 0, T/2, T Hz",
+                  fmt(maxErr, 0) + " / " + fmt(rmsErr, 0) + " / " + fmt(ref[0], 1) + ", " + fmt(ref[nS / 2], 1) + ", " + fmt(ref[nS], 1),
+                  "< 50 cents (block size must not reshape the sweep)", maxErr > 50 ? "bad" : "ok");
+        }
+    }
+}
+
+TEST_CASE("audit probe 15c coupling re-enable control + feedback retirement", "[.][audit-probe]")
+{
+    const double sr = 48000.0;
+    const long hop = static_cast<long>(sr * 1.0);
+    const std::size_t s0 = static_cast<std::size_t>(2 * hop - 1000);
+    const std::size_t s1 = static_cast<std::size_t>(2 * hop);
+    auto run = [&](const std::vector<Pc>& pcs) {
+        Host h(sr, 512);
+        auto r = h.render(3 * hop, 512, {{0, 36, 1.0f}, {2 * hop, 36, 1.0f}}, pcs);
+        return toDb(stats(r.L[0], s0, s1).rms);
+    };
+    const double toggled = run({{0, Membrum::kSnareBuzzId, 1.0}, {0, Membrum::kTomResonanceId, 1.0}, {0, Membrum::kGlobalCouplingId, 1.0},
+                                {hop - 1000, Membrum::kGlobalCouplingId, 0.0}, {2 * hop - 1000, Membrum::kGlobalCouplingId, 1.0}});
+    const double always = run({{0, Membrum::kSnareBuzzId, 1.0}, {0, Membrum::kTomResonanceId, 1.0}, {0, Membrum::kGlobalCouplingId, 1.0}});
+    const double never = run({});
+    probe("coupling:toggle-control", "Processor 48k, kick at 0 s and 2 s; window 1.979-2.0 s",
+          "RMS dBFS toggled 1-0-1 / always 1 / never", fmt(toggled) + " / " + fmt(always) + " / " + fmt(never),
+          "toggled <= always (no stale burst)", toggled > always + 3.0 ? "bad" : "ok");
+    // Feedback exciter: silent but never retires?
+    for (int b : {0, 1, 4})
+    {
+        Host h(sr, 512);
+        PadConfig c;
+        c.bodyModel = static_cast<BodyModelType>(b);
+        c.exciterType = ExciterType::Feedback;
+        h.p->voicePoolForTest().padConfigMut(0) = c;
+        auto r = h.render(static_cast<long>(sr * 20.0), 512, {{0, 36, 1.0f}});
+        const double last = toDb(stats(r.L[0], static_cast<std::size_t>(sr * 19.0), r.L[0].size()).peak);
+        probe(std::string("tail:feedback-retire:body=") + bodyName(b), "Processor 48k, Feedback exciter PadConfig defaults, 20 s, no note-off",
+              "peak dBFS in last 1 s / active voices at 20 s / silence flag set in last block",
+              fmt(last) + " / " + std::to_string(r.activeVoices.back()) + " / " + (r.mainFlags.back() ? "yes" : "no"),
+              "a silent voice retires (CPU)", (last < -100.0 && r.activeVoices.back() > 0) ? "bad" : "ok");
+    }
+}
+
+TEST_CASE("audit probe 15d steal and retrigger with silent stealers", "[.][audit-probe]")
+{
+    const double sr = 48000.0;
+    // Poly 4: 4 ringing voices, then 4 silent (level 0) pads steal them.
+    for (int policy = 0; policy < 3; ++policy)
+    {
+        Host h(sr, 32);
+        for (int p = 0; p < 32; ++p)
+        {
+            h.p->voicePoolForTest().padConfigMut(p) = detPad(BodyModelType::Membrane, ExciterType::Mallet, 0.5f + 0.02f * static_cast<float>(p));
+            if (p >= 4) h.p->voicePoolForTest().padConfigMut(p).level = 0.0f;
+        }
+        std::vector<Ev> evs;
+        for (int i = 0; i < 8; ++i) evs.push_back({static_cast<long>(64 + i * 2400), 36 + i, 0.9f});
+        auto r = h.render(static_cast<long>(sr * 0.5), 32, evs,
+                          {{0, Membrum::kMaxPolyphonyId, 0.0}, {0, Membrum::kVoiceStealingId, (policy + 0.5) / 3.0}});
+        const Buf& x = r.L[0];
+        double worstRatio = 0.0;
+        for (int i = 4; i < 8; ++i)
+        {
+            const std::size_t a = static_cast<std::size_t>(64 + i * 2400);
+            const double jAt = maxJump(x, a - 4, a + 32);
+            const double jBefore = maxJump(x, a - 600, a - 100);
+            worstRatio = std::max(worstRatio, jBefore > 0 ? jAt / jBefore : 0.0);
+        }
+        const int clicks = clickCount(x, sr, static_cast<std::size_t>(64 + 4 * 2400 - 2048), static_cast<std::size_t>(64 + 8 * 2400));
+        static const char* pn[] = {"Oldest", "Quietest", "Priority"};
+        probe(std::string("steal-silent:poly4:policy=") + pn[policy], "Processor 48k bs 32, 4 ringing deterministic voices, then 4 level-0 pads steal",
+              "worst jump at steal / jump 2-12 ms before / clicks around steals", fmt(worstRatio, 2) + " / " + std::to_string(clicks),
+              "ratio <= 1.5 (5 ms fade, no step)", worstRatio > 1.5 ? "suspicious" : "ok");
+    }
+    // Same-pad retrigger: first hit audible, later hits silent (level set to 0 between hits).
+    {
+        Host h(sr, 32);
+        h.p->voicePoolForTest().padConfigMut(0) = detPad(BodyModelType::Membrane, ExciterType::Mallet, 0.6f);
+        auto r = h.render(static_cast<long>(sr * 0.3), 32, {{0, 36, 1.0f}, {4800, 36, 1.0f}, {4872, 36, 1.0f}}, {}, -1, [&](long pos) {
+            if (pos == 4800) h.p->voicePoolForTest().padConfigMut(0).level = 0.0f;
+        });
+        const Buf& x = r.L[0];
+        const double jAt = maxJump(x, 4796, 4900);
+        const double jBefore = maxJump(x, 4200, 4700);
+        probe("retrigger-silent:same-pad", "Processor 48k bs 32, pad 36 ringing, retriggered at 100 ms and 101.5 ms by a level-0 hit",
+              "jump at retrigger / jump before / residual RMS 6-7 ms later dB rel before",
+              fmt(jAt, 5) + " / " + fmt(jBefore, 5) + " / " + fmt(toDb(stats(x, 4800 + 288, 4800 + 336).rms) - toDb(stats(x, 4700, 4796).rms)),
+              "jump <= 1.5x before", jAt > 1.5 * jBefore ? "suspicious" : "ok");
+    }
+    // poly 16 -> 4 with click count
+    {
+        Host h(sr, 64);
+        for (int p = 0; p < 32; ++p)
+            h.p->voicePoolForTest().padConfigMut(p) = detPad(BodyModelType::Membrane, ExciterType::Mallet, 0.3f + 0.02f * static_cast<float>(p));
+        std::vector<Ev> evs;
+        for (int i = 0; i < 12; ++i) evs.push_back({64 + i * 64, 36 + i, 0.8f});
+        const long changeAt = static_cast<long>(sr * 0.1);
+        auto r = h.render(static_cast<long>(sr * 0.4), 64, evs, {{0, Membrum::kMaxPolyphonyId, 1.0}, {changeAt, Membrum::kMaxPolyphonyId, 0.0}});
+        const std::size_t c = static_cast<std::size_t>(changeAt);
+        probe("poly16to4:detail", "Processor 48k bs 64, 12 ringing voices, poly 16 -> 4",
+              "RMS 2 ms before / RMS 10-20 ms after (dB) / clicks within +-40 ms",
+              fmt(toDb(stats(r.L[0], c - 96, c).rms)) + " / " + fmt(toDb(stats(r.L[0], c + 480, c + 960).rms)) + " / " +
+                  std::to_string(clickCount(r.L[0], sr, c - 1920, c + 1920)),
+              "info: 8 voices dropped with a 5 ms fade", "ok");
+    }
+}
+
+TEST_CASE("audit probe 15e sample-rate kick isolation", "[.][audit-probe]")
+{
+    for (int variant = 0; variant < 3; ++variant)
+    {
+        std::array<double, 4> f{}, d{};
+        const double rates[] = {44100.0, 48000.0, 96000.0, 192000.0};
+        for (int ri = 0; ri < 4; ++ri)
+        {
+            const double sr = rates[ri];
+            Host h(sr, 512);
+            auto& cfg = h.p->voicePoolForTest().padConfigMut(0);
+            if (variant >= 1) cfg.tensionModAmt = 0.0f;
+            if (variant >= 2) { cfg.tsPitchEnvTime = 0.0f; cfg.noiseLayerMix = 0.0f; cfg.clickLayerMix = 0.0f; }
+            auto r = h.render(static_cast<long>(sr * 4.0), 512, {{0, 36, 1.0f}});
+            f[static_cast<std::size_t>(ri)] = dominantPeak(r.L[0], sr, static_cast<std::size_t>(sr * 0.08), static_cast<std::size_t>(sr * 0.5), 20.0, 4000.0);
+            d[static_cast<std::size_t>(ri)] = decay60(r.L[0], sr);
+        }
+        static const char* vn[] = {"as-is", "tension0", "tension0+pitchEnvOff+noise/click0"};
+        std::string det;
+        for (int ri = 0; ri < 4; ++ri)
+            det += fmt(rates[ri] / 1000.0, 1) + "k:" + fmt(f[static_cast<std::size_t>(ri)], 2) + "Hz," + decayStr(d[static_cast<std::size_t>(ri)], 4) + " ";
+        probe(std::string("srate-kick:") + vn[variant], "Processor default kit pad 36 at 44.1/48/96/192k",
+              "fundamental, decay60 per rate / max cents vs 48k", det + "/ " + fmt(std::max(std::fabs(cents(f[2], f[1])), std::fabs(cents(f[3], f[1]))), 1),
+              "<= 5 cents, <= 10 % decay", std::fabs(cents(f[3], f[1])) > 5 ? "bad" : "ok");
+    }
+}
+
+TEST_CASE("audit probe 15g sample-rate decay isolation", "[.][audit-probe]")
+{
+    const double rates[] = {44100.0, 48000.0, 96000.0, 192000.0};
+    for (int b : {0, 1, 2, 4})
+    {
+        std::string det;
+        std::array<double, 4> d{}, f{};
+        for (int ri = 0; ri < 4; ++ri)
+        {
+            const double sr = rates[ri];
+            PadConfig c = detPad(static_cast<BodyModelType>(b), ExciterType::Impulse, 0.6f);
+            c.decay = 0.5f;
+            const Buf x = renderVoice(c, 1.0f, sr, static_cast<long>(sr * 4.0), static_cast<int>(256 * sr / 48000.0));
+            d[static_cast<std::size_t>(ri)] = decay60(x, sr);
+            f[static_cast<std::size_t>(ri)] = dominantPeak(x, sr, static_cast<std::size_t>(sr * 0.02), static_cast<std::size_t>(sr * 0.5), 20.0, 4000.0);
+            det += fmt(sr / 1000.0, 1) + "k:" + decayStr(d[static_cast<std::size_t>(ri)], 4) + "," + fmt(f[static_cast<std::size_t>(ri)], 2) + "Hz ";
+        }
+        const double dev = (d[1] > 0 && d[3] > 0) ? (d[3] / d[1] - 1.0) * 100.0 : 0.0;
+        probe(std::string("srate-voice:body=") + bodyName(b), "DrumVoice Impulse noise/click 0 size 0.6 decay 0.5, block = 256 samples @48k scaled with rate",
+              "decay60, dominant Hz per rate / decay deviation 192k vs 48k (%)", det + "/ " + fmt(dev, 1),
+              "<= 10 %", std::fabs(dev) > 10.0 ? "bad" : "ok");
+    }
+    // Processor, kick with tension + pitch env off, block size scaled with rate (same duration per block)
+    {
+        std::string det;
+        for (int ri = 0; ri < 4; ++ri)
+        {
+            const double sr = rates[ri];
+            const int bs = static_cast<int>(512 * sr / 48000.0);
+            Host h(sr, bs);
+            auto& cfg = h.p->voicePoolForTest().padConfigMut(0);
+            cfg.tensionModAmt = 0.0f;
+            cfg.noiseLayerMix = 0.0f;
+            cfg.clickLayerMix = 0.0f;
+            auto r = h.render(static_cast<long>(sr * 4.0), bs, {{0, 36, 1.0f}});
+            det += fmt(sr / 1000.0, 1) + "k:" + decayStr(decay60(r.L[0], sr), 4) + "," +
+                   fmt(dominantPeak(r.L[0], sr, static_cast<std::size_t>(sr * 0.08), static_cast<std::size_t>(sr * 0.5), 20.0, 4000.0), 2) + "Hz ";
+        }
+        probe("srate-kick:tension0+noise/click0:bs-scaled", "Processor default kit pad 36, pitch env ON, block = 10.7 ms at every rate",
+              "decay60, fundamental per rate", det, "<= 5 cents, <= 10 %", "ok");
+    }
+}
+
+TEST_CASE("audit probe 15f state precision and malformed values", "[.][audit-probe]")
+{
+    const double sr = 48000.0;
+    const auto kits = factoryKits();
+    if (kits.empty()) { WARN("no factory kits"); return; }
+    int kitsWithSemanticDiff = 0;
+    double worst = 0.0;
+    for (const auto& k : kits)
+    {
+        Host h(sr, 256);
+        setStateBytes(*h.p, k.component);
+        Membrum::State::KitSnapshot kc, k1;
+        decodeKit(k.component, kc);
+        decodeKit(getStateBytes(*h.p), k1);
+        double w = 0.0;
+        for (std::size_t p = 0; p < 32; ++p)
+        {
+            for (std::size_t s = 0; s < 59; ++s) w = std::max(w, std::fabs(kc.pads[p].sound[s] - k1.pads[p].sound[s]));
+            for (std::size_t m = 0; m < 5; ++m) w = std::max(w, std::fabs(kc.pads[p].macros[m] - k1.pads[p].macros[m]));
+            w = std::max(w, std::fabs(kc.pads[p].couplingAmount - k1.pads[p].couplingAmount));
+        }
+        w = std::max(w, std::fabs(kc.globalCoupling - k1.globalCoupling));
+        if (w > 1e-6) ++kitsWithSemanticDiff;
+        worst = std::max(worst, w);
+    }
+    probe("state:factory-component-vs-getState-tolerance", "20 factory kits: setState(component) then getState",
+          "kits differing by > 1e-6 / worst |diff|", std::to_string(kitsWithSemanticDiff) + " / " + fmt(worst, 9),
+          "only float rounding (< 1e-6)", kitsWithSemanticDiff ? "bad" : "ok");
+    // Stored values after malformed slots
+    const auto good = kits[0].component;
+    struct Bad { const char* name; std::size_t slot; std::uint64_t bits; };
+    const Bad bads[] = {{"NaN-slot0-material", 0, 0x7FF8000000000000ULL}, {"NaN-slot2-decay", 2, 0x7FF8000000000000ULL},
+                        {"Inf-slot1-size", 1, 0x7FF0000000000000ULL}, {"NaN-slot57-noiseGain", 57, 0x7FF8000000000000ULL},
+                        {"NaN-slot42-dampB1", 42, 0x7FF8000000000000ULL}, {"NaN-slot34-noiseMix", 34, 0x7FF8000000000000ULL}};
+    for (const auto& b : bads)
+    {
+        auto blob = good;
+        std::memcpy(blob.data() + 20 + b.slot * 8, &b.bits, 8);
+        Host h(sr, 256);
+        const tresult rc = setStateBytes(*h.p, blob);
+        Membrum::State::KitSnapshot k;
+        decodeKit(getStateBytes(*h.p), k);
+        const double stored = k.pads[0].sound[b.slot];
+        auto r = h.render(static_cast<long>(sr * 2.0), 256, {{0, 36, 1.0f}});
+        const auto s = stats(r.L[0]);
+        const bool storedFinite = Krate::DSP::detail::isFinite(stored);
+        probe(std::string("state:malformed-stored:") + b.name, "setState(kit with the slot of pad 0 poisoned), getState, render pad 36 2 s",
+              "rc / stored value finite / out peak dBFS / nonFinite / decay60",
+              std::to_string(rc) + " / " + (storedFinite ? fmt(stored, 4) : std::string("NON-FINITE")) + " / " + fmt(toDb(s.peak)) + " / " +
+                  std::to_string(s.nonFinite) + " / " + decayStr(decay60(r.L[0], sr), 2),
+              "sanitised on load (finite stored value), finite output", (!storedFinite || s.nonFinite) ? "bad" : "ok");
+    }
+}

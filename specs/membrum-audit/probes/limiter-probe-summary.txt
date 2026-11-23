@@ -1,0 +1,135 @@
+pads 383
+neutral v=1 peak after 30ms: 2 Orchestral 49 Mallet/Plate pk=0.621 pk30=0.500 t=47.8; Orchestral 52 Mallet/Bell pk=0.523 pk30=0.481 t=40.5
+Mallet n 101 neutral787Norm min/med/max 0.27 0.42 1.22 >0.707(+3dB): 4
+Impulse n 116 neutral787Norm min/med/max 0.07 0.37 0.62 >0.707(+3dB): 0
+Clap n 7 neutral787Norm min/med/max 0.34 0.34 0.34 >0.707(+3dB): 0
+NoiseBurst n 93 neutral787Norm min/med/max 0.13 0.32 0.56 >0.707(+3dB): 0
+FMImpulse n 66 neutral787Norm min/med/max 0.17 0.50 1.85 >0.707(+3dB): 14
+neutral1Norm >0.56: Acoustic Studio Kit 46 NoiseBurst/NoiseBody 0.631 t=2.4; Acoustic Studio Kit 51 NoiseBurst/Bell 0.707 t=1.4; Acoustic Studio Kit 53 NoiseBurst/Bell 0.775 t=1.4; Acoustic Studio Kit 59 NoiseBurst/Bell 0.707 t=1.4; Jazz Brushes 38 NoiseBurst/Membrane 0.779 t=2.3; Jazz Brushes 49 NoiseBurst/Bell 0.713 t=1.4; Orchestral 42 NoiseBurst/NoiseBody 0.633 t=14.5; Orchestral 49 Mallet/Plate 0.621 t=47.8; Orchestral 51 NoiseBurst/Bell 0.716 t=1.4; Rock Big Room 46 NoiseBurst/NoiseBody 0.645 t=1.8; Rock Big Room 49 NoiseBurst/NoiseBody 0.686 t=2.2; Rock Big Room 51 NoiseBurst/Bell 0.658 t=1.4; Vintage Wood 49 NoiseBurst/NoiseBody 0.669 t=5.0; Vintage Wood 51 NoiseBurst/Bell 0.707 t=1.4; 808 Electronic Kit 46 NoiseBurst/NoiseBody 0.819 t=3.1; 808 Electronic Kit 51 NoiseBurst/NoiseBody 0.652 t=3.8; 909 Drum Machine 38 NoiseBurst/Membrane 0.565 t=0.6; 909 Drum Machine 50 NoiseBurst/Bell 0.707 t=1.4; Trap Modern 37 Impulse/Shell 0.597 t=2.2; Trap Modern 38 NoiseBurst/Membrane 0.598 t=0.6; Trap Modern 49 NoiseBurst/NoiseBody 0.807 t=8.2; Latin Perc 41 NoiseBurst/Membrane 0.717 t=0.9; Latin Perc 42 NoiseBurst/Membrane 0.744 t=0.9; Latin Perc 55 NoiseBurst/NoiseBody 0.681 t=2.5; Latin Perc 56 NoiseBurst/NoiseBody 0.607 t=1.4; World Metal 64 NoiseBurst/Bell 0.672 t=0.8
+pre-limiter > -3 dBFS (stale or asis): 9
+  Rock Big Room 52 NoiseBurst/NoiseBody size=0.450 lvl=0.780 panG=1.260 stale=-2.35 asis=-3.64 n787=0.542 n1=0.534 hint=1.29
+  LinnDrum CR-78 40 FMImpulse/Bell size=0.220 lvl=0.750 panG=1.170 stale=-0.89 asis=-0.21 n787=1.313 n1=0.500 hint=-0.68
+  Latin Perc 46 FMImpulse/Bell size=0.220 lvl=0.750 panG=1.144 stale=-0.72 asis=-0.72 n787=1.369 n1=0.500 hint=0.00
+  World Metal 67 Mallet/Bell size=0.020 lvl=0.720 panG=1.206 stale=-17.68 asis=-0.03 n787=1.222 n1=0.330 hint=-17.65
+  Experimental FX Kit 52 FMImpulse/Shell size=0.360 lvl=0.720 panG=1.280 stale=0.20 asis=-2.63 n787=0.629 n1=0.500 hint=2.83
+  Experimental FX Kit 58 FMImpulse/Shell size=0.360 lvl=0.720 panG=1.280 stale=-0.45 asis=-1.68 n787=0.589 n1=0.500 hint=1.23
+  Experimental FX Kit 62 FMImpulse/Membrane size=0.540 lvl=0.720 panG=1.228 stale=-3.73 asis=-2.86 n787=0.514 n1=0.500 hint=-0.87
+  Glass Bell Garden 44 FMImpulse/Bell size=0.320 lvl=0.704 panG=1.000 stale=-2.33 asis=-1.71 n787=1.483 n1=0.500 hint=-0.62
+  Glass Bell Garden 46 FMImpulse/Bell size=0.220 lvl=0.688 panG=1.298 stale=2.26 asis=2.24 n787=1.846 n1=0.500 hint=0.02
+any single stage adds > 3 dB of peak: 61
+  Acoustic Studio Kit 38 Impulse/Membrane asis=-4.74 dNoise=1.82 dShell=3.28
+  Acoustic Studio Kit 51 NoiseBurst/Bell asis=-13.31 dModeInject=1.36 dNoise=4.11 dMorph=1.36
+  Acoustic Studio Kit 53 NoiseBurst/Bell asis=-13.85 dModeInject=3.02 dNoise=3.89 dMorph=3.02
+  Acoustic Studio Kit 59 NoiseBurst/Bell asis=-12.13 dModeInject=4.09 dNoise=7.10 dClick=1.36 dMorph=4.09
+  Jazz Brushes 49 NoiseBurst/Bell asis=-12.56 dModeInject=1.41 dNoise=6.06 dMorph=1.41
+  Orchestral 37 NoiseBurst/Bell asis=-13.13 dFilter=1.70 dModeInject=1.27 dNlc=1.62 dNoise=5.88 dTension=1.70
+  Orchestral 38 NoiseBurst/Membrane asis=-11.49 dFilter=4.15 dNoise=2.16 dClick=2.44 dTension=2.22
+  Orchestral 51 NoiseBurst/Bell asis=-13.05 dModeInject=2.72 dNoise=4.83 dMorph=2.72
+  Rock Big Room 38 Impulse/Membrane asis=-7.10 dNoise=1.52 dShell=3.14
+  Rock Big Room 51 NoiseBurst/Bell asis=-11.94 dFilter=1.07 dModeInject=3.45 dNoise=4.10 dTension=1.07 dMorph=3.45
+  Rock Big Room 52 NoiseBurst/NoiseBody asis=-3.64 dModeInject=4.41
+  Vintage Wood 49 NoiseBurst/NoiseBody asis=-6.83 dModeInject=3.79 dTension=2.00 dMorph=1.15
+  Vintage Wood 51 NoiseBurst/Bell asis=-13.31 dModeInject=1.36 dNoise=4.11 dMorph=1.36
+  909 Drum Machine 38 NoiseBurst/Membrane asis=-12.58 dFilter=5.98
+  909 Drum Machine 50 NoiseBurst/Bell asis=-13.31 dModeInject=1.36 dNoise=4.08 dMorph=1.36
+  LinnDrum CR-78 38 NoiseBurst/Membrane asis=-8.55 dClick=3.12
+  Modular West Coast 38 FMImpulse/Plate asis=-5.25 dFilter=3.33
+  Trap Modern 37 Impulse/Shell asis=-17.18 dClick=5.95
+  Trap Modern 43 Impulse/Membrane asis=-8.48 dFilter=1.01 dModeInject=2.76 dNlc=1.28 dNoise=3.10 dShell=3.94 dPitchEnv=2.94 dTension=2.98 dMorph=2.67
+  Trap Modern 45 Impulse/Membrane asis=-9.65 dDriveFold=1.86 dModeInject=3.22 dNlc=1.78 dNoise=1.96 dShell=3.44 dPitchEnv=1.83 dTension=2.06 dMorph=3.62
+  Trap Modern 47 Impulse/Membrane asis=-9.43 dDriveFold=3.03 dModeInject=2.94 dNlc=3.97 dNoise=1.05 dClick=1.82 dShell=3.50 dMorph=2.43
+  Trap Modern 48 Impulse/Membrane asis=-8.88 dDriveFold=3.36 dModeInject=3.17 dNlc=4.70 dNoise=1.13 dClick=2.26 dShell=4.42 dMorph=2.58
+  Trap Modern 50 Impulse/Membrane asis=-9.21 dDriveFold=2.85 dModeInject=3.23 dNlc=4.57 dNoise=1.09 dClick=2.66 dShell=5.31 dMorph=2.90
+  Cajon and Frames 38 Impulse/Plate asis=-8.99 dShell=3.13
+  Cajon and Frames 41 Impulse/Membrane asis=-9.40 dShell=4.24
+  Latin Perc 41 NoiseBurst/Membrane asis=-14.77 dClick=3.98 dShell=1.07
+  Latin Perc 42 NoiseBurst/Membrane asis=-16.03 dClick=3.49
+  Tabla 38 Impulse/Membrane asis=-5.41 dDriveFold=2.01 dModeInject=5.66 dNlc=1.70 dShell=1.95 dTension=1.10 dMorph=3.78
+  Tabla 39 Impulse/Membrane asis=-6.72 dDriveFold=3.29 dModeInject=3.64 dNlc=3.78 dClick=1.22 dShell=5.93 dMorph=2.85
+  Tabla 44 Impulse/Membrane asis=-5.41 dDriveFold=3.17 dModeInject=4.86 dNlc=3.45 dShell=7.28 dMorph=3.62
+  Tabla 47 Impulse/Membrane asis=-7.35 dModeInject=1.48 dNoise=3.79 dShell=1.43 dPitchEnv=1.64
+  Tabla 48 Impulse/Membrane asis=-5.67 dDriveFold=2.92 dModeInject=6.16 dNlc=3.16 dShell=3.88 dMorph=4.48
+  Tabla 52 Impulse/Membrane asis=-6.06 dDriveFold=2.03 dModeInject=5.44 dNlc=1.76 dNoise=1.56 dShell=2.82 dTension=1.49 dMorph=4.44
+  Tabla 53 Impulse/Membrane asis=-6.36 dDriveFold=2.28 dModeInject=6.00 dNlc=2.26 dShell=2.29 dTension=1.14 dMorph=4.52
+  Tabla 54 Impulse/Membrane asis=-6.33 dDriveFold=2.69 dModeInject=6.11 dNlc=1.89 dShell=2.18 dMorph=3.80
+  Tabla 59 Impulse/Membrane asis=-6.32 dDriveFold=2.04 dModeInject=5.67 dNlc=1.68 dShell=1.92 dTension=1.06 dMorph=3.80
+  Tabla 62 Impulse/Membrane asis=-4.57 dDriveFold=1.07 dModeInject=5.63 dNlc=1.36 dNoise=2.90 dShell=3.50 dPitchEnv=3.04 dTension=2.09 dMorph=2.34
+  Tabla 63 Impulse/Membrane asis=-6.17 dDriveFold=3.15 dModeInject=6.56 dNlc=2.25 dNoise=1.09 dShell=2.31 dMorph=2.53
+  Tabla 65 Mallet/Membrane asis=-7.01 dModeInject=3.37 dNoise=3.61 dShell=1.81 dPitchEnv=2.02 dTension=1.52
+  Tabla 66 Impulse/Membrane asis=-6.63 dDriveFold=2.28 dModeInject=6.00 dNlc=2.26 dShell=2.29 dTension=1.14 dMorph=4.52
+  Tabla 67 Impulse/Membrane asis=-5.37 dModeInject=4.81 dNoise=3.46 dShell=2.18 dPitchEnv=2.89 dTension=2.06 dMorph=1.40
+  World Metal 48 NoiseBurst/Bell asis=-15.47 dModeInject=2.71 dNoise=3.65
+  World Metal 56 Mallet/Bell asis=-4.65 dShell=3.03
+  Drone and Sustain 64 Mallet/Membrane asis=-7.01 dShell=3.23
+  Drone and Sustain 66 Mallet/Membrane asis=-6.37 dDriveFold=1.85 dModeInject=5.10 dNlc=2.90 dNoise=2.27 dShell=5.09 dPitchEnv=1.93 dTension=1.51 dMorph=4.30
+  Drone and Sustain 67 Mallet/Membrane asis=-6.30 dModeInject=5.02 dNlc=2.84 dNoise=2.46 dShell=4.92 dPitchEnv=2.20 dTension=1.64 dMorph=4.71
+  Experimental FX Kit 40 FMImpulse/Plate asis=-3.14 dFilter=6.11
+  Experimental FX Kit 42 NoiseBurst/Bell asis=-14.06 dNoise=3.36
+  Experimental FX Kit 44 NoiseBurst/Bell asis=-14.06 dNoise=3.36
+  Experimental FX Kit 46 NoiseBurst/Bell asis=-13.98 dNoise=3.43
+  Experimental FX Kit 52 FMImpulse/Shell asis=-2.63 dFilter=5.16 dModeInject=4.04
+  Experimental FX Kit 55 FMImpulse/Membrane asis=-3.44 dFilter=5.32
+  Experimental FX Kit 58 FMImpulse/Shell asis=-1.68 dFilter=4.56 dModeInject=2.15 dNlc=1.55
+  Experimental FX Kit 62 FMImpulse/Membrane asis=-2.86 dFilter=5.10 dModeInject=4.88 dNlc=2.60 dPitchEnv=1.62
+  Experimental FX Kit 65 Mallet/Bell asis=-4.25 dFilter=4.14
+  Glass Bell Garden 42 FMImpulse/Bell asis=-11.04 dModeInject=4.13 dMorph=1.24
+  Glass Bell Garden 43 FMImpulse/Bell asis=-14.11 dModeInject=4.58
+  Glass Bell Garden 63 NoiseBurst/Bell asis=-13.74 dDriveFold=1.16 dFilter=3.03 dModeInject=4.30 dPitchEnv=1.16 dTension=3.03
+  Glass Bell Garden 65 NoiseBurst/Bell asis=-17.12 dFilter=2.61 dModeInject=3.25 dTension=2.61
+  Glass Bell Garden 66 NoiseBurst/Bell asis=-15.10 dDriveFold=1.52 dFilter=3.90 dModeInject=4.05 dPitchEnv=1.52 dTension=3.90
+  Glass Bell Garden 67 NoiseBurst/Bell asis=-14.44 dFilter=1.41 dModeInject=4.94 dTension=1.41
+Mallet pads with |stale-hint - correct-hint| > 1 dB (fresh voice hint 1.0): 38 of 101
+  Orchestral 50 Mallet/Membrane size=0.600 hintDb=-1.05
+  Orchestral 52 Mallet/Bell size=0.220 hintDb=8.71
+  Orchestral 53 Mallet/Bell size=0.120 hintDb=6.51
+  Latin Perc 60 Mallet/Membrane size=0.820 hintDb=1.17
+  Tabla 65 Mallet/Membrane size=0.660 hintDb=-5.05
+  World Metal 37 Mallet/Bell size=0.435 hintDb=-1.07
+  World Metal 38 Mallet/Bell size=0.385 hintDb=-1.57
+  World Metal 39 Mallet/Bell size=0.310 hintDb=-2.81
+  World Metal 40 Mallet/Bell size=0.260 hintDb=-3.76
+  World Metal 41 Mallet/Bell size=0.185 hintDb=-4.70
+  World Metal 42 Mallet/Bell size=0.135 hintDb=-5.90
+  World Metal 43 Mallet/Bell size=0.085 hintDb=-7.53
+  World Metal 49 Mallet/Bell size=0.120 hintDb=-6.30
+  World Metal 50 Mallet/Bell size=0.220 hintDb=-4.14
+  World Metal 66 Mallet/Bell size=0.050 hintDb=-12.28
+  World Metal 67 Mallet/Bell size=0.020 hintDb=-17.65
+  Drone and Sustain 56 Mallet/Bell size=0.500 hintDb=-4.13
+  Drone and Sustain 58 Mallet/Bell size=0.300 hintDb=-9.50
+  Drone and Sustain 66 Mallet/Membrane size=0.500 hintDb=-5.62
+  Drone and Sustain 67 Mallet/Membrane size=0.380 hintDb=-5.59
+  Experimental FX Kit 47 Mallet/Plate size=0.550 hintDb=-1.10
+  Experimental FX Kit 50 Mallet/Plate size=0.350 hintDb=2.28
+  Experimental FX Kit 65 Mallet/Bell size=0.400 hintDb=-6.62
+  Experimental FX Kit 67 Mallet/Bell size=0.200 hintDb=-3.78
+  Ghost Bones 36 Mallet/Bell size=0.780 hintDb=-6.74
+  Ghost Bones 42 Mallet/Bell size=0.460 hintDb=-1.56
+  Ghost Bones 46 Mallet/Bell size=0.300 hintDb=1.31
+  Ghost Bones 50 Mallet/Bell size=0.200 hintDb=-3.38
+  Glass Bell Garden 39 Mallet/Bell size=0.380 hintDb=-1.84
+  Glass Bell Garden 40 Mallet/Bell size=0.300 hintDb=-3.83
+  Glass Bell Garden 41 Mallet/Bell size=0.220 hintDb=-5.31
+  Glass Bell Garden 52 Mallet/Bell size=0.120 hintDb=-4.81
+  Glass Bell Garden 53 Mallet/Bell size=0.160 hintDb=-4.77
+  Glass Bell Garden 54 Mallet/Bell size=0.200 hintDb=-3.83
+  Glass Bell Garden 55 Mallet/Bell size=0.220 hintDb=-4.19
+  Glass Bell Garden 56 Mallet/Bell size=0.080 hintDb=-5.39
+  Glass Bell Garden 58 Mallet/Bell size=0.550 hintDb=-2.93
+  Glass Bell Garden 60 Mallet/Bell size=0.300 hintDb=-5.25
+FMImpulse pads by neutral787Norm (top 15):
+  Glass Bell Garden 46 FMImpulse/Bell n787=1.846 asis=2.24
+  Glass Bell Garden 44 FMImpulse/Bell n787=1.483 asis=-1.71
+  Latin Perc 46 FMImpulse/Bell n787=1.369 asis=-0.72
+  LinnDrum CR-78 40 FMImpulse/Bell n787=1.313 asis=-0.21
+  Chaos Engine 53 FMImpulse/Bell n787=1.095 asis=-7.42
+  Cajon and Frames 51 FMImpulse/Bell n787=1.067 asis=-3.03
+  Chaos Engine 44 FMImpulse/Bell n787=0.977 asis=-4.69
+  Chaos Engine 40 FMImpulse/Bell n787=0.934 asis=-7.49
+  World Metal 60 FMImpulse/Bell n787=0.908 asis=-4.55
+  World Metal 65 FMImpulse/Bell n787=0.819 asis=-5.51
+  Acoustic Studio Kit 56 FMImpulse/Bell n787=0.806 asis=-5.88
+  World Metal 63 FMImpulse/Bell n787=0.768 asis=-8.39
+  Ghost Bones 40 FMImpulse/Bell n787=0.761 asis=-7.51
+  Experimental FX Kit 36 FMImpulse/Membrane n787=0.711 asis=-9.39
+  Experimental FX Kit 37 FMImpulse/Bell n787=0.706 asis=-4.25

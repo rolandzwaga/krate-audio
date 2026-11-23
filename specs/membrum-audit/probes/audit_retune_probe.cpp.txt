@@ -1,0 +1,305 @@
+// Scratch probe (NOT in the repo): retune of a ringing magic-circle modal bank.
+// Links the built KrateDSP.lib (processModalBankSampleSIMD) + hwy.lib.
+#include <algorithm>
+#include <array>
+#include <cmath>
+#include <cstdio>
+#include <cstring>
+#include <numbers>
+#include <vector>
+#include <memory>
+#include <functional>
+#define private public
+#include <krate/dsp/processors/modal_resonator_bank.h>
+#undef private
+#include "dsp/membrane_modes.h"
+
+using Krate::DSP::ModalResonatorBank;
+using Law = ModalResonatorBank::DampingLaw;
+
+static constexpr float kPi = std::numbers::pi_v<float>;
+
+// Exact magic-circle amplitude^2 from the invariant Q = s^2 + c^2 + eps*s*c.
+static double ampSq(double s, double c, double eps) {
+    const double den = 1.0 - eps * eps / 4.0;
+    const double q = s * s + c * c + eps * s * c;
+    return den > 1e-12 ? std::max(0.0, q / den) : 0.0;
+}
+static double modeAmp(const ModalResonatorBank& b, int k) {
+    return std::sqrt(ampSq(b.sinState_[k], b.cosState_[k], b.epsilon_[k]));
+}
+static double db(double r) { return 20.0 * std::log10(std::max(r, 1e-30)); }
+
+struct ModeSet { std::vector<float> ratio, amp; };
+static ModeSet membrane48() {
+    ModeSet m;
+    for (int k = 0; k < 48; ++k) {
+        m.ratio.push_back(Membrum::kMembraneRatios[k]);
+        const float a = std::abs(Membrum::evaluateBesselJ(Membrum::kMembraneBesselOrder[k],
+                                  Membrum::kMembraneBesselZeros[k] * 0.27f));
+        m.amp.push_back(std::max(a, 0.02f)); // keep every mode alive for the per-mode readout
+    }
+    return m;
+}
+static ModeSet single() { return ModeSet{{1.0f}, {1.0f}}; }
+
+static std::unique_ptr<ModalResonatorBank> makeBank(double fs, const ModeSet& ms, float f0, float b1) {
+    auto b = std::make_unique<ModalResonatorBank>();
+    b->prepare(fs);
+    b->setOutputGain(1.0f);
+    b->setOutputSoftClipThreshold(0.0f);
+    std::vector<float> f(ms.ratio.size());
+    for (size_t k = 0; k < f.size(); ++k) f[k] = ms.ratio[k] * f0;
+    b->setModes(f.data(), ms.amp.data(), (int)f.size(), Law{.b1 = b1, .b3 = 0.0f}, 0.0f, 0.0f);
+    return b;
+}
+static void retarget(ModalResonatorBank& b, const ModeSet& ms, float f0, float b1) {
+    float f[96];
+    for (size_t k = 0; k < ms.ratio.size(); ++k) f[k] = ms.ratio[k] * f0;
+    b.updateModes(f, ms.amp.data(), (int)ms.ratio.size(), Law{.b1 = b1, .b3 = 0.0f}, 0.0f, 0.0f);
+}
+static void strike(ModalResonatorBank& b) {
+    float in[16]{}; float out[16];
+    in[0] = 1.0f;
+    b.processBlock(in, out, 16);
+}
+static void run(ModalResonatorBank& b, int n, float* outOpt = nullptr) {
+    static float in[8192]{}; static float out[8192];
+    while (n > 0) { int c = std::min(n, 8192); b.processBlock(in, out, c);
+        if (outOpt) { std::memcpy(outOpt, out, c * sizeof(float)); outOpt += c; } n -= c; }
+}
+
+// Amplitude-preserving c-correction (fix candidate): after the coefficient snap,
+// pick c' so that the new-eps invariant gives the OLD amplitude, s unchanged.
+static void preserveAmplitude(ModalResonatorBank& b, const std::vector<double>& oldA2) {
+    for (int k = 0; k < b.numModes_; ++k) {
+        const double s = b.sinState_[k], c = b.cosState_[k], e = b.epsilon_[k];
+        const double target = oldA2[k] * (1.0 - e * e / 4.0);
+        // c'^2 + e s c' + (s^2 - target) = 0 -> root nearest the current c
+        const double disc = e * e * s * s - 4.0 * (s * s - target);
+        if (disc < 0.0) continue;
+        const double r1 = (-e * s + std::sqrt(disc)) / 2.0, r2 = (-e * s - std::sqrt(disc)) / 2.0;
+        b.cosState_[k] = (float)(std::abs(r1 - c) < std::abs(r2 - c) ? r1 : r2);
+    }
+}
+
+// ---------------------------------------------------------------- E1
+static void e1(double fs, float f1, float f2, const char* tag) {
+    const float b1 = 0.2f;
+    double mn = 1e9, mx = -1e9, mean = 0, mnFix = 1e9, mxFix = -1e9;
+    double energyMeanBefore = 0, energyMeanAfter = 0;
+    const int P = 64;
+    const double period1 = fs / f1;
+    for (int p = 0; p < P; ++p) {
+        auto b = makeBank(fs, single(), f1, b1);
+        strike(*b);
+        run(*b, 2000 + (int)std::lround(p * period1 / P));
+        const double aBefore = modeAmp(*b, 0);
+        std::vector<double> oldA2{aBefore * aBefore};
+        retarget(*b, single(), f2, b1);
+        b->snapCoefficients();
+        const double aAfter = modeAmp(*b, 0);
+        const double r = aAfter / aBefore;
+        mn = std::min(mn, r); mx = std::max(mx, r); mean += r / P;
+        preserveAmplitude(*b, oldA2);
+        const double rf = modeAmp(*b, 0) / aBefore;
+        mnFix = std::min(mnFix, rf); mxFix = std::max(mxFix, rf);
+    }
+    // peak check (phase 0): measure output peak over 4 periods before and after snap
+    {
+        auto b = makeBank(fs, single(), f1, b1);
+        strike(*b);
+        std::vector<float> o((size_t)(4 * fs / std::min(f1, f2)) + 4);
+        run(*b, 2000);
+        run(*b, (int)o.size(), o.data());
+        double pkB = 0; for (float v : o) pkB = std::max(pkB, (double)std::abs(v));
+        retarget(*b, single(), f2, b1); b->snapCoefficients();
+        run(*b, (int)o.size(), o.data());
+        double pkA = 0; for (float v : o) pkA = std::max(pkA, (double)std::abs(v));
+        // getModalEnergy ripple over 1 period at f2
+        const int per = (int)std::lround(fs / f2);
+        double eMin = 1e9, eMax = 0, eSum = 0, aSum = 0;
+        for (int i = 0; i < per; ++i) { run(*b, 1); double e = b->getModalEnergy(); eMin = std::min(eMin, e); eMax = std::max(eMax, e); eSum += e; aSum += ampSq(b->sinState_[0], b->cosState_[0], b->epsilon_[0]); }
+        energyMeanAfter = eSum / per; energyMeanBefore = aSum / per;
+        std::printf("E1 %-26s fs=%6.0f f %7.1f->%7.1f | snap amp ratio over 64 phases: min %+6.2f dB max %+6.2f dB mean %+6.2f dB | phase0 output peak %+6.2f dB | getModalEnergy ripple over a period at f2: %+5.1f%% / %+5.1f%% of its mean (mean/A^2 = %.4f) | fix c-correction: %+.4f..%+.4f dB\n",
+            tag, fs, f1, f2, db(mn), db(mx), db(mean), db(pkA / pkB),
+            100.0 * (eMin / (eSum / per) - 1.0), 100.0 * (eMax / (eSum / per) - 1.0),
+            energyMeanAfter / energyMeanBefore, db(mnFix), db(mxFix));
+    }
+}
+
+// ---------------------------------------------------------------- E2 sweeps
+enum class Method { PerSampleSmooth, PerSampleSnap, Chunk64Snap, Current64, Current512, Current2048 };
+static const char* mname(Method m) {
+    switch (m) { case Method::PerSampleSmooth: return "per-sample update+smooth";
+    case Method::PerSampleSnap: return "per-sample update+snap"; case Method::Chunk64Snap: return "64-chunk update+snap";
+    case Method::Current64: return "current, 64 blk"; case Method::Current512: return "current, 512 blk";
+    default: return "current, 2048 blk"; }
+}
+static void e2(double fs, const ModeSet& ms, const char* tag, const std::function<float(double)>& fOf, double durS, Method m) {
+    const float b1 = 0.2f;
+    const int N = (int)(durS * fs);
+    auto b = makeBank(fs, ms, fOf(0.0), b1);
+    strike(*b);
+    const int n0 = 16;
+    std::vector<double> a0(ms.ratio.size());
+    for (size_t k = 0; k < a0.size(); ++k) a0[k] = modeAmp(*b, (int)k);
+    double e0 = 0; for (double a : a0) e0 += a * a;
+    int t = n0;
+    float in[2048]{}; float out[2048];
+    auto timeS = [&](int s) { return s / fs; };
+    while (t < N) {
+        int blk = 1;
+        switch (m) {
+        case Method::PerSampleSmooth: retarget(*b, ms, fOf(timeS(t)), b1); (void)b->processSample(0.0f); t += 1; continue;
+        case Method::PerSampleSnap: blk = 1; retarget(*b, ms, fOf(timeS(t)), b1); b->snapCoefficients(); break;
+        case Method::Chunk64Snap: blk = 64; retarget(*b, ms, fOf(timeS(t)), b1); b->snapCoefficients(); break;
+        case Method::Current64: blk = 64; retarget(*b, ms, fOf(timeS(t)), b1); break;
+        case Method::Current512: blk = 512; retarget(*b, ms, fOf(timeS(t)), b1); break;
+        case Method::Current2048: blk = 2048; retarget(*b, ms, fOf(timeS(t)), b1); break;
+        }
+        blk = std::min(blk, N - t);
+        b->processBlock(in, out, blk);
+        t += blk;
+    }
+    const double decay = std::pow(std::exp(-b1 / fs), (double)(N - n0));
+    std::vector<double> r;
+    double e1v = 0;
+    for (size_t k = 0; k < a0.size(); ++k) { double a = modeAmp(*b, (int)k); e1v += a * a; if (a0[k] > 0) r.push_back(a / (a0[k] * decay)); }
+    std::sort(r.begin(), r.end());
+    const float fEnd = fOf(durS);
+    const float fGot = std::asin(b->epsilon_[0] * 0.5f) * (float)fs / kPi;
+    std::printf("E2 %-18s fs=%6.0f %-26s | f0 reached %8.2f Hz (target %7.2f, %+7.0f cents) | per-mode amp change vs decay-only: min %+6.2f dB median %+6.2f dB max %+6.2f dB | sum A^2 %+6.2f dB | getModalEnergy/sumA^2 %.3f\n",
+        tag, fs, mname(m), fGot, fEnd, 1200.0 * std::log2(fGot / fEnd), db(r.front()), db(r[r.size() / 2]), db(r.back()),
+        10.0 * std::log10(e1v / (e0 * decay * decay)), b->getModalEnergy() / e1v);
+}
+
+// ---------------------------------------------------------------- E3 damp vs updates
+static void e3(double fs) {
+    const float b1 = 2.0f; // tau 0.5 s
+    const float f0 = 150.0f;
+    auto ms = membrane48();
+    const char* names[] = {"no retune", "updateModes/64 (current)", "updateModes+snap/64", "updateModes per sample + smooth"};
+    for (int mode = 0; mode < 4; ++mode) {
+        auto b = makeBank(fs, ms, f0, b1);
+        strike(*b);
+        run(*b, (int)(0.05 * fs));
+        double eRef = 0; for (int k = 0; k < 48; ++k) eRef += std::pow(modeAmp(*b, k), 2);
+        b->damp(0.997f); // DrumVoice kNoteOffDampScale (drum_voice.h:451)
+        int t = 0; double t60 = -1;
+        float in[64]{}; float out[64];
+        while (t < (int)(5.0 * fs)) {
+            if (mode == 3) { retarget(*b, ms, f0, b1); (void)b->processSample(0.0f); t += 1; }
+            else {
+                if (mode == 1) retarget(*b, ms, f0, b1);
+                if (mode == 2) { retarget(*b, ms, f0, b1); b->snapCoefficients(); }
+                b->processBlock(in, out, 64); t += 64;
+            }
+            double e = 0; for (int k = 0; k < 48; ++k) e += std::pow(modeAmp(*b, k), 2);
+            if (e < eRef * 1e-6) { t60 = t / fs; break; }
+        }
+        std::printf("E3 fs=%6.0f damp(0.997) then %-34s : -60 dB after %s%.3f s\n", fs, names[mode], t60 < 0 ? ">" : "", t60 < 0 ? 5.0 : t60);
+    }
+}
+
+// ---------------------------------------------------------------- E4 flushed-mode recount
+static void e4(double fs) {
+    auto ms = membrane48();
+    for (auto& a : ms.amp) a = 1.0f;
+    ms.amp[47] = 1e-7f * 0 + 1.0f;
+    // b3 high so upper modes die quickly and get flushed
+    auto b = std::make_unique<ModalResonatorBank>();
+    b->prepare(fs); b->setOutputGain(1); b->setOutputSoftClipThreshold(0);
+    float f[48]; for (int k = 0; k < 48; ++k) f[k] = ms.ratio[k] * 200.0f;
+    const Law law{.b1 = 0.2f, .b3 = 1e-3f};
+    b->setModes(f, ms.amp.data(), 48, law, 0, 0);
+    strike(*b);
+    run(*b, (int)(0.5 * fs));
+    const int before = b->getNumActiveModes();
+    b->updateModes(f, ms.amp.data(), 48, law, 0, 0);
+    const int afterUpdate = b->getNumActiveModes();
+    float in[64]{}, out[64]; b->processBlock(in, out, 64);
+    const int afterBlock = b->getNumActiveModes();
+    std::printf("E4 fs=%6.0f flushed recount: active before updateModes %d, right after updateModes %d, after next processBlock %d\n", fs, before, afterUpdate, afterBlock);
+}
+
+// ---------------------------------------------------------------- E5 cull above 0.49 fs mid-ring
+static void e5(double fs) {
+    auto ms = membrane48();
+    const float b1 = 0.2f;
+    for (int mode = 0; mode < 2; ++mode) {
+        auto b = makeBank(fs, ms, 400.0f, b1);
+        strike(*b);
+        std::vector<float> o(4096);
+        run(*b, 4096, o.data());
+        double maxStepBefore = 0; for (int i = 2048; i < 4096; ++i) maxStepBefore = std::max(maxStepBefore, (double)std::abs(o[i] - o[i - 1]));
+        const float fTo = 3000.0f;
+        int culled = 0; double culledAmp = 0;
+        for (int k = 0; k < 48; ++k) if (ms.ratio[k] * fTo >= 0.49 * fs) { ++culled; culledAmp += modeAmp(*b, k); }
+        const float last = o[4095];
+        retarget(*b, ms, fTo, b1);
+        if (mode == 0) {
+            b->snapCoefficients();
+            float y; float in1 = 0; b->processBlock(&in1, &y, 1);
+            std::printf("E5 fs=%6.0f 400->3000 Hz SNAP: %d modes culled (sum of their amplitudes %.4f, total-bank max |dy| per sample before %.4f) -> output step at the snap |dy| %.4f; culled mode states after 1 sample: %.2e\n",
+                fs, culled, culledAmp, maxStepBefore, std::abs(y - last), std::abs(b->sinState_[47]) + std::abs(b->cosState_[47]));
+        } else {
+            // current smoothing: track top culled mode (k=47) frequency and amplitude per 512-sample call
+            float in[512]{}, out[512];
+            std::printf("E5 fs=%6.0f 400->3000 Hz CURRENT (512 blk): top mode 47 target culled (%.0f Hz >= %.0f):", fs, ms.ratio[47] * fTo, 0.49 * fs);
+            const double a0 = modeAmp(*b, 47);
+            for (int call = 1; call <= 64; ++call) {
+                b->processBlock(in, out, 512);
+                if (call == 1 || call == 4 || call == 16 || call == 64) {
+                    const float fk = std::asin(b->epsilon_[47] * 0.5f) * (float)fs / kPi;
+                    std::printf(" [call %d: f=%.0f Hz R=%.5f amp %+.1f dB]", call, fk, b->radius_[47], db(modeAmp(*b, 47) / a0));
+                }
+            }
+            std::printf("\n");
+        }
+    }
+}
+
+// ---------------------------------------------------------------- E6 energy driver ripple
+static void e6(double fs) {
+    for (float f0 : {100.0f, 2000.0f}) {
+        for (int set = 0; set < 2; ++set) {
+            auto ms = set == 0 ? single() : membrane48();
+            auto b = makeBank(fs, ms, f0, 0.2f);
+            strike(*b);
+            run(*b, 4000);
+            // sample getModalEnergy once per 512-sample chunk (DrumVoice reads it at the chunk end) vs invariant sum
+            double maxDev = 0;
+            for (int c = 0; c < 64; ++c) {
+                run(*b, 512 + c); // jitter the read phase
+                double inv = 0; for (int k = 0; k < (int)ms.ratio.size(); ++k) inv += std::pow(modeAmp(*b, k), 2);
+                maxDev = std::max(maxDev, std::abs(b->getModalEnergy() / inv - 1.0));
+            }
+            std::printf("E6 fs=%6.0f f0=%6.0f %-10s: getModalEnergy read at chunk ends deviates from the amplitude^2 sum by up to %.1f%%\n",
+                fs, f0, set == 0 ? "1 mode" : "48 modes", 100.0 * maxDev);
+        }
+    }
+}
+
+int main() {
+    for (double fs : {44100.0, 96000.0}) {
+        e1(fs, 200.f, 40.f, "kick fundamental");
+        e1(fs, 1632.2f, 326.4f, "kick top mode (x8.16)");
+        e1(fs, 100.f * 1.19f, 100.f, "tom tension (1.19->1)");
+        e1(fs, 816.1f * 1.19f, 816.1f, "tom tension top mode");
+        e1(fs, 2000.f, 100.f, "pitchenv 2k->100 fund");
+        e1(fs, 16322.f, 816.1f, "pitchenv 2k->100 top mode");
+    }
+    auto mem = membrane48();
+    auto kick = [](double t) { const double T = 0.05; return (float)(t < T ? 200.0 * std::pow(40.0 / 200.0, t / T) : 40.0); };
+    auto tom = [](double t) { return (float)(100.0 * (1.0 + 0.19 * std::exp(-t / 0.1))); };
+    auto penv = [](double t) { const double T = 0.03; return (float)(t < T ? 2000.0 * std::pow(100.0 / 2000.0, t / T) : 100.0); };
+    for (double fs : {44100.0, 96000.0})
+        for (Method m : {Method::PerSampleSmooth, Method::PerSampleSnap, Method::Chunk64Snap, Method::Current64, Method::Current512, Method::Current2048}) {
+            e2(fs, mem, "kick 200->40/50ms", kick, 0.08, m);
+            e2(fs, mem, "tom 1.19->1 tau100", tom, 0.3, m);
+            e2(fs, mem, "penv 2k->100/30ms", penv, 0.06, m);
+        }
+    for (double fs : {44100.0, 96000.0}) { e3(fs); e4(fs); e5(fs); e6(fs); }
+    return 0;
+}

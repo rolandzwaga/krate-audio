@@ -1,0 +1,4 @@
+@echo off
+call "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat" >nul
+cd /d "%~dp0"
+cl /nologo /std:c++20 /O2 /fp:fast /EHsc /MD /DNDEBUG /W3 /I "F:\projects\iterum\dsp\include" /I "F:\projects\iterum\plugins\membrum\src" retune_probe.cpp /link /LIBPATH:"F:\projects\iterum\build\windows-x64-release\lib\Release" KrateDSP.lib hwy.lib /OUT:retune_probe.exe

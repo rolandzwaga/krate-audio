@@ -1,0 +1,57 @@
+// Decode Membrum factory kits: count enabled pads whose tone-shaper filter is engaged.
+const fs = require('fs');
+const path = require('path');
+const root = process.argv[2];
+const rows = [];
+let tot = { enabled: 0, filterActive: 0, cutBelow1: 0, envNonZero: 0, envOnly: 0, byType: [0, 0, 0], hats: 0, hatsFiltered: 0 };
+const typeNames = ['LP', 'HP', 'BP'];
+const detail = [];
+for (const cat of fs.readdirSync(root)) {
+  for (const f of fs.readdirSync(path.join(root, cat))) {
+    const buf = fs.readFileSync(path.join(root, cat, f));
+    if (buf.toString('latin1', 0, 4) !== 'VST3') throw new Error('bad header ' + f);
+    const listOff = Number(buf.readBigInt64LE(40));
+    if (buf.toString('latin1', listOff, listOff + 4) !== 'List') throw new Error('no List ' + f);
+    const n = buf.readInt32LE(listOff + 4);
+    let comp = null;
+    for (let i = 0; i < n; ++i) {
+      const e = listOff + 8 + i * 20;
+      if (buf.toString('latin1', e, e + 4) === 'Comp') comp = { off: Number(buf.readBigInt64LE(e + 4)), size: Number(buf.readBigInt64LE(e + 12)) };
+    }
+    let p = comp.off;
+    const ver = buf.readInt32LE(p); p += 12;
+    if (ver !== 5) throw new Error('ver ' + ver);
+    let kit = { cat, name: f.replace('.vstpreset', ''), enabled: 0, filt: 0, cutBelow1: 0, env: 0 };
+    for (let pad = 0; pad < 32; ++pad) {
+      const exc = buf.readInt32LE(p), body = buf.readInt32LE(p + 4);
+      const s = [];
+      for (let k = 0; k < 59; ++k) s.push(buf.readDoubleLE(p + 8 + k * 8));
+      p += 8 + 59 * 8 + 2;
+      const enabled = s[51] >= 0.5;
+      if (!enabled) continue;
+      const type = Math.min(2, Math.max(0, Math.floor(s[5] * 3)));
+      const cutN = Math.min(1, Math.max(0, s[6]));
+      const cutHz = 20 * Math.pow(1000, cutN);
+      const envAmt = s[8] * 2 - 1;
+      const envA = Math.pow(s[15], 3) * 500, envD = Math.pow(s[16], 3) * 2000, envS = s[17];
+      const bypass = cutHz >= 20000 && envAmt === 0;
+      kit.enabled++; tot.enabled++;
+      if (!bypass) {
+        kit.filt++; tot.filterActive++; tot.byType[type]++;
+        if (cutN < 1) { kit.cutBelow1++; tot.cutBelow1++; }
+        if (envAmt !== 0) { kit.env++; tot.envNonZero++; }
+        if (cutN >= 1 && envAmt !== 0) tot.envOnly++;
+        detail.push([cat, kit.name, 36 + pad, ['Imp', 'Mal', 'NBu', 'Fri', 'FM', 'Fb', 'Clap'][exc], ['Mem', 'Plt', 'Shl', 'Str', 'Bel', 'NBo'][body],
+          typeNames[type], cutHz.toFixed(0), envAmt.toFixed(2), envA.toFixed(1), envD.toFixed(0), envS.toFixed(2)].join(','));
+      }
+    }
+    rows.push(kit);
+  }
+}
+for (const k of rows) console.log(`${k.cat}/${k.name}: enabled ${k.enabled}, filter engaged ${k.filt} (cutoff<1: ${k.cutBelow1}, env!=0: ${k.env})`);
+console.log('TOTAL', JSON.stringify(tot));
+fs.writeFileSync(process.argv[3], 'cat,kit,note,exciter,body,type,cutoffHz,envAmt,envAttackMs,envDecayMs,envSustain\n' + detail.join('\n') + '\n');
+// cutoff distribution
+const cuts = detail.map(d => +d.split(',')[6]);
+const bins = [[0, 300], [300, 1000], [1000, 3000], [3000, 8000], [8000, 20001]];
+for (const [a, b] of bins) console.log(`cutoff ${a}-${b} Hz: ${cuts.filter(c => c >= a && c < b).length}`);

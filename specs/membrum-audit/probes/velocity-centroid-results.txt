@@ -1,0 +1,681 @@
+
+======================= velocity_centroid_probe.run.log =======================
+
+=== 909 Drum Machine:38 (quality-lane ratio 0.889)  NoiseBurst/Membrane
+  cfg: level 1.000 mat 0.580 size 0.398 decay 0.550 strike 0.300 | noiseMix 0.780 cut 0.860 res 0.150 dec 0.480 col 0.860 gain 1.000 wire 0.000 | click mix 0.620 contact 0.080 bright 0.780 | NLC 0.000 inject 0.000 tension 0.320 shell 1.0/0.380 | ts type 0.00 cut 0.820 res 0.220 envAmt 0.600 drive 0.480 fold 0.000 pitchT 0.090 | b1 0.380 b3 0.200 | macros 0.50 0.85 0.50 0.65 0.50
+  V0 as-is                                   cLo   5525.0 cHi   5732.8 ratio 1.038 | rms500 lo  -67.04 hi  -53.60 d  13.44 | peak lo  -38.80 hi  -21.28 dBFS
+  V1 level x0.1                              cLo   5379.2 cHi   5757.2 ratio 1.070 | rms500 lo  -87.50 hi  -73.65 d  13.84 | peak lo  -58.38 hi  -41.28 dBFS
+  V2 lev+noiseMix0                           cLo   3921.4 cHi   5344.2 ratio 1.363 | rms500 lo  -90.62 hi  -74.97 d  15.65 | peak lo  -59.89 hi  -40.74 dBFS
+  V3 lev+clickMix0                           cLo   4686.0 cHi   7147.1 ratio 1.525 | rms500 lo  -84.59 hi  -73.68 d  10.91 | peak lo  -54.96 hi  -36.11 dBFS
+  V4 lev+noise0+click0                       cLo   3041.1 cHi   7085.8 ratio 2.330 | rms500 lo  -85.71 hi  -76.18 d   9.53 | peak lo  -55.33 hi  -37.41 dBFS
+  V5 V4+NLC0                                 cLo   3041.1 cHi   7085.8 ratio 2.330 | rms500 lo  -85.71 hi  -76.18 d   9.53 | peak lo  -55.33 hi  -37.41 dBFS
+  V6 V4+UN0(NLC,inject,tension,wire,shell)   cLo   3081.1 cHi   7115.6 ratio 2.309 | rms500 lo  -86.62 hi  -76.50 d  10.12 | peak lo  -55.79 hi  -37.71 dBFS
+  V7 V6+toneShaperNeutral                    cLo   4370.7 cHi  11007.8 ratio 2.519 | rms500 lo  -87.53 hi  -69.71 d  17.82 | peak lo  -57.01 hi  -32.02 dBFS
+  V8 lev+NLC0 only                           cLo   4703.0 cHi   5623.5 ratio 1.196 | rms500 lo  -83.89 hi  -70.30 d  13.60 | peak lo  -54.52 hi  -35.62 dBFS
+  V9 lev+tension0 only                       cLo   4703.0 cHi   5623.5 ratio 1.196 | rms500 lo  -83.89 hi  -70.30 d  13.60 | peak lo  -54.52 hi  -35.62 dBFS
+  V10 lev+NLC0+tension0                      cLo   4703.0 cHi   5623.5 ratio 1.196 | rms500 lo  -83.89 hi  -70.30 d  13.60 | peak lo  -54.52 hi  -35.62 dBFS
+  component body(+exc,UN,TS) = V4          cLo   3041.1 cHi   7085.8 ratio 2.330 | rms200 lo  -81.74 hi  -72.20 d   9.53 dB
+  component noise layer = V3 - V4          cLo   6592.3 cHi   6789.7 ratio 1.030 | rms200 lo  -86.57 hi  -75.15 d  11.42 dB
+  component click layer = V2 - V4          cLo   3797.0 cHi   5902.8 ratio 1.555 | rms200 lo  -84.83 hi  -70.94 d  13.89 dB
+  component NLC contribution = V4 - V5     cLo      0.0 cHi      0.0 ratio 0.000 | rms200 lo -180.00 hi -180.00 d   0.00 dB
+
+=== Acoustic Studio Kit:36 (quality-lane ratio 0.673)  Mallet/Membrane
+  cfg: level 0.850 mat 0.350 size 0.850 decay 0.250 strike 0.300 | noiseMix 0.100 cut 0.450 res 0.200 dec 0.200 col 0.120 gain 1.000 wire 0.000 | click mix 0.700 contact 0.200 bright 0.450 | NLC 0.000 inject 0.000 tension 0.180 shell 1.0/0.350 | ts type 0.00 cut 1.000 res 0.000 envAmt 0.500 drive 0.000 fold 0.000 pitchT 0.080 | b1 0.130 b3 0.420 | macros 0.50 0.50 0.50 0.50 0.50
+  V0 as-is                                   cLo    629.1 cHi    434.5 ratio 0.691 | rms500 lo  -41.84 hi  -30.38 d  11.46 | peak lo  -28.24 hi  -12.47 dBFS
+  V1 level x0.1                              cLo    629.1 cHi    434.5 ratio 0.691 | rms500 lo  -61.91 hi  -50.38 d  11.53 | peak lo  -48.24 hi  -32.47 dBFS
+  V2 lev+noiseMix0                           cLo    630.5 cHi    434.4 ratio 0.689 | rms500 lo  -61.91 hi  -50.37 d  11.54 | peak lo  -48.24 hi  -32.47 dBFS
+  V3 lev+clickMix0                           cLo    513.5 cHi    262.4 ratio 0.511 | rms500 lo  -61.66 hi  -50.15 d  11.51 | peak lo  -47.98 hi  -32.23 dBFS
+  V4 lev+noise0+click0                       cLo    514.0 cHi    262.4 ratio 0.511 | rms500 lo  -61.66 hi  -50.13 d  11.53 | peak lo  -47.98 hi  -32.22 dBFS
+  V5 V4+NLC0                                 cLo    514.0 cHi    262.4 ratio 0.511 | rms500 lo  -61.66 hi  -50.13 d  11.53 | peak lo  -47.98 hi  -32.22 dBFS
+  V6 V4+UN0(NLC,inject,tension,wire,shell)   cLo    176.8 cHi    309.8 ratio 1.752 | rms500 lo  -62.61 hi  -51.06 d  11.55 | peak lo  -49.17 hi  -33.53 dBFS
+  V7 V6+toneShaperNeutral                    cLo    176.8 cHi    309.8 ratio 1.752 | rms500 lo  -62.61 hi  -51.06 d  11.55 | peak lo  -49.17 hi  -33.53 dBFS
+  V8 lev+NLC0 only                           cLo    625.9 cHi    429.4 ratio 0.686 | rms500 lo  -61.67 hi  -50.14 d  11.53 | peak lo  -48.00 hi  -32.23 dBFS
+  V9 lev+tension0 only                       cLo    609.2 cHi    479.8 ratio 0.788 | rms500 lo  -61.67 hi  -50.14 d  11.53 | peak lo  -47.99 hi  -32.23 dBFS
+  V10 lev+NLC0+tension0                      cLo    609.2 cHi    479.8 ratio 0.788 | rms500 lo  -61.67 hi  -50.14 d  11.53 | peak lo  -47.99 hi  -32.23 dBFS
+  component body(+exc,UN,TS) = V4          cLo    514.0 cHi    262.4 ratio 0.511 | rms200 lo  -57.75 hi  -46.25 d  11.50 dB
+  component noise layer = V3 - V4          cLo    415.6 cHi    466.8 ratio 1.123 | rms200 lo -100.12 hi  -90.09 d  10.02 dB
+  component click layer = V2 - V4          cLo   2583.7 cHi   3166.3 ratio 1.226 | rms200 lo  -88.26 hi  -76.66 d  11.60 dB
+  component NLC contribution = V4 - V5     cLo      0.0 cHi      0.0 ratio 0.000 | rms200 lo -180.00 hi -180.00 d   0.00 dB
+
+=== Acoustic Studio Kit:38 (quality-lane ratio 0.796)  Impulse/Membrane
+  cfg: level 0.920 mat 0.500 size 0.420 decay 0.130 strike 0.350 | noiseMix 0.650 cut 0.800 res 0.100 dec 0.550 col 0.750 gain 6.200 wire 0.450 | click mix 0.550 contact 0.180 bright 0.900 | NLC 0.220 inject 0.000 tension 0.160 shell 1.0/0.780 | ts type 0.00 cut 0.920 res 0.120 envAmt 0.720 drive 0.080 fold 0.000 pitchT 0.070 | b1 0.600 b3 0.400 | macros 0.50 0.50 0.50 0.50 0.50
+  V0 as-is                                   cLo   4444.8 cHi   3518.4 ratio 0.792 | rms500 lo  -47.46 hi  -27.42 d  20.05 | peak lo  -24.40 hi   -8.16 dBFS
+  V1 level x0.1                              cLo   4437.8 cHi   3515.3 ratio 0.792 | rms500 lo  -67.47 hi  -47.42 d  20.05 | peak lo  -44.40 hi  -28.16 dBFS
+  V2 lev+noiseMix0                           cLo   2096.0 cHi   1614.8 ratio 0.770 | rms500 lo  -70.33 hi  -47.58 d  22.75 | peak lo  -49.97 hi  -29.68 dBFS
+  V3 lev+clickMix0                           cLo   4401.9 cHi   3393.4 ratio 0.771 | rms500 lo  -67.47 hi  -47.42 d  20.05 | peak lo  -44.40 hi  -28.16 dBFS
+  V4 lev+noise0+click0                       cLo    432.9 cHi    548.6 ratio 1.267 | rms500 lo  -70.33 hi  -47.58 d  22.75 | peak lo  -49.97 hi  -29.69 dBFS
+  V5 V4+NLC0                                 cLo    434.0 cHi    565.1 ratio 1.302 | rms500 lo  -70.37 hi  -48.02 d  22.35 | peak lo  -49.99 hi  -29.79 dBFS
+  V6 V4+UN0(NLC,inject,tension,wire,shell)   cLo    526.1 cHi    682.1 ratio 1.297 | rms500 lo  -74.17 hi  -52.25 d  21.92 | peak lo  -53.65 hi  -32.90 dBFS
+  V7 V6+toneShaperNeutral                    cLo    525.9 cHi    661.3 ratio 1.257 | rms500 lo  -74.14 hi  -52.17 d  21.97 | peak lo  -53.76 hi  -32.75 dBFS
+  V8 lev+NLC0 only                           cLo   4436.5 cHi   3510.0 ratio 0.791 | rms500 lo  -67.49 hi  -47.82 d  19.67 | peak lo  -44.32 hi  -27.92 dBFS
+  V9 lev+tension0 only                       cLo   4437.8 cHi   3515.5 ratio 0.792 | rms500 lo  -67.47 hi  -47.42 d  20.05 | peak lo  -44.40 hi  -28.16 dBFS
+  V10 lev+NLC0+tension0                      cLo   4436.5 cHi   3510.1 ratio 0.791 | rms500 lo  -67.49 hi  -47.82 d  19.67 | peak lo  -44.32 hi  -27.92 dBFS
+  component body(+exc,UN,TS) = V4          cLo    432.9 cHi    548.6 ratio 1.267 | rms200 lo  -66.36 hi  -43.60 d  22.75 dB
+  component noise layer = V3 - V4          cLo   4910.8 cHi   4974.3 ratio 1.013 | rms200 lo  -67.24 hi  -57.00 d  10.24 dB
+  component click layer = V2 - V4          cLo  11431.4 cHi  11441.7 ratio 1.001 | rms200 lo  -97.65 hi  -79.28 d  18.37 dB
+  component NLC contribution = V4 - V5     cLo    501.8 cHi    645.6 ratio 1.286 | rms200 lo -113.11 hi  -68.07 d  45.04 dB
+
+=== Drone and Sustain:36 (quality-lane ratio 0.249)  Friction/String
+  cfg: level 0.620 mat 0.450 size 0.400 decay 0.920 strike 0.300 | noiseMix 0.160 cut 0.500 res 0.200 dec 0.850 col 0.120 gain 1.000 wire 0.000 | click mix 0.000 contact 0.300 bright 0.600 | NLC 0.350 inject 0.000 tension 0.000 shell 1.0/0.180 | ts type 0.00 cut 0.450 res 0.350 envAmt 0.620 drive 0.260 fold 0.220 pitchT 0.000 | b1 0.300 b3 0.200 | macros 0.50 0.50 0.50 0.50 0.85
+  V0 as-is                                   cLo    842.8 cHi    842.1 ratio 0.999 | rms500 lo  -30.99 hi  -20.05 d  10.94 | peak lo  -18.29 hi   -7.17 dBFS
+  V1 level x0.1                              cLo    842.8 cHi    842.4 ratio 0.999 | rms500 lo  -50.99 hi  -40.05 d  10.94 | peak lo  -38.29 hi  -27.17 dBFS
+  V2 lev+noiseMix0                           cLo    845.9 cHi    845.3 ratio 0.999 | rms500 lo  -50.99 hi  -40.05 d  10.94 | peak lo  -38.41 hi  -27.28 dBFS
+  V3 lev+clickMix0                           cLo    842.8 cHi    842.4 ratio 0.999 | rms500 lo  -50.99 hi  -40.05 d  10.94 | peak lo  -38.29 hi  -27.17 dBFS
+  V4 lev+noise0+click0                       cLo    845.9 cHi    845.3 ratio 0.999 | rms500 lo  -50.99 hi  -40.05 d  10.94 | peak lo  -38.41 hi  -27.28 dBFS
+  V5 V4+NLC0                                 cLo    847.1 cHi    850.2 ratio 1.004 | rms500 lo  -51.25 hi  -41.18 d  10.06 | peak lo  -38.51 hi  -28.42 dBFS
+  V6 V4+UN0(NLC,inject,tension,wire,shell)   cLo    784.3 cHi    787.1 ratio 1.004 | rms500 lo  -51.43 hi  -41.36 d  10.06 | peak lo  -39.18 hi  -29.13 dBFS
+  V7 V6+toneShaperNeutral                    cLo   4292.6 cHi   4269.2 ratio 0.995 | rms500 lo  -55.12 hi  -45.09 d  10.02 | peak lo  -37.40 hi  -27.36 dBFS
+  V8 lev+NLC0 only                           cLo    844.0 cHi    846.9 ratio 1.003 | rms500 lo  -51.25 hi  -41.18 d  10.06 | peak lo  -38.40 hi  -28.31 dBFS
+  V9 lev+tension0 only                       cLo    842.8 cHi    842.4 ratio 0.999 | rms500 lo  -50.99 hi  -40.05 d  10.94 | peak lo  -38.29 hi  -27.17 dBFS
+  V10 lev+NLC0+tension0                      cLo    844.0 cHi    846.9 ratio 1.003 | rms500 lo  -51.25 hi  -41.18 d  10.06 | peak lo  -38.40 hi  -28.31 dBFS
+  component body(+exc,UN,TS) = V4          cLo    845.9 cHi    845.3 ratio 0.999 | rms200 lo  -49.27 hi  -38.20 d  11.07 dB
+  component noise layer = V3 - V4          cLo    528.0 cHi    541.4 ratio 1.025 | rms200 lo  -88.31 hi  -77.55 d  10.76 dB
+  component click layer = V2 - V4          cLo      0.0 cHi      0.0 ratio 0.000 | rms200 lo -180.00 hi -180.00 d   0.00 dB
+  component NLC contribution = V4 - V5     cLo    806.6 cHi    817.2 ratio 1.013 | rms200 lo  -78.16 hi  -55.33 d  22.84 dB
+
+=== Ghost Bones:38 (quality-lane ratio 0.982)  Impulse/Bell
+  cfg: level 0.640 mat 0.460 size 0.660 decay 0.820 strike 0.320 | noiseMix 0.120 cut 0.350 res 0.200 dec 0.850 col 0.200 gain 1.000 wire 0.000 | click mix 0.140 contact 0.300 bright 0.620 | NLC 0.300 inject 0.000 tension 0.000 shell 0.0/0.000 | ts type 0.50 cut 0.240 res 0.300 envAmt 0.450 drive 0.000 fold 0.000 pitchT 0.000 | b1 0.350 b3 0.000 | macros 0.50 0.50 0.50 0.50 0.85
+  V0 as-is                                   cLo    267.6 cHi    258.8 ratio 0.967 | rms500 lo  -41.76 hi  -29.25 d  12.51 | peak lo  -24.88 hi  -11.70 dBFS
+  V1 level x0.1                              cLo    169.3 cHi    260.6 ratio 1.539 | rms500 lo  -61.80 hi  -49.25 d  12.55 | peak lo  -44.88 hi  -31.70 dBFS
+  V2 lev+noiseMix0                           cLo    161.9 cHi    258.6 ratio 1.598 | rms500 lo  -61.89 hi  -49.33 d  12.56 | peak lo  -45.20 hi  -31.69 dBFS
+  V3 lev+clickMix0                           cLo    129.1 cHi    209.4 ratio 1.622 | rms500 lo  -61.80 hi  -49.25 d  12.54 | peak lo  -44.88 hi  -31.70 dBFS
+  V4 lev+noise0+click0                       cLo    120.3 cHi    206.3 ratio 1.715 | rms500 lo  -61.89 hi  -49.33 d  12.56 | peak lo  -45.20 hi  -31.69 dBFS
+  V5 V4+NLC0                                 cLo    120.9 cHi    212.5 ratio 1.758 | rms500 lo  -61.99 hi  -50.08 d  11.92 | peak lo  -45.27 hi  -32.32 dBFS
+  V6 V4+UN0(NLC,inject,tension,wire,shell)   cLo    120.9 cHi    212.5 ratio 1.758 | rms500 lo  -61.99 hi  -50.08 d  11.92 | peak lo  -45.27 hi  -32.32 dBFS
+  V7 V6+toneShaperNeutral                    cLo     93.9 cHi    200.0 ratio 2.130 | rms500 lo  -63.04 hi  -53.09 d   9.95 | peak lo  -46.19 hi  -34.27 dBFS
+  V8 lev+NLC0 only                           cLo    170.3 cHi    270.3 ratio 1.587 | rms500 lo  -61.90 hi  -50.00 d  11.91 | peak lo  -44.95 hi  -32.32 dBFS
+  V9 lev+tension0 only                       cLo    169.3 cHi    260.6 ratio 1.539 | rms500 lo  -61.80 hi  -49.25 d  12.55 | peak lo  -44.88 hi  -31.70 dBFS
+  V10 lev+NLC0+tension0                      cLo    170.3 cHi    270.3 ratio 1.587 | rms500 lo  -61.90 hi  -50.00 d  11.90 | peak lo  -44.95 hi  -32.32 dBFS
+  component body(+exc,UN,TS) = V4          cLo    120.3 cHi    206.3 ratio 1.715 | rms200 lo  -57.91 hi  -45.35 d  12.56 dB
+  component noise layer = V3 - V4          cLo    213.4 cHi    267.0 ratio 1.252 | rms200 lo  -80.93 hi  -72.41 d   8.53 dB
+  component click layer = V2 - V4          cLo   6351.8 cHi   6149.4 ratio 0.968 | rms200 lo -115.76 hi  -97.99 d  17.77 dB
+  component NLC contribution = V4 - V5     cLo    152.6 cHi    191.7 ratio 1.256 | rms200 lo  -93.64 hi  -66.50 d  27.15 dB
+
+=== Hand Drums:38 (quality-lane ratio 0.960)  Impulse/Membrane
+  cfg: level 0.800 mat 0.500 size 0.500 decay 0.320 strike 0.300 | noiseMix 0.120 cut 0.500 res 0.200 dec 0.300 col 0.450 gain 1.000 wire 0.000 | click mix 0.550 contact 0.160 bright 0.650 | NLC 0.140 inject 0.000 tension 0.180 shell 1.0/0.280 | ts type 0.00 cut 1.000 res 0.000 envAmt 0.500 drive 0.000 fold 0.000 pitchT 0.040 | b1 0.300 b3 0.100 | macros 0.50 0.50 0.50 0.50 0.50
+  V0 as-is                                   cLo    886.4 cHi    850.4 ratio 0.959 | rms500 lo  -51.28 hi  -32.44 d  18.83 | peak lo  -33.38 hi  -12.99 dBFS
+  V1 level x0.1                              cLo    911.5 cHi    830.2 ratio 0.911 | rms500 lo  -71.59 hi  -52.45 d  19.14 | peak lo  -53.38 hi  -32.99 dBFS
+  V2 lev+noiseMix0                           cLo    920.6 cHi    830.7 ratio 0.902 | rms500 lo  -71.61 hi  -52.43 d  19.18 | peak lo  -53.49 hi  -33.02 dBFS
+  V3 lev+clickMix0                           cLo    323.0 cHi    453.8 ratio 1.405 | rms500 lo  -71.58 hi  -52.46 d  19.13 | peak lo  -53.37 hi  -32.99 dBFS
+  V4 lev+noise0+click0                       cLo    317.4 cHi    452.3 ratio 1.425 | rms500 lo  -71.61 hi  -52.44 d  19.17 | peak lo  -53.49 hi  -33.02 dBFS
+  V5 V4+NLC0                                 cLo    317.6 cHi    455.7 ratio 1.435 | rms500 lo  -71.62 hi  -52.59 d  19.03 | peak lo  -53.49 hi  -33.04 dBFS
+  V6 V4+UN0(NLC,inject,tension,wire,shell)   cLo    328.3 cHi    460.4 ratio 1.402 | rms500 lo  -72.18 hi  -52.95 d  19.23 | peak lo  -54.79 hi  -33.52 dBFS
+  V7 V6+toneShaperNeutral                    cLo    328.3 cHi    460.4 ratio 1.402 | rms500 lo  -72.18 hi  -52.95 d  19.23 | peak lo  -54.79 hi  -33.52 dBFS
+  V8 lev+NLC0 only                           cLo    912.3 cHi    837.6 ratio 0.918 | rms500 lo  -71.60 hi  -52.60 d  19.00 | peak lo  -53.38 hi  -33.01 dBFS
+  V9 lev+tension0 only                       cLo    911.4 cHi    826.5 ratio 0.907 | rms500 lo  -71.59 hi  -52.45 d  19.14 | peak lo  -53.38 hi  -32.99 dBFS
+  V10 lev+NLC0+tension0                      cLo    912.3 cHi    833.8 ratio 0.914 | rms500 lo  -71.60 hi  -52.60 d  19.00 | peak lo  -53.38 hi  -33.01 dBFS
+  component body(+exc,UN,TS) = V4          cLo    317.4 cHi    452.3 ratio 1.425 | rms200 lo  -67.63 hi  -48.46 d  19.17 dB
+  component noise layer = V3 - V4          cLo    783.2 cHi    816.3 ratio 1.042 | rms200 lo  -96.53 hi  -86.53 d  10.01 dB
+  component click layer = V2 - V4          cLo   6864.8 cHi   6985.5 ratio 1.018 | rms200 lo -102.89 hi  -85.39 d  17.51 dB
+  component NLC contribution = V4 - V5     cLo    319.1 cHi    435.2 ratio 1.364 | rms200 lo -122.97 hi  -82.92 d  40.05 dB
+
+=== Hand Drums:42 (quality-lane ratio 0.533)  Impulse/Membrane
+  cfg: level 0.800 mat 0.550 size 0.320 decay 0.280 strike 0.300 | noiseMix 0.100 cut 0.500 res 0.200 dec 0.300 col 0.400 gain 1.000 wire 0.000 | click mix 0.550 contact 0.150 bright 0.720 | NLC 0.120 inject 0.000 tension 0.220 shell 1.0/0.250 | ts type 0.00 cut 1.000 res 0.000 envAmt 0.500 drive 0.000 fold 0.000 pitchT 0.040 | b1 0.300 b3 0.100 | macros 0.50 0.50 0.50 0.50 0.50
+  V0 as-is                                   cLo   2153.6 cHi   1136.9 ratio 0.528 | rms500 lo  -61.56 hi  -31.52 d  30.04 | peak lo  -37.64 hi  -11.79 dBFS
+  V1 level x0.1                              cLo   2275.5 cHi   1112.5 ratio 0.489 | rms500 lo  -81.86 hi  -51.52 d  30.33 | peak lo  -57.64 hi  -31.79 dBFS
+  V2 lev+noiseMix0                           cLo   2327.8 cHi   1111.7 ratio 0.478 | rms500 lo  -81.93 hi  -51.50 d  30.42 | peak lo  -57.76 hi  -31.83 dBFS
+  V3 lev+clickMix0                           cLo    871.5 cHi    640.9 ratio 0.735 | rms500 lo  -81.87 hi  -51.53 d  30.34 | peak lo  -57.63 hi  -31.79 dBFS
+  V4 lev+noise0+click0                       cLo    884.5 cHi    640.3 ratio 0.724 | rms500 lo  -81.94 hi  -51.51 d  30.43 | peak lo  -57.76 hi  -31.84 dBFS
+  V5 V4+NLC0                                 cLo    884.6 cHi    644.8 ratio 0.729 | rms500 lo  -81.95 hi  -51.63 d  30.32 | peak lo  -57.76 hi  -31.83 dBFS
+  V6 V4+UN0(NLC,inject,tension,wire,shell)   cLo    896.4 cHi    644.3 ratio 0.719 | rms500 lo  -82.51 hi  -51.90 d  30.61 | peak lo  -58.16 hi  -32.89 dBFS
+  V7 V6+toneShaperNeutral                    cLo    896.4 cHi    644.3 ratio 0.719 | rms500 lo  -82.51 hi  -51.90 d  30.61 | peak lo  -58.16 hi  -32.89 dBFS
+  V8 lev+NLC0 only                           cLo   2276.1 cHi   1120.0 ratio 0.492 | rms500 lo  -81.86 hi  -51.64 d  30.22 | peak lo  -57.64 hi  -31.78 dBFS
+  V9 lev+tension0 only                       cLo   2275.5 cHi   1112.5 ratio 0.489 | rms500 lo  -81.86 hi  -51.52 d  30.33 | peak lo  -57.64 hi  -31.79 dBFS
+  V10 lev+NLC0+tension0                      cLo   2276.1 cHi   1120.0 ratio 0.492 | rms500 lo  -81.86 hi  -51.64 d  30.22 | peak lo  -57.64 hi  -31.78 dBFS
+  component body(+exc,UN,TS) = V4          cLo    884.5 cHi    640.3 ratio 0.724 | rms200 lo  -77.96 hi  -47.53 d  30.43 dB
+  component noise layer = V3 - V4          cLo    784.3 cHi    817.9 ratio 1.043 | rms200 lo  -98.23 hi  -88.23 d  10.00 dB
+  component click layer = V2 - V4          cLo   7617.8 cHi   7650.6 ratio 1.004 | rms200 lo -101.75 hi  -83.82 d  17.93 dB
+  component NLC contribution = V4 - V5     cLo    892.2 cHi    598.1 ratio 0.670 | rms200 lo -145.09 hi  -83.96 d  61.13 dB
+
+=== Orchestral:38 (quality-lane ratio 0.983)  NoiseBurst/Membrane
+  cfg: level 0.900 mat 0.600 size 0.330 decay 0.300 strike 0.350 | noiseMix 0.980 cut 0.900 res 0.100 dec 0.550 col 0.900 gain 6.200 wire 0.450 | click mix 0.950 contact 0.180 bright 0.930 | NLC 0.120 inject 0.000 tension 0.000 shell 1.0/0.280 | ts type 0.00 cut 0.920 res 0.120 envAmt 0.550 drive 0.060 fold 0.000 pitchT 0.000 | b1 0.620 b3 0.300 | macros 0.50 0.65 0.50 0.50 0.55
+  V0 as-is                                   cLo   9091.6 cHi   9113.0 ratio 1.002 | rms500 lo  -53.12 hi  -42.20 d  10.91 | peak lo  -28.06 hi  -13.88 dBFS
+  V1 level x0.1                              cLo   9095.1 cHi   9113.9 ratio 1.002 | rms500 lo  -73.13 hi  -62.20 d  10.93 | peak lo  -48.06 hi  -33.88 dBFS
+  V2 lev+noiseMix0                           cLo   8375.1 cHi   9484.1 ratio 1.132 | rms500 lo  -90.90 hi  -69.40 d  21.51 | peak lo  -56.56 hi  -34.33 dBFS
+  V3 lev+clickMix0                           cLo   8973.8 cHi   9296.2 ratio 1.036 | rms500 lo  -73.34 hi  -61.73 d  11.61 | peak lo  -48.02 hi  -30.14 dBFS
+  V4 lev+noise0+click0                       cLo   4333.3 cHi  10092.2 ratio 2.329 | rms500 lo  -89.17 hi  -66.53 d  22.64 | peak lo  -57.17 hi  -30.02 dBFS
+  V5 V4+NLC0                                 cLo   4333.7 cHi  10095.5 ratio 2.330 | rms500 lo  -89.17 hi  -66.48 d  22.68 | peak lo  -57.17 hi  -29.99 dBFS
+  V6 V4+UN0(NLC,inject,tension,wire,shell)   cLo   4364.7 cHi  10097.3 ratio 2.313 | rms500 lo  -89.60 hi  -66.72 d  22.87 | peak lo  -57.46 hi  -30.22 dBFS
+  V7 V6+toneShaperNeutral                    cLo   4633.3 cHi  11011.5 ratio 2.377 | rms500 lo  -89.85 hi  -70.61 d  19.23 | peak lo  -58.26 hi  -33.10 dBFS
+  V8 lev+NLC0 only                           cLo   8958.8 cHi   9066.7 ratio 1.012 | rms500 lo  -72.97 hi  -60.62 d  12.35 | peak lo  -47.93 hi  -28.39 dBFS
+  V9 lev+tension0 only                       cLo   8959.0 cHi   9064.7 ratio 1.012 | rms500 lo  -72.97 hi  -60.62 d  12.35 | peak lo  -47.94 hi  -28.46 dBFS
+  V10 lev+NLC0+tension0                      cLo   8958.8 cHi   9066.7 ratio 1.012 | rms500 lo  -72.97 hi  -60.62 d  12.35 | peak lo  -47.93 hi  -28.39 dBFS
+  component body(+exc,UN,TS) = V4          cLo   4333.3 cHi  10092.2 ratio 2.329 | rms200 lo  -85.19 hi  -62.55 d  22.64 dB
+  component noise layer = V3 - V4          cLo   9149.6 cHi   9145.6 ratio 1.000 | rms200 lo  -69.47 hi  -59.29 d  10.18 dB
+  component click layer = V2 - V4          cLo   7136.2 cHi   9347.8 ratio 1.310 | rms200 lo  -85.61 hi  -66.30 d  19.30 dB
+  component NLC contribution = V4 - V5     cLo   6322.8 cHi   9856.2 ratio 1.559 | rms200 lo -159.92 hi -106.80 d  53.12 dB
+
+=== Rock Big Room:38 (quality-lane ratio 0.904)  Impulse/Membrane
+  cfg: level 1.000 mat 0.380 size 0.660 decay 0.200 strike 0.350 | noiseMix 0.650 cut 0.800 res 0.150 dec 0.550 col 0.750 gain 6.200 wire 0.450 | click mix 0.550 contact 0.060 bright 0.920 | NLC 0.220 inject 0.000 tension 0.320 shell 1.0/0.780 | ts type 0.00 cut 0.850 res 0.200 envAmt 0.780 drive 0.420 fold 0.000 pitchT 0.140 | b1 0.500 b3 0.400 | macros 0.65 0.70 0.50 0.85 0.50
+  V0 as-is                                   cLo   4180.8 cHi   3711.1 ratio 0.888 | rms500 lo  -40.95 hi  -28.36 d  12.59 | peak lo  -23.99 hi  -10.51 dBFS
+  V1 level x0.1                              cLo   4192.1 cHi   3711.9 ratio 0.885 | rms500 lo  -60.95 hi  -48.36 d  12.60 | peak lo  -43.99 hi  -30.51 dBFS
+  V2 lev+noiseMix0                           cLo   1161.7 cHi   1638.9 ratio 1.411 | rms500 lo  -61.49 hi  -48.61 d  12.88 | peak lo  -47.40 hi  -32.59 dBFS
+  V3 lev+clickMix0                           cLo   4183.1 cHi   3619.6 ratio 0.865 | rms500 lo  -60.95 hi  -48.36 d  12.59 | peak lo  -43.99 hi  -30.51 dBFS
+  V4 lev+noise0+click0                       cLo    181.5 cHi    247.7 ratio 1.365 | rms500 lo  -61.49 hi  -48.62 d  12.87 | peak lo  -47.40 hi  -32.59 dBFS
+  V5 V4+NLC0                                 cLo    181.5 cHi    251.8 ratio 1.387 | rms500 lo  -61.56 hi  -49.05 d  12.51 | peak lo  -47.39 hi  -32.52 dBFS
+  V6 V4+UN0(NLC,inject,tension,wire,shell)   cLo    231.8 cHi    307.1 ratio 1.324 | rms500 lo  -67.55 hi  -54.43 d  13.13 | peak lo  -51.43 hi  -34.87 dBFS
+  V7 V6+toneShaperNeutral                    cLo    231.9 cHi    433.5 ratio 1.869 | rms500 lo  -67.04 hi  -53.22 d  13.82 | peak lo  -50.66 hi  -32.12 dBFS
+  V8 lev+NLC0 only                           cLo   4194.0 cHi   3714.6 ratio 0.886 | rms500 lo  -61.01 hi  -48.78 d  12.23 | peak lo  -43.86 hi  -30.20 dBFS
+  V9 lev+tension0 only                       cLo   4193.6 cHi   3714.9 ratio 0.886 | rms500 lo  -60.96 hi  -48.38 d  12.59 | peak lo  -43.99 hi  -30.51 dBFS
+  V10 lev+NLC0+tension0                      cLo   4195.5 cHi   3717.5 ratio 0.886 | rms500 lo  -61.02 hi  -48.80 d  12.22 | peak lo  -43.86 hi  -30.20 dBFS
+  component body(+exc,UN,TS) = V4          cLo    181.5 cHi    247.7 ratio 1.365 | rms200 lo  -57.51 hi  -44.64 d  12.87 dB
+  component noise layer = V3 - V4          cLo   5210.3 cHi   5243.0 ratio 1.006 | rms200 lo  -66.16 hi  -56.50 d   9.66 dB
+  component click layer = V2 - V4          cLo  10463.4 cHi  10652.7 ratio 1.018 | rms200 lo  -93.25 hi  -74.41 d  18.84 dB
+  component NLC contribution = V4 - V5     cLo    243.5 cHi    323.9 ratio 1.330 | rms200 lo  -98.72 hi  -70.30 d  28.42 dB
+
+=== Vintage Wood:38 (quality-lane ratio 0.845)  Impulse/Membrane
+  cfg: level 1.000 mat 0.320 size 0.620 decay 0.180 strike 0.300 | noiseMix 0.650 cut 0.780 res 0.120 dec 0.550 col 0.700 gain 6.200 wire 0.450 | click mix 0.550 contact 0.080 bright 0.780 | NLC 0.220 inject 0.000 tension 0.300 shell 1.0/0.800 | ts type 0.00 cut 0.800 res 0.180 envAmt 0.720 drive 0.380 fold 0.000 pitchT 0.130 | b1 0.600 b3 0.450 | macros 0.70 0.55 0.50 0.50 0.55
+  V0 as-is                                   cLo   3710.5 cHi   3191.6 ratio 0.860 | rms500 lo  -42.89 hi  -29.60 d  13.30 | peak lo  -22.78 hi   -9.03 dBFS
+  V1 level x0.1                              cLo   3714.2 cHi   3191.9 ratio 0.859 | rms500 lo  -62.90 hi  -49.60 d  13.30 | peak lo  -42.78 hi  -29.03 dBFS
+  V2 lev+noiseMix0                           cLo    623.8 cHi    771.1 ratio 1.236 | rms500 lo  -64.09 hi  -49.97 d  14.11 | peak lo  -47.20 hi  -32.03 dBFS
+  V3 lev+clickMix0                           cLo   3715.1 cHi   3192.9 ratio 0.859 | rms500 lo  -62.89 hi  -49.60 d  13.29 | peak lo  -42.78 hi  -29.03 dBFS
+  V4 lev+noise0+click0                       cLo    229.1 cHi    244.6 ratio 1.068 | rms500 lo  -64.09 hi  -49.98 d  14.10 | peak lo  -47.20 hi  -32.03 dBFS
+  V5 V4+NLC0                                 cLo    229.6 cHi    245.1 ratio 1.067 | rms500 lo  -64.14 hi  -50.39 d  13.75 | peak lo  -47.19 hi  -31.96 dBFS
+  V6 V4+UN0(NLC,inject,tension,wire,shell)   cLo    273.1 cHi    261.5 ratio 0.958 | rms500 lo  -68.01 hi  -54.20 d  13.80 | peak lo  -50.88 hi  -34.47 dBFS
+  V7 V6+toneShaperNeutral                    cLo    257.5 cHi    471.6 ratio 1.831 | rms500 lo  -67.58 hi  -53.16 d  14.42 | peak lo  -50.23 hi  -32.09 dBFS
+  V8 lev+NLC0 only                           cLo   3717.0 cHi   3192.2 ratio 0.859 | rms500 lo  -62.94 hi  -50.00 d  12.94 | peak lo  -42.63 hi  -28.71 dBFS
+  V9 lev+tension0 only                       cLo   3714.5 cHi   3193.0 ratio 0.860 | rms500 lo  -62.90 hi  -49.60 d  13.30 | peak lo  -42.78 hi  -29.03 dBFS
+  V10 lev+NLC0+tension0                      cLo   3717.3 cHi   3193.3 ratio 0.859 | rms500 lo  -62.94 hi  -50.01 d  12.94 | peak lo  -42.63 hi  -28.71 dBFS
+  component body(+exc,UN,TS) = V4          cLo    229.1 cHi    244.6 ratio 1.068 | rms200 lo  -60.11 hi  -46.00 d  14.10 dB
+  component noise layer = V3 - V4          cLo   4317.7 cHi   4319.3 ratio 1.000 | rms200 lo  -64.96 hi  -55.20 d   9.76 dB
+  component click layer = V2 - V4          cLo   5522.4 cHi   5491.9 ratio 0.994 | rms200 lo  -95.95 hi  -76.97 d  18.98 dB
+  component NLC contribution = V4 - V5     cLo    284.8 cHi    341.2 ratio 1.198 | rms200 lo -102.49 hi  -71.79 d  30.71 dB
+
+=== Latin Perc:36 (quality-lane ratio 0.533)  Impulse/Membrane
+  cfg: level 0.800 mat 0.550 size 0.320 decay 0.280 strike 0.300 | noiseMix 0.100 cut 0.500 res 0.200 dec 0.300 col 0.400 gain 1.000 wire 0.000 | click mix 0.550 contact 0.150 bright 0.720 | NLC 0.120 inject 0.000 tension 0.220 shell 1.0/0.250 | ts type 0.00 cut 1.000 res 0.000 envAmt 0.500 drive 0.000 fold 0.000 pitchT 0.040 | b1 0.300 b3 0.100 | macros 0.50 0.50 0.50 0.50 0.50
+  V0 as-is                                   cLo   2153.6 cHi   1136.9 ratio 0.528 | rms500 lo  -61.56 hi  -31.52 d  30.04 | peak lo  -37.64 hi  -11.79 dBFS
+  V1 level x0.1                              cLo   2275.5 cHi   1112.4 ratio 0.489 | rms500 lo  -81.86 hi  -51.52 d  30.33 | peak lo  -57.64 hi  -31.79 dBFS
+  V2 lev+noiseMix0                           cLo   2327.8 cHi   1111.7 ratio 0.478 | rms500 lo  -81.93 hi  -51.50 d  30.42 | peak lo  -57.76 hi  -31.83 dBFS
+  V3 lev+clickMix0                           cLo    871.5 cHi    640.9 ratio 0.735 | rms500 lo  -81.87 hi  -51.53 d  30.34 | peak lo  -57.63 hi  -31.79 dBFS
+  V4 lev+noise0+click0                       cLo    884.5 cHi    640.3 ratio 0.724 | rms500 lo  -81.94 hi  -51.51 d  30.44 | peak lo  -57.76 hi  -31.84 dBFS
+  V5 V4+NLC0                                 cLo    884.6 cHi    644.8 ratio 0.729 | rms500 lo  -81.95 hi  -51.63 d  30.32 | peak lo  -57.76 hi  -31.83 dBFS
+  V6 V4+UN0(NLC,inject,tension,wire,shell)   cLo    896.4 cHi    644.3 ratio 0.719 | rms500 lo  -82.51 hi  -51.90 d  30.61 | peak lo  -58.16 hi  -32.89 dBFS
+  V7 V6+toneShaperNeutral                    cLo    896.4 cHi    644.3 ratio 0.719 | rms500 lo  -82.51 hi  -51.90 d  30.61 | peak lo  -58.16 hi  -32.89 dBFS
+  V8 lev+NLC0 only                           cLo   2276.1 cHi   1120.0 ratio 0.492 | rms500 lo  -81.86 hi  -51.64 d  30.22 | peak lo  -57.64 hi  -31.78 dBFS
+  V9 lev+tension0 only                       cLo   2275.5 cHi   1112.5 ratio 0.489 | rms500 lo  -81.86 hi  -51.52 d  30.34 | peak lo  -57.64 hi  -31.79 dBFS
+  V10 lev+NLC0+tension0                      cLo   2276.1 cHi   1120.0 ratio 0.492 | rms500 lo  -81.86 hi  -51.64 d  30.22 | peak lo  -57.64 hi  -31.78 dBFS
+  component body(+exc,UN,TS) = V4          cLo    884.5 cHi    640.3 ratio 0.724 | rms200 lo  -77.96 hi  -47.53 d  30.44 dB
+  component noise layer = V3 - V4          cLo    784.3 cHi    817.9 ratio 1.043 | rms200 lo  -98.23 hi  -88.23 d  10.00 dB
+  component click layer = V2 - V4          cLo   7617.8 cHi   7650.6 ratio 1.004 | rms200 lo -101.75 hi  -83.82 d  17.93 dB
+  component NLC contribution = V4 - V5     cLo    892.3 cHi    598.0 ratio 0.670 | rms200 lo -145.09 hi  -83.96 d  61.13 dB
+
+=== Latin Perc:38 (quality-lane ratio 0.960)  Impulse/Membrane
+  cfg: level 0.800 mat 0.500 size 0.500 decay 0.320 strike 0.300 | noiseMix 0.120 cut 0.500 res 0.200 dec 0.300 col 0.450 gain 1.000 wire 0.000 | click mix 0.550 contact 0.160 bright 0.650 | NLC 0.140 inject 0.000 tension 0.180 shell 1.0/0.280 | ts type 0.00 cut 1.000 res 0.000 envAmt 0.500 drive 0.000 fold 0.000 pitchT 0.040 | b1 0.300 b3 0.100 | macros 0.50 0.50 0.50 0.50 0.50
+  V0 as-is                                   cLo    886.4 cHi    850.4 ratio 0.959 | rms500 lo  -51.30 hi  -32.47 d  18.83 | peak lo  -33.14 hi  -12.76 dBFS
+  V1 level x0.1                              cLo    911.5 cHi    830.3 ratio 0.911 | rms500 lo  -71.61 hi  -52.47 d  19.14 | peak lo  -53.14 hi  -32.76 dBFS
+  V2 lev+noiseMix0                           cLo    920.6 cHi    830.7 ratio 0.902 | rms500 lo  -71.63 hi  -52.45 d  19.18 | peak lo  -53.26 hi  -32.79 dBFS
+  V3 lev+clickMix0                           cLo    323.0 cHi    453.8 ratio 1.405 | rms500 lo  -71.61 hi  -52.48 d  19.13 | peak lo  -53.14 hi  -32.76 dBFS
+  V4 lev+noise0+click0                       cLo    317.4 cHi    452.3 ratio 1.425 | rms500 lo  -71.63 hi  -52.46 d  19.17 | peak lo  -53.25 hi  -32.79 dBFS
+  V5 V4+NLC0                                 cLo    317.6 cHi    455.7 ratio 1.435 | rms500 lo  -71.64 hi  -52.61 d  19.03 | peak lo  -53.26 hi  -32.81 dBFS
+  V6 V4+UN0(NLC,inject,tension,wire,shell)   cLo    328.3 cHi    460.4 ratio 1.402 | rms500 lo  -72.20 hi  -52.97 d  19.23 | peak lo  -54.56 hi  -33.28 dBFS
+  V7 V6+toneShaperNeutral                    cLo    328.3 cHi    460.4 ratio 1.402 | rms500 lo  -72.20 hi  -52.97 d  19.23 | peak lo  -54.56 hi  -33.28 dBFS
+  V8 lev+NLC0 only                           cLo    912.3 cHi    837.6 ratio 0.918 | rms500 lo  -71.62 hi  -52.62 d  19.00 | peak lo  -53.14 hi  -32.78 dBFS
+  V9 lev+tension0 only                       cLo    911.5 cHi    826.5 ratio 0.907 | rms500 lo  -71.61 hi  -52.47 d  19.14 | peak lo  -53.14 hi  -32.76 dBFS
+  V10 lev+NLC0+tension0                      cLo    912.3 cHi    833.8 ratio 0.914 | rms500 lo  -71.62 hi  -52.62 d  19.00 | peak lo  -53.14 hi  -32.78 dBFS
+  component body(+exc,UN,TS) = V4          cLo    317.4 cHi    452.3 ratio 1.425 | rms200 lo  -67.65 hi  -48.48 d  19.17 dB
+  component noise layer = V3 - V4          cLo    783.2 cHi    816.3 ratio 1.042 | rms200 lo  -96.56 hi  -86.55 d  10.01 dB
+  component click layer = V2 - V4          cLo   6864.8 cHi   6985.5 ratio 1.018 | rms200 lo -102.91 hi  -85.41 d  17.51 dB
+  component NLC contribution = V4 - V5     cLo    319.0 cHi    435.2 ratio 1.364 | rms200 lo -122.99 hi  -82.94 d  40.05 dB
+
+======================= velocity_centroid_probe1b.run.log =======================
+
+=== 909 Drum Machine:38 (quality-lane ratio 0.889)  NoiseBurst/Membrane
+  cfg: level 1.000 mat 0.580 size 0.398 decay 0.550 strike 0.300 | noiseMix 0.780 cut 0.860 res 0.150 dec 0.480 col 0.860 gain 1.000 wire 0.000 | click mix 0.620 contact 0.080 bright 0.780 | NLC 0.000 inject 0.000 tension 0.320 shell 1.0/0.380 | ts type 0.00 cut 0.820 res 0.220 envAmt 0.600 drive 0.480 fold 0.000 pitchT 0.090 | b1 0.380 b3 0.200 | macros 0.50 0.85 0.50 0.65 0.50
+  V0 as-is                                   cLo   5525.0 cHi   5732.8 ratio 1.038 | rms500 lo  -67.04 hi  -53.60 d  13.44 | peak lo  -38.80 hi  -21.28 dBFS
+  V1 level x0.1                              cLo   5525.0 cHi   5732.8 ratio 1.038 | rms500 lo  -67.04 hi  -53.60 d  13.44 | peak lo  -38.80 hi  -21.28 dBFS
+  V2 lev+noiseMix0                           cLo   4017.6 cHi   5517.1 ratio 1.373 | rms500 lo  -70.63 hi  -55.04 d  15.59 | peak lo  -40.43 hi  -21.41 dBFS
+  V3 lev+clickMix0                           cLo   4899.3 cHi   7125.7 ratio 1.454 | rms500 lo  -64.42 hi  -53.66 d  10.77 | peak lo  -35.08 hi  -16.11 dBFS
+  V4 lev+noise0+click0                       cLo   3108.8 cHi   7402.1 ratio 2.381 | rms500 lo  -65.84 hi  -55.07 d  10.77 | peak lo  -35.61 hi  -16.25 dBFS
+  V5 V4+NLC0                                 cLo   3108.8 cHi   7402.1 ratio 2.381 | rms500 lo  -65.84 hi  -55.07 d  10.77 | peak lo  -35.61 hi  -16.25 dBFS
+  V6 V4+UN0(NLC,inject,tension,wire,shell)   cLo   3083.4 cHi   7136.5 ratio 2.314 | rms500 lo  -66.63 hi  -56.43 d  10.20 | peak lo  -35.84 hi  -17.63 dBFS
+  V7 V6+toneShaperNeutral                    cLo   4366.2 cHi  11006.7 ratio 2.521 | rms500 lo  -67.53 hi  -49.71 d  17.82 | peak lo  -37.01 hi  -12.02 dBFS
+  V8 lev+NLC0 only                           cLo   4809.9 cHi   5602.5 ratio 1.165 | rms500 lo  -63.76 hi  -50.27 d  13.50 | peak lo  -34.82 hi  -15.62 dBFS
+  V9 lev+tension0 only                       cLo   4809.9 cHi   5602.5 ratio 1.165 | rms500 lo  -63.76 hi  -50.27 d  13.50 | peak lo  -34.82 hi  -15.62 dBFS
+  V10 lev+NLC0+tension0                      cLo   4809.9 cHi   5602.5 ratio 1.165 | rms500 lo  -63.76 hi  -50.27 d  13.50 | peak lo  -34.82 hi  -15.62 dBFS
+  component body(+exc,UN,TS) = V4          cLo   3108.8 cHi   7402.1 ratio 2.381 | rms200 lo  -61.86 hi  -51.09 d  10.77 dB
+  component noise layer = V3 - V4          cLo   6601.7 cHi   6615.9 ratio 1.002 | rms200 lo  -65.71 hi  -55.68 d  10.02 dB
+  component click layer = V2 - V4          cLo   3883.2 cHi   6115.2 ratio 1.575 | rms200 lo  -64.95 hi  -50.66 d  14.30 dB
+  component NLC contribution = V4 - V5     cLo      0.0 cHi      0.0 ratio 0.000 | rms200 lo -180.00 hi -180.00 d   0.00 dB
+
+=== Acoustic Studio Kit:36 (quality-lane ratio 0.673)  Mallet/Membrane
+  cfg: level 0.850 mat 0.350 size 0.850 decay 0.250 strike 0.300 | noiseMix 0.100 cut 0.450 res 0.200 dec 0.200 col 0.120 gain 1.000 wire 0.000 | click mix 0.700 contact 0.200 bright 0.450 | NLC 0.000 inject 0.000 tension 0.180 shell 1.0/0.350 | ts type 0.00 cut 1.000 res 0.000 envAmt 0.500 drive 0.000 fold 0.000 pitchT 0.080 | b1 0.130 b3 0.420 | macros 0.50 0.50 0.50 0.50 0.50
+  V0 as-is                                   cLo    629.1 cHi    434.5 ratio 0.691 | rms500 lo  -41.84 hi  -30.38 d  11.46 | peak lo  -28.24 hi  -12.47 dBFS
+  V1 level x0.1                              cLo    629.1 cHi    434.5 ratio 0.691 | rms500 lo  -41.84 hi  -30.38 d  11.46 | peak lo  -28.24 hi  -12.47 dBFS
+  V2 lev+noiseMix0                           cLo    630.5 cHi    434.4 ratio 0.689 | rms500 lo  -41.83 hi  -30.36 d  11.47 | peak lo  -28.24 hi  -12.47 dBFS
+  V3 lev+clickMix0                           cLo    513.5 cHi    262.4 ratio 0.511 | rms500 lo  -41.58 hi  -30.14 d  11.44 | peak lo  -27.98 hi  -12.23 dBFS
+  V4 lev+noise0+click0                       cLo    514.0 cHi    262.4 ratio 0.511 | rms500 lo  -41.58 hi  -30.13 d  11.45 | peak lo  -27.98 hi  -12.22 dBFS
+  V5 V4+NLC0                                 cLo    514.0 cHi    262.4 ratio 0.511 | rms500 lo  -41.58 hi  -30.13 d  11.45 | peak lo  -27.98 hi  -12.22 dBFS
+  V6 V4+UN0(NLC,inject,tension,wire,shell)   cLo    530.7 cHi    309.8 ratio 0.584 | rms500 lo  -42.45 hi  -31.06 d  11.39 | peak lo  -29.17 hi  -13.53 dBFS
+  V7 V6+toneShaperNeutral                    cLo    530.7 cHi    309.8 ratio 0.584 | rms500 lo  -42.45 hi  -31.06 d  11.39 | peak lo  -29.17 hi  -13.53 dBFS
+  V8 lev+NLC0 only                           cLo    625.9 cHi    429.4 ratio 0.686 | rms500 lo  -41.59 hi  -30.13 d  11.46 | peak lo  -28.00 hi  -12.23 dBFS
+  V9 lev+tension0 only                       cLo    609.2 cHi    479.8 ratio 0.788 | rms500 lo  -41.59 hi  -30.13 d  11.46 | peak lo  -27.99 hi  -12.23 dBFS
+  V10 lev+NLC0+tension0                      cLo    609.2 cHi    479.8 ratio 0.788 | rms500 lo  -41.59 hi  -30.13 d  11.46 | peak lo  -27.99 hi  -12.23 dBFS
+  component body(+exc,UN,TS) = V4          cLo    514.0 cHi    262.4 ratio 0.511 | rms200 lo  -37.75 hi  -26.25 d  11.50 dB
+  component noise layer = V3 - V4          cLo    415.6 cHi    466.8 ratio 1.123 | rms200 lo  -80.12 hi  -70.09 d  10.02 dB
+  component click layer = V2 - V4          cLo   2583.7 cHi   3166.3 ratio 1.226 | rms200 lo  -68.26 hi  -56.66 d  11.60 dB
+  component NLC contribution = V4 - V5     cLo      0.0 cHi      0.0 ratio 0.000 | rms200 lo -180.00 hi -180.00 d   0.00 dB
+
+=== Acoustic Studio Kit:38 (quality-lane ratio 0.796)  Impulse/Membrane
+  cfg: level 0.920 mat 0.500 size 0.420 decay 0.130 strike 0.350 | noiseMix 0.650 cut 0.800 res 0.100 dec 0.550 col 0.750 gain 6.200 wire 0.450 | click mix 0.550 contact 0.180 bright 0.900 | NLC 0.220 inject 0.000 tension 0.160 shell 1.0/0.780 | ts type 0.00 cut 0.920 res 0.120 envAmt 0.720 drive 0.080 fold 0.000 pitchT 0.070 | b1 0.600 b3 0.400 | macros 0.50 0.50 0.50 0.50 0.50
+  V0 as-is                                   cLo   4444.8 cHi   3518.4 ratio 0.792 | rms500 lo  -47.46 hi  -27.42 d  20.05 | peak lo  -24.40 hi   -8.16 dBFS
+  V1 level x0.1                              cLo   4444.8 cHi   3518.4 ratio 0.792 | rms500 lo  -47.46 hi  -27.42 d  20.05 | peak lo  -24.40 hi   -8.16 dBFS
+  V2 lev+noiseMix0                           cLo   2060.3 cHi   1614.0 ratio 0.783 | rms500 lo  -50.24 hi  -27.58 d  22.66 | peak lo  -29.97 hi   -9.68 dBFS
+  V3 lev+clickMix0                           cLo   4409.5 cHi   3396.9 ratio 0.770 | rms500 lo  -47.46 hi  -27.42 d  20.05 | peak lo  -24.40 hi   -8.16 dBFS
+  V4 lev+noise0+click0                       cLo    427.2 cHi    548.3 ratio 1.283 | rms500 lo  -50.24 hi  -27.58 d  22.66 | peak lo  -29.97 hi   -9.69 dBFS
+  V5 V4+NLC0                                 cLo    428.4 cHi    564.6 ratio 1.318 | rms500 lo  -50.27 hi  -28.02 d  22.26 | peak lo  -29.99 hi   -9.79 dBFS
+  V6 V4+UN0(NLC,inject,tension,wire,shell)   cLo    517.9 cHi    681.3 ratio 1.316 | rms500 lo  -54.04 hi  -32.25 d  21.80 | peak lo  -33.65 hi  -12.90 dBFS
+  V7 V6+toneShaperNeutral                    cLo    518.0 cHi    660.5 ratio 1.275 | rms500 lo  -54.02 hi  -32.17 d  21.85 | peak lo  -33.76 hi  -12.75 dBFS
+  V8 lev+NLC0 only                           cLo   4443.5 cHi   3513.0 ratio 0.791 | rms500 lo  -47.49 hi  -27.82 d  19.67 | peak lo  -24.32 hi   -7.92 dBFS
+  V9 lev+tension0 only                       cLo   4444.8 cHi   3518.6 ratio 0.792 | rms500 lo  -47.46 hi  -27.42 d  20.05 | peak lo  -24.40 hi   -8.16 dBFS
+  V10 lev+NLC0+tension0                      cLo   4443.5 cHi   3513.2 ratio 0.791 | rms500 lo  -47.49 hi  -27.82 d  19.67 | peak lo  -24.32 hi   -7.92 dBFS
+  component body(+exc,UN,TS) = V4          cLo    427.2 cHi    548.3 ratio 1.283 | rms200 lo  -46.26 hi  -23.60 d  22.66 dB
+  component noise layer = V3 - V4          cLo   4964.8 cHi   4981.2 ratio 1.003 | rms200 lo  -47.37 hi  -37.00 d  10.37 dB
+  component click layer = V2 - V4          cLo  11429.6 cHi  11441.6 ratio 1.001 | rms200 lo  -77.65 hi  -59.28 d  18.37 dB
+  component NLC contribution = V4 - V5     cLo    495.7 cHi    669.0 ratio 1.350 | rms200 lo  -92.97 hi  -48.10 d  44.87 dB
+
+=== Drone and Sustain:36 (quality-lane ratio 0.249)  Friction/String
+  cfg: level 0.620 mat 0.450 size 0.400 decay 0.920 strike 0.300 | noiseMix 0.160 cut 0.500 res 0.200 dec 0.850 col 0.120 gain 1.000 wire 0.000 | click mix 0.000 contact 0.300 bright 0.600 | NLC 0.350 inject 0.000 tension 0.000 shell 1.0/0.180 | ts type 0.00 cut 0.450 res 0.350 envAmt 0.620 drive 0.260 fold 0.220 pitchT 0.000 | b1 0.300 b3 0.200 | macros 0.50 0.50 0.50 0.50 0.85
+  V0 as-is                                   cLo    842.8 cHi    842.1 ratio 0.999 | rms500 lo  -30.99 hi  -20.05 d  10.94 | peak lo  -18.29 hi   -7.17 dBFS
+  V1 level x0.1                              cLo    842.8 cHi    842.1 ratio 0.999 | rms500 lo  -30.99 hi  -20.05 d  10.94 | peak lo  -18.29 hi   -7.17 dBFS
+  V2 lev+noiseMix0                           cLo    845.9 cHi    845.2 ratio 0.999 | rms500 lo  -30.99 hi  -20.05 d  10.94 | peak lo  -18.41 hi   -7.28 dBFS
+  V3 lev+clickMix0                           cLo    842.8 cHi    842.1 ratio 0.999 | rms500 lo  -30.99 hi  -20.05 d  10.94 | peak lo  -18.29 hi   -7.17 dBFS
+  V4 lev+noise0+click0                       cLo    845.9 cHi    845.2 ratio 0.999 | rms500 lo  -30.99 hi  -20.05 d  10.94 | peak lo  -18.41 hi   -7.28 dBFS
+  V5 V4+NLC0                                 cLo    847.1 cHi    850.1 ratio 1.004 | rms500 lo  -31.25 hi  -21.18 d  10.06 | peak lo  -18.51 hi   -8.42 dBFS
+  V6 V4+UN0(NLC,inject,tension,wire,shell)   cLo    784.3 cHi    787.0 ratio 1.003 | rms500 lo  -31.43 hi  -21.36 d  10.06 | peak lo  -19.18 hi   -9.13 dBFS
+  V7 V6+toneShaperNeutral                    cLo   4292.6 cHi   4206.9 ratio 0.980 | rms500 lo  -35.12 hi  -25.51 d   9.61 | peak lo  -17.40 hi   -7.36 dBFS
+  V8 lev+NLC0 only                           cLo    844.0 cHi    846.8 ratio 1.003 | rms500 lo  -31.25 hi  -21.18 d  10.06 | peak lo  -18.40 hi   -8.31 dBFS
+  V9 lev+tension0 only                       cLo    842.8 cHi    842.1 ratio 0.999 | rms500 lo  -30.99 hi  -20.05 d  10.94 | peak lo  -18.29 hi   -7.17 dBFS
+  V10 lev+NLC0+tension0                      cLo    844.0 cHi    846.8 ratio 1.003 | rms500 lo  -31.25 hi  -21.18 d  10.06 | peak lo  -18.40 hi   -8.31 dBFS
+  component body(+exc,UN,TS) = V4          cLo    845.9 cHi    845.2 ratio 0.999 | rms200 lo  -29.27 hi  -18.20 d  11.07 dB
+  component noise layer = V3 - V4          cLo    528.0 cHi    537.9 ratio 1.019 | rms200 lo  -68.31 hi  -57.55 d  10.76 dB
+  component click layer = V2 - V4          cLo      0.0 cHi      0.0 ratio 0.000 | rms200 lo -180.00 hi -180.00 d   0.00 dB
+  component NLC contribution = V4 - V5     cLo    806.6 cHi    817.2 ratio 1.013 | rms200 lo  -58.16 hi  -35.33 d  22.84 dB
+
+=== Ghost Bones:38 (quality-lane ratio 0.982)  Impulse/Bell
+  cfg: level 0.640 mat 0.460 size 0.660 decay 0.820 strike 0.320 | noiseMix 0.120 cut 0.350 res 0.200 dec 0.850 col 0.200 gain 1.000 wire 0.000 | click mix 0.140 contact 0.300 bright 0.620 | NLC 0.300 inject 0.000 tension 0.000 shell 0.0/0.000 | ts type 0.50 cut 0.240 res 0.300 envAmt 0.450 drive 0.000 fold 0.000 pitchT 0.000 | b1 0.350 b3 0.000 | macros 0.50 0.50 0.50 0.50 0.85
+  V0 as-is                                   cLo    267.6 cHi    258.8 ratio 0.967 | rms500 lo  -41.76 hi  -29.25 d  12.51 | peak lo  -24.88 hi  -11.70 dBFS
+  V1 level x0.1                              cLo    267.6 cHi    258.8 ratio 0.967 | rms500 lo  -41.76 hi  -29.25 d  12.51 | peak lo  -24.88 hi  -11.70 dBFS
+  V2 lev+noiseMix0                           cLo    268.4 cHi    256.7 ratio 0.956 | rms500 lo  -41.87 hi  -29.33 d  12.54 | peak lo  -25.20 hi  -11.69 dBFS
+  V3 lev+clickMix0                           cLo    230.5 cHi    207.7 ratio 0.901 | rms500 lo  -41.75 hi  -29.25 d  12.50 | peak lo  -24.88 hi  -11.70 dBFS
+  V4 lev+noise0+click0                       cLo    229.7 cHi    204.3 ratio 0.890 | rms500 lo  -41.86 hi  -29.33 d  12.53 | peak lo  -25.20 hi  -11.69 dBFS
+  V5 V4+NLC0                                 cLo    231.0 cHi    210.5 ratio 0.911 | rms500 lo  -41.96 hi  -30.08 d  11.89 | peak lo  -25.27 hi  -12.32 dBFS
+  V6 V4+UN0(NLC,inject,tension,wire,shell)   cLo    231.0 cHi    210.5 ratio 0.911 | rms500 lo  -41.96 hi  -30.08 d  11.89 | peak lo  -25.27 hi  -12.32 dBFS
+  V7 V6+toneShaperNeutral                    cLo    147.4 cHi    243.3 ratio 1.650 | rms500 lo  -42.70 hi  -33.07 d   9.63 | peak lo  -26.19 hi  -14.27 dBFS
+  V8 lev+NLC0 only                           cLo    269.2 cHi    268.6 ratio 0.998 | rms500 lo  -41.86 hi  -30.00 d  11.87 | peak lo  -24.95 hi  -12.32 dBFS
+  V9 lev+tension0 only                       cLo    267.6 cHi    258.8 ratio 0.967 | rms500 lo  -41.76 hi  -29.25 d  12.51 | peak lo  -24.88 hi  -11.70 dBFS
+  V10 lev+NLC0+tension0                      cLo    269.1 cHi    268.6 ratio 0.998 | rms500 lo  -41.86 hi  -30.00 d  11.86 | peak lo  -24.95 hi  -12.32 dBFS
+  component body(+exc,UN,TS) = V4          cLo    229.7 cHi    204.3 ratio 0.890 | rms200 lo  -37.89 hi  -25.35 d  12.53 dB
+  component noise layer = V3 - V4          cLo    264.2 cHi    267.0 ratio 1.011 | rms200 lo  -62.96 hi  -52.41 d  10.55 dB
+  component click layer = V2 - V4          cLo   6335.6 cHi   6149.5 ratio 0.971 | rms200 lo  -95.75 hi  -77.99 d  17.77 dB
+  component NLC contribution = V4 - V5     cLo    184.2 cHi    190.5 ratio 1.035 | rms200 lo  -73.64 hi  -46.50 d  27.14 dB
+
+=== Hand Drums:38 (quality-lane ratio 0.960)  Impulse/Membrane
+  cfg: level 0.800 mat 0.500 size 0.500 decay 0.320 strike 0.300 | noiseMix 0.120 cut 0.500 res 0.200 dec 0.300 col 0.450 gain 1.000 wire 0.000 | click mix 0.550 contact 0.160 bright 0.650 | NLC 0.140 inject 0.000 tension 0.180 shell 1.0/0.280 | ts type 0.00 cut 1.000 res 0.000 envAmt 0.500 drive 0.000 fold 0.000 pitchT 0.040 | b1 0.300 b3 0.100 | macros 0.50 0.50 0.50 0.50 0.50
+  V0 as-is                                   cLo    886.4 cHi    850.4 ratio 0.959 | rms500 lo  -51.28 hi  -32.44 d  18.83 | peak lo  -33.38 hi  -12.99 dBFS
+  V1 level x0.1                              cLo    886.4 cHi    850.4 ratio 0.959 | rms500 lo  -51.28 hi  -32.44 d  18.83 | peak lo  -33.38 hi  -12.99 dBFS
+  V2 lev+noiseMix0                           cLo    894.2 cHi    850.9 ratio 0.952 | rms500 lo  -51.30 hi  -32.42 d  18.88 | peak lo  -33.49 hi  -13.02 dBFS
+  V3 lev+clickMix0                           cLo    354.4 cHi    476.6 ratio 1.345 | rms500 lo  -51.28 hi  -32.46 d  18.82 | peak lo  -33.37 hi  -12.99 dBFS
+  V4 lev+noise0+click0                       cLo    349.8 cHi    475.0 ratio 1.358 | rms500 lo  -51.30 hi  -32.43 d  18.86 | peak lo  -33.49 hi  -13.02 dBFS
+  V5 V4+NLC0                                 cLo    350.0 cHi    478.7 ratio 1.368 | rms500 lo  -51.31 hi  -32.59 d  18.73 | peak lo  -33.49 hi  -13.04 dBFS
+  V6 V4+UN0(NLC,inject,tension,wire,shell)   cLo    365.6 cHi    479.6 ratio 1.312 | rms500 lo  -51.84 hi  -32.95 d  18.89 | peak lo  -34.79 hi  -13.52 dBFS
+  V7 V6+toneShaperNeutral                    cLo    365.6 cHi    479.6 ratio 1.312 | rms500 lo  -51.84 hi  -32.95 d  18.89 | peak lo  -34.79 hi  -13.52 dBFS
+  V8 lev+NLC0 only                           cLo    887.1 cHi    858.0 ratio 0.967 | rms500 lo  -51.29 hi  -32.60 d  18.70 | peak lo  -33.38 hi  -13.01 dBFS
+  V9 lev+tension0 only                       cLo    885.8 cHi    843.9 ratio 0.953 | rms500 lo  -51.28 hi  -32.44 d  18.84 | peak lo  -33.38 hi  -12.99 dBFS
+  V10 lev+NLC0+tension0                      cLo    886.6 cHi    851.3 ratio 0.960 | rms500 lo  -51.29 hi  -32.60 d  18.70 | peak lo  -33.38 hi  -13.01 dBFS
+  component body(+exc,UN,TS) = V4          cLo    349.8 cHi    475.0 ratio 1.358 | rms200 lo  -47.32 hi  -28.46 d  18.86 dB
+  component noise layer = V3 - V4          cLo    783.2 cHi    816.2 ratio 1.042 | rms200 lo  -76.53 hi  -66.53 d  10.01 dB
+  component click layer = V2 - V4          cLo   6852.2 cHi   6985.3 ratio 1.019 | rms200 lo  -82.89 hi  -65.39 d  17.50 dB
+  component NLC contribution = V4 - V5     cLo    321.2 cHi    438.6 ratio 1.365 | rms200 lo -102.79 hi  -62.92 d  39.88 dB
+
+=== Hand Drums:42 (quality-lane ratio 0.533)  Impulse/Membrane
+  cfg: level 0.800 mat 0.550 size 0.320 decay 0.280 strike 0.300 | noiseMix 0.100 cut 0.500 res 0.200 dec 0.300 col 0.400 gain 1.000 wire 0.000 | click mix 0.550 contact 0.150 bright 0.720 | NLC 0.120 inject 0.000 tension 0.220 shell 1.0/0.250 | ts type 0.00 cut 1.000 res 0.000 envAmt 0.500 drive 0.000 fold 0.000 pitchT 0.040 | b1 0.300 b3 0.100 | macros 0.50 0.50 0.50 0.50 0.50
+  V0 as-is                                   cLo   2153.6 cHi   1136.9 ratio 0.528 | rms500 lo  -61.56 hi  -31.52 d  30.04 | peak lo  -37.64 hi  -11.79 dBFS
+  V1 level x0.1                              cLo   2153.6 cHi   1136.9 ratio 0.528 | rms500 lo  -61.56 hi  -31.52 d  30.04 | peak lo  -37.64 hi  -11.79 dBFS
+  V2 lev+noiseMix0                           cLo   2198.6 cHi   1136.1 ratio 0.517 | rms500 lo  -61.62 hi  -31.50 d  30.12 | peak lo  -37.76 hi  -11.83 dBFS
+  V3 lev+clickMix0                           cLo    830.4 cHi    671.4 ratio 0.808 | rms500 lo  -61.56 hi  -31.52 d  30.04 | peak lo  -37.63 hi  -11.79 dBFS
+  V4 lev+noise0+click0                       cLo    840.6 cHi    670.7 ratio 0.798 | rms500 lo  -61.63 hi  -31.51 d  30.13 | peak lo  -37.76 hi  -11.84 dBFS
+  V5 V4+NLC0                                 cLo    840.7 cHi    675.5 ratio 0.803 | rms500 lo  -61.64 hi  -31.63 d  30.01 | peak lo  -37.76 hi  -11.83 dBFS
+  V6 V4+UN0(NLC,inject,tension,wire,shell)   cLo    853.0 cHi    680.5 ratio 0.798 | rms500 lo  -62.20 hi  -31.90 d  30.30 | peak lo  -38.16 hi  -12.89 dBFS
+  V7 V6+toneShaperNeutral                    cLo    853.0 cHi    680.5 ratio 0.798 | rms500 lo  -62.20 hi  -31.90 d  30.30 | peak lo  -38.16 hi  -12.89 dBFS
+  V8 lev+NLC0 only                           cLo   2154.1 cHi   1144.5 ratio 0.531 | rms500 lo  -61.56 hi  -31.64 d  29.92 | peak lo  -37.64 hi  -11.78 dBFS
+  V9 lev+tension0 only                       cLo   2153.6 cHi   1140.1 ratio 0.529 | rms500 lo  -61.56 hi  -31.52 d  30.04 | peak lo  -37.64 hi  -11.79 dBFS
+  V10 lev+NLC0+tension0                      cLo   2154.1 cHi   1147.7 ratio 0.533 | rms500 lo  -61.56 hi  -31.64 d  29.92 | peak lo  -37.64 hi  -11.78 dBFS
+  component body(+exc,UN,TS) = V4          cLo    840.6 cHi    670.7 ratio 0.798 | rms200 lo  -57.65 hi  -27.53 d  30.13 dB
+  component noise layer = V3 - V4          cLo    783.2 cHi    817.9 ratio 1.044 | rms200 lo  -78.21 hi  -68.23 d   9.98 dB
+  component click layer = V2 - V4          cLo   7582.7 cHi   7650.2 ratio 1.009 | rms200 lo  -81.74 hi  -63.82 d  17.92 dB
+  component NLC contribution = V4 - V5     cLo    850.8 cHi    602.0 ratio 0.708 | rms200 lo -124.49 hi  -63.96 d  60.53 dB
+
+=== Orchestral:38 (quality-lane ratio 0.983)  NoiseBurst/Membrane
+  cfg: level 0.900 mat 0.600 size 0.330 decay 0.300 strike 0.350 | noiseMix 0.980 cut 0.900 res 0.100 dec 0.550 col 0.900 gain 6.200 wire 0.450 | click mix 0.950 contact 0.180 bright 0.930 | NLC 0.120 inject 0.000 tension 0.000 shell 1.0/0.280 | ts type 0.00 cut 0.920 res 0.120 envAmt 0.550 drive 0.060 fold 0.000 pitchT 0.000 | b1 0.620 b3 0.300 | macros 0.50 0.65 0.50 0.50 0.55
+  V0 as-is                                   cLo   9091.6 cHi   9113.0 ratio 1.002 | rms500 lo  -53.12 hi  -42.20 d  10.91 | peak lo  -28.06 hi  -13.88 dBFS
+  V1 level x0.1                              cLo   9091.6 cHi   9113.0 ratio 1.002 | rms500 lo  -53.12 hi  -42.20 d  10.91 | peak lo  -28.06 hi  -13.88 dBFS
+  V2 lev+noiseMix0                           cLo   8367.4 cHi   9502.7 ratio 1.136 | rms500 lo  -70.90 hi  -49.37 d  21.52 | peak lo  -36.56 hi  -14.07 dBFS
+  V3 lev+clickMix0                           cLo   8973.1 cHi   9294.1 ratio 1.036 | rms500 lo  -53.33 hi  -41.72 d  11.60 | peak lo  -28.02 hi  -10.14 dBFS
+  V4 lev+noise0+click0                       cLo   4330.9 cHi  10091.8 ratio 2.330 | rms500 lo  -69.16 hi  -46.53 d  22.64 | peak lo  -37.17 hi  -10.02 dBFS
+  V5 V4+NLC0                                 cLo   4331.3 cHi  10095.1 ratio 2.331 | rms500 lo  -69.16 hi  -46.48 d  22.68 | peak lo  -37.17 hi   -9.99 dBFS
+  V6 V4+UN0(NLC,inject,tension,wire,shell)   cLo   4362.2 cHi  10097.3 ratio 2.315 | rms500 lo  -69.59 hi  -46.72 d  22.87 | peak lo  -37.46 hi  -10.22 dBFS
+  V7 V6+toneShaperNeutral                    cLo   4630.5 cHi  11011.5 ratio 2.378 | rms500 lo  -69.85 hi  -50.61 d  19.23 | peak lo  -38.26 hi  -13.10 dBFS
+  V8 lev+NLC0 only                           cLo   8958.2 cHi   9066.1 ratio 1.012 | rms500 lo  -52.96 hi  -40.62 d  12.33 | peak lo  -27.93 hi   -8.39 dBFS
+  V9 lev+tension0 only                       cLo   8958.4 cHi   9064.1 ratio 1.012 | rms500 lo  -52.95 hi  -40.62 d  12.34 | peak lo  -27.94 hi   -8.46 dBFS
+  V10 lev+NLC0+tension0                      cLo   8958.2 cHi   9066.1 ratio 1.012 | rms500 lo  -52.96 hi  -40.62 d  12.33 | peak lo  -27.93 hi   -8.39 dBFS
+  component body(+exc,UN,TS) = V4          cLo   4330.9 cHi  10091.8 ratio 2.330 | rms200 lo  -65.18 hi  -42.55 d  22.64 dB
+  component noise layer = V3 - V4          cLo   9145.6 cHi   9144.5 ratio 1.000 | rms200 lo  -49.46 hi  -39.29 d  10.17 dB
+  component click layer = V2 - V4          cLo   7132.3 cHi   9315.4 ratio 1.306 | rms200 lo  -65.60 hi  -46.48 d  19.12 dB
+  component NLC contribution = V4 - V5     cLo   6315.5 cHi   9855.9 ratio 1.561 | rms200 lo -139.91 hi  -86.80 d  53.11 dB
+
+=== Rock Big Room:38 (quality-lane ratio 0.904)  Impulse/Membrane
+  cfg: level 1.000 mat 0.380 size 0.660 decay 0.200 strike 0.350 | noiseMix 0.650 cut 0.800 res 0.150 dec 0.550 col 0.750 gain 6.200 wire 0.450 | click mix 0.550 contact 0.060 bright 0.920 | NLC 0.220 inject 0.000 tension 0.320 shell 1.0/0.780 | ts type 0.00 cut 0.850 res 0.200 envAmt 0.780 drive 0.420 fold 0.000 pitchT 0.140 | b1 0.500 b3 0.400 | macros 0.65 0.70 0.50 0.85 0.50
+  V0 as-is                                   cLo   4180.8 cHi   3711.1 ratio 0.888 | rms500 lo  -40.95 hi  -28.36 d  12.59 | peak lo  -23.99 hi  -10.51 dBFS
+  V1 level x0.1                              cLo   4180.8 cHi   3711.1 ratio 0.888 | rms500 lo  -40.95 hi  -28.36 d  12.59 | peak lo  -23.99 hi  -10.51 dBFS
+  V2 lev+noiseMix0                           cLo   1151.3 cHi   1647.3 ratio 1.431 | rms500 lo  -41.48 hi  -28.61 d  12.87 | peak lo  -27.40 hi  -12.59 dBFS
+  V3 lev+clickMix0                           cLo   4171.8 cHi   3619.0 ratio 0.867 | rms500 lo  -40.94 hi  -28.36 d  12.58 | peak lo  -23.99 hi  -10.51 dBFS
+  V4 lev+noise0+click0                       cLo    187.0 cHi    265.8 ratio 1.422 | rms500 lo  -41.48 hi  -28.62 d  12.86 | peak lo  -27.40 hi  -12.59 dBFS
+  V5 V4+NLC0                                 cLo    187.1 cHi    270.5 ratio 1.446 | rms500 lo  -41.54 hi  -29.05 d  12.50 | peak lo  -27.39 hi  -12.52 dBFS
+  V6 V4+UN0(NLC,inject,tension,wire,shell)   cLo    226.5 cHi    310.3 ratio 1.370 | rms500 lo  -47.48 hi  -34.42 d  13.05 | peak lo  -31.43 hi  -14.87 dBFS
+  V7 V6+toneShaperNeutral                    cLo    226.6 cHi    435.3 ratio 1.921 | rms500 lo  -46.97 hi  -33.21 d  13.76 | peak lo  -30.66 hi  -12.12 dBFS
+  V8 lev+NLC0 only                           cLo   4182.7 cHi   3713.8 ratio 0.888 | rms500 lo  -41.01 hi  -28.78 d  12.22 | peak lo  -23.86 hi  -10.20 dBFS
+  V9 lev+tension0 only                       cLo   4182.4 cHi   3713.9 ratio 0.888 | rms500 lo  -40.96 hi  -28.38 d  12.58 | peak lo  -23.99 hi  -10.51 dBFS
+  V10 lev+NLC0+tension0                      cLo   4184.3 cHi   3716.4 ratio 0.888 | rms500 lo  -41.02 hi  -28.80 d  12.21 | peak lo  -23.86 hi  -10.20 dBFS
+  component body(+exc,UN,TS) = V4          cLo    187.0 cHi    265.8 ratio 1.422 | rms200 lo  -37.50 hi  -24.64 d  12.86 dB
+  component noise layer = V3 - V4          cLo   5225.3 cHi   5242.9 ratio 1.003 | rms200 lo  -46.17 hi  -36.50 d   9.67 dB
+  component click layer = V2 - V4          cLo  10463.3 cHi  10652.6 ratio 1.018 | rms200 lo  -73.25 hi  -54.41 d  18.84 dB
+  component NLC contribution = V4 - V5     cLo    243.8 cHi    326.6 ratio 1.339 | rms200 lo  -78.71 hi  -50.30 d  28.42 dB
+
+=== Vintage Wood:38 (quality-lane ratio 0.845)  Impulse/Membrane
+  cfg: level 1.000 mat 0.320 size 0.620 decay 0.180 strike 0.300 | noiseMix 0.650 cut 0.780 res 0.120 dec 0.550 col 0.700 gain 6.200 wire 0.450 | click mix 0.550 contact 0.080 bright 0.780 | NLC 0.220 inject 0.000 tension 0.300 shell 1.0/0.800 | ts type 0.00 cut 0.800 res 0.180 envAmt 0.720 drive 0.380 fold 0.000 pitchT 0.130 | b1 0.600 b3 0.450 | macros 0.70 0.55 0.50 0.50 0.55
+  V0 as-is                                   cLo   3710.5 cHi   3191.6 ratio 0.860 | rms500 lo  -42.89 hi  -29.60 d  13.30 | peak lo  -22.78 hi   -9.03 dBFS
+  V1 level x0.1                              cLo   3710.5 cHi   3191.6 ratio 0.860 | rms500 lo  -42.89 hi  -29.60 d  13.30 | peak lo  -22.78 hi   -9.03 dBFS
+  V2 lev+noiseMix0                           cLo    617.3 cHi    770.2 ratio 1.248 | rms500 lo  -44.07 hi  -29.97 d  14.09 | peak lo  -27.20 hi  -12.03 dBFS
+  V3 lev+clickMix0                           cLo   3711.4 cHi   3192.7 ratio 0.860 | rms500 lo  -42.89 hi  -29.60 d  13.29 | peak lo  -22.78 hi   -9.03 dBFS
+  V4 lev+noise0+click0                       cLo    227.2 cHi    244.7 ratio 1.077 | rms500 lo  -44.06 hi  -29.98 d  14.08 | peak lo  -27.20 hi  -12.03 dBFS
+  V5 V4+NLC0                                 cLo    227.6 cHi    245.1 ratio 1.077 | rms500 lo  -44.12 hi  -30.39 d  13.73 | peak lo  -27.19 hi  -11.96 dBFS
+  V6 V4+UN0(NLC,inject,tension,wire,shell)   cLo    269.3 cHi    261.0 ratio 0.969 | rms500 lo  -47.96 hi  -34.20 d  13.76 | peak lo  -30.88 hi  -14.47 dBFS
+  V7 V6+toneShaperNeutral                    cLo    254.1 cHi    470.5 ratio 1.852 | rms500 lo  -47.53 hi  -33.16 d  14.38 | peak lo  -30.23 hi  -12.09 dBFS
+  V8 lev+NLC0 only                           cLo   3713.2 cHi   3192.0 ratio 0.860 | rms500 lo  -42.94 hi  -30.00 d  12.94 | peak lo  -22.63 hi   -8.71 dBFS
+  V9 lev+tension0 only                       cLo   3710.8 cHi   3192.7 ratio 0.860 | rms500 lo  -42.89 hi  -29.60 d  13.29 | peak lo  -22.78 hi   -9.03 dBFS
+  V10 lev+NLC0+tension0                      cLo   3713.5 cHi   3193.0 ratio 0.860 | rms500 lo  -42.94 hi  -30.01 d  12.93 | peak lo  -22.63 hi   -8.71 dBFS
+  component body(+exc,UN,TS) = V4          cLo    227.2 cHi    244.7 ratio 1.077 | rms200 lo  -40.08 hi  -26.00 d  14.08 dB
+  component noise layer = V3 - V4          cLo   4347.3 cHi   4328.2 ratio 0.996 | rms200 lo  -45.00 hi  -35.20 d   9.80 dB
+  component click layer = V2 - V4          cLo   5522.1 cHi   5491.8 ratio 0.995 | rms200 lo  -75.95 hi  -56.97 d  18.98 dB
+  component NLC contribution = V4 - V5     cLo    283.4 cHi    341.1 ratio 1.204 | rms200 lo  -82.48 hi  -51.79 d  30.69 dB
+
+=== Latin Perc:36 (quality-lane ratio 0.533)  Impulse/Membrane
+  cfg: level 0.800 mat 0.550 size 0.320 decay 0.280 strike 0.300 | noiseMix 0.100 cut 0.500 res 0.200 dec 0.300 col 0.400 gain 1.000 wire 0.000 | click mix 0.550 contact 0.150 bright 0.720 | NLC 0.120 inject 0.000 tension 0.220 shell 1.0/0.250 | ts type 0.00 cut 1.000 res 0.000 envAmt 0.500 drive 0.000 fold 0.000 pitchT 0.040 | b1 0.300 b3 0.100 | macros 0.50 0.50 0.50 0.50 0.50
+  V0 as-is                                   cLo   2153.6 cHi   1136.9 ratio 0.528 | rms500 lo  -61.56 hi  -31.52 d  30.04 | peak lo  -37.64 hi  -11.79 dBFS
+  V1 level x0.1                              cLo   2153.6 cHi   1136.9 ratio 0.528 | rms500 lo  -61.56 hi  -31.52 d  30.04 | peak lo  -37.64 hi  -11.79 dBFS
+  V2 lev+noiseMix0                           cLo   2198.6 cHi   1136.1 ratio 0.517 | rms500 lo  -61.62 hi  -31.50 d  30.12 | peak lo  -37.76 hi  -11.83 dBFS
+  V3 lev+clickMix0                           cLo    830.4 cHi    671.4 ratio 0.808 | rms500 lo  -61.56 hi  -31.52 d  30.04 | peak lo  -37.63 hi  -11.79 dBFS
+  V4 lev+noise0+click0                       cLo    840.6 cHi    670.7 ratio 0.798 | rms500 lo  -61.63 hi  -31.51 d  30.13 | peak lo  -37.76 hi  -11.84 dBFS
+  V5 V4+NLC0                                 cLo    840.7 cHi    675.5 ratio 0.803 | rms500 lo  -61.64 hi  -31.63 d  30.01 | peak lo  -37.76 hi  -11.83 dBFS
+  V6 V4+UN0(NLC,inject,tension,wire,shell)   cLo    853.0 cHi    680.5 ratio 0.798 | rms500 lo  -62.20 hi  -31.90 d  30.30 | peak lo  -38.16 hi  -12.89 dBFS
+  V7 V6+toneShaperNeutral                    cLo    853.0 cHi    680.5 ratio 0.798 | rms500 lo  -62.20 hi  -31.90 d  30.30 | peak lo  -38.16 hi  -12.89 dBFS
+  V8 lev+NLC0 only                           cLo   2154.1 cHi   1144.5 ratio 0.531 | rms500 lo  -61.56 hi  -31.64 d  29.92 | peak lo  -37.64 hi  -11.78 dBFS
+  V9 lev+tension0 only                       cLo   2153.6 cHi   1140.0 ratio 0.529 | rms500 lo  -61.56 hi  -31.52 d  30.04 | peak lo  -37.64 hi  -11.79 dBFS
+  V10 lev+NLC0+tension0                      cLo   2154.1 cHi   1147.7 ratio 0.533 | rms500 lo  -61.56 hi  -31.64 d  29.92 | peak lo  -37.64 hi  -11.78 dBFS
+  component body(+exc,UN,TS) = V4          cLo    840.6 cHi    670.7 ratio 0.798 | rms200 lo  -57.65 hi  -27.53 d  30.13 dB
+  component noise layer = V3 - V4          cLo    783.1 cHi    817.9 ratio 1.044 | rms200 lo  -78.21 hi  -68.23 d   9.98 dB
+  component click layer = V2 - V4          cLo   7582.7 cHi   7650.2 ratio 1.009 | rms200 lo  -81.74 hi  -63.82 d  17.92 dB
+  component NLC contribution = V4 - V5     cLo    849.9 cHi    601.9 ratio 0.708 | rms200 lo -124.49 hi  -63.96 d  60.53 dB
+
+=== Latin Perc:38 (quality-lane ratio 0.960)  Impulse/Membrane
+  cfg: level 0.800 mat 0.500 size 0.500 decay 0.320 strike 0.300 | noiseMix 0.120 cut 0.500 res 0.200 dec 0.300 col 0.450 gain 1.000 wire 0.000 | click mix 0.550 contact 0.160 bright 0.650 | NLC 0.140 inject 0.000 tension 0.180 shell 1.0/0.280 | ts type 0.00 cut 1.000 res 0.000 envAmt 0.500 drive 0.000 fold 0.000 pitchT 0.040 | b1 0.300 b3 0.100 | macros 0.50 0.50 0.50 0.50 0.50
+  V0 as-is                                   cLo    886.4 cHi    850.4 ratio 0.959 | rms500 lo  -51.30 hi  -32.47 d  18.83 | peak lo  -33.14 hi  -12.76 dBFS
+  V1 level x0.1                              cLo    886.4 cHi    850.4 ratio 0.959 | rms500 lo  -51.30 hi  -32.47 d  18.83 | peak lo  -33.14 hi  -12.76 dBFS
+  V2 lev+noiseMix0                           cLo    894.2 cHi    850.9 ratio 0.952 | rms500 lo  -51.32 hi  -32.44 d  18.88 | peak lo  -33.26 hi  -12.79 dBFS
+  V3 lev+clickMix0                           cLo    354.3 cHi    476.6 ratio 1.345 | rms500 lo  -51.30 hi  -32.48 d  18.82 | peak lo  -33.14 hi  -12.76 dBFS
+  V4 lev+noise0+click0                       cLo    349.8 cHi    475.0 ratio 1.358 | rms500 lo  -51.32 hi  -32.46 d  18.87 | peak lo  -33.25 hi  -12.79 dBFS
+  V5 V4+NLC0                                 cLo    350.0 cHi    478.7 ratio 1.368 | rms500 lo  -51.33 hi  -32.61 d  18.73 | peak lo  -33.26 hi  -12.81 dBFS
+  V6 V4+UN0(NLC,inject,tension,wire,shell)   cLo    365.6 cHi    479.6 ratio 1.312 | rms500 lo  -51.86 hi  -32.97 d  18.89 | peak lo  -34.56 hi  -13.28 dBFS
+  V7 V6+toneShaperNeutral                    cLo    365.6 cHi    479.6 ratio 1.312 | rms500 lo  -51.86 hi  -32.97 d  18.89 | peak lo  -34.56 hi  -13.28 dBFS
+  V8 lev+NLC0 only                           cLo    887.1 cHi    858.0 ratio 0.967 | rms500 lo  -51.31 hi  -32.62 d  18.70 | peak lo  -33.14 hi  -12.78 dBFS
+  V9 lev+tension0 only                       cLo    885.8 cHi    843.9 ratio 0.953 | rms500 lo  -51.30 hi  -32.46 d  18.84 | peak lo  -33.14 hi  -12.76 dBFS
+  V10 lev+NLC0+tension0                      cLo    886.6 cHi    851.3 ratio 0.960 | rms500 lo  -51.31 hi  -32.62 d  18.70 | peak lo  -33.14 hi  -12.78 dBFS
+  component body(+exc,UN,TS) = V4          cLo    349.8 cHi    475.0 ratio 1.358 | rms200 lo  -47.34 hi  -28.48 d  18.86 dB
+  component noise layer = V3 - V4          cLo    783.2 cHi    816.2 ratio 1.042 | rms200 lo  -76.56 hi  -66.55 d  10.01 dB
+  component click layer = V2 - V4          cLo   6852.2 cHi   6985.3 ratio 1.019 | rms200 lo  -82.91 hi  -65.41 d  17.50 dB
+  component NLC contribution = V4 - V5     cLo    321.3 cHi    438.5 ratio 1.365 | rms200 lo -102.82 hi  -62.94 d  39.88 dB
+
+======================= velocity_centroid_probe2.run.log =======================
+(A) SLOT-HISTORY DEPENDENCE (as-is config, Processor 48k bs256)
+  909 Drum Machine    :38 NoiseBurst/Membrane prev pad 40 (Impulse/Shell) | cold lo  6235.2 hi  7426.1 ratio 1.191 | warm lo  5525.0 hi  5732.8 ratio 1.038 | quality-order (lo cold, hi after lo) ratio 0.919 (lane 0.889) | rms500 cold lo/hi -67.30/-50.27 warm lo/hi -67.04/-53.60
+  Acoustic Studio Kit :36 Mallet/Membrane prev pad 37 (Impulse/Shell) | cold lo   620.4 hi   418.0 ratio 0.674 | warm lo   621.5 hi   422.1 ratio 0.679 | quality-order (lo cold, hi after lo) ratio 0.680 (lane 0.673) | rms500 cold lo/hi -41.24/-29.63 warm lo/hi -41.24/-29.78
+  Acoustic Studio Kit :38 Impulse/Membrane prev pad 39 (Clap/NoiseBody) | cold lo  4422.6 hi  3434.7 ratio 0.777 | warm lo  4444.8 hi  3518.4 ratio 0.792 | quality-order (lo cold, hi after lo) ratio 0.796 (lane 0.796) | rms500 cold lo/hi -47.50/-27.40 warm lo/hi -47.46/-27.42
+  Drone and Sustain   :36 Friction/String prev pad 44 (Feedback/Plate) | cold lo   910.1 hi   904.1 ratio 0.993 | warm lo   842.3 hi   841.9 ratio 1.000 | quality-order (lo cold, hi after lo) ratio 0.925 (lane 0.249) | rms500 cold lo/hi -31.15/-20.21 warm lo/hi -31.00/-20.06
+  Ghost Bones         :38 Impulse/Bell prev pad 37 (Friction/String) | cold lo   266.4 hi   258.5 ratio 0.971 | warm lo   267.6 hi   258.8 ratio 0.967 | quality-order (lo cold, hi after lo) ratio 0.972 (lane 0.982) | rms500 cold lo/hi -41.65/-29.26 warm lo/hi -41.76/-29.25
+  Hand Drums          :38 Impulse/Membrane prev pad 36 (Impulse/Membrane) | cold lo   886.2 hi   843.0 ratio 0.951 | warm lo   886.4 hi   850.4 ratio 0.959 | quality-order (lo cold, hi after lo) ratio 0.960 (lane 0.960) | rms500 cold lo/hi -51.26/-32.43 warm lo/hi -51.28/-32.44
+  Hand Drums          :42 Impulse/Membrane prev pad 36 (Impulse/Membrane) | cold lo  2131.6 hi  1127.2 ratio 0.529 | warm lo  2153.6 hi  1136.9 ratio 0.528 | quality-order (lo cold, hi after lo) ratio 0.533 (lane 0.533) | rms500 cold lo/hi -61.63/-31.50 warm lo/hi -61.56/-31.52
+  Orchestral          :38 NoiseBurst/Membrane prev pad 39 (Impulse/Shell) | cold lo  9257.5 hi  9121.8 ratio 0.985 | warm lo  9091.6 hi  9113.0 ratio 1.002 | quality-order (lo cold, hi after lo) ratio 0.984 (lane 0.983) | rms500 cold lo/hi -54.43/-43.14 warm lo/hi -53.12/-42.20
+  Rock Big Room       :38 Impulse/Membrane prev pad 39 (Clap/NoiseBody) | cold lo  4058.5 hi  3563.8 ratio 0.878 | warm lo  4180.8 hi  3711.1 ratio 0.888 | quality-order (lo cold, hi after lo) ratio 0.914 (lane 0.904) | rms500 cold lo/hi -40.95/-28.36 warm lo/hi -40.95/-28.36
+  Vintage Wood        :38 Impulse/Membrane prev pad 42 (NoiseBurst/NoiseBody) | cold lo  3750.6 hi  3229.1 ratio 0.861 | warm lo  3710.5 hi  3191.6 ratio 0.860 | quality-order (lo cold, hi after lo) ratio 0.851 (lane 0.845) | rms500 cold lo/hi -43.08/-29.66 warm lo/hi -42.89/-29.60
+  Latin Perc          :36 Impulse/Membrane prev pad 43 (FMImpulse/Bell) | cold lo  2131.6 hi  1127.2 ratio 0.529 | warm lo  2153.6 hi  1136.9 ratio 0.528 | quality-order (lo cold, hi after lo) ratio 0.533 (lane 0.533) | rms500 cold lo/hi -61.63/-31.50 warm lo/hi -61.56/-31.52
+  Latin Perc          :38 Impulse/Membrane prev pad 43 (FMImpulse/Bell) | cold lo   886.2 hi   843.0 ratio 0.951 | warm lo   886.4 hi   850.4 ratio 0.959 | quality-order (lo cold, hi after lo) ratio 0.960 (lane 0.960) | rms500 cold lo/hi -51.29/-32.45 warm lo/hi -51.30/-32.47
+
+(B) SINGLE-FACTOR VARIANTS (warm, level x0.1)
+  909 Drum Machine:38 NoiseBurst/Membrane shell 1.0 coupling 0.380 secSize 0.320 tension 0.320 wire 0.000 pitchEnvT 0.090 morph 0.0
+    lev                                                cLo   5379.2 cHi   5757.2 ratio 1.070 | rms500 d  13.84 dB
+    lev+shell off                                      cLo   5472.8 cHi   5811.7 ratio 1.062 | rms500 d  14.02 dB
+    lev+tension 0                                      cLo   5379.2 cHi   5757.2 ratio 1.070 | rms500 d  13.84 dB
+    lev+shell off+tension 0                            cLo   5472.8 cHi   5811.7 ratio 1.062 | rms500 d  14.02 dB
+    lev+click0+noise0+shell off+tension 0              cLo   3081.1 cHi   7115.6 ratio 2.309 | rms500 d  10.12 dB
+    lev+wire 0                                         cLo   4703.0 cHi   5623.5 ratio 1.196 | rms500 d  13.60 dB
+    lev+click0+noise0+all-UN0+TS neutral+pitchEnv off  cLo   4366.9 cHi  11010.3 ratio 2.521 | rms500 d  17.82 dB
+  Acoustic Studio Kit:36 Mallet/Membrane shell 1.0 coupling 0.350 secSize 0.400 tension 0.180 wire 0.000 pitchEnvT 0.080 morph 0.0
+    lev                                                cLo    629.1 cHi    434.5 ratio 0.691 | rms500 d  11.53 dB
+    lev+shell off                                      cLo    673.0 cHi    440.8 ratio 0.655 | rms500 d  11.49 dB
+    lev+tension 0                                      cLo    612.4 cHi    484.8 ratio 0.792 | rms500 d  11.53 dB
+    lev+shell off+tension 0                            cLo    326.3 cHi    501.8 ratio 1.538 | rms500 d  11.55 dB
+    lev+click0+noise0+shell off+tension 0              cLo    176.8 cHi    309.8 ratio 1.752 | rms500 d  11.55 dB
+    lev+wire 0                                         cLo    625.9 cHi    429.4 ratio 0.686 | rms500 d  11.53 dB
+    lev+click0+noise0+all-UN0+TS neutral+pitchEnv off  cLo    296.8 cHi    400.4 ratio 1.349 | rms500 d  11.46 dB
+  Acoustic Studio Kit:38 Impulse/Membrane shell 1.0 coupling 0.780 secSize 0.780 tension 0.160 wire 0.450 pitchEnvT 0.070 morph 0.0
+    lev                                                cLo   4437.8 cHi   3515.3 ratio 0.792 | rms500 d  20.05 dB
+    lev+shell off                                      cLo   4645.1 cHi   3988.2 ratio 0.859 | rms500 d  17.95 dB
+    lev+tension 0                                      cLo   4437.8 cHi   3515.5 ratio 0.792 | rms500 d  20.05 dB
+    lev+shell off+tension 0                            cLo   4645.1 cHi   3988.2 ratio 0.859 | rms500 d  17.95 dB
+    lev+click0+noise0+shell off+tension 0              cLo    525.5 cHi    666.8 ratio 1.269 | rms500 d  22.31 dB
+    lev+wire 0                                         cLo   4497.8 cHi   3579.5 ratio 0.796 | rms500 d  19.85 dB
+    lev+click0+noise0+all-UN0+TS neutral+pitchEnv off  cLo    525.3 cHi    662.1 ratio 1.260 | rms500 d  21.96 dB
+  Drone and Sustain:36 Friction/String shell 1.0 coupling 0.180 secSize 0.500 tension 0.000 wire 0.000 pitchEnvT 0.000 morph 1.0
+    lev                                                cLo    842.7 cHi    842.2 ratio 0.999 | rms500 d  10.94 dB
+    lev+shell off                                      cLo    780.0 cHi    780.6 ratio 1.001 | rms500 d  10.93 dB
+    lev+tension 0                                      cLo    842.7 cHi    842.2 ratio 0.999 | rms500 d  10.94 dB
+    lev+shell off+tension 0                            cLo    780.0 cHi    780.6 ratio 1.001 | rms500 d  10.93 dB
+    lev+click0+noise0+shell off+tension 0              cLo    782.7 cHi    783.2 ratio 1.001 | rms500 d  10.93 dB
+    lev+wire 0                                         cLo    842.7 cHi    842.2 ratio 0.999 | rms500 d  10.94 dB
+    lev+click0+noise0+all-UN0+TS neutral+pitchEnv off  cLo   4314.6 cHi   4287.9 ratio 0.994 | rms500 d  10.02 dB
+  Ghost Bones:38 Impulse/Bell shell 0.0 coupling 0.000 secSize 0.500 tension 0.000 wire 0.000 pitchEnvT 0.000 morph 1.0
+    lev                                                cLo    169.4 cHi    260.6 ratio 1.538 | rms500 d  12.55 dB
+    lev+shell off                                      cLo    169.3 cHi    260.6 ratio 1.539 | rms500 d  12.55 dB
+    lev+tension 0                                      cLo    169.3 cHi    260.6 ratio 1.539 | rms500 d  12.55 dB
+    lev+shell off+tension 0                            cLo    169.3 cHi    260.6 ratio 1.539 | rms500 d  12.55 dB
+    lev+click0+noise0+shell off+tension 0              cLo    120.3 cHi    206.3 ratio 1.715 | rms500 d  12.56 dB
+    lev+wire 0                                         cLo    169.3 cHi    260.6 ratio 1.539 | rms500 d  12.55 dB
+    lev+click0+noise0+all-UN0+TS neutral+pitchEnv off  cLo     93.9 cHi    200.0 ratio 2.130 | rms500 d   9.95 dB
+  Hand Drums:38 Impulse/Membrane shell 1.0 coupling 0.280 secSize 0.400 tension 0.180 wire 0.000 pitchEnvT 0.040 morph 0.0
+    lev                                                cLo    911.5 cHi    830.2 ratio 0.911 | rms500 d  19.14 dB
+    lev+shell off                                      cLo    973.0 cHi    843.4 ratio 0.867 | rms500 d  19.33 dB
+    lev+tension 0                                      cLo    911.4 cHi    826.5 ratio 0.907 | rms500 d  19.14 dB
+    lev+shell off+tension 0                            cLo    973.0 cHi    861.0 ratio 0.885 | rms500 d  19.33 dB
+    lev+click0+noise0+shell off+tension 0              cLo    328.1 cHi    457.4 ratio 1.394 | rms500 d  19.36 dB
+    lev+wire 0                                         cLo    911.5 cHi    830.2 ratio 0.911 | rms500 d  19.14 dB
+    lev+click0+noise0+all-UN0+TS neutral+pitchEnv off  cLo    320.8 cHi    424.0 ratio 1.322 | rms500 d  19.01 dB
+  Hand Drums:42 Impulse/Membrane shell 1.0 coupling 0.250 secSize 0.300 tension 0.220 wire 0.000 pitchEnvT 0.040 morph 0.0
+    lev                                                cLo   2275.5 cHi   1112.5 ratio 0.489 | rms500 d  30.33 dB
+    lev+shell off                                      cLo   2369.8 cHi   1143.8 ratio 0.483 | rms500 d  30.61 dB
+    lev+tension 0                                      cLo   2275.5 cHi   1112.5 ratio 0.489 | rms500 d  30.33 dB
+    lev+shell off+tension 0                            cLo   2369.8 cHi   1143.9 ratio 0.483 | rms500 d  30.61 dB
+    lev+click0+noise0+shell off+tension 0              cLo    896.3 cHi    640.1 ratio 0.714 | rms500 d  30.73 dB
+    lev+wire 0                                         cLo   2275.5 cHi   1112.5 ratio 0.489 | rms500 d  30.33 dB
+    lev+click0+noise0+all-UN0+TS neutral+pitchEnv off  cLo    887.6 cHi    634.9 ratio 0.715 | rms500 d  30.58 dB
+  Orchestral:38 NoiseBurst/Membrane shell 1.0 coupling 0.280 secSize 0.320 tension 0.000 wire 0.450 pitchEnvT 0.000 morph 0.0
+    lev                                                cLo   9095.1 cHi   9113.9 ratio 1.002 | rms500 d  10.93 dB
+    lev+shell off                                      cLo   9096.1 cHi   9116.4 ratio 1.002 | rms500 d  10.91 dB
+    lev+tension 0                                      cLo   9095.1 cHi   9113.9 ratio 1.002 | rms500 d  10.93 dB
+    lev+shell off+tension 0                            cLo   9096.1 cHi   9116.4 ratio 1.002 | rms500 d  10.91 dB
+    lev+click0+noise0+shell off+tension 0              cLo   4364.3 cHi  10094.3 ratio 2.313 | rms500 d  22.83 dB
+    lev+wire 0                                         cLo   8958.9 cHi   9059.3 ratio 1.011 | rms500 d  12.27 dB
+    lev+click0+noise0+all-UN0+TS neutral+pitchEnv off  cLo   4633.3 cHi  11011.5 ratio 2.377 | rms500 d  19.23 dB
+  Rock Big Room:38 Impulse/Membrane shell 1.0 coupling 0.780 secSize 0.800 tension 0.320 wire 0.450 pitchEnvT 0.140 morph 0.0
+    lev                                                cLo   4192.1 cHi   3711.9 ratio 0.885 | rms500 d  12.60 dB
+    lev+shell off                                      cLo   4718.7 cHi   4358.2 ratio 0.924 | rms500 d  12.26 dB
+    lev+tension 0                                      cLo   4193.6 cHi   3714.9 ratio 0.886 | rms500 d  12.59 dB
+    lev+shell off+tension 0                            cLo   4718.7 cHi   4358.0 ratio 0.924 | rms500 d  12.26 dB
+    lev+click0+noise0+shell off+tension 0              cLo    231.4 cHi    302.3 ratio 1.306 | rms500 d  13.40 dB
+    lev+wire 0                                         cLo   4219.8 cHi   3757.9 ratio 0.891 | rms500 d  12.59 dB
+    lev+click0+noise0+all-UN0+TS neutral+pitchEnv off  cLo    226.5 cHi    429.6 ratio 1.896 | rms500 d  13.73 dB
+  Vintage Wood:38 Impulse/Membrane shell 1.0 coupling 0.800 secSize 0.750 tension 0.300 wire 0.450 pitchEnvT 0.130 morph 0.0
+    lev                                                cLo   3714.2 cHi   3191.9 ratio 0.859 | rms500 d  13.30 dB
+    lev+shell off                                      cLo   3958.6 cHi   3601.5 ratio 0.910 | rms500 d  12.40 dB
+    lev+tension 0                                      cLo   3714.5 cHi   3193.0 ratio 0.860 | rms500 d  13.30 dB
+    lev+shell off+tension 0                            cLo   3958.6 cHi   3601.3 ratio 0.910 | rms500 d  12.40 dB
+    lev+click0+noise0+shell off+tension 0              cLo    272.6 cHi    258.4 ratio 0.948 | rms500 d  14.09 dB
+    lev+wire 0                                         cLo   3719.4 cHi   3219.7 ratio 0.866 | rms500 d  13.27 dB
+    lev+click0+noise0+all-UN0+TS neutral+pitchEnv off  cLo    256.1 cHi    468.7 ratio 1.830 | rms500 d  14.35 dB
+
+(C) EXCITER ALONE (ExciterBank, 48 kHz, 30 ms, 64 voice seeds)
+  Impulse v=0.315
+    one seed (output)                  centroid full  1098.1 Hz, <2.5k  186.7 Hz | band dB 50-150   48.5 150-400   35.3 400-1k   14.3 1k-2.5k   19.0 2.5k-6k   20.5 6k+   13.1
+    pulse (mean of 64 seeds)           centroid full   240.3 Hz, <2.5k   95.6 Hz | band dB 50-150   48.4 150-400   36.1 400-1k    8.3 1k-2.5k   -1.5 2.5k-6k    2.3 6k+   -4.1
+    noise (seed0 - mean)               centroid full  3767.9 Hz, <2.5k  817.8 Hz | band dB 50-150   26.5 150-400   20.5 400-1k   13.7 1k-2.5k   19.2 2.5k-6k   20.5 6k+   12.9
+  Impulse v=1.000
+    one seed (output)                  centroid full  5647.4 Hz, <2.5k  235.8 Hz | band dB 50-150   49.8 150-400   50.2 400-1k   39.0 1k-2.5k   16.2 2.5k-6k   12.5 6k+   34.6
+    pulse (mean of 64 seeds)           centroid full  1297.1 Hz, <2.5k  232.0 Hz | band dB 50-150   49.6 150-400   50.2 400-1k   39.7 1k-2.5k   14.3 2.5k-6k   -2.4 6k+   18.7
+    noise (seed0 - mean)               centroid full 15521.5 Hz, <2.5k  467.5 Hz | band dB 50-150   22.7 150-400   28.1 400-1k   22.1 1k-2.5k    9.2 2.5k-6k   12.3 6k+   34.6
+  Mallet v=0.315
+    one seed (output)                  centroid full   330.8 Hz, <2.5k  149.2 Hz | band dB 50-150   48.7 150-400   32.4 400-1k   16.1 1k-2.5k   16.6 2.5k-6k    7.9 6k+   -3.4
+    pulse (mean of 64 seeds)           centroid full   114.0 Hz, <2.5k   88.9 Hz | band dB 50-150   48.6 150-400   33.6 400-1k   10.2 1k-2.5k   -2.6 2.5k-6k  -10.9 6k+  -20.6
+    noise (seed0 - mean)               centroid full  1616.2 Hz, <2.5k  643.7 Hz | band dB 50-150   26.8 150-400   19.6 400-1k   15.3 1k-2.5k   16.9 2.5k-6k    8.0 6k+   -3.6
+  Mallet v=1.000
+    one seed (output)                  centroid full  1447.8 Hz, <2.5k  225.8 Hz | band dB 50-150   50.5 150-400   50.0 400-1k   34.4 1k-2.5k   16.7 2.5k-6k   15.4 6k+   21.2
+    pulse (mean of 64 seeds)           centroid full   358.7 Hz, <2.5k  209.0 Hz | band dB 50-150   50.2 150-400   50.0 400-1k   35.1 1k-2.5k    9.9 2.5k-6k   -0.6 6k+    1.5
+    noise (seed0 - mean)               centroid full  6266.2 Hz, <2.5k  553.8 Hz | band dB 50-150   22.9 150-400   27.9 400-1k   21.5 1k-2.5k   13.5 2.5k-6k   15.1 6k+   21.3
+
+======================= velocity_centroid_probe3.run.log =======================
+(D) QUALITY-LANE SEQUENCE REPLAY (fresh Rig per kit)
+  909 Drum Machine:38 replay: vel100 centroid 5851.4 | lo 6235.2 hi 5542.2 ratio 0.889 (lane 0.889) | peak lo -38.14 hi -19.99
+  Drone and Sustain:36 replay: vel100 centroid 3526.7 | lo 3382.2 hi 842.3 ratio 0.249 (lane 0.249) | peak lo -13.43 hi -7.17
+  Orchestral:38 replay: vel100 centroid 9024.5 | lo 9257.5 hi 9103.3 ratio 0.983 (lane 0.983) | peak lo -32.05 hi -13.74
+
+(E) FRESH RIG, FIRST-EVER HIT (pristine slot) vs second hit
+  909 Drum Machine    :38 first-ever lo  6235.2 hi  7426.1 ratio 1.191 | second lo  5443.2 hi  5542.2 ratio 1.018
+  Acoustic Studio Kit :36 first-ever lo   623.7 hi   429.3 ratio 0.688 | second lo   625.9 hi   429.4 ratio 0.686
+  Acoustic Studio Kit :38 first-ever lo  4422.6 hi  3434.7 ratio 0.777 | second lo  4445.6 hi  3518.9 ratio 0.792
+  Drone and Sustain   :36 first-ever lo  3382.0 hi  3628.5 ratio 1.073 | second lo   842.8 hi   842.3 ratio 0.999
+  Ghost Bones         :38 first-ever lo   380.6 hi   287.8 ratio 0.756 | second lo   267.7 hi   258.9 ratio 0.967
+  Hand Drums          :38 first-ever lo   886.2 hi   843.0 ratio 0.951 | second lo   886.4 hi   850.4 ratio 0.959
+  Hand Drums          :42 first-ever lo  2131.6 hi  1127.2 ratio 0.529 | second lo  2153.6 hi  1136.9 ratio 0.528
+  Orchestral          :38 first-ever lo  9257.5 hi  9121.8 ratio 0.985 | second lo  9085.1 hi  9103.3 ratio 1.002
+  Rock Big Room       :38 first-ever lo  4058.5 hi  3563.8 ratio 0.878 | second lo  4186.2 hi  3670.8 ratio 0.877
+  Vintage Wood        :38 first-ever lo  3750.6 hi  3229.1 ratio 0.861 | second lo  3686.1 hi  3170.4 ratio 0.860
+  Latin Perc          :36 first-ever lo  2131.6 hi  1127.2 ratio 0.529 | second lo  2153.6 hi  1136.9 ratio 0.528
+  Latin Perc          :38 first-ever lo   886.2 hi   843.0 ratio 0.951 | second lo   886.4 hi   850.4 ratio 0.959
+
+(F) ACOUSTIC STUDIO KIT 36 (Mallet/Membrane kick): tension x shell x pitchEnv, level x0.1, warm
+  cfg: size 0.850 pitchEnv start 0.452 end 0.199 time 0.080 | tension 0.180 | shell coupling 0.350 size 0.400 mat 0.600 | b1 0.130 b3 0.420
+  tension 0 shell 0 pitchEnv 0 | 0-200ms lo  296.8 hi  400.4 ratio 1.349 | 0-50ms lo  893.4 hi 1014.9 | 50-200ms lo  975.7 hi 1394.3 | rms500 lo -62.46 hi -51.00
+  tension 0 shell 0 pitchEnv 1 | 0-200ms lo  176.8 hi  309.8 ratio 1.752 | 0-50ms lo  168.5 hi 1047.8 | 50-200ms lo  265.9 hi 1262.1 | rms500 lo -62.61 hi -51.06
+  tension 0 shell 1 pitchEnv 0 | 0-200ms lo  248.3 hi  371.4 ratio 1.496 | 0-50ms lo  753.1 hi 1125.2 | 50-200ms lo  847.2 hi 1536.9 | rms500 lo -61.57 hi -50.07
+  tension 0 shell 1 pitchEnv 1 | 0-200ms lo  496.4 hi  315.7 ratio 0.636 | 0-50ms lo  268.0 hi 1049.2 | 50-200ms lo  860.1 hi 1346.3 | rms500 lo -61.65 hi -50.13
+  tension 1 shell 0 pitchEnv 0 | 0-200ms lo  366.7 hi  364.1 ratio 0.993 | 0-50ms lo  853.3 hi 1007.5 | 50-200ms lo 1038.4 hi 1332.2 | rms500 lo -62.47 hi -51.01
+  tension 1 shell 0 pitchEnv 1 | 0-200ms lo  544.0 hi  244.8 ratio 0.450 | 0-50ms lo  137.5 hi 1060.0 | 50-200ms lo  818.6 hi 1174.2 | rms500 lo -62.56 hi -51.07
+  tension 1 shell 1 pitchEnv 0 | 0-200ms lo  312.0 hi  348.1 ratio 1.116 | 0-50ms lo  705.7 hi 1111.0 | 50-200ms lo  902.6 hi 1489.9 | rms500 lo -61.60 hi -50.07
+  tension 1 shell 1 pitchEnv 1 | 0-200ms lo  514.0 hi  262.4 ratio 0.511 | 0-50ms lo  317.3 hi 1049.5 | 50-200ms lo  918.7 hi 1264.1 | rms500 lo -61.66 hi -50.13
+
+======================= velocity_centroid_probe3b.run.log =======================
+(D) QUALITY-LANE SEQUENCE REPLAY (fresh Rig per kit)
+  909 Drum Machine:38 replay: vel100 centroid 5851.4 | lo 6235.2 hi 5542.2 ratio 0.889 (lane 0.889) | peak lo -38.14 hi -19.99
+  Drone and Sustain:36 replay: vel100 centroid 3526.7 | lo 3382.2 hi 842.3 ratio 0.249 (lane 0.249) | peak lo -13.43 hi -7.17
+  Orchestral:38 replay: vel100 centroid 9024.5 | lo 9257.5 hi 9103.3 ratio 0.983 (lane 0.983) | peak lo -32.05 hi -13.74
+
+(E) FRESH RIG, FIRST-EVER HIT (pristine slot) vs second hit
+  909 Drum Machine    :38 first-ever lo  6235.2 hi  7426.1 ratio 1.191 | second lo  5443.2 hi  5542.2 ratio 1.018
+  Acoustic Studio Kit :36 first-ever lo   623.7 hi   429.3 ratio 0.688 | second lo   625.9 hi   429.4 ratio 0.686
+  Acoustic Studio Kit :38 first-ever lo  4422.6 hi  3434.7 ratio 0.777 | second lo  4445.6 hi  3518.9 ratio 0.792
+  Drone and Sustain   :36 first-ever lo  3382.0 hi  3628.5 ratio 1.073 | second lo   842.8 hi   842.3 ratio 0.999
+  Ghost Bones         :38 first-ever lo   380.6 hi   287.8 ratio 0.756 | second lo   267.7 hi   258.9 ratio 0.967
+  Hand Drums          :38 first-ever lo   886.2 hi   843.0 ratio 0.951 | second lo   886.4 hi   850.4 ratio 0.959
+  Hand Drums          :42 first-ever lo  2131.6 hi  1127.2 ratio 0.529 | second lo  2153.6 hi  1136.9 ratio 0.528
+  Orchestral          :38 first-ever lo  9257.5 hi  9121.8 ratio 0.985 | second lo  9085.1 hi  9103.3 ratio 1.002
+  Rock Big Room       :38 first-ever lo  4058.5 hi  3563.8 ratio 0.878 | second lo  4186.2 hi  3670.8 ratio 0.877
+  Vintage Wood        :38 first-ever lo  3750.6 hi  3229.1 ratio 0.861 | second lo  3686.1 hi  3170.4 ratio 0.860
+  Latin Perc          :36 first-ever lo  2131.6 hi  1127.2 ratio 0.529 | second lo  2153.6 hi  1136.9 ratio 0.528
+  Latin Perc          :38 first-ever lo   886.2 hi   843.0 ratio 0.951 | second lo   886.4 hi   850.4 ratio 0.959
+
+(F) ACOUSTIC STUDIO KIT 36 (Mallet/Membrane kick): tension x shell x pitchEnv, level as-is, click0 noise0 NLC0 inject0 wire0 TS neutral, warm
+  cfg: size 0.850 pitchEnv start 0.452 end 0.199 time 0.080 | tension 0.180 | shell coupling 0.350 size 0.400 mat 0.600 | b1 0.130 b3 0.420
+  tension 0 shell 0 pitchEnv 0 | 0-200ms lo  296.8 hi  400.4 ratio 1.349 | 0-50ms lo  893.4 hi 1014.9 | 50-200ms lo  975.7 hi 1394.3 | rms500 lo -42.35 hi -31.00
+  tension 0 shell 0 pitchEnv 1 | 0-200ms lo  530.7 hi  309.8 ratio 0.584 | 0-50ms lo  168.5 hi 1047.8 | 50-200ms lo  818.2 hi 1262.1 | rms500 lo -42.45 hi -31.06
+  tension 0 shell 1 pitchEnv 0 | 0-200ms lo  248.3 hi  371.4 ratio 1.496 | 0-50ms lo  753.1 hi 1125.2 | 50-200ms lo  847.2 hi 1536.9 | rms500 lo -41.49 hi -30.06
+  tension 0 shell 1 pitchEnv 1 | 0-200ms lo  496.4 hi  315.7 ratio 0.636 | 0-50ms lo  268.0 hi 1049.2 | 50-200ms lo  860.1 hi 1346.3 | rms500 lo -41.58 hi -30.12
+  tension 1 shell 0 pitchEnv 0 | 0-200ms lo  366.7 hi  364.1 ratio 0.993 | 0-50ms lo  853.3 hi 1007.5 | 50-200ms lo 1038.4 hi 1332.2 | rms500 lo -42.35 hi -31.00
+  tension 1 shell 0 pitchEnv 1 | 0-200ms lo  544.0 hi  244.8 ratio 0.450 | 0-50ms lo  137.5 hi 1060.0 | 50-200ms lo  818.6 hi 1174.2 | rms500 lo -42.45 hi -31.06
+  tension 1 shell 1 pitchEnv 0 | 0-200ms lo  312.0 hi  348.1 ratio 1.116 | 0-50ms lo  705.7 hi 1111.0 | 50-200ms lo  902.6 hi 1489.9 | rms500 lo -41.50 hi -30.07
+  tension 1 shell 1 pitchEnv 1 | 0-200ms lo  514.0 hi  262.4 ratio 0.511 | 0-50ms lo  317.3 hi 1049.5 | 50-200ms lo  918.7 hi 1264.1 | rms500 lo -41.58 hi -30.13
+
+======================= velocity_centroid_probe4.run.log =======================
+cfg: morph en 1.0 start 0.400 end 0.850 dur 0.850 curve 0.5 | ts type 0.00 cut 0.450 res 0.350 envAmt 0.620 A 0.200 D 0.400 S 0.550 R 0.650 drive 0.260 | friction 0.450 | NLC 0.350
+  as-is                  first  3382.0 Hz (pk -13.43) | second (after reload)   842.8 Hz (pk -18.29) | third (no reload)  3382.8 Hz (pk -13.43)
+  morph off              first  3395.7 Hz (pk -13.40) | second (after reload)   833.2 Hz (pk -18.39) | third (no reload)  3401.2 Hz (pk -13.40)
+  exciter Impulse        first  3233.9 Hz (pk -15.57) | second (after reload)   631.9 Hz (pk -17.08) | third (no reload)  3235.6 Hz (pk -15.57)
+  body Membrane          first   573.9 Hz (pk  -9.93) | second (after reload)   393.7 Hz (pk  -7.00) | third (no reload)   574.2 Hz (pk  -9.94)
+  shell off              first  3354.1 Hz (pk -13.78) | second (after reload)   780.1 Hz (pk -19.03) | third (no reload)  3354.4 Hz (pk -13.78)
+  NLC 0                  first  3429.8 Hz (pk -13.25) | second (after reload)   843.9 Hz (pk -18.40) | third (no reload)  3430.4 Hz (pk -13.25)
+  tone shaper neutral    first  4235.0 Hz (pk -17.93) | second (after reload)  4235.0 Hz (pk -17.93) | third (no reload)  4234.9 Hz (pk -17.93)
+
+======================= velocity_centroid_probe5.run.log =======================
+drive 0.26 | 1st after prepare-with-defaults 5333.3 Hz rms -25.62 | 2nd (no prepare) 941.1 Hz rms -27.38 | after re-prepare with cached values 941.0 Hz rms -27.38 | next (no prepare) 941.1 Hz rms -27.38
+   getFilterCutoff 447.7 Hz
+drive 0.00 | 1st after prepare-with-defaults 5331.0 Hz rms -25.38 | 2nd (no prepare) 936.2 Hz rms -27.12 | after re-prepare with cached values 936.2 Hz rms -27.12 | next (no prepare) 936.2 Hz rms -27.12
+   getFilterCutoff 447.7 Hz
+
+======================= velocity_centroid_probe6.run.log =======================
+909 Drum Machine:38 globalCoupling 0.000 padCouplingAmount 0.500 masterNorm 0.500
+  level x1.0 coupling kit  | cLo  5525.0 cHi  5732.8 ratio 1.038 | peak lo  -38.80 hi  -21.28 dBFS
+  level x1.0 coupling 0    | cLo  5525.0 cHi  5732.8 ratio 1.038 | peak lo  -38.80 hi  -21.28 dBFS
+  level x0.1 coupling kit  | cLo  5379.2 cHi  5757.2 ratio 1.070 | peak lo  -58.38 hi  -41.28 dBFS
+  level x0.1 coupling 0    | cLo  5379.2 cHi  5757.2 ratio 1.070 | peak lo  -58.38 hi  -41.28 dBFS
+Acoustic Studio Kit:36 globalCoupling 0.000 padCouplingAmount 0.500 masterNorm 0.500
+  level x1.0 coupling kit  | cLo   629.1 cHi   434.5 ratio 0.691 | peak lo  -28.24 hi  -12.47 dBFS
+  level x1.0 coupling 0    | cLo   629.1 cHi   434.5 ratio 0.691 | peak lo  -28.24 hi  -12.47 dBFS
+  level x0.1 coupling kit  | cLo   629.1 cHi   434.5 ratio 0.691 | peak lo  -48.24 hi  -32.47 dBFS
+  level x0.1 coupling 0    | cLo   629.1 cHi   434.5 ratio 0.691 | peak lo  -48.24 hi  -32.47 dBFS
+Acoustic Studio Kit:38 globalCoupling 0.000 padCouplingAmount 0.500 masterNorm 0.500
+  level x1.0 coupling kit  | cLo  4444.8 cHi  3518.4 ratio 0.792 | peak lo  -24.40 hi   -8.16 dBFS
+  level x1.0 coupling 0    | cLo  4444.8 cHi  3518.4 ratio 0.792 | peak lo  -24.40 hi   -8.16 dBFS
+  level x0.1 coupling kit  | cLo  4437.8 cHi  3515.3 ratio 0.792 | peak lo  -44.40 hi  -28.16 dBFS
+  level x0.1 coupling 0    | cLo  4437.8 cHi  3515.3 ratio 0.792 | peak lo  -44.40 hi  -28.16 dBFS
+Drone and Sustain:36 globalCoupling 0.850 padCouplingAmount 0.850 masterNorm 0.500
+  level x1.0 coupling kit  | cLo   842.8 cHi   842.1 ratio 0.999 | peak lo  -18.29 hi   -7.17 dBFS
+  level x1.0 coupling 0    | cLo   842.8 cHi   842.3 ratio 0.999 | peak lo  -18.29 hi   -7.17 dBFS
+  level x0.1 coupling kit  | cLo   842.8 cHi   842.4 ratio 0.999 | peak lo  -38.29 hi  -27.17 dBFS
+  level x0.1 coupling 0    | cLo   842.8 cHi   842.3 ratio 0.999 | peak lo  -38.29 hi  -27.17 dBFS
+Ghost Bones:38 globalCoupling 0.780 padCouplingAmount 0.850 masterNorm 0.500
+  level x1.0 coupling kit  | cLo   267.6 cHi   258.8 ratio 0.967 | peak lo  -24.88 hi  -11.70 dBFS
+  level x1.0 coupling 0    | cLo   267.7 cHi   260.7 ratio 0.974 | peak lo  -24.88 hi  -11.70 dBFS
+  level x0.1 coupling kit  | cLo   169.3 cHi   260.6 ratio 1.539 | peak lo  -44.88 hi  -31.70 dBFS
+  level x0.1 coupling 0    | cLo   168.5 cHi   260.7 ratio 1.547 | peak lo  -44.88 hi  -31.70 dBFS
+Hand Drums:38 globalCoupling 0.300 padCouplingAmount 0.500 masterNorm 0.500
+  level x1.0 coupling kit  | cLo   886.4 cHi   850.4 ratio 0.959 | peak lo  -33.38 hi  -12.99 dBFS
+  level x1.0 coupling 0    | cLo   886.4 cHi   850.5 ratio 0.960 | peak lo  -33.38 hi  -12.99 dBFS
+  level x0.1 coupling kit  | cLo   911.5 cHi   830.2 ratio 0.911 | peak lo  -53.38 hi  -32.99 dBFS
+  level x0.1 coupling 0    | cLo   911.5 cHi   830.3 ratio 0.911 | peak lo  -53.38 hi  -32.99 dBFS
+Hand Drums:42 globalCoupling 0.300 padCouplingAmount 0.500 masterNorm 0.500
+  level x1.0 coupling kit  | cLo  2153.6 cHi  1136.9 ratio 0.528 | peak lo  -37.64 hi  -11.79 dBFS
+  level x1.0 coupling 0    | cLo  2153.7 cHi  1136.9 ratio 0.528 | peak lo  -37.64 hi  -11.79 dBFS
+  level x0.1 coupling kit  | cLo  2275.5 cHi  1112.5 ratio 0.489 | peak lo  -57.64 hi  -31.79 dBFS
+  level x0.1 coupling 0    | cLo  2275.6 cHi  1112.4 ratio 0.489 | peak lo  -57.64 hi  -31.79 dBFS
+Orchestral:38 globalCoupling 0.280 padCouplingAmount 0.500 masterNorm 0.500
+  level x1.0 coupling kit  | cLo  9091.6 cHi  9113.0 ratio 1.002 | peak lo  -28.06 hi  -13.88 dBFS
+  level x1.0 coupling 0    | cLo  9091.6 cHi  9113.0 ratio 1.002 | peak lo  -28.06 hi  -13.88 dBFS
+  level x0.1 coupling kit  | cLo  9095.1 cHi  9113.9 ratio 1.002 | peak lo  -48.06 hi  -33.88 dBFS
+  level x0.1 coupling 0    | cLo  9095.1 cHi  9113.9 ratio 1.002 | peak lo  -48.06 hi  -33.88 dBFS
+Rock Big Room:38 globalCoupling 0.300 padCouplingAmount 0.700 masterNorm 0.500
+  level x1.0 coupling kit  | cLo  4180.8 cHi  3711.1 ratio 0.888 | peak lo  -23.99 hi  -10.51 dBFS
+  level x1.0 coupling 0    | cLo  4180.8 cHi  3711.2 ratio 0.888 | peak lo  -23.99 hi  -10.51 dBFS
+  level x0.1 coupling kit  | cLo  4192.1 cHi  3711.9 ratio 0.885 | peak lo  -43.99 hi  -30.51 dBFS
+  level x0.1 coupling 0    | cLo  4192.1 cHi  3712.0 ratio 0.885 | peak lo  -43.99 hi  -30.51 dBFS
+Vintage Wood:38 globalCoupling 0.200 padCouplingAmount 0.500 masterNorm 0.500
+  level x1.0 coupling kit  | cLo  3710.5 cHi  3191.6 ratio 0.860 | peak lo  -22.78 hi   -9.03 dBFS
+  level x1.0 coupling 0    | cLo  3710.5 cHi  3191.6 ratio 0.860 | peak lo  -22.78 hi   -9.03 dBFS
+  level x0.1 coupling kit  | cLo  3714.2 cHi  3191.9 ratio 0.859 | peak lo  -42.78 hi  -29.03 dBFS
+  level x0.1 coupling 0    | cLo  3714.3 cHi  3191.8 ratio 0.859 | peak lo  -42.78 hi  -29.03 dBFS
