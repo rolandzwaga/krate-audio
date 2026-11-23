@@ -300,6 +300,33 @@ TEST_CASE("setFrequency clamps to valid range", "[lfo][US1][frequency]") {
     }
 }
 
+// R-048 (Ruinae audit): a consumer can raise the upper clamp for free and synced rates
+TEST_CASE("setMaxFrequency raises the free and tempo-synced rate clamp", "[lfo][frequency]") {
+    LFO lfo;
+    lfo.prepare(96000.0);
+    lfo.setMaxFrequency(50.0f);
+
+    SECTION("free rate up to the new maximum") {
+        lfo.setFrequency(50.0f);
+        CHECK(lfo.frequency() == Approx(50.0f));
+        lfo.setFrequency(100.0f);
+        CHECK(lfo.frequency() == Approx(50.0f));
+    }
+
+    SECTION("tempo-synced 1/64 at 120 BPM is 32 Hz") {
+        lfo.setTempo(120.0f);
+        lfo.setNoteValue(NoteValue::SixtyFourth, NoteModifier::None);
+        lfo.setTempoSync(true);
+        CHECK(lfo.frequency() == Approx(32.0f));
+    }
+
+    SECTION("lowering the maximum re-clamps the current rate") {
+        lfo.setFrequency(40.0f);
+        lfo.setMaxFrequency(20.0f);
+        CHECK(lfo.frequency() == Approx(20.0f));
+    }
+}
+
 // T020: Test processBlock() generates correct samples
 TEST_CASE("processBlock generates correct samples", "[lfo][US1][block]") {
     LFO lfo;

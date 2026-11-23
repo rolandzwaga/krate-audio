@@ -7,8 +7,14 @@
 
 #include "midi/midi_event_dispatcher.h"
 
+#include <krate/dsp/core/db_utils.h>
+
+#include "pluginterfaces/vst/ivstnoteexpression.h"
+
 #include <algorithm>
+#include <cmath>
 #include <cstdint>
+#include <span>
 
 
 namespace Ruinae {
@@ -98,7 +104,7 @@ void Processor::applyTimedEvent(const TimedEvent& event) noexcept {
             else engine_.noteOff(event.pitch);
             break;
         case TimedEventKind::ArpNoteOn:
-            engine_.noteOn(event.pitch, event.velocity, event.legato);
+            engine_.noteOn(event.pitch, event.velocity, event.legato, event.legatoContinues);
             break;
         case TimedEventKind::ArpNoteOff:
             engine_.noteOff(event.pitch);
@@ -108,6 +114,15 @@ void Processor::applyTimedEvent(const TimedEvent& event) noexcept {
             break;
         case TimedEventKind::PitchBend:
             engine_.setPitchBend(static_cast<float>(event.value));
+            break;
+        case TimedEventKind::Aftertouch:
+            engine_.setAftertouch(static_cast<float>(event.value));
+            break;
+        case TimedEventKind::ModWheel:
+            if (!Krate::DSP::detail::isFinite(static_cast<float>(event.value))) break;
+            modWheelValue_ = std::clamp(static_cast<float>(event.value), 0.0f, 1.0f);
+            modWheelOwnsMacro1_ = true;
+            engine_.setModWheel(modWheelValue_);
             break;
     }
 }
@@ -126,9 +141,40 @@ void Processor::renderEngineSegments(float* left, float* right, size_t numSample
         while (next < timedEventCount_ && timedEvents_[next].offset <= pos) {
             applyTimedEvent(timedEvents_[next++]);
         }
-        const size_t end = (next < timedEventCount_)
-            ? std::min(static_cast<size_t>(timedEvents_[next].offset), numSamples)
-            : numSamples;
+        // Note events split the render at their own sample. Controller data
+        // (bend, expression, aftertouch, mod wheel) does not (R-006): it waits
+        // for the start of the engine's next modulation cell (64 samples,
+        // counted across buffers, where the engine reads it) or the next note
+        // event, whichever comes first. The engine call count then follows
+        // the notes and the block length, not the density of the controller
+        // data, and the result does not depend on the host buffer size.
+        const size_t cell = Krate::DSP::RuinaeEngine::modCellSamples();
+        const size_t toCell = engine_.samplesToNextModCell();  // from pos
+        size_t end = numSamples;
+        for (size_t k = next; k < timedEventCount_; ++k) {
+            const TimedEvent& ev = timedEvents_[k];
+            const auto at = static_cast<size_t>(ev.offset);
+            if (at >= end) break;
+            const bool isNote = ev.kind == TimedEventKind::NoteOn ||
+                                ev.kind == TimedEventKind::NoteOff ||
+                                ev.kind == TimedEventKind::ArpNoteOn ||
+                                ev.kind == TimedEventKind::ArpNoteOff;
+            if (isNote) {
+                end = at;
+                break;
+            }
+            // First cell start at or after `at` (at > pos here)
+            const size_t firstCell = pos + toCell;
+            const size_t cellStart = (at <= firstCell)
+                ? firstCell
+                : firstCell + (at - firstCell + cell - 1) / cell * cell;
+            end = std::min(end, cellStart);
+        }
+        // The engine renders at most the setupProcessing block size per call
+        // (it truncates beyond that): split an oversized buffer into chunks.
+        if (maxBlockSize_ > 0) {
+            end = std::min(end, pos + static_cast<size_t>(maxBlockSize_));
+        }
         // The engine reads the transport per call (trance gate sync), so each
         // segment gets the musical time of its first sample.
         Krate::DSP::BlockContext segment = blockCtx;
@@ -144,6 +190,7 @@ void Processor::renderEngineSegments(float* left, float* right, size_t numSample
         engine_.setSidechainInput(sidechainL ? sidechainL + pos : nullptr,
                                   sidechainR ? sidechainR + pos : nullptr);
         engine_.processBlock(left + pos, right + pos, end - pos);
+        ++engineRenderCalls_;
         pos = end;
     }
     // Events past the buffer (none after clamping) apply now.
@@ -152,12 +199,99 @@ void Processor::renderEngineSegments(float* left, float* right, size_t numSample
 }
 
 // ==============================================================================
+// Arp key timing (R-072)
+// ==============================================================================
+
+void Processor::queueArpKey(const ArpKeyEvent& key) noexcept {
+    if (arpKeyEventCount_ >= kMaxArpKeyEvents) {
+        // Queue full: apply what is queued, then this key, at the buffer start
+        // (the order holds, so a key-off never runs before its key-on).
+        flushArpKeys();
+        applyArpKey(key);
+        return;
+    }
+    size_t i = arpKeyEventCount_;
+    while (i > 0 && arpKeyEvents_[i - 1].offset > key.offset) {
+        arpKeyEvents_[i] = arpKeyEvents_[i - 1];
+        --i;
+    }
+    arpKeyEvents_[i] = key;
+    ++arpKeyEventCount_;
+}
+
+void Processor::applyArpKey(const ArpKeyEvent& key) noexcept {
+    if (key.on) arpCore_.noteOn(key.pitch, key.velocity);
+    else arpCore_.noteOff(key.pitch);
+}
+
+void Processor::flushArpKeys() noexcept {
+    for (size_t i = 0; i < arpKeyEventCount_; ++i) applyArpKey(arpKeyEvents_[i]);
+    arpKeyEventCount_ = 0;
+}
+
+size_t Processor::runArpSegments(const Krate::DSP::BlockContext& arpCtx, bool hostSync) noexcept {
+    const size_t numSamples = arpCtx.blockSize;
+    size_t total = 0;
+    size_t next = 0;
+    size_t pos = 0;
+    while (pos < numSamples) {
+        while (next < arpKeyEventCount_ && arpKeyEvents_[next].offset <= pos) {
+            applyArpKey(arpKeyEvents_[next++]);
+        }
+        const size_t end = (next < arpKeyEventCount_)
+            ? std::min(static_cast<size_t>(arpKeyEvents_[next].offset), numSamples)
+            : numSamples;
+        // Each segment carries the position of its first sample, as the
+        // engine's render segments do.
+        Krate::DSP::BlockContext segment = arpCtx;
+        segment.blockSize = end - pos;
+        if (pos > 0) {
+            segment.transportPositionSamples += static_cast<int64_t>(pos);
+            if (segment.projectTimeMusicValid) {
+                segment.projectTimeMusic += static_cast<double>(pos) / arpCtx.sampleRate
+                                          * (arpCtx.tempoBPM / 60.0);
+            }
+        }
+        if (hostSync) arpCore_.syncToMusicalPosition(segment.projectTimeMusic);
+        const size_t count = arpCore_.processBlock(segment, std::span(arpEvents_).subspan(total));
+        for (size_t i = total; i < total + count; ++i) {
+            arpEvents_[i].sampleOffset += static_cast<int32_t>(pos);
+        }
+        total += count;
+        pos = end;
+    }
+    // Keys of an empty buffer (and any past its end, none after clamping).
+    while (next < arpKeyEventCount_) applyArpKey(arpKeyEvents_[next++]);
+    arpKeyEventCount_ = 0;
+    return total;
+}
+
+// ==============================================================================
 // MIDI Dispatcher Callbacks (FR-006)
 // ==============================================================================
-// NOLINTNEXTLINE(readability-convert-member-functions-to-static) accesses members arpParams_, arpCore_, engine_
+// The plain overloads are the noteId-aware ones with no id (-1), which the
+// timed-event queue already treats as "route by pitch".
 void Processor::onNoteOn(int16_t pitch, float velocity) {
+    onNoteOn(pitch, velocity, -1);
+}
+
+void Processor::onNoteOff(int16_t pitch) {
+    onNoteOff(pitch, -1);
+}
+
+// ==============================================================================
+// MPE Callbacks (noteId-aware overloads)
+// ==============================================================================
+
+// NOLINTNEXTLINE(readability-convert-member-functions-to-static) accesses members arpParams_, arpCore_, engine_
+void Processor::onNoteOn(int16_t pitch, float velocity, int32_t noteId) {
+    if (pitch < 0 || pitch > 127) return;
     auto midiPitch = static_cast<uint8_t>(pitch);
-    auto midiVelocity = static_cast<uint8_t>(velocity * 127.0f + 0.5f);
+    // A positive VST3 velocity is a note-on: it maps to MIDI 1-127, never 0 (R-167)
+    const auto midiVelocity = static_cast<uint8_t>(
+        velocity > 0.0f
+            ? std::clamp(static_cast<int>(std::lround(std::min(velocity, 1.0f) * 127.0f)), 1, 127)
+            : 0);
 
     const int opMode = arpParams_.operatingMode.load(std::memory_order_relaxed);
 
@@ -166,69 +300,33 @@ void Processor::onNoteOn(int16_t pitch, float velocity) {
     const bool arpDispatchesNotes = (opMode == kArpMIDI || opMode == kArpMIDIMod);
 
     if (arpRunning) {
-        // Feed note to arp core for pattern building
-        arpCore_.noteOn(midiPitch, midiVelocity);
+        // Feed note to arp core for pattern building, at its offset (R-072)
+        queueArpKey({.offset = currentEventOffset_, .pitch = midiPitch, .velocity = midiVelocity, .on = true});
+        if (arpCoreKeysOpen_[midiPitch] < UINT8_MAX) ++arpCoreKeysOpen_[midiPitch];
     }
     if (!arpDispatchesNotes) {
         // Direct to engine: Off mode or Mod-only mode (voices play held notes)
         queueTimedEvent({.offset = currentEventOffset_, .kind = TimedEventKind::NoteOn,
-                         .pitch = midiPitch, .velocity = midiVelocity});
-    }
-}
-
-// NOLINTNEXTLINE(readability-convert-member-functions-to-static) accesses members arpParams_, arpCore_, engine_
-void Processor::onNoteOff(int16_t pitch) {
-    auto midiPitch = static_cast<uint8_t>(pitch);
-
-    const int opMode = arpParams_.operatingMode.load(std::memory_order_relaxed);
-
-    const bool arpRunning = (opMode != kArpOff);
-    const bool arpDispatchesNotes = (opMode == kArpMIDI || opMode == kArpMIDIMod);
-
-    if (arpRunning) {
-        arpCore_.noteOff(midiPitch);
-    }
-    if (!arpDispatchesNotes) {
-        queueTimedEvent({.offset = currentEventOffset_, .kind = TimedEventKind::NoteOff, .pitch = midiPitch});
-    }
-}
-
-// ==============================================================================
-// MPE Callbacks (noteId-aware overloads)
-// ==============================================================================
-
-// NOLINTNEXTLINE(readability-convert-member-functions-to-static)
-void Processor::onNoteOn(int16_t pitch, float velocity, int32_t noteId) {
-    auto midiPitch = static_cast<uint8_t>(pitch);
-    auto midiVelocity = static_cast<uint8_t>(velocity * 127.0f + 0.5f);
-
-    const int opMode = arpParams_.operatingMode.load(std::memory_order_relaxed);
-
-    const bool arpRunning = (opMode != kArpOff);
-    const bool arpDispatchesNotes = (opMode == kArpMIDI || opMode == kArpMIDIMod);
-
-    if (arpRunning) {
-        arpCore_.noteOn(midiPitch, midiVelocity);
-    }
-    if (!arpDispatchesNotes) {
-        queueTimedEvent({.offset = currentEventOffset_, .kind = TimedEventKind::NoteOn,
                          .pitch = midiPitch, .velocity = midiVelocity, .noteId = noteId});
+        if (engineDirectOpen_[midiPitch] < UINT8_MAX) ++engineDirectOpen_[midiPitch];
     }
 }
 
-// NOLINTNEXTLINE(readability-convert-member-functions-to-static)
+// The release goes to every sink its note-on reached, whatever the operating
+// mode is now: a key pressed with the arp Off and released after switching it
+// on still ends its engine voice, and a key released while the arp is Off
+// still leaves the arp's held buffer (R-029, R-065).
+// NOLINTNEXTLINE(readability-convert-member-functions-to-static) accesses members arpCore_, engine_
 void Processor::onNoteOff(int16_t pitch, int32_t noteId) {
+    if (pitch < 0 || pitch > 127) return;
     auto midiPitch = static_cast<uint8_t>(pitch);
 
-    const int opMode = arpParams_.operatingMode.load(std::memory_order_relaxed);
-
-    const bool arpRunning = (opMode != kArpOff);
-    const bool arpDispatchesNotes = (opMode == kArpMIDI || opMode == kArpMIDIMod);
-
-    if (arpRunning) {
-        arpCore_.noteOff(midiPitch);
+    if (arpCoreKeysOpen_[midiPitch] > 0) {
+        --arpCoreKeysOpen_[midiPitch];
+        queueArpKey({.offset = currentEventOffset_, .pitch = midiPitch, .on = false});
     }
-    if (!arpDispatchesNotes) {
+    if (engineDirectOpen_[midiPitch] > 0) {
+        --engineDirectOpen_[midiPitch];
         queueTimedEvent({.offset = currentEventOffset_, .kind = TimedEventKind::NoteOff,
                          .pitch = midiPitch, .noteId = noteId});
     }
@@ -236,6 +334,14 @@ void Processor::onNoteOff(int16_t pitch, int32_t noteId) {
 
 // NOLINTNEXTLINE(readability-convert-member-functions-to-static)
 void Processor::onNoteExpression(int32_t noteId, uint32_t typeId, double value) {
+    // Only the types RuinaeEngine::setNoteExpression applies are queued: any
+    // other type would split the render for nothing (R-036).
+    using Steinberg::Vst::NoteExpressionTypeIDs;
+    if (typeId != NoteExpressionTypeIDs::kVolumeTypeID &&
+        typeId != NoteExpressionTypeIDs::kTuningTypeID &&
+        typeId != NoteExpressionTypeIDs::kBrightnessTypeID) {
+        return;
+    }
     // Queued like the notes, so an expression lands after a note-on it follows.
     queueTimedEvent({.offset = currentEventOffset_, .kind = TimedEventKind::Expression,
                      .noteId = noteId, .typeId = typeId, .value = value});

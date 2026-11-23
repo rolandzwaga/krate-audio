@@ -204,11 +204,13 @@ TEST_CASE("Cross-type copy velocity->modifier copies normalized values", "[clipb
     }
     modLane.setLength(clip.length);
 
-    // Verify the round-trip preserves what was pasted (within the target's quantization)
-    // Modifier stores bitmask/15, so exact values may quantize
+    // The target decodes the pasted values as its 0-255 parameter does
+    // (round(v * 255), of which the flag bits show; R-145): 0.0 -> 0x00,
+    // 1.0 -> 255 -> 0x0F.
     REQUIRE(modLane.getActiveLength() == 4);
-    REQUIRE(modLane.getNormalizedStepValue(0) == Approx(0.0f).margin(0.034f));
-    REQUIRE(modLane.getNormalizedStepValue(3) == Approx(1.0f).margin(0.034f));
+    REQUIRE(modLane.getStepFlags(0) == 0x00);
+    REQUIRE(modLane.getStepFlags(3) == 0x0F);
+    REQUIRE(modLane.getNormalizedStepValue(3) == Approx(15.0f / 255.0f).margin(1e-6f));
 }
 
 TEST_CASE("Cross-type copy velocity->condition copies normalized values", "[clipboard]") {

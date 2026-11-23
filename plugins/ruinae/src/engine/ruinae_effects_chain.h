@@ -3,13 +3,13 @@
 // ==============================================================================
 // Stereo effects chain for the Ruinae synthesizer composing existing Layer 4
 // effects into a fixed-order processing chain:
-//   Voice Sum -> Phaser -> Delay -> Harmonizer -> Reverb -> Output
+//   Voice Sum -> Modulation slot -> Delay -> Harmonizer -> Reverb -> Output
 //
 // Features:
-// - Stereo phaser with tempo sync
-// - Five selectable delay types with click-free crossfade switching (25-50ms)
-// - Dattorro plate reverb
-// - Constant worst-case latency reporting with per-delay compensation
+// - One modulation slot (None / Phaser / Flanger / Chorus) with crossfade switching
+// - Five selectable delay types with click-free crossfade switching (30ms)
+// - Two reverbs (Dattorro plate, FDN hall), crossfaded when switched
+// - No added latency: every delay type's first echo lands at the set delay time
 // - Fully real-time safe (all runtime methods noexcept, zero allocations)
 //
 // Feature: 043-effects-section
@@ -29,7 +29,6 @@
 #include <krate/dsp/effects/reverb.h>
 #include <krate/dsp/effects/spectral_delay.h>
 #include <krate/dsp/effects/tape_delay.h>
-#include <krate/dsp/primitives/delay_line.h>
 #include <krate/dsp/primitives/smoother.h>
 #include <krate/dsp/processors/chorus.h>
 #include <krate/dsp/processors/flanger.h>
@@ -42,6 +41,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstring>
+#include <utility>
 #include <vector>
 #include <cstdint>
 
@@ -49,8 +49,8 @@ namespace Krate::DSP {
 
 /// @brief Modulation type selector for the modulation effects slot.
 ///
-/// Replaces the legacy `phaserEnabled_` boolean with a three-way selector
-/// supporting None, Phaser, and Flanger. Used by RuinaeEffectsChain for
+/// Replaces the legacy `phaserEnabled_` boolean with a four-way selector
+/// supporting None, Phaser, Flanger, and Chorus. Used by RuinaeEffectsChain for
 /// crossfade switching between modulation effects.
 enum class ModulationType : std::uint8_t {
     None = 0,
@@ -62,12 +62,15 @@ enum class ModulationType : std::uint8_t {
 /// @brief Stereo effects chain for the Ruinae synthesizer (Layer 3).
 ///
 /// Composes existing effects into a fixed-order processing chain:
-///   Voice Sum -> Phaser -> Delay -> Harmonizer -> Reverb -> Output
+///   Voice Sum -> Modulation slot -> Delay -> Harmonizer -> Reverb -> Output
 ///
 /// Features:
 /// - Five selectable delay types with click-free crossfade switching
-/// - Dattorro plate reverb
-/// - Constant worst-case latency reporting with per-delay compensation
+/// - Two reverbs (Dattorro plate, FDN hall), crossfaded when switched
+/// - No added latency (getLatencySamples() is 0): the dry path is never delayed
+///   and every time-domain delay type's first echo lands at the set delay time.
+///   Spectral repeats follow the set time; its first echo arrives a fixed FFT
+///   size later (T3.6b).
 /// - Fully real-time safe (all runtime methods noexcept, zero allocations)
 ///
 /// @par Constitution Compliance
@@ -91,6 +94,9 @@ public:
     /// @brief Minimum pre-warm duration in milliseconds (smoother settling)
     static constexpr float kMinPreWarmMs = 20.0f;
 
+    /// @brief Modulation-slot pre-warm: the longest chorus/flanger read delay.
+    static constexpr float kModPreWarmMs = std::max(Chorus::kMaxDelayMs, Flanger::kMaxDelayMs);
+
     // =========================================================================
     // Lifecycle (FR-002, FR-003)
     // =========================================================================
@@ -106,8 +112,8 @@ public:
 
     /// @brief Prepare all internal effects for processing (FR-002).
     ///
-    /// Allocates all temporary buffers and prepares all five delay types,
-    /// the reverb, and latency compensation delays.
+    /// Allocates all temporary buffers and prepares all five delay types
+    /// and the reverb.
     /// May allocate memory. NOT real-time safe.
     ///
     /// @param sampleRate Sample rate in Hz
@@ -120,8 +126,9 @@ public:
         digitalDelay_.prepare(sampleRate, maxBlockSize, kMaxDelayMs);
         tapeDelay_.prepare(sampleRate, maxBlockSize, kMaxDelayMs);
         pingPongDelay_.prepare(sampleRate, maxBlockSize, kMaxDelayMs);
-        granularDelay_.prepare(sampleRate);  // Only sampleRate!
-        spectralDelay_.prepare(sampleRate, maxBlockSize);
+        // All five get the full Delay Time range (R-094: Granular and Spectral used to stop at 2 s)
+        granularDelay_.prepare(sampleRate, kMaxDelayMs / 1000.0f);
+        spectralDelay_.prepare(sampleRate, maxBlockSize, kMaxDelayMs);
 
         // Prepare phaser, flanger, and chorus
         phaser_.prepare(sampleRate);
@@ -139,25 +146,7 @@ public:
         harmonizerMonoScratch_.resize(maxBlockSize, 0.0f);
         harmonizerDryL_.resize(maxBlockSize, 0.0f);
         harmonizerDryR_.resize(maxBlockSize, 0.0f);
-
-        // Query worst-case harmonizer latency by temporarily setting PhaseVocoder mode
-        // (FR-019: must query after setting PV mode for worst-case, FR-020: constant)
-        harmonizer_.setPitchShiftMode(PitchMode::PhaseVocoder);
-        const size_t harmonizerLatency = harmonizer_.getLatencySamples();
-        harmonizer_.setPitchShiftMode(PitchMode::Simple); // Reset to default
-
-        // Combined worst-case: spectral delay + harmonizer PhaseVocoder
-        targetLatencySamples_ = spectralDelay_.getLatencySamples() + harmonizerLatency;
-
-        // Prepare compensation delays (2 shared pairs: active + standby)
-        if (targetLatencySamples_ > 0) {
-            float compDelaySec = static_cast<float>(targetLatencySamples_) /
-                                 static_cast<float>(sampleRate);
-            for (size_t i = 0; i < 2; ++i) {
-                compDelayL_[i].prepare(sampleRate, compDelaySec + 0.001f);
-                compDelayR_[i].prepare(sampleRate, compDelaySec + 0.001f);
-            }
-        }
+        harmonizerDryGain_.resize(maxBlockSize, 0.0f);
 
         // Allocate temp buffers
         tempL_.resize(maxBlockSize, 0.0f);
@@ -176,8 +165,8 @@ public:
         reverbDryR_.resize(maxBlockSize, 0.0f);
 
         // Force each delay processor's internal mix to 100% wet. The chain
-        // performs the dry/wet mix externally so that the latency-compensation
-        // delay only delays the wet signal, not the dry signal.
+        // performs the dry/wet mix externally (smoothed, with the slot fade
+        // scaling the wet only).
         digitalDelay_.setMix(1.0f);
         tapeDelay_.setMix(1.0f);
         pingPongDelay_.setMix(1.0f);
@@ -195,6 +184,16 @@ public:
         pingPongDelay_.snapParameters();
         spectralDelay_.snapParameters();
 
+        // prepare() left every delay line silent
+        delayClearPending_.fill(false);
+        delayDirty_.fill(false);
+        const auto backlog = static_cast<size_t>(kDelayBacklogMs * sampleRate / 1000.0) + maxBlockSize;
+        activeDelayBacklogL_.assign(backlog, 0.0f);
+        activeDelayBacklogR_.assign(backlog, 0.0f);
+        activeDelayBacklogStart_ = 0;
+        activeDelayBacklog_ = 0;
+        harmonizerRanSinceReset_ = true;  // the next reset() resets it once
+
         prepared_ = true;
     }
 
@@ -209,11 +208,16 @@ public:
         modCrossfading_ = false;
         modCrossfadeAlpha_ = 0.0f;
         modCrossfadeIncrement_ = 0.0f;
-        digitalDelay_.reset();
-        tapeDelay_.reset();
-        pingPongDelay_.reset();
-        granularDelay_.reset();
-        spectralDelay_.reset();
+        modTypePending_ = false;
+        modPreWarming_ = false;
+        modPreWarmRemaining_ = 0;
+        // The delay lines hold up to 5 s each (tens of MB at 192 kHz): clearing
+        // them here, inside one process() call, overran the block (R-004).
+        // Each type that holds audio is cleared a slice per chunk instead, and
+        // is not heard until it is clean; a type that was not run since its
+        // last clear is silent already.
+        scheduleDirtyDelayClears();
+        activeDelayBacklog_ = 0;
         reverb_.reset();
         fdnReverb_.reset();
 
@@ -222,29 +226,30 @@ public:
         reverbCrossfadeAlpha_ = 0.0f;
         reverbCrossfadeIncrement_ = 0.0f;
 
-        // Reset harmonizer
-        harmonizer_.reset();
+        // Reset harmonizer: ~80 us at 192 kHz, so only when it ran since its
+        // last reset (R-004); otherwise it is still in its reset state.
+        if (harmonizerRanSinceReset_) {
+            harmonizer_.reset();
+            harmonizerRanSinceReset_ = false;
+        }
         std::fill(harmonizerMonoScratch_.begin(), harmonizerMonoScratch_.end(), 0.0f);
         std::fill(harmonizerDryL_.begin(), harmonizerDryL_.end(), 0.0f);
         std::fill(harmonizerDryR_.begin(), harmonizerDryR_.end(), 0.0f);
+        std::fill(harmonizerDryGain_.begin(), harmonizerDryGain_.end(), 0.0f);
         harmonizerFadeState_ = HarmonizerFadeState::Off;
         harmonizerFadeAlpha_ = 0.0f;
         harmonizerFadeIncrement_ = 0.0f;
         harmonizerEnabled_ = false;
         harmonizerNeedsPrime_ = false;
 
-        // Reset compensation delays
-        for (size_t i = 0; i < 2; ++i) {
-            compDelayL_[i].reset();
-            compDelayR_[i].reset();
-        }
-        activeCompIdx_ = 0;
-
-        // Reset slot enable/disable fades
-        delayFadeState_ = SlotFadeState::Off;
-        reverbFadeState_ = SlotFadeState::Off;
-        delayFadeAlpha_ = 0.0f;
-        reverbFadeAlpha_ = 0.0f;
+        // Rebuild the slot fades from the enable flags. setDelayEnabled() and
+        // setReverbEnabled() ignore a flag that did not change, so forcing Off
+        // here left an enabled slot silent after setActive(true) or a preset
+        // load. The lines were just cleared, so no fade-in is needed.
+        delayFadeState_ = delayEnabled_ ? SlotFadeState::On : SlotFadeState::Off;
+        reverbFadeState_ = reverbEnabled_ ? SlotFadeState::On : SlotFadeState::Off;
+        delayFadeAlpha_ = delayEnabled_ ? 1.0f : 0.0f;
+        reverbFadeAlpha_ = reverbEnabled_ ? 1.0f : 0.0f;
 
         // Reset pre-warm state
         preWarming_ = false;
@@ -332,26 +337,54 @@ public:
     /// @brief Set the modulation type directly (no crossfade).
     /// Used during applyParamsToEngine() per-block updates.
     void setModulationType(ModulationType type) noexcept {
-        if (!modCrossfading_) {
+        if (!modCrossfading_ && !modPreWarming_) {
             activeModType_ = type;
         }
     }
 
-    /// @brief Start a 30ms linear crossfade to a new modulation type.
-    /// If the incoming type matches the active type and no crossfade is in
-    /// progress, this is a no-op.
+    /// @brief Switch to a new modulation type: pre-warm it, then crossfade
+    /// linearly over 30 ms. A no-op if the type is already active and no
+    /// switch is in progress.
+    ///
+    /// The incoming effect first runs on the slot input for kModPreWarmMs with
+    /// its output discarded, so the chorus and flanger delay lines hold real
+    /// input when the fade starts; a cold chorus otherwise steps in when its
+    /// read position (15 ms) first reaches written audio.
+    ///
+    /// A request that arrives mid-fade continues from the current mix: back to
+    /// the outgoing type reverses the running fade, and a third type is queued
+    /// and switched to once the running fade completes. Restarting at alpha 0
+    /// cut the half-faded-in effect out in one sample, and re-targeting the
+    /// outgoing type processed one instance twice per block (R-059).
     void startModCrossfade(ModulationType incoming) noexcept {
-        if (!modCrossfading_ && incoming == activeModType_) {
+        if (modPreWarming_) {
+            if (incoming == incomingModType_) return;
+            // Nothing of the warming effect has been heard yet: drop it.
+            resetModEffect(incomingModType_);
+            modPreWarming_ = false;
+            if (incoming != activeModType_) beginModPreWarm(incoming);
             return;
         }
-        if (modCrossfading_ && incoming == incomingModType_) {
-            return; // Already fading to this type
+        if (modCrossfading_) {
+            if (incoming == incomingModType_) {
+                modTypePending_ = false;  // Already fading to this type
+            } else if (incoming == activeModType_) {
+                // Linear blend: swapping the roles and mirroring alpha keeps
+                // out * (1 - alpha) + in * alpha unchanged at the swap.
+                std::swap(activeModType_, incomingModType_);
+                modCrossfadeAlpha_ = 1.0f - std::min(modCrossfadeAlpha_, 1.0f);
+                modTypePending_ = false;
+            } else {
+                pendingModType_ = incoming;
+                modTypePending_ = true;
+            }
+            return;
         }
-        incomingModType_ = incoming;
-        modCrossfadeAlpha_ = 0.0f;
-        modCrossfadeIncrement_ = 1.0f / (0.030f * static_cast<float>(sampleRate_));
-        modCrossfading_ = true;
+        if (incoming != activeModType_) beginModPreWarm(incoming);
     }
+
+    /// @brief True while a modulation type crossfade (not its pre-warm) runs. Test hook.
+    [[nodiscard]] bool isModCrossfadingForTest() const noexcept { return modCrossfading_; }
 
     /// @brief Get the currently active modulation type.
     [[nodiscard]] ModulationType getActiveModulationType() const noexcept {
@@ -404,7 +437,7 @@ public:
         if (preWarming_) {
             preWarming_ = false;
             preWarmRemaining_ = 0;
-            resetDelayType(incomingDelayType_);
+            scheduleDelayClear(incomingDelayType_);
         }
 
         if (crossfading_) {
@@ -417,15 +450,36 @@ public:
         }
 
         // Start pre-warming the incoming delay before crossfade.
-        // Duration = max(delay_time, kMinPreWarmMs) + comp delay latency.
-        // The extra comp delay duration ensures the standby compensation
-        // delay has stable incoming output (past the delay-line-fill step)
-        // when the crossfade starts.
+        // Duration = max(delay_time, kMinPreWarmMs): the incoming delay's
+        // first echo of anything it was fed lands at the delay time, so it
+        // has stable output (past the delay-line-fill step) when the
+        // crossfade starts and drops no echo of the input it was fed.
+        // The pre-warm waits for the clear of stale buffers (R-004).
         incomingDelayType_ = type;
-        resetDelayType(type);  // Clear stale buffers before pre-warm
+        scheduleDelayClear(type);
         preWarming_ = true;
         preWarmElapsed_ = 0;
         preWarmRemaining_ = preWarmTotalSamples();
+    }
+
+    /// @brief Make a delay type active at once, without pre-warm or crossfade.
+    ///
+    /// Used ONLY on state load, after the engine reset cleared (or scheduled the
+    /// clear of) every line:
+    /// there is no old type's sound to fade from, and a switch would play the
+    /// preset's first echoes through the previous type (and start its
+    /// crossfade at a buffer-size-dependent sample).
+    void setDelayTypeDirect(RuinaeDelayType type) noexcept {
+        preWarming_ = false;
+        preWarmRemaining_ = 0;
+        crossfading_ = false;
+        crossfadeAlpha_ = 0.0f;
+        crossfadeIncrement_ = 0.0f;
+        if (type != activeDelayType_) {
+            activeDelayType_ = type;
+            activeDelayBacklog_ = 0;
+            if (delayDirty_[delayIndex(type)]) scheduleDelayClear(type);
+        }
     }
 
     /// @brief Get the currently active delay type.
@@ -452,7 +506,12 @@ public:
         tapeDelay_.setMotorSpeed(ms);
         pingPongDelay_.setDelayTimeMs(ms);
         granularDelay_.setDelayTime(ms);
-        spectralDelay_.setBaseDelayMs(ms);
+        // Not latency-compensated (T3.6b): the spectral delay's repeats are spaced by its base
+        // delay, and its FFT latency only offsets the first echo. Taking the latency off the
+        // base delay put that first echo on time but pulled every repeat a whole FFT size plus
+        // a hop early, cumulatively; with the set time passed unchanged the repeats stay on the
+        // grid and the first echo arrives a fixed fftSize late.
+        spectralDelay_.setBaseDelayMs(std::max(SpectralDelay::kMinDelayMs, ms));
 
         // A pre-warm in progress needs the new time's duration, less what it has already run.
         // The processor re-applies the delay time every block, so this must never restart the
@@ -463,11 +522,10 @@ public:
         }
     }
 
-    /// @brief Pre-warm length for the current delay time: max(time, kMinPreWarmMs) plus the
-    /// compensation delay latency.
+    /// @brief Pre-warm length for the current delay time: max(time, kMinPreWarmMs).
     [[nodiscard]] size_t preWarmTotalSamples() const noexcept {
         const float preWarmMs = std::max(currentDelayTimeMs_, kMinPreWarmMs);
-        return static_cast<size_t>(preWarmMs * sampleRate_ / 1000.0) + targetLatencySamples_;
+        return static_cast<size_t>(preWarmMs * sampleRate_ / 1000.0);
     }
 
     /// @brief Set delay feedback amount (FR-015).
@@ -481,9 +539,8 @@ public:
     }
 
     /// @brief Set delay dry/wet mix (FR-015).
-    /// The mix is applied EXTERNALLY by the chain (after latency compensation
-    /// of the wet path) so that the dry signal is not delayed by the
-    /// compensation delay. The per-type delay processors always run at 100% wet.
+    /// The mix is applied EXTERNALLY by the chain, so the slot's enable fade
+    /// scales the wet only. The per-type delay processors always run at 100% wet.
     /// A short smoother prevents zipper noise when the mix value changes.
     void setDelayMix(float mix) noexcept {
         userDelayMix_ = std::clamp(mix, 0.0f, 1.0f);
@@ -611,9 +668,7 @@ public:
     // =========================================================================
 
     void setDelaySpectralFFTSize(int index) noexcept {
-        constexpr size_t kFFTSizes[] = {512, 1024, 2048, 4096};
-        int clamped = std::clamp(index, 0, 3);
-        spectralDelay_.setFFTSize(kFFTSizes[clamped]);
+        spectralDelay_.setFFTSize(fftSizeFromIndex(index));
     }
     void setDelaySpectralSpread(float ms) noexcept {
         spectralDelay_.setSpreadMs(ms);
@@ -679,20 +734,46 @@ public:
         userReverbMixSmoother_.setTarget(userReverbMix_);
 
         lastReverbParams_ = params;
+
+        // FR-029: a type change deferred while frozen takes effect on release.
+        if (!params.freeze && pendingReverbType_ >= 0) {
+            const int pending = pendingReverbType_;
+            pendingReverbType_ = -1;
+            setReverbType(pending);
+        }
     }
 
     /// @brief Initiate a 30ms equal-power crossfade to the new reverb type (FR-025).
     ///
-    /// No-op if type == activeReverbType_ and not crossfading.
-    /// If freeze is active, applies freeze to the incoming reverb before
-    /// crossfade begins (FR-029).
+    /// No-op if type == activeReverbType_ and not crossfading, or if a
+    /// crossfade to `type` is already running: the processor re-sends the type
+    /// every block, and re-arming would restart the fade before it completes.
+    /// A request for the outgoing type mid-fade reverses the running fade.
+    ///
+    /// FR-029: while Freeze is on, a new type is deferred until Freeze is
+    /// released (setReverbParams applies it). Freeze mutes the input of both
+    /// reverbs, so the incoming tank could never fill: the fade went to an empty
+    /// tank and completion reset the frozen one, losing the sound (R-061).
     void setReverbType(int type) noexcept {
+        type = std::clamp(type, 0, 1);
+        if (lastReverbParams_.freeze && !reverbCrossfading_) {
+            pendingReverbType_ = (type == activeReverbType_) ? -1 : type;
+            return;
+        }
         if (type == activeReverbType_ && !reverbCrossfading_) return;
 
-        // FR-029: If freeze is active, ensure the incoming reverb has freeze
-        // applied via setParams BEFORE the crossfade begins.
-        // (Both reverbs already receive params via setReverbParams/FR-027,
-        //  but we call setParams again here for safety with current params.)
+        // Already transitioning to this type: let it continue.
+        if (reverbCrossfading_ && type == incomingReverbType_) return;
+
+        // Back to the outgoing type mid-fade: reverse the fade from where it
+        // is. With equal-power gains, swapping the roles and mirroring alpha
+        // keeps both gains continuous. completeReverbCrossfade() then resets
+        // the reverb that ends up inactive.
+        if (reverbCrossfading_ && type == activeReverbType_) {
+            std::swap(activeReverbType_, incomingReverbType_);
+            reverbCrossfadeAlpha_ = 1.0f - std::min(reverbCrossfadeAlpha_, 1.0f);
+            return;
+        }
 
         incomingReverbType_ = type;
         reverbCrossfading_ = true;
@@ -706,10 +787,16 @@ public:
     /// without triggering an audible transition.
     void setReverbTypeDirect(int type) noexcept {
         activeReverbType_ = type;
+        pendingReverbType_ = -1;
         reverbCrossfading_ = false;
         reverbCrossfadeAlpha_ = 0.0f;
         reverbCrossfadeIncrement_ = 0.0f;
     }
+
+    /// @brief Reverb type currently fully active (0=Plate, 1=Hall). Test hook.
+    [[nodiscard]] int activeReverbTypeForTest() const noexcept { return activeReverbType_; }
+    /// @brief True while a reverb type crossfade is running. Test hook.
+    [[nodiscard]] bool isReverbCrossfadingForTest() const noexcept { return reverbCrossfading_; }
 
     // =========================================================================
     // Phaser Control
@@ -735,7 +822,15 @@ public:
     // Harmonizer Control (spec 067)
     // =========================================================================
 
+    /// Called every block by the processor. A toggle during a fade continues
+    /// from the current alpha in the other direction; jumping to alpha 1 on a
+    /// disable mid-fade-in was a gain step, and re-arming at 1 on every block
+    /// kept a fade-out from ever finishing with blocks under 10 ms (R-063).
     void setHarmonizerEnabled(bool enabled) noexcept {
+        if (harmonizerFadeState_ == HarmonizerFadeState::FadingOut) {
+            if (enabled) harmonizerFadeState_ = HarmonizerFadeState::FadingIn;
+            return;
+        }
         if (enabled && !harmonizerEnabled_) {
             harmonizer_.snapParameters();
             harmonizerNeedsPrime_ = true; // Apply voice fade-in on first process
@@ -745,9 +840,9 @@ public:
             harmonizerFadeIncrement_ = 1000.0f /
                 (kHarmonizerCrossfadeMs * static_cast<float>(sampleRate_));
         } else if (!enabled && harmonizerEnabled_) {
-            // Keep harmonizer enabled during fade-out so it still processes
+            // Keep harmonizer enabled during fade-out so it still processes.
+            // The fade starts from the current alpha (1 when On).
             harmonizerFadeState_ = HarmonizerFadeState::FadingOut;
-            harmonizerFadeAlpha_ = 1.0f;
             harmonizerFadeIncrement_ = 1000.0f /
                 (kHarmonizerCrossfadeMs * static_cast<float>(sampleRate_));
         }
@@ -802,10 +897,12 @@ public:
 
     /// @brief Get total processing latency in samples (FR-026).
     ///
-    /// Returns the worst-case latency (spectral delay FFT size),
-    /// constant regardless of active delay type (FR-027).
-    [[nodiscard]] size_t getLatencySamples() const noexcept {
-        return targetLatencySamples_;
+    /// Always 0, whatever the delay type (FR-027): the dry path is never
+    /// delayed, and the echoes land at the set delay time. The chain used to
+    /// delay only the wet path by 6144 samples and report that, which put
+    /// every echo 139 ms late at 44.1 kHz (R-055).
+    [[nodiscard]] static constexpr size_t getLatencySamples() noexcept {
+        return 0;
     }
 
 private:
@@ -831,12 +928,38 @@ private:
         // Slot 1: Delay (FR-005) with crossfade (FR-010)
         //
         // The delay processors run at 100% wet. We save the dry input here
-        // and mix it back with the wet (and comp-delayed) output below so
-        // that the dry signal is NOT affected by the latency compensation
-        // delay -- otherwise the dry portion of the user's mix would be
-        // pushed back by ~6144 samples (~140 ms), which is audible as a
-        // late synth onset relative to MIDI input.
+        // and mix it back with the wet output below. Neither path carries
+        // any added latency, so the echoes land at the set delay time.
+        //
+        // Pending delay-line clears advance first, a bounded slice per chunk
+        // (R-004), the types this chunk runs before the others. A type whose
+        // clear is still running is not run: its wet output is silence, as a
+        // cleared line's is. The active type's input is kept meanwhile and fed
+        // to it once it is clean, so no echo is lost to the clear.
         // ---------------------------------------------------------------
+        const bool delayTransition = preWarming_ || crossfading_;
+        std::size_t clearBudget = numSamples * kDelayClearSamplesPerSample;
+        const bool activeClean = advanceDelayClear(activeDelayType_, clearBudget);
+        const bool incomingClean = !delayTransition
+            || advanceDelayClear(incomingDelayType_, clearBudget);
+        for (std::size_t i = 0; i < kNumDelayTypes && clearBudget > 0; ++i) {
+            (void)advanceDelayClear(static_cast<RuinaeDelayType>(i), clearBudget);
+        }
+        bool activeRuns = activeClean;
+        if (delayFadeState_ != SlotFadeState::Off) {
+            if (activeClean && activeDelayBacklog_ <= numSamples) {
+                // The rest of the kept input, then this chunk live: at most
+                // two chunks' worth of delay processing.
+                catchUpActiveDelay(activeDelayBacklog_, ctx);
+            } else {
+                // Still clearing, or more kept input than one chunk: keep this
+                // chunk as well, and once clean work two chunks' worth off.
+                keepActiveDelayInput(left, right, numSamples);
+                if (activeClean) catchUpActiveDelay(2 * numSamples, ctx);
+                activeRuns = false;
+            }
+        }
+
         if (delayFadeState_ == SlotFadeState::Off) {
             // Skip delay processing entirely
         } else if (preWarming_) {
@@ -853,34 +976,19 @@ private:
             std::memcpy(crossfadeOutR_.data(), right, numSamples * sizeof(float));
 
             // Active delay produces output normally
-            processDelayTypeRaw(activeDelayType_, left, right, numSamples, ctx);
+            processDelayTypeOrSilence(activeDelayType_, activeRuns, left, right, numSamples, ctx);
 
-            // Incoming delay processes same input (output discarded, fills buffer)
-            processDelayTypeRaw(incomingDelayType_, crossfadeOutL_.data(),
-                                crossfadeOutR_.data(), numSamples, ctx);
-
-            // Compensation delay handling during pre-warm.
-            // For non-spectral active: keep both comp delays in sync with
-            // active output (same as normal processing). The crossfade will
-            // use blend-then-compensate, so both comp delays need matching history.
-            // For spectral active: write active output to active comp delay,
-            // incoming output to standby (needed for per-path crossfade).
-            if (activeDelayType_ != RuinaeDelayType::Spectral) {
-                applyCompensation(left, right, numSamples);
-            } else {
-                if (targetLatencySamples_ > 0) {
-                    const size_t standbyIdx = 1 - activeCompIdx_;
-                    for (size_t i = 0; i < numSamples; ++i) {
-                        compDelayL_[activeCompIdx_].write(left[i]);
-                        compDelayR_[activeCompIdx_].write(right[i]);
-                        compDelayL_[standbyIdx].write(crossfadeOutL_[i]);
-                        compDelayR_[standbyIdx].write(crossfadeOutR_[i]);
-                    }
-                }
-            }
+            // Incoming delay processes same input (output discarded, fills buffer).
+            // The pre-warm lasts the delay time, so nothing the incoming delay was
+            // fed has reached its output yet: no echo is dropped here. It starts
+            // once the incoming type's clear is done.
+            processDelayTypeOrSilence(incomingDelayType_, incomingClean, crossfadeOutL_.data(),
+                                      crossfadeOutR_.data(), numSamples, ctx);
 
             // Check if pre-warm is complete
-            if (numSamples >= preWarmRemaining_) {
+            if (!incomingClean) {
+                // Waiting for the clear: the pre-warm has not started
+            } else if (numSamples >= preWarmRemaining_) {
                 preWarming_ = false;
                 preWarmRemaining_ = 0;
                 // Start the actual crossfade
@@ -894,34 +1002,15 @@ private:
             std::memcpy(delayDryL_.data(), left, numSamples * sizeof(float));
             std::memcpy(delayDryR_.data(), right, numSamples * sizeof(float));
 
-            const bool outIsSpectral =
-                (activeDelayType_ == RuinaeDelayType::Spectral);
-            const bool inIsSpectral =
-                (incomingDelayType_ == RuinaeDelayType::Spectral);
-            const bool spectralInvolved = outIsSpectral || inIsSpectral;
-
             // Process OUTGOING delay into crossfade buffers
             std::memcpy(crossfadeOutL_.data(), left, numSamples * sizeof(float));
             std::memcpy(crossfadeOutR_.data(), right, numSamples * sizeof(float));
-            processDelayTypeRaw(activeDelayType_, crossfadeOutL_.data(),
-                                crossfadeOutR_.data(), numSamples, ctx);
+            processDelayTypeOrSilence(activeDelayType_, activeRuns, crossfadeOutL_.data(),
+                                      crossfadeOutR_.data(), numSamples, ctx);
 
             // Process INCOMING delay into left/right in-place
-            processDelayTypeRaw(incomingDelayType_, left, right, numSamples, ctx);
-
-            // Per-path compensation only when spectral is involved
-            // (spectral has intrinsic 1024 latency, can't blend-then-compensate)
-            if (spectralInvolved) {
-                if (!outIsSpectral) {
-                    applyCompensationSingle(activeCompIdx_,
-                                            crossfadeOutL_.data(),
-                                            crossfadeOutR_.data(), numSamples);
-                }
-                if (!inIsSpectral) {
-                    applyCompensationSingle(1 - activeCompIdx_,
-                                            left, right, numSamples);
-                }
-            }
+            processDelayTypeOrSilence(incomingDelayType_, incomingClean, left, right,
+                                      numSamples, ctx);
 
             // Linear crossfade blend (per-sample)
             for (size_t i = 0; i < numSamples; ++i) {
@@ -939,30 +1028,17 @@ private:
                     break;
                 }
             }
-
-            // For non-spectral transitions, compensate the blended output.
-            // This avoids the per-path comp delay step discontinuity because
-            // the comp delay sees a smooth blend transition, not an abrupt
-            // switch from outgoing to incoming delay output.
-            if (!spectralInvolved) {
-                applyCompensation(left, right, numSamples);
-            }
         } else {
             // Save dry input before any delay processing for external mix.
             std::memcpy(delayDryL_.data(), left, numSamples * sizeof(float));
             std::memcpy(delayDryR_.data(), right, numSamples * sizeof(float));
 
             // Normal processing: active delay only
-            processDelayTypeRaw(activeDelayType_, left, right, numSamples, ctx);
-            if (activeDelayType_ != RuinaeDelayType::Spectral) {
-                applyCompensation(left, right, numSamples);
-            } else {
-                warmBothCompDelays(left, right, numSamples);
-            }
+            processDelayTypeOrSilence(activeDelayType_, activeRuns, left, right, numSamples, ctx);
         }
 
         // External dry/wet mix for the delay slot. left/right currently hold
-        // the 100%-wet (and latency-compensated) delay output; delayDryL_/R_
+        // the 100%-wet delay output; delayDryL_/R_
         // hold the dry input captured before delay processing. Smoothed
         // per-sample to avoid zipper noise on mix changes.
         if (delayFadeState_ != SlotFadeState::Off) {
@@ -978,17 +1054,11 @@ private:
             }
 
             // Clear the lines only once the fade-out has finished, so the next
-            // enable does not replay stale buffer content.
+            // enable does not replay stale buffer content. The clear runs a
+            // slice per chunk while the slot is off (R-004).
             if (delayFadeState_ == SlotFadeState::Off) {
-                digitalDelay_.reset();
-                tapeDelay_.reset();
-                pingPongDelay_.reset();
-                granularDelay_.reset();
-                spectralDelay_.reset();
-                for (size_t i = 0; i < 2; ++i) {
-                    compDelayL_[i].reset();
-                    compDelayR_[i].reset();
-                }
+                scheduleDirtyDelayClears();
+                activeDelayBacklog_ = 0;  // nothing is recorded while the slot is off
             }
         }
 
@@ -1003,23 +1073,25 @@ private:
                 harmonizer_.applyVoiceFadeIn();
                 harmonizerNeedsPrime_ = false;
             }
-            if (harmonizerFadeState_ == HarmonizerFadeState::On) {
-                // Steady state: just process
-                for (size_t i = 0; i < numSamples; ++i) {
-                    harmonizerMonoScratch_[i] = (left[i] + right[i]) * 0.5f;
-                }
-                harmonizer_.process(harmonizerMonoScratch_.data(),
-                                    left, right, numSamples);
-            } else if (harmonizerFadeState_ == HarmonizerFadeState::FadingIn) {
-                // Save dry signal
-                std::memcpy(harmonizerDryL_.data(), left, numSamples * sizeof(float));
-                std::memcpy(harmonizerDryR_.data(), right, numSamples * sizeof(float));
-                // Process harmonizer
-                for (size_t i = 0; i < numSamples; ++i) {
-                    harmonizerMonoScratch_[i] = (left[i] + right[i]) * 0.5f;
-                }
-                harmonizer_.process(harmonizerMonoScratch_.data(),
-                                    left, right, numSamples);
+            // The dry path stays stereo (R-175): the engine renders only the
+            // harmony bus, from the mono sum, and the chain adds the stereo
+            // input at the engine's smoothed Dry Level. The soft limit that
+            // keeps the stacked voices from overdriving the reverb acts on the
+            // harmony alone (R-177), so the dry mix passes linearly.
+            std::memcpy(harmonizerDryL_.data(), left, numSamples * sizeof(float));
+            std::memcpy(harmonizerDryR_.data(), right, numSamples * sizeof(float));
+            for (size_t i = 0; i < numSamples; ++i) {
+                harmonizerMonoScratch_[i] = (left[i] + right[i]) * 0.5f;
+            }
+            harmonizer_.processWetOnly(harmonizerMonoScratch_.data(), left, right,
+                                       harmonizerDryGain_.data(), numSamples);
+            harmonizerRanSinceReset_ = true;
+            for (size_t i = 0; i < numSamples; ++i) {
+                const float dryGain = harmonizerDryGain_[i];
+                left[i] = dryGain * harmonizerDryL_[i] + Sigmoid::softLimit(left[i]);
+                right[i] = dryGain * harmonizerDryR_[i] + Sigmoid::softLimit(right[i]);
+            }
+            if (harmonizerFadeState_ == HarmonizerFadeState::FadingIn) {
                 // Crossfade: dry -> harmonizer
                 for (size_t i = 0; i < numSamples; ++i) {
                     float alpha = harmonizerFadeAlpha_;
@@ -1032,15 +1104,6 @@ private:
                     }
                 }
             } else if (harmonizerFadeState_ == HarmonizerFadeState::FadingOut) {
-                // Save dry signal
-                std::memcpy(harmonizerDryL_.data(), left, numSamples * sizeof(float));
-                std::memcpy(harmonizerDryR_.data(), right, numSamples * sizeof(float));
-                // Process harmonizer
-                for (size_t i = 0; i < numSamples; ++i) {
-                    harmonizerMonoScratch_[i] = (left[i] + right[i]) * 0.5f;
-                }
-                harmonizer_.process(harmonizerMonoScratch_.data(),
-                                    left, right, numSamples);
                 // Crossfade: harmonizer -> dry
                 for (size_t i = 0; i < numSamples; ++i) {
                     float alpha = harmonizerFadeAlpha_;
@@ -1053,21 +1116,12 @@ private:
                         harmonizerEnabled_ = false;
                     }
                 }
-            }
-        }
-
-        // ---------------------------------------------------------------
-        // Inter-stage protection: soft limit before reverb
-        // ---------------------------------------------------------------
-        // When the harmonizer is active, its multi-voice accumulation can
-        // push the signal well above unity. Soft-limiting before the reverb
-        // prevents overdriving the reverb's feedback network, which would
-        // amplify distortion artifacts. Only active when the harmonizer is
-        // enabled to preserve transparent pass-through otherwise.
-        if (harmonizerEnabled_) {
-            for (size_t i = 0; i < numSamples; ++i) {
-                left[i] = Sigmoid::softLimit(left[i]);
-                right[i] = Sigmoid::softLimit(right[i]);
+                // Clear the pitch shifters and delay lines once silent, so the
+                // next enable does not replay stale audio.
+                if (harmonizerFadeState_ == HarmonizerFadeState::Off) {
+                    harmonizer_.reset();
+                    harmonizerRanSinceReset_ = false;
+                }
             }
         }
 
@@ -1170,7 +1224,7 @@ private:
         reverbCrossfadeIncrement_ = 0.0f;
     }
 
-    /// @brief Process audio through a specific delay type (no compensation).
+    /// @brief Process audio through a specific delay type (100% wet).
     void processDelayTypeRaw(RuinaeDelayType type, float* left, float* right,
                              size_t numSamples, const BlockContext& ctx) noexcept {
         switch (type) {
@@ -1203,51 +1257,6 @@ private:
         }
     }
 
-    /// @brief Apply latency compensation, writing to both shared delay pairs.
-    /// Used during normal (non-crossfade) processing. Keeps the standby
-    /// pair warm so it has valid history when a crossfade starts.
-    void applyCompensation(float* left, float* right,
-                           size_t numSamples) noexcept {
-        if (targetLatencySamples_ == 0) return;
-        const size_t a = activeCompIdx_;
-        const size_t b = 1 - a;
-        for (size_t i = 0; i < numSamples; ++i) {
-            compDelayL_[a].write(left[i]);
-            compDelayR_[a].write(right[i]);
-            compDelayL_[b].write(left[i]);
-            compDelayR_[b].write(right[i]);
-            left[i] = compDelayL_[a].read(targetLatencySamples_);
-            right[i] = compDelayR_[a].read(targetLatencySamples_);
-        }
-    }
-
-    /// @brief Apply latency compensation using a single delay pair.
-    /// Used during crossfade for the outgoing or incoming path.
-    void applyCompensationSingle(size_t idx, float* left, float* right,
-                                 size_t numSamples) noexcept {
-        if (targetLatencySamples_ == 0) return;
-        for (size_t i = 0; i < numSamples; ++i) {
-            compDelayL_[idx].write(left[i]);
-            compDelayR_[idx].write(right[i]);
-            left[i] = compDelayL_[idx].read(targetLatencySamples_);
-            right[i] = compDelayR_[idx].read(targetLatencySamples_);
-        }
-    }
-
-    /// @brief Write to both compensation delays without reading (keep warm).
-    /// Used when spectral delay is active to maintain valid history for
-    /// future crossfades to non-spectral types.
-    void warmBothCompDelays(const float* left, const float* right,
-                            size_t numSamples) noexcept {
-        if (targetLatencySamples_ == 0) return;
-        for (size_t i = 0; i < numSamples; ++i) {
-            compDelayL_[0].write(left[i]);
-            compDelayR_[0].write(right[i]);
-            compDelayL_[1].write(left[i]);
-            compDelayR_[1].write(right[i]);
-        }
-    }
-
     /// @brief Start a crossfade after pre-warming completes.
     void startCrossfade() noexcept {
         crossfading_ = true;
@@ -1258,41 +1267,130 @@ private:
 
     /// @brief Complete a crossfade transition (FR-013).
     void completeCrossfade() noexcept {
-        // Reset outgoing delay
-        resetDelayType(activeDelayType_);
+        // Reset outgoing delay (a slice per chunk, R-004)
+        scheduleDelayClear(activeDelayType_);
 
         // Incoming becomes active
         activeDelayType_ = incomingDelayType_;
-        activeCompIdx_ = 1 - activeCompIdx_;  // Swap compensation delay pair
+        activeDelayBacklog_ = 0;
         crossfading_ = false;
         crossfadeAlpha_ = 0.0f;
         crossfadeIncrement_ = 0.0f;
     }
 
-    /// @brief Reset a specific delay type (FR-013).
-    void resetDelayType(RuinaeDelayType type) noexcept {
-        switch (type) {
-            case RuinaeDelayType::Digital:
-                digitalDelay_.reset();
-                digitalDelay_.snapParameters();
-                break;
-            case RuinaeDelayType::Tape:
-                tapeDelay_.reset();
-                break;
-            case RuinaeDelayType::PingPong:
-                pingPongDelay_.reset();
-                pingPongDelay_.snapParameters();
-                break;
-            case RuinaeDelayType::Granular:
-                granularDelay_.reset();
-                break;
-            case RuinaeDelayType::Spectral:
-                spectralDelay_.reset();
-                spectralDelay_.snapParameters();
-                break;
-            default:
-                break;
+    /// @brief Process one delay type (100% wet), or output silence while it
+    /// does not run: its line clear is still running (advanceDelayClear), or
+    /// it is still working off the input kept meanwhile (catchUpActiveDelay).
+    /// A cleared line's wet output is silence too.
+    void processDelayTypeOrSilence(RuinaeDelayType type, bool runs, float* left, float* right,
+                                   size_t numSamples, const BlockContext& ctx) noexcept {
+        if (!runs) {
+            std::fill(left, left + numSamples, 0.0f);
+            std::fill(right, right + numSamples, 0.0f);
+            return;
         }
+        processDelayTypeRaw(type, left, right, numSamples, ctx);
+        delayDirty_[delayIndex(type)] = true;
+    }
+
+    [[nodiscard]] static constexpr size_t delayIndex(RuinaeDelayType type) noexcept {
+        return static_cast<size_t>(type);
+    }
+
+    /// @brief Reset a delay type (FR-013) with its line clear spread over the
+    /// following chunks (R-004). The type must not run until advanceDelayClear()
+    /// reports it clean. A clear already running is kept: the type has not
+    /// run since it started.
+    void scheduleDelayClear(RuinaeDelayType type) noexcept {
+        const size_t index = delayIndex(type);
+        if (index >= kNumDelayTypes || delayClearPending_[index]) return;
+        switch (type) {
+            case RuinaeDelayType::Digital: digitalDelay_.startIncrementalReset(); break;
+            case RuinaeDelayType::Tape: tapeDelay_.startIncrementalReset(); break;
+            case RuinaeDelayType::PingPong: pingPongDelay_.startIncrementalReset(); break;
+            case RuinaeDelayType::Granular: granularDelay_.startIncrementalReset(); break;
+            case RuinaeDelayType::Spectral: spectralDelay_.startIncrementalReset(); break;
+            default: return;
+        }
+        delayClearPending_[index] = true;
+        // The active type's kept input starts again at its reset
+        if (type == activeDelayType_) activeDelayBacklog_ = 0;
+    }
+
+    /// @brief Schedule the clear of every delay type that ran since its last clear.
+    void scheduleDirtyDelayClears() noexcept {
+        for (size_t i = 0; i < kNumDelayTypes; ++i) {
+            if (delayDirty_[i]) scheduleDelayClear(static_cast<RuinaeDelayType>(i));
+        }
+    }
+
+    /// @brief Advance @p type's pending line clear by up to @p budget samples.
+    /// @return true when the type is clean (no clear pending) and may run.
+    bool advanceDelayClear(RuinaeDelayType type, size_t& budget) noexcept {
+        const size_t index = delayIndex(type);
+        if (index >= kNumDelayTypes || !delayClearPending_[index]) return true;
+        bool done = false;
+        switch (type) {
+            case RuinaeDelayType::Digital: done = digitalDelay_.continueIncrementalReset(budget); break;
+            case RuinaeDelayType::Tape: done = tapeDelay_.continueIncrementalReset(budget); break;
+            case RuinaeDelayType::PingPong: done = pingPongDelay_.continueIncrementalReset(budget); break;
+            case RuinaeDelayType::Granular: done = granularDelay_.continueIncrementalReset(budget); break;
+            case RuinaeDelayType::Spectral: done = spectralDelay_.continueIncrementalReset(budget); break;
+            default: return true;
+        }
+        if (!done) return false;
+
+        delayClearPending_[index] = false;
+        delayDirty_[index] = false;
+        if (type == RuinaeDelayType::Digital) digitalDelay_.snapParameters();
+        if (type == RuinaeDelayType::PingPong) pingPongDelay_.snapParameters();
+        if (type == RuinaeDelayType::Spectral) spectralDelay_.snapParameters();
+        return true;
+    }
+
+    /// @brief Keep the slot input while the active type's clear runs, so the
+    /// type records it once it is clean (catchUpActiveDelay). A ring of the
+    /// most recent kDelayBacklogMs; the clear of any type takes less.
+    void keepActiveDelayInput(const float* left, const float* right, size_t numSamples) noexcept {
+        const size_t capacity = activeDelayBacklogL_.size();
+        if (capacity == 0) return;
+        for (size_t i = 0; i < numSamples; ++i) {
+            const size_t slot = (activeDelayBacklogStart_ + activeDelayBacklog_) % capacity;
+            activeDelayBacklogL_[slot] = left[i];
+            activeDelayBacklogR_[slot] = right[i];
+            if (activeDelayBacklog_ < capacity) {
+                ++activeDelayBacklog_;
+            } else {
+                activeDelayBacklogStart_ = (activeDelayBacklogStart_ + 1) % capacity;
+            }
+        }
+    }
+
+    /// @brief Feed up to @p maxSamples of the input kept during the active
+    /// type's clear to it, oldest first, output discarded: the wet of those
+    /// samples went out as silence, which is what the line produced then
+    /// unless the delay time is shorter than the clear and the catch-up. Once
+    /// all of it is fed, the type holds the audio it would hold had it been
+    /// cleared at once.
+    void catchUpActiveDelay(size_t maxSamples, const BlockContext& ctx) noexcept {
+        const size_t capacity = activeDelayBacklogL_.size();
+        size_t remaining = std::min(maxSamples, activeDelayBacklog_);
+        while (remaining > 0) {
+            const size_t n = std::min(maxBlockSize_, remaining);
+            for (size_t i = 0; i < n; ++i) {
+                const size_t slot = (activeDelayBacklogStart_ + i) % capacity;
+                crossfadeOutL_[i] = activeDelayBacklogL_[slot];
+                crossfadeOutR_[i] = activeDelayBacklogR_[slot];
+            }
+            BlockContext piece = ctx;
+            piece.blockSize = n;
+            processDelayTypeOrSilence(activeDelayType_, true, crossfadeOutL_.data(),
+                                      crossfadeOutR_.data(), n, piece);
+            activeDelayBacklogStart_ = (activeDelayBacklogStart_ + n) % capacity;
+            activeDelayBacklog_ -= n;
+            remaining -= n;
+        }
+        if (activeDelayBacklog_ == 0) activeDelayBacklogStart_ = 0;
     }
 
     // =========================================================================
@@ -1301,39 +1399,74 @@ private:
 
     /// @brief Process the modulation effect in the stereo audio buffers.
     /// Handles crossfade between modulation types (None/Phaser/Flanger).
+    ///
+    /// The block is split where the pre-warm ends and where the fade ends, so
+    /// the fade (and a pre-warm queued behind it) starts at its own sample,
+    /// whatever the buffer size; it used to start at the next block (R-217).
     void processModulationSlot(float* left, float* right, size_t numSamples) noexcept {
-        if (modCrossfading_) {
-            // Process both outgoing and incoming effects, blend with alpha
-            // Save the input for the outgoing effect
-            std::memcpy(tempL_.data(), left, numSamples * sizeof(float));
-            std::memcpy(tempR_.data(), right, numSamples * sizeof(float));
+        size_t done = 0;
+        while (done < numSamples) {
+            float* l = left + done;
+            float* r = right + done;
+            const size_t n = numSamples - done;
+            if (modPreWarming_) {
+                // Feed the incoming effect (output discarded) while the active one
+                // is heard alone; the crossfade starts once its lines are filled.
+                const size_t seg = std::min(n, modPreWarmRemaining_);
+                std::memcpy(tempL_.data(), l, seg * sizeof(float));
+                std::memcpy(tempR_.data(), r, seg * sizeof(float));
+                processModEffect(incomingModType_, tempL_.data(), tempR_.data(), seg);
+                processModEffect(activeModType_, l, r, seg);
 
-            // Process outgoing effect on temp buffers
-            processModEffect(activeModType_, tempL_.data(), tempR_.data(), numSamples);
-            // Process incoming effect on original buffers
-            processModEffect(incomingModType_, left, right, numSamples);
+                modPreWarmRemaining_ -= seg;
+                if (modPreWarmRemaining_ == 0) {
+                    modPreWarming_ = false;
+                    modCrossfadeAlpha_ = 0.0f;
+                    modCrossfadeIncrement_ = 1.0f / (0.030f * static_cast<float>(sampleRate_));
+                    modCrossfading_ = true;
+                }
+                done += seg;
+            } else if (modCrossfading_) {
+                // Run up to and including the sample the fade completes on.
+                size_t seg = n;
+                float a = modCrossfadeAlpha_;
+                for (size_t i = 0; i < n; ++i) {
+                    a += modCrossfadeIncrement_;
+                    if (a >= 1.0f) {
+                        seg = i + 1;
+                        break;
+                    }
+                }
 
-            // Blend: outgoing * (1 - alpha) + incoming * alpha
-            for (size_t i = 0; i < numSamples; ++i) {
-                float alpha = modCrossfadeAlpha_;
-                left[i] = tempL_[i] * (1.0f - alpha) + left[i] * alpha;
-                right[i] = tempR_[i] * (1.0f - alpha) + right[i] * alpha;
+                // Process both outgoing and incoming effects, blend with alpha
+                // Save the input for the outgoing effect
+                std::memcpy(tempL_.data(), l, seg * sizeof(float));
+                std::memcpy(tempR_.data(), r, seg * sizeof(float));
 
-                modCrossfadeAlpha_ += modCrossfadeIncrement_;
+                // Process outgoing effect on temp buffers
+                processModEffect(activeModType_, tempL_.data(), tempR_.data(), seg);
+                // Process incoming effect on original buffers
+                processModEffect(incomingModType_, l, r, seg);
+
+                // Blend: outgoing * (1 - alpha) + incoming * alpha
+                for (size_t i = 0; i < seg; ++i) {
+                    float alpha = modCrossfadeAlpha_;
+                    l[i] = tempL_[i] * (1.0f - alpha) + l[i] * alpha;
+                    r[i] = tempR_[i] * (1.0f - alpha) + r[i] * alpha;
+                    modCrossfadeAlpha_ += modCrossfadeIncrement_;
+                }
                 if (modCrossfadeAlpha_ >= 1.0f) {
                     modCrossfadeAlpha_ = 1.0f;
+                    // The rest of the block runs the new type, or the
+                    // pre-warm of a switch queued mid-fade, from the next sample.
                     completeModCrossfade();
-                    // Copy remaining incoming samples directly (crossfade done)
-                    // The incoming effect already processed the full buffer,
-                    // and remaining samples after this point should use incoming.
-                    // Since left/right already contain the incoming output,
-                    // we just need to stop blending.
-                    break;
                 }
+                done += seg;
+            } else {
+                // No crossfade: process only the active effect
+                processModEffect(activeModType_, l, r, n);
+                done = numSamples;
             }
-        } else {
-            // No crossfade: process only the active effect
-            processModEffect(activeModType_, left, right, numSamples);
         }
     }
 
@@ -1357,20 +1490,40 @@ private:
         }
     }
 
+    /// @brief Clear one modulation effect's state.
+    void resetModEffect(ModulationType type) noexcept {
+        if (type == ModulationType::Phaser) {
+            phaser_.reset();
+        } else if (type == ModulationType::Flanger) {
+            flanger_.reset();
+        } else if (type == ModulationType::Chorus) {
+            chorus_.reset();
+        }
+    }
+
+    /// @brief Start pre-warming `incoming` ahead of its crossfade.
+    void beginModPreWarm(ModulationType incoming) noexcept {
+        incomingModType_ = incoming;
+        modPreWarming_ = true;
+        modPreWarmRemaining_ = static_cast<size_t>(
+            kModPreWarmMs * 0.001f * static_cast<float>(sampleRate_));
+    }
+
     /// @brief Complete a modulation type crossfade.
     void completeModCrossfade() noexcept {
         // Reset the outgoing effect
-        if (activeModType_ == ModulationType::Phaser) {
-            phaser_.reset();
-        } else if (activeModType_ == ModulationType::Flanger) {
-            flanger_.reset();
-        } else if (activeModType_ == ModulationType::Chorus) {
-            chorus_.reset();
-        }
+        resetModEffect(activeModType_);
         activeModType_ = incomingModType_;
         modCrossfading_ = false;
         modCrossfadeAlpha_ = 0.0f;
         modCrossfadeIncrement_ = 0.0f;
+
+        // Start the switch queued mid-fade now, before the next block's
+        // setModulationType() could switch to it without a fade.
+        if (modTypePending_) {
+            modTypePending_ = false;
+            startModCrossfade(pendingModType_);
+        }
     }
 
     // =========================================================================
@@ -1386,6 +1539,7 @@ private:
     bool reverbEnabled_ = false;
     bool harmonizerEnabled_ = false;
     bool harmonizerNeedsPrime_ = false; // Apply voice fade-in on first process
+    bool harmonizerRanSinceReset_ = false; // reset() skips a harmonizer still in its reset state
 
     // Modulation slot (Phaser/Flanger/Chorus/None)
     Phaser phaser_;
@@ -1398,6 +1552,12 @@ private:
     bool modCrossfading_ = false;
     float modCrossfadeAlpha_ = 0.0f;
     float modCrossfadeIncrement_ = 0.0f;
+    // A third type requested mid-fade; its switch starts when the running one ends.
+    ModulationType pendingModType_ = ModulationType::None;
+    bool modTypePending_ = false;
+    // Incoming effect being fed before its crossfade starts.
+    bool modPreWarming_ = false;
+    size_t modPreWarmRemaining_ = 0;
 
     // Delay slot (5 types)
     DigitalDelay digitalDelay_;
@@ -1406,18 +1566,29 @@ private:
     GranularDelay granularDelay_;
     SpectralDelay spectralDelay_;
 
+    // Line clears spread over chunks (R-004). The budget scales with the chunk
+    // length, so the cost stays a fixed share of the deadline: ~1 MB per 64
+    // samples. A 5 s stereo line pair (2 x 2^18 floats at 48 kHz) clears in
+    // 128 samples, under 3 ms at any rate; the Spectral bin lines in under 6 ms
+    // at any FFT size.
+    static constexpr size_t kNumDelayTypes = static_cast<size_t>(RuinaeDelayType::NumTypes);
+    static constexpr size_t kDelayClearSamplesPerSample = 4096;
+    std::array<bool, kNumDelayTypes> delayClearPending_{};  ///< clear started, not finished
+    std::array<bool, kNumDelayTypes> delayDirty_{};         ///< ran since its last clear
+    // Slot input kept while the active type's clear runs (catchUpActiveDelay).
+    // The longest clear (Spectral, under 6 ms) fits several times over.
+    static constexpr double kDelayBacklogMs = 20.0;
+    std::vector<float> activeDelayBacklogL_;
+    std::vector<float> activeDelayBacklogR_;
+    size_t activeDelayBacklogStart_ = 0;  ///< oldest kept sample in the ring
+    size_t activeDelayBacklog_ = 0;       ///< samples kept
+
     // Crossfade state
     RuinaeDelayType activeDelayType_ = RuinaeDelayType::Digital;
     RuinaeDelayType incomingDelayType_ = RuinaeDelayType::Digital;
     bool crossfading_ = false;
     float crossfadeAlpha_ = 0.0f;
     float crossfadeIncrement_ = 0.0f;
-
-    // Latency compensation (2 shared pairs: active + standby)
-    size_t targetLatencySamples_ = 0;
-    std::array<DelayLine, 2> compDelayL_;
-    std::array<DelayLine, 2> compDelayR_;
-    size_t activeCompIdx_ = 0;
 
     // Pre-warm state (delay-line-fill artifact elimination)
     bool preWarming_ = false;
@@ -1430,6 +1601,7 @@ private:
     std::vector<float> harmonizerMonoScratch_;
     std::vector<float> harmonizerDryL_;
     std::vector<float> harmonizerDryR_;
+    std::vector<float> harmonizerDryGain_;  // per-sample smoothed Dry Level
 
     // Delay / reverb enable-disable crossfade. Same four-state shape as the
     // harmonizer's, applied to the wet gain of each slot's external dry/wet mix.
@@ -1484,6 +1656,8 @@ private:
     // Reverb type crossfade state (125-dual-reverb)
     int activeReverbType_ = 0;        // 0=Plate, 1=Hall
     int incomingReverbType_ = 0;
+    // A type requested while Freeze is on, applied when Freeze is released (-1: none).
+    int pendingReverbType_ = -1;
     bool reverbCrossfading_ = false;
     float reverbCrossfadeAlpha_ = 0.0f;
     float reverbCrossfadeIncrement_ = 0.0f;
@@ -1506,8 +1680,7 @@ private:
     std::vector<float> crossfadeOutR_;
 
     // Dry input captured before delay processing, used to perform the
-    // dry/wet mix externally so the dry signal bypasses the latency
-    // compensation delay.
+    // dry/wet mix externally.
     std::vector<float> delayDryL_;
     std::vector<float> delayDryR_;
     float userDelayMix_ = 1.0f;

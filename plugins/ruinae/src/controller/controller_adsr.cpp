@@ -2,7 +2,7 @@
 // Controller: ADSR Display Wiring
 // ==============================================================================
 // Extracted from controller.cpp - handles wireAdsrDisplay(), syncAdsrDisplay(),
-// syncAdsrParamToDisplay(), and wireEnvDisplayPlayback().
+// and syncAdsrParamToDisplay().
 // ==============================================================================
 
 #include "controller.h"
@@ -50,7 +50,7 @@ void Controller::wireAdsrDisplay(Krate::Plugins::ADSRDisplay* display) {
         return; // Unknown tag - not an envelope display
     }
 
-    *displayPtr = display;
+    cacheView(*displayPtr, display);
 
     // Configure parameter IDs
     display->setAdsrBaseParamId(adsrBaseId);
@@ -78,9 +78,7 @@ void Controller::wireAdsrDisplay(Krate::Plugins::ADSRDisplay* display) {
 
     // Sync current parameter values to the display
     syncAdsrDisplay(display, adsrBaseId, curveBaseId, bezierEnabledId, bezierBaseId);
-
-    // Wire playback state pointers if already available
-    wireEnvDisplayPlayback();
+    // Playback state comes from the controller's poll timer (pollProcessorDisplays).
 }
 
 void Controller::syncAdsrDisplay(Krate::Plugins::ADSRDisplay* display,
@@ -183,22 +181,6 @@ void Controller::syncAdsrParamToDisplay(
         int axis = idx % 2;    // 0=x, 1=y
         display->setBezierHandleValue(seg, handle, axis,
             static_cast<float>(value));
-    }
-}
-
-void Controller::wireEnvDisplayPlayback() {
-    // Wire atomic pointers to each ADSRDisplay instance for playback visualization
-    if (ampEnvDisplay_ && ampEnvOutputPtr_ && ampEnvStagePtr_ && envVoiceActivePtr_) {
-        ampEnvDisplay_->setPlaybackStatePointers(
-            ampEnvOutputPtr_, ampEnvStagePtr_, envVoiceActivePtr_);
-    }
-    if (filterEnvDisplay_ && filterEnvOutputPtr_ && filterEnvStagePtr_ && envVoiceActivePtr_) {
-        filterEnvDisplay_->setPlaybackStatePointers(
-            filterEnvOutputPtr_, filterEnvStagePtr_, envVoiceActivePtr_);
-    }
-    if (modEnvDisplay_ && modEnvOutputPtr_ && modEnvStagePtr_ && envVoiceActivePtr_) {
-        modEnvDisplay_->setPlaybackStatePointers(
-            modEnvOutputPtr_, modEnvStagePtr_, envVoiceActivePtr_);
     }
 }
 

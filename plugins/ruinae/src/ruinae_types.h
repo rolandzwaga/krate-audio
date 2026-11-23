@@ -9,6 +9,9 @@
 
 #pragma once
 
+#include <algorithm>
+#include <array>
+#include <cstddef>
 #include <cstdint>
 
 namespace Krate::DSP {
@@ -86,5 +89,49 @@ enum class RuinaeDelayType : uint8_t {
     Spectral = 4,   ///< SpectralDelay (FFT per-bin)
     NumTypes = 5    ///< Sentinel: total number of delay types
 };
+
+/// Spectral delay FFT sizes in Delay FFT Size dropdown order.
+inline constexpr std::array<std::size_t, 4> kSpectralDelayFFTSizes = {512, 1024, 2048, 4096};
+
+/// The spectral delay FFT size for a Delay FFT Size dropdown index; an
+/// out-of-range index clamps to the nearest end.
+[[nodiscard]] inline std::size_t fftSizeFromIndex(int index) noexcept {
+    return kSpectralDelayFFTSizes[static_cast<std::size_t>(
+        std::clamp(index, 0, static_cast<int>(kSpectralDelayFFTSizes.size()) - 1))];
+}
+
+// =============================================================================
+// RuinaeModDest Enumeration (FR-020)
+// =============================================================================
+
+/// @brief Internal enum for global modulation destinations within the
+///        RuinaeEngine. Values start at 64 to avoid collision with
+///        per-voice modulation destination IDs.
+enum class RuinaeModDest : std::uint8_t {
+    GlobalFilterCutoff     = 64,  ///< Global filter cutoff frequency offset
+    GlobalFilterResonance  = 65,  ///< Global filter resonance offset
+    MasterVolume           = 66,  ///< Master volume offset
+    EffectMix              = 67,  ///< Effect chain mix offset (delay mix)
+    AllVoiceFilterCutoff   = 68,  ///< Offset forwarded to all voices' filter cutoff
+    AllVoiceMorphPosition  = 69,  ///< Offset forwarded to all voices' morph position
+    AllVoiceTranceGateRate = 70,  ///< Offset forwarded to all voices' trance gate rate
+    AllVoiceSpectralTilt   = 71,  ///< Offset forwarded to all voices' spectral tilt
+    AllVoiceResonance      = 72,  ///< Offset forwarded to all voices' filter resonance
+    AllVoiceFilterEnvAmt   = 73,  ///< Offset forwarded to all voices' filter env amount
+    // Arpeggiator modulation destinations (078-modulation-integration)
+    ArpRate                = 74,  ///< Arp rate/speed modulation
+    ArpGateLength          = 75,  ///< Arp gate length modulation
+    ArpOctaveRange         = 76,  ///< Arp octave range modulation
+    ArpSwing               = 77,  ///< Arp swing modulation
+    ArpSpice               = 78   ///< Arp spice amount modulation
+};
+
+// FR-020: Validate linear mapping from UI index to enum value.
+// modDestFromIndex() computes GlobalFilterCutoff + index, so ArpRate must be
+// exactly GlobalFilterCutoff + 10 (since ArpRate is at UI index 10).
+static_assert(static_cast<uint32_t>(RuinaeModDest::ArpRate) ==
+              static_cast<uint32_t>(RuinaeModDest::GlobalFilterCutoff) + 10,
+              "ArpRate enum value must equal GlobalFilterCutoff + 10 "
+              "for modDestFromIndex() to work correctly");
 
 } // namespace Krate::DSP

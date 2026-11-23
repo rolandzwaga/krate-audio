@@ -634,7 +634,7 @@ TEST_CASE("Analysis Feedback: SC-003 decay=0.5 reaches silence within 60 seconds
 // =============================================================================
 
 TEST_CASE("Analysis Feedback: SC-008 feedback mixing has negligible CPU overhead",
-          "[analysis_feedback][SC-008]")
+          "[analysis_feedback][SC-008][wallclock]")
 {
     // Part (b): Coarse timing sanity check.
     // Run 1000 blocks with feedback=0.0 (baseline) and 1000 blocks with

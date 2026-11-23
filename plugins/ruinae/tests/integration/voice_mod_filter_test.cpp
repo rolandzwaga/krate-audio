@@ -406,3 +406,239 @@ TEST_CASE("Voice mod route ENV3 -> OscAPitch affects audio through processor",
     // PRIMARY ASSERTION: ENV3 -> OscAPitch must change the audio output
     REQUIRE(differ);
 }
+
+// =============================================================================
+// R-045, R-044, R-053: voice-route Curve, Smooth and Scale, read back from the
+// sounding voice's route offsets (destination units: semitones, Q).
+// =============================================================================
+
+namespace {
+
+constexpr double kRouteSampleRate = 44100.0;
+
+class VoiceRouteTestProcessor : public Ruinae::Processor {
+public:
+    using Ruinae::Processor::engine;
+};
+
+std::unique_ptr<VoiceRouteTestProcessor> makeRouteProcessor() {
+    auto proc = std::make_unique<VoiceRouteTestProcessor>();
+    proc->initialize(nullptr);
+    Steinberg::Vst::ProcessSetup setup{};
+    setup.processMode = Steinberg::Vst::kRealtime;
+    setup.symbolicSampleSize = Steinberg::Vst::kSample32;
+    setup.sampleRate = kRouteSampleRate;
+    setup.maxSamplesPerBlock = 512;
+    proc->setupProcessing(setup);
+    proc->setActive(true);
+    return proc;
+}
+
+/// The one active voice (each case plays a single note).
+const Krate::DSP::RuinaeVoice& soundingVoice(const VoiceRouteTestProcessor& proc) {
+    const auto& engine = proc.engine();
+    for (size_t i = 0; i < Krate::DSP::RuinaeEngine::kMaxPolyphony; ++i) {
+        if (engine.getVoice(i).isActive()) return engine.getVoice(i);
+    }
+    FAIL("no active voice");
+    return engine.getVoice(0);
+}
+
+/// Plays `pitch` at `velocity` with `params` in the first block, renders `numBlocks`
+/// blocks of `blockSize` samples and calls `afterBlock(blockIndex)` after each block.
+template <typename AfterBlock>
+void playNote(Ruinae::Processor& proc, float velocity, MockParamChangesWithData& params,
+              int numBlocks, size_t blockSize, AfterBlock&& afterBlock) {
+    MockEventList events;
+    events.addNoteOn(60, velocity);
+    std::vector<float> outL(blockSize, 0.0f);
+    std::vector<float> outR(blockSize, 0.0f);
+    float* channelBuffers[2] = {outL.data(), outR.data()};
+    Steinberg::Vst::AudioBusBuffers outputBus{};
+    outputBus.numChannels = 2;
+    outputBus.channelBuffers32 = channelBuffers;
+    MockParameterChanges emptyParams;
+    Steinberg::Vst::ProcessData data{};
+    data.processMode = Steinberg::Vst::kRealtime;
+    data.symbolicSampleSize = Steinberg::Vst::kSample32;
+    data.numSamples = static_cast<Steinberg::int32>(blockSize);
+    data.numOutputs = 1;
+    data.outputs = &outputBus;
+    data.inputParameterChanges = &params;
+    data.inputEvents = &events;
+    for (int b = 0; b < numBlocks; ++b) {
+        proc.process(data);
+        afterBlock(b);
+        events.clear();
+        data.inputParameterChanges = &emptyParams;
+    }
+}
+
+/// The voice route offset for `dest` after ~0.23 s of a note at `velocity`.
+float settledVoiceRouteOffset(VoiceRouteTestProcessor& proc, float velocity,
+                              Krate::DSP::VoiceModDest dest) {
+    MockParamChangesWithData params;
+    playNote(proc, velocity, params, 20, 512, [](int) {});
+    return soundingVoice(proc).getModRouteOffset(dest);
+}
+
+// Mod matrix slot 0 parameter values (normalized as the host sends them).
+constexpr double kSourceMacro1Norm = 5.0 / 14.0;         // ModSource::Macro1, 15 entries
+constexpr double kDestAllVoiceResonanceNorm = 8.0 / 14.0; // RuinaeModDest::AllVoiceResonance
+constexpr double kScaleX4Norm = 1.0;                      // index 4 of {x0.25 .. x4}
+constexpr int kScaleX4 = 4;
+constexpr float kBaseResonanceQ = 0.1f;                   // kFilterResonanceId at 0
+
+/// The voice's filter resonance (Q) after ~0.23 s with Macro 1 at `macro` routed to
+/// All-Voice Resonance by mod matrix slot 0 at `amount` and `scaleNorm`.
+float globalResonanceRoute(float macro, double amount, double scaleNorm) {
+    auto proc = makeRouteProcessor();
+    MockParamChangesWithData params;
+    params.addChange(Ruinae::kFilterResonanceId, 0.0);
+    params.addChange(Ruinae::kModMatrixSlot0SourceId, kSourceMacro1Norm);
+    params.addChange(Ruinae::kModMatrixSlot0DestId, kDestAllVoiceResonanceNorm);
+    params.addChange(Ruinae::kModMatrixSlot0AmountId, (amount + 1.0) / 2.0);
+    params.addChange(Ruinae::kModMatrixSlot0ScaleId, scaleNorm);
+    params.addChange(Ruinae::kMacro1ValueId, static_cast<double>(macro));
+    playNote(*proc, 1.0f, params, 20, 512, [](int) {});
+    const float q = soundingVoice(*proc).getFilterResonance();
+    proc->setActive(false);
+    proc->terminate();
+    return q;
+}
+
+} // anonymous namespace
+
+TEST_CASE("Voice route curve and smoothing are applied",
+          "[integration][modmatrix][voice]") {
+    using Krate::DSP::VoiceModDest;
+
+    SECTION("Exponential curve: velocity 0.5 -> cutoff offset 0.25 x 48 st") {
+        auto proc = makeRouteProcessor();
+        sendVoiceModRoute(*proc, 0, /*Velocity*/ 5, /*FilterCutoff*/ 0, 1.0,
+                          /*curve Exponential*/ 1);
+        const float offset = settledVoiceRouteOffset(*proc, 0.5f, VoiceModDest::FilterCutoff);
+        INFO("cutoff offset " << offset << " st (linear would be ~24)");
+        CHECK(offset == Approx(0.25f * 48.0f).margin(0.5f));
+        proc->setActive(false);
+        proc->terminate();
+    }
+
+    SECTION("Smooth 50 ms: a Gate source step rises 10-90 % in 50 ms +/- 20 %") {
+        auto proc = makeRouteProcessor();
+        sendVoiceModRoute(*proc, 0, /*GateOutput*/ 4, /*FilterCutoff*/ 0, 1.0,
+                          /*curve*/ 0, /*smoothMs*/ 50.0);
+        constexpr size_t kBlock = 32;
+        constexpr int kBlocks = 600;  // ~0.44 s
+        std::vector<float> offsets;
+        offsets.reserve(kBlocks);
+        MockParamChangesWithData params;
+        playNote(*proc, 1.0f, params, kBlocks, kBlock, [&](int) {
+            offsets.push_back(soundingVoice(*proc).getModRouteOffset(VoiceModDest::FilterCutoff));
+        });
+        const float finalValue = offsets.back();
+        INFO("settled offset " << finalValue << " st");
+        REQUIRE(finalValue == Approx(48.0f).margin(0.5f));
+
+        // First crossing of `level` (fraction of the settled value), interpolated
+        // between block ends, in ms after the note-on.
+        auto crossingMs = [&](float level) {
+            const float threshold = level * finalValue;
+            float prev = 0.0f;
+            for (size_t b = 0; b < offsets.size(); ++b) {
+                if (offsets[b] >= threshold) {
+                    const float frac = (offsets[b] > prev)
+                        ? (threshold - prev) / (offsets[b] - prev) : 1.0f;
+                    const double samples = (static_cast<double>(b) + frac) * kBlock;
+                    return samples * 1000.0 / kRouteSampleRate;
+                }
+                prev = offsets[b];
+            }
+            return 1e9;
+        };
+        const double riseMs = crossingMs(0.9f) - crossingMs(0.1f);
+        INFO("10-90 % rise " << riseMs << " ms");
+        CHECK(riseMs >= 40.0);
+        CHECK(riseMs <= 60.0);
+        proc->setActive(false);
+        proc->terminate();
+    }
+}
+
+TEST_CASE("Voice and global resonance routes have the same full scale",
+          "[integration][modmatrix]") {
+    // Voice route: Velocity (1.0) -> Filter Resonance at amount 1.
+    auto proc = makeRouteProcessor();
+    sendVoiceModRoute(*proc, 0, /*Velocity*/ 5, /*FilterResonance*/ 1, 1.0);
+    const float voiceQ = settledVoiceRouteOffset(
+        *proc, 1.0f, Krate::DSP::VoiceModDest::FilterResonance);
+    proc->setActive(false);
+    proc->terminate();
+
+    // Global route: Macro 1 (1.0) -> All-Voice Resonance at amount 1.
+    const float globalQ = globalResonanceRoute(1.0f, 1.0, /*x1*/ 0.5) - kBaseResonanceQ;
+
+    INFO("voice route " << voiceQ << " Q, global route " << globalQ << " Q");
+    CHECK(voiceQ == Approx(10.0f).margin(0.05f));
+    CHECK(globalQ == Approx(10.0f).margin(0.05f));
+}
+
+TEST_CASE("Scale x4 keeps amount resolution", "[modmatrix]") {
+    SECTION("voice route: Velocity 0.2 -> cutoff, x4 at amount 0.5 vs 1.0") {
+        auto offsetAt = [](double amount) {
+            auto proc = makeRouteProcessor();
+            sendVoiceModRoute(*proc, 0, /*Velocity*/ 5, /*FilterCutoff*/ 0, amount,
+                              0, 0.0, kScaleX4);
+            const float offset = settledVoiceRouteOffset(
+                *proc, 0.2f, Krate::DSP::VoiceModDest::FilterCutoff);
+            proc->setActive(false);
+            proc->terminate();
+            return offset;
+        };
+        const float half = offsetAt(0.5);
+        const float full = offsetAt(1.0);
+        INFO("x4: amount 0.5 -> " << half << " st, amount 1.0 -> " << full << " st");
+        CHECK(full - half > 1.0f);
+        CHECK(full == Approx(2.0f * half).epsilon(0.02));
+    }
+
+    SECTION("global route: Macro 1 at 0.2 -> All-Voice Resonance, x4 at amount 0.5 vs 1.0") {
+        const float half = globalResonanceRoute(0.2f, 0.5, kScaleX4Norm) - kBaseResonanceQ;
+        const float full = globalResonanceRoute(0.2f, 1.0, kScaleX4Norm) - kBaseResonanceQ;
+        INFO("x4: amount 0.5 -> +" << half << " Q, amount 1.0 -> +" << full << " Q");
+        CHECK(full - half > 1.0f);
+        CHECK(full == Approx(2.0f * half).epsilon(0.02));
+    }
+}
+
+// =============================================================================
+// R-093: the Voice LFO Rate and Shape parameters reach every voice's LFO
+// =============================================================================
+
+TEST_CASE("Voice LFO rate and shape parameters reach every voice",
+          "[integration][voice][lfo]") {
+    using Krate::DSP::Waveform;
+    auto proc = makeRouteProcessor();
+    MockParamChangesWithData params;
+    SECTION("defaults: 1 Hz sine") {
+        playNote(*proc, 1.0f, params, 2, 512, [](int) {});
+        for (size_t i = 0; i < Krate::DSP::RuinaeEngine::kMaxPolyphony; ++i) {
+            const auto& lfo = proc->engine().getVoice(i).getVoiceLFO();
+            CHECK(lfo.frequency() == Approx(1.0f).margin(1e-4f));
+            CHECK(lfo.waveform() == Waveform::Sine);
+        }
+    }
+    SECTION("30 Hz square: above the LFO's 20 Hz default clamp") {
+        params.addChange(Ruinae::kVoiceLfoRateId, Ruinae::lfoRateToNormalized(30.0f));
+        params.addChange(Ruinae::kVoiceLfoShapeId, 3.0 / 5.0);
+        playNote(*proc, 1.0f, params, 2, 512, [](int) {});
+        for (size_t i = 0; i < Krate::DSP::RuinaeEngine::kMaxPolyphony; ++i) {
+            const auto& lfo = proc->engine().getVoice(i).getVoiceLFO();
+            INFO("voice " << i);
+            CHECK(lfo.frequency() == Approx(30.0f).margin(1e-3f));
+            CHECK(lfo.waveform() == Waveform::Square);
+        }
+    }
+    proc->setActive(false);
+    proc->terminate();
+}

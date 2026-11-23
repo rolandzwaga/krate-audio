@@ -98,6 +98,21 @@ public:
     static constexpr float kLevelSmoothTimeMs = 5.0f;
     static constexpr float kPanSmoothTimeMs = 5.0f;
     static constexpr float kDryWetSmoothTimeMs = 10.0f;
+    static constexpr float kVoiceCountScaleSmoothTimeMs = 10.0f;
+
+    // Transition ramps (milliseconds)
+    static constexpr float kVoiceFadeInMs = 100.0f;     ///< Added / re-armed voices
+    static constexpr float kVoiceFadeOutMs = 10.0f;     ///< Voices removed by setNumVoices
+    static constexpr float kModeSwitchFadeMs = 10.0f;   ///< Wet fade-out before a mode switch
+
+    /// Onset-delay smoothing: one-pole (time to 99 %), and a slew cap in
+    /// samples per sample so a large jump bends the pitch by at most
+    /// a factor 0.5..1.5 instead of scrubbing through the buffer.
+    static constexpr float kDelaySmoothTimeMs = 50.0f;
+    static constexpr float kMaxDelaySlewPerSample = 0.5f;
+
+    /// A muted voice keeps rendering until its smoothed level is below this.
+    static constexpr float kSilentLevel = 1e-4f;
 
     // =========================================================================
     // Lifecycle
@@ -136,6 +151,15 @@ public:
         // Configure global dry/wet smoothers (10ms)
         dryLevelSmoother_.configure(kDryWetSmoothTimeMs, sampleRateF);
         wetLevelSmoother_.configure(kDryWetSmoothTimeMs, sampleRateF);
+        voiceCountScaleSmoother_.configure(kVoiceCountScaleSmoothTimeMs, sampleRateF);
+
+        // Transition ramps
+        delaySmoothStep_ = 1.0f - calculateOnePolCoefficient(kDelaySmoothTimeMs, sampleRateF);
+        modeSwitchStep_ = 1.0f / (kModeSwitchFadeMs * sampleRateF / 1000.0f);
+        for (auto& voice : voices_) {
+            voice.delayTargetSamples = voice.delayMs * sampleRateF / 1000.0f;
+            voice.delaySamples = voice.delayTargetSamples;
+        }
 
         // Allocate scratch buffers
         delayScratch_.resize(maxBlockSize, 0.0f);
@@ -153,6 +177,13 @@ public:
         pvVoiceScratch_.resize(maxBlockSize, 0.0f);
 
         prepared_ = true;
+
+        // Nothing is sounding yet: a pending mode switch completes now.
+        wetRendering_ = false;
+        modeSwitchGain_ = 1.0f;
+        if (requestedPitchShiftMode_ != pitchShiftMode_) {
+            applyPitchShiftMode();
+        }
     }
 
     /// @brief Reset all processing state without changing configuration.
@@ -170,14 +201,35 @@ public:
         // Reset PitchTracker
         pitchTracker_.reset();
 
-        // Reset all smoothers
+        // Settle all smoothers on their targets. Their targets are the
+        // configured levels, pans and intervals: zeroing them silenced the dry
+        // and wet buses until each setter was called again.
         for (auto& voice : voices_) {
-            voice.levelSmoother.reset();
-            voice.panSmoother.reset();
-            voice.pitchSmoother.reset();
+            voice.levelSmoother.snapToTarget();
+            voice.panSmoother.snapToTarget();
+            voice.pitchSmoother.snapToTarget();
         }
-        dryLevelSmoother_.reset();
-        wetLevelSmoother_.reset();
+        dryLevelSmoother_.snapToTarget();
+        wetLevelSmoother_.snapToTarget();
+        voiceCountScaleSmoother_.snapTo(computeVoiceCountScale());
+
+        // Voices still fading out are dropped, onset delays settle, and a
+        // pending mode switch completes: after a reset nothing is sounding.
+        for (int v = numActiveVoices_; v < kMaxVoices; ++v) {
+            auto& voice = voices_[static_cast<std::size_t>(v)];
+            if (voice.fadeInIncrement < 0.0f) {
+                voice.fadeInGain = 0.0f;
+                voice.fadeInIncrement = 0.0f;
+            }
+        }
+        for (auto& voice : voices_) {
+            voice.delaySamples = voice.delayTargetSamples;
+        }
+        wetRendering_ = false;
+        modeSwitchGain_ = 1.0f;
+        if (requestedPitchShiftMode_ != pitchShiftMode_) {
+            applyPitchShiftMode();
+        }
 
         // Zero scratch buffers
         std::fill(delayScratch_.begin(), delayScratch_.end(), 0.0f);
@@ -212,10 +264,36 @@ public:
     /// @param numSamples Number of samples to process (must be <= maxBlockSize)
     void process(const float* input, float* outputL, float* outputR,
                  std::size_t numSamples) noexcept {
+        processBlock<true>(input, outputL, outputR, nullptr, numSamples);
+    }
+
+    /// @brief Process one block, writing the harmony (wet) bus only.
+    ///
+    /// Identical to process() except that the dry term is left out: outputL/R
+    /// receive the scaled voices alone. The smoothed dry gain of each sample is
+    /// written to dryGainOut, so a caller can add its own (e.g. stereo) dry
+    /// signal at the same, ramped Dry Level.
+    /// @param input Pointer to mono input samples (numSamples)
+    /// @param outputL Pointer to left wet output (numSamples, zeroed + written)
+    /// @param outputR Pointer to right wet output (numSamples, zeroed + written)
+    /// @param dryGainOut Per-sample smoothed dry gain (numSamples)
+    /// @param numSamples Number of samples to process (must be <= maxBlockSize)
+    void processWetOnly(const float* input, float* outputL, float* outputR,
+                        float* dryGainOut, std::size_t numSamples) noexcept {
+        processBlock<false>(input, outputL, outputR, dryGainOut, numSamples);
+    }
+
+private:
+    template <bool kAddDry>
+    void processBlock(const float* input, float* outputL, float* outputR,
+                      float* dryGainOut, std::size_t numSamples) noexcept {
         // FR-015: Pre-condition guard -- if not prepared, zero-fill and return
         if (!prepared_) {
             std::fill(outputL, outputL + numSamples, 0.0f);
             std::fill(outputR, outputR + numSamples, 0.0f);
+            if constexpr (!kAddDry) {
+                std::fill(dryGainOut, dryGainOut + numSamples, 0.0f);
+            }
             return;
         }
 
@@ -223,8 +301,12 @@ public:
         std::fill(outputL, outputL + numSamples, 0.0f);
         std::fill(outputR, outputR + numSamples, 0.0f);
 
+        // Which voices sound this block: the active ones not yet faded to
+        // silence, plus removed voices still fading out (R-178).
+        const int renderCount = updateVoiceRenderState();
+
         // FR-018: If numVoices==0, skip all voice processing and pitch tracking
-        if (numActiveVoices_ > 0) {
+        if (renderCount > 0) {
             // Step 1: Push input to PitchTracker (Scalic mode only, FR-008/FR-009)
             if (harmonyMode_ == HarmonyMode::Scalic) {
                 pitchTracker_.pushBlock(input, numSamples);
@@ -238,28 +320,16 @@ public:
 
                 // Step 2: Compute pitch parameters for all active voices
                 // (same as standard path: pitch smoother target + advancement)
-                for (int v = 0; v < numActiveVoices_; ++v) {
+                for (int v = 0; v < renderCount; ++v) {
                     auto& voice = voices_[static_cast<std::size_t>(v)];
-                    if (voice.linearGain == 0.0f) {
-                        advanceMutedVoiceSmoothers(voice, numSamples);
+                    if (!voice.rendered) {
+                        if (v < numActiveVoices_) {
+                            advanceMutedVoice(voice, numSamples);
+                        }
                         continue;
                     }
 
-                    float targetSemitones = 0.0f;
-                    if (harmonyMode_ == HarmonyMode::Chromatic) {
-                        targetSemitones = static_cast<float>(voice.interval) +
-                                         voice.detuneCents / 100.0f;
-                    } else {
-                        if (lastDetectedNote_ >= 0) {
-                            auto result = scaleHarmonizer_.calculate(
-                                lastDetectedNote_, voice.interval);
-                            targetSemitones = static_cast<float>(result.semitones) +
-                                              voice.detuneCents / 100.0f;
-                        } else {
-                            targetSemitones = voice.detuneCents / 100.0f;
-                        }
-                    }
-
+                    const float targetSemitones = computeTargetSemitones(voice);
                     voice.pitchSmoother.setTarget(targetSemitones);
                     float smoothedPitch = voice.pitchSmoother.process();
                     if (numSamples > 1) {
@@ -280,9 +350,9 @@ public:
                     sharedStft_.analyze(sharedAnalysisSpectrum_);
 
                     // Pass shared spectrum to each active voice
-                    for (int v = 0; v < numActiveVoices_; ++v) {
+                    for (int v = 0; v < renderCount; ++v) {
                         auto& voice = voices_[static_cast<std::size_t>(v)];
-                        if (voice.linearGain == 0.0f) continue;
+                        if (!voice.rendered) continue;
 
                         float pitchRatio = semitonesToRatio(
                             voice.pitchShifter.getSemitones());
@@ -301,9 +371,9 @@ public:
                 }
 
                 // Step 5: Pull output from each voice and apply level/pan/delay
-                for (int v = 0; v < numActiveVoices_; ++v) {
+                for (int v = 0; v < renderCount; ++v) {
                     auto& voice = voices_[static_cast<std::size_t>(v)];
-                    if (voice.linearGain == 0.0f) continue;
+                    if (!voice.rendered) continue;
 
                     // Pull OLA output into pvVoiceScratch_
                     std::size_t available =
@@ -323,45 +393,11 @@ public:
                     }
 
                     // FR-025: Apply per-voice delay POST-pitch in PV mode
-                    if (voice.delayMs > 0.0f) {
-                        for (std::size_t s = 0; s < numSamples; ++s) {
-                            voice.delayLine.write(pvVoiceScratch_[s]);
-                            voiceScratch_[s] = voice.delayLine.readLinear(
-                                voice.delaySamples);
-                        }
-                    } else {
-                        std::copy(pvVoiceScratch_.data(),
-                                  pvVoiceScratch_.data() +
-                                      static_cast<std::ptrdiff_t>(numSamples),
-                                  voiceScratch_.data());
-                    }
+                    applyOnsetDelay(voice, pvVoiceScratch_.data(),
+                                    voiceScratch_.data(), numSamples);
 
                     // Per-sample accumulation with level and pan smoothing
-                    for (std::size_t s = 0; s < numSamples; ++s) {
-                        float levelGain = voice.levelSmoother.process();
-                        float panVal = voice.panSmoother.process();
-
-                        // Constant-power pan (FR-005)
-                        float angle = (panVal + 1.0f) * kPi * 0.25f;
-                        float leftGain = std::cos(angle);
-                        float rightGain = std::sin(angle);
-
-                        // Quadratic fade-in curve: gentle start, avoids click
-                        // when pitch shifter delay line begins producing output
-                        float fadeGain = voice.fadeInGain * voice.fadeInGain;
-                        float sample = voiceScratch_[s] * levelGain * fadeGain;
-                        outputL[s] += sample * leftGain;
-                        outputR[s] += sample * rightGain;
-
-                        // Advance voice fade-in (linear ramp, applied quadratically)
-                        if (voice.fadeInGain < 1.0f) {
-                            voice.fadeInGain += voice.fadeInIncrement;
-                            if (voice.fadeInGain >= 1.0f) {
-                                voice.fadeInGain = 1.0f;
-                                voice.fadeInIncrement = 0.0f;
-                            }
-                        }
-                    }
+                    accumulateVoice(voice, outputL, outputR, numSamples);
                 }
             } else if (pitchShiftMode_ == PitchMode::PitchSync) {
                 // ====== SHARED PITCH DETECTION PATH (PitchSync optimization) ======
@@ -373,35 +409,17 @@ public:
                 const float sharedPeriod = sharedPitchDetector_.getDetectedPeriod();
                 const float sharedConfidence = sharedPitchDetector_.getConfidence();
 
-                for (int v = 0; v < numActiveVoices_; ++v) {
+                for (int v = 0; v < renderCount; ++v) {
                     auto& voice = voices_[static_cast<std::size_t>(v)];
 
-                    // Skip the pitch-shifting work for muted voices, but keep
-                    // their smoothers running -- as the PhaseVocoder path does.
-                    // A frozen level smoother makes an unmuted voice arrive at
-                    // full gain in a single block instead of over its 5 ms ramp.
-                    if (voice.linearGain == 0.0f) {
-                        advanceMutedVoiceSmoothers(voice, numSamples);
-                        continue;
-                    }
+                    // A muted voice keeps running its delay and shifter, and
+                    // only its output is dropped: the grain and delay buffers
+                    // stay current, so unmuting resumes at the interval with
+                    // no audio from before the mute (R-179).
+                    if (!voice.rendered && v >= numActiveVoices_) continue;
 
                     // Step 2b: Compute target semitones (same as standard path)
-                    float targetSemitones = 0.0f;
-                    if (harmonyMode_ == HarmonyMode::Chromatic) {
-                        targetSemitones = static_cast<float>(voice.interval) +
-                                         voice.detuneCents / 100.0f;
-                    } else {
-                        if (lastDetectedNote_ >= 0) {
-                            auto result = scaleHarmonizer_.calculate(
-                                lastDetectedNote_, voice.interval);
-                            targetSemitones = static_cast<float>(result.semitones) +
-                                              voice.detuneCents / 100.0f;
-                        } else {
-                            targetSemitones = voice.detuneCents / 100.0f;
-                        }
-                    }
-
-                    voice.pitchSmoother.setTarget(targetSemitones);
+                    voice.pitchSmoother.setTarget(computeTargetSemitones(voice));
 
                     float smoothedPitch = voice.pitchSmoother.process();
                     voice.pitchShifter.setSemitones(smoothedPitch);
@@ -411,15 +429,7 @@ public:
                     }
 
                     // Step 3: Process delay line (pre-pitch in non-PV modes)
-                    if (voice.delayMs > 0.0f) {
-                        for (std::size_t s = 0; s < numSamples; ++s) {
-                            voice.delayLine.write(input[s]);
-                            delayScratch_[s] = voice.delayLine.readLinear(
-                                voice.delaySamples);
-                        }
-                    } else {
-                        std::copy(input, input + numSamples, delayScratch_.data());
-                    }
+                    applyOnsetDelay(voice, input, delayScratch_.data(), numSamples);
 
                     // Step 4: Process pitch shift with shared pitch detection
                     voice.pitchShifter.processWithSharedPitch(
@@ -427,64 +437,19 @@ public:
                         sharedPeriod, sharedConfidence);
 
                     // Step 5: Per-sample accumulation with level and pan smoothing
-                    for (std::size_t s = 0; s < numSamples; ++s) {
-                        float levelGain = voice.levelSmoother.process();
-                        float panVal = voice.panSmoother.process();
-
-                        // Constant-power pan (FR-005)
-                        float angle = (panVal + 1.0f) * kPi * 0.25f;
-                        float leftGain = std::cos(angle);
-                        float rightGain = std::sin(angle);
-
-                        // Quadratic fade-in curve: gentle start, avoids click
-                        // when pitch shifter delay line begins producing output
-                        float fadeGain = voice.fadeInGain * voice.fadeInGain;
-                        float sample = voiceScratch_[s] * levelGain * fadeGain;
-                        outputL[s] += sample * leftGain;
-                        outputR[s] += sample * rightGain;
-
-                        // Advance voice fade-in (linear ramp, applied quadratically)
-                        if (voice.fadeInGain < 1.0f) {
-                            voice.fadeInGain += voice.fadeInIncrement;
-                            if (voice.fadeInGain >= 1.0f) {
-                                voice.fadeInGain = 1.0f;
-                                voice.fadeInIncrement = 0.0f;
-                            }
-                        }
-                    }
+                    accumulateOrAdvance(voice, outputL, outputR, numSamples);
                 }
             } else {
                 // ====== STANDARD PER-VOICE PATH (Simple, Granular) ======
 
-                for (int v = 0; v < numActiveVoices_; ++v) {
+                for (int v = 0; v < renderCount; ++v) {
                     auto& voice = voices_[static_cast<std::size_t>(v)];
 
-                    // Skip the pitch-shifting work for muted voices, but keep
-                    // their smoothers running -- as the PhaseVocoder path does.
-                    // A frozen level smoother makes an unmuted voice arrive at
-                    // full gain in a single block instead of over its 5 ms ramp.
-                    if (voice.linearGain == 0.0f) {
-                        advanceMutedVoiceSmoothers(voice, numSamples);
-                        continue;
-                    }
+                    // Muted voices: see the PitchSync path above.
+                    if (!voice.rendered && v >= numActiveVoices_) continue;
 
                     // Step 2: Compute target semitones
-                    float targetSemitones = 0.0f;
-                    if (harmonyMode_ == HarmonyMode::Chromatic) {
-                        targetSemitones = static_cast<float>(voice.interval) +
-                                         voice.detuneCents / 100.0f;
-                    } else {
-                        if (lastDetectedNote_ >= 0) {
-                            auto result = scaleHarmonizer_.calculate(
-                                lastDetectedNote_, voice.interval);
-                            targetSemitones = static_cast<float>(result.semitones) +
-                                              voice.detuneCents / 100.0f;
-                        } else {
-                            targetSemitones = voice.detuneCents / 100.0f;
-                        }
-                    }
-
-                    voice.pitchSmoother.setTarget(targetSemitones);
+                    voice.pitchSmoother.setTarget(computeTargetSemitones(voice));
 
                     float smoothedPitch = voice.pitchSmoother.process();
                     voice.pitchShifter.setSemitones(smoothedPitch);
@@ -494,75 +459,70 @@ public:
                     }
 
                     // Step 3: Process delay line (pre-pitch in non-PV modes)
-                    if (voice.delayMs > 0.0f) {
-                        for (std::size_t s = 0; s < numSamples; ++s) {
-                            voice.delayLine.write(input[s]);
-                            delayScratch_[s] = voice.delayLine.readLinear(
-                                voice.delaySamples);
-                        }
-                    } else {
-                        std::copy(input, input + numSamples, delayScratch_.data());
-                    }
+                    applyOnsetDelay(voice, input, delayScratch_.data(), numSamples);
 
                     // Step 4: Process pitch shift
                     voice.pitchShifter.process(delayScratch_.data(),
                                                voiceScratch_.data(), numSamples);
 
                     // Step 5: Per-sample accumulation with level and pan smoothing
-                    for (std::size_t s = 0; s < numSamples; ++s) {
-                        float levelGain = voice.levelSmoother.process();
-                        float panVal = voice.panSmoother.process();
-
-                        // Constant-power pan (FR-005)
-                        float angle = (panVal + 1.0f) * kPi * 0.25f;
-                        float leftGain = std::cos(angle);
-                        float rightGain = std::sin(angle);
-
-                        // Quadratic fade-in curve: gentle start, avoids click
-                        // when pitch shifter delay line begins producing output
-                        float fadeGain = voice.fadeInGain * voice.fadeInGain;
-                        float sample = voiceScratch_[s] * levelGain * fadeGain;
-                        outputL[s] += sample * leftGain;
-                        outputR[s] += sample * rightGain;
-
-                        // Advance voice fade-in (linear ramp, applied quadratically)
-                        if (voice.fadeInGain < 1.0f) {
-                            voice.fadeInGain += voice.fadeInIncrement;
-                            if (voice.fadeInGain >= 1.0f) {
-                                voice.fadeInGain = 1.0f;
-                                voice.fadeInIncrement = 0.0f;
-                            }
-                        }
-                    }
+                    accumulateOrAdvance(voice, outputL, outputR, numSamples);
                 }
             }
         }
 
         // Step 6-7: Per-sample dry/wet blend (FR-017 steps 6-7)
         // Scale wet bus by 1/sqrt(N) for gain-neutral voice stacking,
-        // where N is the number of audible (non-muted) voices.
-        // N voices of uncorrelated signal sum to sqrt(N) in power, so
-        // dividing by sqrt(N) keeps perceived loudness constant regardless
-        // of voice count. Single voice (N<=1) remains at unity.
-        int audibleVoices = 0;
-        for (int v = 0; v < numActiveVoices_; ++v) {
-            if (voices_[static_cast<std::size_t>(v)].linearGain > 0.0f) {
-                ++audibleVoices;
-            }
+        // where N is the number of audible (non-muted) voices. The scale is
+        // smoothed over 10 ms: a step in N is a gain step on the whole
+        // harmony bus (R-178). It snaps when the bus was silent last block.
+        voiceCountScaleSmoother_.setTarget(computeVoiceCountScale());
+        if (!wetRendering_) {
+            voiceCountScaleSmoother_.snapToTarget();
         }
-        const float voiceCountScale = (audibleVoices > 1)
-            ? 1.0f / std::sqrt(static_cast<float>(audibleVoices))
-            : 1.0f;
+
+        // A requested Pitch Shift Mode change fades the wet bus out first
+        // (R-176); the switch itself happens once the fade reaches 0.
+        const bool modeSwitchPending = requestedPitchShiftMode_ != pitchShiftMode_;
 
         for (std::size_t s = 0; s < numSamples; ++s) {
             float dryGain = dryLevelSmoother_.process();
             float wetGain = wetLevelSmoother_.process();
+            const float countScale = voiceCountScaleSmoother_.process();
+            if (modeSwitchPending) {
+                modeSwitchGain_ = std::max(0.0f, modeSwitchGain_ - modeSwitchStep_);
+            } else if (modeSwitchGain_ < 1.0f) {
+                modeSwitchGain_ = std::min(1.0f, modeSwitchGain_ + modeSwitchStep_);
+            }
+            const float wetScale = wetGain * countScale * modeSwitchGain_;
 
-            outputL[s] = wetGain * voiceCountScale * outputL[s] + dryGain * input[s];
-            outputR[s] = wetGain * voiceCountScale * outputR[s] + dryGain * input[s];
+            if constexpr (kAddDry) {
+                outputL[s] = wetScale * outputL[s] + dryGain * input[s];
+                outputR[s] = wetScale * outputR[s] + dryGain * input[s];
+            } else {
+                outputL[s] *= wetScale;
+                outputR[s] *= wetScale;
+                dryGainOut[s] = dryGain;
+            }
+        }
+
+        bool anyRendered = false;
+        for (int v = 0; v < renderCount; ++v) {
+            anyRendered = anyRendered || voices_[static_cast<std::size_t>(v)].rendered;
+        }
+        wetRendering_ = anyRendered;
+
+        if (modeSwitchPending && (modeSwitchGain_ <= 0.0f || !anyRendered)) {
+            applyPitchShiftMode();
+            if (anyRendered) {
+                // The wet bus is at 0: fade the new mode's voices in.
+                applyVoiceFadeIn();
+            }
+            modeSwitchGain_ = 1.0f;
         }
     }
 
+public:
     // =========================================================================
     // Global Configuration (T027)
     // =========================================================================
@@ -575,23 +535,39 @@ public:
     /// @brief Set the number of active harmony voices. Clamped to [0, kMaxVoices].
     void setNumVoices(int count) noexcept {
         const int newCount = std::clamp(count, 0, kMaxVoices);
-        // Fade in newly activated voices to prevent click.
-        // Only when voices are already active (mid-stream addition).
-        // Initial enable (0→N) is handled by the effects chain crossfade +
-        // applyVoiceFadeIn() called from the effects chain.
-        if (newCount > numActiveVoices_ && numActiveVoices_ > 0) {
-            static constexpr float kVoiceFadeInMs = 100.0f;
-            const float fadeInSamples = kVoiceFadeInMs * static_cast<float>(sampleRate_) / 1000.0f;
-            const float increment = (fadeInSamples > 0.0f) ? (1.0f / fadeInSamples) : 1.0f;
+        if (newCount > numActiveVoices_) {
+            const float increment = fadeIncrement(kVoiceFadeInMs);
             for (int v = numActiveVoices_; v < newCount; ++v) {
                 auto& voice = voices_[static_cast<std::size_t>(v)];
-                voice.fadeInGain = 0.0f;
-                voice.fadeInIncrement = increment;
-                // Don't reset pitch shifter — clearing the delay line creates
-                // a hard edge when it refills. The fade-in handles the transition.
-                voice.levelSmoother.snapToTarget();
-                voice.panSmoother.snapToTarget();
-                voice.pitchSmoother.snapToTarget();
+                if (voice.fadeInIncrement < 0.0f) {
+                    // Still fading out after a removal, so still audible:
+                    // turn the ramp around from where it is.
+                    voice.fadeInIncrement = increment;
+                } else if (numActiveVoices_ > 0) {
+                    // Fade in newly activated voices to prevent click
+                    // (mid-stream addition).
+                    voice.fadeInGain = 0.0f;
+                    voice.fadeInIncrement = increment;
+                    // Don't reset pitch shifter — clearing the delay line creates
+                    // a hard edge when it refills. The fade-in handles the transition.
+                    voice.levelSmoother.snapToTarget();
+                    voice.panSmoother.snapToTarget();
+                    voice.pitchSmoother.snapToTarget();
+                } else if (voice.fadeInIncrement == 0.0f) {
+                    // Initial enable (0→N) is handled by the effects chain
+                    // crossfade + applyVoiceFadeIn(); a voice that finished a
+                    // fade-out earlier starts from full gain again.
+                    voice.fadeInGain = 1.0f;
+                }
+            }
+        } else if (newCount < numActiveVoices_) {
+            // Removed voices fade out before they are dropped (R-178).
+            const float decrement = -fadeIncrement(kVoiceFadeOutMs);
+            for (int v = newCount; v < numActiveVoices_; ++v) {
+                auto& voice = voices_[static_cast<std::size_t>(v)];
+                if (voice.fadeInGain > 0.0f) {
+                    voice.fadeInIncrement = decrement;
+                }
             }
         }
         numActiveVoices_ = newCount;
@@ -613,12 +589,14 @@ public:
     }
 
     /// @brief Set the pitch shifting algorithm for all voices.
+    ///
+    /// While the harmony sounds, the wet bus fades out over 10 ms, the
+    /// shifters and the shared analysis are reset, and the new mode's voices
+    /// fade back in (R-176). With nothing sounding the switch is immediate.
     void setPitchShiftMode(PitchMode mode) noexcept {
-        if (mode == pitchShiftMode_) return;
-        pitchShiftMode_ = mode;
-        for (auto& voice : voices_) {
-            voice.pitchShifter.setMode(mode);
-            voice.pitchShifter.reset();
+        requestedPitchShiftMode_ = mode;
+        if (mode != pitchShiftMode_ && !wetRendering_) {
+            applyPitchShiftMode();
         }
     }
 
@@ -678,12 +656,16 @@ public:
     }
 
     /// @brief Set the onset delay for a specific voice.
+    /// The read tap glides to the new time (R-180); see kDelaySmoothTimeMs.
     void setVoiceDelay(int voiceIndex, float ms) noexcept {
         if (voiceIndex < 0 || voiceIndex >= kMaxVoices) return;
         auto& voice = voices_[static_cast<std::size_t>(voiceIndex)];
         voice.delayMs = std::clamp(ms, 0.0f, kMaxDelayMs);
-        voice.delaySamples = voice.delayMs * static_cast<float>(sampleRate_) /
-                             1000.0f;
+        voice.delayTargetSamples = voice.delayMs * static_cast<float>(sampleRate_) /
+                                   1000.0f;
+        if (!wetRendering_) {
+            voice.delaySamples = voice.delayTargetSamples;  // nothing sounding yet
+        }
     }
 
     /// @brief Snap all internal smoothers to their current targets.
@@ -692,10 +674,12 @@ public:
     void snapParameters() noexcept {
         dryLevelSmoother_.snapToTarget();
         wetLevelSmoother_.snapToTarget();
+        voiceCountScaleSmoother_.snapTo(computeVoiceCountScale());
         for (auto& voice : voices_) {
             voice.levelSmoother.snapToTarget();
             voice.panSmoother.snapToTarget();
             voice.pitchSmoother.snapToTarget();
+            voice.delaySamples = voice.delayTargetSamples;
         }
     }
 
@@ -703,9 +687,7 @@ public:
     /// Called by the effects chain when enabling the harmonizer, to smooth
     /// pitch shifter startup transients during the crossfade transition.
     void applyVoiceFadeIn() noexcept {
-        static constexpr float kFadeInMs = 100.0f;
-        const float fadeInSamples = kFadeInMs * static_cast<float>(sampleRate_) / 1000.0f;
-        const float increment = (fadeInSamples > 0.0f) ? (1.0f / fadeInSamples) : 1.0f;
+        const float increment = fadeIncrement(kVoiceFadeInMs);
         for (int v = 0; v < numActiveVoices_; ++v) {
             auto& voice = voices_[static_cast<std::size_t>(v)];
             voice.fadeInGain = 0.0f;
@@ -771,29 +753,198 @@ private:
         // Computed (derived from configuration + pitch tracking)
         float targetSemitones = 0.0f; // total semitone shift (interval + detune)
         float linearGain      = 1.0f; // dbToGain(levelDb), 0 if muted
-        float delaySamples    = 0.0f; // delayMs * sampleRate / 1000
+        float delayTargetSamples = 0.0f; // delayMs * sampleRate / 1000
+        float delaySamples    = 0.0f; // smoothed read tap, glides to the target
 
-        // Fade-in on activation (prevents click when numVoices increases)
-        float fadeInGain      = 1.0f; // 0→1 ramp over ~5ms
+        // Fade on activation and removal (prevents clicks when numVoices
+        // changes or the pitch shift mode switches). Linear ramp, applied
+        // quadratically; a negative increment is a fade-out to removal.
+        float fadeInGain      = 1.0f;
         float fadeInIncrement = 0.0f; // per-sample increment (0 = not fading)
+
+        // Set per block by updateVoiceRenderState(): the voice produces audio.
+        bool rendered = false;
     };
 
-    /// Keep a muted voice's smoothers in step with wall-clock time.
+    /// Per-sample increment of a 0→1 ramp lasting `ms`.
+    [[nodiscard]] float fadeIncrement(float ms) const noexcept {
+        const float samples = ms * static_cast<float>(sampleRate_) / 1000.0f;
+        return (samples > 0.0f) ? (1.0f / samples) : 1.0f;
+    }
+
+    /// The voice's pitch target: interval + detune, or the scalic interval
+    /// above the last detected note.
+    [[nodiscard]] float computeTargetSemitones(const Voice& voice) const noexcept {
+        if (harmonyMode_ == HarmonyMode::Chromatic) {
+            return static_cast<float>(voice.interval) + voice.detuneCents / 100.0f;
+        }
+        if (lastDetectedNote_ >= 0) {
+            auto result = scaleHarmonizer_.calculate(lastDetectedNote_, voice.interval);
+            return static_cast<float>(result.semitones) + voice.detuneCents / 100.0f;
+        }
+        return voice.detuneCents / 100.0f;
+    }
+
+    /// 1/sqrt(N) over the active voices with a non-zero level target.
+    [[nodiscard]] float computeVoiceCountScale() const noexcept {
+        int audibleVoices = 0;
+        for (int v = 0; v < numActiveVoices_; ++v) {
+            if (voices_[static_cast<std::size_t>(v)].linearGain > 0.0f) {
+                ++audibleVoices;
+            }
+        }
+        return (audibleVoices > 1)
+            ? 1.0f / std::sqrt(static_cast<float>(audibleVoices))
+            : 1.0f;
+    }
+
+    /// Decide which voices render this block and return the loop bound.
     ///
-    /// All three processing paths skip the pitch-shifting work for a voice at
-    /// zero gain, which is the point of muting it. But if the smoothers are
-    /// frozen too, unmuting resumes them from wherever they were left: the level
-    /// smoother jumps to full gain in one block rather than ramping over its
-    /// 5 ms, which clicks. Advancing them here costs a few scalar multiplies and
-    /// keeps the three paths behaving alike.
-    static void advanceMutedVoiceSmoothers(Voice& voice, std::size_t numSamples) noexcept {
-        voice.pitchSmoother.setTarget(0.0f);
-        (void)voice.pitchSmoother.process();
+    /// "Muted" is the smoothed level, not the target: a voice stepped to
+    /// -60 dB keeps rendering while its 5 ms ramp is audible (R-178). A voice
+    /// removed by setNumVoices renders until its fade-out completes; one that
+    /// is already silent is dropped at once.
+    int updateVoiceRenderState() noexcept {
+        int renderCount = 0;
+        for (int v = 0; v < kMaxVoices; ++v) {
+            auto& voice = voices_[static_cast<std::size_t>(v)];
+            const bool inCount = v < numActiveVoices_;
+            const bool fadingOut = !inCount && voice.fadeInIncrement < 0.0f;
+            const bool audible = voice.linearGain > 0.0f ||
+                                 voice.levelSmoother.getCurrentValue() >= kSilentLevel;
+            if (fadingOut && !audible) {
+                voice.fadeInGain = 0.0f;
+                voice.fadeInIncrement = 0.0f;
+            }
+            voice.rendered = (inCount || fadingOut) && audible;
+            if (inCount || voice.rendered) {
+                renderCount = v + 1;
+            }
+        }
+        return renderCount;
+    }
+
+    /// Advance the onset-delay read tap one sample toward its target:
+    /// one-pole glide, capped at kMaxDelaySlewPerSample.
+    float nextDelaySamples(Voice& voice) const noexcept {
+        const float diff = voice.delayTargetSamples - voice.delaySamples;
+        if (std::abs(diff) < 1e-3f) {
+            voice.delaySamples = voice.delayTargetSamples;
+        } else {
+            voice.delaySamples += std::clamp(diff * delaySmoothStep_,
+                                             -kMaxDelaySlewPerSample,
+                                             kMaxDelaySlewPerSample);
+        }
+        return voice.delaySamples;
+    }
+
+    /// Onset delay: the line is always written, so the tap never reads audio
+    /// left from an earlier non-zero setting (R-180). At 0 ms the read is
+    /// the sample just written.
+    void applyOnsetDelay(Voice& voice, const float* in, float* out,
+                         std::size_t numSamples) noexcept {
+        for (std::size_t s = 0; s < numSamples; ++s) {
+            voice.delayLine.write(in[s]);
+            out[s] = voice.delayLine.readLinear(nextDelaySamples(voice));
+        }
+    }
+
+    /// Add voiceScratch_ to the stereo bus with level, pan and the voice fade.
+    void accumulateVoice(Voice& voice, float* outputL, float* outputR,
+                         std::size_t numSamples) noexcept {
+        for (std::size_t s = 0; s < numSamples; ++s) {
+            float levelGain = voice.levelSmoother.process();
+            float panVal = voice.panSmoother.process();
+
+            // Constant-power pan (FR-005)
+            float angle = (panVal + 1.0f) * kPi * 0.25f;
+            float leftGain = std::cos(angle);
+            float rightGain = std::sin(angle);
+
+            // Quadratic fade curve: gentle start, avoids click when the
+            // pitch shifter delay line begins producing output
+            float fadeGain = voice.fadeInGain * voice.fadeInGain;
+            float sample = voiceScratch_[s] * levelGain * fadeGain;
+            outputL[s] += sample * leftGain;
+            outputR[s] += sample * rightGain;
+
+            // Advance the voice fade (linear ramp, applied quadratically)
+            if (voice.fadeInIncrement > 0.0f) {
+                voice.fadeInGain += voice.fadeInIncrement;
+                if (voice.fadeInGain >= 1.0f) {
+                    voice.fadeInGain = 1.0f;
+                    voice.fadeInIncrement = 0.0f;
+                }
+            } else if (voice.fadeInIncrement < 0.0f) {
+                voice.fadeInGain += voice.fadeInIncrement;
+                if (voice.fadeInGain <= 0.0f) {
+                    voice.fadeInGain = 0.0f;
+                    voice.fadeInIncrement = 0.0f;
+                }
+            }
+        }
+    }
+
+    /// Mix a rendered voice into the bus; a muted voice (its shifter ran, see
+    /// the Simple / Granular / PitchSync paths) only advances its level and
+    /// pan smoothers, so unmuting ramps over 5 ms from where it would be.
+    void accumulateOrAdvance(Voice& voice, float* outputL, float* outputR,
+                             std::size_t numSamples) noexcept {
+        if (voice.rendered) {
+            accumulateVoice(voice, outputL, outputR, numSamples);
+        } else {
+            voice.levelSmoother.advanceSamples(numSamples);
+            voice.panSmoother.advanceSamples(numSamples);
+        }
+    }
+
+    /// Keep a muted PhaseVocoder voice in step with wall-clock time.
+    ///
+    /// The PhaseVocoder path skips the synthesis for a silent voice, which is
+    /// the point of muting it. But if the smoothers are frozen too, unmuting
+    /// resumes them from wherever they were left: the level smoother jumps to
+    /// full gain in one block rather than ramping over its 5 ms, which clicks.
+    /// The pitch smoother follows the voice's real target, so an unmuted voice
+    /// starts at its interval rather than gliding from unison (R-179). The
+    /// onset delay follows the shifter here, so its line is written with the
+    /// silence the voice produces.
+    void advanceMutedVoice(Voice& voice, std::size_t numSamples) noexcept {
+        voice.pitchSmoother.setTarget(computeTargetSemitones(voice));
+        const float smoothedPitch = voice.pitchSmoother.process();
         if (numSamples > 1) {
             voice.pitchSmoother.advanceSamples(numSamples - 1);
         }
+        voice.pitchShifter.setSemitones(smoothedPitch);
         voice.levelSmoother.advanceSamples(numSamples);
         voice.panSmoother.advanceSamples(numSamples);
+        for (std::size_t s = 0; s < numSamples; ++s) {
+            voice.delayLine.write(0.0f);
+            (void)nextDelaySamples(voice);
+        }
+    }
+
+    /// Switch every voice to the requested mode: reset the shifters with
+    /// their pitch smoothers on target, and clear the shared analysis so the
+    /// new mode never replays audio from the last time it ran (R-176).
+    void applyPitchShiftMode() noexcept {
+        pitchShiftMode_ = requestedPitchShiftMode_;
+        for (int v = 0; v < kMaxVoices; ++v) {
+            auto& voice = voices_[static_cast<std::size_t>(v)];
+            voice.pitchShifter.setMode(pitchShiftMode_);
+            voice.pitchShifter.reset();
+            voice.pitchShifter.snapParameters();
+            if (v >= numActiveVoices_) {
+                // A removed voice still fading out has just lost its state.
+                if (voice.fadeInIncrement < 0.0f) {
+                    voice.fadeInGain = 0.0f;
+                    voice.fadeInIncrement = 0.0f;
+                }
+            }
+        }
+        sharedStft_.reset();
+        sharedAnalysisSpectrum_.reset();
+        sharedPitchDetector_.reset();
+        std::fill(pvVoiceScratch_.begin(), pvVoiceScratch_.end(), 0.0f);
     }
 
     // =========================================================================
@@ -816,6 +967,17 @@ private:
     // Global level smoothers (independent, FR-007)
     OnePoleSmoother dryLevelSmoother_;
     OnePoleSmoother wetLevelSmoother_;
+    OnePoleSmoother voiceCountScaleSmoother_{1.0f};  // 1/sqrt(N), 10 ms
+
+    // Mode switch (R-176): the requested mode takes over once the wet fade
+    // reaches 0. wetRendering_ = some voice produced audio in the last block.
+    PitchMode   requestedPitchShiftMode_ = PitchMode::Simple;
+    float       modeSwitchGain_  = 1.0f;
+    float       modeSwitchStep_  = 0.0f;
+    bool        wetRendering_    = false;
+
+    // Onset-delay glide (R-180): per-sample one-pole step toward the target
+    float       delaySmoothStep_ = 1.0f;
 
     // Scratch buffers (pre-allocated in prepare())
     std::vector<float> delayScratch_;   // Delayed input per voice

@@ -10,6 +10,7 @@
 #include "plugin_ids.h"
 #include "controller/parameter_helpers.h"
 #include "parameters/dropdown_mappings.h"
+#include "parameters/state_load_helpers.h"
 #include "pluginterfaces/base/ustring.h"
 #include "public.sdk/source/vst/vstparameters.h"
 #include "public.sdk/source/vst/vsteditcontroller.h"
@@ -723,95 +724,119 @@ inline void saveOscParams(const OscParams& params, Steinberg::IBStreamer& stream
     streamer.writeInt32(params.noiseColor.load(std::memory_order_relaxed));
 }
 
-inline bool loadOscParams(OscParams& params, Steinberg::IBStreamer& streamer) {
+/// First state version in which the Formant Vowel reaches the audio (R-022):
+/// Morph is now an offset from the Vowel. Before, Morph alone set the position
+/// and the Vowel was ignored, so older states load Vowel A and keep their Morph,
+/// which plays exactly the position they were saved with.
+inline constexpr Steinberg::int32 kFormantVowelAudibleStateVersion = 9;
+
+// Saved-field ranges, read by both parsers (R-211)
+namespace OscLoad {
+inline constexpr LoadedInt kType{.lo = 0, .hi = kOscTypeCount - 1};
+inline constexpr LoadedFloat kTune{.lo = -24.0f, .hi = 24.0f, .def = 0.0f};
+inline constexpr LoadedFloat kFine{.lo = -100.0f, .hi = 100.0f, .def = 0.0f};
+inline constexpr LoadedFloat kLevel{.lo = 0.0f, .hi = 1.0f, .def = 1.0f};
+inline constexpr LoadedFloat kPhase{.lo = 0.0f, .hi = 1.0f, .def = 0.0f};
+inline constexpr LoadedInt kWaveform{.lo = 0, .hi = 4};
+inline constexpr LoadedFloat kPulseWidth{.lo = 0.01f, .hi = 0.99f, .def = 0.5f};
+inline constexpr LoadedFloat kPhaseMod{.lo = -1.0f, .hi = 1.0f, .def = 0.0f};
+inline constexpr LoadedFloat kFreqMod{.lo = -1.0f, .hi = 1.0f, .def = 0.0f};
+inline constexpr LoadedInt kPDWaveform{.lo = 0, .hi = 7};
+inline constexpr LoadedFloat kPDDistortion{.lo = 0.0f, .hi = 1.0f, .def = 0.0f};
+inline constexpr LoadedFloat kSyncRatio{.lo = 1.0f, .hi = 8.0f, .def = 2.0f};
+inline constexpr LoadedInt kSyncWaveform{.lo = 0, .hi = 4};
+inline constexpr LoadedInt kSyncMode{.lo = 0, .hi = 2};
+inline constexpr LoadedFloat kSyncAmount{.lo = 0.0f, .hi = 1.0f, .def = 1.0f};
+inline constexpr LoadedFloat kSyncPulseWidth{.lo = 0.01f, .hi = 0.99f, .def = 0.5f};
+inline constexpr LoadedInt kAdditivePartials{.lo = 1, .hi = 128};
+inline constexpr LoadedFloat kAdditiveTilt{.lo = -24.0f, .hi = 24.0f, .def = 0.0f};
+inline constexpr LoadedFloat kAdditiveInharm{.lo = 0.0f, .hi = 1.0f, .def = 0.0f};
+inline constexpr LoadedInt kChaosAttractor{.lo = 0, .hi = 4};
+inline constexpr LoadedFloat kChaosAmount{.lo = 0.0f, .hi = 1.0f, .def = 0.5f};
+inline constexpr LoadedFloat kChaosCoupling{.lo = 0.0f, .hi = 1.0f, .def = 0.0f};
+inline constexpr LoadedInt kChaosOutput{.lo = 0, .hi = 2};
+inline constexpr LoadedFloat kParticleScatter{.lo = 0.0f, .hi = 12.0f, .def = 3.0f};
+inline constexpr LoadedFloat kParticleDensity{.lo = 1.0f, .hi = 64.0f, .def = 16.0f};
+inline constexpr LoadedFloat kParticleLifetime{.lo = 5.0f, .hi = 2000.0f, .def = 200.0f};
+inline constexpr LoadedInt kParticleSpawnMode{.lo = 0, .hi = 2};
+inline constexpr LoadedInt kParticleEnvType{.lo = 0, .hi = 5};
+inline constexpr LoadedFloat kParticleDrift{.lo = 0.0f, .hi = 1.0f, .def = 0.0f};
+inline constexpr LoadedInt kFormantVowel{.lo = 0, .hi = 4};
+inline constexpr LoadedFloat kFormantMorph{.lo = 0.0f, .hi = 4.0f, .def = 0.0f};
+inline constexpr LoadedFloat kSpectralPitch{.lo = -24.0f, .hi = 24.0f, .def = 0.0f};
+inline constexpr LoadedFloat kSpectralTilt{.lo = -12.0f, .hi = 12.0f, .def = 0.0f};
+inline constexpr LoadedFloat kSpectralFormant{.lo = -12.0f, .hi = 12.0f, .def = 0.0f};
+inline constexpr LoadedInt kNoiseColor{.lo = 0, .hi = 5};
+} // namespace OscLoad
+
+inline bool loadOscParams(OscParams& params, Steinberg::IBStreamer& streamer,
+                          Steinberg::int32 stateVersion = kCurrentStateVersion) {
     Steinberg::int32 intVal = 0;
     float floatVal = 0.0f;
 
+    // Every value is clamped to the range handleOscParamChange produces (R-147:
+    // a stored PhaseMod of 1e30 hung the oscillator's phase wrap). Non-finite
+    // floats load as the struct default.
+    constexpr auto relaxed = std::memory_order_relaxed;
+
     // Existing fields (required -- return false if missing)
     if (!streamer.readInt32(intVal)) return false;
-    params.type.store(intVal, std::memory_order_relaxed);
+    params.type.store(OscLoad::kType(intVal), relaxed);
     if (!streamer.readFloat(floatVal)) return false;
-    params.tuneSemitones.store(floatVal, std::memory_order_relaxed);
+    params.tuneSemitones.store(OscLoad::kTune(floatVal), relaxed);
     if (!streamer.readFloat(floatVal)) return false;
-    params.fineCents.store(floatVal, std::memory_order_relaxed);
+    params.fineCents.store(OscLoad::kFine(floatVal), relaxed);
     if (!streamer.readFloat(floatVal)) return false;
-    params.level.store(floatVal, std::memory_order_relaxed);
+    params.level.store(OscLoad::kLevel(floatVal), relaxed);
     if (!streamer.readFloat(floatVal)) return false;
-    params.phase.store(floatVal, std::memory_order_relaxed);
+    params.phase.store(OscLoad::kPhase(floatVal), relaxed);
 
     // Type-specific fields (068-osc-type-params)
     // When readFloat()/readInt32() returns false, the old preset lacks these fields;
     // keep the struct's spec-defined default and continue without error (FR-012).
 
     // PolyBLEP / Wavetable shared
-    if (streamer.readInt32(intVal))
-        params.waveform.store(intVal, std::memory_order_relaxed);
-    if (streamer.readFloat(floatVal))
-        params.pulseWidth.store(floatVal, std::memory_order_relaxed);
-    if (streamer.readFloat(floatVal))
-        params.phaseMod.store(floatVal, std::memory_order_relaxed);
-    if (streamer.readFloat(floatVal))
-        params.freqMod.store(floatVal, std::memory_order_relaxed);
+    if (streamer.readInt32(intVal)) params.waveform.store(OscLoad::kWaveform(intVal), relaxed);
+    if (streamer.readFloat(floatVal)) params.pulseWidth.store(OscLoad::kPulseWidth(floatVal), relaxed);
+    if (streamer.readFloat(floatVal)) params.phaseMod.store(OscLoad::kPhaseMod(floatVal), relaxed);
+    if (streamer.readFloat(floatVal)) params.freqMod.store(OscLoad::kFreqMod(floatVal), relaxed);
     // Phase Distortion
-    if (streamer.readInt32(intVal))
-        params.pdWaveform.store(intVal, std::memory_order_relaxed);
-    if (streamer.readFloat(floatVal))
-        params.pdDistortion.store(floatVal, std::memory_order_relaxed);
+    if (streamer.readInt32(intVal)) params.pdWaveform.store(OscLoad::kPDWaveform(intVal), relaxed);
+    if (streamer.readFloat(floatVal)) params.pdDistortion.store(OscLoad::kPDDistortion(floatVal), relaxed);
     // Sync
-    if (streamer.readFloat(floatVal))
-        params.syncRatio.store(floatVal, std::memory_order_relaxed);
-    if (streamer.readInt32(intVal))
-        params.syncWaveform.store(intVal, std::memory_order_relaxed);
-    if (streamer.readInt32(intVal))
-        params.syncMode.store(intVal, std::memory_order_relaxed);
-    if (streamer.readFloat(floatVal))
-        params.syncAmount.store(floatVal, std::memory_order_relaxed);
-    if (streamer.readFloat(floatVal))
-        params.syncPulseWidth.store(floatVal, std::memory_order_relaxed);
+    if (streamer.readFloat(floatVal)) params.syncRatio.store(OscLoad::kSyncRatio(floatVal), relaxed);
+    if (streamer.readInt32(intVal)) params.syncWaveform.store(OscLoad::kSyncWaveform(intVal), relaxed);
+    if (streamer.readInt32(intVal)) params.syncMode.store(OscLoad::kSyncMode(intVal), relaxed);
+    if (streamer.readFloat(floatVal)) params.syncAmount.store(OscLoad::kSyncAmount(floatVal), relaxed);
+    if (streamer.readFloat(floatVal)) params.syncPulseWidth.store(OscLoad::kSyncPulseWidth(floatVal), relaxed);
     // Additive
-    if (streamer.readInt32(intVal))
-        params.additivePartials.store(intVal, std::memory_order_relaxed);
-    if (streamer.readFloat(floatVal))
-        params.additiveTilt.store(floatVal, std::memory_order_relaxed);
-    if (streamer.readFloat(floatVal))
-        params.additiveInharm.store(floatVal, std::memory_order_relaxed);
+    if (streamer.readInt32(intVal)) params.additivePartials.store(OscLoad::kAdditivePartials(intVal), relaxed);
+    if (streamer.readFloat(floatVal)) params.additiveTilt.store(OscLoad::kAdditiveTilt(floatVal), relaxed);
+    if (streamer.readFloat(floatVal)) params.additiveInharm.store(OscLoad::kAdditiveInharm(floatVal), relaxed);
     // Chaos
-    if (streamer.readInt32(intVal))
-        params.chaosAttractor.store(intVal, std::memory_order_relaxed);
-    if (streamer.readFloat(floatVal))
-        params.chaosAmount.store(floatVal, std::memory_order_relaxed);
-    if (streamer.readFloat(floatVal))
-        params.chaosCoupling.store(floatVal, std::memory_order_relaxed);
-    if (streamer.readInt32(intVal))
-        params.chaosOutput.store(intVal, std::memory_order_relaxed);
+    if (streamer.readInt32(intVal)) params.chaosAttractor.store(OscLoad::kChaosAttractor(intVal), relaxed);
+    if (streamer.readFloat(floatVal)) params.chaosAmount.store(OscLoad::kChaosAmount(floatVal), relaxed);
+    if (streamer.readFloat(floatVal)) params.chaosCoupling.store(OscLoad::kChaosCoupling(floatVal), relaxed);
+    if (streamer.readInt32(intVal)) params.chaosOutput.store(OscLoad::kChaosOutput(intVal), relaxed);
     // Particle
-    if (streamer.readFloat(floatVal))
-        params.particleScatter.store(floatVal, std::memory_order_relaxed);
-    if (streamer.readFloat(floatVal))
-        params.particleDensity.store(floatVal, std::memory_order_relaxed);
-    if (streamer.readFloat(floatVal))
-        params.particleLifetime.store(floatVal, std::memory_order_relaxed);
-    if (streamer.readInt32(intVal))
-        params.particleSpawnMode.store(intVal, std::memory_order_relaxed);
-    if (streamer.readInt32(intVal))
-        params.particleEnvType.store(intVal, std::memory_order_relaxed);
-    if (streamer.readFloat(floatVal))
-        params.particleDrift.store(floatVal, std::memory_order_relaxed);
+    if (streamer.readFloat(floatVal)) params.particleScatter.store(OscLoad::kParticleScatter(floatVal), relaxed);
+    if (streamer.readFloat(floatVal)) params.particleDensity.store(OscLoad::kParticleDensity(floatVal), relaxed);
+    if (streamer.readFloat(floatVal)) params.particleLifetime.store(OscLoad::kParticleLifetime(floatVal), relaxed);
+    if (streamer.readInt32(intVal)) params.particleSpawnMode.store(OscLoad::kParticleSpawnMode(intVal), relaxed);
+    if (streamer.readInt32(intVal)) params.particleEnvType.store(OscLoad::kParticleEnvType(intVal), relaxed);
+    if (streamer.readFloat(floatVal)) params.particleDrift.store(OscLoad::kParticleDrift(floatVal), relaxed);
     // Formant
-    if (streamer.readInt32(intVal))
-        params.formantVowel.store(intVal, std::memory_order_relaxed);
-    if (streamer.readFloat(floatVal))
-        params.formantMorph.store(floatVal, std::memory_order_relaxed);
+    if (streamer.readInt32(intVal)) {
+        if (stateVersion < kFormantVowelAudibleStateVersion) intVal = 0;
+        params.formantVowel.store(OscLoad::kFormantVowel(intVal), relaxed);
+    }
+    if (streamer.readFloat(floatVal)) params.formantMorph.store(OscLoad::kFormantMorph(floatVal), relaxed);
     // Spectral Freeze
-    if (streamer.readFloat(floatVal))
-        params.spectralPitch.store(floatVal, std::memory_order_relaxed);
-    if (streamer.readFloat(floatVal))
-        params.spectralTilt.store(floatVal, std::memory_order_relaxed);
-    if (streamer.readFloat(floatVal))
-        params.spectralFormant.store(floatVal, std::memory_order_relaxed);
+    if (streamer.readFloat(floatVal)) params.spectralPitch.store(OscLoad::kSpectralPitch(floatVal), relaxed);
+    if (streamer.readFloat(floatVal)) params.spectralTilt.store(OscLoad::kSpectralTilt(floatVal), relaxed);
+    if (streamer.readFloat(floatVal)) params.spectralFormant.store(OscLoad::kSpectralFormant(floatVal), relaxed);
     // Noise
-    if (streamer.readInt32(intVal))
-        params.noiseColor.store(intVal, std::memory_order_relaxed);
+    if (streamer.readInt32(intVal)) params.noiseColor.store(OscLoad::kNoiseColor(intVal), relaxed);
 
     return true;
 }
@@ -819,123 +844,126 @@ inline bool loadOscParams(OscParams& params, Steinberg::IBStreamer& streamer) {
 template<typename SetParamFunc>
 inline void loadOscParamsToController(
     Steinberg::Vst::ParamID base, Steinberg::IBStreamer& streamer,
-    const SetParamFunc& setParam) {
+    const SetParamFunc& setParam, Steinberg::int32 stateVersion = kCurrentStateVersion) {
     Steinberg::int32 intVal = 0;
     float floatVal = 0.0f;
 
     // Existing fields
     if (streamer.readInt32(intVal))
-        setParam((base + kOscTypeOffset), static_cast<double>(intVal) / (kOscTypeCount - 1));
+        setParam((base + kOscTypeOffset), static_cast<double>(OscLoad::kType(intVal)) / (kOscTypeCount - 1));
     if (streamer.readFloat(floatVal))
-        setParam((base + kOscTuneOffset), static_cast<double>((floatVal + 24.0f) / 48.0f));
+        setParam((base + kOscTuneOffset), static_cast<double>((OscLoad::kTune(floatVal) + 24.0f) / 48.0f));
     if (streamer.readFloat(floatVal))
-        setParam((base + kOscFineOffset), static_cast<double>((floatVal + 100.0f) / 200.0f));
+        setParam((base + kOscFineOffset), static_cast<double>((OscLoad::kFine(floatVal) + 100.0f) / 200.0f));
     if (streamer.readFloat(floatVal))
-        setParam((base + kOscLevelOffset), static_cast<double>(floatVal));
+        setParam((base + kOscLevelOffset), static_cast<double>(OscLoad::kLevel(floatVal)));
     if (streamer.readFloat(floatVal))
-        setParam((base + kOscPhaseOffset), static_cast<double>(floatVal));
+        setParam((base + kOscPhaseOffset), static_cast<double>(OscLoad::kPhase(floatVal)));
 
     // Type-specific fields (068-osc-type-params)
     // Reverse denormalization: convert DSP-domain values back to normalized [0,1]
 
     // PolyBLEP: Waveform (int 0-4 -> normalized /4)
     if (streamer.readInt32(intVal))
-        setParam((base + kOscWaveformOffset), static_cast<double>(intVal) / 4.0);
+        setParam((base + kOscWaveformOffset), static_cast<double>(OscLoad::kWaveform(intVal)) / 4.0);
     // PolyBLEP: PulseWidth (0.01-0.99 -> normalized (pw-0.01)/0.98)
     if (streamer.readFloat(floatVal))
-        setParam((base + kOscPulseWidthOffset), static_cast<double>((floatVal - 0.01f) / 0.98f));
+        setParam((base + kOscPulseWidthOffset), static_cast<double>((OscLoad::kPulseWidth(floatVal) - 0.01f) / 0.98f));
     // PhaseMod (-1 to +1 -> normalized (pm+1)/2)
     if (streamer.readFloat(floatVal))
-        setParam((base + kOscPhaseModOffset), static_cast<double>((floatVal + 1.0f) / 2.0f));
+        setParam((base + kOscPhaseModOffset), static_cast<double>((OscLoad::kPhaseMod(floatVal) + 1.0f) / 2.0f));
     // FreqMod (-1 to +1 -> normalized (fm+1)/2)
     if (streamer.readFloat(floatVal))
-        setParam((base + kOscFreqModOffset), static_cast<double>((floatVal + 1.0f) / 2.0f));
+        setParam((base + kOscFreqModOffset), static_cast<double>((OscLoad::kFreqMod(floatVal) + 1.0f) / 2.0f));
 
     // PD: Waveform (int 0-7 -> normalized /7)
     if (streamer.readInt32(intVal))
-        setParam((base + kOscPDWaveformOffset), static_cast<double>(intVal) / 7.0);
+        setParam((base + kOscPDWaveformOffset), static_cast<double>(OscLoad::kPDWaveform(intVal)) / 7.0);
     // PD: Distortion (0-1 identity)
     if (streamer.readFloat(floatVal))
-        setParam((base + kOscPDDistortionOffset), static_cast<double>(floatVal));
+        setParam((base + kOscPDDistortionOffset), static_cast<double>(OscLoad::kPDDistortion(floatVal)));
 
     // Sync: Ratio (1-8 -> normalized (r-1)/7)
     if (streamer.readFloat(floatVal))
-        setParam((base + kOscSyncRatioOffset), static_cast<double>((floatVal - 1.0f) / 7.0f));
+        setParam((base + kOscSyncRatioOffset), static_cast<double>((OscLoad::kSyncRatio(floatVal) - 1.0f) / 7.0f));
     // Sync: Waveform (int 0-4 -> normalized /4)
     if (streamer.readInt32(intVal))
-        setParam((base + kOscSyncWaveformOffset), static_cast<double>(intVal) / 4.0);
+        setParam((base + kOscSyncWaveformOffset), static_cast<double>(OscLoad::kSyncWaveform(intVal)) / 4.0);
     // Sync: Mode (int 0-2 -> normalized /2)
     if (streamer.readInt32(intVal))
-        setParam((base + kOscSyncModeOffset), static_cast<double>(intVal) / 2.0);
+        setParam((base + kOscSyncModeOffset), static_cast<double>(OscLoad::kSyncMode(intVal)) / 2.0);
     // Sync: Amount (0-1 identity)
     if (streamer.readFloat(floatVal))
-        setParam((base + kOscSyncAmountOffset), static_cast<double>(floatVal));
+        setParam((base + kOscSyncAmountOffset), static_cast<double>(OscLoad::kSyncAmount(floatVal)));
     // Sync: PulseWidth (0.01-0.99 -> normalized (pw-0.01)/0.98)
     if (streamer.readFloat(floatVal))
-        setParam((base + kOscSyncPulseWidthOffset), static_cast<double>((floatVal - 0.01f) / 0.98f));
+        setParam((base + kOscSyncPulseWidthOffset), static_cast<double>((OscLoad::kSyncPulseWidth(floatVal) - 0.01f) / 0.98f));
 
     // Additive: Partials (int 1-128 -> normalized (p-1)/127)
     if (streamer.readInt32(intVal))
-        setParam((base + kOscAdditivePartialsOffset), static_cast<double>(intVal - 1) / 127.0);
+        setParam((base + kOscAdditivePartialsOffset), static_cast<double>(OscLoad::kAdditivePartials(intVal) - 1) / 127.0);
     // Additive: Tilt (-24 to +24 -> normalized (t+24)/48)
     if (streamer.readFloat(floatVal))
-        setParam((base + kOscAdditiveTiltOffset), static_cast<double>((floatVal + 24.0f) / 48.0f));
+        setParam((base + kOscAdditiveTiltOffset), static_cast<double>((OscLoad::kAdditiveTilt(floatVal) + 24.0f) / 48.0f));
     // Additive: Inharmonicity (0-1 identity)
     if (streamer.readFloat(floatVal))
-        setParam((base + kOscAdditiveInharmOffset), static_cast<double>(floatVal));
+        setParam((base + kOscAdditiveInharmOffset), static_cast<double>(OscLoad::kAdditiveInharm(floatVal)));
 
     // Chaos: Attractor (int 0-4 -> normalized /4)
     if (streamer.readInt32(intVal))
-        setParam((base + kOscChaosAttractorOffset), static_cast<double>(intVal) / 4.0);
+        setParam((base + kOscChaosAttractorOffset), static_cast<double>(OscLoad::kChaosAttractor(intVal)) / 4.0);
     // Chaos: Amount (0-1 identity)
     if (streamer.readFloat(floatVal))
-        setParam((base + kOscChaosAmountOffset), static_cast<double>(floatVal));
+        setParam((base + kOscChaosAmountOffset), static_cast<double>(OscLoad::kChaosAmount(floatVal)));
     // Chaos: Coupling (0-1 identity)
     if (streamer.readFloat(floatVal))
-        setParam((base + kOscChaosCouplingOffset), static_cast<double>(floatVal));
+        setParam((base + kOscChaosCouplingOffset), static_cast<double>(OscLoad::kChaosCoupling(floatVal)));
     // Chaos: Output (int 0-2 -> normalized /2)
     if (streamer.readInt32(intVal))
-        setParam((base + kOscChaosOutputOffset), static_cast<double>(intVal) / 2.0);
+        setParam((base + kOscChaosOutputOffset), static_cast<double>(OscLoad::kChaosOutput(intVal)) / 2.0);
 
     // Particle: Scatter (0-12 -> normalized /12)
     if (streamer.readFloat(floatVal))
-        setParam((base + kOscParticleScatterOffset), static_cast<double>(floatVal / 12.0f));
+        setParam((base + kOscParticleScatterOffset), static_cast<double>(OscLoad::kParticleScatter(floatVal) / 12.0f));
     // Particle: Density (1-64 -> normalized (d-1)/63)
     if (streamer.readFloat(floatVal))
-        setParam((base + kOscParticleDensityOffset), static_cast<double>((floatVal - 1.0f) / 63.0f));
+        setParam((base + kOscParticleDensityOffset), static_cast<double>((OscLoad::kParticleDensity(floatVal) - 1.0f) / 63.0f));
     // Particle: Lifetime (5-2000 -> normalized (lt-5)/1995)
     if (streamer.readFloat(floatVal))
-        setParam((base + kOscParticleLifetimeOffset), static_cast<double>((floatVal - 5.0f) / 1995.0f));
+        setParam((base + kOscParticleLifetimeOffset), static_cast<double>((OscLoad::kParticleLifetime(floatVal) - 5.0f) / 1995.0f));
     // Particle: SpawnMode (int 0-2 -> normalized /2)
     if (streamer.readInt32(intVal))
-        setParam((base + kOscParticleSpawnModeOffset), static_cast<double>(intVal) / 2.0);
+        setParam((base + kOscParticleSpawnModeOffset), static_cast<double>(OscLoad::kParticleSpawnMode(intVal)) / 2.0);
     // Particle: EnvType (int 0-5 -> normalized /5)
     if (streamer.readInt32(intVal))
-        setParam((base + kOscParticleEnvTypeOffset), static_cast<double>(intVal) / 5.0);
+        setParam((base + kOscParticleEnvTypeOffset), static_cast<double>(OscLoad::kParticleEnvType(intVal)) / 5.0);
     // Particle: Drift (0-1 identity)
     if (streamer.readFloat(floatVal))
-        setParam((base + kOscParticleDriftOffset), static_cast<double>(floatVal));
+        setParam((base + kOscParticleDriftOffset), static_cast<double>(OscLoad::kParticleDrift(floatVal)));
 
-    // Formant: Vowel (int 0-4 -> normalized /4)
-    if (streamer.readInt32(intVal))
-        setParam((base + kOscFormantVowelOffset), static_cast<double>(intVal) / 4.0);
+    // Formant: Vowel (int 0-4 -> normalized /4); A for states saved before it
+    // was audible (kFormantVowelAudibleStateVersion)
+    if (streamer.readInt32(intVal)) {
+        if (stateVersion < kFormantVowelAudibleStateVersion) intVal = 0;
+        setParam((base + kOscFormantVowelOffset), static_cast<double>(OscLoad::kFormantVowel(intVal)) / 4.0);
+    }
     // Formant: Morph (0-4 -> normalized /4)
     if (streamer.readFloat(floatVal))
-        setParam((base + kOscFormantMorphOffset), static_cast<double>(floatVal / 4.0f));
+        setParam((base + kOscFormantMorphOffset), static_cast<double>(OscLoad::kFormantMorph(floatVal) / 4.0f));
 
     // Spectral: Pitch (-24 to +24 -> normalized (p+24)/48)
     if (streamer.readFloat(floatVal))
-        setParam((base + kOscSpectralPitchOffset), static_cast<double>((floatVal + 24.0f) / 48.0f));
+        setParam((base + kOscSpectralPitchOffset), static_cast<double>((OscLoad::kSpectralPitch(floatVal) + 24.0f) / 48.0f));
     // Spectral: Tilt (-12 to +12 -> normalized (t+12)/24)
     if (streamer.readFloat(floatVal))
-        setParam((base + kOscSpectralTiltOffset), static_cast<double>((floatVal + 12.0f) / 24.0f));
+        setParam((base + kOscSpectralTiltOffset), static_cast<double>((OscLoad::kSpectralTilt(floatVal) + 12.0f) / 24.0f));
     // Spectral: Formant (-12 to +12 -> normalized (f+12)/24)
     if (streamer.readFloat(floatVal))
-        setParam((base + kOscSpectralFormantOffset), static_cast<double>((floatVal + 12.0f) / 24.0f));
+        setParam((base + kOscSpectralFormantOffset), static_cast<double>((OscLoad::kSpectralFormant(floatVal) + 12.0f) / 24.0f));
 
     // Noise: Color (int 0-5 -> normalized /5)
     if (streamer.readInt32(intVal))
-        setParam((base + kOscNoiseColorOffset), static_cast<double>(intVal) / 5.0);
+        setParam((base + kOscNoiseColorOffset), static_cast<double>(OscLoad::kNoiseColor(intVal)) / 5.0);
 }
 
 } // namespace Ruinae

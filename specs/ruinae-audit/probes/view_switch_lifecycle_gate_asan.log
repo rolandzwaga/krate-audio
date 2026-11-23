@@ -1,0 +1,26 @@
+crash dumps: a crashing shard writes a minidump to f:/tmp/crashdumps
+pass 1 (~[wallclock], 7 workers): 8.8s | pass 2 ([wallclock], 4 workers): 0.0s, 0 case(s)
+ruinae_tests: cases=4 assertions=102 failed_cases=0 shards=15 slowest_shard=7.3s median_shard=1.4s sharding=pass1 interleaved, pass2 interleaved
+ruinae_tests shard 1: CRASH 0x80000003, minidump f:\tmp\crashdumps\ruinae_tests.exe.65540.dmp (node tools/analyze-crashdump.js "f:\tmp\crashdumps\ruinae_tests.exe.65540.dmp")
+ruinae_tests shard 1: no Catch2 summary (exit 2147483651, crash or abort) -> f:\tmp\gate\20261116-105010\ruinae_tests-1.log
+ruinae_tests shard 2: CRASH 0x80000003, minidump f:\tmp\crashdumps\ruinae_tests.exe.58064.dmp (node tools/analyze-crashdump.js "f:\tmp\crashdumps\ruinae_tests.exe.58064.dmp")
+ruinae_tests shard 2: no Catch2 summary (exit 2147483651, crash or abort) -> f:\tmp\gate\20261116-105010\ruinae_tests-2.log
+ruinae_tests shard 3: CRASH 0x80000003, minidump f:\tmp\crashdumps\ruinae_tests.exe.41384.dmp (node tools/analyze-crashdump.js "f:\tmp\crashdumps\ruinae_tests.exe.41384.dmp")
+ruinae_tests shard 3: no Catch2 summary (exit 2147483651, crash or abort) -> f:\tmp\gate\20261116-105010\ruinae_tests-3.log
+ruinae_tests shard 5: CRASH 0x80000003, minidump f:\tmp\crashdumps\ruinae_tests.exe.24712.dmp (node tools/analyze-crashdump.js "f:\tmp\crashdumps\ruinae_tests.exe.24712.dmp")
+ruinae_tests shard 5: no Catch2 summary (exit 2147483651, crash or abort) -> f:\tmp\gate\20261116-105010\ruinae_tests-5.log
+ruinae_tests shard 8: CRASH 0x80000003, minidump f:\tmp\crashdumps\ruinae_tests.exe.7832.dmp (node tools/analyze-crashdump.js "f:\tmp\crashdumps\ruinae_tests.exe.7832.dmp")
+ruinae_tests shard 8: no Catch2 summary (exit 2147483651, crash or abort) -> f:\tmp\gate\20261116-105010\ruinae_tests-8.log
+ruinae_tests shard 9: CRASH 0x80000003, minidump f:\tmp\crashdumps\ruinae_tests.exe.16412.dmp (node tools/analyze-crashdump.js "f:\tmp\crashdumps\ruinae_tests.exe.16412.dmp")
+ruinae_tests shard 9: no Catch2 summary (exit 2147483651, crash or abort) -> f:\tmp\gate\20261116-105010\ruinae_tests-9.log
+ruinae_tests shard 10: CRASH 0x80000003, minidump f:\tmp\crashdumps\ruinae_tests.exe.34784.dmp (node tools/analyze-crashdump.js "f:\tmp\crashdumps\ruinae_tests.exe.34784.dmp")
+ruinae_tests shard 10: no Catch2 summary (exit 2147483651, crash or abort) -> f:\tmp\gate\20261116-105010\ruinae_tests-10.log
+ruinae_tests shard 11: CRASH 0x80000003, minidump f:\tmp\crashdumps\ruinae_tests.exe.48052.dmp (node tools/analyze-crashdump.js "f:\tmp\crashdumps\ruinae_tests.exe.48052.dmp")
+ruinae_tests shard 11: no Catch2 summary (exit 2147483651, crash or abort) -> f:\tmp\gate\20261116-105010\ruinae_tests-11.log
+ruinae_tests shard 12: CRASH 0x80000003, minidump f:\tmp\crashdumps\ruinae_tests.exe.18200.dmp (node tools/analyze-crashdump.js "f:\tmp\crashdumps\ruinae_tests.exe.18200.dmp")
+ruinae_tests shard 12: no Catch2 summary (exit 2147483651, crash or abort) -> f:\tmp\gate\20261116-105010\ruinae_tests-12.log
+ruinae_tests shard 13: CRASH 0x80000003, minidump f:\tmp\crashdumps\ruinae_tests.exe.69564.dmp (node tools/analyze-crashdump.js "f:\tmp\crashdumps\ruinae_tests.exe.69564.dmp")
+ruinae_tests shard 13: no Catch2 summary (exit 2147483651, crash or abort) -> f:\tmp\gate\20261116-105010\ruinae_tests-13.log
+ruinae_tests shard 14: CRASH 0x80000003, minidump f:\tmp\crashdumps\ruinae_tests.exe.41784.dmp (node tools/analyze-crashdump.js "f:\tmp\crashdumps\ruinae_tests.exe.41784.dmp")
+ruinae_tests shard 14: no Catch2 summary (exit 2147483651, crash or abort) -> f:\tmp\gate\20261116-105010\ruinae_tests-14.log
+GATE RED 22 problem line(s) above | ruinae_tests cases=4 assertions=102 wall=8.8s workers=7 logs=f:\tmp\gate\20261116-105010

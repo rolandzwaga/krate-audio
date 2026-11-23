@@ -37,6 +37,8 @@ add_executable(plugin_tests
     unit/preset/preset_loading_consistency_test.cpp
     unit/preset/preset_manager_test.cpp
     unit/preset/preset_mix_floor_test.cpp
+    # A browser load runs the processor's setState ([iterum][presets][state]; fix plan T1.41, R-209)
+    unit/preset/preset_browser_load_test.cpp
 
     # Processor tests
     unit/processor/mode_crossfade_tests.cpp
@@ -107,6 +109,8 @@ add_executable(plugin_tests
     ${vst3sdk_SOURCE_DIR}/public.sdk/source/common/memorystream.cpp
     ${vst3sdk_SOURCE_DIR}/public.sdk/source/vst/hosting/processdata.cpp
     ${vst3sdk_SOURCE_DIR}/public.sdk/source/vst/hosting/parameterchanges.cpp
+    ${vst3sdk_SOURCE_DIR}/public.sdk/source/vst/hosting/hostclasses.cpp
+    ${vst3sdk_SOURCE_DIR}/public.sdk/source/vst/hosting/pluginterfacesupport.cpp
 
     # Stubs for GetPluginFactory/moduleHandle + SDK module init (needed by
     # vstgui_support, esp. on the Linux/valgrind lane).
@@ -168,6 +172,13 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/processor/mix_parameter_conversion_test.cpp
         PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only -ffp-contract=off"
     )
+endif()
+
+# SDK source we cannot modify: virtual destructors inside final classes in hostclasses.h (clang
+# -Wunnecessary-virtual-specifier, which -Wall enables; macOS CI). Probe: root CMakeLists.txt.
+if(KRATE_CXX_HAS_WUNNECESSARY_VIRTUAL_SPECIFIER)
+    set_source_files_properties(${vst3sdk_SOURCE_DIR}/public.sdk/source/vst/hosting/hostclasses.cpp
+        PROPERTIES COMPILE_OPTIONS "-Wno-unnecessary-virtual-specifier")
 endif()
 
 # CTest Integration

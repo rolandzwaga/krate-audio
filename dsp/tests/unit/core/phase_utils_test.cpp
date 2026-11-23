@@ -134,6 +134,29 @@ TEST_CASE("wrapPhase handles negative values correctly", "[phase_utils][FR-016]"
 }
 
 // =============================================================================
+// R-147: wrapPhase must cost O(1) for any input. A corrupt state stored
+// OSC PhaseMod = 1e30f, giving a phase of ~1.6e29: above 2^53 `phase - 1.0`
+// no longer changes the double, and the subtraction loop never returned.
+// =============================================================================
+
+TEST_CASE("wrapPhase returns in bounded time for huge finite input", "[core][phase]") {
+    const double hugePos = wrapPhase(1.6e29);
+    REQUIRE(hugePos >= 0.0);
+    REQUIRE(hugePos < 1.0);
+
+    const double hugeNeg = wrapPhase(-1.6e29);
+    REQUIRE(hugeNeg >= 0.0);
+    REQUIRE(hugeNeg < 1.0);
+
+    const double large = wrapPhase(1e10);
+    REQUIRE(large >= 0.0);
+    REQUIRE(large < 1.0);
+
+    REQUIRE(wrapPhase(2.25) == Approx(0.25));
+    REQUIRE(wrapPhase(-0.25) == Approx(0.75));
+}
+
+// =============================================================================
 // T037: detectPhaseWrap (FR-017)
 // =============================================================================
 

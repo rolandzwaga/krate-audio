@@ -12,6 +12,7 @@ add_executable(ruinae_tests
     unit/ruinae_engine_test.cpp
     unit/ruinae_engine_integration_test.cpp
     unit/ruinae_voice_test.cpp
+    unit/sound_source_regression_test.cpp
     unit/ruinae_effects_chain_test.cpp
 
     # Harmonizer Parameter Tests (067-ruinae-harmonizer)
@@ -32,6 +33,8 @@ add_executable(ruinae_tests
 
     # Plugin Shell Tests (045-plugin-shell)
     unit/processor_bus_test.cpp
+    unit/processor_host_contract_test.cpp
+    unit/dropdown_mappings_include_test.cpp
     unit/param_denorm_test.cpp
     unit/state_roundtrip_test.cpp
     unit/state_migration_test.cpp
@@ -53,6 +56,8 @@ add_executable(ruinae_tests
     # process() runs with FTZ / DAZ whatever the caller's floating-point mode ([ruinae][numerics][denormal])
     integration/denormal_mode_test.cpp
     integration/midi_events_test.cpp
+    # Output does not depend on the host buffer size (T2.31: R-150, R-151, R-051, R-052)
+    integration/block_size_invariance_test.cpp
     integration/tempo_sync_test.cpp
     integration/param_flow_test.cpp
     integration/trance_gate_param_flow_test.cpp
@@ -87,6 +92,9 @@ add_executable(ruinae_tests
     # Arp Performance & Stress Tests (082-presets-polish)
     unit/arp_performance_test.cpp
 
+    # Parameter-apply cost with unchanged envelope curves (ruinae audit R-001)
+    unit/params_apply_performance_test.cpp
+
     # Arp End-to-End Preset Playback Test (082-presets-polish)
     unit/arp_preset_e2e_test.cpp
 
@@ -100,6 +108,7 @@ add_executable(ruinae_tests
     unit/controller/editor_lifecycle_test.cpp
     unit/controller/editor_screenshot_test.cpp
     unit/controller/mod_source_view_teardown_test.cpp
+    unit/controller/view_switch_lifecycle_test.cpp
 
     # Preset Format Compatibility Tests (generator ↔ processor)
     unit/preset_format_compat_test.cpp
@@ -132,11 +141,21 @@ add_executable(ruinae_tests
     # MPE (MIDI Polyphonic Expression) Support Tests
     integration/mpe_test.cpp
 
+    # Voice lifecycle and timing regression (audit fix plan T6.2)
+    integration/voice_lifecycle_regression_test.cpp
+
+    # Effects regression (audit fix plan T6.4)
+    integration/fx_regression_test.cpp
+
     # Modulation Type Switching Tests (126-ruinae-flanger)
     unit/processor/modulation_type_test.cpp
 
     # Reverb Type Selection Tests (125-dual-reverb)
     unit/processor/reverb_type_test.cpp
+
+    # Arpeggiator and modulation regression (audit fix plan T6.5)
+    unit/processor/arp_regression_test.cpp
+    integration/mod_regression_test.cpp
 
     # Processor/Controller implementation (needed by plugin shell tests)
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/processor/processor.cpp
@@ -231,12 +250,26 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/processor/reverb_type_test.cpp
         unit/processor/modulation_type_test.cpp
         integration/mpe_test.cpp
+        unit/state_migration_test.cpp
         PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only -ffp-contract=off"
     )
 endif()
 
 # CTest Integration
 catch_discover_tests(ruinae_tests REPORTER console)
+
+# editor.uidesc geometry lint (audit T3.3, R-163..R-166): no overlap outside the audited allow list, nothing out of bounds.
+find_program(KRATE_NODE_EXECUTABLE node)
+if(KRATE_NODE_EXECUTABLE)
+    add_test(NAME ruinae_uidesc_inventory
+        COMMAND ${KRATE_NODE_EXECUTABLE} tools/uidesc-inventory.js plugins/ruinae/resources/editor.uidesc --check
+                --allow plugins/ruinae/tests/uidesc_overlaps_allowed.json
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+    # Counts quoted in MANUAL.md / README.md / docs/index.html (filter types, global sources, presets) match the code (audit T4.2, R-103).
+    add_test(NAME ruinae_doc_counts
+        COMMAND ${KRATE_NODE_EXECUTABLE} tools/lint-ruinae-doc-counts.js
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+endif()
 
 # Precompiled Catch2 + STL when KRATE_TEST_PCH is ON (cmake/KrateTestPch.cmake); after the per-source flag blocks above.
 krate_test_pch(ruinae_tests)

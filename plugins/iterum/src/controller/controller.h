@@ -293,8 +293,9 @@ private:
     /// Used when loading presets to notify the host of parameter changes
     void editParamWithNotify(Steinberg::Vst::ParamID id, Steinberg::Vst::ParamValue value);
 
-    /// Load component state from stream with host notification
-    /// Same parsing as setComponentState(), but calls performEdit to propagate changes to processor
+    /// Load component state from stream with host notification (the preset browser's load)
+    /// Hands the bytes to the processor ("LoadPresetState", binary "bytes"; its setState runs on them),
+    /// then parses them as setComponentState() does, with performEdit for the host's automation and undo
     /// @param state Stream containing component state in Processor::getState() format
     /// @return true on success
     bool loadComponentStateWithNotify(Steinberg::IBStream* state);

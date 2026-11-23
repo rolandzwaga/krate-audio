@@ -175,8 +175,10 @@ TEST_CASE("Empty snapshot handled gracefully",
     proc->terminate();
 }
 
-TEST_CASE("Truncated snapshot loads partial state",
+TEST_CASE("Truncated snapshot is rejected and leaves the state unchanged",
           "[preset-safety][edge-case]") {
+    // R-076 (user ruling 2026-11-16): a stream that ends inside the required
+    // prefix is rejected whole, so no half-old, half-new patch is applied.
     auto proc1 = makeProcessor();
 
     // Create valid state
@@ -192,13 +194,32 @@ TEST_CASE("Truncated snapshot loads partial state",
     truncStream.write(fullData.data(), static_cast<Steinberg::int32>(truncLen), nullptr);
     truncStream.seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
 
-    auto proc2 = makeProcessor();
-    REQUIRE(proc2->setState(&truncStream) == Steinberg::kResultTrue);
+    // The target holds a non-default master gain, which the cut stream's
+    // Global pack would overwrite if any of it were applied.
+    auto proc2 = makeTestableProcessor();
+    ParamChangeBatch changes;
+    changes.add(Ruinae::kMasterGainId, 0.75);
+    proc2->processParameterChanges(&changes);
+    Steinberg::MemoryStream beforeStream;
+    REQUIRE(proc2->getState(&beforeStream) == Steinberg::kResultTrue);
+    const auto beforeBytes = extractStreamBytes(beforeStream);
+    REQUIRE(beforeBytes != fullData);
+
+    REQUIRE(proc2->setState(&truncStream) == Steinberg::kResultFalse);
     drainPresetTransfer(proc2.get());
 
-    // Should not crash — processor remains functional
+    // Processor remains functional and its state is byte-identical
     Steinberg::MemoryStream outStream;
     REQUIRE(proc2->getState(&outStream) == Steinberg::kResultTrue);
+    REQUIRE(extractStreamBytes(outStream) == beforeBytes);
+
+    // A following valid load still succeeds
+    fullStream.seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
+    REQUIRE(proc2->setState(&fullStream) == Steinberg::kResultTrue);
+    drainPresetTransfer(proc2.get());
+    Steinberg::MemoryStream reloaded;
+    REQUIRE(proc2->getState(&reloaded) == Steinberg::kResultTrue);
+    REQUIRE(extractStreamBytes(reloaded) == fullData);
 
     proc1->terminate();
     proc2->terminate();

@@ -186,4 +186,31 @@ inline constexpr LinearRange kTransientDecayMsRange{.min = 20.0f, .span = 180.0f
 inline constexpr LinearRange kRunglerRateHzRange{.min = 0.1f, .span = 49.9f};
 inline constexpr LinearRange kMorphSmoothingMsRange{.min = 0.0f, .span = 500.0f};  ///< band Morph Smoothing
 
+/// Rungler Rate's registered default (normalized): a fresh processor starts there too (T1.38).
+inline constexpr float kRunglerRateDefaultNorm = 0.08f;
+
+// ==============================================================================
+// Node Folds [1, 12] and Bit Depth [4, 24]: stepped parameters (11 and 20 steps)
+// ==============================================================================
+// The processor rounds the normalized value onto the step; the state stores the
+// plain float. A load through the parameters (a preset-browser load's edits)
+// goes plain -> normalized -> stepped plain, so setState steps the stored value
+// the same way and both loads agree (T1.38).
+
+[[nodiscard]] inline double nodeFoldsToNorm(float folds) noexcept {
+    return std::clamp(static_cast<double>(folds - 1.0f) / 11.0, 0.0, 1.0);
+}
+
+[[nodiscard]] inline float nodeFoldsFromNorm(double norm) noexcept {
+    return 1.0f + std::round(static_cast<float>(norm) * 11.0f);
+}
+
+[[nodiscard]] inline double nodeBitDepthToNorm(float bitDepth) noexcept {
+    return std::clamp(static_cast<double>(bitDepth - 4.0f) / 20.0, 0.0, 1.0);
+}
+
+[[nodiscard]] inline float nodeBitDepthFromNorm(double norm) noexcept {
+    return 4.0f + std::round(static_cast<float>(norm) * 20.0f);
+}
+
 }  // namespace Disrumpo

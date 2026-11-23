@@ -10,6 +10,7 @@
 
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/catch_approx.hpp>
+#include <catch2/generators/catch_generators.hpp>
 
 #include "engine/ruinae_effects_chain.h"
 #include "ruinae_types.h"
@@ -22,6 +23,7 @@
 #include <cmath>
 #include <cstring>
 #include <numeric>
+#include <utility>
 #include <vector>
 
 using Catch::Approx;
@@ -87,8 +89,8 @@ void prepareChain(RuinaeEffectsChain& chain, double sampleRate = kSampleRate,
     chain.prepare(sampleRate, blockSize);
 }
 
-/// Settle the chain by processing enough audio to fill the latency compensation
-/// delay (6144 samples: spectral FFT 1024 + harmonizer PV 5120).
+/// Settle the chain by processing enough audio to settle its smoothers and fill
+/// the delay lines.
 /// Use a sine wave as the settling signal.
 void settleChain(RuinaeEffectsChain& chain, size_t numBlocks = 16,
                  double sampleRate = kSampleRate, size_t blockSize = kBlockSize) {
@@ -140,9 +142,8 @@ TEST_CASE("RuinaeEffectsChain prepare/reset lifecycle", "[systems][ruinae_effect
 
     SECTION("construct and prepare at 44.1kHz/512") {
         chain.prepare(kSampleRate, kBlockSize);
-        // Should not crash - chain is prepared
-        // Verify latency is reported (spectral delay FFT size)
-        REQUIRE(chain.getLatencySamples() > 0);
+        // Should not crash - chain is prepared. No wet-path latency (R-055).
+        REQUIRE(chain.getLatencySamples() == 0);
     }
 
     SECTION("reset after prepare does not crash") {
@@ -166,7 +167,7 @@ TEST_CASE("RuinaeEffectsChain FR-006: dry pass-through at default settings",
           "[systems][ruinae_effects_chain][US1]") {
     // SC-004: Default state output within -120 dBFS of input
     // Strategy: impulse-based sample-level verification.
-    // The dry portion of the mix bypasses the latency compensation delay, so
+    // The dry portion of the mix is never delayed, so
     // at mix=0 the dry impulse appears at sample 0, not at the comp-delay
     // offset.
     RuinaeEffectsChain chain;
@@ -301,8 +302,8 @@ TEST_CASE("RuinaeEffectsChain FR-009: setDelayType selects active delay",
     SECTION("set to Tape") {
         chain.setDelayType(RuinaeDelayType::Tape);
         // After pre-warm + crossfade the active type updates.
-        // Pre-warm: max(50ms, 20ms) * sr/1000 + targetLatency = 2205 + 6144 = 8349.
-        // Crossfade: 30ms = 1323 samples. Total: ~9672. Use 16384 for margin.
+        // Pre-warm: max(50ms, 20ms) * sr/1000 = 2205.
+        // Crossfade: 30ms = 1323 samples. Total: ~3528. Use 16384 for margin.
         std::vector<float> left(16384, 0.0f);
         std::vector<float> right(16384, 0.0f);
         chain.processBlock(left.data(), right.data(), 16384);
@@ -339,7 +340,7 @@ TEST_CASE("RuinaeEffectsChain FR-015: delay parameter forwarding",
     chain.setDelayFeedback(0.5f);
     chain.setDelayMix(0.7f);
 
-    // Settle the chain (latency compensation needs ~1024 samples)
+    // Settle the chain
     settleChain(chain);
 
     // Process a measurement block
@@ -433,8 +434,8 @@ TEST_CASE("RuinaeEffectsChain all 5 delay types produce different outputs",
         reverbParams.mix = 0.0f;
         chain.setReverbParams(reverbParams);
 
-        // Process crossfade to completion. Latency is 6144 samples and
-        // impulse is placed at 2048, so output appears at ~8192+.
+        // Process crossfade to completion. The impulse is placed at 2048,
+        // so the echo appears at ~4253 (2048 + 50 ms).
         // Use 16384 samples to capture both crossfade and impulse response.
         constexpr size_t kTotalSamples = 16384;
         std::vector<float> left(kTotalSamples, 0.0f);
@@ -487,7 +488,7 @@ TEST_CASE("RuinaeEffectsChain FR-021: setReverbParams forwards all parameters",
     params.modDepth = 0.2f;
     chain.setReverbParams(params);
 
-    // Settle the latency compensation
+    // Settle the chain
     settleChain(chain);
 
     // Process a measurement block
@@ -529,8 +530,8 @@ TEST_CASE("RuinaeEffectsChain FR-022: reverb processes delay output not dry inpu
     params2.roomSize = 0.7f;
     chain2.setReverbParams(params2);
 
-    // Process same impulse through both. Need buffer larger than latency (6144)
-    // + delay time (100ms = 4410) to capture the delayed output.
+    // Process same impulse through both. Need buffer larger than the
+    // delay time (100ms = 4410) to capture the delayed output.
     constexpr size_t kLen = 16384;
     std::vector<float> left1(kLen, 0.0f), right1(kLen, 0.0f);
     std::vector<float> left2(kLen, 0.0f), right2(kLen, 0.0f);
@@ -633,8 +634,8 @@ TEST_CASE("RuinaeEffectsChain FR-010: crossfade blends outgoing and incoming",
     chain.setDelayType(RuinaeDelayType::Tape);
 
     // Process through pre-warm + crossfade.
-    // Pre-warm: max(50ms, 20ms) * sr/1000 + 6144 = 2205 + 6144 = 8349.
-    // Crossfade: 30ms = 1323. Total: ~9672. Need 9672/512 = ~19 blocks.
+    // Pre-warm: max(50ms, 20ms) * sr/1000 = 2205.
+    // Crossfade: 30ms = 1323. Total: ~3528. Need 3528/512 = ~7 blocks.
     for (int b = 0; b < 24; ++b) {
         std::vector<float> left(kBlockSize);
         std::vector<float> right(kBlockSize);
@@ -664,7 +665,7 @@ TEST_CASE("RuinaeEffectsChain delay type switch completes while the delay time i
         chain.setDelayType(RuinaeDelayType::Spectral);
         std::vector<float> left(kBlockSize);
         std::vector<float> right(kBlockSize);
-        // Pre-warm max(time, 20 ms) + compensation latency, then a 30 ms crossfade: 2 s is ample
+        // Pre-warm max(time, 20 ms), then a 30 ms crossfade: 2 s is ample
         const int blocks = static_cast<int>(2.0 * kSampleRate) / static_cast<int>(kBlockSize);
         for (int b = 0; b < blocks; ++b) {
             chain.setDelayTime(timeForBlock(b));
@@ -711,11 +712,11 @@ TEST_CASE("RuinaeEffectsChain FR-011: crossfade duration 25-50ms",
         samplesProcessed += 64;
     }
 
-    // Total transition = pre-warm (20ms + 6144/44100*1000=139ms comp) + crossfade (30ms) = ~189ms
+    // Total transition = pre-warm (20ms) + crossfade (30ms) = ~50ms
     float durationMs = static_cast<float>(samplesProcessed) / static_cast<float>(kSampleRate) * 1000.0f;
     INFO("Transition completed in " << durationMs << " ms (" << samplesProcessed << " samples)");
     REQUIRE(durationMs >= 25.0f);
-    REQUIRE(durationMs <= 250.0f);  // pre-warm (20ms+139ms comp) + crossfade (30ms) + block overshoot
+    REQUIRE(durationMs <= 250.0f);  // pre-warm (20ms) + crossfade (30ms) + block overshoot
 }
 
 TEST_CASE("RuinaeEffectsChain FR-012: fast-track on type switch during crossfade",
@@ -736,8 +737,8 @@ TEST_CASE("RuinaeEffectsChain FR-012: fast-track on type switch during crossfade
     chain.setDelayType(RuinaeDelayType::Granular);
 
     // After cancelling the first pre-warm, a new pre-warm + crossfade starts.
-    // Need ~9672 samples (50ms pre-warm + 6144 comp + 30ms crossfade) to complete.
-    // 9672/256 = ~38 blocks. Use 48 for margin.
+    // Need ~3528 samples (50ms pre-warm + 30ms crossfade) to complete.
+    // 3528/256 = ~14 blocks. Use 48 for margin.
     for (int block = 0; block < 48; ++block) {
         std::fill(left.begin(), left.end(), 0.0f);
         std::fill(right.begin(), right.end(), 0.0f);
@@ -774,7 +775,7 @@ TEST_CASE("RuinaeEffectsChain FR-013: outgoing delay reset after crossfade compl
     }
 
     // Switch Digital -> Tape (pre-warm + crossfade completes, Digital should be reset)
-    // Pre-warm: max(50ms,20ms)*sr/1000+6144=8349. Crossfade: 1323. Total: ~9672 = ~19 blocks of 512.
+    // Pre-warm: max(50ms,20ms)*sr/1000=2205. Crossfade: 1323. Total: ~3528 = ~7 blocks of 512.
     chain.setDelayType(RuinaeDelayType::Tape);
     for (int block = 0; block < 24; ++block) {
         std::vector<float> left(kBlockSize, 0.0f);
@@ -887,7 +888,7 @@ TEST_CASE("RuinaeEffectsChain SC-002: crossfade produces no discontinuities",
         // DC has zero natural step size, so any step is purely an artifact.
         // With pre-warming, the incoming delay's buffer is filled before the
         // crossfade starts. Measurement covers the full pre-warm + crossfade
-        // window (~9672 samples), verifying there is NO delay-line-fill step.
+        // window (~3528 samples), verifying there is NO delay-line-fill step.
         RuinaeEffectsChain chain;
         prepareChain(chain);
         chain.setDelayMix(0.5f);
@@ -951,7 +952,7 @@ TEST_CASE("RuinaeEffectsChain SC-008: 10 consecutive type switches click-free",
 
     constexpr size_t kBlock = 512;
     constexpr size_t kWarmup = 4;
-    constexpr size_t kBlocksPerSwitch = 24;  // Need ~9672 samples for pre-warm(8349)+crossfade(1323)
+    constexpr size_t kBlocksPerSwitch = 24;  // Need ~3528 samples for pre-warm(2205)+crossfade(1323)
     constexpr size_t kNumSwitches = 10;
     constexpr size_t kTotalBlocks = kWarmup + kBlocksPerSwitch * kNumSwitches;
     constexpr size_t kTotalSamples = kTotalBlocks * kBlock;
@@ -1026,7 +1027,7 @@ TEST_CASE("RuinaeEffectsChain pre-warm eliminates delay-line-fill artifact",
     // causing a step of ~0.25 (= -12 dBFS). With pre-warming, the buffer
     // is already full when the crossfade starts, so no step occurs.
     //
-    // Measurement covers full pre-warm (~8349 samples) + crossfade (1323) +
+    // Measurement covers full pre-warm (~2205 samples) + crossfade (1323) +
     // post-crossfade. Worst step must be < -60 dBFS.
     RuinaeEffectsChain chain;
     prepareChain(chain);
@@ -1038,7 +1039,7 @@ TEST_CASE("RuinaeEffectsChain pre-warm eliminates delay-line-fill artifact",
     rp.mix = 0.0f;
     chain.setReverbParams(rp);
 
-    // Warm up with DC to fill active delay + compensation delays
+    // Warm up with DC to fill the active delay
     for (int b = 0; b < 16; ++b) {
         std::vector<float> left(kBlockSize, 0.5f);
         std::vector<float> right(kBlockSize, 0.5f);
@@ -1082,48 +1083,331 @@ TEST_CASE("RuinaeEffectsChain pre-warm eliminates delay-line-fill artifact",
 }
 
 // =============================================================================
-// Phase 8: Latency Compensation (FR-026, FR-027)
+// Phase 8: Latency (FR-026, FR-027) and echo timing (R-055, R-116, R-153)
 // =============================================================================
+// The chain used to push every Digital/Tape/PingPong/Granular echo through a
+// 6144-sample "compensation" delay (spectral FFT + harmonizer PV) while the dry
+// path stayed undelayed and nothing was reported to the host: every echo landed
+// ~139 ms late at 44.1 kHz. The chain has no wet-path latency now and reports 0.
 
-TEST_CASE("RuinaeEffectsChain FR-026: getLatencySamples returns spectral delay FFT latency",
+TEST_CASE("RuinaeEffectsChain FR-026/FR-027: reported latency is 0 for every delay type",
           "[systems][ruinae_effects_chain]") {
     RuinaeEffectsChain chain;
     prepareChain(chain);
+    chain.setDelayEnabled(true);
+    REQUIRE(chain.getLatencySamples() == 0);
 
-    size_t latency = chain.getLatencySamples();
-    // Spectral delay FFT (1024) + harmonizer PhaseVocoder worst-case (5120) = 6144
-    INFO("Latency: " << latency << " samples");
-    REQUIRE(latency > 0);
-    REQUIRE(latency == 6144);  // Spectral FFT + harmonizer PV
-}
-
-TEST_CASE("RuinaeEffectsChain FR-027: latency constant across delay type switches (SC-007)",
-          "[systems][ruinae_effects_chain]") {
-    RuinaeEffectsChain chain;
-    prepareChain(chain);
-
-    size_t latencyBefore = chain.getLatencySamples();
-
-    // Switch through all types
-    for (int typeIdx = 0; typeIdx < 5; ++typeIdx) {
+    for (int typeIdx = 0; typeIdx < static_cast<int>(RuinaeDelayType::NumTypes); ++typeIdx) {
         chain.setDelayType(static_cast<RuinaeDelayType>(typeIdx));
-
-        // Process to complete pre-warm + crossfade (~9672 samples needed)
         std::vector<float> left(16384, 0.0f);
         std::vector<float> right(16384, 0.0f);
         chain.processBlock(left.data(), right.data(), 16384);
-
-        size_t latencyAfter = chain.getLatencySamples();
-        INFO("Type " << typeIdx << " latency: " << latencyAfter);
-        REQUIRE(latencyAfter == latencyBefore);
+        INFO("Type " << typeIdx);
+        REQUIRE(chain.getActiveDelayType() == static_cast<RuinaeDelayType>(typeIdx));
+        REQUIRE(chain.getLatencySamples() == 0);
     }
 }
 
-TEST_CASE("RuinaeEffectsChain dry/wet timing: dry immediate, wet after comp delay",
+namespace {
+
+/// Renders one input through `type` (time `timeMs`, mix 1, feedback 0, nothing else in the
+/// chain) and returns the index, counted from the input start, of the first LEFT output sample
+/// at or above -20 dB re the output peak. The input is an impulse for the time-domain types and a
+/// 25 ms 880 Hz burst for Spectral (an impulse is spread over the analysis window).
+size_t echoOnsetSample(RuinaeDelayType type, double sampleRate, float timeMs) {
+    RuinaeEffectsChain chain;
+    prepareChain(chain, sampleRate, kBlockSize);
+    chain.setDelayEnabled(true);
+    chain.setDelayMix(1.0f);
+    chain.setDelayFeedback(0.0f);
+    chain.setDelayTime(timeMs);
+    // 100 ms grains overlap 10x at 100/s, so every grain passes the impulse at the delay time.
+    chain.setDelayGranularDensity(100.0f);
+    chain.setDelayGranularJitter(0.0f);
+    chain.setModulationType(ModulationType::None);
+    chain.setHarmonizerEnabled(false);
+    ReverbParams reverbParams;
+    reverbParams.mix = 0.0f;
+    chain.setReverbParams(reverbParams);
+    chain.setReverbEnabled(false);
+    chain.reset();
+    chain.setDelayType(type);
+
+    // Silence until the type switch and every smoother have finished.
+    const auto settleSamples = static_cast<size_t>((timeMs / 1000.0f + 1.0f) * sampleRate);
+    std::vector<float> silenceL(kBlockSize, 0.0f);
+    std::vector<float> silenceR(kBlockSize, 0.0f);
+    for (size_t done = 0; done < settleSamples; done += kBlockSize) {
+        std::fill(silenceL.begin(), silenceL.end(), 0.0f);
+        std::fill(silenceR.begin(), silenceR.end(), 0.0f);
+        chain.processBlock(silenceL.data(), silenceR.data(), kBlockSize);
+    }
+    REQUIRE(chain.getActiveDelayType() == type);
+
+    const auto totalLen = static_cast<size_t>((timeMs / 1000.0f + 0.5f) * sampleRate);
+    std::vector<float> left(totalLen, 0.0f);
+    std::vector<float> right(totalLen, 0.0f);
+    if (type == RuinaeDelayType::Spectral) {
+        const auto burstLen = static_cast<size_t>(0.025 * sampleRate);
+        for (size_t i = 0; i < burstLen; ++i) {
+            const float v = 0.5f * std::sin(2.0f * 3.14159265358979323846f * 880.0f
+                                             * static_cast<float>(i) / static_cast<float>(sampleRate));
+            left[i] = v;
+            right[i] = v;
+        }
+    } else {
+        left[0] = 1.0f;
+        right[0] = 1.0f;
+    }
+    for (size_t pos = 0; pos < totalLen; pos += kBlockSize) {
+        const size_t n = std::min(kBlockSize, totalLen - pos);
+        chain.processBlock(left.data() + pos, right.data() + pos, n);
+    }
+
+    const float peak = peakAbsolute(left.data(), totalLen);
+    REQUIRE(peak > 1e-3f);
+    for (size_t i = 0; i < totalLen; ++i) {
+        if (std::abs(left[i]) >= 0.1f * peak) return i;
+    }
+    return totalLen;
+}
+
+} // anonymous namespace
+
+TEST_CASE("RuinaeEffectsChain_Echo_ArrivesAtSetDelayTime", "[ruinae-fx][delay][timing]") {
+    constexpr float kTimeMs = 250.0f;
+    const double sampleRate = GENERATE(44100.0, 96000.0);
+    CAPTURE(sampleRate);
+    const double expected = static_cast<double>(kTimeMs) * sampleRate / 1000.0;
+
+    const auto check = [&](RuinaeDelayType type, double toleranceSamples, double offsetSamples = 0.0) {
+        const size_t onset = echoOnsetSample(type, sampleRate, kTimeMs);
+        const double error = static_cast<double>(onset) - (expected + offsetSamples);
+        INFO("first echo at sample " << onset << " (" << static_cast<double>(onset) * 1000.0 / sampleRate
+             << " ms), expected " << expected + offsetSamples << " (" << kTimeMs << " ms + "
+             << offsetSamples << " samples) +/- " << toleranceSamples << " samples; error " << error
+             << " samples");
+        REQUIRE(std::abs(error) <= toleranceSamples);
+    };
+    const double oneMs = sampleRate / 1000.0;
+    SECTION("Digital") { check(RuinaeDelayType::Digital, oneMs); }
+    SECTION("Tape") { check(RuinaeDelayType::Tape, oneMs); }
+    SECTION("PingPong") { check(RuinaeDelayType::PingPong, oneMs); }
+    SECTION("Granular") { check(RuinaeDelayType::Granular, oneMs); }
+    SECTION("Spectral") {
+        // T3.6b: the spectral delay is not latency-compensated (its repeats are spaced by the
+        // set time), so its first echo arrives one FFT size late: 250 ms + fftSize, +/- 1 hop
+        // at the default FFT size (1024 -> hop 512).
+        check(RuinaeDelayType::Spectral, static_cast<double>(SpectralDelay::kDefaultFFTSize / 2),
+              static_cast<double>(SpectralDelay::kDefaultFFTSize));
+    }
+}
+
+namespace {
+
+/// Spectral delay through the chain (time `timeMs`, feedback 0.5, mix 1, nothing else in the
+/// chain): one click, then the positions of the first `count` echoes, counted from the click.
+/// Each echo is located by the x^2 energy centroid of the LEFT output (sub-sample) in a
+/// +/- grid/2 window around where it is expected: grid + fftSize for the first, one grid per
+/// repeat after it. Not a threshold onset: the frame read leaves a weak pre-echo about one frame
+/// early, and a threshold trips on it (ruling "T3.6b echo measure").
+std::vector<double> spectralEchoCentroids(double sampleRate, float timeMs, size_t count) {
+    const double grid = static_cast<double>(timeMs) * sampleRate / 1000.0;
+    const auto fftSize = static_cast<double>(SpectralDelay::kDefaultFFTSize);
+
+    RuinaeEffectsChain chain;
+    prepareChain(chain, sampleRate, kBlockSize);
+    chain.setDelayEnabled(true);
+    chain.setDelayMix(1.0f);
+    chain.setDelayFeedback(0.5f);
+    chain.setDelayTime(timeMs);
+    chain.setModulationType(ModulationType::None);
+    chain.setHarmonizerEnabled(false);
+    ReverbParams reverbParams;
+    reverbParams.mix = 0.0f;
+    chain.setReverbParams(reverbParams);
+    chain.setReverbEnabled(false);
+    chain.reset();
+    chain.setDelayType(RuinaeDelayType::Spectral);
+
+    // Silence until the type switch and every smoother have finished.
+    const auto settleSamples = static_cast<size_t>((timeMs / 1000.0f + 1.0f) * sampleRate);
+    std::vector<float> silenceL(kBlockSize, 0.0f);
+    std::vector<float> silenceR(kBlockSize, 0.0f);
+    for (size_t done = 0; done < settleSamples; done += kBlockSize) {
+        std::fill(silenceL.begin(), silenceL.end(), 0.0f);
+        std::fill(silenceR.begin(), silenceR.end(), 0.0f);
+        chain.processBlock(silenceL.data(), silenceR.data(), kBlockSize);
+    }
+    REQUIRE(chain.getActiveDelayType() == RuinaeDelayType::Spectral);
+
+    // Long enough for the last echo's whole window: (count + 1/2) grids + fftSize after the click.
+    const auto totalLen =
+        static_cast<size_t>((static_cast<double>(count) + 1.0) * grid + fftSize);
+    std::vector<float> left(totalLen, 0.0f);
+    std::vector<float> right(totalLen, 0.0f);
+    left[0] = 1.0f;
+    right[0] = 1.0f;
+    for (size_t pos = 0; pos < totalLen; pos += kBlockSize) {
+        const size_t n = std::min(kBlockSize, totalLen - pos);
+        chain.processBlock(left.data() + pos, right.data() + pos, n);
+    }
+
+    std::vector<double> centroids;
+    for (size_t k = 0; k < count; ++k) {
+        const double expected = grid + fftSize + static_cast<double>(k) * grid;
+        const auto lo = static_cast<size_t>(expected - grid / 2.0);
+        const auto hi = std::min(totalLen, static_cast<size_t>(expected + grid / 2.0) + 1);
+        double energy = 0.0;
+        double moment = 0.0;
+        for (size_t i = lo; i < hi; ++i) {
+            const double e = static_cast<double>(left[i]) * static_cast<double>(left[i]);
+            energy += e;
+            moment += e * static_cast<double>(i);
+        }
+        REQUIRE(energy > 0.0);  // an echo is present in the window
+        centroids.push_back(moment / energy);
+    }
+    return centroids;
+}
+
+} // anonymous namespace
+
+// T3.6b (R-160): the spectral delay's repeats are spaced by its base delay; its FFT latency
+// only offsets the first echo. T1.18 took that latency off the base delay, which pulled every
+// repeat ~1536 samples (one FFT size plus a hop) early, cumulatively. The chain now passes the
+// set time unchanged: each repeat lands within one hop of the set time after the previous one,
+// and the first echo sits a fixed fftSize late.
+TEST_CASE("RuinaeEffectsChain_SpectralRepeats_LandOnTheGrid", "[ruinae-fx][delay][timing]") {
+    const double sampleRate = GENERATE(48000.0, 44100.0);
+    const float timeMs = GENERATE(500.0f, 250.0f);  // 1/4 and 1/8 @ 120 BPM
+    CAPTURE(sampleRate, timeMs);
+    constexpr auto kFftSize = static_cast<double>(SpectralDelay::kDefaultFFTSize);
+    constexpr double kHop = kFftSize / 2.0;
+    const double grid = static_cast<double>(timeMs) * sampleRate / 1000.0;
+
+    const auto echoes = spectralEchoCentroids(sampleRate, timeMs, 3);
+    REQUIRE(echoes.size() == 3);
+    INFO("echo centroids " << echoes[0] << ", " << echoes[1] << ", " << echoes[2] << " (grid "
+         << grid << ", fftSize " << kFftSize << ")");
+
+    const double first = echoes[0];
+    CAPTURE(first - (grid + kFftSize));
+    CHECK(std::abs(first - (grid + kFftSize)) <= kHop / 2.0 + 128.0);
+    for (size_t k = 1; k < echoes.size(); ++k) {
+        const double spacing = echoes[k] - echoes[k - 1];
+        CAPTURE(k, spacing);
+        CHECK(std::abs(spacing - grid) <= kHop);
+    }
+}
+
+namespace {
+
+/// 20 ms 880 Hz blip (amplitude 0.5) starting at `startSample` of `buffer`.
+void addBlip(std::vector<float>& buffer, size_t startSample) {
+    const auto len = static_cast<size_t>(0.02 * kSampleRate);
+    for (size_t i = 0; i < len && startSample + i < buffer.size(); ++i) {
+        buffer[startSample + i] += 0.5f * std::sin(2.0f * 3.14159265358979323846f * 880.0f
+                                                   * static_cast<float>(i) / static_cast<float>(kSampleRate));
+    }
+}
+
+/// Mix 1, feedback 0, 250 ms, nothing else in the chain; `initial` active and settled.
+void prepareSwitchChain(RuinaeEffectsChain& chain, RuinaeDelayType initial) {
+    prepareChain(chain);
+    chain.setDelayEnabled(true);
+    chain.setDelayMix(1.0f);
+    chain.setDelayFeedback(0.0f);
+    chain.setDelayTime(250.0f);
+    chain.setModulationType(ModulationType::None);
+    chain.setHarmonizerEnabled(false);
+    ReverbParams reverbParams;
+    reverbParams.mix = 0.0f;
+    chain.setReverbParams(reverbParams);
+    chain.setReverbEnabled(false);
+    chain.reset();
+    chain.setDelayType(initial);
+    std::vector<float> silenceL(kBlockSize, 0.0f);
+    std::vector<float> silenceR(kBlockSize, 0.0f);
+    for (size_t done = 0; done < static_cast<size_t>(1.5 * kSampleRate); done += kBlockSize) {
+        std::fill(silenceL.begin(), silenceL.end(), 0.0f);
+        std::fill(silenceR.begin(), silenceR.end(), 0.0f);
+        chain.processBlock(silenceL.data(), silenceR.data(), kBlockSize);
+    }
+    REQUIRE(chain.getActiveDelayType() == initial);
+}
+
+/// Renders `input` in blocks; calls setDelayType(`switchTo`) before the block holding
+/// `switchAt` (pass input.size() for no switch). Returns the left output.
+std::vector<float> renderWithSwitch(RuinaeEffectsChain& chain, std::vector<float> input,
+                                    size_t switchAt, RuinaeDelayType switchTo) {
+    std::vector<float> right = input;
+    for (size_t pos = 0; pos < input.size(); pos += kBlockSize) {
+        if (switchAt >= pos && switchAt < pos + kBlockSize) chain.setDelayType(switchTo);
+        const size_t n = std::min(kBlockSize, input.size() - pos);
+        chain.processBlock(input.data() + pos, right.data() + pos, n);
+    }
+    return input;
+}
+
+} // anonymous namespace
+
+// R-153: switching to Spectral used to discard the echoes of notes played in the pre-warm
+// window: the incoming Spectral output was dropped during pre-warm and the outgoing echoes
+// still inside the 6144-sample compensation line were never read once Spectral was active.
+TEST_CASE("RuinaeEffectsChain_SwitchToSpectral_KeepsEchoes", "[ruinae-fx][delay][timing]") {
+    const auto totalLen = static_cast<size_t>(1.5 * kSampleRate);
+
+    SECTION("blip 0.1 s after switching Digital -> Spectral is echoed") {
+        std::vector<float> input(totalLen, 0.0f);
+        addBlip(input, static_cast<size_t>(0.1 * kSampleRate));
+
+        // Reference: the same blip through a settled Spectral delay.
+        RuinaeEffectsChain reference;
+        prepareSwitchChain(reference, RuinaeDelayType::Spectral);
+        const auto refOut = renderWithSwitch(reference, input, totalLen, RuinaeDelayType::Spectral);
+        const float refPeak = peakAbsolute(refOut.data(), totalLen);
+        REQUIRE(refPeak > 0.05f);
+
+        RuinaeEffectsChain chain;
+        prepareSwitchChain(chain, RuinaeDelayType::Digital);
+        const auto out = renderWithSwitch(chain, input, 0, RuinaeDelayType::Spectral);
+        REQUIRE(chain.getActiveDelayType() == RuinaeDelayType::Spectral);
+        const float peak = peakAbsolute(out.data(), totalLen);
+        INFO("echo peak after the switch " << peak << ", settled Spectral echo peak " << refPeak);
+        REQUIRE(peak >= 0.5f * refPeak);
+    }
+
+    SECTION("outgoing Digital echo of a blip played before the switch stays audible") {
+        std::vector<float> input(totalLen, 0.0f);
+        addBlip(input, 0);
+        const auto switchAt = static_cast<size_t>(0.1 * kSampleRate);
+
+        RuinaeEffectsChain reference;
+        prepareSwitchChain(reference, RuinaeDelayType::Digital);
+        const auto refOut = renderWithSwitch(reference, input, totalLen, RuinaeDelayType::Digital);
+        const float refPeak = peakAbsolute(refOut.data(), totalLen);
+        REQUIRE(refPeak > 0.05f);
+
+        RuinaeEffectsChain chain;
+        prepareSwitchChain(chain, RuinaeDelayType::Digital);
+        const auto out = renderWithSwitch(chain, input, switchAt, RuinaeDelayType::Spectral);
+        REQUIRE(chain.getActiveDelayType() == RuinaeDelayType::Spectral);
+        // The Digital echo lands at 250-270 ms, before the 250 ms pre-warm and the 30 ms
+        // crossfade (from the 100 ms switch) end.
+        const auto echoBegin = static_cast<size_t>(0.24 * kSampleRate);
+        const auto echoEnd = static_cast<size_t>(0.28 * kSampleRate);
+        const float peak = peakAbsolute(out.data() + echoBegin, echoEnd - echoBegin);
+        INFO("Digital echo peak across the switch " << peak << ", without a switch " << refPeak);
+        REQUIRE(peak >= 0.5f * refPeak);
+    }
+}
+
+TEST_CASE("RuinaeEffectsChain dry/wet timing: dry immediate, wet at the delay time",
           "[systems][ruinae_effects_chain]") {
     // With the dry/wet mix performed externally, an impulse at mix=0.5 must
-    // produce: a dry peak at sample 0 (immediate) and wet energy at
-    // comp_delay + delay_time.
+    // produce: a dry peak at sample 0 (immediate) and wet energy at the
+    // delay time.
     RuinaeEffectsChain chain;
     prepareChain(chain);
     chain.setDelayEnabled(true);
@@ -1156,15 +1440,15 @@ TEST_CASE("RuinaeEffectsChain dry/wet timing: dry immediate, wet after comp dela
     // Dry must appear at sample 0 with amplitude ~0.5 (1-mix)
     REQUIRE(std::abs(left[0]) == Approx(0.5f).margin(0.05f));
 
-    // Wet energy should appear near comp_delay + delay_time.
-    const size_t latency = chain.getLatencySamples();
-    const size_t wetExpected = latency + static_cast<size_t>(50.0 * kSampleRate / 1000.0);
-    float wetPeak = 0.0f;
-    for (size_t i = wetExpected - 256; i < wetExpected + 256 && i < kLen; ++i) {
-        wetPeak = std::max(wetPeak, std::abs(left[i]));
-    }
-    INFO("Wet peak near sample " << wetExpected << ": " << wetPeak);
+    // Wet energy at the delay time (+/- 1 ms), none before it.
+    const auto wetExpected = static_cast<size_t>(50.0 * kSampleRate / 1000.0);
+    const auto oneMs = static_cast<size_t>(kSampleRate / 1000.0);
+    const float wetPeak = peakAbsolute(left.data() + wetExpected - oneMs, 2 * oneMs + 1);
+    const float earlyPeak = peakAbsolute(left.data() + 1, wetExpected - oneMs - 1);
+    INFO("Wet peak within 1 ms of sample " << wetExpected << ": " << wetPeak
+         << ", peak between the dry impulse and the echo: " << earlyPeak);
     REQUIRE(wetPeak > 0.05f);
+    REQUIRE(earlyPeak < 0.01f);
 }
 
 // Regression: when the delay slot is enabled, the dry portion of the dry/wet
@@ -1319,7 +1603,7 @@ TEST_CASE("RuinaeEffectsChain SC-006: multi-sample-rate operation",
         chain.setDelayMix(0.5f);
         chain.setDelayTime(100.0f);
 
-        // Settle latency compensation
+        // Settle the chain
         settleChain(chain, 8, 44100.0, 512);
 
         std::vector<float> left(512);
@@ -1337,7 +1621,7 @@ TEST_CASE("RuinaeEffectsChain SC-006: multi-sample-rate operation",
         chain.setDelayMix(0.5f);
         chain.setDelayTime(100.0f);
 
-        // Settle latency compensation
+        // Settle the chain
         settleChain(chain, 8, 96000.0, 512);
 
         std::vector<float> left(512);
@@ -1438,9 +1722,7 @@ TEST_CASE("RuinaeEffectsChain phaser modifies signal after prepare+reset",
     chain.prepare(kSampleRate, kBlockSize);
     chain.reset();  // simulates setActive(true)
 
-    // Disable delay and reverb so we only test phaser
-    chain.setDelayEnabled(false);
-    chain.setReverbEnabled(false);
+    // Delay and reverb are off by default, so only the phaser is in the path.
 
     // Use DEFAULT phaser settings to test real-world scenario
     chain.setPhaserEnabled(true);
@@ -1452,7 +1734,7 @@ TEST_CASE("RuinaeEffectsChain phaser modifies signal after prepare+reset",
     chain.setPhaserCenterFrequency(1000.0f);
 
     // Generate a harmonically rich signal (sum of harmonics = pseudo-sawtooth)
-    // Buffer must be large enough for latency (6144) + analysis window
+    // Buffer must be large enough for settling + analysis window
     constexpr size_t kLen = 16384;
     std::vector<float> left(kLen), right(kLen);
     std::vector<float> origLeft(kLen), origRight(kLen);
@@ -1473,7 +1755,7 @@ TEST_CASE("RuinaeEffectsChain phaser modifies signal after prepare+reset",
     // Process through the effects chain
     chain.processBlock(left.data(), right.data(), kLen);
 
-    // Skip first samples (compensation delay latency + settling)
+    // Skip first samples (settling; the chain reports latency 0)
     size_t latency = chain.getLatencySamples();
     size_t start = latency + 1024;
     REQUIRE(start < kLen);
@@ -1488,6 +1770,71 @@ TEST_CASE("RuinaeEffectsChain phaser modifies signal after prepare+reset",
     INFO("Max difference between phased and original: " << maxDiff);
     // With aggressive settings and rich signal, phaser should clearly modify audio
     REQUIRE(maxDiff > 0.05f);
+}
+
+// =============================================================================
+// R-054: delay and reverb survive reset()
+// =============================================================================
+// reset() runs on setActive(true) and on every host preset load. The processor
+// then re-applies the enable flags every block, but setDelayEnabled() and
+// setReverbEnabled() return early when the flag did not change. reset() used to
+// force both slots to Off without clearing the flags, so an enabled delay or
+// reverb stayed silent until the user toggled it off and on.
+
+TEST_CASE("RuinaeEffectsChain: enabled delay and reverb still process after reset",
+          "[ruinae-fx][reset]") {
+    constexpr size_t kBlock = 512;
+    constexpr float kDelayMs = 100.0f;
+    constexpr size_t kLen = 16384;
+
+    const bool measureDelay = GENERATE(true, false);
+    CAPTURE(measureDelay);
+
+    RuinaeEffectsChain chain;
+    prepareChain(chain, kSampleRate, kBlock);
+    chain.setDelayType(RuinaeDelayType::Digital);
+    chain.setModulationType(ModulationType::None);
+    chain.setHarmonizerEnabled(false);
+    chain.setDelayTime(kDelayMs);
+    chain.setDelayFeedback(0.0f);
+    // Delay pass: 100 % wet delay, light reverb. Reverb pass: dry delay,
+    // 100 % wet reverb, so each measurement isolates one slot.
+    chain.setDelayMix(measureDelay ? 1.0f : 0.0f);
+    ReverbParams reverbParams;
+    reverbParams.roomSize = 0.8f;
+    reverbParams.damping = 0.3f;
+    reverbParams.mix = measureDelay ? 0.3f : 1.0f;
+    chain.setReverbParams(reverbParams);
+    chain.setDelayEnabled(true);
+    chain.setReverbEnabled(true);
+
+    settleChain(chain, 16, kSampleRate, kBlock);
+
+    chain.reset();
+    // What the processor does every block after a reset.
+    chain.setDelayEnabled(true);
+    chain.setReverbEnabled(true);
+
+    std::vector<float> left(kLen, 0.0f);
+    std::vector<float> right(kLen, 0.0f);
+    left[0] = 1.0f;
+    right[0] = 1.0f;
+    chain.processBlock(left.data(), right.data(), kLen);
+
+    if (measureDelay) {
+        const size_t echoAt = chain.getLatencySamples()
+            + static_cast<size_t>(kDelayMs * kSampleRate / 1000.0);
+        REQUIRE(echoAt + 256 < kLen);
+        const float wetPeak = peakAbsolute(left.data() + echoAt - 256, 512);
+        INFO("delay echo peak near sample " << echoAt << " after reset: " << wetPeak);
+        CHECK(wetPeak > 0.1f);
+    } else {
+        constexpr size_t kTailStart = 256;
+        constexpr size_t kTailLen = 8192;
+        const float tailRms = calculateRMS(left.data() + kTailStart, kTailLen);
+        INFO("reverb tail RMS after reset: " << tailRms);
+        CHECK(tailRms > 0.001f);
+    }
 }
 
 // =============================================================================
@@ -1509,7 +1856,7 @@ TEST_CASE("Harmonizer enable produces no volume drop on first block",
     chain.setHarmonizerWetLevel(-60.0f);  // effectively muted
     chain.setHarmonizerNumVoices(0);
 
-    // Settle the chain (fills latency compensation delays)
+    // Settle the chain
     settleChain(chain, 20);
 
     // Process several blocks with harmonizer DISABLED to establish baseline
@@ -2176,4 +2523,574 @@ TEST_CASE("Disabling the reverb ramps the wet tail out",
     INFO("tail RMS " << tailLevel << ", first " << kEarlyWindow
          << " samples after disable RMS " << earlyLevel);
     CHECK(earlyLevel > tailLevel * 0.4f);
+}
+
+// =============================================================================
+// R-059 / R-061 / R-063: effects-chain crossfades can be re-targeted (T2.10)
+// =============================================================================
+
+// R-059: a Modulation Type change that arrives while a type crossfade is still
+// running restarted the fade from alpha 0. Returning to the outgoing type made
+// it the incoming type as well, so one Phaser instance was processed twice per
+// block and was then reset while it stayed active; a third type cut the
+// half-faded-in effect out in one sample. Even a plain switch into a reset
+// chorus stepped once its 15 ms read position reached written audio, halfway
+// through the fade; the incoming effect is now pre-warmed first.
+TEST_CASE("ModSlot_RetargetMidFade_NoClick", "[ruinae-fx][modulation]") {
+    constexpr size_t kBlock = 512;
+    constexpr size_t kBlocks = 32;
+    constexpr size_t kSwitchBlock = 10;
+    constexpr size_t kSkipBlocks = 4;  // phaser start-up
+    constexpr float kAmp = 0.3f;
+    constexpr float kFreq = 110.0f;
+
+    RuinaeEffectsChain chain;
+    prepareChain(chain, kSampleRate, kBlock);
+    chain.setPhaserMix(0.5f);
+    chain.setPhaserDepth(0.5f);
+    chain.setPhaserRate(0.5f);
+    chain.setPhaserFeedback(0.0f);
+    chain.setPhaserStages(4);
+    chain.setPhaserCenterFrequency(1000.0f);
+    chain.flanger().setFeedback(0.0f);
+    chain.chorus().setVoices(1);  // multi-voice chorus steps on its own (R-060)
+    chain.setModulationType(ModulationType::Phaser);
+
+    ModulationType second = ModulationType::Phaser;
+    SECTION("A->B->A: back to the outgoing type mid-fade") {
+        second = ModulationType::Phaser;
+    }
+    SECTION("A->B->C: a third type mid-fade") {
+        second = ModulationType::Flanger;
+    }
+    SECTION("A->B: a plain switch into a cold chorus") {
+        second = ModulationType::Chorus;
+    }
+
+    constexpr size_t kTotal = kBlocks * kBlock;
+    std::vector<float> input(kTotal);
+    fillSine(input.data(), kTotal, kFreq, kSampleRate, kAmp);
+    std::vector<float> outL(input);
+    std::vector<float> outR(input);
+    // The switch pre-warms the incoming effect first; the re-target lands one
+    // 512 block after the crossfade itself has started.
+    size_t fadeStartBlock = 0;
+    bool retargeted = false;
+    for (size_t b = 0; b < kBlocks; ++b) {
+        if (b == kSwitchBlock) chain.startModCrossfade(ModulationType::Chorus);
+        if (fadeStartBlock != 0 && b == fadeStartBlock + 1) {
+            chain.startModCrossfade(second);
+            retargeted = true;
+        }
+        const bool fadeRunning = chain.isModCrossfadingForTest();
+        chain.processBlock(outL.data() + b * kBlock, outR.data() + b * kBlock, kBlock);
+        if (fadeStartBlock == 0 && fadeRunning) fadeStartBlock = b;
+    }
+    REQUIRE(retargeted);
+
+    const float dryStep = maxStepSize(input.data(), kTotal);
+    const float steadyStep = maxStepSize(outL.data() + kSkipBlocks * kBlock,
+                                         (kSwitchBlock - kSkipBlocks) * kBlock);
+    const float stepL = maxStepSize(outL.data() + kSkipBlocks * kBlock,
+                                    (kBlocks - kSkipBlocks) * kBlock);
+    const float stepR = maxStepSize(outR.data() + kSkipBlocks * kBlock,
+                                    (kBlocks - kSkipBlocks) * kBlock);
+    INFO("dry step " << dryStep << ", steady phaser step " << steadyStep
+         << ", max step L " << stepL << ", R " << stepR);
+    REQUIRE(stepL < 2.0f * dryStep);
+    REQUIRE(stepR < 2.0f * dryStep);
+    REQUIRE(chain.getActiveModulationType() == second);
+}
+
+// R-061: with Freeze on, both reverbs have their input muted, so a type switch
+// crossfaded the frozen tank into an empty one and then reset the frozen one.
+// The switch is now deferred until Freeze is released.
+TEST_CASE("ReverbFreeze_TypeSwitch_KeepsFrozenTail", "[ruinae-fx][reverb]") {
+    constexpr size_t kBlock = 2048;
+
+    RuinaeEffectsChain chain;
+    prepareChain(chain, kSampleRate, kBlock);
+
+    ReverbParams params;
+    params.mix = 1.0f;
+    params.roomSize = 0.8f;
+    chain.setReverbEnabled(true);
+    chain.setReverbParams(params);
+    chain.setReverbTypeDirect(0);
+
+    std::vector<float> left(kBlock);
+    std::vector<float> right(kBlock);
+    for (int b = 0; b < 10; ++b) {
+        fillSine(left.data(), kBlock, 220.0f, kSampleRate, 0.5f);
+        fillSine(right.data(), kBlock, 220.0f, kSampleRate, 0.5f);
+        chain.setReverbParams(params);
+        chain.setReverbType(0);
+        chain.processBlock(left.data(), right.data(), kBlock);
+    }
+
+    // The processor re-sends the params and the type before every block.
+    auto processSilence = [&](int type) {
+        std::fill(left.begin(), left.end(), 0.0f);
+        std::fill(right.begin(), right.end(), 0.0f);
+        chain.setReverbParams(params);
+        chain.setReverbType(type);
+        chain.processBlock(left.data(), right.data(), kBlock);
+        return calculateRMS(left.data(), kBlock);
+    };
+
+    params.freeze = true;
+    float frozenRms = 0.0f;
+    for (int b = 0; b < 4; ++b) frozenRms = processSilence(0);
+    REQUIRE(frozenRms > 1e-3f);
+
+    // 0.5 s after the switch to Hall, still frozen.
+    constexpr int kBlocksHalfSecond = static_cast<int>(0.5 * kSampleRate / kBlock) + 1;
+    float rmsAfter = 0.0f;
+    for (int b = 0; b < kBlocksHalfSecond; ++b) rmsAfter = processSilence(1);
+    INFO("frozen RMS " << frozenRms << ", RMS 0.5 s after the type switch " << rmsAfter);
+    REQUIRE(rmsAfter >= 0.5f * frozenRms);
+
+    SECTION("the deferred type is applied once Freeze is released") {
+        params.freeze = false;
+        for (int b = 0; b < 4; ++b) processSilence(1);
+        REQUIRE(chain.activeReverbTypeForTest() == 1);
+        REQUIRE_FALSE(chain.isReverbCrossfadingForTest());
+    }
+}
+
+// R-063: a disable that arrived during the harmonizer's fade-in jumped the fade
+// alpha to 1, a gain step. The processor sends the enable flag every block, and
+// each disable call re-armed the fade-out at alpha 1, so with blocks shorter
+// than the 10 ms fade the harmonizer never switched off.
+TEST_CASE("Harmonizer_ToggleDuringFade_NoStep", "[ruinae-fx][harmonizer]") {
+    constexpr size_t kBlock = 88;  // 2 ms at 44.1 kHz
+    constexpr size_t kBlocks = 200;
+    constexpr size_t kEnableBlock = 100;
+    constexpr size_t kTotal = kBlocks * kBlock;
+    constexpr float kAmp = 0.3f;
+    constexpr float kFreq = 220.0f;
+
+    RuinaeEffectsChain chain;
+    prepareChain(chain);
+    chain.setHarmonizerHarmonyMode(0);    // Chromatic
+    chain.setHarmonizerPitchShiftMode(0); // Simple
+    // Dry -6 dB: 2 ms into the fade the pitched voice is still silent, so at a
+    // 0 dB dry level the harmonizer's output equals its input and an alpha
+    // jump is inaudible. A dry level below unity makes the jump a gain step.
+    chain.setHarmonizerDryLevel(-6.0f);
+    chain.setHarmonizerWetLevel(-6.0f);
+    chain.setHarmonizerNumVoices(1);
+    chain.setHarmonizerVoiceInterval(0, 7);
+    chain.setHarmonizerVoiceLevel(0, 0.0f);
+
+    std::vector<float> input(kTotal);
+    fillSine(input.data(), kTotal, kFreq, kSampleRate, kAmp);
+    std::vector<float> outL(input);
+    std::vector<float> outR(input);
+
+    bool reEnable = false;
+    SECTION("enable, then disable 2 ms later") { reEnable = false; }
+    SECTION("enable, disable 2 ms later, re-enable 2 ms after that") { reEnable = true; }
+
+    for (size_t b = 0; b < kBlocks; ++b) {
+        bool enabled = (b == kEnableBlock);
+        if (reEnable && b >= kEnableBlock + 2) enabled = true;
+        chain.setHarmonizerEnabled(enabled);
+        chain.processBlock(outL.data() + b * kBlock, outR.data() + b * kBlock, kBlock);
+    }
+
+    // Steady: the dry sine's own step. The window ends 16 ms after the enable,
+    // before the harmonized voice's 100 ms fade-in makes it audible on its own.
+    const float steadyStep = maxStepSize(input.data(), kTotal);
+    const size_t windowStart = (kEnableBlock - 10) * kBlock;
+    const size_t windowLen = 18 * kBlock;
+    const float stepL = maxStepSize(outL.data() + windowStart, windowLen);
+    const float stepR = maxStepSize(outR.data() + windowStart, windowLen);
+    INFO("steady step " << steadyStep << ", max step L " << stepL << ", R " << stepR);
+    REQUIRE(stepL <= 1.5f * steadyStep);
+    REQUIRE(stepR <= 1.5f * steadyStep);
+
+    // The last 100 ms: switched off, the chain passes the input untouched;
+    // switched back on, the harmonized voice is there.
+    const size_t tailStart = (kBlocks - 50) * kBlock;
+    float maxDiff = 0.0f;
+    for (size_t i = tailStart; i < kTotal; ++i) {
+        maxDiff = std::max(maxDiff, std::abs(outL[i] - input[i]));
+    }
+    INFO("max |out - in| over the last 100 ms " << maxDiff);
+    if (reEnable) {
+        CHECK(maxDiff > 0.01f);
+    } else {
+        CHECK(maxDiff < 1e-6f);
+    }
+}
+
+namespace {
+
+/// Configures the harmonizer as an inaudible insert: 0 dB dry, -60 dB wet, one voice a fifth up.
+void configureQuietHarmonizer(RuinaeEffectsChain& chain) {
+    chain.setHarmonizerHarmonyMode(0);    // Chromatic
+    chain.setHarmonizerPitchShiftMode(0); // Simple
+    chain.setHarmonizerDryLevel(0.0f);
+    chain.setHarmonizerWetLevel(-60.0f);
+    chain.setHarmonizerNumVoices(1);
+    chain.setHarmonizerVoiceInterval(0, 7);
+    chain.setHarmonizerVoiceLevel(0, 0.0f);
+}
+
+/// Runs `left`/`right` through the chain in kBlockSize blocks, in place.
+void processInBlocks(RuinaeEffectsChain& chain, std::vector<float>& left,
+                     std::vector<float>& right, size_t begin, size_t end) {
+    for (size_t pos = begin; pos < end; pos += kBlockSize) {
+        const size_t n = std::min(kBlockSize, end - pos);
+        chain.processBlock(left.data() + pos, right.data() + pos, n);
+    }
+}
+
+} // anonymous namespace
+
+// R-175: the chain fed the harmonizer the (L+R)/2 sum and let it overwrite both
+// channels, so with the harmonizer on the dry part of each channel was that mono
+// sum: R == L == 0.5 x input for a left-only signal, silence for anti-phase L/-L.
+TEST_CASE("Harmonizer_DryPathStaysStereo", "[ruinae-fx][harmonizer]") {
+    constexpr size_t kTotal = static_cast<size_t>(0.6 * kSampleRate);
+    constexpr size_t kMeasureLen = static_cast<size_t>(0.2 * kSampleRate);
+    constexpr size_t kMeasureStart = kTotal - kMeasureLen;
+
+    RuinaeEffectsChain chain;
+    prepareChain(chain);
+    configureQuietHarmonizer(chain);
+    chain.setHarmonizerEnabled(true);
+
+    std::vector<float> input(kTotal);
+    fillSine(input.data(), kTotal, 440.0f, kSampleRate, 0.5f);
+    const float inputRms = calculateRMS(input.data() + kMeasureStart, kMeasureLen);
+
+    SECTION("left-only sine stays on the left") {
+        std::vector<float> left(input);
+        std::vector<float> right(kTotal, 0.0f);
+        processInBlocks(chain, left, right, 0, kTotal);
+        const float rmsL = calculateRMS(left.data() + kMeasureStart, kMeasureLen);
+        const float rmsR = calculateRMS(right.data() + kMeasureStart, kMeasureLen);
+        INFO("input RMS " << inputRms << ", out L " << rmsL << ", out R " << rmsR);
+        REQUIRE(rmsR < 0.01f * rmsL);
+        REQUIRE(std::abs(linearToDbFS(rmsL) - linearToDbFS(inputRms)) < 0.5f);
+    }
+
+    SECTION("anti-phase L/-L does not cancel") {
+        std::vector<float> left(input);
+        std::vector<float> right(kTotal);
+        for (size_t i = 0; i < kTotal; ++i) right[i] = -input[i];
+        processInBlocks(chain, left, right, 0, kTotal);
+        const float rmsL = calculateRMS(left.data() + kMeasureStart, kMeasureLen);
+        const float rmsR = calculateRMS(right.data() + kMeasureStart, kMeasureLen);
+        INFO("input RMS " << inputRms << ", out L " << rmsL << ", out R " << rmsR);
+        REQUIRE(std::abs(linearToDbFS(rmsL) - linearToDbFS(inputRms)) < 0.5f);
+        REQUIRE(std::abs(linearToDbFS(rmsR) - linearToDbFS(inputRms)) < 0.5f);
+    }
+}
+
+// R-177: while the harmonizer was enabled, a soft limiter (linear to 0.85) ran on
+// the whole bus before the reverb, squashing the dry mix. It switched off at the
+// block boundary of the last fade-out block, a step from ~0.98 to the full peak.
+TEST_CASE("Harmonizer_DoesNotLimitTheDryMix", "[ruinae-fx][harmonizer]") {
+    // 5 x fs/2048: a 512-sample block is 1.25 cycles, so every odd block starts
+    // at a sine peak, where the limited and the unlimited curves differ most.
+    constexpr float kFreq = 5.0f * static_cast<float>(kSampleRate) / 2048.0f;
+    constexpr float kAmp = 1.5f;
+    constexpr size_t kOnBlocks = 51;  // odd: the disable lands on a peak
+    constexpr size_t kOnLen = kOnBlocks * kBlockSize;
+    constexpr size_t kTotal = kOnLen + 40 * kBlockSize;
+    constexpr size_t kMeasureLen = 20 * kBlockSize;
+    constexpr size_t kMeasureStart = kOnLen - kMeasureLen;
+
+    std::vector<float> input(kTotal);
+    fillSine(input.data(), kTotal, kFreq, kSampleRate, kAmp);
+
+    // Reference: harmonizer off.
+    RuinaeEffectsChain off;
+    prepareChain(off);
+    configureQuietHarmonizer(off);
+    std::vector<float> offL(input);
+    std::vector<float> offR(input);
+    processInBlocks(off, offL, offR, 0, kOnLen);
+
+    RuinaeEffectsChain on;
+    prepareChain(on);
+    configureQuietHarmonizer(on);
+    on.setHarmonizerEnabled(true);
+    std::vector<float> onL(input);
+    std::vector<float> onR(input);
+    processInBlocks(on, onL, onR, 0, kOnLen);
+
+    const float offRms = calculateRMS(offL.data() + kMeasureStart, kMeasureLen);
+    const float onRms = calculateRMS(onL.data() + kMeasureStart, kMeasureLen);
+    INFO("RMS off " << offRms << ", on " << onRms);
+    REQUIRE(std::abs(linearToDbFS(onRms) - linearToDbFS(offRms)) < 0.1f);
+
+    // Disable: the fade-out runs to its end and the chain is linear again.
+    on.setHarmonizerEnabled(false);
+    processInBlocks(on, onL, onR, kOnLen, kTotal);
+
+    const float steadyStep = maxStepSize(input.data(), kTotal);
+    const size_t windowStart = kOnLen - 4 * kBlockSize;
+    const size_t windowLen = kTotal - windowStart;
+    const float stepL = maxStepSize(onL.data() + windowStart, windowLen);
+    const float stepR = maxStepSize(onR.data() + windowStart, windowLen);
+    INFO("steady step " << steadyStep << ", max step L " << stepL << ", R " << stepR);
+    REQUIRE(stepL <= 1.1f * steadyStep);
+    REQUIRE(stepR <= 1.1f * steadyStep);
+}
+
+namespace {
+
+/// Renders a 200 ms noise burst through `type` at `timeMs` (mix 1, feedback 0, nothing else in
+/// the chain) and returns the sample index, counted from the burst start, of the first LEFT
+/// output sample above -20 dB re the burst, together with the chain's reported latency.
+/// Left only: CharacterProcessor's Tape mode runs both channels through one set of filter
+/// states, so the right channel shows the left channel's echo at the start of the block that
+/// holds it, up to a block early. That bleed is not an echo time.
+std::pair<size_t, size_t> firstEchoSample(RuinaeDelayType type, float timeMs) {
+    RuinaeEffectsChain chain;
+    prepareChain(chain);
+    chain.setDelayEnabled(true);
+    chain.setDelayMix(1.0f);
+    chain.setDelayFeedback(0.0f);
+    chain.setDelayTime(timeMs);
+    // 100 ms grains overlap 10x at 100/s: no gap between grains for the burst onset to fall in.
+    chain.setDelayGranularDensity(100.0f);
+    chain.setDelayGranularJitter(0.0f);
+    chain.setModulationType(ModulationType::None);
+    chain.setHarmonizerEnabled(false);
+    ReverbParams reverbParams;
+    reverbParams.mix = 0.0f;
+    chain.setReverbParams(reverbParams);
+    chain.setReverbEnabled(false);
+    // Start from the stored time, as a preset load or setActive does, so Digital (active from
+    // prepare) does not ramp to it.
+    chain.reset();
+    chain.setDelayType(type);
+
+    // Silence until the type switch (pre-warm = time, then a 30 ms crossfade)
+    // and every smoother have finished.
+    const auto settleSamples = static_cast<size_t>((timeMs / 1000.0f + 1.0f) * kSampleRate);
+    std::vector<float> silenceL(kBlockSize, 0.0f);
+    std::vector<float> silenceR(kBlockSize, 0.0f);
+    for (size_t done = 0; done < settleSamples; done += kBlockSize) {
+        std::fill(silenceL.begin(), silenceL.end(), 0.0f);
+        std::fill(silenceR.begin(), silenceR.end(), 0.0f);
+        chain.processBlock(silenceL.data(), silenceR.data(), kBlockSize);
+    }
+    REQUIRE(chain.getActiveDelayType() == type);
+
+    // A 200 ms noise burst (a lone impulse can fall between two grains), then silence.
+    const auto burstLen = static_cast<size_t>(0.2 * kSampleRate);
+    const auto totalLen = static_cast<size_t>((timeMs / 1000.0f + 0.6f) * kSampleRate);
+    std::vector<float> left(totalLen, 0.0f);
+    std::vector<float> right(totalLen, 0.0f);
+    uint32_t seed = 0x1234567u;
+    for (size_t i = 0; i < burstLen; ++i) {
+        seed = seed * 1664525u + 1013904223u;
+        const float v = 0.5f * (static_cast<float>(seed >> 8) / 8388608.0f - 1.0f);
+        left[i] = v;
+        right[i] = v;
+    }
+    for (size_t pos = 0; pos < totalLen; pos += kBlockSize) {
+        const size_t n = std::min(kBlockSize, totalLen - pos);
+        chain.processBlock(left.data() + pos, right.data() + pos, n);
+    }
+
+    constexpr float kThreshold = 0.05f;
+    size_t onset = totalLen;
+    for (size_t i = 0; i < totalLen; ++i) {
+        if (std::abs(left[i]) > kThreshold) {
+            onset = i;
+            break;
+        }
+    }
+    return {onset, chain.getLatencySamples()};
+}
+
+} // anonymous namespace
+
+// R-094: the Delay Time parameter runs to 5000 ms and the chain sends one value to all five
+// types. Tape, Granular and Spectral used to stop at 2000 ms, so a 3 s echo landed at 2 s on
+// those three and a type switch changed the echo time.
+TEST_CASE("Delay time 3000 ms is honoured by every delay type", "[ruinae-fx][delay][timing]") {
+    constexpr float kTimeMs = 3000.0f;
+    const int typeIdx = GENERATE(0, 1, 2, 3, 4);
+    STATIC_REQUIRE(static_cast<int>(RuinaeDelayType::NumTypes) == 5);
+    const auto type = static_cast<RuinaeDelayType>(typeIdx);
+    const auto timeSamples = static_cast<double>(kTimeMs) * kSampleRate / 1000.0;
+
+    const auto [onset, latency] = firstEchoSample(type, kTimeMs);
+    REQUIRE(onset < static_cast<size_t>((kTimeMs / 1000.0f + 0.6f) * kSampleRate));
+
+    if (type != RuinaeDelayType::Spectral) {
+        // First echo at the reported latency (0) + 3000 ms, +/- 2 ms.
+        const double expected = static_cast<double>(latency) + timeSamples;
+        INFO("type " << typeIdx << ": first echo at sample " << onset << " ("
+                     << (static_cast<double>(onset) - static_cast<double>(latency)) * 1000.0 / kSampleRate
+                     << " ms after the reported latency), expected " << expected << " +/- 2 ms");
+        REQUIRE(std::abs(static_cast<double>(onset) - expected) <= 2.0 * kSampleRate / 1000.0);
+    } else {
+        // Spectral, +/- 1 hop. Its hop-quantised echo can sit up to a hop off the set time
+        // (RuinaeEffectsChain_Echo_ArrivesAtSetDelayTime checks it at 250 ms), so
+        // the time is measured against a 1000 ms echo, inside the range that always worked:
+        // the two echoes must be 2000 ms apart.
+        const auto [onset1000, latency1000] = firstEchoSample(type, 1000.0f);
+        (void)latency1000;
+        const double spacing = static_cast<double>(onset) - static_cast<double>(onset1000);
+        const double expected = timeSamples - 1000.0 * kSampleRate / 1000.0;
+        INFO("Spectral: echo at 3000 ms set at sample " << onset << ", at 1000 ms set at sample "
+             << onset1000 << ": " << spacing * 1000.0 / kSampleRate << " ms apart, expected 2000 ms +/- 1 hop");
+        REQUIRE(std::abs(spacing - expected) <= static_cast<double>(SpectralDelay::kDefaultFFTSize / 2));
+    }
+}
+
+// =============================================================================
+// R-004: delay lines are cleared a slice per block, not inside one callback
+// =============================================================================
+// A reset (preset load) or a completed disable fade starts the clear of every
+// delay type that holds audio, spread over the next blocks. With 64-sample
+// blocks every type's clear spans several of them. A type whose clear is still
+// running must not be heard (its stale echoes replayed), and what is played
+// meanwhile must still echo, on time.
+
+TEST_CASE("Delay lines cleared over several blocks replay no stale echo and echo again",
+          "[ruinae-fx][delay][lifecycle]") {
+    constexpr double kRate = 48000.0;
+    constexpr size_t kBlock = 64;
+    constexpr float kTimeMs = 100.0f;
+    const int typeIndex = GENERATE(0, 1, 2, 3, 4);
+    const auto type = static_cast<RuinaeDelayType>(typeIndex);
+    CAPTURE(typeIndex);
+
+    RuinaeEffectsChain chain;
+    chain.prepare(kRate, kBlock);
+    chain.setDelayEnabled(true);
+    chain.setDelayMix(1.0f);
+    chain.setDelayFeedback(0.8f);
+    chain.setDelayTime(kTimeMs);
+    chain.setModulationType(ModulationType::None);
+    chain.setHarmonizerEnabled(false);
+    ReverbParams reverbParams;
+    reverbParams.mix = 0.0f;
+    chain.setReverbParams(reverbParams);
+    chain.setReverbEnabled(false);
+    chain.reset();
+    chain.setDelayType(type);
+
+    std::vector<float> left(kBlock);
+    std::vector<float> right(kBlock);
+    const auto run = [&](size_t samples, bool sine) {
+        std::vector<float> out;
+        for (size_t done = 0; done < samples; done += kBlock) {
+            if (sine) {
+                fillSine(left.data(), kBlock, 440.0f, kRate, 0.5f);
+                fillSine(right.data(), kBlock, 440.0f, kRate, 0.5f);
+            } else {
+                std::fill(left.begin(), left.end(), 0.0f);
+                std::fill(right.begin(), right.end(), 0.0f);
+            }
+            chain.processBlock(left.data(), right.data(), kBlock);
+            for (size_t i = 0; i < kBlock; ++i) {
+                out.push_back(std::max(std::abs(left[i]), std::abs(right[i])));
+            }
+        }
+        return out;  // the louder channel per sample
+    };
+    const auto ms = [&](double t) { return static_cast<size_t>(t * kRate / 1000.0); };
+
+    // Switch (pre-warm 100 ms + 30 ms crossfade), then fill the lines with a
+    // loud tail: longer than the 5 s lines, so whatever part of a line is read
+    // before its clear reaches it is old audio.
+    (void)run(ms(400.0), false);
+    REQUIRE(chain.getActiveDelayType() == type);
+    (void)run(ms(5600.0), true);
+    const std::vector<float> tail = run(ms(150.0), false);
+    REQUIRE(peakAbsolute(tail.data(), tail.size()) > 0.05f);
+
+    // Output from the reset on, while only silence goes in.
+    std::vector<float> silentIn;
+    SECTION("reset, as a preset load does") {
+        chain.reset();
+    }
+    SECTION("disable, re-enabled as soon as the fade-out completes") {
+        chain.setDelayEnabled(false);
+        (void)run(ms(21.0), false);
+        chain.setDelayEnabled(true);
+        // Silence through the 20 ms fade-in, which passes the dry signal
+        silentIn = run(ms(25.0), false);
+    }
+
+    // Play while the clear is still running (after a reset): a 440 Hz burst
+    // as long as the delay time (the Granular grains sample it sparsely). Its
+    // input is kept and recorded once the line is clean, so its echo lands on time.
+    std::vector<float> out = run(ms(kTimeMs), true);
+    const std::vector<float> rest = run(ms(500.0), false);
+    out.insert(out.end(), rest.begin(), rest.end());
+
+    // Nothing of the old tail comes out before the first echo (Spectral's
+    // windowed frames start it up to a few hops early).
+    const float stalePeak = std::max(peakAbsolute(silentIn.data(), silentIn.size()),
+                                     peakAbsolute(out.data(), ms(kTimeMs * 0.5)));
+    INFO("peak before the first echo: " << stalePeak);
+    CHECK(stalePeak < 1e-3f);
+
+    // The burst echoes.
+    const size_t from = ms(kTimeMs * 0.5);
+    const float echoPeak = peakAbsolute(out.data() + from, out.size() - from);
+    INFO("echo peak: " << echoPeak);
+    CHECK(echoPeak > 0.05f);
+
+    // Digital and PingPong echo the burst's first sample at the delay time: the
+    // input played during the clear was not dropped.
+    if (type == RuinaeDelayType::Digital || type == RuinaeDelayType::PingPong) {
+        const auto onset = static_cast<size_t>(
+            std::find_if(out.begin(), out.end(), [](float v) { return v > 0.02f; }) - out.begin());
+        INFO("first echo at " << static_cast<double>(onset) * 1000.0 / kRate << " ms");
+        // +/- 0.5 ms: dropping one 64-sample block of it moves the echo 1.33 ms
+        CHECK(onset >= ms(kTimeMs - 0.5));
+        CHECK(onset <= ms(kTimeMs + 0.5));
+    }
+}
+
+// R-154 (fix plan T3.6a): the Tape delay added hiss with no input at Wear 0 and Age 0, so Ruinae never reached
+// digital silence with it enabled (probe silence:delay:Tape -98.2 dBFS RMS / -85.6 dBFS peak).
+TEST_CASE("Tape delay at Wear 0 Age 0 is silent with no input", "[effects-chain][tape]") {
+    RuinaeEffectsChain chain;
+    prepareChain(chain);
+    chain.setDelayEnabled(true);
+    chain.setDelayType(RuinaeDelayType::Tape);
+    chain.setDelayMix(1.0f);
+
+    SECTION("Wear and Age never set after prepare") {}
+    SECTION("Wear and Age set to 0 as the processor does") {
+        chain.setDelayTapeWear(0.0f);
+        chain.setDelayTapeAge(0.0f);
+    }
+
+    const auto total = static_cast<size_t>(2.0 * kSampleRate);
+    const auto skip = static_cast<size_t>(0.5 * kSampleRate);
+    std::vector<float> left(kBlockSize);
+    std::vector<float> right(kBlockSize);
+    double sum = 0.0;
+    size_t counted = 0;
+    float peak = 0.0f;
+    for (size_t done = 0; done < total; done += kBlockSize) {
+        std::fill(left.begin(), left.end(), 0.0f);
+        std::fill(right.begin(), right.end(), 0.0f);
+        chain.processBlock(left.data(), right.data(), kBlockSize);
+        for (size_t i = 0; i < kBlockSize; ++i) {
+            if (done + i < skip) continue;
+            sum += static_cast<double>(left[i]) * left[i] + static_cast<double>(right[i]) * right[i];
+            counted += 2;
+            peak = std::max({peak, std::abs(left[i]), std::abs(right[i])});
+        }
+    }
+    REQUIRE(chain.getActiveDelayType() == RuinaeDelayType::Tape);
+    const float rms = static_cast<float>(std::sqrt(sum / static_cast<double>(counted)));
+    INFO("RMS " << linearToDbFS(rms) << " dBFS, peak " << linearToDbFS(peak) << " dBFS");
+    REQUIRE(rms <= 1e-6f);
 }

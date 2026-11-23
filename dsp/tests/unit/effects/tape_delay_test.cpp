@@ -16,8 +16,10 @@
 #include <krate/dsp/primitives/fft.h>
 #include <spectral_analysis.h>
 
+#include <algorithm>
 #include <array>
 #include <cmath>
+#include <vector>
 
 using Catch::Approx;
 using namespace Krate::DSP;
@@ -162,7 +164,7 @@ TEST_CASE("TapeDelay construction", "[features][tape-delay][lifecycle]") {
     SECTION("constants are correct") {
         REQUIRE(TapeDelay::kNumHeads == 3);
         REQUIRE(TapeDelay::kMinDelayMs == Approx(20.0f));
-        REQUIRE(TapeDelay::kMaxDelayMs == Approx(2000.0f));
+        REQUIRE(TapeDelay::kMaxDelayMs == Approx(5000.0f));
         REQUIRE(TapeDelay::kHeadRatio1 == Approx(1.0f));
         REQUIRE(TapeDelay::kHeadRatio2 == Approx(1.5f));
         REQUIRE(TapeDelay::kHeadRatio3 == Approx(2.0f));
@@ -216,6 +218,26 @@ TEST_CASE("TapeDelay motor speed control", "[features][tape-delay][motor-speed]"
 
         delay.setMotorSpeed(5000.0f);  // Above maximum
         REQUIRE(delay.getTargetDelayMs() <= TapeDelay::kMaxDelayMs);
+    }
+}
+
+// R-094 (Ruinae audit): the motor speed range follows prepare()'s maxDelayMs up to 5000 ms.
+TEST_CASE("TapeDelay motor speed range follows the prepared maximum",
+          "[features][tape-delay][motor-speed]") {
+    TapeDelay delay;
+
+    SECTION("prepared for 5000 ms, a 3000 ms time is kept") {
+        delay.prepare(44100.0, 512, 5000.0f);
+        delay.setMotorSpeed(3000.0f);
+        REQUIRE(delay.getTargetDelayMs() == Approx(3000.0f));
+        delay.setMotorSpeed(9000.0f);
+        REQUIRE(delay.getTargetDelayMs() == Approx(5000.0f));
+    }
+
+    SECTION("prepared for 2000 ms, the time still stops at 2000 ms") {
+        delay.prepare(44100.0, 512, 2000.0f);
+        delay.setMotorSpeed(3000.0f);
+        REQUIRE(delay.getTargetDelayMs() == Approx(2000.0f));
     }
 }
 
@@ -1387,4 +1409,130 @@ TEST_CASE("TapeDelay mixes every sample of a block longer than 4096", "[features
     }
     INFO("largest |out - dry| at Mix 0 " << worst);
     CHECK(worst < 1e-4f);
+}
+
+// =============================================================================
+// Tape hiss is silent at Wear 0 and Age 0 (R-154, fix plan T3.6a)
+// =============================================================================
+// The hiss sat at -80 dB with Wear and Age both at 0, so a Tape delay never reached digital silence. It is now off
+// there; any Wear or Age above 0 keeps the old -80 + wear*40 + age*10 dB curve.
+
+namespace {
+
+constexpr double kHissSampleRate = 48000.0;
+constexpr size_t kHissBlock = 512;
+
+void prepareHissProbe(TapeDelay& delay) {
+    delay.prepare(kHissSampleRate, kHissBlock, 2000.0f);
+    delay.setMotorSpeed(50.0f);
+    delay.setSaturation(0.0f);
+    delay.setMix(1.0f);
+    delay.setFeedback(0.0f);
+    delay.setHeadEnabled(0, true);
+    delay.setHeadLevel(0, 0.0f);
+}
+
+/// Process @p seconds of digital silence; return the RMS of both channels after the first @p skipSeconds.
+float hissRmsOnSilence(TapeDelay& delay, double seconds, double skipSeconds) {
+    const auto total = static_cast<size_t>(seconds * kHissSampleRate);
+    const auto skip = static_cast<size_t>(skipSeconds * kHissSampleRate);
+    std::vector<float> left(kHissBlock);
+    std::vector<float> right(kHissBlock);
+    double sum = 0.0;
+    size_t counted = 0;
+    for (size_t done = 0; done < total; done += kHissBlock) {
+        std::fill(left.begin(), left.end(), 0.0f);
+        std::fill(right.begin(), right.end(), 0.0f);
+        delay.process(left.data(), right.data(), kHissBlock);
+        for (size_t i = 0; i < kHissBlock; ++i) {
+            if (done + i < skip) continue;
+            sum += static_cast<double>(left[i]) * left[i] + static_cast<double>(right[i]) * right[i];
+            counted += 2;
+        }
+    }
+    return static_cast<float>(std::sqrt(sum / static_cast<double>(std::max<size_t>(counted, 1))));
+}
+
+float toDb(float linear) {
+    return 20.0f * std::log10(std::max(linear, 1e-12f));
+}
+
+} // namespace
+
+TEST_CASE("TapeDelay is silent at Wear 0 and Age 0 with no input", "[tape-delay][hiss]") {
+    SECTION("default state, Wear and Age never set") {
+        TapeDelay delay;
+        prepareHissProbe(delay);
+        const float rms = hissRmsOnSilence(delay, 2.0, 0.5);
+        INFO("RMS " << rms << " (" << toDb(rms) << " dBFS)");
+        REQUIRE(rms <= 1e-6f);
+    }
+    SECTION("Wear raised and returned to 0") {
+        TapeDelay delay;
+        prepareHissProbe(delay);
+        delay.setWear(0.5f);
+        delay.setWear(0.0f);
+        const float rms = hissRmsOnSilence(delay, 2.0, 0.5);
+        INFO("RMS " << rms << " (" << toDb(rms) << " dBFS)");
+        REQUIRE(rms <= 1e-6f);
+    }
+}
+
+TEST_CASE("TapeDelay keeps today's hiss once Wear or Age is above 0", "[tape-delay][hiss]") {
+    struct Setting {
+        float wear;
+        float age;
+        float baselineDb;  // dBFS RMS, measured on the code before T3.6a (2026-11-22, Windows MSVC Release)
+    };
+    const std::array<Setting, 4> settings{{
+        {0.01f, 0.0f, -87.97f},
+        {0.0f, 0.01f, -88.27f},
+        {0.5f, 0.0f, -68.37f},
+        {1.0f, 1.0f, -38.37f},
+    }};
+    for (const auto& s : settings) {
+        TapeDelay delay;
+        prepareHissProbe(delay);
+        delay.setWear(s.wear);
+        delay.setAge(s.age);
+        const float db = toDb(hissRmsOnSilence(delay, 2.0, 0.5));
+        INFO("wear " << s.wear << " age " << s.age << ": " << db << " dBFS RMS, baseline " << s.baselineDb);
+        CHECK(std::abs(db - s.baselineDb) <= 1.0f);
+    }
+}
+
+TEST_CASE("TapeDelay hiss switch-on and switch-off do not click", "[tape-delay][hiss]") {
+    TapeDelay delay;
+    prepareHissProbe(delay);
+    // Settle the mix smoother and the delay on silence first
+    (void)hissRmsOnSilence(delay, 0.5, 0.0);
+
+    constexpr int kSweepBlocks = 40;
+    constexpr int kTailBlocks = 10;
+    std::vector<float> left(kHissBlock);
+    std::vector<float> right(kHissBlock);
+    float prevL = 0.0f;
+    float prevR = 0.0f;
+    float worst = 0.0f;
+    for (int b = 0; b < kSweepBlocks + kTailBlocks; ++b) {
+        // 0 -> 0.05 -> 0 over the sweep, then Wear 0 for the tail
+        const int up = kSweepBlocks / 2;
+        float wear = 0.0f;
+        if (b <= up) {
+            wear = 0.05f * static_cast<float>(b) / static_cast<float>(up);
+        } else if (b < kSweepBlocks) {
+            wear = 0.05f * static_cast<float>(kSweepBlocks - 1 - b) / static_cast<float>(kSweepBlocks - 1 - up);
+        }
+        delay.setWear(wear);
+        std::fill(left.begin(), left.end(), 0.0f);
+        std::fill(right.begin(), right.end(), 0.0f);
+        delay.process(left.data(), right.data(), kHissBlock);
+        for (size_t i = 0; i < kHissBlock; ++i) {
+            worst = std::max({worst, std::abs(left[i] - prevL), std::abs(right[i] - prevR)});
+            prevL = left[i];
+            prevR = right[i];
+        }
+    }
+    INFO("largest sample-to-sample step " << worst << " (" << toDb(worst) << " dBFS)");
+    REQUIRE(worst <= 3e-4f);
 }

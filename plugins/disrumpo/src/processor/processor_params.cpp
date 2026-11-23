@@ -605,12 +605,12 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
                                 break;
                             case NodeParamType::kNodeFolds:
                                 // RangeParameter [1, 12] (integer steps)
-                                mn.params.folds = 1.0f + std::round(static_cast<float>(value) * 11.0f);
+                                mn.params.folds = nodeFoldsFromNorm(value);
                                 mapShapeSlotsToParams(mn.type, mn.shapeSlots, mn.params);
                                 break;
                             case NodeParamType::kNodeBitDepth:
                                 // RangeParameter [4, 24] (integer steps)
-                                mn.params.bitDepth = 4.0f + std::round(static_cast<float>(value) * 20.0f);
+                                mn.params.bitDepth = nodeBitDepthFromNorm(value);
                                 mapShapeSlotsToParams(mn.type, mn.shapeSlots, mn.params);
                                 break;
                             case NodeParamType::kNodePosX:

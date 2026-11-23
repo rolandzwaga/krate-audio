@@ -8,7 +8,7 @@
 //   processor_state.cpp     - getState(), setState(), applyPresetSnapshot()
 //   processor_params.cpp    - processParameterChanges(), applyParamsToEngine()
 //   processor_midi.cpp      - processEvents(), onNoteOn(), onNoteOff()
-//   processor_messaging.cpp - notify(), sendSkipEvent(), sendVoiceModRouteState()
+//   processor_messaging.cpp - notify(), sendVoiceModRouteState()
 // ==============================================================================
 
 #include "processor.h"
@@ -29,9 +29,61 @@
 #include "parameters/arpeggiator_params.h"
 
 #include <algorithm>
+#include <cmath>
 #include <cstdint>
 
 namespace Ruinae {
+
+namespace {
+
+/// One output-parameter point at sample 0 (the controller polls it at ~30 fps).
+void writePlayhead(Steinberg::Vst::IParameterChanges& out, Steinberg::Vst::ParamID id,
+                   double normalized) {
+    Steinberg::int32 queueIndex = 0;
+    if (auto* queue = out.addParameterData(id, queueIndex)) {
+        Steinberg::int32 pointIndex = 0;
+        queue->addPoint(0, normalized, pointIndex);
+    }
+}
+
+void addMidiOutNoteOff(Steinberg::Vst::IEventList& out, uint8_t pitch,
+                       Steinberg::int32 sampleOffset) {
+    Steinberg::Vst::Event e{};
+    e.busIndex = 0;
+    e.sampleOffset = sampleOffset;
+    e.type = Steinberg::Vst::Event::kNoteOffEvent;
+    e.noteOff.channel = 0;
+    e.noteOff.pitch = pitch;
+    e.noteOff.velocity = 0.0f;
+    e.noteOff.noteId = -1;
+    e.noteOff.tuning = 0.0f;
+    out.addEvent(e);
+}
+
+void addMidiOutNoteOn(Steinberg::Vst::IEventList& out, uint8_t pitch, uint8_t velocity,
+                      Steinberg::int32 sampleOffset) {
+    Steinberg::Vst::Event e{};
+    e.busIndex = 0;
+    e.sampleOffset = sampleOffset;
+    e.type = Steinberg::Vst::Event::kNoteOnEvent;
+    e.noteOn.channel = 0;
+    e.noteOn.pitch = pitch;
+    e.noteOn.velocity = velocity / 127.0f;
+    e.noteOn.tuning = 0.0f;
+    e.noteOn.length = 0;
+    e.noteOn.noteId = -1;
+    out.addEvent(e);
+}
+
+/// Flag every channel of output bus 0 silent: nothing was rendered into it.
+void markOutputSilent(Steinberg::Vst::ProcessData& data) noexcept {
+    if (data.numOutputs <= 0 || data.outputs == nullptr) return;
+    auto& bus = data.outputs[0];
+    const auto channels = std::clamp<Steinberg::int32>(bus.numChannels, 0, 63);
+    bus.silenceFlags = (Steinberg::uint64{1} << channels) - 1;
+}
+
+} // namespace
 
 // ==============================================================================
 // Constructor
@@ -64,20 +116,10 @@ Steinberg::tresult PLUGIN_API Processor::initialize(FUnknown* context) {
     addEventOutput(STR16("MIDI Output"));
     addAudioOutput(STR16("Audio Output"), Steinberg::Vst::SpeakerArr::kStereo);
 
-    // Pre-allocate skip event IMessages (Phase 11c, FR-012)
-    for (int i = 0; i < 6; ++i) {
-        skipMessages_[static_cast<size_t>(i)] = Steinberg::owned(allocateMessage());
-        if (skipMessages_[static_cast<size_t>(i)]) {
-            skipMessages_[static_cast<size_t>(i)]->setMessageID("ArpSkipEvent");
-            // Create the attribute nodes now. sendSkipEvent() runs on the audio
-            // thread and only overwrites them; without this the first send per
-            // lane would insert into the attribute map and allocate.
-            if (auto* attrs = skipMessages_[static_cast<size_t>(i)]->getAttributes()) {
-                attrs->setInt("lane", 0);
-                attrs->setInt("step", 0);
-            }
-        }
-    }
+    // [mandatory] since VST 3.7: the ProcessContext fields process() reads.
+    // A host that honours the mask leaves out every field not named here.
+    processContextRequirements.needTempo().needTimeSignature()
+        .needProjectTimeMusic().needTransportState();
 
     // Pre-allocate the voice route sync message so sendVoiceModRouteState() does
     // not have to call allocateMessage().
@@ -95,64 +137,6 @@ Steinberg::tresult PLUGIN_API Processor::initialize(FUnknown* context) {
         if (attrs) {
             attrs->setBinary("routeData", dummy, kRouteDataBytes);
             attrs->setInt("routeCount", 0);
-        }
-    }
-
-    // Pre-allocate one-time pointer messages (Issue 3: avoid allocateMessage on audio thread)
-    playbackMsg_ = Steinberg::owned(allocateMessage());
-    if (playbackMsg_) {
-        playbackMsg_->setMessageID("TranceGatePlayback");
-        auto* attrs = playbackMsg_->getAttributes();
-        if (attrs) {
-            attrs->setInt("stepPtr",
-                static_cast<Steinberg::int64>(
-                    reinterpret_cast<intptr_t>(&tranceGatePlaybackStep_)));
-            attrs->setInt("playingPtr",
-                static_cast<Steinberg::int64>(
-                    reinterpret_cast<intptr_t>(&isTransportPlaying_)));
-        }
-    }
-
-    envDisplayMsg_ = Steinberg::owned(allocateMessage());
-    if (envDisplayMsg_) {
-        envDisplayMsg_->setMessageID("EnvelopeDisplayState");
-        auto* attrs = envDisplayMsg_->getAttributes();
-        if (attrs) {
-            attrs->setInt("ampOutputPtr",
-                static_cast<Steinberg::int64>(
-                    reinterpret_cast<intptr_t>(&ampEnvDisplayOutput_)));
-            attrs->setInt("ampStagePtr",
-                static_cast<Steinberg::int64>(
-                    reinterpret_cast<intptr_t>(&ampEnvDisplayStage_)));
-            attrs->setInt("filterOutputPtr",
-                static_cast<Steinberg::int64>(
-                    reinterpret_cast<intptr_t>(&filterEnvDisplayOutput_)));
-            attrs->setInt("filterStagePtr",
-                static_cast<Steinberg::int64>(
-                    reinterpret_cast<intptr_t>(&filterEnvDisplayStage_)));
-            attrs->setInt("modOutputPtr",
-                static_cast<Steinberg::int64>(
-                    reinterpret_cast<intptr_t>(&modEnvDisplayOutput_)));
-            attrs->setInt("modStagePtr",
-                static_cast<Steinberg::int64>(
-                    reinterpret_cast<intptr_t>(&modEnvDisplayStage_)));
-            attrs->setInt("voiceActivePtr",
-                static_cast<Steinberg::int64>(
-                    reinterpret_cast<intptr_t>(&envVoiceActive_)));
-        }
-    }
-
-    morphPadModMsg_ = Steinberg::owned(allocateMessage());
-    if (morphPadModMsg_) {
-        morphPadModMsg_->setMessageID("MorphPadModulation");
-        auto* attrs = morphPadModMsg_->getAttributes();
-        if (attrs) {
-            attrs->setInt("morphXPtr",
-                static_cast<Steinberg::int64>(
-                    reinterpret_cast<intptr_t>(&modulatedMorphX_)));
-            attrs->setInt("morphYPtr",
-                static_cast<Steinberg::int64>(
-                    reinterpret_cast<intptr_t>(&modulatedMorphY_)));
         }
     }
 
@@ -175,14 +159,14 @@ Steinberg::tresult PLUGIN_API Processor::setupProcessing(
     maxBlockSize_ = setup.maxSamplesPerBlock;
 
     // Constitution Principle II: Pre-allocate ALL buffers HERE
-    mixBufferL_.resize(static_cast<size_t>(maxBlockSize_));
-    mixBufferR_.resize(static_cast<size_t>(maxBlockSize_));
 
     // Prepare engine (allocates internal buffers)
     engine_.prepare(sampleRate_, static_cast<size_t>(maxBlockSize_));
 
     // Prepare arpeggiator (FR-008)
     arpCore_.prepare(sampleRate_, static_cast<size_t>(maxBlockSize_));
+    // prepare() reset the core; its MIDI-out notes still owe NoteOffs.
+    pendingArpMidiOutFlush_ = true;
 
     // Reset transport detection so the flag is re-learned if plugin moves between hosts
     hostSupportsTransport_ = false;
@@ -190,32 +174,104 @@ Steinberg::tresult PLUGIN_API Processor::setupProcessing(
     return AudioEffect::setupProcessing(setup);
 }
 
-void Processor::sendOneTimeHandshakes() {
-    if (handshakeMessagesSent_) return;
-
-    if (playbackMsg_) sendMessage(playbackMsg_);
-    if (envDisplayMsg_) sendMessage(envDisplayMsg_);
-    if (morphPadModMsg_) sendMessage(morphPadModMsg_);
-
-    handshakeMessagesSent_ = true;
-}
-
 Steinberg::tresult PLUGIN_API Processor::setActive(Steinberg::TBool state) {
     if (state) {
-        // Activating: reset DSP state
-        engine_.reset();
-        arpCore_.reset();
-        std::fill(mixBufferL_.begin(), mixBufferL_.end(), 0.0f);
-        std::fill(mixBufferR_.begin(), mixBufferR_.end(), 0.0f);
-
-        // These carry pointers to lifetime-stable member atomics, so they can go
-        // out from here (message thread) rather than from the first process()
-        // call, which made three synchronous host sendMessage() calls on the
-        // audio thread.
-        sendOneTimeHandshakes();
+        // Activating: reset DSP state. The MIDI-out notes are downstream, out
+        // of reach of the reset: the first process() sends their NoteOffs.
+        resetPlayingState(true);
+        arpFreeRunSamples_ = 0;
     }
 
     return AudioEffect::setActive(state);
+}
+
+void Processor::resetPlayingState(bool engineToo) noexcept {
+    if (engineToo) {
+        engine_.reset();
+        // The engine reset dropped every note these ledgers point at.
+        engineDirectOpen_.fill(0);
+        arpEngineOpen_.fill(0);
+        // Macro 1 goes back to its knob (the preset's or the project's value).
+        modWheelOwnsMacro1_ = false;
+    } else {
+        // The engine keeps sounding: end the arp's notes on it now (the core
+        // reset below forgets them, so no NoteOff of its own would come).
+        // Host notes routed straight to the engine (engineDirectOpen_) are not
+        // the arp's and keep their ledger for their own NoteOffs.
+        flushArpLedger(nullptr, 0);
+    }
+    arpCore_.reset();
+    // The core forgot the held keys it was fed, and the notes it played: the
+    // Arp Pitch source starts neutral (R-052).
+    arpCoreKeysOpen_.fill(0);
+    lastArpPitch_ = 0.0f;
+    // The MIDI-out notes are downstream, out of reach of both resets: the next
+    // process() with an output list sends their NoteOffs (arpMidiOutOpen_ is
+    // kept until then, R-070).
+    pendingArpMidiOutFlush_ = true;
+}
+
+void Processor::flushArpLedger(Steinberg::Vst::IEventList* out, Steinberg::int32 offset) noexcept {
+    const auto engineOffset = static_cast<uint32_t>(std::max<Steinberg::int32>(offset, 0));
+    for (size_t p = 0; p < arpEngineOpen_.size(); ++p) {
+        const auto pitch = static_cast<uint8_t>(p);
+        for (; arpEngineOpen_[p] > 0; --arpEngineOpen_[p]) {
+            queueTimedEvent({.offset = engineOffset, .kind = TimedEventKind::ArpNoteOff, .pitch = pitch});
+        }
+        // Without an output list this block the MIDI-out notes stay open for
+        // a later NoteOff or flush.
+        if (out == nullptr) continue;
+        for (; arpMidiOutOpen_[p] > 0; --arpMidiOutOpen_[p]) {
+            addMidiOutNoteOff(*out, pitch, offset);
+        }
+    }
+}
+
+void Processor::routeArpSlideBatch(Steinberg::Vst::ProcessData& data, size_t begin, size_t end,
+                                   bool midiOut) noexcept {
+    std::array<bool, 128> inBatch{};
+    uint32_t engineOffset = 0;      // the batch's last NoteOn, engine side
+    Steinberg::int32 midiOffset = 0;  // and on the MIDI output
+    const Steinberg::int32 lastSample = std::max<Steinberg::int32>(data.numSamples - 1, 0);
+
+    for (size_t k = begin; k < end; ++k) {
+        const auto& evt = arpEvents_[k];
+        if (evt.note >= 128) continue;
+        inBatch[evt.note] = true;
+        const auto offset = static_cast<uint32_t>(std::clamp<Steinberg::int32>(evt.sampleOffset, 0, lastSample));
+        engineOffset = std::max(engineOffset, offset);
+        midiOffset = std::max(midiOffset, evt.sampleOffset);
+        // Every note of the batch takes its own voice, also when a strum put a
+        // segment boundary between them.
+        queueTimedEvent({.offset = offset, .kind = TimedEventKind::ArpNoteOn, .pitch = evt.note,
+                         .velocity = evt.velocity, .legato = true, .legatoContinues = (k > begin)});
+        // A pitch already sounding keeps its voice: still one note-off owed.
+        if (arpEngineOpen_[evt.note] == 0) arpEngineOpen_[evt.note] = 1;
+        if (midiOut && data.outputEvents) {
+            // MIDI has no legato: a pitch already sounding is struck again.
+            for (; arpMidiOutOpen_[evt.note] > 0; --arpMidiOutOpen_[evt.note]) {
+                addMidiOutNoteOff(*data.outputEvents, evt.note, evt.sampleOffset);
+            }
+            addMidiOutNoteOn(*data.outputEvents, evt.note, evt.velocity, evt.sampleOffset);
+            arpMidiOutOpen_[evt.note] = 1;
+        }
+    }
+
+    // The notes the slide replaced: the core sends them no NoteOff and forgets
+    // them, so they end here, after the new notes (the engine glides the old
+    // voices first; a receiver sees the overlap). A later core NoteOff for one
+    // of them finds its count at 0 and is dropped.
+    for (size_t p = 0; p < inBatch.size(); ++p) {
+        if (inBatch[p]) continue;
+        const auto pitch = static_cast<uint8_t>(p);
+        for (; arpEngineOpen_[p] > 0; --arpEngineOpen_[p]) {
+            queueTimedEvent({.offset = engineOffset, .kind = TimedEventKind::ArpNoteOff, .pitch = pitch});
+        }
+        if (data.outputEvents == nullptr) continue;
+        for (; arpMidiOutOpen_[p] > 0; --arpMidiOutOpen_[p]) {
+            addMidiOutNoteOff(*data.outputEvents, pitch, midiOffset);
+        }
+    }
 }
 
 Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& data) {
@@ -236,7 +292,18 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
         applyPresetSnapshot(snap);
     });
 
-    // Process parameter changes first
+    // The arp core was reset since the last block (preset load, activation,
+    // setupProcessing): end every note it left open on the MIDI output, at
+    // offset 0, before this block's NoteOns. Kept pending until a block has
+    // an output list.
+    if (pendingArpMidiOutFlush_ && data.outputEvents) {
+        flushArpLedger(data.outputEvents, 0);
+        pendingArpMidiOutFlush_ = false;
+    }
+
+    // Process parameter changes first (the MIDI controller IDs queue timed
+    // events, clamped to this buffer)
+    currentBlockSamples_ = static_cast<uint32_t>(std::max<Steinberg::int32>(data.numSamples, 0));
     if (data.inputParameterChanges) {
         processParameterChanges(data.inputParameterChanges);
     }
@@ -244,8 +311,11 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
     // Cache host tempo for sync computations in applyParamsToEngine()
     if (data.processContext &&
         (data.processContext->state & Steinberg::Vst::ProcessContext::kTempoValid)) {
-        tempoBPM_ = data.processContext->tempo;
+        tempoBPM_.store(data.processContext->tempo, std::memory_order_relaxed);
     }
+    // One tempo for the whole block: a block without kTempoValid keeps the
+    // last valid host tempo on every path (R-137).
+    const double blockTempoBPM = tempoBPM_.load(std::memory_order_relaxed);
 
     // Apply all parameter values to the engine
     applyParamsToEngine();
@@ -255,12 +325,10 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
     {
         blockCtx.sampleRate = sampleRate_;
         blockCtx.blockSize = (data.numSamples > 0) ? static_cast<size_t>(data.numSamples) : 0;
+        blockCtx.tempoBPM = blockTempoBPM;
 
         if (data.processContext) {
             auto* pc = data.processContext;
-            if (pc->state & Steinberg::Vst::ProcessContext::kTempoValid) {
-                blockCtx.tempoBPM = pc->tempo;
-            }
             if (pc->state & Steinberg::Vst::ProcessContext::kTimeSigValid) {
                 blockCtx.timeSignatureNumerator = static_cast<uint8_t>(pc->timeSigNumerator);
                 blockCtx.timeSignatureDenominator = static_cast<uint8_t>(pc->timeSigDenominator);
@@ -279,6 +347,36 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
         engine_.setTempo(blockCtx.tempoBPM);
     }
 
+    const int arpOpMode = arpParams_.operatingMode.load(std::memory_order_relaxed);
+    const bool isArpRunning = (arpOpMode != kArpOff);
+    const bool isArpDispatchingNotes = (arpOpMode == kArpMIDI || arpOpMode == kArpMIDIMod);
+    const bool isArpModSource = (arpOpMode == kArpMod || arpOpMode == kArpMIDIMod);
+
+    // Operating-mode change (R-029, R-064). Leaving a mode that dispatched
+    // notes (MIDI, MIDI+Mod) for one that does not (Off, Mod) releases every
+    // arp note the old mode put on the engine and the MIDI output, before this
+    // block's key events so a key pressed now is not cut.
+    if (arpOpMode != prevArpOpMode_) {
+        const bool wasDispatching = (prevArpOpMode_ == kArpMIDI || prevArpOpMode_ == kArpMIDIMod);
+        if (wasDispatching && !isArpDispatchingNotes) {
+            flushArpLedger(data.outputEvents, 0);
+        }
+        if (!isArpRunning) {
+            // setEnabled(false) only queued the core's cleanup note-offs, and
+            // the Off branch below never calls processBlock(): drain them here
+            // so the core starts clean when it is enabled again. The ledger
+            // flush above already released those notes, so the events go.
+            Krate::DSP::BlockContext drainCtx = blockCtx;
+            drainCtx.blockSize = std::max<size_t>(drainCtx.blockSize, 1);
+            (void)arpCore_.processBlock(drainCtx, arpEvents_);
+        }
+        if (isArpRunning && prevArpOpMode_ == kArpOff) {
+            // The arp starts running: its free-running clock starts at a bar.
+            arpFreeRunSamples_ = 0;
+        }
+        prevArpOpMode_ = arpOpMode;
+    }
+
     // Process MIDI events (FR-006: branches on arp enabled state)
     if (data.inputEvents) {
         processEvents(data.inputEvents, data.numSamples);
@@ -286,15 +384,7 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
 
     // Arp block processing (FR-007, FR-017, FR-018)
     // Must run after processEvents() and before engine_.processBlock()
-    const int arpOpMode = arpParams_.operatingMode.load(std::memory_order_relaxed);
-    const bool isArpRunning = (arpOpMode != kArpOff);
-    const bool isArpDispatchingNotes = (arpOpMode == kArpMIDI || arpOpMode == kArpMIDIMod);
-    const bool isArpModSource = (arpOpMode == kArpMod || arpOpMode == kArpMIDIMod);
     if (isArpRunning) {
-        // FR-017: setEnabled(false) queues cleanup note-offs internally.
-        // The processBlock() call below drains them through the standard
-        // routing loop, ensuring every note-on has a matching note-off.
-
         // Track whether the host ever reports kPlaying — if so, it supports
         // transport and we should respect its stop state.
         if (blockCtx.isPlaying) {
@@ -303,11 +393,20 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
 
         Krate::DSP::BlockContext arpCtx = blockCtx;
         // Simple hosts that never set kPlaying: force the arp to always run.
-        // DAW hosts that do set kPlaying: pass the real transport state
-        // through so ArpeggiatorCore can emit NoteOffs on transport stop.
-        if (!hostSupportsTransport_) {
+        // DAW hosts that do set kPlaying: a tempo-synced arp follows the real
+        // transport, so ArpeggiatorCore emits NoteOffs on transport stop and
+        // pauses; a free-rate arp runs whatever the transport does, like
+        // Gradus's Live mode (R-073).
+        if (!hostSupportsTransport_ || !arpParams_.tempoSync.load(std::memory_order_relaxed)) {
             arpCtx.isPlaying = true;
         }
+        // No musical position from the host (R-068): the arp's position is
+        // its own free-running sample clock, so Retrigger Beat finds one bar
+        // boundary per bar instead of one at the start of every block.
+        if (!blockCtx.projectTimeMusicValid) {
+            arpCtx.transportPositionSamples = arpFreeRunSamples_;
+        }
+        arpFreeRunSamples_ += static_cast<int64_t>(arpCtx.blockSize);
 
         // Detect DAW transport loop (backward PPQ jump) and notify the arp
         // so it cleanly restarts: NoteOffs, lane reset, immediate step 0.
@@ -320,69 +419,67 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
             prevProjectTimeMusic_ = blockCtx.projectTimeMusic;
         }
 
-        // Sync arp step clock to host musical position so transport
-        // rewind/reposition keeps the arp grid-locked.
-        if (blockCtx.projectTimeMusicValid && blockCtx.isPlaying) {
-            arpCore_.syncToMusicalPosition(blockCtx.projectTimeMusic);
-        }
-
-        // Process arp block (processBlock takes std::span<ArpEvent>, returns event count)
-        size_t numArpEvents = arpCore_.processBlock(arpCtx, arpEvents_);
+        // Process the arp in segments split at its keys' offsets (R-072). Each
+        // segment syncs the step clock to its host musical position, so
+        // transport rewind/reposition keeps the arp grid-locked.
+        const bool hostSync = blockCtx.projectTimeMusicValid && blockCtx.isPlaying;
+        const size_t numArpEvents = runArpSegments(arpCtx, hostSync);
 
         // Route arp events to engine (FR-007)
         const bool midiOutEnabled = arpParams_.midiOut.load(std::memory_order_relaxed);
+        bool skippedThisBlock = false;
         for (size_t i = 0; i < numArpEvents; ++i) {
             const auto& evt = arpEvents_[i];
             if (evt.type == Krate::DSP::ArpEvent::Type::NoteOn) {
+                if (evt.legato && isArpDispatchingNotes) {
+                    // A Slide step: the run of legato NoteOns is one batch.
+                    size_t end = i + 1;
+                    while (end < numArpEvents
+                           && arpEvents_[end].type == Krate::DSP::ArpEvent::Type::NoteOn
+                           && arpEvents_[end].legato) {
+                        ++end;
+                    }
+                    if (isArpModSource) {
+                        lastArpPitch_ = static_cast<float>(arpEvents_[end - 1].note) / 127.0f;
+                    }
+                    routeArpSlideBatch(data, i, end, midiOutEnabled);
+                    i = end - 1;
+                    continue;
+                }
                 // Capture pitch for mod source (normalized 0-1)
                 if (isArpModSource) {
                     lastArpPitch_ = static_cast<float>(evt.note) / 127.0f;
                 }
                 // Only dispatch note events to engine in MIDI/MIDI+Mod modes
-                if (isArpDispatchingNotes) {
+                if (isArpDispatchingNotes && evt.note < 128) {
                     queueTimedEvent({.offset = static_cast<uint32_t>(std::clamp<Steinberg::int32>(
                                          evt.sampleOffset, 0, std::max<Steinberg::int32>(data.numSamples - 1, 0))),
                                      .kind = TimedEventKind::ArpNoteOn, .pitch = evt.note,
                                      .velocity = evt.velocity, .legato = evt.legato});
+                    if (arpEngineOpen_[evt.note] < UINT8_MAX) ++arpEngineOpen_[evt.note];
                     if (midiOutEnabled && data.outputEvents) {
-                        Steinberg::Vst::Event e{};
-                        e.busIndex = 0;
-                        e.sampleOffset = evt.sampleOffset;
-                        e.type = Steinberg::Vst::Event::kNoteOnEvent;
-                        e.noteOn.channel = 0;
-                        e.noteOn.pitch = evt.note;
-                        e.noteOn.velocity = evt.velocity / 127.0f;
-                        e.noteOn.tuning = 0.0f;
-                        e.noteOn.length = 0;
-                        e.noteOn.noteId = -1;
-                        data.outputEvents->addEvent(e);
+                        addMidiOutNoteOn(*data.outputEvents, evt.note, evt.velocity, evt.sampleOffset);
+                        if (arpMidiOutOpen_[evt.note] < UINT8_MAX) ++arpMidiOutOpen_[evt.note];
                     }
                 }
             } else if (evt.type == Krate::DSP::ArpEvent::Type::NoteOff) {
-                if (isArpDispatchingNotes) {
+                // A NoteOff reaches only the sinks that still hold its note
+                // (the ledgers): one already released by a mode-change flush,
+                // or never sent there, is dropped.
+                if (evt.note < 128 && arpEngineOpen_[evt.note] > 0) {
+                    --arpEngineOpen_[evt.note];
                     queueTimedEvent({.offset = static_cast<uint32_t>(std::clamp<Steinberg::int32>(
                                          evt.sampleOffset, 0, std::max<Steinberg::int32>(data.numSamples - 1, 0))),
                                      .kind = TimedEventKind::ArpNoteOff, .pitch = evt.note});
-                    if (midiOutEnabled && data.outputEvents) {
-                        Steinberg::Vst::Event e{};
-                        e.busIndex = 0;
-                        e.sampleOffset = evt.sampleOffset;
-                        e.type = Steinberg::Vst::Event::kNoteOffEvent;
-                        e.noteOff.channel = 0;
-                        e.noteOff.pitch = evt.note;
-                        e.noteOff.velocity = 0.0f;
-                        e.noteOff.noteId = -1;
-                        e.noteOff.tuning = 0.0f;
-                        data.outputEvents->addEvent(e);
-                    }
+                }
+                if (evt.note < 128 && arpMidiOutOpen_[evt.note] > 0 && data.outputEvents) {
+                    --arpMidiOutOpen_[evt.note];
+                    addMidiOutNoteOff(*data.outputEvents, evt.note, evt.sampleOffset);
                 }
             } else if (evt.type == Krate::DSP::ArpEvent::Type::kSkip) {
-                // 081-interaction-polish: send skip event to controller (FR-007, FR-008)
-                // evt.note carries the step index (0-31)
-                const int step = static_cast<int>(evt.note);
-                for (int lane = 0; lane < 6; ++lane) {
-                    sendSkipEvent(lane, step);
-                }
+                // 081-interaction-polish (FR-007, FR-008): published below as output
+                // parameters, never sent as an IMessage from the audio thread (R-069)
+                skippedThisBlock = true;
             }
         }
 
@@ -391,57 +488,66 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
         // Encoding: stepIndex / 32.0 (kMaxSteps as denominator, consistent
         // regardless of actual lane length).
         if (data.outputParameterChanges) {
-            constexpr float kMaxStepsF = static_cast<float>(kMaxArpSteps);
-            const auto velStep = static_cast<float>(
-                arpCore_.velocityLane().currentStep());
-            const auto gateStep = static_cast<float>(
-                arpCore_.gateLane().currentStep());
+            // All eight lanes advance independently (own length, speed, jitter), so each
+            // publishes its own step (R-085).
+            const std::pair<Steinberg::Vst::ParamID, size_t> playheads[] = {
+                {kArpVelocityPlayheadId,  arpCore_.velocityLane().currentStep()},
+                {kArpGatePlayheadId,      arpCore_.gateLane().currentStep()},
+                {kArpPitchPlayheadId,     arpCore_.pitchLane().currentStep()},
+                {kArpRatchetPlayheadId,   arpCore_.ratchetLane().currentStep()},
+                {kArpModifierPlayheadId,  arpCore_.modifierLane().currentStep()},
+                {kArpConditionPlayheadId, arpCore_.conditionLane().currentStep()},
+                {kArpChordPlayheadId,     arpCore_.chordLane().currentStep()},
+                {kArpInversionPlayheadId, arpCore_.inversionLane().currentStep()},
+            };
+            constexpr double kMaxStepsD = static_cast<double>(kMaxArpSteps);
+            for (const auto& [id, step] : playheads)
+                writePlayhead(*data.outputParameterChanges, id, static_cast<double>(step) / kMaxStepsD);
 
-            Steinberg::int32 queueIndex = 0;
-            auto* velQueue = data.outputParameterChanges->addParameterData(
-                kArpVelocityPlayheadId, queueIndex);
-            if (velQueue) {
-                Steinberg::int32 pointIndex = 0;
-                velQueue->addPoint(0, static_cast<double>(velStep / kMaxStepsF),
-                                   pointIndex);
-            }
-            auto* gateQueue = data.outputParameterChanges->addParameterData(
-                kArpGatePlayheadId, queueIndex);
-            if (gateQueue) {
-                Steinberg::int32 pointIndex = 0;
-                gateQueue->addPoint(0, static_cast<double>(gateStep / kMaxStepsF),
-                                    pointIndex);
+            // Skip highlight (R-069, FR-012): each lane's own step at the block's last
+            // skip, encoded (step + 1 + 33 * (seq & 3)) / 132 so a repeated step still
+            // changes the value. The controller's poll timer reads it on the UI thread.
+            if (skippedThisBlock && editorOpen_.load(std::memory_order_relaxed)) {
+                ++skipPublishSeq_;
+                const double seqOffset = 33.0 * static_cast<double>(skipPublishSeq_ & 3u);
+                // Editor lane order -> the core's lane index (modifier 3, ratchet 4)
+                constexpr std::array<std::pair<Steinberg::Vst::ParamID, size_t>, 8> kSkipLanes{{
+                    {kArpSkipLane0Id, 0}, {kArpSkipLane1Id, 1}, {kArpSkipLane2Id, 2},
+                    {kArpSkipLane3Id, 4}, {kArpSkipLane4Id, 3}, {kArpSkipLane5Id, 5},
+                    {kArpSkipLane6Id, 6}, {kArpSkipLane7Id, 7}}};
+                for (const auto& [id, coreLane] : kSkipLanes) {
+                    const auto step = std::min<uint8_t>(arpCore_.lastSkipLaneStep(coreLane), 31);
+                    writePlayhead(*data.outputParameterChanges, id,
+                                  (static_cast<double>(step) + 1.0 + seqOffset) / 132.0);
+                }
             }
         }
     } else {
-        // 079-layout-framework US5: Arp disabled -- write sentinel (1.0f) to
+        // A key released while the arp is Off still leaves its held buffer
+        // (R-065); with the core not running there is no timing to keep.
+        flushArpKeys();
+        // 079-layout-framework US5: Arp disabled -- write sentinel (1.0) to
         // indicate no playback. Decoded as stepIndex=32 >= kMaxSteps -> -1.
         if (data.outputParameterChanges) {
-            Steinberg::int32 queueIndex = 0;
-            auto* velQueue = data.outputParameterChanges->addParameterData(
-                kArpVelocityPlayheadId, queueIndex);
-            if (velQueue) {
-                Steinberg::int32 pointIndex = 0;
-                velQueue->addPoint(0, 1.0, pointIndex);
-            }
-            auto* gateQueue = data.outputParameterChanges->addParameterData(
-                kArpGatePlayheadId, queueIndex);
-            if (gateQueue) {
-                Steinberg::int32 pointIndex = 0;
-                gateQueue->addPoint(0, 1.0, pointIndex);
-            }
+            for (const auto id : {kArpVelocityPlayheadId, kArpGatePlayheadId, kArpPitchPlayheadId,
+                                  kArpRatchetPlayheadId, kArpModifierPlayheadId,
+                                  kArpConditionPlayheadId, kArpChordPlayheadId,
+                                  kArpInversionPlayheadId})
+                writePlayhead(*data.outputParameterChanges, id, 1.0);
         }
     }
 
     // Check if we have audio to process (queued notes still take effect)
     if (data.numSamples == 0) {
         flushTimedEvents();
+        markOutputSilent(data);
         return Steinberg::kResultTrue;
     }
 
     // Verify we have valid output
     if (data.numOutputs == 0 || data.outputs[0].numChannels < 2) {
         flushTimedEvents();
+        markOutputSilent(data);
         return Steinberg::kResultTrue;
     }
 
@@ -450,6 +556,7 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
 
     if (!outputL || !outputR) {
         flushTimedEvents();
+        markOutputSilent(data);
         return Steinberg::kResultTrue;
     }
 
@@ -463,16 +570,23 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
     std::fill_n(outputL, numSamples, 0.0f);
     std::fill_n(outputR, numSamples, 0.0f);
 
-    // Feed arp pitch as External0 mod source (before mod engine processes)
-    if (isArpModSource) {
-        engine_.setExternalSourceValue(0, lastArpPitch_);
+    // Feed arp pitch as External0 mod source (before mod engine processes).
+    // Outside the Mod modes the source is neutral: holding the last arp note
+    // kept every Arp Pitch route offset after the arp was switched Off or to
+    // MIDI only, and re-entering a Mod mode replayed it (R-052).
+    if (!isArpModSource) {
+        lastArpPitch_ = 0.0f;
     }
+    engine_.setExternalSourceValue(0, lastArpPitch_);
 
     // Extract sidechain audio if available (for EnvFollower, PitchFollower, Transient)
     const float* sidechainL = nullptr;
     const float* sidechainR = nullptr;
     bool sidechainActive = false;
-    if (data.numInputs > 0 && data.inputs) {
+    // Hosts may pass buffers for a deactivated bus: only an activated aux bus
+    // overrides self-analysis (bus state changes never overlap process()).
+    const auto* scBusInfo = getAudioInput(0);
+    if (scBusInfo && scBusInfo->isActive() && data.numInputs > 0 && data.inputs) {
         const auto& scBus = data.inputs[0];
         if (scBus.numChannels >= 2 &&
             scBus.channelBuffers32 &&
@@ -508,7 +622,28 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
     // (which overrides self-analysis when connected) follows each segment.
     renderEngineSegments(outputL, outputR, numSamples, blockCtx, sidechainL, sidechainR);
 
-    // Update morph pad modulated position for UI animation
+    // Output silence flags (R-105): replace whatever bits the host passed in.
+    // A channel is flagged silent only when no voice sounds and every sample
+    // of the block is zero (so no effect tail reached the output either).
+    data.outputs[0].silenceFlags = 0;
+    if (engine_.getActiveVoiceCount() == 0) {
+        const auto isZero = [](float s) { return s == 0.0f; };
+        if (std::all_of(outputL, outputL + numSamples, isZero)) data.outputs[0].silenceFlags |= 1u;
+        if (std::all_of(outputR, outputR + numSamples, isZero)) data.outputs[0].silenceFlags |= 2u;
+    }
+
+    // Display data for the controller's UI poll (R-005): values written as
+    // output parameters once per rendered block, never addresses.
+    if (data.outputParameterChanges) {
+        publishDisplayData(*data.outputParameterChanges, data.processContext);
+    }
+
+    return Steinberg::kResultTrue;
+}
+
+void Processor::publishDisplayData(Steinberg::Vst::IParameterChanges& out,
+                                   const Steinberg::Vst::ProcessContext* context) {
+    // Morph pad modulated position
     {
         using Krate::DSP::RuinaeModDest;
         const float morphOffset = engine_.getGlobalModOffset(
@@ -517,26 +652,26 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
             RuinaeModDest::AllVoiceSpectralTilt);
 
         const float baseX = mixerParams_.position.load(std::memory_order_relaxed);
-        modulatedMorphX_.store(
-            std::clamp(baseX + morphOffset, 0.0f, 1.0f),
-            std::memory_order_relaxed);
+        writePlayhead(out, kMorphPadModXId,
+                      static_cast<double>(std::clamp(baseX + morphOffset, 0.0f, 1.0f)));
 
         // Tilt: base is dB [-12,+12], offset is normalized scaled by 24 → dB
         const float baseTiltDb = mixerParams_.tilt.load(std::memory_order_relaxed);
         const float modTiltDb = std::clamp(
             baseTiltDb + tiltOffset * 24.0f, -12.0f, 12.0f);
-        modulatedMorphY_.store(
-            (modTiltDb + 12.0f) / 24.0f, std::memory_order_relaxed);
+        writePlayhead(out, kMorphPadModYId, static_cast<double>((modTiltDb + 12.0f) / 24.0f));
     }
 
-    // Update shared playback position atomics for controller UI
-    tranceGatePlaybackStep_.store(
-        engine_.getTranceGateCurrentStep(), std::memory_order_relaxed);
-    bool playing = data.processContext != nullptr &&
-        (data.processContext->state & Steinberg::Vst::ProcessContext::kPlaying) != 0;
-    isTransportPlaying_.store(playing, std::memory_order_relaxed);
+    // Trance gate step (-1 = none) and transport
+    const int gateStep = std::clamp(engine_.getTranceGateCurrentStep(), -1,
+                                    static_cast<int>(kTranceGateDisplayStepScale) - 1);
+    writePlayhead(out, kTranceGatePlaybackStepId,
+                  static_cast<double>(gateStep + 1) / kTranceGateDisplayStepScale);
+    const bool playing = context != nullptr &&
+        (context->state & Steinberg::Vst::ProcessContext::kPlaying) != 0;
+    writePlayhead(out, kTransportPlayingId, playing ? 1.0 : 0.0);
 
-    // Update envelope display state from the most recently triggered voice
+    // Envelope display state from the most recently triggered voice
     {
         // Find most recently triggered active voice
         size_t bestVoice = 0;
@@ -558,45 +693,85 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
             anyActive = true;
         }
 
-        envVoiceActive_.store(anyActive, std::memory_order_relaxed);
+        writePlayhead(out, kEnvDisplayVoiceActiveId, anyActive ? 1.0 : 0.0);
 
+        // Without a sounding voice the displays hide their dot: the last
+        // published output and stage stand.
         if (anyActive) {
-            const auto& ampEnv = engine_.getVoiceAmpEnvelope(bestVoice);
-            ampEnvDisplayOutput_.store(ampEnv.getOutput(), std::memory_order_relaxed);
-            ampEnvDisplayStage_.store(
-                static_cast<int>(ampEnv.getStage()), std::memory_order_relaxed);
-
-            const auto& filterEnv = engine_.getVoiceFilterEnvelope(bestVoice);
-            filterEnvDisplayOutput_.store(filterEnv.getOutput(), std::memory_order_relaxed);
-            filterEnvDisplayStage_.store(
-                static_cast<int>(filterEnv.getStage()), std::memory_order_relaxed);
-
-            const auto& modEnv = engine_.getVoiceModEnvelope(bestVoice);
-            modEnvDisplayOutput_.store(modEnv.getOutput(), std::memory_order_relaxed);
-            modEnvDisplayStage_.store(
-                static_cast<int>(modEnv.getStage()), std::memory_order_relaxed);
+            const auto publishEnv = [&out](const Krate::DSP::ADSREnvelope& env,
+                                           Steinberg::Vst::ParamID outputId,
+                                           Steinberg::Vst::ParamID stageId) {
+                writePlayhead(out, outputId,
+                              static_cast<double>(std::clamp(env.getOutput(), 0.0f, 1.0f)));
+                writePlayhead(out, stageId,
+                              static_cast<double>(static_cast<int>(env.getStage())) / kEnvDisplayStageScale);
+            };
+            publishEnv(engine_.getVoiceAmpEnvelope(bestVoice),
+                       kAmpEnvDisplayOutputId, kAmpEnvDisplayStageId);
+            publishEnv(engine_.getVoiceFilterEnvelope(bestVoice),
+                       kFilterEnvDisplayOutputId, kFilterEnvDisplayStageId);
+            publishEnv(engine_.getVoiceModEnvelope(bestVoice),
+                       kModEnvDisplayOutputId, kModEnvDisplayStageId);
         }
     }
-
-    return Steinberg::kResultTrue;
 }
 
 Steinberg::tresult PLUGIN_API Processor::setBusArrangements(
     Steinberg::Vst::SpeakerArrangement* inputs, Steinberg::int32 numIns,
     Steinberg::Vst::SpeakerArrangement* outputs, Steinberg::int32 numOuts) {
 
-    // Ruinae is an instrument with optional sidechain input:
-    // Accept either no inputs (instrument-only) or 1 stereo input (sidechain)
+    // Ruinae is an instrument with optional sidechain input: accept either no
+    // inputs (instrument-only) or 1 mono or stereo sidechain (R-192; process()
+    // feeds a mono sidechain to both analysis channels), with 1 stereo output.
+    // The accepted arrangement goes to the buses so getBusArrangement reports it.
     if (numOuts == 1 && outputs[0] == Steinberg::Vst::SpeakerArr::kStereo) {
         if (numIns == 0) {
-            return Steinberg::kResultTrue;
+            return AudioEffect::setBusArrangements(inputs, numIns, outputs, numOuts);
         }
-        if (numIns == 1 && inputs[0] == Steinberg::Vst::SpeakerArr::kStereo) {
-            return Steinberg::kResultTrue;
+        if (numIns == 1 && (inputs[0] == Steinberg::Vst::SpeakerArr::kStereo
+                            || inputs[0] == Steinberg::Vst::SpeakerArr::kMono)) {
+            return AudioEffect::setBusArrangements(inputs, numIns, outputs, numOuts);
         }
     }
 
     return Steinberg::kResultFalse;
+}
+
+// R-190: kInfiniteTail while a tail can sustain itself (reverb Freeze, or the
+// delay on at feedback >= 1); otherwise amp release + delay decay to -60 dB +
+// reverb decay. Relaxed atomics only, so any host thread may call it.
+Steinberg::uint32 PLUGIN_API Processor::getTailSamples() {
+    constexpr auto kRelaxed = std::memory_order_relaxed;
+    const bool delayOn = delayEnabled_.load(kRelaxed);
+    const bool reverbOn = reverbEnabled_.load(kRelaxed);
+    const float feedback = delayParams_.feedback.load(kRelaxed);
+    if (reverbParams_.freeze.load(kRelaxed) || (delayOn && feedback >= 1.0f)) {
+        return Steinberg::Vst::kInfiniteTail;
+    }
+
+    // The engine floors the amp release at kMinAmpReleaseMs (the note-off declick), so even
+    // release 0 leaves that much tail.
+    double seconds = static_cast<double>(std::max(ampEnvParams_.releaseMs.load(kRelaxed),
+                                                  Krate::DSP::RuinaeEngine::kMinAmpReleaseMs)) * 0.001;
+    if (delayOn) {
+        const double delayMs = delayParams_.sync.load(kRelaxed)
+            ? static_cast<double>(Krate::DSP::dropdownToDelayMs(
+                  delayParams_.noteValue.load(kRelaxed), tempoBPM_.load(kRelaxed)))
+            : static_cast<double>(delayParams_.timeMs.load(kRelaxed));
+        // Repeats until -60 dB; at least the first echo.
+        const double repeats = (feedback > 0.001f)
+            ? std::max(1.0, std::log(1.0e-3) / std::log(static_cast<double>(feedback)))
+            : 1.0;
+        seconds += delayMs * 0.001 * repeats;
+    }
+    if (reverbOn) {
+        // Plate RT60 runs ~2 s at size 0 to ~12 s at size 1 (reverb.h roomSize
+        // map); the Hall's 0.5-10 s (fdn_reverb.h) stays below it. Plus pre-delay.
+        const double size = static_cast<double>(reverbParams_.size.load(kRelaxed));
+        seconds += 2.0 + 10.0 * size
+                 + static_cast<double>(reverbParams_.preDelayMs.load(kRelaxed)) * 0.001;
+    }
+    return static_cast<Steinberg::uint32>(std::llround(seconds * processSetup.sampleRate));
 }
 
 } // namespace Ruinae

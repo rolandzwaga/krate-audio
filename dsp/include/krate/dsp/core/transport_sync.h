@@ -73,6 +73,7 @@ struct MusicalStepPosition {
     double posInPattern = std::fmod(ppq, patternLengthBeats);
     if (posInPattern < 0.0) posInPattern += patternLengthBeats;
 
+    // musical-time-truncation-ok: a step INDEX, not a sample count; the fraction within it is computed below
     const int step = static_cast<int>(posInPattern / beatsPerStep) % numSteps;
     const double stepFraction = std::fmod(posInPattern, beatsPerStep) / beatsPerStep;
 

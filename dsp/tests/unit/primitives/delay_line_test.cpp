@@ -1448,3 +1448,57 @@ TEST_CASE("DelayLine interpolation at buffer wraparound boundary",
     // Buffer wraparound should be seamless
     REQUIRE(clicks.empty());
 }
+
+// Ruinae audit R-004: a 5 s line at 192 kHz is 4 MB, too much to clear inside one
+// audio callback. The incremental reset clears it in bounded slices and then
+// leaves the line exactly as reset() does.
+TEST_CASE("DelayLine incremental reset clears in bounded slices and matches reset()",
+          "[delay][reset]") {
+    DelayLine incremental;
+    DelayLine reference;
+    incremental.prepare(48000.0, 1.0f);
+    reference.prepare(48000.0, 1.0f);
+    for (int i = 0; i < 70000; ++i) {
+        const float x = std::sin(0.01f * static_cast<float>(i)) + 0.5f;
+        incremental.write(x);
+        reference.write(x);
+    }
+    (void)incremental.readAllpass(100.5f);
+    (void)reference.readAllpass(100.5f);
+
+    incremental.startIncrementalReset();
+    reference.reset();
+
+    constexpr std::size_t kSlice = 5000;
+    int calls = 0;
+    bool done = false;
+    while (!done) {
+        std::size_t budget = kSlice;
+        done = incremental.continueIncrementalReset(budget);
+        ++calls;
+        REQUIRE(budget <= kSlice);
+        if (!done) REQUIRE(budget == 0);  // a call stops only when its budget is spent
+        REQUIRE(calls < 1000);
+    }
+    // 48001 samples round up to a 65536-sample buffer: 14 slices of 5000.
+    CHECK(calls == 14);
+
+    // Finished: further calls clear nothing and report done.
+    std::size_t budget = kSlice;
+    CHECK(incremental.continueIncrementalReset(budget));
+    CHECK(budget == kSlice);
+
+    // Every readable sample is silent and the line then behaves as after reset().
+    float loudest = 0.0f;
+    for (std::size_t d = 0; d <= incremental.maxDelaySamples(); ++d) {
+        loudest = std::max(loudest, std::abs(incremental.read(d)));
+    }
+    REQUIRE(loudest == 0.0f);
+    for (int i = 0; i < 300; ++i) {
+        const float x = std::cos(0.03f * static_cast<float>(i));
+        incremental.write(x);
+        reference.write(x);
+        REQUIRE(incremental.readAllpass(37.25f) == reference.readAllpass(37.25f));
+        REQUIRE(incremental.read(250) == reference.read(250));
+    }
+}

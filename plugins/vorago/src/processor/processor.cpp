@@ -11,11 +11,14 @@
 #include "processor/processor.h"
 
 #include "engine/vorago_engine_config.h"
+#include "parameters/state_migration.h"
 #include "plugin_ids.h"
 #include "processor/ecosystem_frame_builder.h"
 #include "processor/tail_estimate.h"
 
 #include "base/source/fstreamer.h"
+#include "pluginterfaces/vst/ivstattributes.h"
+#include "pluginterfaces/vst/ivstmessage.h"
 #include "public.sdk/source/common/memorystream.h"
 // Phase 13 FR-021: DataExchangeHandler's definition (forward-declared in processor.h).
 #include "public.sdk/source/vst/utility/dataexchange.h"
@@ -36,6 +39,7 @@
 #include <memory>
 #include <optional>
 #include <utility>
+#include <vector>
 
 namespace Vorago {
 
@@ -300,6 +304,30 @@ tresult PLUGIN_API Processor::disconnect(IConnectionPoint* other) {
         dataExchangeHandler_.reset();
     }
     return AudioEffect::disconnect(other);
+}
+
+// R-205 (fix plan T1.39): a preset-browser load. The controller hands over the
+// whole component stream and setState loads it, so a browser load is a host load:
+// the same parse and migration, the sustain / pressure reset, the latch release
+// and the re-push. Message thread, like setState.
+tresult PLUGIN_API Processor::notify(IMessage* message) {
+    if (message == nullptr) {
+        return kInvalidArgument;
+    }
+    if (std::strcmp(message->getMessageID(), kMsgLoadPresetState) == 0) {
+        IAttributeList* attrs = message->getAttributes();
+        const void* data = nullptr;
+        uint32 size = 0;
+        if (attrs == nullptr || attrs->getBinary(kMsgAttrPresetBytes, data, size) != kResultOk ||
+            data == nullptr || size == 0) {
+            return kResultFalse;
+        }
+        const auto* first = static_cast<const char*>(data);
+        std::vector<char> bytes(first, first + size);
+        MemoryStream stream(bytes.data(), static_cast<TSize>(bytes.size()));
+        return setState(&stream);
+    }
+    return AudioEffect::notify(message);
 }
 
 // Plan 2.5.6. T012: denormal guard, parameter latch, FR-030 shape guards.
@@ -580,80 +608,28 @@ uint32 PLUGIN_API Processor::getLatencySamples() {
 // NO DSP call is made (FR-022, FR-030): the re-push and the latch release are
 // requested by release stores and done by the next process().
 tresult PLUGIN_API Processor::setState(IBStream* state) {
-    if (state == nullptr) {
-        return kResultFalse;
-    }
-    IBStreamer s(state, kLittleEndian);
-    int32 version = 0;
-    if (!s.readInt32(version)) {
-        return kResultFalse;
-    }
-    if (version > kCurrentStateVersion) {
-        return kResultFalse;  // FR-046: a future version loads nothing
-    }
     // Each loader is EOF-safe and returns false at the first failed read, so the
     // short-circuit chain stops there and every later field is left unchanged.
-    const auto loadV2Tail = [this](IBStreamer& in) {
-        return loadGlobalParamsV2Ext(globalParams_, in) && loadCloudParams(cloudParams_, in) &&
-               loadNoiseParams(noiseParams_, in) && loadResonanceParams(resonanceParams_, in) &&
-               loadEcologyParams(ecologyParams_, in) && loadSubParams(subParams_, in) &&
-               loadSmearParams(smearParams_, in) && loadEventsParams(eventsParams_, in) &&
-               loadEcosystemParams(ecosystemParams_, in) && loadBodyParams(bodyParams_, in) &&
-               loadSpaceParams(spaceParams_, in) && loadEnvelopeParams(envelopeParams_, in) &&
-               loadBloomParams(bloomParams_, in) && loadGhostParams(ghostParams_, in) &&
-               loadLifeParams(lifeParams_, in);
-    };
-    const bool v1Complete = loadGlobalParams(globalParams_, s) && loadMacroParams(macroParams_, s);
-    bool v2Complete = false;
-    if (version >= 2) {
-        if (v1Complete) {
-            v2Complete = loadV2Tail(s);
-        }
-    } else {
-        // C-7 / FR-040: a version < 2 stream is the v1 block only (a version < 1 is
-        // read as v1: there has never been another layout) and leaves every Phase 12
-        // field at its REGISTERED DEFAULT, whatever the previous state held. The
-        // default-constructed packs are those defaults (SC-003); their v2 tail is
-        // serialized into stack memory and loaded through the same chain.
-        constexpr std::size_t kV2TailBytes = kStateV2Bytes - 60u;  // minus version + v1 block
-        std::array<char, kV2TailBytes> tail{};
-        MemoryStream tailStream(tail.data(), static_cast<TSize>(tail.size()));
-        IBStreamer out(&tailStream, kLittleEndian);
-        saveGlobalParamsV2Ext(GlobalParams{}, out);
-        saveCloudParams(CloudParams{}, out);
-        saveNoiseParams(NoiseParams{}, out);
-        saveResonanceParams(ResonanceParams{}, out);
-        saveEcologyParams(EcologyParams{}, out);
-        saveSubParams(SubParams{}, out);
-        saveSmearParams(SmearParams{}, out);
-        saveEventsParams(EventsParams{}, out);
-        saveEcosystemParams(EcosystemParams{}, out);
-        saveBodyParams(BodyParams{}, out);
-        saveSpaceParams(SpaceParams{}, out);
-        saveEnvelopeParams(EnvelopeParams{}, out);
-        saveBloomParams(BloomParams{}, out);
-        saveGhostParams(GhostParams{}, out);
-        saveLifeParams(LifeParams{}, out);
-        tailStream.seek(0, IBStream::kIBSeekSet, nullptr);
-        [[maybe_unused]] const bool defaultsLoaded = loadV2Tail(out);
-        assert(defaultsLoaded);
-        v2Complete = true;
-    }
-    // Phase 14 FR-072: the v3 ecosystem rule-knob extension. A version < 3 stream
-    // leaves both fields at their REGISTERED DEFAULT (the same stack-serialized
-    // default pattern as the v2 tail above).
-    if (version >= 3) {
-        if (v2Complete) {
-            [[maybe_unused]] const bool v3 = loadEcosystemParamsV3Ext(ecosystemParams_, s);
-        }
-    } else {
-        std::array<char, kStateV3Bytes - kStateV2Bytes> ext{};
-        MemoryStream extStream(ext.data(), static_cast<TSize>(ext.size()));
-        IBStreamer out(&extStream, kLittleEndian);
-        saveEcosystemParamsV3Ext(EcosystemParams{}, out);
-        extStream.seek(0, IBStream::kIBSeekSet, nullptr);
-        [[maybe_unused]] const bool defaultsLoaded = loadEcosystemParamsV3Ext(ecosystemParams_, out);
-        assert(defaultsLoaded);
+    // The version migration (C-7 / FR-040, FR-072) is loadStateStream's, shared
+    // with the controller (R-205); a future version loads nothing (FR-046).
+    const tresult loaded = loadStateStream(
+        state,
+        [this](IBStreamer& in) {
+            return loadGlobalParams(globalParams_, in) && loadMacroParams(macroParams_, in);
+        },
+        [this](IBStreamer& in) {
+            return loadGlobalParamsV2Ext(globalParams_, in) && loadCloudParams(cloudParams_, in) &&
+                   loadNoiseParams(noiseParams_, in) && loadResonanceParams(resonanceParams_, in) &&
+                   loadEcologyParams(ecologyParams_, in) && loadSubParams(subParams_, in) &&
+                   loadSmearParams(smearParams_, in) && loadEventsParams(eventsParams_, in) &&
+                   loadEcosystemParams(ecosystemParams_, in) && loadBodyParams(bodyParams_, in) &&
+                   loadSpaceParams(spaceParams_, in) && loadEnvelopeParams(envelopeParams_, in) &&
+                   loadBloomParams(bloomParams_, in) && loadGhostParams(ghostParams_, in) &&
+                   loadLifeParams(lifeParams_, in);
+        },
+        [this](IBStreamer& in) { return loadEcosystemParamsV3Ext(ecosystemParams_, in); });
+    if (loaded != kResultOk) {
+        return loaded;
     }
     // FR-045: the performance controllers are never persisted and restart at 0.
     globalParams_.sustainPedal.store(0.0f, std::memory_order_relaxed);

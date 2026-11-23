@@ -512,14 +512,14 @@ TEST_CASE("Harmonizer state migration from v15 (no harmonizer data)", "[harmoniz
 // T058: Latency Reporting - Combined spectral delay + harmonizer PhaseVocoder
 // ==============================================================================
 
-TEST_CASE("Effects chain latency includes harmonizer PhaseVocoder worst-case",
+TEST_CASE("Effects chain reports no latency, harmonizer PhaseVocoder included",
           "[harmonizer][effects-chain][latency]") {
     Krate::DSP::RuinaeEffectsChain chain;
     chain.prepare(44100.0, 512);
 
-    // Spectral delay latency: default FFT size = 1024 samples
-    // Harmonizer PhaseVocoder latency: FFT(4096) + Hop(1024) = 5120 samples
-    // Combined: 1024 + 5120 = 6144 samples
+    // The chain used to report 6144 (spectral FFT 1024 + harmonizer PV 5120) and delay only
+    // the delay's wet path by it, so every echo landed 139 ms late (R-055, R-116). Nothing in
+    // the chain delays the dry path, so the latency it reports is 0.
     const size_t latency = chain.getLatencySamples();
-    CHECK(latency == 6144);
+    CHECK(latency == 0);
 }

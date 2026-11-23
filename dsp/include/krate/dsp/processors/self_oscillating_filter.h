@@ -151,6 +151,23 @@ public:
     /// Default parameter smoothing time (ms)
     static constexpr float kDefaultSmoothingMs = 5.0f;
 
+    /// Energy watchdog: ladder-output envelope below which the filter counts
+    /// as silent while it should be self-oscillating
+    static constexpr float kWatchdogFloor = 1e-4f;
+
+    /// Energy watchdog: consecutive silent samples before a re-seed
+    static constexpr int kWatchdogQuietSamples = 64;
+
+    /// Energy watchdog: re-seed impulse (added to the ladder input, no reset).
+    /// Where the ladder cannot sustain (resonance just above 0.9, or near the
+    /// top of the range) the watchdog fires repeatedly, so the impulse must be
+    /// inaudible on its own: 1e-5 leaves < 1e-5 peak output (1e-2 gave a
+    /// -44 dBFS ping train at 15 kHz).
+    static constexpr float kWatchdogImpulse = 1e-5f;
+
+    /// Energy watchdog: envelope follower time constant (ms)
+    static constexpr float kWatchdogEnvelopeMs = 5.0f;
+
     // =========================================================================
     // Lifecycle
     // =========================================================================
@@ -178,6 +195,10 @@ public:
         filter_.setResonance(mapResonanceToFilter(resonance_));
         filter_.setCutoff(frequency_);
         needsKick_ = true;  // Will kick-start oscillation on first process
+        watchdogCoeff_ = 1.0f - std::exp(-1000.0f / (kWatchdogEnvelopeMs
+                                                     * static_cast<float>(sampleRate)));
+        watchdogEnvelope_ = 0.0f;
+        watchdogQuietSamples_ = 0;
 
         // Configure DC blocker for self-oscillation mode only.
         // Low cutoff (10 Hz) is fine because DC blocking is only applied when
@@ -227,6 +248,8 @@ public:
         currentEnvelopeLevel_ = 0.0f;
         hasActiveNote_ = false;
         needsKick_ = true;
+        watchdogEnvelope_ = 0.0f;
+        watchdogQuietSamples_ = 0;
 
         // Restore smoother targets (preserve configuration)
         frequencyRamp_.snapTo(frequency_);
@@ -275,10 +298,25 @@ public:
             filter_.reset();  // Snaps cutoff smoother to target, clears state
             filterInput += 1.0f;  // Strong kick to seed self-oscillation
             needsKick_ = false;
+            watchdogQuietSamples_ = 0;
+        } else if (watchdogQuietSamples_ >= kWatchdogQuietSamples) {
+            // The ladder lost its energy (e.g. a sweep through the top of the
+            // range, where it stops oscillating): re-seed it gently, without
+            // a reset, so a self-oscillating filter keeps ringing.
+            filterInput += kWatchdogImpulse;
+            watchdogQuietSamples_ = 0;
         }
 
         // Process through ladder filter
         float output = filter_.process(filterInput);
+
+        // Energy watchdog: one-pole envelope of the ladder output.
+        watchdogEnvelope_ += watchdogCoeff_ * (std::abs(output) - watchdogEnvelope_);
+        if (resonance_ > 0.9f && watchdogEnvelope_ < kWatchdogFloor) {
+            ++watchdogQuietSamples_;
+        } else {
+            watchdogQuietSamples_ = 0;
+        }
 
         // FR-019: DC blocking - crossfade based on resonance.
         // Always process through DC blocker to keep its state current, but
@@ -437,6 +475,22 @@ public:
         }
 
         frequency_ = newFreq;
+        frequencyRamp_.setTarget(frequency_);
+    }
+
+    /// @brief Set the oscillation frequency from a modulation source
+    ///
+    /// For a cutoff that moves continuously (a filter envelope, an LFO, key
+    /// tracking re-applied every block). Same clamp and glide ramp as
+    /// setFrequency(), but it never arms the kick: a kick resets the ladder,
+    /// so a per-sample sweep would wipe the oscillation on every sample. If
+    /// a sweep leaves the ladder without energy, the watchdog in process()
+    /// re-excites it.
+    ///
+    /// @param hz Frequency in Hz (clamped to valid range)
+    void setCutoffModulated(float hz) noexcept {
+        float maxFreq = std::min(kMaxFrequency, static_cast<float>(sampleRate_ * 0.45));
+        frequency_ = std::clamp(hz, kMinFrequency, maxFreq);
         frequencyRamp_.setTarget(frequency_);
     }
 
@@ -683,6 +737,9 @@ private:
     float targetVelocityGain_ = 1.0f;
     bool hasActiveNote_ = false;  ///< True once noteOn() has been called
     bool needsKick_ = true;       ///< Needs tiny impulse to kick-start oscillation
+    float watchdogEnvelope_ = 0.0f;  ///< One-pole envelope of the ladder output
+    float watchdogCoeff_ = 0.0f;     ///< Envelope follower coefficient (set in prepare)
+    int watchdogQuietSamples_ = 0;   ///< Consecutive samples below kWatchdogFloor
 
     // =========================================================================
     // Parameters (user-facing)

@@ -55,16 +55,15 @@ void applyPadSnapshotToParams(
     const ParamSetter& setter) noexcept;
 
 /// Apply a `PadPresetSnapshot` to a single pad's controller parameters.
-/// Writes every sound-domain offset that exists in the per-pad preset
-/// blob (Phase 1..8E sound + Phase 7+ late slots that fit within the
-/// preset's narrower sound array), but intentionally SKIPS:
+/// The controller mirror of `State::applyPadPresetSnapshot` (R-203): writes
+/// the sound-domain offsets that function applies, and SKIPS what it skips:
 ///   * `kPadChokeGroup`, `kPadOutputBus` (FR-061: kit-level routing)
 ///   * `kPadCouplingAmount`             (FR-061: kit-level coupling)
 ///   * Phase 6 macros                   (FR-061: kit-level macros)
-///   * `kPadEnabled`                    (Phase 8F: kit-level toggle, not
-///                                       persisted in per-pad presets)
+///   * `kPadEnabled`, `kPadPan`         (FR-061: the target pad keeps its
+///                                       on/off state and position)
 /// so that loading a per-pad preset onto a pad changes its sound but not
-/// its kit-level role or its on/off state.
+/// its kit-level role, its on/off state or its pan.
 void applyPadPresetSnapshotToParams(
     int pad,
     const Membrum::State::PadPresetSnapshot& preset,

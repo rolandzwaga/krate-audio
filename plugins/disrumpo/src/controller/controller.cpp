@@ -594,11 +594,10 @@ bool Controller::parseComponentState(Steinberg::IBStreamer& streamer, int32_t ve
                         setter(makeNodeParamId(band, node, NodeParamType::kNodeBias),
                                (static_cast<double>(biasValue) + 1.0) / 2.0);
                     if (rFolds)
-                        setter(makeNodeParamId(band, node, NodeParamType::kNodeFolds),
-                               static_cast<double>(foldsValue - 1.0f) / 11.0);
+                        setter(makeNodeParamId(band, node, NodeParamType::kNodeFolds), nodeFoldsToNorm(foldsValue));
                     if (rBitDepth)
                         setter(makeNodeParamId(band, node, NodeParamType::kNodeBitDepth),
-                               static_cast<double>(bitDepthValue - 4.0f) / 20.0);
+                               nodeBitDepthToNorm(bitDepthValue));
                 };
                 if (version < 9) {
                     emitDualParams(bias, folds, bitDepth);
@@ -2053,24 +2052,34 @@ Steinberg::MemoryStream* Controller::createComponentStateStream() {
 
         for (int n = 0; n < kMaxMorphNodes; ++n) {
             auto node = static_cast<uint8_t>(n);
-            streamer.writeInt8(getInt8FromList(makeNodeParamId(band, node, NodeParamType::kNodeType), kDistortionTypeCount));
+            const Steinberg::int8 typeIndex =
+                getInt8FromList(makeNodeParamId(band, node, NodeParamType::kNodeType), kDistortionTypeCount);
+            streamer.writeInt8(typeIndex);
             float driveNorm = getParamNorm(makeNodeParamId(band, node, NodeParamType::kNodeDrive));
             streamer.writeFloat(driveNorm * 10.0f);
             streamer.writeFloat(getParamNorm(makeNodeParamId(band, node, NodeParamType::kNodeMix)));
             float toneNorm = getParamNorm(makeNodeParamId(band, node, NodeParamType::kNodeTone));
             streamer.writeFloat(toneNorm * 7800.0f + 200.0f);
-            float biasNorm = getParamNorm(makeNodeParamId(band, node, NodeParamType::kNodeBias));
-            streamer.writeFloat(biasNorm * 2.0f - 1.0f);
-            float foldsNorm = getParamNorm(makeNodeParamId(band, node, NodeParamType::kNodeFolds));
-            streamer.writeFloat(foldsNorm * 11.0f + 1.0f);
-            float bitDepthNorm = getParamNorm(makeNodeParamId(band, node, NodeParamType::kNodeBitDepth));
-            streamer.writeFloat(bitDepthNorm * 20.0f + 4.0f);
-
-            for (int s = 0; s < 10; ++s) {
+            std::array<float, MorphNode::kShapeSlotCount> slots{};
+            for (int s = 0; s < MorphNode::kShapeSlotCount; ++s) {
                 auto shapeType = static_cast<NodeParamType>(
                     static_cast<uint8_t>(NodeParamType::kNodeShape0) + s);
-                streamer.writeFloat(getParamNorm(makeNodeParamId(band, node, shapeType)));
+                slots[static_cast<size_t>(s)] = getParamNorm(makeNodeParamId(band, node, shapeType));
             }
+            // Bias, Folds and Bit Depth as Processor::getState writes them (T1.38): the node parameters,
+            // Folds and Bit Depth on their steps, then the type's shape slots, which win (follow-ups 34, 87)
+            DistortionParams dual;
+            float biasNorm = getParamNorm(makeNodeParamId(band, node, NodeParamType::kNodeBias));
+            dual.bias = biasNorm * 2.0f - 1.0f;
+            dual.folds = nodeFoldsFromNorm(getParamNorm(makeNodeParamId(band, node, NodeParamType::kNodeFolds)));
+            dual.bitDepth = nodeBitDepthFromNorm(getParamNorm(makeNodeParamId(band, node, NodeParamType::kNodeBitDepth)));
+            applyShapeSlots(static_cast<DistortionType>(typeIndex), slots.data(), dual);
+            streamer.writeFloat(dual.bias);
+            streamer.writeFloat(dual.folds);
+            streamer.writeFloat(dual.bitDepth);
+
+            for (float slotValue : slots)
+                streamer.writeFloat(slotValue);
 
             const auto& shadow = shapeShadowStorage_[b][n];
             for (const auto& typeSlot : shadow.typeSlots) {
@@ -2108,14 +2117,40 @@ void Controller::editParamWithNotify(Steinberg::Vst::ParamID id, Steinberg::Vst:
 bool Controller::loadComponentStateWithNotify(Steinberg::IBStream* state) {
     if (!state) return false;
 
-    Steinberg::IBStreamer streamer(state, kLittleEndian);
+    // Read the whole stream first (an IBStream may not seek): the processor gets
+    // these bytes, and the parse below reads the same buffer
+    std::vector<char> bytes;
+    {
+        constexpr Steinberg::int32 kChunkSize = 4096;
+        std::array<char, kChunkSize> chunk{};
+        Steinberg::int32 bytesRead = 0;
+        while (state->read(chunk.data(), kChunkSize, &bytesRead) == Steinberg::kResultTrue && bytesRead > 0) {
+            bytes.insert(bytes.end(), chunk.begin(), chunk.begin() + bytesRead);
+        }
+    }
+    if (bytes.empty()) return false;
+
+    Steinberg::MemoryStream memStream(bytes.data(), static_cast<Steinberg::TSize>(bytes.size()));
+    Steinberg::IBStreamer streamer(&memStream, kLittleEndian);
     int32_t version = 0;
     if (!streamer.readInt32(version)) return false;
     if (version < 1) return false;
 
+    // One preset-load path (R-204): the processor parses and applies these bytes
+    // exactly as in setState, the per-type shape shadows included
+    if (auto msg = Steinberg::owned(allocateMessage())) {
+        msg->setMessageID("LoadPresetState");
+        if (auto* attrs = msg->getAttributes()) {
+            attrs->setBinary("bytes", bytes.data(), static_cast<Steinberg::uint32>(bytes.size()));
+            sendMessage(msg);
+        }
+    }
+
     bulkParamLoad_ = true;
     FrameInvalidationGuard frameGuard(activeEditor_);
 
+    // The edits tell the host (automation, undo, dirty flag) and the UI the new
+    // values; they carry the values the processor already holds
     auto setter = [this](Steinberg::Vst::ParamID id, Steinberg::Vst::ParamValue value) {
         editParamWithNotify(id, value);
     };

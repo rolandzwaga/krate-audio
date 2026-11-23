@@ -101,6 +101,10 @@ public:
     /// Restore processor state (called by host for project load)
     Steinberg::tresult PLUGIN_API setState(Steinberg::IBStream* state) override;
 
+    /// "LoadPresetState" (binary "bytes"): a preset-browser load. The bytes take the
+    /// setState path, so a browser load and a host load apply the same way (R-209)
+    Steinberg::tresult PLUGIN_API notify(Steinberg::Vst::IMessage* message) override;
+
     // ===========================================================================
     // Factory
     // ===========================================================================

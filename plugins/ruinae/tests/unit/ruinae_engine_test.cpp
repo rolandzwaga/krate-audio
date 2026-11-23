@@ -16,13 +16,22 @@
 #include <krate/dsp/core/pitch_utils.h>
 #include <krate/dsp/core/midi_utils.h>
 #include <krate/dsp/core/math_constants.h>
+#include <krate/dsp/core/db_utils.h>
+
+#include "test_helpers/reverb_metrics.h"
+#include "audit_rig.h"
 
 #include <algorithm>
 #include <array>
+#include <bit>
 #include <chrono>
 #include <cmath>
+#include <cstdint>
+#include <functional>
 #include <limits>
+#include <memory>
 #include <numeric>
+#include <optional>
 #include <vector>
 
 using namespace Krate::DSP;
@@ -66,10 +75,294 @@ static bool hasNonZeroSamples(const float* buffer, size_t numSamples) {
 
 static bool allSamplesFinite(const float* buffer, size_t numSamples) {
     for (size_t i = 0; i < numSamples; ++i) {
-        if (std::isnan(buffer[i]) || std::isinf(buffer[i])) return false;
+        if (!detail::isFinite(buffer[i])) return false;
     }
     return true;
 }
+
+// -----------------------------------------------------------------------------
+// Non-finite input guards (FR-043, R-107)
+// -----------------------------------------------------------------------------
+// The engine flushes NaN/Inf to 0 at its output, so a finite output proves
+// nothing about a setter's NaN guard. requireGuardHolds renders an engine that
+// received the non-finite value next to one that did not, from the same setup
+// and the same performance, and requires the injected render to be audible,
+// finite and equal to the reference. A removed guard either silences the
+// output (NaN state, flushed to 0) or moves it (Inf clamped to a range edge);
+// a stored value the output cannot show is checked through its getter inside
+// the case's inject step.
+
+namespace {
+
+// NaN / Inf from a bit pattern through a volatile, so no fast-math build can
+// fold the value or the guard that rejects it.
+float nonFiniteFromBits(std::uint32_t pattern) {
+    volatile std::uint32_t bits = pattern;
+    return std::bit_cast<float>(static_cast<std::uint32_t>(bits));
+}
+float makeNaN() { return nonFiniteFromBits(0x7FC00000u); }
+float makeInf() { return nonFiniteFromBits(0x7F800000u); }
+
+constexpr int kGuardBlocks = 20;  // ~232 ms at 44.1 kHz
+
+void renderGuardBlocks(RuinaeEngine& engine, int blocks, std::vector<float>& out) {
+    std::vector<float> left(512), right(512);
+    for (int b = 0; b < blocks; ++b) {
+        engine.processBlock(left.data(), right.data(), 512);
+        out.insert(out.end(), left.begin(), left.end());
+        out.insert(out.end(), right.begin(), right.end());
+    }
+}
+
+void playOneNote(RuinaeEngine& engine, std::vector<float>& out) {
+    engine.noteOn(60, 100);
+    renderGuardBlocks(engine, kGuardBlocks, out);
+}
+
+void playTwoNotes(RuinaeEngine& engine, std::vector<float>& out) {
+    engine.noteOn(60, 100);
+    engine.noteOn(67, 100);
+    renderGuardBlocks(engine, kGuardBlocks, out);
+}
+
+// A second note while the first is held: a glide in Mono (portamento Always).
+void playGlide(RuinaeEngine& engine, std::vector<float>& out) {
+    engine.noteOn(60, 100);
+    renderGuardBlocks(engine, 4, out);
+    engine.noteOn(72, 100);
+    renderGuardBlocks(engine, kGuardBlocks - 4, out);
+}
+
+// An arp Slide step in Poly: the sounding voice glides over the slide time.
+void playSlide(RuinaeEngine& engine, std::vector<float>& out) {
+    engine.noteOn(60, 100);
+    renderGuardBlocks(engine, 4, out);
+    engine.noteOn(72, 100, true);
+    renderGuardBlocks(engine, kGuardBlocks - 4, out);
+}
+
+struct NonFiniteGuardCase {
+    const char* setter;
+    std::function<void(RuinaeEngine&)> setup;          ///< valid configuration
+    std::function<void(RuinaeEngine&, float)> inject;  ///< bad value + getter check
+    std::function<void(RuinaeEngine&, std::vector<float>&)> play = playOneNote;
+};
+
+void requireGuardHolds(const NonFiniteGuardCase& c, float bad) {
+    auto render = [&](bool injected) {
+        auto engine = std::make_unique<RuinaeEngine>();
+        engine->prepare(44100.0, 512);
+        c.setup(*engine);
+        if (injected) c.inject(*engine, bad);
+        std::vector<float> out;
+        c.play(*engine, out);
+        return out;
+    };
+    const auto reference = render(false);
+    const auto injected = render(true);
+    REQUIRE(injected.size() == reference.size());
+
+    float maxDiff = 0.0f;
+    for (size_t i = 0; i < injected.size(); ++i) {
+        maxDiff = std::max(maxDiff, std::abs(injected[i] - reference[i]));
+    }
+    const float rms = computeRMS(injected.data(), injected.size());
+    INFO(c.setter << "(" << (detail::isNaN(bad) ? "NaN" : "Inf") << "): RMS "
+                  << rms << ", max |diff| vs reference " << maxDiff);
+    CHECK(allSamplesFinite(injected.data(), injected.size()));
+    CHECK(rms > 1e-3f);
+    CHECK(maxDiff <= 1e-6f);
+}
+
+void requireGuardHoldsForNaNAndInf(const NonFiniteGuardCase& c) {
+    requireGuardHolds(c, makeNaN());
+    requireGuardHolds(c, makeInf());
+}
+
+// A stored value must read back unchanged. Finiteness is checked first: in a
+// fast-math build (MSVC /fp:fast) NaN == x can compare true.
+void checkStored(const char* getter, float actual, float expected) {
+    INFO(getter << "() = " << actual << ", expected " << expected);
+    CHECK(detail::isFinite(actual));
+    CHECK(actual == expected);
+}
+
+NonFiniteGuardCase masterGainGuard() {
+    return {"setMasterGain",
+            [](RuinaeEngine& e) { e.setMasterGain(0.5f); },
+            [](RuinaeEngine& e, float bad) {
+                e.setMasterGain(bad);
+                checkStored("getMasterGain", e.getMasterGain(), 0.5f);
+            }};
+}
+
+NonFiniteGuardCase stereoSpreadGuard() {
+    return {"setStereoSpread",
+            [](RuinaeEngine& e) {
+                e.setPolyphony(2);
+                e.setStereoSpread(0.5f);
+            },
+            [](RuinaeEngine& e, float bad) {
+                e.setStereoSpread(bad);
+                checkStored("getStereoSpread", e.getStereoSpread(), 0.5f);
+            },
+            playTwoNotes};
+}
+
+NonFiniteGuardCase stereoWidthGuard() {
+    return {"setStereoWidth",
+            [](RuinaeEngine& e) {
+                e.setPolyphony(2);
+                e.setStereoSpread(1.0f);
+                e.setStereoWidth(1.5f);
+            },
+            [](RuinaeEngine& e, float bad) {
+                e.setStereoWidth(bad);
+                checkStored("getStereoWidth", e.getStereoWidth(), 1.5f);
+            },
+            playTwoNotes};
+}
+
+NonFiniteGuardCase globalFilterCutoffGuard() {
+    return {"setGlobalFilterCutoff",
+            [](RuinaeEngine& e) {
+                e.setGlobalFilterEnabled(true);
+                e.setGlobalFilterCutoff(500.0f);
+            },
+            [](RuinaeEngine& e, float bad) {
+                e.setGlobalFilterCutoff(bad);
+                checkStored("getGlobalFilterCutoff", e.getGlobalFilterCutoff(), 500.0f);
+            }};
+}
+
+NonFiniteGuardCase globalFilterResonanceGuard() {
+    return {"setGlobalFilterResonance",
+            [](RuinaeEngine& e) {
+                e.setGlobalFilterEnabled(true);
+                e.setGlobalFilterCutoff(500.0f);
+                e.setGlobalFilterResonance(4.0f);
+            },
+            [](RuinaeEngine& e, float bad) {
+                e.setGlobalFilterResonance(bad);
+                checkStored("getGlobalFilterResonance", e.getGlobalFilterResonance(), 4.0f);
+            }};
+}
+
+NonFiniteGuardCase pitchBendGuard() {
+    return {"setPitchBend",
+            [](RuinaeEngine& e) { e.setPitchBend(0.5f); },
+            [](RuinaeEngine& e, float bad) { e.setPitchBend(bad); }};
+}
+
+NonFiniteGuardCase pitchBendRangeGuard() {
+    return {"setPitchBendRange",
+            [](RuinaeEngine& e) {
+                e.setPitchBendRange(7.0f);
+                e.setPitchBend(1.0f);
+            },
+            [](RuinaeEngine& e, float bad) { e.setPitchBendRange(bad); }};
+}
+
+NonFiniteGuardCase tuningReferenceGuard() {
+    return {"setTuningReference",
+            [](RuinaeEngine& e) { e.setTuningReference(432.0f); },
+            [](RuinaeEngine& e, float bad) { e.setTuningReference(bad); }};
+}
+
+// Aftertouch reaches the audio only through a route: Aftertouch -> voice
+// cutoff, +-24 semitones, over a dark 300 Hz base.
+NonFiniteGuardCase aftertouchGuard() {
+    return {"setAftertouch",
+            [](RuinaeEngine& e) {
+                e.setFilterCutoff(300.0f);
+                e.setVoiceModRoute(0, {VoiceModSource::Aftertouch,
+                                       VoiceModDest::FilterCutoff, 1.0f});
+                e.setVoiceModRouteScale(VoiceModDest::FilterCutoff, 24.0f);
+                e.setAftertouch(0.5f);
+            },
+            [](RuinaeEngine& e, float bad) { e.setAftertouch(bad); }};
+}
+
+// The mod wheel is Macro 1; it reaches the audio only through a route.
+NonFiniteGuardCase modWheelGuard() {
+    return {"setModWheel",
+            [](RuinaeEngine& e) {
+                e.setGlobalModRoute(0, ModSource::Macro1,
+                                    RuinaeModDest::MasterVolume, -0.5f);
+                e.setModWheel(0.5f);
+            },
+            [](RuinaeEngine& e, float bad) { e.setModWheel(bad); }};
+}
+
+NonFiniteGuardCase monoPortamentoTimeGuard() {
+    return {"setMonoPortamentoTime",
+            [](RuinaeEngine& e) {
+                e.setMode(VoiceMode::Mono);
+                e.setMonoPortamentoTime(100.0f);
+            },
+            [](RuinaeEngine& e, float bad) {
+                e.setMonoPortamentoTime(bad);
+                checkStored("getMonoPortamentoTime", e.getMonoPortamentoTime(), 100.0f);
+            },
+            playGlide};
+}
+
+NonFiniteGuardCase slideTimeGuard() {
+    return {"setSlideTime",
+            [](RuinaeEngine& e) { e.setSlideTime(100.0f); },
+            [](RuinaeEngine& e, float bad) {
+                e.setSlideTime(bad);
+                checkStored("getSlideTime", e.getSlideTime(), 100.0f);
+            },
+            playSlide};
+}
+
+NonFiniteGuardCase filterCutoffGuard() {
+    return {"setFilterCutoff",
+            [](RuinaeEngine& e) { e.setFilterCutoff(800.0f); },
+            [](RuinaeEngine& e, float bad) {
+                e.setFilterCutoff(bad);
+                checkStored("getFilterCutoff", e.getFilterCutoff(), 800.0f);
+            }};
+}
+
+NonFiniteGuardCase filterResonanceGuard() {
+    return {"setFilterResonance",
+            [](RuinaeEngine& e) {
+                e.setFilterCutoff(800.0f);
+                e.setFilterResonance(4.0f);
+            },
+            [](RuinaeEngine& e, float bad) {
+                e.setFilterResonance(bad);
+                checkStored("getFilterResonance", e.getFilterResonance(), 4.0f);
+            }};
+}
+
+NonFiniteGuardCase distortionDriveGuard() {
+    return {"setDistortionDrive",
+            [](RuinaeEngine& e) {
+                e.setDistortionType(RuinaeDistortionType::Wavefolder);
+                e.setDistortionDrive(0.5f);
+            },
+            [](RuinaeEngine& e, float bad) { e.setDistortionDrive(bad); }};
+}
+
+NonFiniteGuardCase ampAttackGuard() {
+    return {"setAmpAttack",
+            [](RuinaeEngine& e) { e.setAmpAttack(50.0f); },
+            [](RuinaeEngine& e, float bad) { e.setAmpAttack(bad); }};
+}
+
+NonFiniteGuardCase mixPositionGuard() {
+    return {"setMixPosition",
+            [](RuinaeEngine& e) { e.setMixPosition(0.3f); },
+            [](RuinaeEngine& e, float bad) {
+                e.setMixPosition(bad);
+                checkStored("getBaseMixPosition", e.getBaseMixPosition(), 0.3f);
+            }};
+}
+
+}  // namespace
 
 // =============================================================================
 // Phase 2: Foundation Tests (FR-001, FR-002, FR-003, FR-004)
@@ -88,51 +381,55 @@ TEST_CASE("RuinaeEngine construction and constants", "[ruinae-engine][lifecycle]
         REQUIRE(RuinaeEngine::kMaxMasterGain == 2.0f);
     }
 
+    // Heap-allocated: the engine is large enough to overflow the stack in the
+    // AddressSanitizer Debug build, which runs every [lifecycle] case.
     SECTION("default mode is Poly (FR-001)") {
-        RuinaeEngine engine;
-        REQUIRE(engine.getMode() == VoiceMode::Poly);
+        auto engine = std::make_unique<RuinaeEngine>();
+        REQUIRE(engine->getMode() == VoiceMode::Poly);
     }
 
     SECTION("default active voice count is 0") {
-        RuinaeEngine engine;
-        engine.prepare(44100.0, 512);
-        REQUIRE(engine.getActiveVoiceCount() == 0);
+        auto engine = std::make_unique<RuinaeEngine>();
+        engine->prepare(44100.0, 512);
+        REQUIRE(engine->getActiveVoiceCount() == 0);
     }
 
     SECTION("default polyphony is 8") {
-        RuinaeEngine engine;
-        engine.prepare(44100.0, 512);
+        auto engine = std::make_unique<RuinaeEngine>();
+        engine->prepare(44100.0, 512);
         // Fill 8 voices and verify they all activate
         for (uint8_t i = 0; i < 8; ++i) {
-            engine.noteOn(60 + i, 100);
+            engine->noteOn(60 + i, 100);
         }
-        REQUIRE(engine.getActiveVoiceCount() == 8);
+        REQUIRE(engine->getActiveVoiceCount() == 8);
     }
 }
 
 TEST_CASE("RuinaeEngine prepare lifecycle", "[ruinae-engine][lifecycle]") {
+    // Heap-allocated: the engine is large enough to overflow the stack in the
+    // AddressSanitizer Debug build, which runs every [lifecycle] case.
     SECTION("prepare initializes engine (FR-003)") {
-        RuinaeEngine engine;
-        engine.prepare(44100.0, 512);
+        auto engine = std::make_unique<RuinaeEngine>();
+        engine->prepare(44100.0, 512);
 
         // After prepare, engine should accept noteOn
-        engine.noteOn(60, 100);
-        REQUIRE(engine.getActiveVoiceCount() == 1);
+        engine->noteOn(60, 100);
+        REQUIRE(engine->getActiveVoiceCount() == 1);
     }
 
     SECTION("processBlock produces silence when not prepared") {
-        RuinaeEngine engine;
+        auto engine = std::make_unique<RuinaeEngine>();
         std::vector<float> left(512, 1.0f), right(512, 1.0f);
-        engine.processBlock(left.data(), right.data(), 512);
+        engine->processBlock(left.data(), right.data(), 512);
         REQUIRE(isAllZeros(left.data(), 512));
         REQUIRE(isAllZeros(right.data(), 512));
     }
 
     SECTION("processBlock with numSamples=0 is no-op") {
-        RuinaeEngine engine;
-        engine.prepare(44100.0, 512);
+        auto engine = std::make_unique<RuinaeEngine>();
+        engine->prepare(44100.0, 512);
         float left = 1.0f, right = 1.0f;
-        engine.processBlock(&left, &right, 0);
+        engine->processBlock(&left, &right, 0);
         // Should not crash, values untouched (0-size fill does nothing)
     }
 }
@@ -228,7 +525,11 @@ TEST_CASE("RuinaeEngine polyphony configuration", "[ruinae-engine][poly][US1]") 
         REQUIRE(engine.getActiveVoiceCount() <= 1);
 
         engine.setPolyphony(100);
-        // Clamped to 16
+        // Clamped to 16: 17 notes hold 16 voices (the 17th steals one)
+        for (uint8_t n = 0; n < 17; ++n) {
+            engine.noteOn(static_cast<uint8_t>(40 + n), 100);
+        }
+        REQUIRE(engine.getActiveVoiceCount() == 16);
     }
 
     SECTION("gain compensation based on active voices not polyphony setting") {
@@ -399,13 +700,8 @@ TEST_CASE("RuinaeEngine stereo spread", "[ruinae-engine][stereo][US2]") {
     }
 
     SECTION("NaN/Inf spread values are silently ignored") {
-        engine.setStereoSpread(0.5f);
-        engine.setStereoSpread(std::numeric_limits<float>::quiet_NaN());
-        // Should still be 0.5, not NaN
-        engine.noteOn(60, 100);
-        std::vector<float> left(512), right(512);
-        engine.processBlock(left.data(), right.data(), 512);
-        REQUIRE(allSamplesFinite(left.data(), 512));
+        // Stays 0.5: same audible output as an engine that never saw them.
+        requireGuardHoldsForNaNAndInf(stereoSpreadGuard());
     }
 }
 
@@ -438,9 +734,8 @@ TEST_CASE("RuinaeEngine stereo width", "[ruinae-engine][stereo][US2]") {
     }
 
     SECTION("NaN/Inf width values are silently ignored") {
-        engine.setStereoWidth(1.5f);
-        engine.setStereoWidth(std::numeric_limits<float>::infinity());
-        // Value should remain 1.5, not infinity
+        // Stays 1.5: same audible output as an engine that never saw them.
+        requireGuardHoldsForNaNAndInf(stereoWidthGuard());
     }
 }
 
@@ -495,7 +790,7 @@ TEST_CASE("RuinaeEngine mono portamento", "[ruinae-engine][mono][US3]") {
     RuinaeEngine engine;
     engine.prepare(44100.0, 512);
     engine.setMode(VoiceMode::Mono);
-    engine.setPortamentoTime(100.0f); // 100ms glide
+    engine.setMonoPortamentoTime(100.0f); // 100ms glide
     engine.setSoftLimitEnabled(false);
 
     SECTION("portamento produces per-sample frequency updates (FR-009)") {
@@ -530,28 +825,172 @@ TEST_CASE("RuinaeEngine mode switching", "[ruinae-engine][mode][US3]") {
         REQUIRE(engine.getMode() == VoiceMode::Poly);
     }
 
-    SECTION("poly->mono preserves most recent voice (FR-011)") {
-        engine.noteOn(60, 100);
-        engine.noteOn(64, 100);
-        engine.noteOn(67, 100);
-        REQUIRE(engine.getActiveVoiceCount() == 3);
+}
 
-        engine.setMode(VoiceMode::Mono);
-        REQUIRE(engine.getMode() == VoiceMode::Mono);
-        // Should have at most 1 active voice
-        REQUIRE(engine.getActiveVoiceCount() <= 1);
+// =============================================================================
+// Voice-mode switches and polyphony changes never strand or freeze a voice
+// (R-027, R-032, R-033, R-119)
+// =============================================================================
+
+namespace {
+
+constexpr double kSwitchSampleRate = 48000.0;
+constexpr size_t kSwitchBlock = 512;
+
+/// Engine with a 100 ms amp release and no effects, so silence is exact.
+void prepareSwitchEngine(RuinaeEngine& engine) {
+    engine.prepare(kSwitchSampleRate, kSwitchBlock);
+    engine.setAmpRelease(100.0f);
+    engine.setSoftLimitEnabled(false);
+}
+
+/// Render @p seconds and append the mono sum (L + R) to @p out.
+void renderSeconds(RuinaeEngine& engine, double seconds, std::vector<float>& out) {
+    const auto total = static_cast<size_t>(seconds * kSwitchSampleRate);
+    std::array<float, kSwitchBlock> left{};
+    std::array<float, kSwitchBlock> right{};
+    for (size_t done = 0; done < total; done += kSwitchBlock) {
+        const size_t n = std::min(kSwitchBlock, total - done);
+        engine.processBlock(left.data(), right.data(), n);
+        for (size_t s = 0; s < n; ++s) out.push_back(left[s] + right[s]);
+    }
+}
+
+/// RMS of the mono sum over @p seconds of fresh render.
+float renderRms(RuinaeEngine& engine, double seconds) {
+    std::vector<float> out;
+    renderSeconds(engine, seconds, out);
+    return computeRMS(out.data(), out.size());
+}
+
+} // namespace
+
+TEST_CASE("RuinaeEngine_PolyToMono_ReleasedNotesNotPromoted",
+          "[ruinae-engine][voice-mode][stuck-notes]") {
+    auto engine = std::make_unique<RuinaeEngine>();
+    prepareSwitchEngine(*engine);
+
+    SECTION("chord released, switch during the tails: silence after the release") {
+        engine->noteOn(60, 100);
+        engine->noteOn(64, 100);
+        (void)renderRms(*engine, 0.1);
+        engine->noteOff(64);
+        engine->noteOff(60);
+        (void)renderRms(*engine, 0.01);  // release tails ringing
+        engine->setMode(VoiceMode::Mono);
+        (void)renderRms(*engine, 1.0);   // well past the 100 ms release
+        const float rms = renderRms(*engine, 1.0);
+        INFO("RMS 1-2 s after the switch: " << rms);
+        REQUIRE(rms < 1e-4f);
     }
 
-    SECTION("mono->poly: voice 0 continues (FR-011)") {
-        engine.setMode(VoiceMode::Mono);
-        engine.noteOn(60, 100);
-        REQUIRE(engine.getActiveVoiceCount() == 1);
-
-        engine.setMode(VoiceMode::Poly);
-        REQUIRE(engine.getMode() == VoiceMode::Poly);
-        // Voice 0 should still be active
-        // (exact behavior depends on whether MonoHandler reset kills it)
+    SECTION("60 held, 64 played and released, switch, release 60: silence") {
+        engine->noteOn(60, 100);
+        (void)renderRms(*engine, 0.1);
+        engine->noteOn(64, 100);
+        (void)renderRms(*engine, 0.1);
+        engine->noteOff(64);
+        (void)renderRms(*engine, 0.01);
+        engine->setMode(VoiceMode::Mono);
+        (void)renderRms(*engine, 0.1);
+        engine->noteOff(60);
+        (void)renderRms(*engine, 1.0);
+        const float rms = renderRms(*engine, 1.0);
+        INFO("RMS 1-2 s after releasing 60: " << rms);
+        REQUIRE(rms < 1e-4f);
     }
+
+    SECTION("held chord survives the switch: releasing the newest key keeps sounding") {
+        engine->noteOn(60, 100);
+        engine->noteOn(64, 100);
+        engine->noteOn(67, 100);
+        (void)renderRms(*engine, 0.1);
+        engine->setMode(VoiceMode::Mono);
+        (void)renderRms(*engine, 0.1);
+        engine->noteOff(67);  // 60 and 64 are still down
+        (void)renderRms(*engine, 0.5);
+        const float held = renderRms(*engine, 0.2);
+        INFO("RMS with 60 and 64 still held: " << held);
+        REQUIRE(held > 1e-3f);
+        engine->noteOff(64);
+        engine->noteOff(60);
+        (void)renderRms(*engine, 1.0);
+        const float rms = renderRms(*engine, 1.0);
+        INFO("RMS after releasing every key: " << rms);
+        REQUIRE(rms < 1e-4f);
+    }
+}
+
+TEST_CASE("RuinaeEngine_MonoToPoly_HeldKeyReleases",
+          "[ruinae-engine][voice-mode][stuck-notes]") {
+    auto engine = std::make_unique<RuinaeEngine>();
+    prepareSwitchEngine(*engine);
+    engine->setMode(VoiceMode::Mono);
+
+    SECTION("held key released after the switch: silence") {
+        engine->noteOn(60, 100);
+        (void)renderRms(*engine, 0.1);
+        engine->setMode(VoiceMode::Poly);
+        const float sounding = renderRms(*engine, 0.05);
+        INFO("RMS with 60 held across the switch: " << sounding);
+        REQUIRE(sounding > 1e-3f);  // the held note keeps sounding
+        engine->noteOff(60);
+        (void)renderRms(*engine, 1.0);
+        const float rms = renderRms(*engine, 1.0);
+        INFO("RMS 1-2 s after releasing 60: " << rms);
+        REQUIRE(rms < 1e-5f);
+    }
+
+    SECTION("60 held, 64 tapped (back to 60), switch, release 60: silence") {
+        engine->noteOn(60, 100);
+        (void)renderRms(*engine, 0.1);
+        engine->noteOn(64, 100);
+        (void)renderRms(*engine, 0.1);
+        engine->noteOff(64);  // mono returns to the held 60
+        (void)renderRms(*engine, 0.1);
+        engine->setMode(VoiceMode::Poly);
+        const float sounding = renderRms(*engine, 0.05);
+        INFO("RMS with 60 held across the switch: " << sounding);
+        REQUIRE(sounding > 1e-3f);
+        engine->noteOff(60);
+        (void)renderRms(*engine, 1.0);
+        const float rms = renderRms(*engine, 1.0);
+        INFO("RMS 1-2 s after releasing 60: " << rms);
+        REQUIRE(rms < 1e-5f);
+    }
+}
+
+TEST_CASE("RuinaeEngine_PolyphonyReduction_ExcessVoicesReleaseSmoothly",
+          "[ruinae-engine][voice-mode][stuck-notes]") {
+    auto engine = std::make_unique<RuinaeEngine>();
+    prepareSwitchEngine(*engine);
+    engine->setPolyphony(8);
+
+    const std::array<uint8_t, 8> chord{48, 52, 55, 59, 60, 64, 67, 71};
+    for (auto n : chord) engine->noteOn(n, 100);
+
+    std::vector<float> out;
+    renderSeconds(*engine, 47.0 * kSwitchBlock / kSwitchSampleRate, out);  // 47 blocks
+    const size_t changeAt = out.size();
+    engine->setPolyphony(2);
+    renderSeconds(*engine, 0.3, out);
+
+    const double ratio = RuinaeAuditRig::clickAt(out, changeAt,
+                                     static_cast<size_t>(0.01 * kSwitchSampleRate),
+                                     static_cast<size_t>(0.05 * kSwitchSampleRate)).ratio;
+    INFO("jump ratio at the polyphony change: " << ratio);
+    REQUIRE(ratio <= 1.5);
+
+    for (auto n : chord) engine->noteOff(n);
+    (void)renderRms(*engine, 1.0);
+    const float released = renderRms(*engine, 1.0);
+    INFO("RMS after every key and the release: " << released);
+    REQUIRE(released < 1e-5f);
+
+    engine->setPolyphony(8);  // no new notes: nothing may come back
+    const float ghost = renderRms(*engine, 0.1);
+    INFO("RMS 100 ms after raising polyphony with no notes: " << ghost);
+    REQUIRE(ghost < 1e-5f);
 }
 
 TEST_CASE("RuinaeEngine mono mode configuration", "[ruinae-engine][mono][US3]") {
@@ -568,8 +1007,8 @@ TEST_CASE("RuinaeEngine mono mode configuration", "[ruinae-engine][mono][US3]") 
         // Should not crash
     }
 
-    SECTION("setPortamentoTime forwards to MonoHandler (FR-036)") {
-        engine.setPortamentoTime(200.0f);
+    SECTION("setMonoPortamentoTime forwards to MonoHandler (FR-036)") {
+        engine.setMonoPortamentoTime(200.0f);
         // Should not crash
     }
 
@@ -703,8 +1142,9 @@ TEST_CASE("RuinaeEngine getLatencySamples", "[ruinae-engine][effects][US5]") {
 
     SECTION("returns latency from effects chain (FR-028)") {
         engine.prepare(44100.0, 512);
-        [[maybe_unused]] size_t latency = engine.getLatencySamples();
-        // Should not crash, value depends on effects chain implementation
+        // The effects chain adds no latency (R-055, R-116): echoes land at the set time and
+        // the dry path is never delayed.
+        REQUIRE(engine.getLatencySamples() == 0);
     }
 }
 
@@ -724,9 +1164,8 @@ TEST_CASE("RuinaeEngine master gain", "[ruinae-engine][master][US6]") {
     }
 
     SECTION("NaN/Inf master gain is silently ignored") {
-        engine.setMasterGain(0.5f);
-        engine.setMasterGain(std::numeric_limits<float>::quiet_NaN());
-        // Should remain 0.5
+        // Stays 0.5: same audible output as an engine that never saw them.
+        requireGuardHoldsForNaNAndInf(masterGainGuard());
     }
 
     SECTION("gain=0 produces silence") {
@@ -945,9 +1384,7 @@ TEST_CASE("RuinaeEngine pitch bend", "[ruinae-engine][controllers][US9]") {
     }
 
     SECTION("NaN/Inf pitch bend silently ignored") {
-        engine.setPitchBend(std::numeric_limits<float>::quiet_NaN());
-        engine.setPitchBend(std::numeric_limits<float>::infinity());
-        // Should not crash
+        requireGuardHoldsForNaNAndInf(pitchBendGuard());
     }
 }
 
@@ -961,8 +1398,7 @@ TEST_CASE("RuinaeEngine aftertouch", "[ruinae-engine][controllers][US9]") {
     }
 
     SECTION("NaN/Inf aftertouch silently ignored") {
-        engine.setAftertouch(std::numeric_limits<float>::quiet_NaN());
-        // Should not crash
+        requireGuardHoldsForNaNAndInf(aftertouchGuard());
     }
 }
 
@@ -976,8 +1412,7 @@ TEST_CASE("RuinaeEngine mod wheel", "[ruinae-engine][controllers][US9]") {
     }
 
     SECTION("NaN/Inf mod wheel silently ignored") {
-        engine.setModWheel(std::numeric_limits<float>::quiet_NaN());
-        // Should not crash
+        requireGuardHoldsForNaNAndInf(modWheelGuard());
     }
 }
 
@@ -1019,9 +1454,8 @@ TEST_CASE("RuinaeEngine global filter", "[ruinae-engine][filter]") {
     }
 
     SECTION("NaN/Inf cutoff silently ignored (FR-016)") {
-        engine.setGlobalFilterCutoff(std::numeric_limits<float>::quiet_NaN());
-        engine.setGlobalFilterCutoff(std::numeric_limits<float>::infinity());
-        // Should not crash
+        // Stays 500 Hz: same audible output as an engine that never saw them.
+        requireGuardHoldsForNaNAndInf(globalFilterCutoffGuard());
     }
 }
 
@@ -1247,40 +1681,138 @@ TEST_CASE("RuinaeEngine AllVoice modulation forwarding", "[ruinae-engine][modula
     }
 }
 
+// =============================================================================
+// R-182: the mixer's Spectral Shift reaches the spectral morph filter
+// =============================================================================
+
+namespace {
+
+/// Holds C4 on a fresh engine in SpectralMorph mode and returns the left channel
+/// of the last 8 of 24 blocks. `shiftNormalized` empty = setMixShift never called.
+std::vector<float> renderSpectralMorphTail(std::optional<float> shiftNormalized) {
+    auto engine = std::make_unique<RuinaeEngine>();
+    engine->prepare(44100.0, 512);
+    engine->setMixMode(MixMode::SpectralMorph);
+    engine->setMixPosition(0.5f);
+    if (shiftNormalized) engine->setMixShift(*shiftNormalized);
+    engine->noteOn(60, 100);
+
+    std::vector<float> left(512), right(512), tail;
+    for (int b = 0; b < 24; ++b) {
+        engine->processBlock(left.data(), right.data(), 512);
+        if (b >= 16) tail.insert(tail.end(), left.begin(), left.end());
+    }
+    return tail;
+}
+
+}  // namespace
+
+TEST_CASE("Mixer spectral shift moves the spectrum in SpectralMorph mode",
+          "[ruinae-engine][mixer]") {
+    using Krate::DSP::TestUtils::spectralCentroidHz;
+
+    const auto down = renderSpectralMorphTail(0.25f);  // -12 st
+    const auto up = renderSpectralMorphTail(0.75f);    // +12 st
+    REQUIRE(computeRMS(down.data(), down.size()) > 1e-4f);
+    REQUIRE(computeRMS(up.data(), up.size()) > 1e-4f);
+
+    const double centroidDown = spectralCentroidHz(down, 44100.0);
+    const double centroidUp = spectralCentroidHz(up, 44100.0);
+    INFO("centroid at shift 0.25: " << centroidDown << " Hz, at 0.75: " << centroidUp << " Hz");
+    CHECK(centroidUp > centroidDown * 1.5);
+
+    // 0.5 is the centre of the knob: no shift, the render of an engine never given one.
+    const auto centre = renderSpectralMorphTail(0.5f);
+    const auto unset = renderSpectralMorphTail(std::nullopt);
+    REQUIRE(centre.size() == unset.size());
+    float maxDiff = 0.0f;
+    for (size_t i = 0; i < centre.size(); ++i) {
+        maxDiff = std::max(maxDiff, std::abs(centre[i] - unset[i]));
+    }
+    INFO("max |shift 0.5 - no shift| = " << maxDiff);
+    CHECK(maxDiff <= 1e-6f);
+}
+
+// =============================================================================
+// R-025: the per-voice SpectralTilt route reaches the morph filter in poly mode
+// =============================================================================
+
+namespace {
+
+/// Holds C4 on a fresh poly engine in SpectralMorph mode, optionally with a
+/// per-voice Env3 -> SpectralTilt route (+1, 12 dB/oct scale), and returns the
+/// left channel of the last 8 of 24 blocks.
+std::vector<float> renderVoiceTiltRouteTail(bool routed) {
+    auto engine = std::make_unique<RuinaeEngine>();
+    engine->prepare(44100.0, 512);
+    engine->setMode(VoiceMode::Poly);
+    // Sawtooth on both: a tilt needs harmonics to act on (the engine default is a sine)
+    engine->setOscAParam(OscParam::Waveform, static_cast<float>(OscWaveform::Sawtooth));
+    engine->setOscBParam(OscParam::Waveform, static_cast<float>(OscWaveform::Sawtooth));
+    engine->setMixMode(MixMode::SpectralMorph);
+    engine->setMixPosition(0.5f);
+    engine->setMixTilt(0.0f);
+    engine->setModAttack(1.0f);
+    engine->setModDecay(10.0f);
+    engine->setModSustain(1.0f);
+    if (routed) {
+        VoiceModRoute route;
+        route.source = VoiceModSource::Env3;
+        route.destination = VoiceModDest::SpectralTilt;
+        route.amount = 1.0f;
+        engine->setVoiceModRoute(0, route);
+        engine->setVoiceModRouteScale(VoiceModDest::SpectralTilt, 12.0f);
+    }
+    engine->noteOn(60, 100);
+
+    std::vector<float> left(512), right(512), tail;
+    for (int b = 0; b < 24; ++b) {
+        engine->processBlock(left.data(), right.data(), 512);
+        if (b >= 16) tail.insert(tail.end(), left.begin(), left.end());
+    }
+    return tail;
+}
+
+}  // namespace
+
+TEST_CASE("Per-voice spectral tilt route is audible in poly mode",
+          "[ruinae-engine][modmatrix]") {
+    using Krate::DSP::TestUtils::spectralCentroidHz;
+
+    const auto unrouted = renderVoiceTiltRouteTail(false);
+    const auto routed = renderVoiceTiltRouteTail(true);
+    REQUIRE(computeRMS(unrouted.data(), unrouted.size()) > 1e-4f);
+    REQUIRE(computeRMS(routed.data(), routed.size()) > 1e-4f);
+
+    const double centroidUnrouted = spectralCentroidHz(unrouted, 44100.0);
+    const double centroidRouted = spectralCentroidHz(routed, 44100.0);
+    INFO("centroid unrouted " << centroidUnrouted << " Hz, routed (+12 dB/oct) "
+                              << centroidRouted << " Hz");
+    // Env3 at sustain 1 x 12 dB/oct tilts the spectrum up: it must brighten.
+    CHECK(centroidRouted > centroidUnrouted * 1.1);
+}
+
 TEST_CASE("RuinaeEngine parameter safety", "[ruinae-engine][safety]") {
     RuinaeEngine engine;
     engine.prepare(44100.0, 512);
 
+    // Each setter in its own engine pair, with a setup in which its value is
+    // audible or readable back (R-107).
+    const std::vector<NonFiniteGuardCase> guards = {
+        masterGainGuard(),         stereoSpreadGuard(),       stereoWidthGuard(),
+        globalFilterCutoffGuard(), globalFilterResonanceGuard(), pitchBendGuard(),
+        pitchBendRangeGuard(),     tuningReferenceGuard(),    aftertouchGuard(),
+        modWheelGuard(),           monoPortamentoTimeGuard(), slideTimeGuard(),
+        filterCutoffGuard(),       filterResonanceGuard(),    distortionDriveGuard(),
+        ampAttackGuard(),          mixPositionGuard(),
+    };
+
     SECTION("NaN float inputs are silently ignored (FR-043)") {
-        const float nan = std::numeric_limits<float>::quiet_NaN();
-        engine.setMasterGain(nan);
-        engine.setStereoSpread(nan);
-        engine.setStereoWidth(nan);
-        engine.setGlobalFilterCutoff(nan);
-        engine.setGlobalFilterResonance(nan);
-        engine.setPitchBend(nan);
-        engine.setAftertouch(nan);
-        engine.setModWheel(nan);
-        engine.setPortamentoTime(nan);
-        engine.setFilterCutoff(nan);
-        engine.setFilterResonance(nan);
-        engine.setDistortionDrive(nan);
-        engine.setAmpAttack(nan);
-        engine.setMixPosition(nan);
-        // None should crash or change state to NaN
+        for (const auto& guard : guards) requireGuardHolds(guard, makeNaN());
     }
 
     SECTION("Inf float inputs are silently ignored (FR-043)") {
-        const float inf = std::numeric_limits<float>::infinity();
-        engine.setMasterGain(inf);
-        engine.setStereoSpread(inf);
-        engine.setStereoWidth(inf);
-        engine.setGlobalFilterCutoff(inf);
-        engine.setPitchBend(inf);
-        engine.setPortamentoTime(inf);
-        engine.setPitchBendRange(inf);
-        engine.setTuningReference(inf);
-        // None should crash
+        for (const auto& guard : guards) requireGuardHolds(guard, makeInf());
     }
 
     SECTION("output is always finite after processBlock") {
@@ -1590,7 +2122,7 @@ TEST_CASE("Mono portamento renders smoothly across chunk boundaries",
     RuinaeEngine engine;
     engine.prepare(44100.0, kBlockSize);
     engine.setMode(VoiceMode::Mono);
-    engine.setPortamentoTime(200.0f);
+    engine.setMonoPortamentoTime(200.0f);
 
     engine.noteOn(48, 100);
     std::vector<float> left(kBlockSize);
@@ -1700,4 +2232,549 @@ TEST_CASE("RuinaeEngine modulation reaches the voices in sub-steps inside large 
          << " at 2048 against " << stepSmall << " at 64");
     CHECK(maxDiff <= 1e-5f);
     CHECK(std::abs(stepLarge - stepSmall) <= 1e-5f);
+}
+
+// R-028: an arp Slide step on a chord sends one legato NoteOn per new chord
+// note, with no processBlock between them and no NoteOff for the old chord.
+// Each must glide its own voice: N old voices -> N new notes.
+TEST_CASE("RuinaeEngine: legato chord glides N voices", "[ruinae-engine][legato]") {
+    auto engine = std::make_unique<RuinaeEngine>();
+    engine->prepare(44100.0, 512);
+    engine->setMode(VoiceMode::Poly);
+    std::vector<float> left(512), right(512);
+
+    engine->noteOn(60, 100);
+    engine->noteOn(64, 100);
+    engine->noteOn(67, 100);
+    engine->processBlock(left.data(), right.data(), 512);
+
+    engine->noteOn(62, 100, true);
+    engine->noteOn(65, 100, true);
+    engine->noteOn(69, 100, true);
+    engine->processBlock(left.data(), right.data(), 512);
+
+    std::vector<int> gatedNotes;
+    for (size_t i = 0; i < RuinaeEngine::kMaxPolyphony; ++i) {
+        const int note = engine->gatedVoiceNoteForTest(i);
+        if (note >= 0) gatedNotes.push_back(note);
+    }
+    std::sort(gatedNotes.begin(), gatedNotes.end());
+    REQUIRE(gatedNotes == std::vector<int>{62, 65, 69});
+
+    engine->noteOff(62);
+    engine->noteOff(65);
+    engine->noteOff(69);
+
+    // 3 s (259 blocks); the last block must be silent.
+    for (int i = 0; i < 259; ++i) {
+        engine->processBlock(left.data(), right.data(), 512);
+    }
+    const float rms = std::max(computeRMS(left.data(), 512), computeRMS(right.data(), 512));
+    INFO("RMS of the last block, 3 s after the release: " << rms);
+    REQUIRE(rms < 1e-4f);
+    REQUIRE(engine->getActiveVoiceCount() == 0);
+}
+
+// =============================================================================
+// R-047: engine-level modulation must not step on the 64-sample sub-block grid
+// =============================================================================
+// The engine reads one modulation value per 64-sample sub-block. Master gain was
+// applied as a constant per sub-block and the global SVFs took a new cutoff and
+// resonance at each sub-block boundary, so a continuous source (LFO, envelope)
+// made a staircase whose 44100 / 64 = 689 Hz component shows up as sidebands at
+// f0 +- 689 Hz on a sustained tone.
+
+namespace {
+
+constexpr double kZipperRate = 44100.0;
+constexpr float kSubBlockHz = 44100.0f / 64.0f;  // 689.06 Hz
+
+/// Amplitude of the component at `hz` (Hann window, coherent-gain corrected).
+float zipperToneAmplitude(const std::vector<float>& x, double hz) {
+    double re = 0.0;
+    double im = 0.0;
+    double wSum = 0.0;
+    const double n = static_cast<double>(x.size());
+    const double w0 = 2.0 * kPi * hz / kZipperRate;
+    for (size_t i = 0; i < x.size(); ++i) {
+        const double w = 0.5 - 0.5 * std::cos(2.0 * kPi * static_cast<double>(i) / (n - 1.0));
+        re += w * x[i] * std::cos(w0 * static_cast<double>(i));
+        im -= w * x[i] * std::sin(w0 * static_cast<double>(i));
+        wSum += w;
+    }
+    return static_cast<float>(2.0 * std::sqrt(re * re + im * im) / wSum);
+}
+
+/// Largest component within +-`halfWidthHz` of `centreHz`, in 0.5 Hz steps.
+float zipperPeakNear(const std::vector<float>& x, double centreHz, double halfWidthHz) {
+    float peak = 0.0f;
+    for (double f = centreHz - halfWidthHz; f <= centreHz + halfWidthHz; f += 0.5) {
+        peak = std::max(peak, zipperToneAmplitude(x, f));
+    }
+    return peak;
+}
+
+/// Sustained sine note (Osc A only, voice filter open), the global LFO1 at
+/// 10 Hz routed to `dest`; renders 1.5 s and returns the last 1 s of the left channel.
+std::vector<float> renderZipperProbe(RuinaeModDest dest, float amount, bool globalFilter) {
+    constexpr size_t kBlock = 512;
+    constexpr size_t kTotal = 66048;     // 1.5 s, a multiple of the block
+    constexpr size_t kAnalysed = 44100;  // last 1 s: 1 Hz resolution
+    auto engine = std::make_unique<RuinaeEngine>();
+    engine->prepare(kZipperRate, kBlock);
+    engine->setOscAParam(OscParam::Waveform, 0.0f);  // sine
+    engine->setOscBLevel(0.0f);
+    engine->setMixMode(MixMode::CrossfadeMix);
+    engine->setMixPosition(0.0f);
+    engine->setFilterCutoff(20000.0f);
+    engine->setAmpAttack(1.0f);
+    engine->setAmpSustain(1.0f);
+    engine->setSoftLimitEnabled(false);  // keep the gain law linear
+    if (globalFilter) {
+        engine->setGlobalFilterEnabled(true);
+        engine->setGlobalFilterType(SVFMode::Lowpass);
+        engine->setGlobalFilterCutoff(1500.0f);
+        engine->setGlobalFilterResonance(8.0f);
+    }
+    engine->setGlobalLFO1Rate(10.0f);
+    engine->setGlobalLFO1Waveform(Waveform::Sine);
+    engine->setGlobalModRoute(0, ModSource::LFO1, dest, amount);
+    engine->noteOn(83, 100);  // 987.8 Hz
+
+    std::vector<float> left(kTotal, 0.0f);
+    std::vector<float> right(kTotal, 0.0f);
+    for (size_t pos = 0; pos < kTotal; pos += kBlock) {
+        engine->processBlock(left.data() + pos, right.data() + pos, kBlock);
+    }
+    return {left.end() - static_cast<std::ptrdiff_t>(kAnalysed), left.end()};
+}
+
+/// Worst f0 +- 689 Hz sideband (+-20 Hz window) relative to the fundamental, in dB.
+float worstSubBlockSidebandDb(const std::vector<float>& x, float& fundamental) {
+    const double f0 = static_cast<double>(midiNoteToFrequency(83));
+    fundamental = zipperPeakNear(x, f0, 2.0);
+    const float lower = zipperPeakNear(x, f0 - kSubBlockHz, 20.0);
+    const float upper = zipperPeakNear(x, f0 + kSubBlockHz, 20.0);
+    return 20.0f * std::log10(std::max(lower, upper) / fundamental);
+}
+
+} // namespace
+
+TEST_CASE("RuinaeEngine: global gain modulation has no sub-block zipper",
+          "[ruinae-engine][modulation]") {
+    const auto x = renderZipperProbe(RuinaeModDest::MasterVolume, 0.5f, false);
+    float fundamental = 0.0f;
+    const float db = worstSubBlockSidebandDb(x, fundamental);
+    INFO("fundamental " << fundamental << ", worst f0 +- 689 Hz sideband " << db << " dB");
+    REQUIRE(fundamental > 0.01f);  // not vacuous
+    REQUIRE(db < -60.0f);
+}
+
+TEST_CASE("RuinaeEngine: global filter modulation has no sub-block zipper",
+          "[ruinae-engine][modulation][filter]") {
+    const auto x = renderZipperProbe(RuinaeModDest::GlobalFilterCutoff, 0.25f, true);
+    float fundamental = 0.0f;
+    const float db = worstSubBlockSidebandDb(x, fundamental);
+    INFO("fundamental " << fundamental << ", worst f0 +- 689 Hz sideband " << db << " dB");
+    REQUIRE(fundamental > 0.01f);  // not vacuous
+    REQUIRE(db < -60.0f);
+}
+
+// =============================================================================
+// Voice Steal Mode and mono return-to-held-note retrigger (R-034, R-037)
+// =============================================================================
+// Hard and Soft used to be the same: both released the victim and re-gated it
+// at once with the new pitch. Hard now fades the victim out over 2 ms and
+// starts the new note on a reset voice; Soft re-gates from the current level.
+
+namespace {
+
+constexpr double kStealSampleRate = 44100.0;
+constexpr size_t kStealBlock = 64;
+constexpr size_t kStealWarmupBlocks = 70;  // ~100 ms of note A
+constexpr size_t kStealAfterBlocks = 14;   // ~20 ms after note B
+
+void configureStealProbe(RuinaeEngine& engine) {
+    engine.prepare(kStealSampleRate, kStealBlock);
+    engine.setDelayMix(0.0f);
+    engine.setReverbParams({.roomSize = 0.5f, .damping = 0.5f, .width = 1.0f, .mix = 0.0f});
+    engine.setSoftLimitEnabled(false);
+    engine.setFilterCutoff(18000.0f);
+    engine.setFilterResonance(0.707f);
+    engine.setAmpAttack(20.0f);
+    engine.setAmpDecay(50.0f);
+    engine.setAmpSustain(1.0f);
+    engine.setAmpRelease(50.0f);
+    engine.setPolyphony(1);
+}
+
+/// Note A held for ~100 ms, then note B steals its voice; left channel.
+std::vector<float> renderSteal(StealMode mode) {
+    auto engine = std::make_unique<RuinaeEngine>();
+    configureStealProbe(*engine);
+    engine->setStealMode(mode);
+    engine->noteOn(84, 100);
+    std::vector<float> left((kStealWarmupBlocks + kStealAfterBlocks) * kStealBlock, 0.0f);
+    std::vector<float> right(left.size(), 0.0f);
+    for (size_t b = 0; b < kStealWarmupBlocks + kStealAfterBlocks; ++b) {
+        if (b == kStealWarmupBlocks) engine->noteOn(91, 100);
+        engine->processBlock(left.data() + b * kStealBlock, right.data() + b * kStealBlock,
+                             kStealBlock);
+    }
+    return left;
+}
+
+/// Smallest +-2-sample local peak in [from, to): a near-silent stretch shows as a dip.
+float smallestLocalPeak(const std::vector<float>& x, size_t from, size_t to) {
+    float smallest = std::numeric_limits<float>::max();
+    for (size_t n = from; n < to; ++n) {
+        float local = 0.0f;
+        for (size_t k = n - 2; k <= n + 2; ++k) local = std::max(local, std::abs(x[k]));
+        smallest = std::min(smallest, local);
+    }
+    return smallest;
+}
+
+} // namespace
+
+TEST_CASE("RuinaeEngine_StealModes_Differ", "[ruinae-engine][steal]") {
+    const auto hard = renderSteal(StealMode::Hard);
+    const auto soft = renderSteal(StealMode::Soft);
+
+    const size_t steal = kStealWarmupBlocks * kStealBlock;
+    const size_t threeMs = static_cast<size_t>(0.003 * kStealSampleRate);
+    const float levelA = findPeak(hard.data() + steal - 441, 441);  // last 10 ms of A
+    REQUIRE(levelA > 0.05f);  // not vacuous
+
+    const float hardDip = smallestLocalPeak(hard, steal, steal + threeMs);
+    const float softDip = smallestLocalPeak(soft, steal, steal + threeMs);
+    INFO("A level " << levelA << ", Hard dip " << hardDip << ", Soft dip " << softDip);
+    // Hard: the victim is silenced before the new note's attack
+    CHECK(hardDip < 0.05f * levelA);
+    // Soft: no dip, the new note re-gates from the current level
+    CHECK(softDip >= 0.05f * levelA);
+
+    // The two modes render differently after the steal
+    float maxDiff = 0.0f;
+    for (size_t n = steal; n < hard.size(); ++n) {
+        maxDiff = std::max(maxDiff, std::abs(hard[n] - soft[n]));
+    }
+    INFO("max |Hard - Soft| after the steal " << maxDiff);
+    CHECK(maxDiff > 0.1f * levelA);
+
+    // Hard: note B does sound once the fade is over
+    const float hardB = findPeak(hard.data() + steal + 441, hard.size() - steal - 441);
+    INFO("Hard: B peak 10-20 ms after the steal " << hardB);
+    CHECK(hardB > 0.3f * levelA);
+}
+
+TEST_CASE("RuinaeEngine: a note released during a Hard steal fade does not hang",
+          "[ruinae-engine][steal]") {
+    RuinaeEngine engine;
+    configureStealProbe(engine);
+    engine.setStealMode(StealMode::Hard);
+    std::vector<float> left(kStealBlock, 0.0f);
+    std::vector<float> right(kStealBlock, 0.0f);
+
+    engine.noteOn(84, 100);
+    for (int b = 0; b < 20; ++b) engine.processBlock(left.data(), right.data(), kStealBlock);
+    engine.noteOn(91, 100);
+    engine.processBlock(left.data(), right.data(), 16);  // inside the 2 ms fade
+    engine.noteOff(91);
+    for (int b = 0; b < 200; ++b) engine.processBlock(left.data(), right.data(), kStealBlock);
+
+    REQUIRE(engine.getActiveVoiceCount() == 0);
+}
+
+TEST_CASE("RuinaeEngine_MonoReturnRetriggersWhenLegatoOff", "[ruinae-engine][mono]") {
+    RuinaeEngine engine;
+    engine.prepare(kStealSampleRate, kStealBlock);
+    engine.setDelayMix(0.0f);
+    engine.setReverbParams({.roomSize = 0.5f, .damping = 0.5f, .width = 1.0f, .mix = 0.0f});
+    engine.setSoftLimitEnabled(false);
+    engine.setMode(VoiceMode::Mono);
+    engine.setLegato(false);
+    engine.setAmpAttack(1.0f);
+    engine.setAmpDecay(50.0f);
+    engine.setAmpSustain(0.0f);
+    engine.setAmpRelease(50.0f);
+
+    std::vector<float> left(kStealBlock, 0.0f);
+    std::vector<float> right(kStealBlock, 0.0f);
+    auto renderRms = [&](size_t blocks) {
+        double sumSq = 0.0;
+        for (size_t b = 0; b < blocks; ++b) {
+            engine.processBlock(left.data(), right.data(), kStealBlock);
+            for (float s : left) sumSq += static_cast<double>(s) * static_cast<double>(s);
+        }
+        return static_cast<float>(std::sqrt(sumSq / static_cast<double>(blocks * kStealBlock)));
+    };
+
+    engine.noteOn(60, 100);
+    (void)renderRms(140);  // ~200 ms: decayed to sustain 0
+    engine.noteOn(64, 100);
+    const float pressed = renderRms(14);  // the press re-attacks
+    (void)renderRms(126);
+    const float beforeRelease = renderRms(7);  // last ~10 ms on 64, decayed
+    engine.noteOff(64);                         // returns to the held 60
+    const float afterRelease = renderRms(14);   // first ~20 ms back on 60
+
+    INFO("pressed " << pressed << ", before release " << beforeRelease
+         << ", after release " << afterRelease);
+    REQUIRE(pressed > 0.01f);  // not vacuous: the press itself re-attacks
+    CHECK(afterRelease > 0.25f * pressed);
+    CHECK(afterRelease > 10.0f * beforeRelease);
+}
+
+TEST_CASE("RuinaeEngine: mono voice is centred at any stereo spread", "[ruinae-engine][mono][pan]") {
+    RuinaeEngine engine;
+    engine.prepare(kStealSampleRate, kStealBlock);
+    engine.setDelayMix(0.0f);
+    engine.setReverbParams({.roomSize = 0.5f, .damping = 0.5f, .width = 1.0f, .mix = 0.0f});
+    engine.setSoftLimitEnabled(false);
+    engine.setMode(VoiceMode::Mono);
+    engine.setStereoSpread(1.0f);
+    engine.setAmpSustain(1.0f);
+
+    std::vector<float> left(kStealBlock, 0.0f);
+    std::vector<float> right(kStealBlock, 0.0f);
+    engine.noteOn(60, 100);
+    double sumL = 0.0, sumR = 0.0;
+    for (int b = 0; b < 60; ++b) {
+        engine.processBlock(left.data(), right.data(), kStealBlock);
+        if (b < 10) continue;
+        for (size_t i = 0; i < kStealBlock; ++i) {
+            sumL += static_cast<double>(left[i]) * static_cast<double>(left[i]);
+            sumR += static_cast<double>(right[i]) * static_cast<double>(right[i]);
+        }
+    }
+    REQUIRE(sumL > 0.0);
+    REQUIRE(sumR > 0.0);
+    const double diffDb = 10.0 * std::log10(sumL / sumR);
+    INFO("L-R = " << diffDb << " dB");
+    REQUIRE(std::abs(diffDb) < 0.01);
+}
+
+// =============================================================================
+// Mono mode applies pitch bend and the tuning reference (R-141, R-011)
+// =============================================================================
+
+namespace {
+
+/// Mean frequency over [a, b) from interpolated rising zero crossings (sine input).
+double monoPitchZeroCrossingHz(const std::vector<float>& x, size_t a, size_t b, double sampleRate) {
+    double first = -1.0;
+    double last = -1.0;
+    int periods = -1;
+    for (size_t i = std::max<size_t>(a, 1); i < std::min(b, x.size()); ++i) {
+        if (x[i - 1] < 0.0f && x[i] >= 0.0f) {
+            const double t = static_cast<double>(i - 1)
+                + static_cast<double>(-x[i - 1]) / static_cast<double>(x[i] - x[i - 1]);
+            if (first < 0.0) first = t;
+            last = t;
+            ++periods;
+        }
+    }
+    if (periods < 1) return 0.0;
+    return sampleRate * static_cast<double>(periods) / (last - first);
+}
+
+/// Sine on oscillator A, filter open, no effects; A4 = 432 Hz, bend +1 with a
+/// 2-semitone range, note 69 held for 200 ms. Returns the pitch over 100-200 ms.
+double renderBentTunedA4(VoiceMode mode, float bendRange = 2.0f, float bend = 1.0f) {
+    auto engine = std::make_unique<RuinaeEngine>();
+    prepareSwitchEngine(*engine);
+    engine->setOscAType(OscType::PolyBLEP);
+    engine->setOscAParam(OscParam::Waveform, 0.0f);  // OscWaveform::Sine
+    engine->setOscALevel(1.0f);
+    engine->setOscBLevel(0.0f);
+    engine->setMixPosition(0.0f);
+    engine->setFilterType(RuinaeFilterType::SVF_LP);
+    engine->setFilterCutoff(20000.0f);
+    engine->setDistortionType(RuinaeDistortionType::Clean);
+    engine->setTranceGateEnabled(false);
+    engine->setDelayEnabled(false);
+    engine->setReverbEnabled(false);
+    engine->setHarmonizerEnabled(false);
+    engine->setGlobalFilterEnabled(false);
+    engine->setAmpSustain(1.0f);
+    engine->setMode(mode);
+    engine->setTuningReference(432.0f);
+    engine->setPitchBendRange(bendRange);
+    engine->setPitchBend(bend);
+    engine->noteOn(69, 100);
+
+    std::vector<float> out;
+    renderSeconds(*engine, 0.2, out);
+    return monoPitchZeroCrossingHz(out, static_cast<size_t>(0.1 * kSwitchSampleRate),
+                                   out.size(), kSwitchSampleRate);
+}
+
+} // namespace
+
+TEST_CASE("RuinaeEngine: mono mode applies pitch bend and tuning reference",
+          "[ruinae-engine][mono][pitch]") {
+    const double expectedHz = 432.0 * std::pow(2.0, 2.0 / 12.0);
+
+    SECTION("mono") {
+        const double hz = renderBentTunedA4(VoiceMode::Mono);
+        REQUIRE(hz > 0.0);  // not vacuous: the note sounds
+        const double cents = 1200.0 * std::log2(hz / expectedHz);
+        INFO("mono: " << hz << " Hz, " << cents << " cents from " << expectedHz << " Hz");
+        REQUIRE(std::abs(cents) <= 3.0);
+    }
+
+    SECTION("poly gives the same value") {
+        const double hz = renderBentTunedA4(VoiceMode::Poly);
+        REQUIRE(hz > 0.0);
+        const double cents = 1200.0 * std::log2(hz / expectedHz);
+        INFO("poly: " << hz << " Hz, " << cents << " cents from " << expectedHz << " Hz");
+        REQUIRE(std::abs(cents) <= 3.0);
+    }
+}
+
+// R-120: the pitch-bend controller test only checked "does not crash". Assert the
+// bent pitch: +/-12 semitones of range moves A4 = 432 Hz by an octave either way,
+// a half-range bend moves it by half the range, in poly and mono.
+TEST_CASE("RuinaeEngine: pitch bend sets the sounding pitch",
+          "[ruinae-engine][controllers][pitch]") {
+    const auto checkCents = [](VoiceMode mode, float range, float bend, double semitones) {
+        const double expectedHz = 432.0 * std::pow(2.0, semitones / 12.0);
+        const double hz = renderBentTunedA4(mode, range, bend);
+        REQUIRE(hz > 0.0);
+        const double cents = 1200.0 * std::log2(hz / expectedHz);
+        INFO("range " << range << " bend " << bend << ": " << hz << " Hz, " << cents
+             << " cents from " << expectedHz << " Hz");
+        REQUIRE(std::abs(cents) <= 3.0);
+    };
+
+    SECTION("poly: +1 of 12 semitones is an octave up") { checkCents(VoiceMode::Poly, 12.0f, 1.0f, 12.0); }
+    SECTION("poly: -1 of 12 semitones is an octave down") { checkCents(VoiceMode::Poly, 12.0f, -1.0f, -12.0); }
+    SECTION("poly: +0.5 of 12 semitones is a tritone up") { checkCents(VoiceMode::Poly, 12.0f, 0.5f, 6.0); }
+    SECTION("mono: +1 of 12 semitones is an octave up") { checkCents(VoiceMode::Mono, 12.0f, 1.0f, 12.0); }
+    SECTION("poly: centred bend leaves the pitch alone") { checkCents(VoiceMode::Poly, 12.0f, 0.0f, 0.0); }
+}
+
+// =============================================================================
+// Mono: an arp slide glides with the Slide Time, every other note with the
+// Mono Portamento Time (R-031)
+// =============================================================================
+
+TEST_CASE("RuinaeEngine: mono arp slide uses Slide Time and other notes use Portamento Time",
+          "[ruinae-engine][mono][portamento]") {
+    auto engine = std::make_unique<RuinaeEngine>();
+    prepareSwitchEngine(*engine);
+    engine->setOscAType(OscType::PolyBLEP);
+    engine->setOscAParam(OscParam::Waveform, 0.0f);  // OscWaveform::Sine
+    engine->setOscALevel(1.0f);
+    engine->setOscBLevel(0.0f);
+    engine->setMixPosition(0.0f);
+    engine->setFilterType(RuinaeFilterType::SVF_LP);
+    engine->setFilterCutoff(20000.0f);
+    engine->setDistortionType(RuinaeDistortionType::Clean);
+    engine->setTranceGateEnabled(false);
+    engine->setDelayEnabled(false);
+    engine->setReverbEnabled(false);
+    engine->setHarmonizerEnabled(false);
+    engine->setGlobalFilterEnabled(false);
+    engine->setAmpSustain(1.0f);
+    engine->setMode(VoiceMode::Mono);
+    engine->setLegato(true);
+    engine->setMonoPortamentoTime(0.0f);
+    engine->setSlideTime(200.0f);
+
+    const auto at = [](double seconds) {
+        return static_cast<size_t>(seconds * kSwitchSampleRate);
+    };
+    const auto noteOf = [](double hz) { return 69.0 + 12.0 * std::log2(hz / 440.0); };
+
+    std::vector<float> out;
+    engine->noteOn(60, 100);
+    renderSeconds(*engine, 0.2, out);
+    engine->noteOn(72, 100, /*legato=*/true);  // arp slide step
+    renderSeconds(*engine, 0.4, out);          // slide: 0.2 .. 0.6 s
+    engine->noteOn(67, 100);                   // ordinary note
+    renderSeconds(*engine, 0.1, out);          // 0.6 .. 0.7 s
+
+    // 40-60 ms into the 200 ms slide: a quarter of the way from 60 to 72
+    const double slideHz = monoPitchZeroCrossingHz(out, at(0.24), at(0.26), kSwitchSampleRate);
+    // 2-12 ms after the ordinary note: Portamento Time 0, so already on 67
+    const double noteHz = monoPitchZeroCrossingHz(out, at(0.602), at(0.612), kSwitchSampleRate);
+    REQUIRE(slideHz > 0.0);  // not vacuous: the notes sound
+    REQUIRE(noteHz > 0.0);
+    INFO("slide at 50 ms: note " << noteOf(slideHz) << "; ordinary note after 2 ms: "
+         << noteOf(noteHz));
+    CHECK(std::abs(noteOf(slideHz) - 63.0) <= 0.3);
+    CHECK(std::abs(100.0 * (noteOf(noteHz) - 67.0)) <= 5.0);
+}
+
+// =============================================================================
+// R-008 (Ruinae audit T1.17): the engine re-forwards the BASE cutoff to every
+// voice once per 64-sample mod sub-block, and the voice loop then writes the
+// key-tracked effective cutoff. Each write pair used to re-arm the
+// SelfOscillatingFilter kick (ladder reset + impulse), so the resonator was
+// wiped 689 times a second: a quieter tone with a 689 Hz buzz.
+// =============================================================================
+
+namespace {
+
+/// SelfOscillating, Q 20, osc levels 0, note C5, 1 s; returns the left channel.
+std::vector<float> renderSelfOscEngine(float baseCutoffHz, float keyTrack, size_t block) {
+    constexpr size_t kTotal = 44100;
+    auto engine = std::make_unique<RuinaeEngine>();
+    engine->prepare(kZipperRate, block);
+    engine->setDelayMix(0.0f);
+    engine->setReverbParams({.roomSize = 0.5f, .damping = 0.5f, .width = 1.0f, .mix = 0.0f});
+    engine->setSoftLimitEnabled(false);
+    engine->setOscALevel(0.0f);
+    engine->setOscBLevel(0.0f);
+    engine->setAmpAttack(1.0f);
+    engine->setAmpSustain(1.0f);
+    engine->setFilterType(RuinaeFilterType::SelfOscillating);
+    engine->setFilterCutoff(baseCutoffHz);
+    engine->setFilterResonance(20.0f);
+    engine->setFilterEnvAmount(0.0f);
+    engine->setFilterKeyTrack(keyTrack);
+    engine->noteOn(72, 100);
+
+    std::vector<float> left(kTotal, 0.0f);
+    std::vector<float> right(kTotal, 0.0f);
+    for (size_t pos = 0; pos < kTotal; pos += block) {
+        const size_t n = std::min(block, kTotal - pos);
+        engine->processBlock(left.data() + pos, right.data() + pos, n);
+    }
+    return left;
+}
+
+} // namespace
+
+TEST_CASE("RuinaeEngine: self-osc filter with key tracking is not re-kicked per sub-block",
+          "[ruinae-engine][filter]") {
+    // Effective cutoff 880 Hz both ways: a 440 Hz base + 12 st key track at C5,
+    // and the reference: an 880 Hz base with no key track (base == effective,
+    // so the engine's and the voice's cutoff writes agree and nothing re-kicks).
+    for (const size_t block : {size_t{64}, size_t{512}}) {
+        SECTION("block " + std::to_string(block)) {
+            const auto tracked = renderSelfOscEngine(440.0f, 1.0f, block);
+            const auto reference = renderSelfOscEngine(880.0f, 0.0f, block);
+            const std::vector<float> trackedTail(tracked.begin() + 22050, tracked.end());
+            const std::vector<float> referenceTail(reference.begin() + 22050, reference.end());
+
+            const float trackedRms = computeRMS(trackedTail.data(), trackedTail.size());
+            const float referenceRms = computeRMS(referenceTail.data(), referenceTail.size());
+            const float levelDb = 20.0f * std::log10(std::max(trackedRms, 1e-12f)
+                                                     / std::max(referenceRms, 1e-12f));
+            const float tone = zipperPeakNear(trackedTail, 880.0, 20.0);
+            const float buzz = zipperPeakNear(trackedTail, kSubBlockHz, 2.0);
+            const float buzzDb = 20.0f * std::log10(std::max(buzz, 1e-12f)
+                                                    / std::max(tone, 1e-12f));
+
+            INFO("block " << block << ": rms tracked " << trackedRms << ", reference "
+                 << referenceRms << " (" << levelDb << " dB); 689 Hz line " << buzzDb
+                 << " dB re tone " << tone);
+            REQUIRE(referenceRms > 0.01f);  // not vacuous: the reference oscillates
+            REQUIRE(std::abs(levelDb) <= 1.0f);
+            REQUIRE(buzzDb < -40.0f);
+        }
+    }
 }

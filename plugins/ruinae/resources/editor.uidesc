@@ -148,7 +148,6 @@
         <control-tag name="SettingsTuningReference" tag="2202"/>
         <control-tag name="SettingsVoiceAllocMode" tag="2203"/>
         <control-tag name="SettingsVoiceStealMode" tag="2204"/>
-        <control-tag name="SettingsGainCompensation" tag="2205"/>
 
         <!-- Env Follower -->
         <control-tag name="EnvFollowerSensitivity" tag="2300"/>
@@ -177,6 +176,10 @@
         <control-tag name="TransientSensitivity" tag="2700"/>
         <control-tag name="TransientAttack" tag="2701"/>
         <control-tag name="TransientDecay" tag="2702"/>
+
+        <!-- Voice LFO (per-voice mod source) -->
+        <control-tag name="VoiceLfoRate" tag="2900"/>
+        <control-tag name="VoiceLfoShape" tag="2901"/>
 
         <!-- Main Tab Selector (SOUND=0, MOD=1, FX=2, SEQ=3) -->
         <control-tag name="MainTab" tag="10023"/>
@@ -354,6 +357,9 @@
         <control-tag name="ArpDiceTrigger" tag="3291"/>
         <control-tag name="ArpHumanize" tag="3292"/>
         <control-tag name="ArpRatchetSwing" tag="3293"/>
+        <control-tag name="ArpAccentVelocity" tag="3180"/>
+        <control-tag name="ArpSlideTime" tag="3181"/>
+        <control-tag name="ArpVoicing" tag="3370"/>
 
         <!-- Arp Scale Mode (084-arp-scale-mode) -->
         <control-tag name="ArpScaleType" tag="3300"/>
@@ -366,6 +372,7 @@
         <control-tag name="AmpEnvDecay" tag="701"/>
         <control-tag name="AmpEnvSustain" tag="702"/>
         <control-tag name="AmpEnvRelease" tag="703"/>
+        <control-tag name="AmpEnvVelocityAmount" tag="708"/>
 
         <!-- Envelopes: Filter (ENV 2) -->
         <control-tag name="FilterEnvAttack" tag="800"/>
@@ -1029,7 +1036,7 @@
               arc-color="filter" guide-color="knob-guide"/>
         <view class="ModRingIndicator" origin="8, 0" size="36, 36"
               dest-index="0"/>
-        <view class="CTextLabel" origin="0, 39" size="52, 12"
+        <view class="CTextLabel" origin="0, 39" size="50, 12"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="Cutoff"/>
 
@@ -1038,7 +1045,7 @@
               arc-color="filter" guide-color="knob-guide"/>
         <view class="ModRingIndicator" origin="58, 0" size="36, 36"
               dest-index="1"/>
-        <view class="CTextLabel" origin="50, 39" size="52, 12"
+        <view class="CTextLabel" origin="50, 39" size="50, 12"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="Resonance"/>
 
@@ -1281,7 +1288,7 @@
         <view class="ArcKnob" origin="72, 0" size="36, 36"
               control-tag="FilterEnvFltSensitivity" default-value="0.5"
               arc-color="filter" guide-color="knob-guide"/>
-        <view class="CTextLabel" origin="64, 39" size="52, 12"
+        <view class="CTextLabel" origin="64, 39" size="44, 12"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="Sens"/>
         <view class="ArcKnob" origin="116, 0" size="36, 36"
@@ -1299,9 +1306,9 @@
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="Dir"/>
         <view class="ArcKnob" origin="72, 54" size="36, 36"
-              control-tag="FilterEnvFltAttack" default-value="0.35"
+              control-tag="FilterEnvFltAttack" default-value="0.5407"
               arc-color="filter" guide-color="knob-guide"/>
-        <view class="CTextLabel" origin="64, 93" size="52, 12"
+        <view class="CTextLabel" origin="64, 93" size="44, 12"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="Attack"/>
         <view class="ArcKnob" origin="116, 54" size="36, 36"
@@ -1335,7 +1342,7 @@
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="Shape"/>
         <view class="ArcKnob" origin="84, 58" size="36, 36"
-              control-tag="FilterSelfOscRelease" default-value="0.47"
+              control-tag="FilterSelfOscRelease" default-value="0.7384"
               arc-color="filter" guide-color="knob-guide"/>
         <view class="CTextLabel" origin="76, 97" size="52, 12"
               font="~ NormalFontSmaller" font-color="text-secondary"
@@ -1973,7 +1980,7 @@
               text-alignment="center" transparent="true" title="Shape"/>
         <!-- Depth -->
         <view class="ArcKnob" origin="140, 8" size="36, 36"
-              control-tag="LFO1Depth" default-value="0.5"
+              control-tag="LFO1Depth" default-value="1.0"
               arc-color="modulation" guide-color="knob-guide"/>
         <view class="CTextLabel" origin="134, 46" size="48, 12"
               font="~ NormalFontSmaller" font-color="text-secondary"
@@ -2068,7 +2075,7 @@
               text-alignment="center" transparent="true" title="Shape"/>
         <!-- Depth -->
         <view class="ArcKnob" origin="140, 8" size="36, 36"
-              control-tag="LFO2Depth" default-value="0.5"
+              control-tag="LFO2Depth" default-value="1.0"
               arc-color="modulation" guide-color="knob-guide"/>
         <view class="CTextLabel" origin="134, 46" size="48, 12"
               font="~ NormalFontSmaller" font-color="text-secondary"
@@ -2164,7 +2171,7 @@
               text-alignment="center" transparent="true" title="Type"/>
         <!-- Depth -->
         <view class="ArcKnob" origin="168, 8" size="36, 36"
-              control-tag="ChaosDepth" default-value="0.0"
+              control-tag="ChaosDepth" default-value="1.0"
               arc-color="modulation" guide-color="knob-guide"/>
         <view class="CTextLabel" origin="162, 46" size="48, 12"
               font="~ NormalFontSmaller" font-color="text-secondary"
@@ -2294,7 +2301,7 @@
         <view class="CViewContainer" origin="12, 0" size="44, 60"
               custom-view-name="SHRateGroup" transparent="true">
             <view class="ArcKnob" origin="4, 8" size="36, 36"
-                  control-tag="SampleHoldRate" default-value="0.702"
+                  control-tag="SampleHoldRate" default-value="0.5936"
                   arc-color="modulation" guide-color="knob-guide"/>
             <view class="CTextLabel" origin="0, 46" size="44, 12"
                   font="~ NormalFontSmaller" font-color="text-secondary"
@@ -2340,7 +2347,7 @@
         <view class="CViewContainer" origin="12, 0" size="44, 60"
               custom-view-name="RandomRateGroup" transparent="true">
             <view class="ArcKnob" origin="4, 8" size="36, 36"
-                  control-tag="RandomRate" default-value="0.702"
+                  control-tag="RandomRate" default-value="0.5936"
                   arc-color="modulation" guide-color="knob-guide"/>
             <view class="CTextLabel" origin="0, 46" size="44, 12"
                   font="~ NormalFontSmaller" font-color="text-secondary"
@@ -2476,6 +2483,11 @@
                   font="~ NormalFontSmaller" font-color="text-menu"
                   back-color="bg-dropdown" frame-color="frame-dropdown"/>
 
+            <!-- Voice LFO: rate and shape of the per-voice "Voice LFO" route source -->
+            <view class="CTextLabel" origin="232, 22" size="64, 14" title="Voice LFO" font="~ NormalFontSmaller" font-color="text-secondary" text-alignment="right" transparent="true"/>
+            <view class="ArcKnob" origin="300, 15" size="28, 28" control-tag="VoiceLfoRate" default-value="0.5407" tooltip="Voice LFO rate" arc-color="modulation" guide-color="knob-guide"/>
+            <view class="COptionMenu" origin="336, 18" size="112, 22" control-tag="VoiceLfoShape" default-value="0" tooltip="Voice LFO shape" font="~ NormalFontSmaller" font-color="text-menu" back-color="bg-dropdown" frame-color="frame-dropdown"/>
+
             <!-- Mod Source View (switched by dropdown) -->
             <view class="UIViewSwitchContainer"
                   origin="0, 46" size="540, 400"
@@ -2529,16 +2541,16 @@
                   control-tag="GlobalFilterType"
                   font="~ NormalFontSmaller" font-color="text-menu"
                   back-color="bg-dropdown" frame-color="frame-dropdown"/>
-            <view class="ArcKnob" origin="184, 8" size="28, 28"
-                  control-tag="GlobalFilterCutoff" default-value="0.574"
+            <view class="ArcKnob" origin="184, 6" size="28, 28"
+                  control-tag="GlobalFilterCutoff" default-value="0.5663"
                   arc-color="global-filter" guide-color="knob-guide"/>
-            <view class="CTextLabel" origin="178, 36" size="40, 10"
+            <view class="CTextLabel" origin="178, 34" size="40, 10"
                   font="~ NormalFontSmaller" font-color="text-secondary"
                   text-alignment="center" transparent="true" title="Cutoff"/>
-            <view class="ArcKnob" origin="240, 8" size="28, 28"
-                  control-tag="GlobalFilterResonance" default-value="0.020"
+            <view class="ArcKnob" origin="240, 6" size="28, 28"
+                  control-tag="GlobalFilterResonance" default-value="0.0203"
                   arc-color="global-filter" guide-color="knob-guide"/>
-            <view class="CTextLabel" origin="234, 36" size="40, 10"
+            <view class="CTextLabel" origin="234, 34" size="40, 10"
                   font="~ NormalFontSmaller" font-color="text-secondary"
                   text-alignment="center" transparent="true" title="Reso"/>
         </view>
@@ -2606,7 +2618,7 @@
                           default-value="0.0245"
                           arc-color="fx-phaser"
                           guide-color="knob-guide"/>
-                    <view class="CTextLabel" origin="-6, 28" size="40, 10"
+                    <view class="CTextLabel" origin="0, 28" size="28, 10"
                           font="~ NormalFontSmaller" font-color="text-secondary"
                           text-alignment="center" transparent="true" title="Rate"/>
                 </view>
@@ -2708,7 +2720,7 @@
                           default-value="0.0909"
                           arc-color="fx-phaser"
                           guide-color="knob-guide"/>
-                    <view class="CTextLabel" origin="-6, 28" size="40, 10"
+                    <view class="CTextLabel" origin="0, 28" size="28, 10"
                           font="~ NormalFontSmaller" font-color="text-secondary"
                           text-alignment="center" transparent="true" title="Rate"/>
                 </view>
@@ -2792,7 +2804,7 @@
                           default-value="0.04523"
                           arc-color="fx-phaser"
                           guide-color="knob-guide"/>
-                    <view class="CTextLabel" origin="-6, 28" size="40, 10"
+                    <view class="CTextLabel" origin="0, 28" size="28, 10"
                           font="~ NormalFontSmaller" font-color="text-secondary"
                           text-alignment="center" transparent="true" title="Rate"/>
                 </view>
@@ -2912,7 +2924,7 @@
                       default-value="0.1"
                       arc-color="fx-delay"
                       guide-color="knob-guide"/>
-                <view class="CTextLabel" origin="-6, 30" size="40, 10"
+                <view class="CTextLabel" origin="0, 30" size="28, 10"
                       font="~ NormalFontSmaller" font-color="text-secondary"
                       text-alignment="center" transparent="true" title="Time"/>
             </view>
@@ -3059,16 +3071,16 @@
                       font="~ NormalFontSmaller" font-color="master"
                       back-color="bg-dropdown" frame-color="frame-dropdown-dim"
                       transparent="false"/>
-                <view class="ArcKnob" origin="122, -2" size="22, 22"
+                <view class="ArcKnob" origin="122, 0" size="22, 22"
                       control-tag="HarmonizerVoice1Level" default-value="0.909"
                       arc-color="fx-harmonizer" guide-color="knob-guide"/>
-                <view class="ArcKnob" origin="158, -2" size="22, 22"
+                <view class="ArcKnob" origin="158, 0" size="22, 22"
                       control-tag="HarmonizerVoice1Pan" default-value="0.5"
                       arc-color="fx-harmonizer" guide-color="knob-guide"/>
-                <view class="ArcKnob" origin="194, -2" size="22, 22"
+                <view class="ArcKnob" origin="194, 0" size="22, 22"
                       control-tag="HarmonizerVoice1Delay" default-value="0.0"
                       arc-color="fx-harmonizer" guide-color="knob-guide"/>
-                <view class="ArcKnob" origin="230, -2" size="22, 22"
+                <view class="ArcKnob" origin="230, 0" size="22, 22"
                       control-tag="HarmonizerVoice1Detune" default-value="0.5"
                       arc-color="fx-harmonizer" guide-color="knob-guide"/>
                 <view class="CTextLabel" origin="50, 22" size="60, 10"
@@ -3098,16 +3110,16 @@
                       font="~ NormalFontSmaller" font-color="master"
                       back-color="bg-dropdown" frame-color="frame-dropdown-dim"
                       transparent="false"/>
-                <view class="ArcKnob" origin="122, -2" size="22, 22"
+                <view class="ArcKnob" origin="122, 0" size="22, 22"
                       control-tag="HarmonizerVoice2Level" default-value="0.909"
                       arc-color="fx-harmonizer" guide-color="knob-guide"/>
-                <view class="ArcKnob" origin="158, -2" size="22, 22"
+                <view class="ArcKnob" origin="158, 0" size="22, 22"
                       control-tag="HarmonizerVoice2Pan" default-value="0.5"
                       arc-color="fx-harmonizer" guide-color="knob-guide"/>
-                <view class="ArcKnob" origin="194, -2" size="22, 22"
+                <view class="ArcKnob" origin="194, 0" size="22, 22"
                       control-tag="HarmonizerVoice2Delay" default-value="0.0"
                       arc-color="fx-harmonizer" guide-color="knob-guide"/>
-                <view class="ArcKnob" origin="230, -2" size="22, 22"
+                <view class="ArcKnob" origin="230, 0" size="22, 22"
                       control-tag="HarmonizerVoice2Detune" default-value="0.5"
                       arc-color="fx-harmonizer" guide-color="knob-guide"/>
                 <view class="CTextLabel" origin="50, 22" size="60, 10"
@@ -3137,16 +3149,16 @@
                       font="~ NormalFontSmaller" font-color="master"
                       back-color="bg-dropdown" frame-color="frame-dropdown-dim"
                       transparent="false"/>
-                <view class="ArcKnob" origin="122, -2" size="22, 22"
+                <view class="ArcKnob" origin="122, 0" size="22, 22"
                       control-tag="HarmonizerVoice3Level" default-value="0.909"
                       arc-color="fx-harmonizer" guide-color="knob-guide"/>
-                <view class="ArcKnob" origin="158, -2" size="22, 22"
+                <view class="ArcKnob" origin="158, 0" size="22, 22"
                       control-tag="HarmonizerVoice3Pan" default-value="0.5"
                       arc-color="fx-harmonizer" guide-color="knob-guide"/>
-                <view class="ArcKnob" origin="194, -2" size="22, 22"
+                <view class="ArcKnob" origin="194, 0" size="22, 22"
                       control-tag="HarmonizerVoice3Delay" default-value="0.0"
                       arc-color="fx-harmonizer" guide-color="knob-guide"/>
-                <view class="ArcKnob" origin="230, -2" size="22, 22"
+                <view class="ArcKnob" origin="230, 0" size="22, 22"
                       control-tag="HarmonizerVoice3Detune" default-value="0.5"
                       arc-color="fx-harmonizer" guide-color="knob-guide"/>
                 <view class="CTextLabel" origin="50, 22" size="60, 10"
@@ -3176,16 +3188,16 @@
                       font="~ NormalFontSmaller" font-color="master"
                       back-color="bg-dropdown" frame-color="frame-dropdown-dim"
                       transparent="false"/>
-                <view class="ArcKnob" origin="122, -2" size="22, 22"
+                <view class="ArcKnob" origin="122, 0" size="22, 22"
                       control-tag="HarmonizerVoice4Level" default-value="0.909"
                       arc-color="fx-harmonizer" guide-color="knob-guide"/>
-                <view class="ArcKnob" origin="158, -2" size="22, 22"
+                <view class="ArcKnob" origin="158, 0" size="22, 22"
                       control-tag="HarmonizerVoice4Pan" default-value="0.5"
                       arc-color="fx-harmonizer" guide-color="knob-guide"/>
-                <view class="ArcKnob" origin="194, -2" size="22, 22"
+                <view class="ArcKnob" origin="194, 0" size="22, 22"
                       control-tag="HarmonizerVoice4Delay" default-value="0.0"
                       arc-color="fx-harmonizer" guide-color="knob-guide"/>
-                <view class="ArcKnob" origin="230, -2" size="22, 22"
+                <view class="ArcKnob" origin="230, 0" size="22, 22"
                       control-tag="HarmonizerVoice4Detune" default-value="0.5"
                       arc-color="fx-harmonizer" guide-color="knob-guide"/>
                 <view class="CTextLabel" origin="50, 22" size="60, 10"
@@ -3376,13 +3388,13 @@
                   transparent="true"/>
 
             <!-- Rate (hidden when sync active) -->
-            <view class="CViewContainer" origin="458, 12" size="48, 24"
+            <view class="CViewContainer" origin="458, 12" size="48, 30"
                   custom-view-name="TranceGateRateGroup" transparent="true"
                   visible="false">
                 <view class="ArcKnob" origin="0, 0" size="20, 20"
                       control-tag="TranceGateRate" default-value="0.5"
                       arc-color="trance-gate" guide-color="knob-guide"/>
-                <view class="CTextLabel" origin="-4, 16" size="28, 10"
+                <view class="CTextLabel" origin="0, 20" size="24, 10"
                       font="~ NormalFontSmaller" font-color="text-secondary"
                       text-alignment="center" transparent="true" title="Rate"/>
             </view>
@@ -3402,43 +3414,43 @@
             <view class="ArcKnob" origin="546, 12" size="20, 20"
                   control-tag="TranceGateDepth" default-value="0.5"
                   arc-color="trance-gate" guide-color="knob-guide"/>
-            <view class="CTextLabel" origin="538, 30" size="36, 10"
+            <view class="CTextLabel" origin="538, 32" size="36, 10"
                   font="~ NormalFontSmaller" font-color="text-secondary"
                   text-alignment="center" transparent="true" title="Depth"/>
             <view class="ArcKnob" origin="586, 12" size="20, 20"
                   control-tag="TranceGateAttack" default-value="0.2"
                   arc-color="trance-gate" guide-color="knob-guide"/>
-            <view class="CTextLabel" origin="578, 30" size="36, 10"
+            <view class="CTextLabel" origin="578, 32" size="36, 10"
                   font="~ NormalFontSmaller" font-color="text-secondary"
                   text-alignment="center" transparent="true" title="Attack"/>
             <view class="ArcKnob" origin="626, 12" size="20, 20"
                   control-tag="TranceGateRelease" default-value="0.3"
                   arc-color="trance-gate" guide-color="knob-guide"/>
-            <view class="CTextLabel" origin="618, 30" size="36, 10"
+            <view class="CTextLabel" origin="618, 32" size="36, 10"
                   font="~ NormalFontSmaller" font-color="text-secondary"
                   text-alignment="center" transparent="true" title="Release"/>
             <view class="ArcKnob" origin="666, 12" size="20, 20"
                   control-tag="TranceGatePhaseOffset" default-value="0.0"
                   arc-color="trance-gate" guide-color="knob-guide"/>
-            <view class="CTextLabel" origin="658, 30" size="36, 10"
+            <view class="CTextLabel" origin="658, 32" size="36, 10"
                   font="~ NormalFontSmaller" font-color="text-secondary"
                   text-alignment="center" transparent="true" title="Phase"/>
             <view class="ArcKnob" origin="706, 12" size="20, 20"
                   control-tag="TranceGateRetrigger" default-value="0.0"
                   arc-color="trance-gate" guide-color="knob-guide"/>
-            <view class="CTextLabel" origin="698, 30" size="36, 10"
+            <view class="CTextLabel" origin="698, 32" size="36, 10"
                   font="~ NormalFontSmaller" font-color="text-secondary"
                   text-alignment="center" transparent="true" title="Retrig"/>
 
             <!-- Euclidean toggle + controls -->
-            <view class="ToggleButton" origin="1252, 14" size="22, 22"
+            <view class="ToggleButton" origin="1252, 8" size="22, 22"
                   control-tag="TranceGateEuclideanEnabled" default-value="0"
                   tooltip="Enable euclidean mode"
                   transparent="false"/>
-            <view class="CTextLabel" origin="1239, 34" size="52, 10"
+            <view class="CTextLabel" origin="1241, 30" size="38, 10"
                   font="~ NormalFontSmaller" font-color="text-secondary"
                   text-alignment="center" transparent="true" title="Euclidean"/>
-            <view class="CViewContainer" origin="1280, 12" size="100, 28"
+            <view class="CViewContainer" origin="1280, 12" size="100, 30"
                   custom-view-name="EuclideanControlsGroup" transparent="true">
                 <view class="ActionButton" origin="0, 0" size="22, 22"
                       control-tag="ActionEuclideanRegen" default-value="0"
@@ -3447,13 +3459,13 @@
                 <view class="ArcKnob" origin="24, 0" size="20, 20"
                       control-tag="TranceGateEuclideanHits" default-value="0.5"
                       arc-color="trance-gate" guide-color="knob-guide"/>
-                <view class="CTextLabel" origin="18, 18" size="32, 10"
+                <view class="CTextLabel" origin="22, 20" size="24, 10"
                       font="~ NormalFontSmaller" font-color="text-secondary"
                       text-alignment="center" transparent="true" title="Hits"/>
                 <view class="ArcKnob" origin="56, 0" size="20, 20"
                       control-tag="TranceGateEuclideanRotation" default-value="0.0"
                       arc-color="trance-gate" guide-color="knob-guide"/>
-                <view class="CTextLabel" origin="48, 18" size="36, 10"
+                <view class="CTextLabel" origin="48, 20" size="36, 10"
                       font="~ NormalFontSmaller" font-color="text-secondary"
                       text-alignment="center" transparent="true" title="Rotate"/>
             </view>
@@ -3491,7 +3503,7 @@
             <view class="CTextLabel" origin="88, 16" size="48, 14"
                   font="~ NormalFontSmaller" font-color="text-secondary"
                   text-alignment="left" transparent="true" title="Pattern"/>
-            <view class="COptionMenu" origin="136, 14" size="80, 18"
+            <view class="COptionMenu" origin="136, 14" size="64, 18"
                   control-tag="ArpMode" default-value="0"
                   font="~ NormalFontSmaller" font-color="text-menu"
                   back-color="bg-dropdown" frame-color="frame-dropdown"/>
@@ -3596,7 +3608,7 @@
                 <view class="ArcKnob" origin="0, 0" size="28, 28"
                       control-tag="ArpFreeRate" default-value="0.07"
                       arc-color="arpeggiator" guide-color="knob-guide"/>
-                <view class="CTextLabel" origin="-6, 28" size="40, 10"
+                <view class="CTextLabel" origin="0, 28" size="28, 10"
                       font="~ NormalFontSmaller" font-color="text-secondary"
                       text-alignment="center" transparent="true" title="Rate"/>
             </view>
@@ -3726,6 +3738,34 @@
                 <view class="CTextLabel" origin="478, 38" size="32, 10"
                       font="~ NormalFontSmaller" font-color="text-secondary"
                       text-alignment="center" transparent="true" title="Fill"/>
+
+                <!-- Accent Velocity knob -->
+                <view class="ArcKnob" origin="540, 8" size="32, 32"
+                      control-tag="ArpAccentVelocity" default-value="0.236"
+                      arc-color="#606068" guide-color="knob-guide"
+                      tooltip="Accent velocity"/>
+                <view class="CTextLabel" origin="534, 40" size="44, 10"
+                      font="~ NormalFontSmaller" font-color="text-secondary"
+                      text-alignment="center" transparent="true" title="AccVel"/>
+
+                <!-- Slide Time knob -->
+                <view class="ArcKnob" origin="592, 8" size="32, 32"
+                      control-tag="ArpSlideTime" default-value="0.12"
+                      arc-color="#606068" guide-color="knob-guide"
+                      tooltip="Slide time"/>
+                <view class="CTextLabel" origin="586, 40" size="44, 10"
+                      font="~ NormalFontSmaller" font-color="text-secondary"
+                      text-alignment="center" transparent="true" title="Slide"/>
+
+                <!-- Chord Voicing dropdown -->
+                <view class="COptionMenu" origin="644, 14" size="80, 18"
+                      control-tag="ArpVoicing" default-value="0"
+                      font="~ NormalFontSmaller" font-color="text-menu"
+                      back-color="bg-dropdown" frame-color="frame-dropdown"
+                      tooltip="Chord voicing"/>
+                <view class="CTextLabel" origin="644, 40" size="80, 10"
+                      font="~ NormalFontSmaller" font-color="text-secondary"
+                      text-alignment="center" transparent="true" title="Voicing"/>
             </view>
         </view>
 
@@ -3834,7 +3874,7 @@
             <view class="ArcKnob" origin="384, 108" size="28, 28"
                   control-tag="MixerShift" default-value="0.5"
                   arc-color="spectral-morph" guide-color="knob-guide"/>
-            <view class="CTextLabel" origin="378, 132" size="40, 12"
+            <view class="CTextLabel" origin="378, 136" size="40, 12"
                   font="~ NormalFontSmaller" font-color="text-secondary"
                   text-alignment="center" transparent="true" title="Shift"/>
         </view>
@@ -4013,7 +4053,7 @@
                       transparent="false"/>
             </view>
             <!-- Mono controls (visible when Voice Mode = Mono) -->
-            <view class="CViewContainer" origin="8, 36" size="120, 18"
+            <view class="CViewContainer" origin="8, 36" size="137, 18"
                   custom-view-name="MonoGroup" transparent="true"
                   visible="false">
                 <view class="ToggleButton" origin="0, 0" size="22, 18"
@@ -4161,6 +4201,14 @@
                 <view class="CTextLabel" origin="369, 171" size="28, 10"
                       font="~ NormalFontSmaller" font-color="amp-env"
                       text-alignment="center" transparent="true" title="R"/>
+                <!-- Velocity > Amp: how far note velocity sets the level -->
+                <view class="ArcKnob" origin="410, 143" size="28, 28"
+                      control-tag="AmpEnvVelocityAmount" default-value="1.0"
+                      tooltip="Velocity &gt; Amp: how far note velocity sets the level"
+                      arc-color="amp-env" guide-color="knob-guide"/>
+                <view class="CTextLabel" origin="406, 171" size="28, 10"
+                      font="~ NormalFontSmaller" font-color="amp-env"
+                      text-alignment="center" transparent="true" title="VEL"/>
             </view>
 
             <!-- FILTER Envelope -->
@@ -4417,21 +4465,6 @@
                   back-color="bg-dropdown"
                   frame-color="frame-dropdown-dim"
                   transparent="false"/>
-
-            <!-- Gain Compensation -->
-            <view class="CTextLabel" origin="16, 364" size="120, 14"
-                  title="Gain Compensation"
-                  font="~ NormalFontSmaller"
-                  font-color="text-secondary"
-                  text-alignment="left"
-                  transparent="true"/>
-            <view class="ToggleButton" origin="16, 382" size="50, 20"
-                  control-tag="SettingsGainCompensation"
-                  default-value="1"
-                  title="On"
-                  on-color="master"
-                  off-color="toggle-off"
-                  transparent="true"/>
 
             <!-- Check for Updates -->
             <view custom-view-name="CheckForUpdatesButton" origin="16, 760" size="188, 22"/>

@@ -740,8 +740,8 @@ private:
     // =========================================================================
 
     void processBlockPoly(float* output, size_t numSamples) noexcept {
-        // Step 1: Advance pitch bend smoother once per block
-        [[maybe_unused]] auto bendValue = noteProcessor_.processPitchBend();
+        // Step 1: Advance pitch bend smoother by the block's samples (R-010)
+        [[maybe_unused]] auto bendValue = noteProcessor_.processPitchBend(numSamples);
 
         // Step 2: Track which voices were active before processing
         std::array<bool, kMaxPolyphony> wasActive{};
@@ -804,8 +804,8 @@ private:
     }
 
     void processBlockMono(float* output, size_t numSamples) noexcept {
-        // Step 1: Advance pitch bend smoother once per block
-        [[maybe_unused]] auto bendValueMono = noteProcessor_.processPitchBend();
+        // Step 1: Advance pitch bend smoother by the block's samples (R-010)
+        [[maybe_unused]] auto bendValueMono = noteProcessor_.processPitchBend(numSamples);
 
         // Step 2: Track if voice 0 was active
         bool wasActive = voices_[0].isActive();

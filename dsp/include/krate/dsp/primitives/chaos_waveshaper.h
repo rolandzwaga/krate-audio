@@ -377,6 +377,17 @@ private:
     /// @brief Chua diode nonlinearity h(x) (FR-016)
     [[nodiscard]] static float chuaDiode(float x) noexcept;
 
+    /// Largest explicit-Euler step the ODE models take. A control update's dt
+    /// (baseDt_ x 44100/sr x speed) is split into ceil(dt / kMaxEulerStep)
+    /// sub-steps, so the trajectory stays on the attractor at every sample rate
+    /// and speed instead of overshooting into the divergence guard.
+    static constexpr float kMaxEulerStep = 0.002f;
+    /// Cap on sub-steps per control update (bounds the cost at speed 100).
+    static constexpr int kMaxEulerSubSteps = 64;
+
+    /// @brief Number of Euler sub-steps for a control update of length dt
+    [[nodiscard]] static int eulerSubSteps(float dt) noexcept;
+
     /// @brief Recompute smoothing coefficient from smoothness_ and sampleRate_
     void updateSmoothCoeff() noexcept;
 
@@ -679,11 +690,14 @@ inline void ChaosWaveshaper::checkAndResetIfDiverged() noexcept {
     const bool hasNaN = detail::isNaN(state_.x) || detail::isNaN(state_.y) || detail::isNaN(state_.z);
     const bool hasInf = detail::isInf(state_.x) || detail::isInf(state_.y) || detail::isInf(state_.z);
 
-    // FR-018: Check bounds
+    // FR-018: Check bounds. safeBound_ is about the attractor's own extent (Lorenz
+    // |z| reaches ~48 of 50), so an on-attractor peak must not reset the model:
+    // only a real divergence, far outside it, does (as ChaosModSource does).
+    const float divergenceBound = safeBound_ * 10.0f;
     const bool outOfBounds =
-        std::abs(state_.x) > safeBound_ ||
-        std::abs(state_.y) > safeBound_ ||
-        std::abs(state_.z) > safeBound_;
+        std::abs(state_.x) > divergenceBound ||
+        std::abs(state_.y) > divergenceBound ||
+        std::abs(state_.z) > divergenceBound;
 
     if (hasNaN || hasInf || outOfBounds) {
         resetModelState();
@@ -747,17 +761,20 @@ inline void ChaosWaveshaper::updateLorenz() noexcept {
     constexpr float rho = 28.0f;
     constexpr float beta = 8.0f / 3.0f;
 
-    // FR-019: Sample-rate compensated timestep
-    const float dt = baseDt_ * static_cast<float>(44100.0 / sampleRate_) * attractorSpeed_;
+    // FR-019: Sample-rate compensated timestep, split into stable Euler sub-steps
+    const float totalDt = baseDt_ * static_cast<float>(44100.0 / sampleRate_) * attractorSpeed_;
+    const int steps = eulerSubSteps(totalDt);
+    const float dt = totalDt / static_cast<float>(steps);
 
-    // Euler integration
-    const float dx = sigma * (state_.y - state_.x);
-    const float dy = state_.x * (rho - state_.z) - state_.y;
-    const float dz = state_.x * state_.y - beta * state_.z;
+    for (int i = 0; i < steps; ++i) {
+        const float dx = sigma * (state_.y - state_.x);
+        const float dy = state_.x * (rho - state_.z) - state_.y;
+        const float dz = state_.x * state_.y - beta * state_.z;
 
-    state_.x += dx * dt;
-    state_.y += dy * dt;
-    state_.z += dz * dt;
+        state_.x += dx * dt;
+        state_.y += dy * dt;
+        state_.z += dz * dt;
+    }
 }
 
 inline void ChaosWaveshaper::updateRossler() noexcept {
@@ -766,17 +783,20 @@ inline void ChaosWaveshaper::updateRossler() noexcept {
     constexpr float b = 0.2f;
     constexpr float c = 5.7f;
 
-    // FR-019: Sample-rate compensated timestep
-    const float dt = baseDt_ * static_cast<float>(44100.0 / sampleRate_) * attractorSpeed_;
+    // FR-019: Sample-rate compensated timestep, split into stable Euler sub-steps
+    const float totalDt = baseDt_ * static_cast<float>(44100.0 / sampleRate_) * attractorSpeed_;
+    const int steps = eulerSubSteps(totalDt);
+    const float dt = totalDt / static_cast<float>(steps);
 
-    // Euler integration
-    const float dx = -state_.y - state_.z;
-    const float dy = state_.x + a * state_.y;
-    const float dz = b + state_.z * (state_.x - c);
+    for (int i = 0; i < steps; ++i) {
+        const float dx = -state_.y - state_.z;
+        const float dy = state_.x + a * state_.y;
+        const float dz = b + state_.z * (state_.x - c);
 
-    state_.x += dx * dt;
-    state_.y += dy * dt;
-    state_.z += dz * dt;
+        state_.x += dx * dt;
+        state_.y += dy * dt;
+        state_.z += dz * dt;
+    }
 }
 
 inline float ChaosWaveshaper::chuaDiode(float x) noexcept {
@@ -791,18 +811,28 @@ inline void ChaosWaveshaper::updateChua() noexcept {
     constexpr float alpha = 15.6f;
     constexpr float beta = 28.0f;
 
-    // FR-019: Sample-rate compensated timestep
-    const float dt = baseDt_ * static_cast<float>(44100.0 / sampleRate_) * attractorSpeed_;
+    // FR-019: Sample-rate compensated timestep, split into stable Euler sub-steps
+    const float totalDt = baseDt_ * static_cast<float>(44100.0 / sampleRate_) * attractorSpeed_;
+    const int steps = eulerSubSteps(totalDt);
+    const float dt = totalDt / static_cast<float>(steps);
 
-    // Euler integration
-    const float hx = chuaDiode(state_.x);
-    const float dx = alpha * (state_.y - state_.x - hx);
-    const float dy = state_.x - state_.y + state_.z;
-    const float dz = -beta * state_.y;
+    for (int i = 0; i < steps; ++i) {
+        const float hx = chuaDiode(state_.x);
+        const float dx = alpha * (state_.y - state_.x - hx);
+        const float dy = state_.x - state_.y + state_.z;
+        const float dz = -beta * state_.y;
 
-    state_.x += dx * dt;
-    state_.y += dy * dt;
-    state_.z += dz * dt;
+        state_.x += dx * dt;
+        state_.y += dy * dt;
+        state_.z += dz * dt;
+    }
+}
+
+inline int ChaosWaveshaper::eulerSubSteps(float dt) noexcept {
+    // dt > 0 always (speed >= 0.01, sampleRate_ is clamped); the clamp keeps the
+    // count in [1, kMaxEulerSubSteps] for any input.
+    const float steps = std::ceil(dt / kMaxEulerStep);
+    return static_cast<int>(std::clamp(steps, 1.0f, static_cast<float>(kMaxEulerSubSteps)));
 }
 
 inline void ChaosWaveshaper::updateHenon() noexcept {

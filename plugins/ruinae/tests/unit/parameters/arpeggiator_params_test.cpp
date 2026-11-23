@@ -10,6 +10,10 @@
 
 #include "parameters/arpeggiator_params.h"
 #include "parameters/dropdown_mappings.h"
+#include "parameters/delay_params.h"
+#include "parameters/harmonizer_params.h"
+#include "parameters/lfo_params.h"
+#include "parameters/phaser_params.h"
 #include "plugin_ids.h"
 
 #include "base/source/fstreamer.h"
@@ -18,7 +22,9 @@
 #include "pluginterfaces/vst/vsttypes.h"
 
 #include "test_helpers/arp_shared_prefix_golden.h"
+#include "test_helpers/arp_shared_handle_golden.h"
 
+#include <iterator>
 #include <string>
 #include <vector>
 
@@ -489,8 +495,25 @@ TEST_CASE("ArpParams_LoadToController_NormalizesCorrectly", "[arp][params][state
         loadArpParamsToController(readStream, setParam);
     }
 
-    // Should have 11 calls
-    REQUIRE(calls.size() == 11);
+    // The 11 carried fields come first, in stream order. Every other serialized
+    // arp field follows once, at its default: a field the pack does not carry
+    // never keeps the previous preset's value (R-074).
+    REQUIRE(calls.size() > 11);
+    for (size_t i = 1; i < calls.size(); ++i) {
+        for (size_t j = 0; j < i; ++j) {
+            INFO("call " << i << " id " << calls[i].id);
+            REQUIRE(calls[i].id != calls[j].id);
+        }
+    }
+    const auto valueOf = [&calls](Steinberg::Vst::ParamID id) {
+        for (const auto& call : calls)
+            if (call.id == id) return call.value;
+        return -1.0;
+    };
+    CHECK(valueOf(kArpVelocityLaneLengthId) == Approx(15.0 / 31.0).margin(1e-6));  // 16 steps
+    CHECK(valueOf(kArpVelocityLaneSpeedId) == Approx(3.0 / 9.0).margin(1e-6));     // 1.0x
+    CHECK(valueOf(kArpChordLaneLengthId) == Approx(0.0).margin(1e-6));             // 1 step
+    CHECK(valueOf(kArpMidiOutId) == Approx(0.0).margin(1e-6));                     // off
 
     // Verify each normalized value
     // operatingMode: kArpMIDI (1) -> 1.0/3.0
@@ -2890,4 +2913,89 @@ TEST_CASE("Ruinae arp shared-prefix save is byte-golden (D3)", "[arp][params][st
     const uint32_t fnv = Krate::Test::fnv1a(bytes.data(), bytes.size());
     INFO("ruinae shared-prefix FNV = 0x" << std::hex << fnv);
     CHECK(fnv == Krate::Test::kSharedArpPrefixGoldenFnv);
+}
+
+// Cross-plugin handler identity (R-098): every shared arp ID except the documented
+// per-plugin exceptions (mode count, ratchet shuffle) denormalizes to the same
+// atomics as in Gradus. The same golden is asserted in Gradus's
+// arpeggiator_params_test.cpp.
+TEST_CASE("Ruinae shared arp IDs denormalize like Gradus (R-098)", "[arp][params][shared]") {
+    using namespace Ruinae;
+
+    const uint32_t fnv = Krate::Test::sharedArpHandleFingerprint<ArpeggiatorParams>(
+        [](ArpeggiatorParams& p, uint32_t id, double v) { handleArpParamChange(p, id, v); },
+        kArpBaseId, kArpInversionLaneSpeedId, {kArpModeId, kArpRatchetSwingId});
+    INFO("ruinae shared-handle FNV = 0x" << std::hex << fnv);
+    CHECK(fnv == Krate::Test::kSharedArpHandleGoldenFnv);
+}
+
+// R-098: the lane-speed set lives once, in plugins/shared, for Ruinae and Gradus.
+TEST_CASE("Ruinae lane speeds come from the shared table (R-098)", "[arp][params][shared]") {
+    CHECK(&Ruinae::kLaneSpeedValues[0] == &Krate::Shared::kLaneSpeedValues[0]);
+    CHECK(Ruinae::kLaneSpeedCount == Krate::Shared::kLaneSpeedCount);
+    CHECK(Ruinae::kLaneSpeedDefault == Krate::Shared::kLaneSpeedDefault);
+}
+
+static std::u16string toU16(const Steinberg::Vst::TChar* s) {
+    return std::u16string(reinterpret_cast<const char16_t*>(s));
+}
+
+// R-098: the arp note-value display reads the registered dropdown's own strings.
+TEST_CASE("Note-value name table matches the dropdown count", "[arp][params]") {
+    using namespace Ruinae;
+    static_assert(std::size(Parameters::kNoteValueDropdownStrings) ==
+                  static_cast<std::size_t>(Parameters::kNoteValueDropdownCount));
+
+    for (int i = 0; i < Parameters::kNoteValueDropdownCount; ++i) {
+        String128 s{};
+        const double norm = static_cast<double>(i) / (Parameters::kNoteValueDropdownCount - 1);
+        REQUIRE(formatArpParam(kArpNoteValueId, norm, s) == kResultOk);
+        INFO("index " << i);
+        CHECK(toU16(s) == toU16(Parameters::kNoteValueDropdownStrings[i]));
+    }
+}
+
+// R-099: each dropdown is registered from the dropdown_mappings.h table whose
+// count its handler and loader divide by, so the list and the step count agree.
+TEST_CASE("Every dropdown's step count equals its string table size", "[params]") {
+    using namespace Ruinae;
+
+    ParameterContainer container;
+    registerLFOParams(container, kLFO1RateId, STR16("LFO 1 "));
+    registerPhaserParams(container);
+    registerDelayParams(container);
+    registerHarmonizerParams(container);
+
+    struct Dropdown {
+        const char* name;
+        ParamID id;
+        const TChar* const* strings;
+        std::size_t tableSize;
+        int count;
+    };
+    const Dropdown dropdowns[] = {
+        {"LFO shape", kLFO1ShapeId, kWaveformStrings, std::size(kWaveformStrings), kWaveformCount},
+        {"Phaser stages", kPhaserStagesId, kPhaserStagesStrings, std::size(kPhaserStagesStrings),
+         kPhaserStagesCount},
+        {"Phaser waveform", kPhaserWaveformId, kPhaserWaveformStrings,
+         std::size(kPhaserWaveformStrings), kPhaserWaveformCount},
+        {"Delay mod waveform", kDelayDigitalModWaveformId, kDelayModWaveformStrings,
+         std::size(kDelayModWaveformStrings), kWaveformCount},
+        {"Harmonizer key", kHarmonizerKeyId, kHarmonizerKeyStrings,
+         std::size(kHarmonizerKeyStrings), kHarmonizerKeyCount},
+    };
+
+    for (const auto& d : dropdowns) {
+        INFO(d.name);
+        CHECK(d.tableSize == static_cast<std::size_t>(d.count));
+        auto* param = container.getParameter(d.id);
+        REQUIRE(param != nullptr);
+        CHECK(param->getInfo().stepCount == d.count - 1);
+        for (int i = 0; i < d.count; ++i) {
+            String128 s{};
+            param->toString(param->toNormalized(static_cast<ParamValue>(i)), s);
+            INFO("entry " << i);
+            CHECK(toU16(s) == toU16(d.strings[i]));
+        }
+    }
 }

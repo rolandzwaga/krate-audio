@@ -5,9 +5,8 @@
 // These tests verify the complete signal chain from MIDI input through all
 // processing stages to stereo output.
 //
-// Note: The effects chain includes a spectral delay (1024-sample FFT) plus
-// harmonizer PhaseVocoder (5120-sample) latency = 6144 total. Tests must
-// process multiple blocks before expecting audio output.
+// Note: The effects chain adds no latency (R-055), but tests still process
+// warm-up blocks so smoothers and envelopes settle before expecting audio.
 //
 // Reference: specs/044-engine-composition/spec.md
 // ==============================================================================
@@ -39,9 +38,8 @@ using Catch::Approx;
 
 static constexpr size_t kBlockSize = 512;
 
-/// Number of warm-up blocks to process before expecting audio.
-/// The effects chain has latency compensation (spectral delay FFT 1024 +
-/// harmonizer PhaseVocoder 5120 = 6144 samples = 12 blocks of 512).
+/// Number of warm-up blocks to process before expecting audio (smoothers and
+/// envelopes settle; the effects chain itself adds no latency).
 static constexpr int kWarmUpBlocks = 16;
 
 static float findPeak(const float* buffer, size_t numSamples) {
@@ -298,7 +296,7 @@ TEST_CASE("RuinaeEngine integration: portamento",
     RuinaeEngine engine;
     engine.prepare(44100.0, kBlockSize);
     engine.setMode(VoiceMode::Mono);
-    engine.setPortamentoTime(200.0f); // 200ms glide
+    engine.setMonoPortamentoTime(200.0f); // 200ms glide
     engine.setSoftLimitEnabled(false);
 
     SECTION("portamento glides smoothly between notes") {
@@ -657,10 +655,10 @@ TEST_CASE("RuinaeEngine integration: soft limiter transparency",
 }
 
 // =============================================================================
-// Integration Test: Gain Compensation Accuracy (SC-005)
+// Integration Test: Voices sum without voice-count compensation (SC-005)
 // =============================================================================
 
-TEST_CASE("RuinaeEngine integration: gain compensation accuracy",
+TEST_CASE("RuinaeEngine integration: voices sum without voice-count compensation",
           "[ruinae-engine-integration][master]") {
     RuinaeEngine engine;
     engine.prepare(44100.0, kBlockSize);
@@ -693,10 +691,9 @@ TEST_CASE("RuinaeEngine integration: gain compensation accuracy",
         }
     }
 
-    SECTION("compensation scales with actual active voice count") {
-        // Playing N simultaneous notes with compensation enabled should
-        // produce roughly the same total RMS as 1 note (1/sqrt(N) compensates
-        // the sqrt(N) RMS growth from N uncorrelated voices).
+    SECTION("setGainCompensationEnabled(true) is a no-op: voices still sum") {
+        // The engine has no voice-count compensation; the setter is a legacy
+        // no-op. Four notes land within the bounds below (soft limiter off).
         engine.setPolyphony(8);
         engine.setGainCompensationEnabled(true);
         engine.noteOn(60, 100); // 1 voice
@@ -718,14 +715,12 @@ TEST_CASE("RuinaeEngine integration: gain compensation accuracy",
 
         float ratio = rms4 / rms1;
         INFO("4 voices / 1 voice ratio: " << ratio
-             << " (expected ~1.0 with compensation)");
-        // With compensation: should be roughly equal (tolerance for voice
-        // correlation, different note frequencies, and envelope timing)
+             << " (no compensation: bounded by the bounds below)");
         REQUIRE(ratio < 2.0f);
         REQUIRE(ratio > 0.3f);
     }
 
-    SECTION("compensation disabled: voices sum without attenuation") {
+    SECTION("setGainCompensationEnabled(false): voices sum without attenuation") {
         engine.setPolyphony(8);
         engine.setGainCompensationEnabled(false);
         engine.noteOn(60, 100);
@@ -831,7 +826,7 @@ TEST_CASE("RuinaeEngine integration: portamento frequency at midpoint",
     RuinaeEngine engine;
     engine.prepare(kSampleRate, kSmallBlock);
     engine.setMode(VoiceMode::Mono);
-    engine.setPortamentoTime(100.0f); // 100ms glide
+    engine.setMonoPortamentoTime(100.0f); // 100ms glide
     engine.setPortamentoMode(PortaMode::Always);
     engine.setSoftLimitEnabled(false);
     engine.setGlobalFilterEnabled(false);
@@ -1027,16 +1022,20 @@ TEST_CASE("RuinaeEngine integration: reverb tail duration",
 
 #include <artifact_detection.h>
 
-TEST_CASE("RuinaeEngine integration: fast note retrigger produces no clicks",
-          "[ruinae-engine-integration][regression][artifacts]") {
-    // Full engine-level test: play notes rapidly via MIDI noteOn,
-    // capturing the continuous stereo output and checking for clicks.
-    // Effects are disabled to isolate the voice signal chain.
-    constexpr double sampleRate = 44100.0;
+namespace {
+
+constexpr double kRetriggerSampleRate = 44100.0;
+
+/// Twelve fast notes at polyphony 1 after a sustained C4: every noteOn steals
+/// the previous voice. Effects are disabled to isolate the voice signal chain.
+void renderFastRetriggers(StealMode stealMode, std::vector<float>& outputL,
+                          std::vector<float>& outputR) {
+    constexpr double sampleRate = kRetriggerSampleRate;
     constexpr size_t blockSize = 128;  // Small blocks = more boundaries
 
     RuinaeEngine engine;
     engine.prepare(sampleRate, blockSize);
+    engine.setStealMode(stealMode);
 
     // Configure voice signal chain
     engine.setFilterType(RuinaeFilterType::SVF_LP);
@@ -1079,8 +1078,8 @@ TEST_CASE("RuinaeEngine integration: fast note retrigger produces no clicks",
 
     const size_t totalBlocks = kNumRetriggers * kBlocksPerNote;
     const size_t totalSamples = totalBlocks * blockSize;
-    std::vector<float> outputL(totalSamples);
-    std::vector<float> outputR(totalSamples);
+    outputL.assign(totalSamples, 0.0f);
+    outputR.assign(totalSamples, 0.0f);
 
     for (size_t note = 0; note < kNumRetriggers; ++note) {
         engine.noteOn(kNotes[note], 100);
@@ -1091,6 +1090,28 @@ TEST_CASE("RuinaeEngine integration: fast note retrigger produces no clicks",
                                 outputR.data() + sampleOffset, blockSize);
         }
     }
+}
+
+float largestSampleStep(const std::vector<float>& x) {
+    float largest = 0.0f;
+    for (size_t i = 1; i < x.size(); ++i) {
+        largest = std::max(largest, std::abs(x[i] - x[i - 1]));
+    }
+    return largest;
+}
+
+} // namespace
+
+// Soft steal re-gates the stolen voice from its current level: the retrigger
+// path this regression was written for (Hard behaved the same before R-034).
+TEST_CASE("RuinaeEngine integration: fast note retrigger produces no clicks",
+          "[ruinae-engine-integration][regression][artifacts]") {
+    constexpr double sampleRate = kRetriggerSampleRate;
+    std::vector<float> outputL;
+    std::vector<float> outputR;
+    renderFastRetriggers(StealMode::Soft, outputL, outputR);
+    const size_t totalSamples = outputL.size();
+    constexpr size_t kNumRetriggers = 12;
 
     // Detect clicks in the continuous left-channel output
     Krate::DSP::TestUtils::ClickDetectorConfig cfg;
@@ -1118,6 +1139,28 @@ TEST_CASE("RuinaeEngine integration: fast note retrigger produces no clicks",
 
     CHECK(clicksL.empty());
     CHECK(clicksR.empty());
+}
+
+// Hard steal fades the victim out over 2 ms and starts the new note from
+// silence with its own attack (R-034). The frame-relative click detector flags
+// that attack after the quiet fade tail, so the Hard check is the waveform
+// itself: neither the fade nor the fresh start may step further between two
+// samples than the same notes do when they take the voice over (Soft). A cut
+// without the fade steps by the victim's level (~0.67 here).
+TEST_CASE("RuinaeEngine integration: Hard steal fade adds no sample step",
+          "[ruinae-engine-integration][regression][artifacts][steal]") {
+    std::vector<float> hardL;
+    std::vector<float> hardR;
+    std::vector<float> softL;
+    std::vector<float> softR;
+    renderFastRetriggers(StealMode::Hard, hardL, hardR);
+    renderFastRetriggers(StealMode::Soft, softL, softR);
+
+    const float hardStep = std::max(largestSampleStep(hardL), largestSampleStep(hardR));
+    const float softStep = std::max(largestSampleStep(softL), largestSampleStep(softR));
+    INFO("largest sample step: Hard " << hardStep << ", Soft " << softStep);
+    REQUIRE(softStep > 0.01f);  // not vacuous
+    CHECK(hardStep <= 1.25f * softStep);
 }
 
 // =============================================================================

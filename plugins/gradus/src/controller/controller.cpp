@@ -447,42 +447,10 @@ void Controller::willClose([[maybe_unused]] VSTGUI::VST3Editor* editor)
 }
 
 // ==============================================================================
-// Spec 142: Sequencer Note Lane param IMessage Sending
-// ==============================================================================
-// Belt-and-suspenders: some hosts don't relay programmatically-driven UI
-// param changes (PianoRollView cell clicks, COptionMenu selections in the
-// header strip) through the host's parameter queue to the Processor's
-// processParameterChanges. The Controller's parameter cache is updated and
-// the UI looks correct, but the Processor's atomics stay stale — so on
-// project save, getState writes the old values. By sending an IMessage
-// directly from Controller to Processor on every Sequencer Note lane param
-// change, the Processor's atomics are guaranteed to track the UI state
-// regardless of host behavior. Same workaround pattern as sendSpeedCurveTable.
-
-void Controller::sendSeqNoteLaneParam(Steinberg::Vst::ParamID id,
-                                       Steinberg::Vst::ParamValue value)
-{
-    auto msg = Steinberg::owned(allocateMessage());
-    if (!msg) return;
-
-    msg->setMessageID("SeqNoteLaneParam");
-    auto* attrs = msg->getAttributes();
-    if (!attrs) return;
-
-    attrs->setInt("id", static_cast<Steinberg::int64>(id));
-
-    // IAttributeList has no setFloat — encode normalized value (double) as
-    // raw bits in an int64. Processor decodes via the inverse cast.
-    Steinberg::int64 valueBits = 0;
-    std::memcpy(&valueBits, &value, sizeof(Steinberg::Vst::ParamValue));
-    attrs->setInt("valueBits", valueBits);
-
-    sendMessage(msg);
-}
-
-// ==============================================================================
 // Speed Curve IMessage Sending
 // ==============================================================================
+// `laneIndex` is the engine lane (Vel, Gate, Pitch, Mod, Ratchet, Cond, Chord,
+// Inv); editor call sites map their ring lane through kSpeedCurveRingToEngineLane.
 
 void Controller::sendSpeedCurveTable(size_t laneIndex, const SpeedCurveData& data)
 {
@@ -498,10 +466,12 @@ void Controller::sendSpeedCurveTable(size_t laneIndex, const SpeedCurveData& dat
 
     // Send depth value directly (bypasses parameter system which may not relay
     // programmatically-created knob values back to processParameterChanges).
+    // Read from the lane's own parameter (engine order, like laneIndex): the
+    // depth knob writes it before its sub-listener calls here (R-208).
     float depthVal = 0.0f;
     if (laneIndex < 8) {
-        if (auto* knob = dynamic_cast<VSTGUI::CControl*>(speedCurveDepthKnobs_[laneIndex]))
-            depthVal = knob->getValueNormalized();
+        depthVal = static_cast<float>(getParamNormalized(
+            static_cast<ParamID>(kArpVelocityLaneSpeedCurveDepthId + laneIndex)));
     }
     // Encode depth as int64 (float bits) since IAttributeList has no setFloat
     Steinberg::int64 depthBits = 0;

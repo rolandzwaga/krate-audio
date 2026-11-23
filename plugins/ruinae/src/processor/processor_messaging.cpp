@@ -1,5 +1,5 @@
 // ==============================================================================
-// Processor IMessage Handling (notify, sendSkipEvent, sendVoiceModRouteState)
+// Processor IMessage Handling (notify, sendVoiceModRouteState)
 // ==============================================================================
 
 #include "processor.h"
@@ -9,6 +9,7 @@
 
 #include <algorithm>
 #include <cstring>
+#include <vector>
 
 namespace Ruinae {
 
@@ -32,17 +33,23 @@ Steinberg::tresult PLUGIN_API Processor::notify(Steinberg::Vst::IMessage* messag
         if (slotIndex < 0 || slotIndex >= Krate::Plugins::kMaxVoiceRoutes)
             return Steinberg::kResultFalse;
 
-        // Build local route, then atomic-store into the slot
-        auto route = voiceRoutes_[static_cast<size_t>(slotIndex)].load();
+        // Build local route, then publish it with the rest of the table
+        auto route = voiceRoutes_.loadAll()[static_cast<size_t>(slotIndex)];
 
         Steinberg::int64 val = 0;
         double dval = 0.0;
 
+        // Bounds of the voice enums, not the global matrix's (R-109). The
+        // destination is the voice tab's UI index; applyModRoutingParams maps it.
         if (attrs->getInt("source", val) == Steinberg::kResultOk)
-            route.source = static_cast<uint8_t>(std::clamp(val, Steinberg::int64{0}, Steinberg::int64{9}));
+            route.source = static_cast<uint8_t>(std::clamp(
+                val, Steinberg::int64{0},
+                Steinberg::int64{static_cast<int>(Krate::DSP::VoiceModSource::NumSources) - 1}));
 
         if (attrs->getInt("destination", val) == Steinberg::kResultOk)
-            route.destination = static_cast<uint8_t>(std::clamp(val, Steinberg::int64{0}, Steinberg::int64{kModDestCount - 1}));
+            route.destination = static_cast<uint8_t>(std::clamp(
+                val, Steinberg::int64{0},
+                Steinberg::int64{Krate::Plugins::kNumVoiceDestinations - 1}));
 
         if (attrs->getFloat("amount", dval) == Steinberg::kResultOk)
             route.amount = static_cast<float>(std::clamp(dval, -1.0, 1.0));
@@ -62,7 +69,7 @@ Steinberg::tresult PLUGIN_API Processor::notify(Steinberg::Vst::IMessage* messag
         if (attrs->getInt("active", val) == Steinberg::kResultOk)
             route.active = static_cast<uint8_t>(val != 0 ? 1 : 0);
 
-        voiceRoutes_[static_cast<size_t>(slotIndex)].store(route);
+        voiceRoutes_.store(static_cast<size_t>(slotIndex), route);
 
         // Send authoritative state back to controller (T086)
         sendVoiceModRouteState();
@@ -82,13 +89,31 @@ Steinberg::tresult PLUGIN_API Processor::notify(Steinberg::Vst::IMessage* messag
         if (slotIndex < 0 || slotIndex >= Krate::Plugins::kMaxVoiceRoutes)
             return Steinberg::kResultFalse;
 
-        // Deactivate the slot (atomic store of default-constructed route)
-        voiceRoutes_[static_cast<size_t>(slotIndex)].store(Krate::Plugins::VoiceModRoute{});
+        // Deactivate the slot (publish a default-constructed route)
+        voiceRoutes_.store(static_cast<size_t>(slotIndex), Krate::Plugins::VoiceModRoute{});
 
         // Send authoritative state back to controller (T086)
         sendVoiceModRouteState();
 
         return Steinberg::kResultOk;
+    }
+
+    // LoadPresetState: a preset-browser load (R-196). The controller hands over
+    // the whole component state; it takes the same path as setState.
+    if (strcmp(message->getMessageID(), "LoadPresetState") == 0) {
+        auto* attrs = message->getAttributes();
+        if (!attrs)
+            return Steinberg::kResultFalse;
+
+        const void* data = nullptr;
+        Steinberg::uint32 size = 0;
+        if (attrs->getBinary("bytes", data, size) != Steinberg::kResultOk || !data)
+            return Steinberg::kResultFalse;
+        Steinberg::int64 arpOnly = 0;
+        attrs->getInt("arpOnly", arpOnly);
+
+        const auto* first = static_cast<const char*>(data);
+        return loadStateBytes(std::vector<char>(first, first + size), arpOnly != 0);
     }
 
     // EditorState message: controller tells processor whether editor is open (Phase 11c)
@@ -107,29 +132,6 @@ Steinberg::tresult PLUGIN_API Processor::notify(Steinberg::Vst::IMessage* messag
 }
 
 // ==============================================================================
-// Arp Skip Event Sender (081-interaction-polish, FR-007, FR-008, FR-012)
-// ==============================================================================
-
-void Processor::sendSkipEvent(int lane, int step) {
-    // FR-012: don't send when editor is closed
-    if (!editorOpen_.load(std::memory_order_relaxed))
-        return;
-
-    if (lane < 0 || lane >= 6) return;
-    if (step < 0 || step >= 32) return;
-
-    auto* msg = skipMessages_[static_cast<size_t>(lane)].get();
-    if (!msg) return;
-
-    auto* attrs = msg->getAttributes();
-    if (!attrs) return;
-
-    attrs->setInt("lane", static_cast<Steinberg::int64>(lane));
-    attrs->setInt("step", static_cast<Steinberg::int64>(step));
-    sendMessage(msg);
-}
-
-// ==============================================================================
 // Voice Route State Sender (T086)
 // ==============================================================================
 
@@ -139,10 +141,11 @@ void Processor::sendVoiceModRouteState() {
     auto* attrs = voiceRouteSyncMsg_->getAttributes();
     if (!attrs) return;
 
-    // Count active routes (atomic load per slot)
+    // Count active routes in one consistent snapshot
+    const auto routes = voiceRoutes_.loadAll();
     Steinberg::int64 activeCount = 0;
-    for (const auto& ar : voiceRoutes_) {
-        if (ar.active.load(std::memory_order_relaxed) != 0) ++activeCount;
+    for (const auto& r : routes) {
+        if (r.active != 0) ++activeCount;
     }
     attrs->setInt("routeCount", activeCount);
 
@@ -154,7 +157,7 @@ void Processor::sendVoiceModRouteState() {
     uint8_t buffer[kTotalBytes]{};
 
     for (int i = 0; i < Krate::Plugins::kMaxVoiceRoutes; ++i) {
-        auto r = voiceRoutes_[static_cast<size_t>(i)].load();
+        const auto& r = routes[static_cast<size_t>(i)];
         auto* ptr = &buffer[static_cast<size_t>(i) * kBytesPerRoute];
 
         ptr[0] = r.source;

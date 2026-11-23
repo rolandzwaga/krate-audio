@@ -16,8 +16,10 @@
 #include <catch2/catch_approx.hpp>
 #include <catch2/generators/catch_generators.hpp>
 
+#include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstddef>
 #include <limits>
 #include <vector>
 
@@ -899,5 +901,115 @@ TEST_CASE("ChaosWaveshaper all speeds keep attractor bounded",
 
         REQUIRE_FALSE(std::isnan(output));
         REQUIRE_FALSE(std::isinf(output));
+    }
+}
+
+// =============================================================================
+// R-009 (Ruinae audit 2026-11-16): the Lorenz divergence guard (50) sat inside
+// the Euler overshoot of z (50.48 at dt 0.005), so at 44.1/48 kHz the model
+// reset to (1,1,1) every 76 updates and the output was an exact 1216-sample
+// (36 Hz) loop; at 96 kHz (smaller dt) it stayed chaotic.
+// =============================================================================
+
+namespace {
+
+struct ChaosRenderStats {
+    float maxAutocorr = 0.0f;  ///< highest normalised autocorrelation past the main lobe, lags < 1 s
+    size_t peakLag = 0;        ///< lag of maxAutocorr, in samples
+    float p01 = 0.0f;          ///< 1st percentile of the output
+    float p99 = 0.0f;          ///< 99th percentile of the output
+    float mean = 0.0f;
+};
+
+ChaosRenderStats renderLorenzDc(double sampleRate, float speed) {
+    ChaosWaveshaper shaper;
+    constexpr size_t kBlock = 512;
+    shaper.prepare(sampleRate, kBlock);
+    shaper.setModel(ChaosModel::Lorenz);
+    shaper.setChaosAmount(1.0f);
+    shaper.setAttractorSpeed(speed);
+
+    // 0.25 s warm-up (the oversampler's step response to the DC onset would
+    // otherwise dominate the energy of a 0.1-wide output), then 2 s analysed.
+    const auto warmup = static_cast<size_t>(sampleRate * 0.25);
+    const auto numSamples = static_cast<size_t>(sampleRate * 2.0);
+    std::vector<float> rendered(warmup + numSamples, 0.5f);
+    for (size_t pos = 0; pos < rendered.size(); pos += kBlock) {
+        shaper.processBlock(rendered.data() + pos, std::min(kBlock, rendered.size() - pos));
+    }
+    const std::vector<float> out(rendered.begin() + static_cast<std::ptrdiff_t>(warmup),
+                                 rendered.end());
+
+    ChaosRenderStats stats;
+
+    // Range statistics over the whole render.
+    std::vector<float> sorted = out;
+    std::sort(sorted.begin(), sorted.end());
+    stats.p01 = sorted[sorted.size() / 100];
+    stats.p99 = sorted[(sorted.size() * 99) / 100];
+    double sum = 0.0;
+    for (float v : out) sum += v;
+    stats.mean = static_cast<float>(sum / static_cast<double>(numSamples));
+
+    // Autocorrelation on an 8x decimated copy (the attractor only moves every
+    // 16 base samples, and the baseline loop periods 1216 / 1328 are multiples
+    // of 8). Mean removed globally; each lag normalised by the energy of its
+    // two overlapping segments, so an exactly periodic signal reads 1.0.
+    constexpr size_t kDecim = 8;
+    std::vector<double> d;
+    d.reserve(numSamples / kDecim + 1);
+    for (size_t i = 0; i < numSamples; i += kDecim) {
+        d.push_back(static_cast<double>(out[i]) - static_cast<double>(stats.mean));
+    }
+    const size_t n = d.size();
+    std::vector<double> prefixSq(n + 1, 0.0);
+    for (size_t i = 0; i < n; ++i) prefixSq[i + 1] = prefixSq[i] + d[i] * d[i];
+
+    const auto maxLag = static_cast<size_t>(sampleRate) / kDecim;  // 1 s
+    bool pastMainLobe = false;
+    for (size_t lag = 1; lag < maxLag && lag < n; ++lag) {
+        double acc = 0.0;
+        for (size_t i = 0; i + lag < n; ++i) acc += d[i] * d[i + lag];
+        const double eA = prefixSq[n - lag];
+        const double eB = prefixSq[n] - prefixSq[lag];
+        const double denom = std::sqrt(eA * eB);
+        const double r = denom > 0.0 ? acc / denom : 1.0;  // flat output counts as periodic
+        if (!pastMainLobe) {
+            if (r < 0.5) pastMainLobe = true;
+            continue;
+        }
+        if (static_cast<float>(r) > stats.maxAutocorr) {
+            stats.maxAutocorr = static_cast<float>(r);
+            stats.peakLag = lag * kDecim;
+        }
+    }
+    if (!pastMainLobe) stats.maxAutocorr = 1.0f;  // never decorrelated within 1 s
+    return stats;
+}
+
+}  // namespace
+
+TEST_CASE("ChaosWaveshaper Lorenz does not fall into a reset loop", "[primitives][chaos]") {
+    const float speed = GENERATE(1.0f, 10.0f);
+    constexpr std::array<double, 3> kRates{44100.0, 48000.0, 96000.0};
+
+    std::array<ChaosRenderStats, 3> stats{};
+    for (size_t r = 0; r < kRates.size(); ++r) {
+        stats[r] = renderLorenzDc(kRates[r], speed);
+        INFO("speed " << speed << " sr " << kRates[r] << ": max autocorr " << stats[r].maxAutocorr
+             << " at lag " << stats[r].peakLag << " samples, p1 " << stats[r].p01 << " p99 "
+             << stats[r].p99 << " mean " << stats[r].mean);
+        CHECK(stats[r].maxAutocorr < 0.99f);
+    }
+
+    // Output-range statistics agree across sample rates within 20 %.
+    const float refSpread = stats[0].p99 - stats[0].p01;
+    const float refMean = stats[0].mean;
+    for (size_t r = 1; r < kRates.size(); ++r) {
+        const float spread = stats[r].p99 - stats[r].p01;
+        INFO("speed " << speed << " sr " << kRates[r] << ": spread " << spread << " vs 44.1k "
+             << refSpread << ", mean " << stats[r].mean << " vs 44.1k " << refMean);
+        CHECK(spread == Approx(refSpread).epsilon(0.2));
+        CHECK(stats[r].mean == Approx(refMean).epsilon(0.2));
     }
 }

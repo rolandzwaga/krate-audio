@@ -55,6 +55,7 @@
 #include <array>
 #include <cmath>
 #include <limits>
+#include <numbers>
 #include <type_traits>
 
 namespace Krate::DSP {
@@ -90,10 +91,10 @@ class OscillatorAdapter final : public OscillatorSlot {
 public:
     /// Additive only (see "Additive level normalisation" below): the RMS of the
     /// normalised partial sum inside the oscillator, relative to one full-amplitude
-    /// partial (RMS 0.806, peak 1.14). -5.7 dB, so the worst crest factor measured
-    /// (4.52) peaks at 4.52 * 0.806 * 0.52 = 1.89, 5 % under the oscillator's +-2
+    /// partial (RMS 0.707, peak 1.0). -6.2 dB, so the worst crest factor measured
+    /// (5.40) peaks at 5.40 * 0.707 * 0.49 = 1.87, 6 % under the oscillator's +-2
     /// clamp. processBlock multiplies the output back up by 1 / kAdditiveLevel.
-    static constexpr float kAdditiveLevel = 0.52f;
+    static constexpr float kAdditiveLevel = 0.49f;
 
     OscillatorAdapter() noexcept = default;
 
@@ -133,7 +134,8 @@ public:
             osc_.prepare(sampleRate, 1024);
             prepareAdditiveLevel();
         } else if constexpr (std::is_same_v<OscT, SpectralFreezeOscillator>) {
-            osc_.prepare(sampleRate, 1024);
+            osc_.prepare(sampleRate, kSpectralFreezeFftSize);
+            osc_.setPartialResynthesis(true);  // in tune at any note (R-148)
             initSpectralFreeze();
         } else {
             osc_.prepare(sampleRate);
@@ -152,6 +154,15 @@ public:
 
     void reset() noexcept override {
         osc_.reset();
+        // SpectralFreezeOscillator::reset() drops the frozen spectrum, and
+        // nothing else re-captures it, so the slot would stay silent after
+        // every voice reset (setActive, preset load). Freeze the reference
+        // again; it re-applies the current pitch and does not allocate (R-016).
+        if constexpr (std::is_same_v<OscT, SpectralFreezeOscillator>) {
+            if (osc_.isPrepared()) {
+                initSpectralFreeze();
+            }
+        }
     }
 
     void setFrequency(float hz) noexcept override {
@@ -200,11 +211,13 @@ public:
                 case OscParam::PulseWidth:
                     osc_.setPulseWidth(value);
                     break;
+                // Static offsets: the oscillator's PM/FM setters are one-shot
+                // (cleared after each sample), so processBlock re-arms them per sample.
                 case OscParam::PhaseModulation:
-                    osc_.setPhaseModulation(value);
+                    staticPm_ = value;
                     break;
                 case OscParam::FrequencyModulation:
-                    osc_.setFrequencyModulation(value);
+                    staticFm_ = value;
                     break;
                 default: break;
             }
@@ -213,10 +226,10 @@ public:
         else if constexpr (std::is_same_v<OscT, WavetableOscillator>) {
             switch (param) {
                 case OscParam::PhaseModulation:
-                    osc_.setPhaseModulation(value);
+                    staticPm_ = value;
                     break;
                 case OscParam::FrequencyModulation:
-                    osc_.setFrequencyModulation(value);
+                    staticFm_ = value;
                     break;
                 default: break;
             }
@@ -321,14 +334,21 @@ public:
                 default: break;
             }
         }
-        // Formant
+        // Formant: Morph is an offset from the selected Vowel (R-022). Hosts
+        // re-send both every block, and FormantOscillator::setMorphPosition()
+        // replaces whatever setVowel() selected, so forwarding them one by one
+        // left the vowel unheard. Both feed one morph position instead.
         else if constexpr (std::is_same_v<OscT, FormantOscillator>) {
+            if (detail::isNaN(value) || detail::isInf(value)) return;
             switch (param) {
                 case OscParam::FormantVowel:
-                    osc_.setVowel(static_cast<Vowel>(static_cast<int>(value)));
+                    formant_.vowel = static_cast<float>(
+                        std::clamp(static_cast<int>(value), 0, static_cast<int>(kNumVowels) - 1));
+                    applyFormantPosition();
                     break;
                 case OscParam::FormantMorph:
-                    osc_.setMorphPosition(value);
+                    formant_.morph = value;
+                    applyFormantPosition();
                     break;
                 default: break;
             }
@@ -372,7 +392,20 @@ public:
     }
 
     void processBlock(float* output, size_t numSamples) noexcept override {
-        osc_.processBlock(output, numSamples);
+        if constexpr (std::is_same_v<OscT, PolyBlepOscillator> ||
+                      std::is_same_v<OscT, WavetableOscillator>) {
+            if (staticPm_ != 0.0f || staticFm_ != 0.0f) {
+                for (size_t i = 0; i < numSamples; ++i) {
+                    osc_.setPhaseModulation(staticPm_);
+                    osc_.setFrequencyModulation(staticFm_);
+                    output[i] = osc_.process();
+                }
+            } else {
+                osc_.processBlock(output, numSamples);
+            }
+        } else {
+            osc_.processBlock(output, numSamples);
+        }
 
         // Per-type gain compensation to equalize perceived loudness across
         // all oscillator types. Reference: PolyBLEP sawtooth at 440 Hz.
@@ -420,22 +453,36 @@ private:
     // SpectralFreeze Initialization Helper
     // =========================================================================
 
-    /// @brief Pitch of the synthetic spectrum frozen at prepare time.
-    ///
-    /// Note tracking is expressed relative to this, so the two must agree.
-    static constexpr float kSpectralFreezeReferenceHz = 440.0f;
+    /// @brief Per-voice FFT size of the SpectralFreeze slot.
+    static constexpr size_t kSpectralFreezeFftSize = 1024;
 
-    /// @brief Feed a synthetic sine wave and freeze it for immediate output.
+    /// @brief FFT bin of the synthetic sine frozen at prepare time.
+    ///
+    /// The reference sits exactly on a bin centre, so the oscillator's partial
+    /// resynthesis knows its true frequency and plays every note in tune (R-148);
+    /// a reference between bins (the old 440 Hz) played on the nearest bin.
+    static constexpr size_t kSpectralFreezeReferenceBin = 9;
+
+    /// @brief Pitch of the frozen reference: bin 9 of 1024 (387.6 Hz at
+    ///        44.1 kHz, 421.9 Hz at 48 kHz). Note tracking is relative to it.
+    [[nodiscard]] float spectralFreezeReferenceHz() const noexcept {
+        return static_cast<float>(static_cast<double>(kSpectralFreezeReferenceBin)
+                                  * sampleRate_
+                                  / static_cast<double>(kSpectralFreezeFftSize));
+    }
+
+    /// @brief Feed a synthetic bin-centred sine and freeze it for immediate output.
     void initSpectralFreeze() noexcept {
         if constexpr (std::is_same_v<OscT, SpectralFreezeOscillator>) {
-            constexpr size_t kFreezeBlockSize = 2048;
-            float sineBuffer[kFreezeBlockSize];
-            for (size_t i = 0; i < kFreezeBlockSize; ++i) {
-                sineBuffer[i] = std::sin(
-                    kTwoPi * kSpectralFreezeReferenceHz * static_cast<float>(i)
-                    / static_cast<float>(sampleRate_));
+            float sineBuffer[kSpectralFreezeFftSize];
+            for (size_t i = 0; i < kSpectralFreezeFftSize; ++i) {
+                // Exactly kSpectralFreezeReferenceBin cycles in the FFT frame.
+                const size_t cyclePos = (i * kSpectralFreezeReferenceBin) % kSpectralFreezeFftSize;
+                sineBuffer[i] = static_cast<float>(std::sin(
+                    2.0 * std::numbers::pi * static_cast<double>(cyclePos)
+                    / static_cast<double>(kSpectralFreezeFftSize)));
             }
-            osc_.freeze(sineBuffer, kFreezeBlockSize);
+            osc_.freeze(sineBuffer, kSpectralFreezeFftSize);
             applySpectralFreezePitch();
         }
     }
@@ -451,11 +498,25 @@ private:
             // Guard the logarithm; a voice can be left at 0 Hz between notes.
             const float noteSemitones =
                 (currentFrequency_ > 0.0f)
-                    ? ratioToSemitones(currentFrequency_ / kSpectralFreezeReferenceHz)
+                    ? ratioToSemitones(currentFrequency_ / spectralFreezeReferenceHz())
                     : 0.0f;
             // setPitchShift clamps, so an extreme sum flattens out rather than
             // producing a nonsense ratio.
             osc_.setPitchShift(noteSemitones + spectralPitchOffsetSemitones_);
+        }
+    }
+
+    /// @brief Play the morph position vowel + morph, clamped to [A, U].
+    ///
+    /// Only a changed position reaches the oscillator, so the per-block
+    /// re-send of unchanged values costs nothing.
+    void applyFormantPosition() noexcept {
+        if constexpr (std::is_same_v<OscT, FormantOscillator>) {
+            const float position = std::clamp(formant_.vowel + formant_.morph, 0.0f, 4.0f);
+            if (position != formant_.appliedPosition) {
+                osc_.setMorphPosition(position);
+                formant_.appliedPosition = position;
+            }
         }
     }
 
@@ -475,9 +536,11 @@ private:
     // The partials start at quadratic phases (phi_n = frac(n^2 * golden / 2)),
     // which spread their peaks instead of lining them up at the start of each
     // cycle as zero phases do. Over 1-128 partials, tilt -24..+12 dB/oct and
-    // 65-1047 Hz, the worst crest factor measured over 2 s was 3.5 for harmonic
-    // partials and 4.52 with inharmonicity (whose drifting phases tend to random
-    // ones); with zero phases it was 6.9.
+    // 65-1047 Hz, the worst crest factor measured over 2 s was 5.40, with
+    // inharmonicity at 65 Hz (drifting phases tend to random ones); harmonic
+    // partials at 65 Hz reached 3.05. (Before partials were placed at their exact
+    // frequency (R-158) the hop-rate modulation blurred the peaks: 3.5 and 4.52;
+    // with zero phases it was 6.9.)
 
     /// Tilt clamp of AdditiveOscillator::setSpectralTilt / setInharmonicity.
     static constexpr float kAdditiveMinTilt = -24.0f;
@@ -560,6 +623,12 @@ private:
     // note tracking by applySpectralFreezePitch(). Unused by other types.
     float spectralPitchOffsetSemitones_{0.0f};
 
+    // PolyBLEP / Wavetable static Phase Mod (radians) and Freq Mod (Hz) from
+    // OscParam::PhaseModulation / FrequencyModulation, applied to every sample
+    // by processBlock(). Unused by other types.
+    float staticPm_{0.0f};
+    float staticFm_{0.0f};
+
     // Resource pointer for WavetableOscillator (non-owning, set at construction).
     // Unused by other oscillator types but only wastes 8 bytes per adapter.
     WavetableData* wavetable_{nullptr};
@@ -578,6 +647,15 @@ private:
     };
     struct NoAdditiveLevel {};
     std::conditional_t<std::is_same_v<OscT, AdditiveOscillator>, AdditiveLevel, NoAdditiveLevel> additive_{};
+
+    // Formant vowel and morph offset (applyFormantPosition); an empty struct for other types.
+    struct FormantPosition {
+        float vowel{0.0f};              ///< selected vowel index, 0 (A) to 4 (U)
+        float morph{0.0f};              ///< offset from the vowel, in vowel steps
+        float appliedPosition{-1.0f};   ///< position last sent; -1 forces the first send
+    };
+    struct NoFormantPosition {};
+    std::conditional_t<std::is_same_v<OscT, FormantOscillator>, FormantPosition, NoFormantPosition> formant_{};
 };
 
 } // namespace Krate::DSP

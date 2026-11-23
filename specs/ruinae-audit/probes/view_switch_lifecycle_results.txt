@@ -1,0 +1,570 @@
+# Ruinae audit probe results: controller view-pointer lifecycle across UIViewSwitchContainer switches (2026-11-16)
+# Source: view_switch_lifecycle_probe.cpp (hidden [.][audit-probe][view-lifecycle]); built in the release tree and in a separate MSVC /fsanitize=address Debug tree; run via tools/run-gate.js --share 4
+
+## ASan Debug run (logs /f/tmp/gate/20261116-105010): per case -> verdict | frame #0 | free site
+""audit-probe: MainTab host switch - incoming template pointers and visible-view sync"" -> CLEAN (no ASan report) | #0 - | freed in -
+""audit-probe: FX groups after leaving FX\, then setComponentState"" -> heap-use-after-free on address 0x11d965d28750 | #0 `Ruinae::Controller::syncAllViews'::`2'::<lambda_4>::operator() plugins\ruinae\src\controller\controller_view_sync.cpp:710 | freed in -
+""audit-probe: ModSource Chaos template destroyed\, then Chaos Sync automation"" -> heap-use-after-free on address 0x122407d26b10 | #0 Ruinae::Controller::setParamNormalized(unsigned int, double) plugins\ruinae\src\controller\controller_view_sync.cpp:343 | freed in VSTGUI::UIViewSwitchContainer::setCurrentViewIndex(int) extern\vst3sdk\vstgui4\vstgui\uidescription\uiviewswitchcontainer.cpp:138
+""audit-probe: ModSource S&H template destroyed\, then S&H Sync automation"" -> heap-use-after-free on address 0x1283c2c26b10 | #0 Ruinae::Controller::setParamNormalized(unsigned int, double) plugins\ruinae\src\controller\controller_view_sync.cpp:388 | freed in VSTGUI::UIViewSwitchContainer::setCurrentViewIndex(int) extern\vst3sdk\vstgui4\vstgui\uidescription\uiviewswitchcontainer.cpp:138
+""audit-probe: ModSource Random template destroyed\, then Random Sync automation"" -> heap-use-after-free on address 0x120216326ad0 | #0 Ruinae::Controller::setParamNormalized(unsigned int, double) plugins\ruinae\src\controller\controller_view_sync.cpp:392 | freed in VSTGUI::UIViewSwitchContainer::setCurrentViewIndex(int) extern\vst3sdk\vstgui4\vstgui\uidescription\uiviewswitchcontainer.cpp:138
+""audit-probe: ModSource LFO1 template destroyed\, then setComponentState"" -> heap-use-after-free on address 0x1263b6226b50 | #0 `Ruinae::Controller::syncAllViews'::`2'::<lambda_4>::operator() plugins\ruinae\src\controller\controller_view_sync.cpp:710 | freed in VSTGUI::UIViewSwitchContainer::setCurrentViewIndex(int) extern\vst3sdk\vstgui4\vstgui\uidescription\uiviewswitchcontainer.cpp:138
+""audit-probe: Dist_Spectral destroyed by view-mode toggle\, then arp-only preset load"" -> heap-use-after-free on address 0x12613b331450 | #0 Ruinae::Controller::syncAllViews(void) plugins\ruinae\src\controller\controller_view_sync.cpp:909 | freed in -
+""audit-probe: FX groups after leaving FX\, then loadComponentStateWithNotify"" -> heap-use-after-free on address 0x12128cc28790 | #0 `Ruinae::Controller::syncAllViews'::`2'::<lambda_4>::operator() plugins\ruinae\src\controller\controller_view_sync.cpp:710 | freed in -
+""audit-probe: FX groups after leaving FX\, then host automation of mod type / syncs"" -> heap-use-after-free on address 0x125b0f526b10 | #0 Ruinae::Controller::setParamNormalized(unsigned int, double) plugins\ruinae\src\controller\controller_view_sync.cpp:421 | freed in -
+""audit-probe: DistortionViewMode toggle and DistortionType switch with Spectral"" -> CLEAN (no ASan report) | #0 - | freed in -
+""audit-probe: Dist_Spectral destroyed by view-mode toggle\, then Spectral Mode automation"" -> heap-use-after-free on address 0x1239b0d31410 | #0 Ruinae::Controller::setParamNormalized(unsigned int, double) plugins\ruinae\src\controller\controller_view_sync.cpp:497 | freed in -
+""audit-probe: Dist_Spectral destroyed by view-mode toggle\, then setComponentState"" -> CLEAN (no ASan report) | #0 - | freed in -
+""audit-probe: ModSourceViewMode through ten templates"" -> CLEAN (no ASan report) | #0 - | freed in -
+""audit-probe: ModSource LFO1 template destroyed\, then LFO1 Sync automation"" -> heap-use-after-free on address 0x112d0cc26b10 | #0 Ruinae::Controller::setParamNormalized(unsigned int, double) plugins\ruinae\src\controller\controller_view_sync.cpp:276 | freed in VSTGUI::UIViewSwitchContainer::setCurrentViewIndex(int) extern\vst3sdk\vstgui4\vstgui\uidescription\uiviewswitchcontainer.cpp:138
+""audit-probe: ModSource LFO2 template destroyed\, then LFO2 Sync automation"" -> heap-use-after-free on address 0x122c4f226b10 | #0 Ruinae::Controller::setParamNormalized(unsigned int, double) plugins\ruinae\src\controller\controller_view_sync.cpp:280 | freed in VSTGUI::UIViewSwitchContainer::setCurrentViewIndex(int) extern\vst3sdk\vstgui4\vstgui\uidescription\uiviewswitchcontainer.cpp:138
+
+## ASan full reports (first 12 stack lines per report)
+--- Filters: ""audit-probe: FX groups after leaving FX\, then setComponentState""
+==65540==ERROR: AddressSanitizer: heap-use-after-free on address 0x11d965d28750 at pc 0x7ff742ca4c6a bp 0x0081c9cfbe90 sp 0x0081c9cfbe98
+READ of size 8 at 0x11d965d28750 thread T0
+    #0 0x7ff742ca4c69 in `Ruinae::Controller::syncAllViews'::`2'::<lambda_4>::operator() plugins\ruinae\src\controller\controller_view_sync.cpp:710
+    #1 0x7ff742ca1255 in Ruinae::Controller::syncAllViews(void) plugins\ruinae\src\controller\controller_view_sync.cpp:826
+    #2 0x7ff742be0d64 in Ruinae::Controller::setComponentState(class Steinberg::IBStream *) plugins\ruinae\src\controller\controller.cpp:301
+    #3 0x7ff7429b104e in CATCH2_INTERNAL_TEST_2 plugins\ruinae\tests\audit\view_switch_lifecycle_probe.cpp:763
+    #4 0x7ff742e8ca00 in Catch::`anonymous namespace'::TestInvokerAsFunction::invoke build\windows-x64-release\_deps\catch2-src\src\catch2\internal\catch_test_registry.cpp:60
+    #5 0x7ff742eaa866 in Catch::TestCaseHandle::invoke(void) const build\windows-x64-release\_deps\catch2-src\src\catch2\catch_test_case_info.hpp:126
+    #6 0x7ff742e982e2 in Catch::RunContext::invokeActiveTestCase(void) build\windows-x64-release\_deps\catch2-src\src\catch2\internal\catch_run_context.cpp:808
+    #7 0x7ff742e97d92 in Catch::RunContext::runCurrentTest(void) build\windows-x64-release\_deps\catch2-src\src\catch2\internal\catch_run_context.cpp:766
+    #8 0x7ff742e91287 in Catch::RunContext::runTest(class Catch::TestCaseHandle const &) build\windows-x64-release\_deps\catch2-src\src\catch2\internal\catch_run_context.cpp:420
+    #9 0x7ff742e41af4 in Catch::`anonymous namespace'::TestGroup::execute build\windows-x64-release\_deps\catch2-src\src\catch2\catch_session.cpp:120
+    #10 0x7ff742e3e744 in Catch::Session::runInternal(void) build\windows-x64-release\_deps\catch2-src\src\catch2\catch_session.cpp:410
+    #11 0x7ff742e3d937 in Catch::Session::run(void) build\windows-x64-release\_deps\catch2-src\src\catch2\catch_session.cpp:314
+freed by thread T0 here:
+    #0 0x7ff743a40fd3 in operator delete(void *, unsigned __int64) D:\a\_work\1\s\src\vctools\asan\llvm\compiler-rt\lib\asan\asan_win_delete_scalar_size_thunk.cpp:41
+    #1 0x7ff743291e00 in VSTGUI::CViewContainer::`scalar deleting dtor'(unsigned int) (C:\Users\scab\AppData\Local\Temp\claude\af40cef86e602ebb\dd603f9e-da98-499f-8e1c-f00df29ba990\scratchpad\build-asan\bin\Debug\ruinae_tests.exe+0x141351e00)
+    #2 0x7ff7425e5779 in VSTGUI::ReferenceCounted<int>::forget(void) extern\vst3sdk\vstgui4\vstgui\lib\vstguibase.h:270
+    #3 0x7ff742bf9ff7 in VSTGUI::SharedPointer<class VSTGUI::CView>::~SharedPointer<class VSTGUI::CView>(void) extern\vst3sdk\vstgui4\vstgui\lib\vstguibase.h:413
+    #4 0x7ff74326e297 in VSTGUI::CViewContainer::removeAll(bool) extern\vst3sdk\vstgui4\vstgui\lib\cviewcontainer.cpp:576
+    #5 0x7ff74327d059 in VSTGUI::CViewContainer::beforeDelete(void) extern\vst3sdk\vstgui4\vstgui\lib\cviewcontainer.cpp:178
+--- Filters: ""audit-probe: ModSource Chaos template destroyed\, then Chaos Sync automation""
+==34784==ERROR: AddressSanitizer: heap-use-after-free on address 0x122407d26b10 at pc 0x7ff742c9a449 bp 0x001cdb98b320 sp 0x001cdb98b320
+READ of size 8 at 0x122407d26b10 thread T0
+    #0 0x7ff742c9a448 in Ruinae::Controller::setParamNormalized(unsigned int, double) plugins\ruinae\src\controller\controller_view_sync.cpp:343
+    #1 0x7ff7429ae007 in `anonymous namespace'::uafModSourceSync plugins\ruinae\tests\audit\view_switch_lifecycle_probe.cpp:703
+    #2 0x7ff7429b8e5d in CATCH2_INTERNAL_TEST_20 plugins\ruinae\tests\audit\view_switch_lifecycle_probe.cpp:901
+    #3 0x7ff742e8ca00 in Catch::`anonymous namespace'::TestInvokerAsFunction::invoke build\windows-x64-release\_deps\catch2-src\src\catch2\internal\catch_test_registry.cpp:60
+    #4 0x7ff742eaa866 in Catch::TestCaseHandle::invoke(void) const build\windows-x64-release\_deps\catch2-src\src\catch2\catch_test_case_info.hpp:126
+    #5 0x7ff742e982e2 in Catch::RunContext::invokeActiveTestCase(void) build\windows-x64-release\_deps\catch2-src\src\catch2\internal\catch_run_context.cpp:808
+    #6 0x7ff742e97d92 in Catch::RunContext::runCurrentTest(void) build\windows-x64-release\_deps\catch2-src\src\catch2\internal\catch_run_context.cpp:766
+    #7 0x7ff742e91287 in Catch::RunContext::runTest(class Catch::TestCaseHandle const &) build\windows-x64-release\_deps\catch2-src\src\catch2\internal\catch_run_context.cpp:420
+    #8 0x7ff742e41af4 in Catch::`anonymous namespace'::TestGroup::execute build\windows-x64-release\_deps\catch2-src\src\catch2\catch_session.cpp:120
+    #9 0x7ff742e3e744 in Catch::Session::runInternal(void) build\windows-x64-release\_deps\catch2-src\src\catch2\catch_session.cpp:410
+    #10 0x7ff742e3d937 in Catch::Session::run(void) build\windows-x64-release\_deps\catch2-src\src\catch2\catch_session.cpp:314
+    #11 0x7ff7420a1e27 in Catch::Session::run<char>(int, char const *const *const) build\windows-x64-release\_deps\catch2-src\src\catch2\catch_session.hpp:50
+freed by thread T0 here:
+    #0 0x7ff743a40fd3 in operator delete(void *, unsigned __int64) D:\a\_work\1\s\src\vctools\asan\llvm\compiler-rt\lib\asan\asan_win_delete_scalar_size_thunk.cpp:41
+    #1 0x7ff743291e00 in VSTGUI::CViewContainer::`scalar deleting dtor'(unsigned int) (C:\Users\scab\AppData\Local\Temp\claude\af40cef86e602ebb\dd603f9e-da98-499f-8e1c-f00df29ba990\scratchpad\build-asan\bin\Debug\ruinae_tests.exe+0x141351e00)
+    #2 0x7ff7425e5779 in VSTGUI::ReferenceCounted<int>::forget(void) extern\vst3sdk\vstgui4\vstgui\lib\vstguibase.h:270
+    #3 0x7ff742bf9ff7 in VSTGUI::SharedPointer<class VSTGUI::CView>::~SharedPointer<class VSTGUI::CView>(void) extern\vst3sdk\vstgui4\vstgui\lib\vstguibase.h:413
+    #4 0x7ff74326e297 in VSTGUI::CViewContainer::removeAll(bool) extern\vst3sdk\vstgui4\vstgui\lib\cviewcontainer.cpp:576
+    #5 0x7ff74327d059 in VSTGUI::CViewContainer::beforeDelete(void) extern\vst3sdk\vstgui4\vstgui\lib\cviewcontainer.cpp:178
+--- Filters: ""audit-probe: ModSource S&H template destroyed\, then S&H Sync automation""
+==48052==ERROR: AddressSanitizer: heap-use-after-free on address 0x1283c2c26b10 at pc 0x7ff742c9adc1 bp 0x00da3cefb510 sp 0x00da3cefb510
+READ of size 8 at 0x1283c2c26b10 thread T0
+    #0 0x7ff742c9adc0 in Ruinae::Controller::setParamNormalized(unsigned int, double) plugins\ruinae\src\controller\controller_view_sync.cpp:388
+    #1 0x7ff7429ae007 in `anonymous namespace'::uafModSourceSync plugins\ruinae\tests\audit\view_switch_lifecycle_probe.cpp:703
+    #2 0x7ff7429b959d in CATCH2_INTERNAL_TEST_22 plugins\ruinae\tests\audit\view_switch_lifecycle_probe.cpp:906
+    #3 0x7ff742e8ca00 in Catch::`anonymous namespace'::TestInvokerAsFunction::invoke build\windows-x64-release\_deps\catch2-src\src\catch2\internal\catch_test_registry.cpp:60
+    #4 0x7ff742eaa866 in Catch::TestCaseHandle::invoke(void) const build\windows-x64-release\_deps\catch2-src\src\catch2\catch_test_case_info.hpp:126
+    #5 0x7ff742e982e2 in Catch::RunContext::invokeActiveTestCase(void) build\windows-x64-release\_deps\catch2-src\src\catch2\internal\catch_run_context.cpp:808
+    #6 0x7ff742e97d92 in Catch::RunContext::runCurrentTest(void) build\windows-x64-release\_deps\catch2-src\src\catch2\internal\catch_run_context.cpp:766
+    #7 0x7ff742e91287 in Catch::RunContext::runTest(class Catch::TestCaseHandle const &) build\windows-x64-release\_deps\catch2-src\src\catch2\internal\catch_run_context.cpp:420
+    #8 0x7ff742e41af4 in Catch::`anonymous namespace'::TestGroup::execute build\windows-x64-release\_deps\catch2-src\src\catch2\catch_session.cpp:120
+    #9 0x7ff742e3e744 in Catch::Session::runInternal(void) build\windows-x64-release\_deps\catch2-src\src\catch2\catch_session.cpp:410
+    #10 0x7ff742e3d937 in Catch::Session::run(void) build\windows-x64-release\_deps\catch2-src\src\catch2\catch_session.cpp:314
+    #11 0x7ff7420a1e27 in Catch::Session::run<char>(int, char const *const *const) build\windows-x64-release\_deps\catch2-src\src\catch2\catch_session.hpp:50
+freed by thread T0 here:
+    #0 0x7ff743a40fd3 in operator delete(void *, unsigned __int64) D:\a\_work\1\s\src\vctools\asan\llvm\compiler-rt\lib\asan\asan_win_delete_scalar_size_thunk.cpp:41
+    #1 0x7ff743291e00 in VSTGUI::CViewContainer::`scalar deleting dtor'(unsigned int) (C:\Users\scab\AppData\Local\Temp\claude\af40cef86e602ebb\dd603f9e-da98-499f-8e1c-f00df29ba990\scratchpad\build-asan\bin\Debug\ruinae_tests.exe+0x141351e00)
+    #2 0x7ff7425e5779 in VSTGUI::ReferenceCounted<int>::forget(void) extern\vst3sdk\vstgui4\vstgui\lib\vstguibase.h:270
+    #3 0x7ff742bf9ff7 in VSTGUI::SharedPointer<class VSTGUI::CView>::~SharedPointer<class VSTGUI::CView>(void) extern\vst3sdk\vstgui4\vstgui\lib\vstguibase.h:413
+    #4 0x7ff74326e297 in VSTGUI::CViewContainer::removeAll(bool) extern\vst3sdk\vstgui4\vstgui\lib\cviewcontainer.cpp:576
+    #5 0x7ff74327d059 in VSTGUI::CViewContainer::beforeDelete(void) extern\vst3sdk\vstgui4\vstgui\lib\cviewcontainer.cpp:178
+--- Filters: ""audit-probe: ModSource Random template destroyed\, then Random Sync automation""
+==18200==ERROR: AddressSanitizer: heap-use-after-free on address 0x120216326ad0 at pc 0x7ff742c9b02e bp 0x003b6defb6c0 sp 0x003b6defb6c0
+READ of size 8 at 0x120216326ad0 thread T0
+    #0 0x7ff742c9b02d in Ruinae::Controller::setParamNormalized(unsigned int, double) plugins\ruinae\src\controller\controller_view_sync.cpp:392
+    #1 0x7ff7429ae007 in `anonymous namespace'::uafModSourceSync plugins\ruinae\tests\audit\view_switch_lifecycle_probe.cpp:703
+    #2 0x7ff7429b9cdd in CATCH2_INTERNAL_TEST_24 plugins\ruinae\tests\audit\view_switch_lifecycle_probe.cpp:911
+    #3 0x7ff742e8ca00 in Catch::`anonymous namespace'::TestInvokerAsFunction::invoke build\windows-x64-release\_deps\catch2-src\src\catch2\internal\catch_test_registry.cpp:60
+    #4 0x7ff742eaa866 in Catch::TestCaseHandle::invoke(void) const build\windows-x64-release\_deps\catch2-src\src\catch2\catch_test_case_info.hpp:126
+    #5 0x7ff742e982e2 in Catch::RunContext::invokeActiveTestCase(void) build\windows-x64-release\_deps\catch2-src\src\catch2\internal\catch_run_context.cpp:808
+    #6 0x7ff742e97d92 in Catch::RunContext::runCurrentTest(void) build\windows-x64-release\_deps\catch2-src\src\catch2\internal\catch_run_context.cpp:766
+    #7 0x7ff742e91287 in Catch::RunContext::runTest(class Catch::TestCaseHandle const &) build\windows-x64-release\_deps\catch2-src\src\catch2\internal\catch_run_context.cpp:420
+    #8 0x7ff742e41af4 in Catch::`anonymous namespace'::TestGroup::execute build\windows-x64-release\_deps\catch2-src\src\catch2\catch_session.cpp:120
+    #9 0x7ff742e3e744 in Catch::Session::runInternal(void) build\windows-x64-release\_deps\catch2-src\src\catch2\catch_session.cpp:410
+    #10 0x7ff742e3d937 in Catch::Session::run(void) build\windows-x64-release\_deps\catch2-src\src\catch2\catch_session.cpp:314
+    #11 0x7ff7420a1e27 in Catch::Session::run<char>(int, char const *const *const) build\windows-x64-release\_deps\catch2-src\src\catch2\catch_session.hpp:50
+freed by thread T0 here:
+    #0 0x7ff743a40fd3 in operator delete(void *, unsigned __int64) D:\a\_work\1\s\src\vctools\asan\llvm\compiler-rt\lib\asan\asan_win_delete_scalar_size_thunk.cpp:41
+    #1 0x7ff743291e00 in VSTGUI::CViewContainer::`scalar deleting dtor'(unsigned int) (C:\Users\scab\AppData\Local\Temp\claude\af40cef86e602ebb\dd603f9e-da98-499f-8e1c-f00df29ba990\scratchpad\build-asan\bin\Debug\ruinae_tests.exe+0x141351e00)
+    #2 0x7ff7425e5779 in VSTGUI::ReferenceCounted<int>::forget(void) extern\vst3sdk\vstgui4\vstgui\lib\vstguibase.h:270
+    #3 0x7ff742bf9ff7 in VSTGUI::SharedPointer<class VSTGUI::CView>::~SharedPointer<class VSTGUI::CView>(void) extern\vst3sdk\vstgui4\vstgui\lib\vstguibase.h:413
+    #4 0x7ff74326e297 in VSTGUI::CViewContainer::removeAll(bool) extern\vst3sdk\vstgui4\vstgui\lib\cviewcontainer.cpp:576
+    #5 0x7ff74327d059 in VSTGUI::CViewContainer::beforeDelete(void) extern\vst3sdk\vstgui4\vstgui\lib\cviewcontainer.cpp:178
+--- Filters: ""audit-probe: ModSource LFO1 template destroyed\, then setComponentState""
+==69564==ERROR: AddressSanitizer: heap-use-after-free on address 0x1263b6226b50 at pc 0x7ff742ca4c6a bp 0x00e5d3b9c000 sp 0x00e5d3b9c008
+READ of size 8 at 0x1263b6226b50 thread T0
+    #0 0x7ff742ca4c69 in `Ruinae::Controller::syncAllViews'::`2'::<lambda_4>::operator() plugins\ruinae\src\controller\controller_view_sync.cpp:710
+    #1 0x7ff742ca0354 in Ruinae::Controller::syncAllViews(void) plugins\ruinae\src\controller\controller_view_sync.cpp:713
+    #2 0x7ff742be0d64 in Ruinae::Controller::setComponentState(class Steinberg::IBStream *) plugins\ruinae\src\controller\controller.cpp:301
+    #3 0x7ff7429bab2e in CATCH2_INTERNAL_TEST_26 plugins\ruinae\tests\audit\view_switch_lifecycle_probe.cpp:925
+    #4 0x7ff742e8ca00 in Catch::`anonymous namespace'::TestInvokerAsFunction::invoke build\windows-x64-release\_deps\catch2-src\src\catch2\internal\catch_test_registry.cpp:60
+    #5 0x7ff742eaa866 in Catch::TestCaseHandle::invoke(void) const build\windows-x64-release\_deps\catch2-src\src\catch2\catch_test_case_info.hpp:126
+    #6 0x7ff742e982e2 in Catch::RunContext::invokeActiveTestCase(void) build\windows-x64-release\_deps\catch2-src\src\catch2\internal\catch_run_context.cpp:808
+    #7 0x7ff742e97d92 in Catch::RunContext::runCurrentTest(void) build\windows-x64-release\_deps\catch2-src\src\catch2\internal\catch_run_context.cpp:766
+    #8 0x7ff742e91287 in Catch::RunContext::runTest(class Catch::TestCaseHandle const &) build\windows-x64-release\_deps\catch2-src\src\catch2\internal\catch_run_context.cpp:420
+    #9 0x7ff742e41af4 in Catch::`anonymous namespace'::TestGroup::execute build\windows-x64-release\_deps\catch2-src\src\catch2\catch_session.cpp:120
+    #10 0x7ff742e3e744 in Catch::Session::runInternal(void) build\windows-x64-release\_deps\catch2-src\src\catch2\catch_session.cpp:410
+    #11 0x7ff742e3d937 in Catch::Session::run(void) build\windows-x64-release\_deps\catch2-src\src\catch2\catch_session.cpp:314
+freed by thread T0 here:
+    #0 0x7ff743a40fd3 in operator delete(void *, unsigned __int64) D:\a\_work\1\s\src\vctools\asan\llvm\compiler-rt\lib\asan\asan_win_delete_scalar_size_thunk.cpp:41
+    #1 0x7ff743291e00 in VSTGUI::CViewContainer::`scalar deleting dtor'(unsigned int) (C:\Users\scab\AppData\Local\Temp\claude\af40cef86e602ebb\dd603f9e-da98-499f-8e1c-f00df29ba990\scratchpad\build-asan\bin\Debug\ruinae_tests.exe+0x141351e00)
+    #2 0x7ff7425e5779 in VSTGUI::ReferenceCounted<int>::forget(void) extern\vst3sdk\vstgui4\vstgui\lib\vstguibase.h:270
+    #3 0x7ff742bf9ff7 in VSTGUI::SharedPointer<class VSTGUI::CView>::~SharedPointer<class VSTGUI::CView>(void) extern\vst3sdk\vstgui4\vstgui\lib\vstguibase.h:413
+    #4 0x7ff74326e297 in VSTGUI::CViewContainer::removeAll(bool) extern\vst3sdk\vstgui4\vstgui\lib\cviewcontainer.cpp:576
+    #5 0x7ff74327d059 in VSTGUI::CViewContainer::beforeDelete(void) extern\vst3sdk\vstgui4\vstgui\lib\cviewcontainer.cpp:178
+--- Filters: ""audit-probe: Dist_Spectral destroyed by view-mode toggle\, then arp-only preset load""
+==41784==ERROR: AddressSanitizer: heap-use-after-free on address 0x12613b331450 at pc 0x7ff742ca2d85 bp 0x00b1472fbfa0 sp 0x00b1472fbfa0
+READ of size 8 at 0x12613b331450 thread T0
+    #0 0x7ff742ca2d84 in Ruinae::Controller::syncAllViews(void) plugins\ruinae\src\controller\controller_view_sync.cpp:909
+    #1 0x7ff742c3fb71 in Ruinae::Controller::loadComponentStateWithNotify(class Steinberg::IBStream *, bool) plugins\ruinae\src\controller\controller_presets.cpp:384
+    #2 0x7ff7429bb68e in CATCH2_INTERNAL_TEST_28 plugins\ruinae\tests\audit\view_switch_lifecycle_probe.cpp:941
+    #3 0x7ff742e8ca00 in Catch::`anonymous namespace'::TestInvokerAsFunction::invoke build\windows-x64-release\_deps\catch2-src\src\catch2\internal\catch_test_registry.cpp:60
+    #4 0x7ff742eaa866 in Catch::TestCaseHandle::invoke(void) const build\windows-x64-release\_deps\catch2-src\src\catch2\catch_test_case_info.hpp:126
+    #5 0x7ff742e982e2 in Catch::RunContext::invokeActiveTestCase(void) build\windows-x64-release\_deps\catch2-src\src\catch2\internal\catch_run_context.cpp:808
+    #6 0x7ff742e97d92 in Catch::RunContext::runCurrentTest(void) build\windows-x64-release\_deps\catch2-src\src\catch2\internal\catch_run_context.cpp:766
+    #7 0x7ff742e91287 in Catch::RunContext::runTest(class Catch::TestCaseHandle const &) build\windows-x64-release\_deps\catch2-src\src\catch2\internal\catch_run_context.cpp:420
+    #8 0x7ff742e41af4 in Catch::`anonymous namespace'::TestGroup::execute build\windows-x64-release\_deps\catch2-src\src\catch2\catch_session.cpp:120
+    #9 0x7ff742e3e744 in Catch::Session::runInternal(void) build\windows-x64-release\_deps\catch2-src\src\catch2\catch_session.cpp:410
+    #10 0x7ff742e3d937 in Catch::Session::run(void) build\windows-x64-release\_deps\catch2-src\src\catch2\catch_session.cpp:314
+    #11 0x7ff7420a1e27 in Catch::Session::run<char>(int, char const *const *const) build\windows-x64-release\_deps\catch2-src\src\catch2\catch_session.hpp:50
+freed by thread T0 here:
+    #0 0x7ff743a40fd3 in operator delete(void *, unsigned __int64) D:\a\_work\1\s\src\vctools\asan\llvm\compiler-rt\lib\asan\asan_win_delete_scalar_size_thunk.cpp:41
+    #1 0x7ff743291e00 in VSTGUI::CViewContainer::`scalar deleting dtor'(unsigned int) (C:\Users\scab\AppData\Local\Temp\claude\af40cef86e602ebb\dd603f9e-da98-499f-8e1c-f00df29ba990\scratchpad\build-asan\bin\Debug\ruinae_tests.exe+0x141351e00)
+    #2 0x7ff7425e5779 in VSTGUI::ReferenceCounted<int>::forget(void) extern\vst3sdk\vstgui4\vstgui\lib\vstguibase.h:270
+    #3 0x7ff742bf9ff7 in VSTGUI::SharedPointer<class VSTGUI::CView>::~SharedPointer<class VSTGUI::CView>(void) extern\vst3sdk\vstgui4\vstgui\lib\vstguibase.h:413
+    #4 0x7ff74326e297 in VSTGUI::CViewContainer::removeAll(bool) extern\vst3sdk\vstgui4\vstgui\lib\cviewcontainer.cpp:576
+    #5 0x7ff74327d059 in VSTGUI::CViewContainer::beforeDelete(void) extern\vst3sdk\vstgui4\vstgui\lib\cviewcontainer.cpp:178
+--- Filters: ""audit-probe: FX groups after leaving FX\, then loadComponentStateWithNotify""
+==58064==ERROR: AddressSanitizer: heap-use-after-free on address 0x12128cc28790 at pc 0x7ff742ca4c6a bp 0x00b32130bc30 sp 0x00b32130bc38
+READ of size 8 at 0x12128cc28790 thread T0
+    #0 0x7ff742ca4c69 in `Ruinae::Controller::syncAllViews'::`2'::<lambda_4>::operator() plugins\ruinae\src\controller\controller_view_sync.cpp:710
+    #1 0x7ff742ca1255 in Ruinae::Controller::syncAllViews(void) plugins\ruinae\src\controller\controller_view_sync.cpp:826
+    #2 0x7ff742c3fb71 in Ruinae::Controller::loadComponentStateWithNotify(class Steinberg::IBStream *, bool) plugins\ruinae\src\controller\controller_presets.cpp:384
+    #3 0x7ff7429b1ee5 in CATCH2_INTERNAL_TEST_4 plugins\ruinae\tests\audit\view_switch_lifecycle_probe.cpp:777
+    #4 0x7ff742e8ca00 in Catch::`anonymous namespace'::TestInvokerAsFunction::invoke build\windows-x64-release\_deps\catch2-src\src\catch2\internal\catch_test_registry.cpp:60
+    #5 0x7ff742eaa866 in Catch::TestCaseHandle::invoke(void) const build\windows-x64-release\_deps\catch2-src\src\catch2\catch_test_case_info.hpp:126
+    #6 0x7ff742e982e2 in Catch::RunContext::invokeActiveTestCase(void) build\windows-x64-release\_deps\catch2-src\src\catch2\internal\catch_run_context.cpp:808
+    #7 0x7ff742e97d92 in Catch::RunContext::runCurrentTest(void) build\windows-x64-release\_deps\catch2-src\src\catch2\internal\catch_run_context.cpp:766
+    #8 0x7ff742e91287 in Catch::RunContext::runTest(class Catch::TestCaseHandle const &) build\windows-x64-release\_deps\catch2-src\src\catch2\internal\catch_run_context.cpp:420
+    #9 0x7ff742e41af4 in Catch::`anonymous namespace'::TestGroup::execute build\windows-x64-release\_deps\catch2-src\src\catch2\catch_session.cpp:120
+    #10 0x7ff742e3e744 in Catch::Session::runInternal(void) build\windows-x64-release\_deps\catch2-src\src\catch2\catch_session.cpp:410
+    #11 0x7ff742e3d937 in Catch::Session::run(void) build\windows-x64-release\_deps\catch2-src\src\catch2\catch_session.cpp:314
+freed by thread T0 here:
+    #0 0x7ff743a40fd3 in operator delete(void *, unsigned __int64) D:\a\_work\1\s\src\vctools\asan\llvm\compiler-rt\lib\asan\asan_win_delete_scalar_size_thunk.cpp:41
+    #1 0x7ff743291e00 in VSTGUI::CViewContainer::`scalar deleting dtor'(unsigned int) (C:\Users\scab\AppData\Local\Temp\claude\af40cef86e602ebb\dd603f9e-da98-499f-8e1c-f00df29ba990\scratchpad\build-asan\bin\Debug\ruinae_tests.exe+0x141351e00)
+    #2 0x7ff7425e5779 in VSTGUI::ReferenceCounted<int>::forget(void) extern\vst3sdk\vstgui4\vstgui\lib\vstguibase.h:270
+    #3 0x7ff742bf9ff7 in VSTGUI::SharedPointer<class VSTGUI::CView>::~SharedPointer<class VSTGUI::CView>(void) extern\vst3sdk\vstgui4\vstgui\lib\vstguibase.h:413
+    #4 0x7ff74326e297 in VSTGUI::CViewContainer::removeAll(bool) extern\vst3sdk\vstgui4\vstgui\lib\cviewcontainer.cpp:576
+    #5 0x7ff74327d059 in VSTGUI::CViewContainer::beforeDelete(void) extern\vst3sdk\vstgui4\vstgui\lib\cviewcontainer.cpp:178
+--- Filters: ""audit-probe: FX groups after leaving FX\, then host automation of mod type / syncs""
+==41384==ERROR: AddressSanitizer: heap-use-after-free on address 0x125b0f526b10 at pc 0x7ff742c9bde2 bp 0x00d6085cb350 sp 0x00d6085cb350
+READ of size 8 at 0x125b0f526b10 thread T0
+    #0 0x7ff742c9bde1 in Ruinae::Controller::setParamNormalized(unsigned int, double) plugins\ruinae\src\controller\controller_view_sync.cpp:421
+    #1 0x7ff7429b2f18 in CATCH2_INTERNAL_TEST_6 plugins\ruinae\tests\audit\view_switch_lifecycle_probe.cpp:790
+    #2 0x7ff742e8ca00 in Catch::`anonymous namespace'::TestInvokerAsFunction::invoke build\windows-x64-release\_deps\catch2-src\src\catch2\internal\catch_test_registry.cpp:60
+    #3 0x7ff742eaa866 in Catch::TestCaseHandle::invoke(void) const build\windows-x64-release\_deps\catch2-src\src\catch2\catch_test_case_info.hpp:126
+    #4 0x7ff742e982e2 in Catch::RunContext::invokeActiveTestCase(void) build\windows-x64-release\_deps\catch2-src\src\catch2\internal\catch_run_context.cpp:808
+    #5 0x7ff742e97d92 in Catch::RunContext::runCurrentTest(void) build\windows-x64-release\_deps\catch2-src\src\catch2\internal\catch_run_context.cpp:766
+    #6 0x7ff742e91287 in Catch::RunContext::runTest(class Catch::TestCaseHandle const &) build\windows-x64-release\_deps\catch2-src\src\catch2\internal\catch_run_context.cpp:420
+    #7 0x7ff742e41af4 in Catch::`anonymous namespace'::TestGroup::execute build\windows-x64-release\_deps\catch2-src\src\catch2\catch_session.cpp:120
+    #8 0x7ff742e3e744 in Catch::Session::runInternal(void) build\windows-x64-release\_deps\catch2-src\src\catch2\catch_session.cpp:410
+    #9 0x7ff742e3d937 in Catch::Session::run(void) build\windows-x64-release\_deps\catch2-src\src\catch2\catch_session.cpp:314
+    #10 0x7ff7420a1e27 in Catch::Session::run<char>(int, char const *const *const) build\windows-x64-release\_deps\catch2-src\src\catch2\catch_session.hpp:50
+    #11 0x7ff7420a1565 in main plugins\ruinae\tests\unit\test_main.cpp:16
+freed by thread T0 here:
+    #0 0x7ff743a40fd3 in operator delete(void *, unsigned __int64) D:\a\_work\1\s\src\vctools\asan\llvm\compiler-rt\lib\asan\asan_win_delete_scalar_size_thunk.cpp:41
+    #1 0x7ff743291e00 in VSTGUI::CViewContainer::`scalar deleting dtor'(unsigned int) (C:\Users\scab\AppData\Local\Temp\claude\af40cef86e602ebb\dd603f9e-da98-499f-8e1c-f00df29ba990\scratchpad\build-asan\bin\Debug\ruinae_tests.exe+0x141351e00)
+    #2 0x7ff7425e5779 in VSTGUI::ReferenceCounted<int>::forget(void) extern\vst3sdk\vstgui4\vstgui\lib\vstguibase.h:270
+    #3 0x7ff742bf9ff7 in VSTGUI::SharedPointer<class VSTGUI::CView>::~SharedPointer<class VSTGUI::CView>(void) extern\vst3sdk\vstgui4\vstgui\lib\vstguibase.h:413
+    #4 0x7ff74326e297 in VSTGUI::CViewContainer::removeAll(bool) extern\vst3sdk\vstgui4\vstgui\lib\cviewcontainer.cpp:576
+    #5 0x7ff74327d059 in VSTGUI::CViewContainer::beforeDelete(void) extern\vst3sdk\vstgui4\vstgui\lib\cviewcontainer.cpp:178
+--- Filters: ""audit-probe: Dist_Spectral destroyed by view-mode toggle\, then Spectral Mode automation""
+==24712==ERROR: AddressSanitizer: heap-use-after-free on address 0x1239b0d31410 at pc 0x7ff742c9dbcf bp 0x006aa858b6e0 sp 0x006aa858b6e0
+READ of size 8 at 0x1239b0d31410 thread T0
+PROBE r080/r130 | spectral pointers dangling after view-mode toggle = YES
+PROBE uaf | setParamNormalized(kDistortionSpectralModeId) | calling
+    #0 0x7ff742c9dbce in Ruinae::Controller::setParamNormalized(unsigned int, double) plugins\ruinae\src\controller\controller_view_sync.cpp:497
+    #1 0x7ff7429b4a73 in CATCH2_INTERNAL_TEST_10 plugins\ruinae\tests\audit\view_switch_lifecycle_probe.cpp:843
+    #2 0x7ff742e8ca00 in Catch::`anonymous namespace'::TestInvokerAsFunction::invoke build\windows-x64-release\_deps\catch2-src\src\catch2\internal\catch_test_registry.cpp:60
+    #3 0x7ff742eaa866 in Catch::TestCaseHandle::invoke(void) const build\windows-x64-release\_deps\catch2-src\src\catch2\catch_test_case_info.hpp:126
+    #4 0x7ff742e982e2 in Catch::RunContext::invokeActiveTestCase(void) build\windows-x64-release\_deps\catch2-src\src\catch2\internal\catch_run_context.cpp:808
+    #5 0x7ff742e97d92 in Catch::RunContext::runCurrentTest(void) build\windows-x64-release\_deps\catch2-src\src\catch2\internal\catch_run_context.cpp:766
+    #6 0x7ff742e91287 in Catch::RunContext::runTest(class Catch::TestCaseHandle const &) build\windows-x64-release\_deps\catch2-src\src\catch2\internal\catch_run_context.cpp:420
+    #7 0x7ff742e41af4 in Catch::`anonymous namespace'::TestGroup::execute build\windows-x64-release\_deps\catch2-src\src\catch2\catch_session.cpp:120
+    #8 0x7ff742e3e744 in Catch::Session::runInternal(void) build\windows-x64-release\_deps\catch2-src\src\catch2\catch_session.cpp:410
+    #9 0x7ff742e3d937 in Catch::Session::run(void) build\windows-x64-release\_deps\catch2-src\src\catch2\catch_session.cpp:314
+freed by thread T0 here:
+    #0 0x7ff743a40fd3 in operator delete(void *, unsigned __int64) D:\a\_work\1\s\src\vctools\asan\llvm\compiler-rt\lib\asan\asan_win_delete_scalar_size_thunk.cpp:41
+    #1 0x7ff743291e00 in VSTGUI::CViewContainer::`scalar deleting dtor'(unsigned int) (C:\Users\scab\AppData\Local\Temp\claude\af40cef86e602ebb\dd603f9e-da98-499f-8e1c-f00df29ba990\scratchpad\build-asan\bin\Debug\ruinae_tests.exe+0x141351e00)
+    #2 0x7ff7425e5779 in VSTGUI::ReferenceCounted<int>::forget(void) extern\vst3sdk\vstgui4\vstgui\lib\vstguibase.h:270
+    #3 0x7ff742bf9ff7 in VSTGUI::SharedPointer<class VSTGUI::CView>::~SharedPointer<class VSTGUI::CView>(void) extern\vst3sdk\vstgui4\vstgui\lib\vstguibase.h:413
+    #4 0x7ff74326e297 in VSTGUI::CViewContainer::removeAll(bool) extern\vst3sdk\vstgui4\vstgui\lib\cviewcontainer.cpp:576
+    #5 0x7ff74327d059 in VSTGUI::CViewContainer::beforeDelete(void) extern\vst3sdk\vstgui4\vstgui\lib\cviewcontainer.cpp:178
+--- Filters: ""audit-probe: ModSource LFO1 template destroyed\, then LFO1 Sync automation""
+==7832==ERROR: AddressSanitizer: heap-use-after-free on address 0x112d0cc26b10 at pc 0x7ff742c9976e bp 0x0023cbafb8a0 sp 0x0023cbafb8a0
+READ of size 8 at 0x112d0cc26b10 thread T0
+    #0 0x7ff742c9976d in Ruinae::Controller::setParamNormalized(unsigned int, double) plugins\ruinae\src\controller\controller_view_sync.cpp:276
+    #1 0x7ff7429ae007 in `anonymous namespace'::uafModSourceSync plugins\ruinae\tests\audit\view_switch_lifecycle_probe.cpp:703
+    #2 0x7ff7429b7fda in CATCH2_INTERNAL_TEST_16 plugins\ruinae\tests\audit\view_switch_lifecycle_probe.cpp:891
+    #3 0x7ff742e8ca00 in Catch::`anonymous namespace'::TestInvokerAsFunction::invoke build\windows-x64-release\_deps\catch2-src\src\catch2\internal\catch_test_registry.cpp:60
+    #4 0x7ff742eaa866 in Catch::TestCaseHandle::invoke(void) const build\windows-x64-release\_deps\catch2-src\src\catch2\catch_test_case_info.hpp:126
+    #5 0x7ff742e982e2 in Catch::RunContext::invokeActiveTestCase(void) build\windows-x64-release\_deps\catch2-src\src\catch2\internal\catch_run_context.cpp:808
+    #6 0x7ff742e97d92 in Catch::RunContext::runCurrentTest(void) build\windows-x64-release\_deps\catch2-src\src\catch2\internal\catch_run_context.cpp:766
+    #7 0x7ff742e91287 in Catch::RunContext::runTest(class Catch::TestCaseHandle const &) build\windows-x64-release\_deps\catch2-src\src\catch2\internal\catch_run_context.cpp:420
+    #8 0x7ff742e41af4 in Catch::`anonymous namespace'::TestGroup::execute build\windows-x64-release\_deps\catch2-src\src\catch2\catch_session.cpp:120
+    #9 0x7ff742e3e744 in Catch::Session::runInternal(void) build\windows-x64-release\_deps\catch2-src\src\catch2\catch_session.cpp:410
+    #10 0x7ff742e3d937 in Catch::Session::run(void) build\windows-x64-release\_deps\catch2-src\src\catch2\catch_session.cpp:314
+    #11 0x7ff7420a1e27 in Catch::Session::run<char>(int, char const *const *const) build\windows-x64-release\_deps\catch2-src\src\catch2\catch_session.hpp:50
+freed by thread T0 here:
+    #0 0x7ff743a40fd3 in operator delete(void *, unsigned __int64) D:\a\_work\1\s\src\vctools\asan\llvm\compiler-rt\lib\asan\asan_win_delete_scalar_size_thunk.cpp:41
+    #1 0x7ff743291e00 in VSTGUI::CViewContainer::`scalar deleting dtor'(unsigned int) (C:\Users\scab\AppData\Local\Temp\claude\af40cef86e602ebb\dd603f9e-da98-499f-8e1c-f00df29ba990\scratchpad\build-asan\bin\Debug\ruinae_tests.exe+0x141351e00)
+    #2 0x7ff7425e5779 in VSTGUI::ReferenceCounted<int>::forget(void) extern\vst3sdk\vstgui4\vstgui\lib\vstguibase.h:270
+    #3 0x7ff742bf9ff7 in VSTGUI::SharedPointer<class VSTGUI::CView>::~SharedPointer<class VSTGUI::CView>(void) extern\vst3sdk\vstgui4\vstgui\lib\vstguibase.h:413
+    #4 0x7ff74326e297 in VSTGUI::CViewContainer::removeAll(bool) extern\vst3sdk\vstgui4\vstgui\lib\cviewcontainer.cpp:576
+    #5 0x7ff74327d059 in VSTGUI::CViewContainer::beforeDelete(void) extern\vst3sdk\vstgui4\vstgui\lib\cviewcontainer.cpp:178
+--- Filters: ""audit-probe: ModSource LFO2 template destroyed\, then LFO2 Sync automation""
+==16412==ERROR: AddressSanitizer: heap-use-after-free on address 0x122c4f226b10 at pc 0x7ff742c999db bp 0x009d812fb540 sp 0x009d812fb540
+READ of size 8 at 0x122c4f226b10 thread T0
+    #0 0x7ff742c999da in Ruinae::Controller::setParamNormalized(unsigned int, double) plugins\ruinae\src\controller\controller_view_sync.cpp:280
+    #1 0x7ff7429ae007 in `anonymous namespace'::uafModSourceSync plugins\ruinae\tests\audit\view_switch_lifecycle_probe.cpp:703
+    #2 0x7ff7429b871d in CATCH2_INTERNAL_TEST_18 plugins\ruinae\tests\audit\view_switch_lifecycle_probe.cpp:896
+    #3 0x7ff742e8ca00 in Catch::`anonymous namespace'::TestInvokerAsFunction::invoke build\windows-x64-release\_deps\catch2-src\src\catch2\internal\catch_test_registry.cpp:60
+    #4 0x7ff742eaa866 in Catch::TestCaseHandle::invoke(void) const build\windows-x64-release\_deps\catch2-src\src\catch2\catch_test_case_info.hpp:126
+    #5 0x7ff742e982e2 in Catch::RunContext::invokeActiveTestCase(void) build\windows-x64-release\_deps\catch2-src\src\catch2\internal\catch_run_context.cpp:808
+    #6 0x7ff742e97d92 in Catch::RunContext::runCurrentTest(void) build\windows-x64-release\_deps\catch2-src\src\catch2\internal\catch_run_context.cpp:766
+    #7 0x7ff742e91287 in Catch::RunContext::runTest(class Catch::TestCaseHandle const &) build\windows-x64-release\_deps\catch2-src\src\catch2\internal\catch_run_context.cpp:420
+    #8 0x7ff742e41af4 in Catch::`anonymous namespace'::TestGroup::execute build\windows-x64-release\_deps\catch2-src\src\catch2\catch_session.cpp:120
+    #9 0x7ff742e3e744 in Catch::Session::runInternal(void) build\windows-x64-release\_deps\catch2-src\src\catch2\catch_session.cpp:410
+    #10 0x7ff742e3d937 in Catch::Session::run(void) build\windows-x64-release\_deps\catch2-src\src\catch2\catch_session.cpp:314
+    #11 0x7ff7420a1e27 in Catch::Session::run<char>(int, char const *const *const) build\windows-x64-release\_deps\catch2-src\src\catch2\catch_session.hpp:50
+freed by thread T0 here:
+    #0 0x7ff743a40fd3 in operator delete(void *, unsigned __int64) D:\a\_work\1\s\src\vctools\asan\llvm\compiler-rt\lib\asan\asan_win_delete_scalar_size_thunk.cpp:41
+    #1 0x7ff743291e00 in VSTGUI::CViewContainer::`scalar deleting dtor'(unsigned int) (C:\Users\scab\AppData\Local\Temp\claude\af40cef86e602ebb\dd603f9e-da98-499f-8e1c-f00df29ba990\scratchpad\build-asan\bin\Debug\ruinae_tests.exe+0x141351e00)
+    #2 0x7ff7425e5779 in VSTGUI::ReferenceCounted<int>::forget(void) extern\vst3sdk\vstgui4\vstgui\lib\vstguibase.h:270
+    #3 0x7ff742bf9ff7 in VSTGUI::SharedPointer<class VSTGUI::CView>::~SharedPointer<class VSTGUI::CView>(void) extern\vst3sdk\vstgui4\vstgui\lib\vstguibase.h:413
+    #4 0x7ff74326e297 in VSTGUI::CViewContainer::removeAll(bool) extern\vst3sdk\vstgui4\vstgui\lib\cviewcontainer.cpp:576
+    #5 0x7ff74327d059 in VSTGUI::CViewContainer::beforeDelete(void) extern\vst3sdk\vstgui4\vstgui\lib\cviewcontainer.cpp:178
+
+## Release run (logs /f/tmp/gate/20261116-105019): PROBE lines (LIVE pointers and per-step NULL lists omitted)
+--- Filters: ""audit-probe: MainTab host switch - incoming template pointers and visible-view sync""
+PROBE fresh | open on Tab_Sound | 10 non-null cached pointers
+PROBE fresh | open on Tab_Mod | 4 non-null cached pointers
+PROBE fresh | open on Tab_Fx | 16 non-null cached pointers
+PROBE fresh | open on Tab_Seq | 20 non-null cached pointers
+PROBE follow | fresh Tab_Mod | LFO1 | sync 1->0 rate-group visible 0->1 expected 1 | FOLLOWS
+PROBE follow | fresh Tab_Fx | Delay | sync 1->0 rate-group visible 0->1 expected 1 | FOLLOWS
+PROBE follow | fresh Tab_Fx | Phaser | sync 0->1 rate-group visible 1->0 expected 0 | FOLLOWS
+PROBE follow | fresh Tab_Fx | Flanger | sync 0->1 rate-group visible 1->0 expected 0 | FOLLOWS
+PROBE follow | fresh Tab_Fx | Chorus | sync 0->1 rate-group visible 1->0 expected 0 | FOLLOWS
+PROBE follow | fresh Tab_Seq | TranceGate | sync 1->0 rate-group visible 0->1 expected 1 | FOLLOWS
+PROBE follow | fresh Tab_Seq | Arp | sync 1->0 rate-group visible 0->1 expected 1 | FOLLOWS
+PROBE follow | fresh Tab_Seq | trance-gate step 0 -> 0.25 | editor shows 0.25 | FOLLOWS
+PROBE follow | fresh Tab_Seq | arp velocity step 0 -> 0.25 | lane shows 0.25 | FOLLOWS
+PROBE r131 | host switch -> Tab_Mod | 4 of 4 pointers a fresh open caches are NULL after the switch: lfo1NoteValueGroup_ lfo1RateGroup_ lfo1WaveformDisplay_ modMatrixGrid_ 
+PROBE follow | host switch -> Tab_Mod | LFO1 | sync 1->0 rate-group visible 0->0 expected 1 | STALE (controller pointer null)
+PROBE r131 | host switch -> Tab_Fx | 8 of 16 pointers a fresh open caches are NULL after the switch: delayNoteValueGroup_ delayTimeGroup_ harmonizerVoiceRows_[0] harmonizerVoiceRows_[1] harmonizerVoiceRows_[2] harmonizerVoiceRows_[3] phaserNoteValueGroup_ phaserRateGroup_ 
+PROBE follow | host switch -> Tab_Fx | Delay | sync 1->0 rate-group visible 0->0 expected 1 | STALE (controller pointer null)
+PROBE follow | host switch -> Tab_Fx | Phaser | sync 0->1 rate-group visible 1->1 expected 0 | STALE (controller pointer null)
+PROBE follow | host switch -> Tab_Fx | Flanger | sync 0->1 rate-group visible 1->0 expected 0 | FOLLOWS
+PROBE follow | host switch -> Tab_Fx | Chorus | sync 0->1 rate-group visible 1->0 expected 0 | FOLLOWS
+PROBE ptr | host switch -> Tab_Seq | noModulationGroup_ = FREED
+PROBE ptr | host switch -> Tab_Seq | phaserControlsGroup_ = FREED
+PROBE ptr | host switch -> Tab_Seq | flangerControlsGroup_ = FREED
+PROBE ptr | host switch -> Tab_Seq | chorusControlsGroup_ = FREED
+PROBE ptr | host switch -> Tab_Seq | flangerRateGroup_ = FREED
+PROBE ptr | host switch -> Tab_Seq | flangerNoteValueGroup_ = FREED
+PROBE ptr | host switch -> Tab_Seq | chorusRateGroup_ = FREED
+PROBE ptr | host switch -> Tab_Seq | chorusNoteValueGroup_ = FREED
+PROBE r131 | host switch -> Tab_Seq | 20 of 20 pointers a fresh open caches are NULL after the switch: arpEuclideanGroup_ arpLaneContainer_ arpNoteValueGroup_ arpQuantizeInputGroup_ arpRateGroup_ arpRootNoteGroup_ chordLane_ conditionLane_ euclideanControlsGroup_ euclideanDotDisplay_ gateLane_ inversionLane_ modifierLane_ pitchLane_ presetDropdown_ ratchetLane_ stepPatternEditor_ tranceGateNoteValueGroup_ tranceGateRateGroup_ velocityLane_ 
+PROBE follow | host switch -> Tab_Seq | TranceGate | sync 1->0 rate-group visible 0->0 expected 1 | STALE (controller pointer null)
+PROBE follow | host switch -> Tab_Seq | Arp | sync 1->0 rate-group visible 0->0 expected 1 | STALE (controller pointer null)
+PROBE follow | host switch -> Tab_Seq | trance-gate step 0 -> 0.25 | editor shows 1.00 | STALE (controller pointer null)
+PROBE follow | host switch -> Tab_Seq | arp velocity step 0 -> 0.25 | lane shows 1.00 | STALE (controller pointer null)
+PROBE ptr | host switch -> Tab_Sound | noModulationGroup_ = FREED
+PROBE ptr | host switch -> Tab_Sound | phaserControlsGroup_ = FREED
+PROBE ptr | host switch -> Tab_Sound | flangerControlsGroup_ = FREED
+PROBE ptr | host switch -> Tab_Sound | chorusControlsGroup_ = FREED
+PROBE ptr | host switch -> Tab_Sound | flangerRateGroup_ = FREED
+PROBE ptr | host switch -> Tab_Sound | flangerNoteValueGroup_ = FREED
+PROBE ptr | host switch -> Tab_Sound | chorusRateGroup_ = FREED
+PROBE ptr | host switch -> Tab_Sound | chorusNoteValueGroup_ = FREED
+PROBE r131 | host switch -> Tab_Sound | 10 of 10 pointers a fresh open caches are NULL after the switch: ampEnvDisplay_ filterEnvDisplay_ modEnvDisplay_ monoGroup_ oscAPWKnob_ oscBPWKnob_ polyGroup_ ringIndicators_[0] ringIndicators_[1] xyMorphPad_ 
+PROBE r131 | host switch -> Tab_Fx | 8 of 16 pointers a fresh open caches are NULL after the switch: delayNoteValueGroup_ delayTimeGroup_ harmonizerVoiceRows_[0] harmonizerVoiceRows_[1] harmonizerVoiceRows_[2] harmonizerVoiceRows_[3] phaserNoteValueGroup_ phaserRateGroup_ 
+PROBE follow | host switch -> Tab_Fx | Delay | sync 1->0 rate-group visible 0->0 expected 1 | STALE (controller pointer null)
+PROBE follow | host switch -> Tab_Fx | Phaser | sync 0->1 rate-group visible 1->1 expected 0 | STALE (controller pointer null)
+PROBE follow | host switch -> Tab_Fx | Flanger | sync 0->1 rate-group visible 1->0 expected 0 | FOLLOWS
+PROBE follow | host switch -> Tab_Fx | Chorus | sync 0->1 rate-group visible 1->0 expected 0 | FOLLOWS
+PROBE ptr | host switch -> Tab_Mod | noModulationGroup_ = REUSED
+PROBE ptr | host switch -> Tab_Mod | phaserControlsGroup_ = FREED
+PROBE ptr | host switch -> Tab_Mod | flangerControlsGroup_ = FREED
+PROBE ptr | host switch -> Tab_Mod | chorusControlsGroup_ = FREED
+PROBE ptr | host switch -> Tab_Mod | flangerRateGroup_ = FREED
+PROBE ptr | host switch -> Tab_Mod | flangerNoteValueGroup_ = FREED
+PROBE ptr | host switch -> Tab_Mod | chorusRateGroup_ = FREED
+PROBE ptr | host switch -> Tab_Mod | chorusNoteValueGroup_ = FREED
+PROBE r131 | host switch -> Tab_Mod | 4 of 4 pointers a fresh open caches are NULL after the switch: lfo1NoteValueGroup_ lfo1RateGroup_ lfo1WaveformDisplay_ modMatrixGrid_ 
+PROBE follow | host switch -> Tab_Mod | LFO1 | sync 1->0 rate-group visible 0->0 expected 1 | STALE (controller pointer null)
+All tests passed (28 assertions in 1 test case)
+--- Filters: ""audit-probe: FX groups after leaving FX\, then setComponentState""
+PROBE ptr | host switch -> Tab_Seq | noModulationGroup_ = FREED
+PROBE ptr | host switch -> Tab_Seq | phaserControlsGroup_ = FREED
+PROBE ptr | host switch -> Tab_Seq | flangerControlsGroup_ = FREED
+PROBE ptr | host switch -> Tab_Seq | chorusControlsGroup_ = FREED
+PROBE ptr | host switch -> Tab_Seq | flangerRateGroup_ = FREED
+PROBE ptr | host switch -> Tab_Seq | flangerNoteValueGroup_ = FREED
+PROBE ptr | host switch -> Tab_Seq | chorusRateGroup_ = FREED
+PROBE ptr | host switch -> Tab_Seq | chorusNoteValueGroup_ = FREED
+PROBE ptr | host switch -> Tab_Sound | noModulationGroup_ = FREED
+PROBE ptr | host switch -> Tab_Sound | phaserControlsGroup_ = FREED
+PROBE ptr | host switch -> Tab_Sound | flangerControlsGroup_ = FREED
+PROBE ptr | host switch -> Tab_Sound | chorusControlsGroup_ = FREED
+PROBE ptr | host switch -> Tab_Sound | flangerRateGroup_ = FREED
+PROBE ptr | host switch -> Tab_Sound | flangerNoteValueGroup_ = FREED
+PROBE ptr | host switch -> Tab_Sound | chorusRateGroup_ = FREED
+PROBE ptr | host switch -> Tab_Sound | chorusNoteValueGroup_ = FREED
+PROBE ptr | host switch -> Tab_Mod | noModulationGroup_ = FREED
+PROBE ptr | host switch -> Tab_Mod | phaserControlsGroup_ = FREED
+PROBE ptr | host switch -> Tab_Mod | flangerControlsGroup_ = FREED
+PROBE ptr | host switch -> Tab_Mod | chorusControlsGroup_ = FREED
+PROBE ptr | host switch -> Tab_Mod | flangerRateGroup_ = FREED
+PROBE ptr | host switch -> Tab_Mod | flangerNoteValueGroup_ = FREED
+PROBE ptr | host switch -> Tab_Mod | chorusRateGroup_ = FREED
+PROBE ptr | host switch -> Tab_Mod | chorusNoteValueGroup_ = FREED
+PROBE r079 | after FX->SEQ->SOUND->MOD | FX modulation-type/flanger/chorus groups dangling = YES
+PROBE uaf | setComponentState(Flanger, synced) on Tab_Mod | calling
+PROBE uaf | setComponentState | returned 0, process alive
+All tests passed (6 assertions in 1 test case)
+--- Filters: ""audit-probe: ModSource Chaos template destroyed\, then Chaos Sync automation""
+PROBE ptr | modsource Chaos -> Macros | chaosRateGroup_ = FREED
+PROBE ptr | modsource Chaos -> Macros | chaosNoteValueGroup_ = FREED
+PROBE uaf | Chaos template destroyed by ModSourceViewMode switch; setParamNormalized(sync 1203) | calling
+PROBE uaf | Chaos sync automation | returned, process alive
+All tests passed (4 assertions in 1 test case)
+--- Filters: ""audit-probe: ModSource S&H template destroyed\, then S&H Sync automation""
+PROBE ptr | modsource SampleHold -> Macros | shRateGroup_ = FREED
+PROBE ptr | modsource SampleHold -> Macros | shNoteValueGroup_ = FREED
+PROBE uaf | SampleHold template destroyed by ModSourceViewMode switch; setParamNormalized(sync 2401) | calling
+PROBE uaf | SampleHold sync automation | returned, process alive
+All tests passed (4 assertions in 1 test case)
+--- Filters: ""audit-probe: ModSource Random template destroyed\, then Random Sync automation""
+PROBE ptr | modsource Random -> Macros | randomRateGroup_ = FREED
+PROBE ptr | modsource Random -> Macros | randomNoteValueGroup_ = FREED
+PROBE uaf | Random template destroyed by ModSourceViewMode switch; setParamNormalized(sync 2501) | calling
+PROBE uaf | Random sync automation | returned, process alive
+All tests passed (4 assertions in 1 test case)
+--- Filters: ""audit-probe: ModSource LFO1 template destroyed\, then setComponentState""
+PROBE ptr | modsource LFO1 -> Macros | lfo1RateGroup_ = FREED
+PROBE ptr | modsource LFO1 -> Macros | lfo1NoteValueGroup_ = FREED
+PROBE uaf | LFO1 template destroyed; setComponentState (syncAllViews) | calling
+PROBE uaf | setComponentState | returned 0, process alive
+All tests passed (6 assertions in 1 test case)
+--- Filters: ""audit-probe: Dist_Spectral destroyed by view-mode toggle\, then arp-only preset load""
+PROBE ptr | UAF setup: Spectral, TypeSpecific -> General | spectralCurveDropdown_ = DETACHED
+PROBE ptr | UAF setup: Spectral, TypeSpecific -> General | spectralBitsGroup_ = FREED
+PROBE r080/r130 | spectral pointers dangling after view-mode toggle = YES
+PROBE uaf | loadComponentStateWithNotify(arpOnly=true) (syncAllViews spectral block) | calling
+F:\projects\iterum\plugins\ruinae\tests\audit\view_switch_lifecycle_probe.cpp(336): FAILED:
+  Unknown exception
+test cases: 1 | 1 failed
+--- Filters: ""audit-probe: FX groups after leaving FX\, then loadComponentStateWithNotify""
+PROBE ptr | host switch -> Tab_Seq | noModulationGroup_ = FREED
+PROBE ptr | host switch -> Tab_Seq | phaserControlsGroup_ = FREED
+PROBE ptr | host switch -> Tab_Seq | flangerControlsGroup_ = FREED
+PROBE ptr | host switch -> Tab_Seq | chorusControlsGroup_ = FREED
+PROBE ptr | host switch -> Tab_Seq | flangerRateGroup_ = FREED
+PROBE ptr | host switch -> Tab_Seq | flangerNoteValueGroup_ = FREED
+PROBE ptr | host switch -> Tab_Seq | chorusRateGroup_ = FREED
+PROBE ptr | host switch -> Tab_Seq | chorusNoteValueGroup_ = FREED
+PROBE ptr | host switch -> Tab_Sound | noModulationGroup_ = FREED
+PROBE ptr | host switch -> Tab_Sound | phaserControlsGroup_ = FREED
+PROBE ptr | host switch -> Tab_Sound | flangerControlsGroup_ = FREED
+PROBE ptr | host switch -> Tab_Sound | chorusControlsGroup_ = FREED
+PROBE ptr | host switch -> Tab_Sound | flangerRateGroup_ = FREED
+PROBE ptr | host switch -> Tab_Sound | flangerNoteValueGroup_ = FREED
+PROBE ptr | host switch -> Tab_Sound | chorusRateGroup_ = FREED
+PROBE ptr | host switch -> Tab_Sound | chorusNoteValueGroup_ = FREED
+PROBE ptr | host switch -> Tab_Mod | noModulationGroup_ = FREED
+PROBE ptr | host switch -> Tab_Mod | phaserControlsGroup_ = FREED
+PROBE ptr | host switch -> Tab_Mod | flangerControlsGroup_ = FREED
+PROBE ptr | host switch -> Tab_Mod | chorusControlsGroup_ = FREED
+PROBE ptr | host switch -> Tab_Mod | flangerRateGroup_ = FREED
+PROBE ptr | host switch -> Tab_Mod | flangerNoteValueGroup_ = FREED
+PROBE ptr | host switch -> Tab_Mod | chorusRateGroup_ = FREED
+PROBE ptr | host switch -> Tab_Mod | chorusNoteValueGroup_ = FREED
+PROBE r079 | after FX->SEQ->SOUND->MOD | FX modulation-type/flanger/chorus groups dangling = YES
+PROBE uaf | loadComponentStateWithNotify(Chorus, synced) on Tab_Mod | calling
+PROBE uaf | loadComponentStateWithNotify | returned 1, process alive
+All tests passed (6 assertions in 1 test case)
+--- Filters: ""audit-probe: FX groups after leaving FX\, then host automation of mod type / syncs""
+PROBE ptr | host switch -> Tab_Seq | noModulationGroup_ = FREED
+PROBE ptr | host switch -> Tab_Seq | phaserControlsGroup_ = FREED
+PROBE ptr | host switch -> Tab_Seq | flangerControlsGroup_ = FREED
+PROBE ptr | host switch -> Tab_Seq | chorusControlsGroup_ = FREED
+PROBE ptr | host switch -> Tab_Seq | flangerRateGroup_ = FREED
+PROBE ptr | host switch -> Tab_Seq | flangerNoteValueGroup_ = FREED
+PROBE ptr | host switch -> Tab_Seq | chorusRateGroup_ = FREED
+PROBE ptr | host switch -> Tab_Seq | chorusNoteValueGroup_ = FREED
+PROBE ptr | host switch -> Tab_Sound | noModulationGroup_ = FREED
+PROBE ptr | host switch -> Tab_Sound | phaserControlsGroup_ = FREED
+PROBE ptr | host switch -> Tab_Sound | flangerControlsGroup_ = FREED
+PROBE ptr | host switch -> Tab_Sound | chorusControlsGroup_ = FREED
+PROBE ptr | host switch -> Tab_Sound | flangerRateGroup_ = FREED
+PROBE ptr | host switch -> Tab_Sound | flangerNoteValueGroup_ = FREED
+PROBE ptr | host switch -> Tab_Sound | chorusRateGroup_ = FREED
+PROBE ptr | host switch -> Tab_Sound | chorusNoteValueGroup_ = FREED
+PROBE ptr | host switch -> Tab_Mod | noModulationGroup_ = FREED
+PROBE ptr | host switch -> Tab_Mod | phaserControlsGroup_ = FREED
+PROBE ptr | host switch -> Tab_Mod | flangerControlsGroup_ = FREED
+PROBE ptr | host switch -> Tab_Mod | chorusControlsGroup_ = FREED
+PROBE ptr | host switch -> Tab_Mod | flangerRateGroup_ = FREED
+PROBE ptr | host switch -> Tab_Mod | flangerNoteValueGroup_ = FREED
+PROBE ptr | host switch -> Tab_Mod | chorusRateGroup_ = FREED
+PROBE ptr | host switch -> Tab_Mod | chorusNoteValueGroup_ = FREED
+PROBE r079 | after FX->SEQ->SOUND->MOD | FX modulation-type/flanger/chorus groups dangling = YES
+PROBE uaf | setParamNormalized(1918) on Tab_Mod | calling
+PROBE uaf | setParamNormalized(1918) | returned, process alive
+PROBE uaf | setParamNormalized(1916) on Tab_Mod | calling
+PROBE uaf | setParamNormalized(1916) | returned, process alive
+PROBE uaf | setParamNormalized(1927) on Tab_Mod | calling
+PROBE uaf | setParamNormalized(1927) | returned, process alive
+All tests passed (4 assertions in 1 test case)
+--- Filters: ""audit-probe: DistortionViewMode toggle and DistortionType switch with Spectral""
+PROBE follow | type -> Spectral (General view) | spectral dim | n/a (Dist_Spectral not shown)
+PROBE follow | viewmode -> TypeSpecific | spectral dim | curve dropdown alpha bitcrush=0.35 saturate=1.00 (expected 0.35/1.00) | FOLLOWS
+PROBE ptr | viewmode -> General | spectralCurveDropdown_ = DETACHED
+PROBE ptr | viewmode -> General | spectralBitsGroup_ = FREED
+PROBE follow | viewmode -> TypeSpecific again | spectral dim | curve dropdown alpha bitcrush=0.35 saturate=1.00 (expected 0.35/1.00) | FOLLOWS
+PROBE follow | TypeSpecific: type -> Spectral | spectral dim | curve dropdown alpha bitcrush=1.00 saturate=1.00 (expected 0.35/1.00) | STALE (controller pointer null)
+All tests passed (4 assertions in 1 test case)
+--- Filters: ""audit-probe: Dist_Spectral destroyed by view-mode toggle\, then Spectral Mode automation""
+PROBE ptr | UAF setup: Spectral, TypeSpecific -> General | spectralCurveDropdown_ = DETACHED
+PROBE ptr | UAF setup: Spectral, TypeSpecific -> General | spectralBitsGroup_ = FREED
+PROBE r080/r130 | spectral pointers dangling after view-mode toggle = YES
+PROBE uaf | setParamNormalized(kDistortionSpectralModeId) | calling
+F:\projects\iterum\plugins\ruinae\tests\audit\view_switch_lifecycle_probe.cpp(336): FAILED:
+  Unknown exception
+test cases: 1 | 1 failed
+--- Filters: ""audit-probe: Dist_Spectral destroyed by view-mode toggle\, then setComponentState""
+PROBE ptr | UAF setup: Spectral, TypeSpecific -> General | spectralCurveDropdown_ = DETACHED
+PROBE ptr | UAF setup: Spectral, TypeSpecific -> General | spectralBitsGroup_ = FREED
+PROBE r080/r130 | spectral pointers dangling after view-mode toggle = YES
+PROBE uaf | setComponentState (syncAllViews spectral block) | calling
+PROBE uaf | setComponentState | returned 0, process alive
+All tests passed (6 assertions in 1 test case)
+--- Filters: ""audit-probe: ModSourceViewMode through ten templates""
+PROBE follow | fresh Tab_Mod / LFO1 | LFO1 | sync 1->0 rate-group visible 0->1 expected 1 | FOLLOWS
+PROBE follow | fresh Tab_Mod / LFO2 | LFO2 | sync 1->0 rate-group visible 0->1 expected 1 | FOLLOWS
+PROBE follow | fresh Tab_Mod / Chaos | Chaos | sync 0->1 rate-group visible 1->0 expected 0 | FOLLOWS
+PROBE follow | fresh Tab_Mod / SampleHold | S&H | sync 0->1 rate-group visible 1->0 expected 0 | FOLLOWS
+PROBE follow | fresh Tab_Mod / Random | Random | sync 0->1 rate-group visible 1->0 expected 0 | FOLLOWS
+PROBE ptr | modsource -> LFO2 | lfo1RateGroup_ = FREED
+PROBE ptr | modsource -> LFO2 | lfo1NoteValueGroup_ = FREED
+PROBE r131 | modsource -> LFO2 | 1 of 4 pointers a fresh open caches are NULL after the switch: lfo2WaveformDisplay_ 
+PROBE follow | modsource -> LFO2 | LFO2 | sync 1->0 rate-group visible 0->1 expected 1 | FOLLOWS
+PROBE ptr | modsource -> Chaos | lfo1RateGroup_ = FREED
+PROBE ptr | modsource -> Chaos | lfo2RateGroup_ = FREED
+PROBE ptr | modsource -> Chaos | lfo1NoteValueGroup_ = FREED
+PROBE ptr | modsource -> Chaos | lfo2NoteValueGroup_ = FREED
+PROBE r131 | modsource -> Chaos | 1 of 4 pointers a fresh open caches are NULL after the switch: chaosModDisplay_ 
+PROBE follow | modsource -> Chaos | Chaos | sync 0->1 rate-group visible 1->0 expected 0 | FOLLOWS
+PROBE ptr | modsource -> Macros | lfo1RateGroup_ = FREED
+PROBE ptr | modsource -> Macros | lfo2RateGroup_ = FREED
+PROBE ptr | modsource -> Macros | lfo1NoteValueGroup_ = FREED
+PROBE ptr | modsource -> Macros | lfo2NoteValueGroup_ = REUSED
+PROBE ptr | modsource -> Macros | chaosRateGroup_ = FREED
+PROBE ptr | modsource -> Macros | chaosNoteValueGroup_ = FREED
+PROBE r131 | modsource -> Macros | 0 of 1 pointers a fresh open caches are NULL after the switch: 
+PROBE ptr | modsource -> Rungler | lfo1RateGroup_ = FREED
+PROBE ptr | modsource -> Rungler | lfo2RateGroup_ = FREED
+PROBE ptr | modsource -> Rungler | lfo1NoteValueGroup_ = FREED
+PROBE ptr | modsource -> Rungler | lfo2NoteValueGroup_ = FREED
+PROBE ptr | modsource -> Rungler | chaosRateGroup_ = FREED
+PROBE ptr | modsource -> Rungler | chaosNoteValueGroup_ = FREED
+PROBE r131 | modsource -> Rungler | 1 of 2 pointers a fresh open caches are NULL after the switch: runglerDisplay_ 
+PROBE ptr | modsource -> EnvFollower | lfo1RateGroup_ = FREED
+PROBE ptr | modsource -> EnvFollower | lfo2RateGroup_ = FREED
+PROBE ptr | modsource -> EnvFollower | lfo1NoteValueGroup_ = FREED
+PROBE ptr | modsource -> EnvFollower | lfo2NoteValueGroup_ = FREED
+PROBE ptr | modsource -> EnvFollower | chaosRateGroup_ = FREED
+PROBE ptr | modsource -> EnvFollower | chaosNoteValueGroup_ = FREED
+PROBE r131 | modsource -> EnvFollower | 1 of 2 pointers a fresh open caches are NULL after the switch: sidechainIndicatorEnvFollower_ 
+PROBE ptr | modsource -> SampleHold | lfo1RateGroup_ = FREED
+PROBE ptr | modsource -> SampleHold | lfo2RateGroup_ = FREED
+PROBE ptr | modsource -> SampleHold | lfo1NoteValueGroup_ = FREED
+PROBE ptr | modsource -> SampleHold | lfo2NoteValueGroup_ = FREED
+PROBE ptr | modsource -> SampleHold | chaosRateGroup_ = FREED
+PROBE ptr | modsource -> SampleHold | chaosNoteValueGroup_ = FREED
+PROBE r131 | modsource -> SampleHold | 1 of 4 pointers a fresh open caches are NULL after the switch: sampleHoldDisplay_ 
+PROBE follow | modsource -> SampleHold | S&H | sync 0->1 rate-group visible 1->0 expected 0 | FOLLOWS
+PROBE ptr | modsource -> Random | lfo1RateGroup_ = FREED
+PROBE ptr | modsource -> Random | lfo2RateGroup_ = FREED
+PROBE ptr | modsource -> Random | lfo1NoteValueGroup_ = FREED
+PROBE ptr | modsource -> Random | lfo2NoteValueGroup_ = REUSED
+PROBE ptr | modsource -> Random | chaosRateGroup_ = FREED
+PROBE ptr | modsource -> Random | chaosNoteValueGroup_ = FREED
+PROBE ptr | modsource -> Random | shRateGroup_ = FREED
+PROBE ptr | modsource -> Random | shNoteValueGroup_ = FREED
+PROBE r131 | modsource -> Random | 1 of 4 pointers a fresh open caches are NULL after the switch: randomModDisplay_ 
+PROBE follow | modsource -> Random | Random | sync 0->1 rate-group visible 1->0 expected 0 | FOLLOWS
+PROBE ptr | modsource -> PitchFollower | lfo1RateGroup_ = FREED
+PROBE ptr | modsource -> PitchFollower | lfo2RateGroup_ = FREED
+PROBE ptr | modsource -> PitchFollower | lfo1NoteValueGroup_ = FREED
+PROBE ptr | modsource -> PitchFollower | lfo2NoteValueGroup_ = FREED
+PROBE ptr | modsource -> PitchFollower | chaosRateGroup_ = REUSED
+PROBE ptr | modsource -> PitchFollower | chaosNoteValueGroup_ = FREED
+PROBE ptr | modsource -> PitchFollower | shRateGroup_ = FREED
+PROBE ptr | modsource -> PitchFollower | shNoteValueGroup_ = FREED
+PROBE ptr | modsource -> PitchFollower | randomRateGroup_ = FREED
+PROBE ptr | modsource -> PitchFollower | randomNoteValueGroup_ = FREED
+PROBE r131 | modsource -> PitchFollower | 1 of 2 pointers a fresh open caches are NULL after the switch: sidechainIndicatorPitchFollower_ 
+PROBE ptr | modsource -> Transient | lfo1RateGroup_ = FREED
+PROBE ptr | modsource -> Transient | lfo2RateGroup_ = FREED
+PROBE ptr | modsource -> Transient | lfo1NoteValueGroup_ = FREED
+PROBE ptr | modsource -> Transient | lfo2NoteValueGroup_ = REUSED
+PROBE ptr | modsource -> Transient | chaosRateGroup_ = FREED
+PROBE ptr | modsource -> Transient | chaosNoteValueGroup_ = FREED
+PROBE ptr | modsource -> Transient | shRateGroup_ = FREED
+PROBE ptr | modsource -> Transient | shNoteValueGroup_ = FREED
+PROBE ptr | modsource -> Transient | randomRateGroup_ = REUSED
+PROBE ptr | modsource -> Transient | randomNoteValueGroup_ = FREED
+PROBE r131 | modsource -> Transient | 1 of 2 pointers a fresh open caches are NULL after the switch: sidechainIndicatorTransient_ 
+PROBE ptr | modsource -> LFO1 | lfo2RateGroup_ = FREED
+PROBE ptr | modsource -> LFO1 | lfo2NoteValueGroup_ = FREED
+PROBE ptr | modsource -> LFO1 | chaosRateGroup_ = REUSED
+PROBE ptr | modsource -> LFO1 | chaosNoteValueGroup_ = FREED
+PROBE ptr | modsource -> LFO1 | shRateGroup_ = FREED
+PROBE ptr | modsource -> LFO1 | shNoteValueGroup_ = FREED
+PROBE ptr | modsource -> LFO1 | randomRateGroup_ = FREED
+PROBE ptr | modsource -> LFO1 | randomNoteValueGroup_ = FREED
+PROBE r131 | modsource -> LFO1 | 1 of 4 pointers a fresh open caches are NULL after the switch: lfo1WaveformDisplay_ 
+PROBE follow | modsource -> LFO1 | LFO1 | sync 1->0 rate-group visible 0->1 expected 1 | FOLLOWS
+All tests passed (64 assertions in 1 test case)
+--- Filters: ""audit-probe: ModSource LFO1 template destroyed\, then LFO1 Sync automation""
+PROBE ptr | modsource LFO1 -> Macros | lfo1RateGroup_ = FREED
+PROBE ptr | modsource LFO1 -> Macros | lfo1NoteValueGroup_ = FREED
+PROBE uaf | LFO1 template destroyed by ModSourceViewMode switch; setParamNormalized(sync 1003) | calling
+PROBE uaf | LFO1 sync automation | returned, process alive
+All tests passed (4 assertions in 1 test case)
+--- Filters: ""audit-probe: ModSource LFO2 template destroyed\, then LFO2 Sync automation""
+PROBE ptr | modsource LFO2 -> Macros | lfo2RateGroup_ = FREED
+PROBE ptr | modsource LFO2 -> Macros | lfo2NoteValueGroup_ = FREED
+PROBE uaf | LFO2 template destroyed by ModSourceViewMode switch; setParamNormalized(sync 1103) | calling
+PROBE uaf | LFO2 sync automation | returned, process alive
+All tests passed (4 assertions in 1 test case)

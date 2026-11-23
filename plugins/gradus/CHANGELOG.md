@@ -5,6 +5,23 @@ All notable changes to Gradus will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.10.7] - 2026-11-23
+
+### Changed
+
+- **Swing now plays long step first, and keeps swinging with the host playing** *(shared arp engine)* — Free-running, each swung pair played its short step first while the gates and ratchets were sized for the long one. With the host transport running, Gradus re-locked to the host every block, which undid the swing and could fire two notes a few milliseconds apart. Each step now lasts its own swung length, the long step comes first in both cases, and gates and ratchets fit the step they belong to. Every swung preset and project swings the other way round from before.
+
+### Fixed
+
+- **A gate above 100 % on a single held key played staccato** *(shared arp engine)* — When the same pitch was struck again while its previous note was still held, that older note's note-off cut the new note at the old gate length, so a legato gate (101-200 %) turned into 50 % notes. A re-struck pitch now ends the old note first and the new note keeps its full gate.
+- **The first note after a pause could come late** *(shared arp engine)* — After all keys were released, the step counter stopped where it was, so the first note of the next phrase waited out the rest of that old step: up to 2 seconds at slow free rates. The first step now fires in the block the key is pressed.
+- **The arp drifted off tempo when not following the host** *(shared arp engine)* — Step lengths derived from the tempo were cut down to a whole sample instead of rounded, so with the transport stopped or a free-running arp each step could be one sample short and the pattern drifted against the tempo. Step lengths now round to the nearest sample and swung pairs add up exactly.
+- **Editing a Modifier lane step saved the wrong value** *(shared UI)* — A step clicked, pasted or transformed in the Modifier lane was saved as 17 times its flag value (the lane and the parameter used different scales). The sound was the same, but the saved value differed from the factory presets. The lane now saves the flags themselves.
+- **Speed-curve depth was 0 after reopening a project** — After a project reload the arpeggiator played every lane's speed curve at depth 0 until a speed-curve control was touched. The saved depths now apply as soon as the project loads.
+- **The Ratchet and Condition lanes swapped their speed-curve depths** — Each lane's depth knob drove the other lane. Each now drives its own. In older projects a curve drawn on the Ratchet tab may now show on the Condition tab, the lane it always played on.
+- **A preset loaded from the browser and one restored by the host could play differently** — Loading from the preset browser did not run the same code as a host restore, so ratchet shuffle, lane speeds and a few clamped values could differ between the two. Both now load identically. The factory presets now store the ratchet shuffle they play (50, 66.67 or 75 %).
+- **Resetting a lane speed to its default set it to 0.25x** — The eight lane-speed controls reported 0.25x to the host as their default, so a host "reset to default" (or double-click reset) slowed the lane to a quarter. Their default is now 1x, the speed a new instance starts at.
+
 ## [1.10.6] - 2026-11-20
 
 ### Added

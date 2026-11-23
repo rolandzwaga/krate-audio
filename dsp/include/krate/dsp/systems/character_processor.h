@@ -104,6 +104,8 @@ public:
     static constexpr float kDefaultDigitalBitDepth = 16.0f;
     static constexpr float kDefaultDigitalSampleRateReduction = 1.0f;
     static constexpr float kDefaultDigitalDither = 0.5f;
+    static constexpr std::uint32_t kTapeHissRightSeed = 0x2545F491u;  ///< right channel hiss RNG seed
+    static constexpr size_t kTapeDriveGridSamples = 512;  ///< samples per tape drive smoother step
 
     // =========================================================================
     // Lifecycle
@@ -140,6 +142,12 @@ public:
         // Set floor to 0dB so tape hiss is constant (not signal-dependent)
         // Real tape hiss is present even during silence
         tapeHiss_.setTapeHissParams(0.0f, 0.0f);
+        tapeHissR_.prepare(static_cast<float>(sampleRate), maxBlockSize);
+        tapeHissR_.setNoiseEnabled(NoiseType::TapeHiss, true);
+        tapeHissR_.setNoiseLevel(NoiseType::TapeHiss, kDefaultTapeHissLevel);
+        tapeHissR_.setTapeHissParams(0.0f, 0.0f);
+        // Its own sequence, so the channels' hiss stays uncorrelated
+        tapeHissR_.setSeed(kTapeHissRightSeed);
 
         for (auto& rolloff : tapeRolloff_) {
             rolloff.prepare(sampleRate, maxBlockSize);
@@ -231,6 +239,8 @@ public:
             tapeRolloff_[ch].reset();
         }
         tapeHiss_.reset();
+        tapeHissR_.reset();
+        tapeDriveGridPhase_.fill(0);
         wowLfo_.reset();
         flutterLfo_.reset();
 
@@ -382,6 +392,13 @@ public:
     /// @brief Set tape hiss level in dB
     void setTapeHissLevel(float levelDb) noexcept {
         tapeHiss_.setNoiseLevel(NoiseType::TapeHiss, levelDb);
+        tapeHissR_.setNoiseLevel(NoiseType::TapeHiss, levelDb);
+    }
+
+    /// @brief Turn the tape hiss on or off (both channels). prepare() turns it on.
+    void setTapeHissEnabled(bool enabled) noexcept {
+        tapeHiss_.setNoiseEnabled(NoiseType::TapeHiss, enabled);
+        tapeHissR_.setNoiseEnabled(NoiseType::TapeHiss, enabled);
     }
 
     /// @brief Set tape high-frequency rolloff frequency
@@ -485,6 +502,29 @@ private:
         (void)numSamples;
     }
 
+    /// @brief Set channel @p ch's tape saturation drive and makeup gain from a
+    ///        saturation amount [0, 1]
+    void updateTapeDrive(size_t ch, float satAmount) noexcept {
+        // Map saturation amount [0, 1] to drive for THD range ~0.1% to ~5%
+        //
+        // Empirically calibrated drive range (iteratively tuned):
+        // - At 0% saturation: -17dB drive → THD ~0.1%
+        // - At 100% saturation: +24dB drive → THD ~5%
+        //
+        // THD measured at 0.5 amplitude test signal through tanh saturation.
+        // Note: THD growth slows at high drive due to tanh compression and
+        // the saturation processor's DC blocker attenuating harmonics.
+        const float driveDb = -17.0f + satAmount * 41.0f;  // -17dB to +24dB (41dB span)
+        tapeSaturation_[ch].setInputGain(driveDb);
+
+        // Apply makeup gain to maintain roughly unity output level
+        // At low saturation: need full compensation for attenuation
+        // At high saturation: tanh compresses heavily, need less makeup
+        float makeupDb = -driveDb * (1.0f - satAmount * 0.75f);
+        makeupDb = std::clamp(makeupDb, -10.0f, 18.0f);
+        tapeSaturation_[ch].setOutputGain(makeupDb);
+    }
+
     /// @brief Process Tape mode
     void processTape(float* buffer, size_t numSamples) noexcept {
         // One tape transport moves both channels: the wow / flutter curve and the saturation amount are computed on
@@ -502,39 +542,38 @@ private:
             buffer[i] *= tapeModulation_[i];
         }
 
-        // Update saturation drive from smoother
-        float satAmount = tapeSaturationSmoother_.process();
+        // The saturation drive steps once per kTapeDriveGridSamples of each
+        // channel's pass, on a grid counted across calls: stepped once per
+        // call, its glide (and so the output) depended on the caller's buffer
+        // size (R-150). The grid reproduces the per-call pace of the usual
+        // 512-sample buffers exactly; the pace is still one smoother step per
+        // grid cell, not per sample.
+        size_t done = 0;
+        while (done < numSamples) {
+            if (tapeDriveGridPhase_[ch] == 0) {
+                updateTapeDrive(ch, tapeSaturationSmoother_.process());
+            }
+            const size_t len = std::min(numSamples - done,
+                                        kTapeDriveGridSamples - tapeDriveGridPhase_[ch]);
 
-        // Map saturation amount [0, 1] to drive for THD range ~0.1% to ~5%
-        //
-        // Empirically calibrated drive range (iteratively tuned):
-        // - At 0% saturation: -17dB drive → THD ~0.1%
-        // - At 100% saturation: +24dB drive → THD ~5%
-        //
-        // THD measured at 0.5 amplitude test signal through tanh saturation.
-        // Note: THD growth slows at high drive due to tanh compression and
-        // the saturation processor's DC blocker attenuating harmonics.
-        float driveDb = -17.0f + satAmount * 41.0f;  // -17dB to +24dB (41dB span)
-        tapeSaturation_[ch].setInputGain(driveDb);
+            // Apply saturation with 2x oversampling for anti-aliasing
+            // The oversampler upsamples, calls the callback at 2x rate, then downsamples
+            tapeOversampler_[ch].process(buffer + done, len, [this, ch](float* upsampled, size_t n) {
+                tapeSaturation_[ch].process(upsampled, n);
+            });
 
-        // Apply makeup gain to maintain roughly unity output level
-        // At low saturation: need full compensation for attenuation
-        // At high saturation: tanh compresses heavily, need less makeup
-        float makeupDb = -driveDb * (1.0f - satAmount * 0.75f);
-        makeupDb = std::clamp(makeupDb, -10.0f, 18.0f);
-        tapeSaturation_[ch].setOutputGain(makeupDb);
-
-        // Apply saturation with 2x oversampling for anti-aliasing
-        // The oversampler upsamples, calls the callback at 2x rate, then downsamples
-        tapeOversampler_[ch].process(buffer, numSamples, [this, ch](float* upsampled, size_t n) {
-            tapeSaturation_[ch].process(upsampled, n);
-        });
+            tapeDriveGridPhase_[ch] = (tapeDriveGridPhase_[ch] + len) % kTapeDriveGridSamples;
+            done += len;
+        }
 
         // Apply high-frequency rolloff
         tapeRolloff_[ch].process(buffer, numSamples);
 
-        // Generate and add hiss
-        tapeHiss_.process(noiseBuffer_.data(), numSamples);
+        // Generate and add hiss, one generator per channel: a shared one
+        // gave each channel alternate stretches of one sequence, cut where
+        // the caller's buffers ended (R-150).
+        NoiseGenerator& hiss = isRightChannel_ ? tapeHissR_ : tapeHiss_;
+        hiss.process(noiseBuffer_.data(), numSamples);
         for (size_t i = 0; i < numSamples; ++i) {
             buffer[i] += noiseBuffer_[i];
         }
@@ -618,7 +657,9 @@ private:
     // Tape mode components ([0] left, [1] right: independent filter and oversampler state per channel)
     std::array<SaturationProcessor, 2> tapeSaturation_;
     std::array<Oversampler<2, 1>, 2> tapeOversampler_;  ///< 2x oversamplers for tape saturation anti-aliasing
-    NoiseGenerator tapeHiss_;
+    NoiseGenerator tapeHiss_;   ///< Left channel hiss
+    NoiseGenerator tapeHissR_;  ///< Right channel hiss (own seed)
+    std::array<size_t, 2> tapeDriveGridPhase_{};  ///< per channel pass: samples into the drive grid cell
     std::array<MultimodeFilter, 2> tapeRolloff_;
     std::vector<float> tapeModulation_;  ///< wow / flutter gain per frame, computed on the left pass
     LFO wowLfo_;

@@ -5,6 +5,16 @@ All notable changes to Disrumpo will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.1] - 2026-11-23
+
+### Fixed
+
+- **A preset loaded from the browser kept the previous preset's shape settings** — Loading from the preset browser did not run the same code as a project reload. Each node remembers its shape settings for every distortion type, and the sound engine kept the previous preset's settings for every type except the one in use, so changing a node's type afterwards (by hand or by automation) played stale settings, and the next project save stored them. A browser load now takes the same path as a project reload, and the browser's Save stores exactly what the sound engine holds.
+- **The Chaos distortion repeated a short cycle instead of evolving** *(shared DSP)* — In the Lorenz model at 44.1 and 48 kHz, the attractor was stepped too coarsely, briefly overshot its safety bound and was restarted about 36 times a second, so the distortion repeated the same 28 ms pattern. The attractor is now stepped finely enough at every sample rate and speed, and only a truly runaway state is restarted.
+- **The Stepped modulation curve overshot its amount by a third** *(shared DSP)* — With the source at full scale (a macro at 100 %, a square LFO), a route or macro with the Stepped curve gave 4/3 of its amount. Its top step is now exactly the amount, so such routes move less than before at full scale.
+- **Changing a modulation route's source or destination could jump** *(shared DSP)* — When a route switched source, destination or curve, it briefly applied the old route's amount to the new destination, which could cause a short burst or jump. A changed route now starts from its own amount.
+- **Small load fixes** — A new instance ran the Rungler at 200 Hz, outside its range, until its Rate knob was moved; it now starts at the 4.09 Hz the knob shows. A project could restore Folds and Bit Depth between the steps their knobs offer; they now load on a step, as a browser load does.
+
 ## [1.1.0] - 2026-11-20
 
 ### Added

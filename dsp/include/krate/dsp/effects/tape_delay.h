@@ -175,7 +175,9 @@ public:
 
     static constexpr size_t kNumHeads = 3;           ///< Number of playback heads
     static constexpr float kMinDelayMs = 20.0f;      ///< Minimum delay (FR-002)
-    static constexpr float kMaxDelayMs = 2000.0f;    ///< Maximum delay (FR-002)
+    /// Upper bound for prepare()'s maxDelayMs (FR-002). Was 2000; raised so a host that prepares
+    /// for 5 s (Ruinae, R-094) gets it. A caller preparing for 2000 ms is unchanged.
+    static constexpr float kMaxDelayMs = 5000.0f;
     static constexpr float kHeadRatio1 = 1.0f;       ///< Head 1 timing ratio
     static constexpr float kHeadRatio2 = 1.5f;       ///< Head 2 timing ratio
     static constexpr float kHeadRatio3 = 2.0f;       ///< Head 3 timing ratio
@@ -243,6 +245,8 @@ public:
         // Prepare character processor in Tape mode
         character_.prepare(sampleRate, maxBlockSize);
         character_.setMode(CharacterMode::Tape);
+        // character_.prepare() restores its own defaults (hiss on at -60 dB): re-apply Wear, Saturation and Age
+        updateCharacter();
 
         // Prepare smoothers
         feedbackSmoother_.configure(kSmoothingTimeMs, static_cast<float>(sampleRate));
@@ -257,8 +261,17 @@ public:
     /// @brief Reset all internal state
     /// @post Delay lines cleared, smoothers snapped to current values
     void reset() noexcept {
+        startIncrementalReset();
+        std::size_t unlimited = SIZE_MAX;
+        (void)continueIncrementalReset(unlimited);
+    }
+
+    /// @brief Start a reset() whose delay-line clear is left to
+    /// continueIncrementalReset(), so it fits a real-time callback (the line
+    /// holds up to 5 s). Do not process until that has returned true.
+    void startIncrementalReset() noexcept {
         motor_.reset();
-        tapManager_.reset();
+        tapManager_.startIncrementalReset();
         character_.reset();
 
         feedbackSmoother_.snapTo(feedback_);
@@ -266,6 +279,12 @@ public:
 
         // Reset splice artifact state
         spliceSampleCounter_ = 0;
+    }
+
+    /// @brief Clear up to @p budget more delay-line samples (deducted from it).
+    /// @return true once the started reset is complete.
+    bool continueIncrementalReset(std::size_t& budget) noexcept {
+        return tapManager_.continueIncrementalReset(budget);
     }
 
     /// @brief Check if prepared for processing
@@ -278,7 +297,7 @@ public:
     // =========================================================================
 
     /// @brief Set delay time (Motor Speed control)
-    /// @param ms Delay time in milliseconds [20, 2000]
+    /// @param ms Delay time in milliseconds [20, the maxDelayMs given to prepare()]
     /// @note Changes smoothly with motor inertia (200-500ms transition)
     /// @note FR-007: Also updates wow rate (inversely proportional to delay)
     void setMotorSpeed(float ms) noexcept {
@@ -522,6 +541,11 @@ public:
             dryRight[i] = right[i];
         }
 
+        // The TapManager (multi-head delay with master feedback via per-tap)
+        // runs one sample at a time with that sample's head times and
+        // feedback. Run once per call, it only saw the call's last head times
+        // and feedback, which stepped at the caller's buffer boundaries, so
+        // the output depended on the buffer size (R-150).
         for (size_t i = 0; i < numSamples; ++i) {
             // Get smoothed motor delay and update head times
             const float currentDelayMs = motor_.process();
@@ -532,21 +556,17 @@ public:
                 tapManager_.setTapTimeMs(h, std::min(headDelay, maxDelayMs_));
             }
 
-            // Advance feedback smoother for consistent parameter processing
-            (void)feedbackSmoother_.process();
-        }
-
-        // Update per-tap feedback amounts from master feedback
-        // All taps get the same feedback, providing master feedback behavior
-        const float currentFeedback = feedbackSmoother_.getCurrentValue() * 100.0f;  // Convert to percentage
-        for (size_t h = 0; h < kNumHeads; ++h) {
-            if (heads_[h].enabled) {
-                tapManager_.setTapFeedback(h, currentFeedback);
+            // Update per-tap feedback amounts from master feedback
+            // All taps get the same feedback, providing master feedback behavior
+            const float currentFeedback = feedbackSmoother_.process() * 100.0f;  // Convert to percentage
+            for (size_t h = 0; h < kNumHeads; ++h) {
+                if (heads_[h].enabled) {
+                    tapManager_.setTapFeedback(h, currentFeedback);
+                }
             }
-        }
 
-        // Process through TapManager (multi-head delay with master feedback via per-tap)
-        tapManager_.process(left, right, left, right, numSamples);
+            tapManager_.process(left + i, right + i, left + i, right + i, 1);
+        }
 
         // Process through CharacterProcessor (tape character)
         character_.processStereo(left, right, numSamples);
@@ -598,16 +618,6 @@ public:
             dryBuffer[i] = buffer[i];
         }
 
-        // For mono, process as dual mono
-        for (size_t i = 0; i < numSamples; ++i) {
-            const float currentDelayMs = motor_.process();
-
-            for (size_t h = 0; h < kNumHeads; ++h) {
-                const float headDelay = currentDelayMs * heads_[h].ratio;
-                tapManager_.setTapTimeMs(h, std::min(headDelay, maxDelayMs_));
-            }
-        }
-
         // Update per-tap feedback amounts from master feedback
         const float currentFeedback = feedback_ * 100.0f;  // Convert to percentage
         for (size_t h = 0; h < kNumHeads; ++h) {
@@ -616,8 +626,18 @@ public:
             }
         }
 
-        // Process mono through tap manager (with feedback)
-        tapManager_.process(buffer, buffer, buffer, buffer, numSamples);
+        // For mono, process as dual mono through the tap manager (with
+        // feedback), one sample at a time with that sample's head times, as
+        // the stereo path does (R-150)
+        for (size_t i = 0; i < numSamples; ++i) {
+            const float currentDelayMs = motor_.process();
+
+            for (size_t h = 0; h < kNumHeads; ++h) {
+                const float headDelay = currentDelayMs * heads_[h].ratio;
+                tapManager_.setTapTimeMs(h, std::min(headDelay, maxDelayMs_));
+            }
+            tapManager_.process(buffer + i, buffer + i, buffer + i, buffer + i, 1);
+        }
 
         // Process through character
         character_.process(buffer, numSamples);
@@ -693,7 +713,7 @@ private:
         // Wear 0-1 maps to:
         // - Wow depth: 0-0.5 (moderate at max)
         // - Flutter depth: 0-0.3
-        // - Hiss level: -80dB to -40dB
+        // - Hiss level: off at Wear 0 and Age 0; -80 dB to -40 dB with Wear; +0 to +10 dB with Age
         character_.setTapeWowDepth(wear_ * 0.5f);
         character_.setTapeFlutterDepth(wear_ * 0.3f);
         character_.setTapeHissLevel(-80.0f + wear_ * 40.0f);
@@ -714,6 +734,8 @@ private:
             const float ageHissBoost = age_ * 10.0f;  // Extra 0-10dB
             character_.setTapeHissLevel(-80.0f + wear_ * 40.0f + ageHissBoost);
         }
+        // No hiss without Wear or Age, so silence in stays silence out (R-154)
+        character_.setTapeHissEnabled(wear_ > 0.0f || age_ > 0.0f);
     }
 
     /// @brief Update wow rate based on current motor speed (FR-007)

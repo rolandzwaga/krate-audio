@@ -251,6 +251,9 @@ add_executable(dsp_processors_tests
     unit/processors/arpeggiator_core_dawloop_test.cpp
     unit/processors/arpeggiator_core_scalechord_test.cpp
     unit/processors/arpeggiator_core_curve_race_test.cpp
+    # Ruinae audit T3.5 (R-106, R-015): tempo-derived step lengths round; built here under the executable's
+    # fast-math flags (deliberately not in the per-file IEEE list) and again in dsp_ieee_tests
+    unit/processors/step_duration_rounding_test.cpp
     unit/processors/midi_note_delay_test.cpp
     unit/processors/ring_modulator_test.cpp
     unit/processors/harmonic_types_tests.cpp
@@ -935,6 +938,8 @@ add_executable(dsp_ieee_tests
     unit/core/sigmoid_nonfinite_test.cpp
     # Disrumpo audit T5.09: BiquadCascade block / pair paths and the stereo IIR oversampler, bit for bit
     unit/primitives/biquad_cascade_block_test.cpp
+    # Ruinae audit T2.1 (R-170..R-174): setters across layers ignore NaN/Inf arguments
+    unit/systems/nonfinite_setters_test.cpp
     # Iterum Freeze P11: the PitchSync splice search without per-sample division, against its frozen copy, bit for bit
     unit/core/ring_splice_search_test.cpp
     # Innexus M6 SC-008: HarmonicOscillatorBank::applyPanOffsets' cache against the frozen loop, bit for bit
@@ -958,6 +963,9 @@ add_executable(dsp_ieee_tests
     unit/systems/profundum_note_behaviour_test.cpp
     unit/systems/profundum_voice_test.cpp
     unit/systems/profundum_engine_test.cpp
+    # Ruinae audit T3.5 (R-106, R-015): tempo-derived step lengths round; the same TU runs fast-math in
+    # dsp_processors_tests
+    unit/processors/step_duration_rounding_test.cpp
 )
 
 target_link_libraries(dsp_ieee_tests
@@ -1426,6 +1434,8 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/core/sigmoid_nonfinite_test.cpp
         # Disrumpo audit T5.09: bit-exactness against Biquad::process, NaN/Inf bit patterns.
         unit/primitives/biquad_cascade_block_test.cpp
+        # Ruinae audit T2.1: injects NaN/Inf bit patterns into DSP setters (R-170..R-174).
+        unit/systems/nonfinite_setters_test.cpp
         PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only -ffp-contract=off"
     )
 

@@ -7,6 +7,7 @@
 #include "plugin_ids.h"
 #include "controller/parameter_helpers.h"
 #include "parameters/dropdown_mappings.h"
+#include "parameters/state_load_helpers.h"
 #include "pluginterfaces/base/ustring.h"
 #include "pluginterfaces/vst/ivstparameterchanges.h"
 #include "public.sdk/source/vst/vstparameters.h"
@@ -184,30 +185,39 @@ inline void saveGlobalParams(const GlobalParams& params, Steinberg::IBStreamer& 
     streamer.writeFloat(params.spread.load(std::memory_order_relaxed));
 }
 
+// Saved-field ranges, read by both parsers (R-211)
+namespace GlobalLoad {
+inline constexpr LoadedFloat kMasterGain{.lo = 0.0f, .hi = 2.0f, .def = 1.0f};
+inline constexpr LoadedInt kVoiceMode{.lo = 0, .hi = 1};
+inline constexpr LoadedInt kPolyphony{.lo = 1, .hi = 16};
+inline constexpr LoadedFloat kWidth{.lo = 0.0f, .hi = 2.0f, .def = 1.0f};
+inline constexpr LoadedFloat kSpread{.lo = 0.0f, .hi = 1.0f, .def = 0.0f};
+} // namespace GlobalLoad
+
 inline bool loadGlobalParams(GlobalParams& params, Steinberg::IBStreamer& streamer) {
     float floatVal = 1.0f;
     Steinberg::int32 intVal = 0;
 
     if (!streamer.readFloat(floatVal)) return false;
-    params.masterGain.store(floatVal, std::memory_order_relaxed);
+    params.masterGain.store(GlobalLoad::kMasterGain(floatVal), std::memory_order_relaxed);
 
     if (!streamer.readInt32(intVal)) return false;
-    params.voiceMode.store(intVal, std::memory_order_relaxed);
+    params.voiceMode.store(GlobalLoad::kVoiceMode(intVal), std::memory_order_relaxed);
 
     if (!streamer.readInt32(intVal)) return false;
-    params.polyphony.store(intVal, std::memory_order_relaxed);
+    params.polyphony.store(GlobalLoad::kPolyphony(intVal), std::memory_order_relaxed);
 
     if (!streamer.readInt32(intVal)) return false;
     params.softLimit.store(intVal != 0, std::memory_order_relaxed);
 
     // Width (new - EOF-safe for old presets)
     if (streamer.readFloat(floatVal))
-        params.width.store(floatVal, std::memory_order_relaxed);
+        params.width.store(GlobalLoad::kWidth(floatVal), std::memory_order_relaxed);
     // else: keep default 1.0f (natural stereo width)
 
     // Spread (new - EOF-safe for old presets)
     if (streamer.readFloat(floatVal))
-        params.spread.store(floatVal, std::memory_order_relaxed);
+        params.spread.store(GlobalLoad::kSpread(floatVal), std::memory_order_relaxed);
     // else: keep default 0.0f (all voices centered)
 
     return true;
@@ -225,21 +235,21 @@ inline void loadGlobalParamsToController(
     Steinberg::int32 intVal = 0;
 
     if (streamer.readFloat(floatVal))
-        setParam(kMasterGainId, static_cast<double>(floatVal / 2.0f));
+        setParam(kMasterGainId, static_cast<double>(GlobalLoad::kMasterGain(floatVal) / 2.0f));
     if (streamer.readInt32(intVal))
-        setParam(kVoiceModeId, static_cast<double>(intVal));
+        setParam(kVoiceModeId, static_cast<double>(GlobalLoad::kVoiceMode(intVal)));
     if (streamer.readInt32(intVal))
-        setParam(kPolyphonyId, (static_cast<double>(intVal) - 1.0) / 15.0);
+        setParam(kPolyphonyId, (static_cast<double>(GlobalLoad::kPolyphony(intVal)) - 1.0) / 15.0);
     if (streamer.readInt32(intVal))
         setParam(kSoftLimitId, intVal != 0 ? 1.0 : 0.0);
 
     // Width: engine value (0-2) -> normalized (0-1)
     if (streamer.readFloat(floatVal))
-        setParam(kWidthId, static_cast<double>(floatVal / 2.0f));
+        setParam(kWidthId, static_cast<double>(GlobalLoad::kWidth(floatVal) / 2.0f));
 
     // Spread: stored value (0-1) = normalized (0-1)
     if (streamer.readFloat(floatVal))
-        setParam(kSpreadId, static_cast<double>(floatVal));
+        setParam(kSpreadId, static_cast<double>(GlobalLoad::kSpread(floatVal)));
 }
 
 } // namespace Ruinae

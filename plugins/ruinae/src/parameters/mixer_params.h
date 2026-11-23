@@ -7,6 +7,7 @@
 #include "plugin_ids.h"
 #include "controller/parameter_helpers.h"
 #include "parameters/dropdown_mappings.h"
+#include "parameters/state_load_helpers.h"
 #include "pluginterfaces/base/ustring.h"
 #include "public.sdk/source/vst/vstparameters.h"
 #include "public.sdk/source/vst/vsteditcontroller.h"
@@ -22,8 +23,14 @@ struct MixerParams {
     std::atomic<int> mode{0};         // 0=Crossfade, 1=SpectralMorph
     std::atomic<float> position{0.5f}; // 0=A, 1=B
     std::atomic<float> tilt{0.0f};     // Spectral tilt [-12, +12] dB/oct
-    std::atomic<float> shift{0.0f};    // Spectral frequency shift [0, 1]
+    std::atomic<float> shift{0.5f};    // Spectral shift [0, 1]: 0 = -24 st, 0.5 = none, 1 = +24 st
 };
+
+/// First state version in which Spectral Shift reaches the audio (R-182).
+/// Older states stored 0.0 for a knob shown at 50 % that had no effect; they
+/// load the centre, which is the sound they were saved with.
+inline constexpr Steinberg::int32 kMixerShiftAudibleStateVersion = 9;
+inline constexpr float kMixerShiftNeutral = 0.5f;
 
 inline void handleMixerParamChange(
     MixerParams& params, Steinberg::Vst::ParamID id,
@@ -65,7 +72,7 @@ inline void registerMixerParams(Steinberg::Vst::ParameterContainer& parameters) 
     parameters.addParameter(
         new RangeParameter(STR16("Spectral Tilt"), kMixerTiltId, STR16("dB/oct"),
             -12.0, 12.0, 0.0, 0, ParameterInfo::kCanAutomate));
-    parameters.addParameter(STR16("Spectral Shift"), STR16("%"), 0, 0.5,
+    parameters.addParameter(STR16("Spectral Shift"), STR16("st"), 0, kMixerShiftNeutral,
         ParameterInfo::kCanAutomate, kMixerShiftId);
 }
 
@@ -89,8 +96,10 @@ inline Steinberg::tresult formatMixerParam(
         return kResultOk;
     }
     if (id == kMixerShiftId) {
+        // Normalized [0,1] -> [-24, +24] semitones, 0.5 = no shift
+        const double semitones = (value * 2.0 - 1.0) * 24.0;
         char8 text[32];
-        snprintf(text, sizeof(text), "%.0f%%", value * 100.0);
+        snprintf(text, sizeof(text), "%+.1f st", semitones);
         UString(string, 128).fromAscii(text);
         return kResultOk;
     }
@@ -104,33 +113,46 @@ inline void saveMixerParams(const MixerParams& params, Steinberg::IBStreamer& st
     streamer.writeFloat(params.shift.load(std::memory_order_relaxed));
 }
 
-inline bool loadMixerParams(MixerParams& params, Steinberg::IBStreamer& streamer) {
+// Saved-field ranges, read by both parsers (R-211)
+namespace MixerLoad {
+inline constexpr LoadedInt kMode{.lo = 0, .hi = kMixModeCount - 1};
+inline constexpr LoadedFloat kPosition{.lo = 0.0f, .hi = 1.0f, .def = 0.5f};
+inline constexpr LoadedFloat kTilt{.lo = -12.0f, .hi = 12.0f, .def = 0.0f};
+inline constexpr LoadedFloat kShift{.lo = 0.0f, .hi = 1.0f, .def = kMixerShiftNeutral};
+} // namespace MixerLoad
+
+inline bool loadMixerParams(MixerParams& params, Steinberg::IBStreamer& streamer,
+                            Steinberg::int32 stateVersion = kCurrentStateVersion) {
     Steinberg::int32 intVal = 0; float floatVal = 0.0f;
     if (!streamer.readInt32(intVal)) return false;
-    params.mode.store(intVal, std::memory_order_relaxed);
+    params.mode.store(MixerLoad::kMode(intVal), std::memory_order_relaxed);
     if (!streamer.readFloat(floatVal)) return false;
-    params.position.store(floatVal, std::memory_order_relaxed);
+    params.position.store(MixerLoad::kPosition(floatVal), std::memory_order_relaxed);
     if (!streamer.readFloat(floatVal)) return false;
-    params.tilt.store(floatVal, std::memory_order_relaxed);
+    params.tilt.store(MixerLoad::kTilt(floatVal), std::memory_order_relaxed);
     if (!streamer.readFloat(floatVal)) return false;
-    params.shift.store(floatVal, std::memory_order_relaxed);
+    if (stateVersion < kMixerShiftAudibleStateVersion) floatVal = kMixerShiftNeutral;
+    params.shift.store(MixerLoad::kShift(floatVal), std::memory_order_relaxed);
     return true;
 }
 
 template<typename SetParamFunc>
 inline void loadMixerParamsToController(
-    Steinberg::IBStreamer& streamer, const SetParamFunc& setParam) {
+    Steinberg::IBStreamer& streamer, const SetParamFunc& setParam,
+    Steinberg::int32 stateVersion = kCurrentStateVersion) {
     Steinberg::int32 intVal = 0; float floatVal = 0.0f;
     if (streamer.readInt32(intVal))
-        setParam(kMixerModeId, static_cast<double>(intVal) / (kMixModeCount - 1));
+        setParam(kMixerModeId, static_cast<double>(MixerLoad::kMode(intVal)) / (kMixModeCount - 1));
     if (streamer.readFloat(floatVal))
-        setParam(kMixerPositionId, static_cast<double>(floatVal));
+        setParam(kMixerPositionId, static_cast<double>(MixerLoad::kPosition(floatVal)));
     if (streamer.readFloat(floatVal)) {
-        double normalized = (static_cast<double>(floatVal) + 12.0) / 24.0;
+        double normalized = (static_cast<double>(MixerLoad::kTilt(floatVal)) + 12.0) / 24.0;
         setParam(kMixerTiltId, normalized);
     }
-    if (streamer.readFloat(floatVal))
-        setParam(kMixerShiftId, static_cast<double>(floatVal));
+    if (streamer.readFloat(floatVal)) {
+        if (stateVersion < kMixerShiftAudibleStateVersion) floatVal = kMixerShiftNeutral;
+        setParam(kMixerShiftId, static_cast<double>(MixerLoad::kShift(floatVal)));
+    }
 }
 
 } // namespace Ruinae

@@ -1,5 +1,6 @@
 #pragma once
 #include "plugin_ids.h"
+#include "parameters/state_load_helpers.h"
 #include "controller/parameter_helpers.h"
 #include "parameters/dropdown_mappings.h"
 #include "pluginterfaces/base/ustring.h"
@@ -237,9 +238,10 @@ inline void registerDistortionParams(Steinberg::Vst::ParameterContainer& paramet
     parameters.addParameter(STR16("Ring Stereo Spread"), STR16("%"), 0, 0.0,
         ParameterInfo::kCanAutomate, kDistortionRingStereoSpreadId);
 
-    // UI-only: Distortion view mode tab (General/Type), ephemeral, not persisted
+    // UI-only: Distortion view mode tab (General/Type), ephemeral, not persisted; hidden, not automatable
     auto* viewModeParam = new StringListParameter(
-        STR16("Distortion View"), kDistortionViewModeTag);
+        STR16("Distortion View"), kDistortionViewModeTag, nullptr,
+        ParameterInfo::kIsList | ParameterInfo::kIsHidden);
     viewModeParam->appendString(STR16("General"));
     viewModeParam->appendString(STR16("Type"));
     parameters.addParameter(viewModeParam);
@@ -384,63 +386,90 @@ inline void saveDistortionParams(const RuinaeDistortionParams& params, Steinberg
     streamer.writeFloat(params.ringStereoSpread.load(std::memory_order_relaxed));
 }
 
+// Saved-field ranges, read by both parsers (R-211)
+namespace DistortionLoad {
+inline constexpr LoadedInt kType{.lo = 0, .hi = kDistortionTypeCount - 1};
+inline constexpr LoadedFloat kDrive{.lo = 0.0f, .hi = 1.0f, .def = 0.0f};
+inline constexpr LoadedFloat kCharacter{.lo = 0.0f, .hi = 1.0f, .def = 0.5f};
+inline constexpr LoadedFloat kMix{.lo = 0.0f, .hi = 1.0f, .def = 1.0f};
+inline constexpr LoadedInt kChaosModel{.lo = 0, .hi = kChaosModelCount - 1};
+inline constexpr LoadedFloat kChaosSpeed{.lo = 0.0f, .hi = 1.0f, .def = 0.5f};
+inline constexpr LoadedFloat kChaosCoupling{.lo = 0.0f, .hi = 1.0f, .def = 0.0f};
+inline constexpr LoadedInt kSpectralMode{.lo = 0, .hi = kSpectralModeCount - 1};
+inline constexpr LoadedInt kSpectralCurve{.lo = 0, .hi = kSpectralCurveCount - 1};
+inline constexpr LoadedFloat kSpectralBits{.lo = 0.0f, .hi = 1.0f, .def = 1.0f};
+inline constexpr LoadedFloat kGrainSize{.lo = 0.0f, .hi = 1.0f, .def = 0.47f};
+inline constexpr LoadedFloat kGrainDensity{.lo = 0.0f, .hi = 1.0f, .def = 0.43f};
+inline constexpr LoadedFloat kGrainVariation{.lo = 0.0f, .hi = 1.0f, .def = 0.0f};
+inline constexpr LoadedFloat kGrainJitter{.lo = 0.0f, .hi = 1.0f, .def = 0.0f};
+inline constexpr LoadedInt kFoldType{.lo = 0, .hi = kFoldTypeCount - 1};
+inline constexpr LoadedInt kTapeModel{.lo = 0, .hi = kTapeModelCount - 1};
+inline constexpr LoadedFloat kTapeSaturation{.lo = 0.0f, .hi = 1.0f, .def = 0.5f};
+inline constexpr LoadedFloat kTapeBias{.lo = 0.0f, .hi = 1.0f, .def = 0.5f};
+inline constexpr LoadedFloat kRingFreq{.lo = 0.0f, .hi = 1.0f, .def = 0.6882f};
+inline constexpr LoadedInt kRingFreqMode{.lo = 0, .hi = kRingFreqModeCount - 1};
+inline constexpr LoadedFloat kRingRatio{.lo = 0.0f, .hi = 1.0f, .def = 0.1111f};
+inline constexpr LoadedInt kRingWaveform{.lo = 0, .hi = kRingWaveformCount - 1};
+inline constexpr LoadedFloat kRingStereoSpread{.lo = 0.0f, .hi = 1.0f, .def = 0.0f};
+} // namespace DistortionLoad
+
 inline bool loadDistortionParams(RuinaeDistortionParams& params, Steinberg::IBStreamer& streamer) {
     Steinberg::int32 intVal = 0; float floatVal = 0.0f;
 
     // Legacy fields (must succeed)
-    if (!streamer.readInt32(intVal)) return false;
+    if (!readLoaded(streamer, intVal, DistortionLoad::kType)) return false;
     params.type.store(intVal, std::memory_order_relaxed);
-    if (!streamer.readFloat(floatVal)) return false;
+    if (!readLoaded(streamer, floatVal, DistortionLoad::kDrive)) return false;
     params.drive.store(floatVal, std::memory_order_relaxed);
-    if (!streamer.readFloat(floatVal)) return false;
+    if (!readLoaded(streamer, floatVal, DistortionLoad::kCharacter)) return false;
     params.character.store(floatVal, std::memory_order_relaxed);
-    if (!streamer.readFloat(floatVal)) return false;
+    if (!readLoaded(streamer, floatVal, DistortionLoad::kMix)) return false;
     params.mix.store(floatVal, std::memory_order_relaxed);
 
     // Type-specific fields (optional - old presets won't have them)
-    if (streamer.readInt32(intVal))
+    if (readLoaded(streamer, intVal, DistortionLoad::kChaosModel))
         params.chaosModel.store(intVal, std::memory_order_relaxed);
-    if (streamer.readFloat(floatVal))
+    if (readLoaded(streamer, floatVal, DistortionLoad::kChaosSpeed))
         params.chaosSpeed.store(floatVal, std::memory_order_relaxed);
-    if (streamer.readFloat(floatVal))
+    if (readLoaded(streamer, floatVal, DistortionLoad::kChaosCoupling))
         params.chaosCoupling.store(floatVal, std::memory_order_relaxed);
 
-    if (streamer.readInt32(intVal))
+    if (readLoaded(streamer, intVal, DistortionLoad::kSpectralMode))
         params.spectralMode.store(intVal, std::memory_order_relaxed);
-    if (streamer.readInt32(intVal))
+    if (readLoaded(streamer, intVal, DistortionLoad::kSpectralCurve))
         params.spectralCurve.store(intVal, std::memory_order_relaxed);
-    if (streamer.readFloat(floatVal))
+    if (readLoaded(streamer, floatVal, DistortionLoad::kSpectralBits))
         params.spectralBits.store(floatVal, std::memory_order_relaxed);
 
-    if (streamer.readFloat(floatVal))
+    if (readLoaded(streamer, floatVal, DistortionLoad::kGrainSize))
         params.grainSize.store(floatVal, std::memory_order_relaxed);
-    if (streamer.readFloat(floatVal))
+    if (readLoaded(streamer, floatVal, DistortionLoad::kGrainDensity))
         params.grainDensity.store(floatVal, std::memory_order_relaxed);
-    if (streamer.readFloat(floatVal))
+    if (readLoaded(streamer, floatVal, DistortionLoad::kGrainVariation))
         params.grainVariation.store(floatVal, std::memory_order_relaxed);
-    if (streamer.readFloat(floatVal))
+    if (readLoaded(streamer, floatVal, DistortionLoad::kGrainJitter))
         params.grainJitter.store(floatVal, std::memory_order_relaxed);
 
-    if (streamer.readInt32(intVal))
+    if (readLoaded(streamer, intVal, DistortionLoad::kFoldType))
         params.foldType.store(intVal, std::memory_order_relaxed);
 
-    if (streamer.readInt32(intVal))
+    if (readLoaded(streamer, intVal, DistortionLoad::kTapeModel))
         params.tapeModel.store(intVal, std::memory_order_relaxed);
-    if (streamer.readFloat(floatVal))
+    if (readLoaded(streamer, floatVal, DistortionLoad::kTapeSaturation))
         params.tapeSaturation.store(floatVal, std::memory_order_relaxed);
-    if (streamer.readFloat(floatVal))
+    if (readLoaded(streamer, floatVal, DistortionLoad::kTapeBias))
         params.tapeBias.store(floatVal, std::memory_order_relaxed);
 
     // Ring Modulator (optional - old presets won't have these)
-    if (streamer.readFloat(floatVal))
+    if (readLoaded(streamer, floatVal, DistortionLoad::kRingFreq))
         params.ringFreq.store(floatVal, std::memory_order_relaxed);
-    if (streamer.readInt32(intVal))
+    if (readLoaded(streamer, intVal, DistortionLoad::kRingFreqMode))
         params.ringFreqMode.store(intVal, std::memory_order_relaxed);
-    if (streamer.readFloat(floatVal))
+    if (readLoaded(streamer, floatVal, DistortionLoad::kRingRatio))
         params.ringRatio.store(floatVal, std::memory_order_relaxed);
-    if (streamer.readInt32(intVal))
+    if (readLoaded(streamer, intVal, DistortionLoad::kRingWaveform))
         params.ringWaveform.store(intVal, std::memory_order_relaxed);
-    if (streamer.readFloat(floatVal))
+    if (readLoaded(streamer, floatVal, DistortionLoad::kRingStereoSpread))
         params.ringStereoSpread.store(floatVal, std::memory_order_relaxed);
 
     return true;
@@ -452,59 +481,59 @@ inline void loadDistortionParamsToController(
     Steinberg::int32 intVal = 0; float floatVal = 0.0f;
 
     // Legacy fields
-    if (streamer.readInt32(intVal))
+    if (readLoaded(streamer, intVal, DistortionLoad::kType))
         setParam(kDistortionTypeId, static_cast<double>(intVal) / (kDistortionTypeCount - 1));
-    if (streamer.readFloat(floatVal))
+    if (readLoaded(streamer, floatVal, DistortionLoad::kDrive))
         setParam(kDistortionDriveId, static_cast<double>(floatVal));
-    if (streamer.readFloat(floatVal))
+    if (readLoaded(streamer, floatVal, DistortionLoad::kCharacter))
         setParam(kDistortionCharacterId, static_cast<double>(floatVal));
-    if (streamer.readFloat(floatVal))
+    if (readLoaded(streamer, floatVal, DistortionLoad::kMix))
         setParam(kDistortionMixId, static_cast<double>(floatVal));
 
     // Type-specific fields (optional)
-    if (streamer.readInt32(intVal))
+    if (readLoaded(streamer, intVal, DistortionLoad::kChaosModel))
         setParam(kDistortionChaosModelId, static_cast<double>(intVal) / (kChaosModelCount - 1));
-    if (streamer.readFloat(floatVal))
+    if (readLoaded(streamer, floatVal, DistortionLoad::kChaosSpeed))
         setParam(kDistortionChaosSpeedId, static_cast<double>(floatVal));
-    if (streamer.readFloat(floatVal))
+    if (readLoaded(streamer, floatVal, DistortionLoad::kChaosCoupling))
         setParam(kDistortionChaosCouplingId, static_cast<double>(floatVal));
 
-    if (streamer.readInt32(intVal))
+    if (readLoaded(streamer, intVal, DistortionLoad::kSpectralMode))
         setParam(kDistortionSpectralModeId, static_cast<double>(intVal) / (kSpectralModeCount - 1));
-    if (streamer.readInt32(intVal))
+    if (readLoaded(streamer, intVal, DistortionLoad::kSpectralCurve))
         setParam(kDistortionSpectralCurveId, static_cast<double>(intVal) / (kSpectralCurveCount - 1));
-    if (streamer.readFloat(floatVal))
+    if (readLoaded(streamer, floatVal, DistortionLoad::kSpectralBits))
         setParam(kDistortionSpectralBitsId, static_cast<double>(floatVal));
 
-    if (streamer.readFloat(floatVal))
+    if (readLoaded(streamer, floatVal, DistortionLoad::kGrainSize))
         setParam(kDistortionGrainSizeId, static_cast<double>(floatVal));
-    if (streamer.readFloat(floatVal))
+    if (readLoaded(streamer, floatVal, DistortionLoad::kGrainDensity))
         setParam(kDistortionGrainDensityId, static_cast<double>(floatVal));
-    if (streamer.readFloat(floatVal))
+    if (readLoaded(streamer, floatVal, DistortionLoad::kGrainVariation))
         setParam(kDistortionGrainVariationId, static_cast<double>(floatVal));
-    if (streamer.readFloat(floatVal))
+    if (readLoaded(streamer, floatVal, DistortionLoad::kGrainJitter))
         setParam(kDistortionGrainJitterId, static_cast<double>(floatVal));
 
-    if (streamer.readInt32(intVal))
+    if (readLoaded(streamer, intVal, DistortionLoad::kFoldType))
         setParam(kDistortionFoldTypeId, static_cast<double>(intVal) / (kFoldTypeCount - 1));
 
-    if (streamer.readInt32(intVal))
+    if (readLoaded(streamer, intVal, DistortionLoad::kTapeModel))
         setParam(kDistortionTapeModelId, static_cast<double>(intVal) / (kTapeModelCount - 1));
-    if (streamer.readFloat(floatVal))
+    if (readLoaded(streamer, floatVal, DistortionLoad::kTapeSaturation))
         setParam(kDistortionTapeSaturationId, static_cast<double>(floatVal));
-    if (streamer.readFloat(floatVal))
+    if (readLoaded(streamer, floatVal, DistortionLoad::kTapeBias))
         setParam(kDistortionTapeBiasId, static_cast<double>(floatVal));
 
     // Ring Modulator (optional - old presets won't have these)
-    if (streamer.readFloat(floatVal))
+    if (readLoaded(streamer, floatVal, DistortionLoad::kRingFreq))
         setParam(kDistortionRingFreqId, static_cast<double>(floatVal));
-    if (streamer.readInt32(intVal))
+    if (readLoaded(streamer, intVal, DistortionLoad::kRingFreqMode))
         setParam(kDistortionRingFreqModeId, static_cast<double>(intVal) / 1.0);
-    if (streamer.readFloat(floatVal))
+    if (readLoaded(streamer, floatVal, DistortionLoad::kRingRatio))
         setParam(kDistortionRingRatioId, static_cast<double>(floatVal));
-    if (streamer.readInt32(intVal))
+    if (readLoaded(streamer, intVal, DistortionLoad::kRingWaveform))
         setParam(kDistortionRingWaveformId, static_cast<double>(intVal) / 4.0);
-    if (streamer.readFloat(floatVal))
+    if (readLoaded(streamer, floatVal, DistortionLoad::kRingStereoSpread))
         setParam(kDistortionRingStereoSpreadId, static_cast<double>(floatVal));
 }
 

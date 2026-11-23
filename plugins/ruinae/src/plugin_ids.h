@@ -17,7 +17,10 @@ namespace Ruinae {
 
 // State version for serialization (bump when format changes post-release)
 // Shared between Processor and Controller — lives here to avoid cross-includes.
-constexpr Steinberg::int32 kCurrentStateVersion = 8;
+// v9: same layout as v8; Spectral Shift reaches the audio, so older states load it at 0.5 (no shift);
+//     Formant Morph is an offset from the Formant Vowel, so older states load Vowel A (their sound);
+//     Voice LFO Rate and Shape are appended after the arp pack, older states load 1 Hz Sine (their sound).
+constexpr Steinberg::int32 kCurrentStateVersion = 9;
 
 // Processor Component ID
 // The audio processing component (runs on audio thread)
@@ -67,6 +70,7 @@ static const Steinberg::FUID kControllerUID(0xD6C5B4A3, 0x8B6A4F2E, 0x2F1E0D9C, 
 //   2800-2899: Harmonizer (HarmonyMode, Key, Scale, PitchShiftMode,
 //              FormantPreserve, NumVoices, DryLevel, WetLevel,
 //              Voice1-4 Interval/Level/Pan/Delay/Detune)
+//   2900-2999: Voice LFO (Rate, Shape)
 //   3000-3099: Arpeggiator (Enabled, Mode, OctaveRange, OctaveMode,
 //              TempoSync, NoteValue, FreeRate, GateLength, Swing,
 //              LatchMode, Retrigger)
@@ -108,6 +112,7 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     //   2600-2699: Pitch Follower
     //   2700-2799: Transient Detector
     //   2800-2899: Harmonizer
+    //   2900-2999: Voice LFO
     //   3000-3099: Arpeggiator
     // ==========================================================================
 
@@ -362,6 +367,8 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     kAmpEnvReleaseCurveId = 706,
     // Bezier mode flag (0 or 1)
     kAmpEnvBezierEnabledId = 707,
+    // Velocity > Amp amount [0, 1]: how far note velocity scales the VCA (state v9, after the voice LFO)
+    kAmpEnvVelocityAmountId = 708,
     // Bezier control points [0, 1] (3 segments x 2 handles x 2 axes = 12)
     kAmpEnvBezierAttackCp1XId = 710,
     kAmpEnvBezierAttackCp1YId = 711,
@@ -666,7 +673,7 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     // Mono Mode Parameters (1800-1899)
     // ==========================================================================
     kMonoBaseId = 1800,
-    kMonoPriorityId = 1800,    // Last/High/Low
+    kMonoPriorityId = 1800,    // Last/Low/High
     kMonoLegatoId = 1801,      // on/off
     kMonoPortamentoTimeId = 1802, // 0-5000ms
     kMonoPortaModeId = 1803,   // Always/Legato
@@ -847,6 +854,14 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     kHarmonizerVoice4DetuneId = 2844,
 
     kHarmonizerEndId = 2899,
+
+    // ==========================================================================
+    // Voice LFO Parameters (2900-2999): the per-voice "Voice LFO" mod source
+    // ==========================================================================
+    kVoiceLfoBaseId = 2900,
+    kVoiceLfoRateId = 2900,        // 0.01-50 Hz (default 1 Hz)
+    kVoiceLfoShapeId = 2901,       // Sine/Tri/Saw/Sq/S&H/SmoothRandom (default Sine)
+    kVoiceLfoEndId = 2999,
 
     // ==========================================================================
     // Arpeggiator Parameters (3000-3099)
@@ -1199,48 +1214,15 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     kArpChordLaneSpeedId     = 3386,
     kArpInversionLaneSpeedId = 3387,
 
-    // --- v1.5 Features: Ratchet Decay, Strum, Per-Lane Swing (3388-3398) ---
-    kArpRatchetDecayId       = 3388,  // 0-100% velocity decay per ratchet subdivision
-    kArpStrumTimeId          = 3389,  // 0-100ms chord note stagger
-    kArpStrumDirectionId     = 3390,  // 0=Up, 1=Down, 2=Random, 3=Alternate
-
-    // Per-lane swing (3391-3398)
-    kArpVelocityLaneSwingId  = 3391,
-    kArpGateLaneSwingId      = 3392,
-    kArpPitchLaneSwingId     = 3393,
-    kArpModifierLaneSwingId  = 3394,
-    kArpRatchetLaneSwingId   = 3395,
-    kArpConditionLaneSwingId = 3396,
-    kArpChordLaneSwingId     = 3397,
-    kArpInversionLaneSwingId = 3398,
-
-    // --- v1.5 Part 2: Per-Lane Length Jitter (3402-3409) ---
-    // 3399-3401 were kArpVelocityCurveType/Amount/Transpose. Ruinae's arp engine
-    // consumes none of those v1.5 fields: they were never registered, processed,
-    // saved or loaded here, and their backing atomics were never read. Gradus
-    // still defines them at the same numbers for its own arp; the two plugins
-    // share the arp SAVE prefix, not the whole ID block, and none of the three
-    // appear in that prefix.
-
-    // Per-lane length jitter (3402-3409)
-    kArpVelocityLaneJitterId  = 3402,
-    kArpGateLaneJitterId      = 3403,
-    kArpPitchLaneJitterId     = 3404,
-    kArpModifierLaneJitterId  = 3405,
-    kArpRatchetLaneJitterId   = 3406,
-    kArpConditionLaneJitterId = 3407,
-    kArpChordLaneJitterId     = 3408,
-    kArpInversionLaneJitterId = 3409,
-
-    // --- v1.5 Part 3: Note Range Mapping (3410-3412) ---
-    kArpRangeLowId   = 3410,
-    kArpRangeHighId  = 3411,
-    kArpRangeModeId  = 3412,
-
-    // --- v1.5 Part 3: Step Pinning (3413-3445) ---
-    kArpPinNoteId       = 3413,
-    kArpPinFlagStep0Id  = 3414,
-    kArpPinFlagStep31Id = 3445,
+    // --- 3388-3445: reserved for Gradus parity ---
+    // Gradus defines its v1.5 arp IDs here: ratchet decay and strum (3388-3390),
+    // per-lane swing (3391-3398), velocity curve and transpose (3399-3401),
+    // per-lane length jitter (3402-3409), note range (3410-3412) and step
+    // pinning (3413-3445). Ruinae's arp engine consumes none of them, so they are
+    // not declared, registered, processed, saved or loaded here. Never reuse
+    // these numbers for another Ruinae parameter: the arp ID block is shared with
+    // Gradus. kArpEndId keeps the span's end, so processParameterChanges still
+    // routes it to the arp handler, which ignores the reserved IDs.
 
     kArpEndId = 3445,
 
@@ -1250,9 +1232,49 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     // the range and colliding with kArpVelocityCurveAmountId.
     kSidechainActiveId        = 3500,   // hidden: 0.0 = inactive, 1.0 = active
 
+    // --- MIDI performance controllers (hidden, not persisted; R-030, R-042) ---
+    // The controller's IMidiMapping maps pitch bend, channel aftertouch and
+    // CC 1 to these, which is how VST3 hosts and the AU wrapper deliver them.
+    // Outside kArpBaseId..kArpEndId for the same reason as kSidechainActiveId.
+    kMidiPitchBendId          = 3510,   // 0.5 = centre; bipolar = 2v - 1
+    kMidiAftertouchId         = 3511,   // channel pressure [0, 1] -> voice Aftertouch source
+    kMidiModWheelId           = 3512,   // CC 1 [0, 1] -> Macro 1
+
+    // --- Arp skip highlights (output parameters, hidden, not persisted; R-069) ---
+    // One per lane in the editor's lane order: velocity, gate, pitch, ratchet,
+    // modifier, condition, chord, inversion. The processor writes the step each
+    // lane was on when the arp skipped a step; the controller's 30 fps poll reads
+    // them. Encoding (step + 1 + 33 * (seq & 3)) / 132: seq counts skips so a
+    // repeated step still changes the value; 0 means none.
+    kArpSkipLane0Id           = 3520,
+    kArpSkipLane1Id           = 3521,
+    kArpSkipLane2Id           = 3522,
+    kArpSkipLane3Id           = 3523,
+    kArpSkipLane4Id           = 3524,
+    kArpSkipLane5Id           = 3525,
+    kArpSkipLane6Id           = 3526,
+    kArpSkipLane7Id           = 3527,
+
+    // --- Processor display data (output parameters, hidden, not persisted; R-005) ---
+    // Written by process() once per rendered block; the controller's 30 fps poll
+    // reads them for the trance-gate step indicator, the ADSR playback dots and
+    // the morph pad animation. Values, never addresses: the processor and the
+    // controller may live in different address spaces and die in any order.
+    kTranceGatePlaybackStepId = 3530,   // (step + 1) / 32; 0 = no step (-1)
+    kTransportPlayingId       = 3531,   // 0 = stopped, 1 = playing
+    kAmpEnvDisplayOutputId    = 3532,   // envelope output [0, 1]
+    kAmpEnvDisplayStageId     = 3533,   // ADSRStage / 4 (Idle..Release)
+    kFilterEnvDisplayOutputId = 3534,
+    kFilterEnvDisplayStageId  = 3535,
+    kModEnvDisplayOutputId    = 3536,
+    kModEnvDisplayStageId     = 3537,
+    kEnvDisplayVoiceActiveId  = 3538,   // 0 = no voice sounding, 1 = active
+    kMorphPadModXId           = 3539,   // modulated morph position [0, 1]
+    kMorphPadModYId           = 3540,   // modulated spectral tilt, (dB + 12) / 24
+
     // ==========================================================================
     // One past the highest ID above.
-    kNumParameters = 3501,
+    kNumParameters = 3541,
 
     // ==========================================================================
     // UI Action Button Tags (NOT VST parameters - UI-only triggers)
@@ -1289,6 +1311,11 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     // Drives UIViewSwitchContainer: SOUND=0, MOD=1, FX=2, SEQ=3
     kMainTabTag = 10023,
 };
+
+// Encodings of the display-data output parameters (R-005), shared by the
+// processor that writes them and the controller that reads them.
+constexpr double kTranceGateDisplayStepScale = 32.0;  // (step + 1) / 32
+constexpr double kEnvDisplayStageScale = 4.0;         // ADSRStage::Release == 4
 
 // ==============================================================================
 // Plugin Metadata

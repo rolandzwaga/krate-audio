@@ -18,10 +18,10 @@ Ruinae is a polyphonic synthesizer that blends conventional synthesis with exper
 - **6 Distortion Types** from wavefolder and tape saturation to spectral and granular distortion
 - **Full Arpeggiator** with 10 modes, 6 independent lanes, conditional triggers, and euclidean timing
 - **Deep Modulation** with 8-slot mod matrix, 2 LFOs, chaos/rungler sources, 4 macros, and per-voice routing
-- **4-Effect Chain** — Phaser, Delay (5 types), Harmonizer (up to 4 voices), and Reverb
+- **4-Effect Chain** — Modulation (Phaser, Flanger or Chorus), Delay (5 types), Harmonizer (up to 4 voices), and Reverb
 - **3 ADSR Envelopes** per voice with per-segment curve control and Bezier mode
 - **Trance Gate** with step sequencer, euclidean mode, and tempo sync
-- **Up to 16 Voices** with configurable allocation, steal modes, and gain compensation
+- **Up to 16 Voices** with configurable allocation, and steal modes
 - **Preset Browser** with category filtering and search
 - **Cross-Platform** — Windows, macOS (Intel & Apple Silicon), Linux
 
@@ -61,7 +61,7 @@ Processing order: **Phaser -> Delay -> Harmonizer -> Reverb**
 | **Phaser** | 2-12 stages, tempo sync, stereo spread, 4 LFO waveforms |
 | **Delay** | 5 types: Digital (3 eras), Tape, Ping-Pong, Granular, Spectral |
 | **Harmonizer** | Up to 4 harmony voices, chromatic/scalic modes, formant preservation |
-| **Reverb** | Dattorro plate with freeze, modulation, and diffusion |
+| **Reverb** | Dattorro plate or FDN hall (crossfaded on switch) with freeze, modulation, and diffusion |
 
 ## Arpeggiator
 
@@ -76,11 +76,11 @@ Processing order: **Phaser -> Delay -> Harmonizer -> Reverb**
 
 ## Modulation System
 
-**13 global sources**: LFO 1, LFO 2, Env Follower, Random, Chaos, Rungler, Sample & Hold, Pitch Follower, Transient, Macro 1-4
+**14 global sources**: LFO 1, LFO 2, Env Follower, Random, Chaos, Rungler, Sample & Hold, Pitch Follower, Transient, Arp Pitch, Macro 1-4
 
 **8 voice-local sources**: Amp Env, Filter Env, Mod Env, Voice LFO, Gate, Velocity, Key Track, Aftertouch
 
-**8-slot modulation matrix** with per-slot curve (Linear/Exp/Log/S-Curve), smoothing, and scaling
+**8-slot modulation matrix** with per-slot curve (Linear/Exp/S-Curve/Stepped), smoothing, and scaling
 
 ## Signal Flow
 
@@ -92,7 +92,7 @@ Per Voice:
 Global:
   Voices -> Stereo Pan + Sum -> Stereo Width -> Global Filter
     -> Phaser -> Delay -> Harmonizer -> Reverb
-    -> Master Gain (1/sqrt(N) compensation) -> Soft Limiter -> Output
+    -> Master Gain -> Soft Limiter -> Output
 ```
 
 ## Installation

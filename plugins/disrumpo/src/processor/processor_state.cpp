@@ -466,6 +466,10 @@ Steinberg::tresult Processor::writeState(const PendingState& s, Steinberg::IBStr
 }
 
 Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
+    return loadState(state, true);
+}
+
+Steinberg::tresult Processor::loadState(Steinberg::IBStream* state, bool adoptInstanceId) {
     // FR-019, FR-038: Deserialize parameters from IBStream
     // FR-021: Handle corrupted/invalid data gracefully
 
@@ -577,7 +581,7 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
     // SharedDisplayBridge: the instance ID read from the state trailer above
     {
         const Steinberg::int64 storedId = trailerId;
-        if (hasTrailerId)
+        if (hasTrailerId && adoptInstanceId)
         {
             // Re-register with the stored ID (supports state restore), unless another
             // live processor holds it (duplicated track, copied settings): then keep
@@ -1022,6 +1026,10 @@ bool Processor::parseStateSections(Steinberg::IBStreamer& streamer, int32_t vers
                     mn.commonParams.drive = drive;
                     mn.commonParams.mix = mix;
                     mn.commonParams.toneHz = toneHz;
+                    // Folds and Bit Depth on their parameters' steps, as replaying the parameters
+                    // (a preset-browser load's edits) leaves them (T1.38)
+                    folds = nodeFoldsFromNorm(nodeFoldsToNorm(folds));
+                    bitDepth = nodeBitDepthFromNorm(nodeBitDepthToNorm(bitDepth));
                     mn.params.bias = bias;
                     mn.params.folds = folds;
                     mn.params.bitDepth = bitDepth;

@@ -57,6 +57,21 @@ namespace Innexus {
 Steinberg::tresult PLUGIN_API Controller::setComponentState(
     Steinberg::IBStream* state)
 {
+    return readComponentState(state,
+        [this](Steinberg::Vst::ParamID id, double value) {
+            setParamNormalized(id, value);
+        });
+}
+
+// ==============================================================================
+// Read Component State: the one controller parser (R-200). Host loads
+// (setComponentState) and preset-browser loads (loadComponentStateWithNotify)
+// both read the stream here; only the value setter differs.
+// ==============================================================================
+Steinberg::tresult Controller::readComponentState(
+    Steinberg::IBStream* state,
+    const std::function<void(Steinberg::Vst::ParamID, double)>& setParam)
+{
     if (!state)
         return Steinberg::kResultFalse;
 
@@ -77,25 +92,25 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(
     {
         double normalized = releaseTimeToNormalized(
             std::clamp(floatVal, 20.0f, 5000.0f));
-        setParamNormalized(kReleaseTimeId, normalized);
+        setParam(kReleaseTimeId, normalized);
     }
 
     if (streamer.readFloat(floatVal))
     {
-        setParamNormalized(kInharmonicityAmountId,
+        setParam(kInharmonicityAmountId,
             static_cast<double>(std::clamp(floatVal, 0.0f, 1.0f)));
     }
 
     if (streamer.readFloat(floatVal))
     {
-            setParamNormalized(kMasterGainId,
+            setParam(kMasterGainId,
                 static_cast<double>(std::clamp(floatVal, 0.0f, 1.0f)));
         }
 
         // Read bypass
         if (streamer.readFloat(floatVal))
         {
-            setParamNormalized(kBypassId,
+            setParam(kBypassId,
                 floatVal > 0.5f ? 1.0 : 0.0);
         }
 
@@ -114,6 +129,8 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(
                                     .filename().string();
                 loadedSampleFilename_ = filename;
                 loadedSampleFullPath_ = fullPath;
+                // A preset-browser load happens with the editor open.
+                setSampleFilenameDisplay(filename, fullPath);
             }
         }
 
@@ -122,28 +139,28 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(
     {
         double normalized = static_cast<double>(
             std::clamp(floatVal, 0.0f, 2.0f)) / 2.0;
-        setParamNormalized(kHarmonicLevelId, normalized);
+        setParam(kHarmonicLevelId, normalized);
     }
 
     if (streamer.readFloat(floatVal))
     {
         double normalized = static_cast<double>(
             std::clamp(floatVal, 0.0f, 2.0f)) / 2.0;
-        setParamNormalized(kResidualLevelId, normalized);
+        setParam(kResidualLevelId, normalized);
     }
 
     if (streamer.readFloat(floatVal))
     {
         double normalized = static_cast<double>(
             std::clamp(floatVal, -1.0f, 1.0f) + 1.0f) / 2.0;
-        setParamNormalized(kResidualBrightnessId, normalized);
+        setParam(kResidualBrightnessId, normalized);
     }
 
     if (streamer.readFloat(floatVal))
     {
         double normalized = static_cast<double>(
             std::clamp(floatVal, 0.0f, 2.0f)) / 2.0;
-        setParamNormalized(kTransientEmphasisId, normalized);
+        setParam(kTransientEmphasisId, normalized);
     }
 
     // Skip residual frames block (mirrors processor getState format)
@@ -177,31 +194,31 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(
         Steinberg::int32 inputSourceInt = 0;
         Steinberg::int32 latencyModeInt = 0;
         if (streamer.readInt32(inputSourceInt))
-            setParamNormalized(kInputSourceId, inputSourceInt > 0 ? 1.0 : 0.0);
+            setParam(kInputSourceId, inputSourceInt > 0 ? 1.0 : 0.0);
         if (streamer.readInt32(latencyModeInt))
-            setParamNormalized(kLatencyModeId, latencyModeInt > 0 ? 1.0 : 0.0);
+            setParam(kLatencyModeId, latencyModeInt > 0 ? 1.0 : 0.0);
     }
 
     // --- M4 parameters (musical control) ---
     {
         Steinberg::int8 freezeState = 0;
         if (streamer.readInt8(freezeState))
-            setParamNormalized(kFreezeId, freezeState ? 1.0 : 0.0);
+            setParam(kFreezeId, freezeState ? 1.0 : 0.0);
 
         float morphPos = 0.0f;
         if (streamer.readFloat(morphPos))
-            setParamNormalized(kMorphPositionId,
+            setParam(kMorphPositionId,
                 static_cast<double>(std::clamp(morphPos, 0.0f, 1.0f)));
 
         Steinberg::int32 filterType = 0;
         if (streamer.readInt32(filterType))
-            setParamNormalized(kHarmonicFilterTypeId,
+            setParam(kHarmonicFilterTypeId,
                 static_cast<double>(std::clamp(
                     static_cast<float>(filterType) / 4.0f, 0.0f, 1.0f)));
 
         float resp = 0.5f;
         if (streamer.readFloat(resp))
-            setParamNormalized(kResponsivenessId,
+            setParam(kResponsivenessId,
                 static_cast<double>(std::clamp(resp, 0.0f, 1.0f)));
     }
 
@@ -213,7 +230,7 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(
             selectedSlot = std::clamp(selectedSlot,
                 static_cast<Steinberg::int32>(0),
                 static_cast<Steinberg::int32>(7));
-            setParamNormalized(kMemorySlotId,
+            setParam(kMemorySlotId,
                 std::clamp(static_cast<double>(selectedSlot) / 7.0, 0.0, 1.0));
         }
 
@@ -249,8 +266,8 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(
         }
 
         // Momentary triggers always reset to 0 (FR-023, FR-030)
-        setParamNormalized(kMemoryCaptureId, 0.0);
-        setParamNormalized(kMemoryRecallId, 0.0);
+        setParam(kMemoryCaptureId, 0.0);
+        setParam(kMemoryRecallId, 0.0);
     }
 
     // --- M6 parameters (creative extensions) ---
@@ -260,87 +277,87 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(
         if (version == 1)
             streamer.readFloat(m6Val);
         if (streamer.readFloat(m6Val))
-            setParamNormalized(kStereoSpreadId, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
+            setParam(kStereoSpreadId, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
         if (streamer.readFloat(m6Val))
-            setParamNormalized(kEvolutionEnableId, m6Val > 0.5f ? 1.0 : 0.0);
+            setParam(kEvolutionEnableId, m6Val > 0.5f ? 1.0 : 0.0);
         if (streamer.readFloat(m6Val))
-            setParamNormalized(kEvolutionSpeedId, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
+            setParam(kEvolutionSpeedId, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
         if (streamer.readFloat(m6Val))
-            setParamNormalized(kEvolutionDepthId, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
+            setParam(kEvolutionDepthId, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
         if (streamer.readFloat(m6Val))
-            setParamNormalized(kEvolutionModeId, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
+            setParam(kEvolutionModeId, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
         if (streamer.readFloat(m6Val))
-            setParamNormalized(kMod1EnableId, m6Val > 0.5f ? 1.0 : 0.0);
+            setParam(kMod1EnableId, m6Val > 0.5f ? 1.0 : 0.0);
         if (streamer.readFloat(m6Val))
-            setParamNormalized(kMod1WaveformId, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
+            setParam(kMod1WaveformId, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
         if (streamer.readFloat(m6Val))
-            setParamNormalized(kMod1RateId, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
+            setParam(kMod1RateId, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
         if (streamer.readFloat(m6Val))
-            setParamNormalized(kMod1DepthId, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
+            setParam(kMod1DepthId, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
         if (streamer.readFloat(m6Val))
-            setParamNormalized(kMod1RangeStartId, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
+            setParam(kMod1RangeStartId, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
         if (streamer.readFloat(m6Val))
-            setParamNormalized(kMod1RangeEndId, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
+            setParam(kMod1RangeEndId, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
         if (streamer.readFloat(m6Val))
-            setParamNormalized(kMod1TargetId, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
+            setParam(kMod1TargetId, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
         if (streamer.readFloat(m6Val))
-            setParamNormalized(kMod2EnableId, m6Val > 0.5f ? 1.0 : 0.0);
+            setParam(kMod2EnableId, m6Val > 0.5f ? 1.0 : 0.0);
         if (streamer.readFloat(m6Val))
-            setParamNormalized(kMod2WaveformId, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
+            setParam(kMod2WaveformId, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
         if (streamer.readFloat(m6Val))
-            setParamNormalized(kMod2RateId, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
+            setParam(kMod2RateId, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
         if (streamer.readFloat(m6Val))
-            setParamNormalized(kMod2DepthId, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
+            setParam(kMod2DepthId, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
         if (streamer.readFloat(m6Val))
-            setParamNormalized(kMod2RangeStartId, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
+            setParam(kMod2RangeStartId, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
         if (streamer.readFloat(m6Val))
-            setParamNormalized(kMod2RangeEndId, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
+            setParam(kMod2RangeEndId, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
         if (streamer.readFloat(m6Val))
-            setParamNormalized(kMod2TargetId, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
+            setParam(kMod2TargetId, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
         if (streamer.readFloat(m6Val))
-            setParamNormalized(kDetuneSpreadId, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
+            setParam(kDetuneSpreadId, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
         if (streamer.readFloat(m6Val))
-            setParamNormalized(kBlendEnableId, m6Val > 0.5f ? 1.0 : 0.0);
+            setParam(kBlendEnableId, m6Val > 0.5f ? 1.0 : 0.0);
         if (streamer.readFloat(m6Val))
-            setParamNormalized(kBlendSlotWeight1Id, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
+            setParam(kBlendSlotWeight1Id, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
         if (streamer.readFloat(m6Val))
-            setParamNormalized(kBlendSlotWeight2Id, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
+            setParam(kBlendSlotWeight2Id, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
         if (streamer.readFloat(m6Val))
-            setParamNormalized(kBlendSlotWeight3Id, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
+            setParam(kBlendSlotWeight3Id, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
         if (streamer.readFloat(m6Val))
-            setParamNormalized(kBlendSlotWeight4Id, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
+            setParam(kBlendSlotWeight4Id, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
         if (streamer.readFloat(m6Val))
-            setParamNormalized(kBlendSlotWeight5Id, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
+            setParam(kBlendSlotWeight5Id, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
         if (streamer.readFloat(m6Val))
-            setParamNormalized(kBlendSlotWeight6Id, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
+            setParam(kBlendSlotWeight6Id, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
         if (streamer.readFloat(m6Val))
-            setParamNormalized(kBlendSlotWeight7Id, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
+            setParam(kBlendSlotWeight7Id, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
         if (streamer.readFloat(m6Val))
-            setParamNormalized(kBlendSlotWeight8Id, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
+            setParam(kBlendSlotWeight8Id, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
         if (streamer.readFloat(m6Val))
-            setParamNormalized(kBlendLiveWeightId, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
+            setParam(kBlendLiveWeightId, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
     }
 
     // --- Harmonic Physics parameters ---
     {
         float physVal = 0.0f;
         if (streamer.readFloat(physVal))
-            setParamNormalized(kWarmthId, static_cast<double>(std::clamp(physVal, 0.0f, 1.0f)));
+            setParam(kWarmthId, static_cast<double>(std::clamp(physVal, 0.0f, 1.0f)));
         if (streamer.readFloat(physVal))
-            setParamNormalized(kCouplingId, static_cast<double>(std::clamp(physVal, 0.0f, 1.0f)));
+            setParam(kCouplingId, static_cast<double>(std::clamp(physVal, 0.0f, 1.0f)));
         if (streamer.readFloat(physVal))
-            setParamNormalized(kStabilityId, static_cast<double>(std::clamp(physVal, 0.0f, 1.0f)));
+            setParam(kStabilityId, static_cast<double>(std::clamp(physVal, 0.0f, 1.0f)));
         if (streamer.readFloat(physVal))
-            setParamNormalized(kEntropyId, static_cast<double>(std::clamp(physVal, 0.0f, 1.0f)));
+            setParam(kEntropyId, static_cast<double>(std::clamp(physVal, 0.0f, 1.0f)));
     }
 
     // --- Analysis Feedback Loop parameters ---
     {
         float fbVal = 0.0f;
         if (streamer.readFloat(fbVal))
-            setParamNormalized(kAnalysisFeedbackId, static_cast<double>(std::clamp(fbVal, 0.0f, 1.0f)));
+            setParam(kAnalysisFeedbackId, static_cast<double>(std::clamp(fbVal, 0.0f, 1.0f)));
         if (streamer.readFloat(fbVal))
-            setParamNormalized(kAnalysisFeedbackDecayId, static_cast<double>(std::clamp(fbVal, 0.0f, 1.0f)));
+            setParam(kAnalysisFeedbackDecayId, static_cast<double>(std::clamp(fbVal, 0.0f, 1.0f)));
     }
 
     // --- ADSR Envelope Detection parameters ---
@@ -355,34 +372,34 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(
 
         float adsrVal = 0.0f;
         if (streamer.readFloat(adsrVal))
-            setParamNormalized(kAdsrAttackId, logNorm(static_cast<double>(adsrVal)));
+            setParam(kAdsrAttackId, logNorm(static_cast<double>(adsrVal)));
         if (streamer.readFloat(adsrVal))
-            setParamNormalized(kAdsrDecayId, logNorm(static_cast<double>(adsrVal)));
+            setParam(kAdsrDecayId, logNorm(static_cast<double>(adsrVal)));
         if (streamer.readFloat(adsrVal))
-            setParamNormalized(kAdsrSustainId, static_cast<double>(std::clamp(adsrVal, 0.0f, 1.0f)));
+            setParam(kAdsrSustainId, static_cast<double>(std::clamp(adsrVal, 0.0f, 1.0f)));
         if (streamer.readFloat(adsrVal))
-            setParamNormalized(kAdsrReleaseId, logNorm(static_cast<double>(adsrVal)));
+            setParam(kAdsrReleaseId, logNorm(static_cast<double>(adsrVal)));
         if (streamer.readFloat(adsrVal))
-            setParamNormalized(kAdsrAmountId, static_cast<double>(std::clamp(adsrVal, 0.0f, 1.0f)));
+            setParam(kAdsrAmountId, static_cast<double>(std::clamp(adsrVal, 0.0f, 1.0f)));
         if (streamer.readFloat(adsrVal))
         {
             double norm = static_cast<double>(std::clamp(adsrVal, 0.25f, 4.0f) - 0.25f) / (4.0 - 0.25);
-            setParamNormalized(kAdsrTimeScaleId, norm);
+            setParam(kAdsrTimeScaleId, norm);
         }
         if (streamer.readFloat(adsrVal))
         {
             double norm = static_cast<double>(std::clamp(adsrVal, -1.0f, 1.0f) + 1.0f) / 2.0;
-            setParamNormalized(kAdsrAttackCurveId, norm);
+            setParam(kAdsrAttackCurveId, norm);
         }
         if (streamer.readFloat(adsrVal))
         {
             double norm = static_cast<double>(std::clamp(adsrVal, -1.0f, 1.0f) + 1.0f) / 2.0;
-            setParamNormalized(kAdsrDecayCurveId, norm);
+            setParam(kAdsrDecayCurveId, norm);
         }
         if (streamer.readFloat(adsrVal))
         {
             double norm = static_cast<double>(std::clamp(adsrVal, -1.0f, 1.0f) + 1.0f) / 2.0;
-            setParamNormalized(kAdsrReleaseCurveId, norm);
+            setParam(kAdsrReleaseCurveId, norm);
         }
 
         // Skip per-slot ADSR data (controller does not store slot data)
@@ -398,24 +415,30 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(
     {
         float pcVal = 0.0f;
         if (streamer.readFloat(pcVal))
-            setParamNormalized(kPartialCountId,
+            setParam(kPartialCountId,
                 static_cast<double>(std::clamp(pcVal, 0.0f, 1.0f)));
     }
 
-    // --- Modulator Tempo Sync parameters (skip 4 floats) ---
+    // --- Modulator Tempo Sync parameters (R-201; mirrors Processor::setState) ---
     {
-        float skipVal = 0.0f;
-        streamer.readFloat(skipVal); // mod1RateSync
-        streamer.readFloat(skipVal); // mod1NoteValue
-        streamer.readFloat(skipVal); // mod2RateSync
-        streamer.readFloat(skipVal); // mod2NoteValue
+        float syncVal = 0.0f;
+        if (streamer.readFloat(syncVal))
+            setParam(kMod1RateSyncId, syncVal > 0.5f ? 1.0 : 0.0);
+        if (streamer.readFloat(syncVal))
+            setParam(kMod1NoteValueId,
+                static_cast<double>(std::clamp(syncVal, 0.0f, 1.0f)));
+        if (streamer.readFloat(syncVal))
+            setParam(kMod2RateSyncId, syncVal > 0.5f ? 1.0 : 0.0);
+        if (streamer.readFloat(syncVal))
+            setParam(kMod2NoteValueId,
+                static_cast<double>(std::clamp(syncVal, 0.0f, 1.0f)));
     }
 
     // --- Voice Mode parameter ---
     {
         float vmVal = 0.0f;
         if (streamer.readFloat(vmVal))
-            setParamNormalized(kVoiceModeId,
+            setParam(kVoiceModeId,
                 static_cast<double>(std::clamp(vmVal, 0.0f, 1.0f)));
     }
 
@@ -423,7 +446,7 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(
     {
         float pmVal = 0.0f;
         if (streamer.readFloat(pmVal))
-            setParamNormalized(kPhysModelMixId,
+            setParam(kPhysModelMixId,
                 static_cast<double>(std::clamp(pmVal, 0.0f, 1.0f)));
         if (streamer.readFloat(pmVal))
         {
@@ -431,17 +454,17 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(
             // Reverse log mapping: norm = log(plain/0.01) / log(500)
             float plain = std::clamp(pmVal, 0.01f, 5.0f);
             float norm = std::log(plain / 0.01f) / std::log(500.0f);
-            setParamNormalized(kResonanceDecayId,
+            setParam(kResonanceDecayId,
                 static_cast<double>(std::clamp(norm, 0.0f, 1.0f)));
         }
         if (streamer.readFloat(pmVal))
-            setParamNormalized(kResonanceBrightnessId,
+            setParam(kResonanceBrightnessId,
                 static_cast<double>(std::clamp(pmVal, 0.0f, 1.0f)));
         if (streamer.readFloat(pmVal))
-            setParamNormalized(kResonanceStretchId,
+            setParam(kResonanceStretchId,
                 static_cast<double>(std::clamp(pmVal, 0.0f, 1.0f)));
         if (streamer.readFloat(pmVal))
-            setParamNormalized(kResonanceScatterId,
+            setParam(kResonanceScatterId,
                 static_cast<double>(std::clamp(pmVal, 0.0f, 1.0f)));
     }
 
@@ -449,19 +472,19 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(
     {
         float ieVal = 0.0f;
         if (streamer.readFloat(ieVal))
-            setParamNormalized(kExciterTypeId,
+            setParam(kExciterTypeId,
                 static_cast<double>(std::clamp(ieVal, 0.0f, 1.0f)));
         if (streamer.readFloat(ieVal))
-            setParamNormalized(kImpactHardnessId,
+            setParam(kImpactHardnessId,
                 static_cast<double>(std::clamp(ieVal, 0.0f, 1.0f)));
         if (streamer.readFloat(ieVal))
-            setParamNormalized(kImpactMassId,
+            setParam(kImpactMassId,
                 static_cast<double>(std::clamp(ieVal, 0.0f, 1.0f)));
         if (streamer.readFloat(ieVal))
-            setParamNormalized(kImpactBrightnessId,
+            setParam(kImpactBrightnessId,
                 static_cast<double>(std::clamp(ieVal, 0.0f, 1.0f)));
         if (streamer.readFloat(ieVal))
-            setParamNormalized(kImpactPositionId,
+            setParam(kImpactPositionId,
                 static_cast<double>(std::clamp(ieVal, 0.0f, 1.0f)));
     }
 
@@ -469,13 +492,13 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(
     {
         float wgVal = 0.0f;
         if (streamer.readFloat(wgVal))
-            setParamNormalized(kResonanceTypeId,
+            setParam(kResonanceTypeId,
                 static_cast<double>(std::clamp(wgVal, 0.0f, 1.0f)));
         if (streamer.readFloat(wgVal))
-            setParamNormalized(kWaveguideStiffnessId,
+            setParam(kWaveguideStiffnessId,
                 static_cast<double>(std::clamp(wgVal, 0.0f, 1.0f)));
         if (streamer.readFloat(wgVal))
-            setParamNormalized(kWaveguidePickPositionId,
+            setParam(kWaveguidePickPositionId,
                 static_cast<double>(std::clamp(wgVal, 0.0f, 1.0f)));
     }
 
@@ -483,16 +506,16 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(
     {
         float bowVal = 0.0f;
         if (streamer.readFloat(bowVal))
-            setParamNormalized(kBowPressureId,
+            setParam(kBowPressureId,
                 static_cast<double>(std::clamp(bowVal, 0.0f, 1.0f)));
         if (streamer.readFloat(bowVal))
-            setParamNormalized(kBowSpeedId,
+            setParam(kBowSpeedId,
                 static_cast<double>(std::clamp(bowVal, 0.0f, 1.0f)));
         if (streamer.readFloat(bowVal))
-            setParamNormalized(kBowPositionId,
+            setParam(kBowPositionId,
                 static_cast<double>(std::clamp(bowVal, 0.0f, 1.0f)));
         if (streamer.readFloat(bowVal))
-            setParamNormalized(kBowOversamplingId,
+            setParam(kBowOversamplingId,
                 static_cast<double>(std::clamp(bowVal, 0.0f, 1.0f)));
     }
 
@@ -500,13 +523,13 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(
     {
         float bodyVal = 0.0f;
         if (streamer.readFloat(bodyVal))
-            setParamNormalized(kBodySizeId,
+            setParam(kBodySizeId,
                 static_cast<double>(std::clamp(bodyVal, 0.0f, 1.0f)));
         if (streamer.readFloat(bodyVal))
-            setParamNormalized(kBodyMaterialId,
+            setParam(kBodyMaterialId,
                 static_cast<double>(std::clamp(bodyVal, 0.0f, 1.0f)));
         if (streamer.readFloat(bodyVal))
-            setParamNormalized(kBodyMixId,
+            setParam(kBodyMixId,
                 static_cast<double>(std::clamp(bodyVal, 0.0f, 1.0f)));
     }
 
@@ -518,10 +541,10 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(
     {
         float symVal = 0.0f;
         if (streamer.readFloat(symVal))
-            setParamNormalized(kSympatheticAmountId,
+            setParam(kSympatheticAmountId,
                 static_cast<double>(std::clamp(symVal, 0.0f, 1.0f)));
         if (streamer.readFloat(symVal))
-            setParamNormalized(kSympatheticDecayId,
+            setParam(kSympatheticDecayId,
                 static_cast<double>(std::clamp(symVal, 0.0f, 1.0f)));
     }
 

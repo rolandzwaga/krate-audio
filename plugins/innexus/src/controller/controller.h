@@ -29,6 +29,7 @@
 
 #include <cstdint>
 #include <filesystem>
+#include <functional>
 #include <memory>
 #include <string>
 #include <utility>
@@ -180,7 +181,8 @@ public:
     /// Create a MemoryStream containing the current component state
     Steinberg::MemoryStream* createComponentStateStream();
 
-    /// Load a component state stream, applying all parameters via performEdit
+    /// Preset-browser load: hands the stream to the processor's setState
+    /// ("LoadPresetState"), then mirrors every parameter via performEdit
     bool loadComponentStateWithNotify(Steinberg::IBStream* state);
 
     /// Apply a single parameter with begin/perform/end edit notifications
@@ -199,6 +201,14 @@ public:
     }
 
 private:
+    /// The one controller parser of a component state (R-200): reads the
+    /// stream Processor::getState writes and hands each parameter value to
+    /// setParam (setParamNormalized on a host load, a performEdit on a
+    /// preset-browser load).
+    Steinberg::tresult readComponentState(
+        Steinberg::IBStream* state,
+        const std::function<void(Steinberg::Vst::ParamID, double)>& setParam);
+
     /// Timer callback for display updates (FR-049)
     void onDisplayTimerFired();
 

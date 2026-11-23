@@ -15,16 +15,21 @@
 #include <catch2/benchmark/catch_benchmark.hpp>
 
 #include "engine/ruinae_voice.h"
+#include "engine/ruinae_engine.h"
+#include "audit_rig.h"
 #include <krate/dsp/core/pitch_utils.h>
 #include <krate/dsp/core/db_utils.h>
+#include <krate/dsp/primitives/fft.h>
 
 #include <algorithm>
 #include <array>
+#include <bit>
 #include <chrono>
 #include <cmath>
-#include <limits>
+#include <cstdint>
 #include <memory>
 #include <numeric>
+#include <string>
 #include <vector>
 
 using namespace Krate::DSP;
@@ -540,48 +545,147 @@ TEST_CASE("RuinaeVoice: key tracking doubles cutoff for octave (AS-4.3)", "[ruin
     REQUIRE(rmsHigh > rmsLow);
 }
 
-TEST_CASE("RuinaeVoice: filter type switch no clicks or allocation (AS-4.4)", "[ruinae_voice][filter]") {
-    constexpr double sampleRate = 44100.0;
-    constexpr size_t blockSize = 512;
+namespace {
 
-    auto voice = createPreparedVoice(sampleRate, blockSize);
-    voice.setFilterType(RuinaeFilterType::SVF_LP);
-    voice.setFilterCutoff(2000.0f);
-    voice.getAmpEnvelope().setAttack(0.1f);
-    voice.getAmpEnvelope().setSustain(1.0f);
-    voice.noteOn(440.0f, 1.0f);
-
-    // Process to sustain
-    processNSamples(voice, 4410);
-
-    // Switch filter type during playback
-    voice.setFilterType(RuinaeFilterType::Ladder);
-    auto postSwitch = processNSamples(voice, 512);
-
-    // Should still produce non-zero output
-    REQUIRE(peakAbsolute(postSwitch) > 0.001f);
-
-    // No NaN/Inf after switch
-    bool hasNaN = false;
-    for (float s : postSwitch) {
-        if (detail::isNaN(s) || detail::isInf(s)) { hasNaN = true; break; }
+const char* filterTypeName(RuinaeFilterType t) {
+    switch (t) {
+        case RuinaeFilterType::SVF_LP: return "SVF LP";
+        case RuinaeFilterType::Ladder: return "Ladder";
+        case RuinaeFilterType::Comb: return "Comb";
+        case RuinaeFilterType::SelfOscillating: return "SelfOscillating";
+        case RuinaeFilterType::Formant: return "Formant";
+        default: return "other";
     }
-    REQUIRE_FALSE(hasNaN);
+}
 
-    // Switch to Formant
-    voice.setFilterType(RuinaeFilterType::Formant);
-    auto postFormant = processNSamples(voice, 512);
-    REQUIRE(peakAbsolute(postFormant) > 0.001f);
+} // namespace
 
-    // Switch to Comb
-    voice.setFilterType(RuinaeFilterType::Comb);
-    auto postComb = processNSamples(voice, 512);
-    REQUIRE(peakAbsolute(postComb) > 0.001f);
+// R-152: a filter type change while a note sounds crossfades from the old
+// filter to the (freshly reset) new one instead of hard-switching the output to
+// a filter whose state does not match. The audit probe measured a 3.55 jump
+// ratio for SVF LP -> Ladder and SVF LP -> SelfOscillating.
+TEST_CASE("FilterTypeSwitch_NoClick", "[ruinae-voice][filter]") {
+    constexpr double kRate = 48000.0;
+    constexpr size_t kBlock = 512;
+    constexpr size_t kSwitchAt = 47 * kBlock;   // block boundary, ~0.5 s in
+    constexpr size_t kAfter = 28800;            // 0.6 s after the switch
+    constexpr size_t kWin = 480;                // +-10 ms
+    constexpr size_t kRef = 2400;               // 50 ms steady references
 
-    // Switch back to SVF
-    voice.setFilterType(RuinaeFilterType::SVF_BP);
-    auto postSVF = processNSamples(voice, 512);
-    REQUIRE(peakAbsolute(postSVF) > 0.001f);
+    const std::array<RuinaeFilterType, 5> types = {
+        RuinaeFilterType::SVF_LP, RuinaeFilterType::Ladder, RuinaeFilterType::Comb,
+        RuinaeFilterType::SelfOscillating, RuinaeFilterType::Formant};
+
+    for (const auto from : types) {
+        for (const auto to : types) {
+            if (from == to) continue;
+            auto voice = std::make_unique<RuinaeVoice>();
+            voice->prepare(kRate, kBlock);
+            voice->setOscAType(OscType::PolyBLEP);
+            voice->setOscAParam(OscParam::Waveform, 1.0f);  // sawtooth
+            voice->setMixPosition(0.0f);                    // OSC A only
+            voice->setFilterType(from);
+            voice->setFilterCutoff(1262.0f);                // cutoff norm 0.6
+            voice->getAmpEnvelope().setAttack(1.0f);
+            voice->getAmpEnvelope().setSustain(1.0f);
+            voice->noteOn(220.0f, 0.8f);                    // A3
+
+            std::vector<float> out(kSwitchAt + kAfter, 0.0f);
+            for (size_t pos = 0; pos < out.size(); pos += kBlock) {
+                if (pos == kSwitchAt) voice->setFilterType(to);
+                voice->processBlock(out.data() + pos, std::min(kBlock, out.size() - pos));
+            }
+
+            const double ratio = RuinaeAuditRig::clickAt(out, kSwitchAt, kWin, kRef).ratio;
+            INFO(filterTypeName(from) << " -> " << filterTypeName(to)
+                 << ": jump ratio " << ratio);
+            CHECK(ratio <= 1.5);
+        }
+    }
+}
+
+// R-014: the SVF drive law is continuous at its bottom end. Drive 0 is the
+// linear filter; the first increment above 0 used to swap in tanh() at unity
+// gain and squash a resonant peak by up to ~29 dB.
+TEST_CASE("SvfDrive_ContinuousAtZero", "[ruinae-voice][filter]") {
+    constexpr double kRate = 48000.0;
+    constexpr size_t kBlock = 512;
+    constexpr size_t kTotal = 48000;   // 1 s
+    constexpr size_t kSkip = 24000;    // measure the last 0.5 s
+
+    auto render = [&](float driveDb) {
+        auto voice = std::make_unique<RuinaeVoice>();
+        voice->prepare(kRate, kBlock);
+        voice->setOscAType(OscType::PolyBLEP);
+        voice->setOscAParam(OscParam::Waveform, 1.0f);  // sawtooth
+        voice->setMixPosition(0.0f);
+        voice->setFilterType(RuinaeFilterType::SVF_LP);
+        voice->setFilterCutoff(880.0f);   // on the 4th harmonic of A3
+        voice->setFilterResonance(20.0f);
+        voice->setFilterSvfDrive(driveDb);
+        voice->getAmpEnvelope().setAttack(1.0f);
+        voice->getAmpEnvelope().setSustain(1.0f);
+        voice->noteOn(220.0f, 0.8f);
+        auto out = processNSamples(*voice, kTotal, kBlock);
+        return computeRMS(out.data() + kSkip, kTotal - kSkip);
+    };
+
+    const float rmsLinear = render(0.0f);
+    const float rmsNudged = render(0.05f);
+    REQUIRE(rmsLinear > 0.0f);
+    REQUIRE(rmsNudged > 0.0f);
+    const float diffDb = 20.0f * std::log10(rmsNudged / rmsLinear);
+    INFO("drive 0 rms " << rmsLinear << ", drive 0.05 dB rms " << rmsNudged
+         << ", difference " << diffDb << " dB");
+    REQUIRE(std::abs(diffDb) <= 0.5f);
+}
+
+// R-156: comb resonance carries level compensation. The audit probe (triangle
+// A2 vel 0.8, soft limiter off, cutoff swept 20 Hz -> 20 kHz over 2 s in
+// 64-sample blocks, then parked 1 s) measured +22 dBFS at resonance 1.0.
+TEST_CASE("CombResonance_LevelBounded", "[ruinae-voice][filter]") {
+    constexpr double kRate = 48000.0;
+    constexpr size_t kBlock = 64;
+    constexpr size_t kPre = 9600;      // 0.2 s
+    constexpr size_t kSweep = 96000;   // 2 s
+    constexpr size_t kPark = 48000;    // 1 s
+
+    auto engine = std::make_unique<RuinaeEngine>();
+    engine->prepare(kRate, kBlock);
+    engine->setOscAParam(OscParam::Waveform, 4.0f);  // triangle
+    engine->setOscBLevel(0.0f);
+    engine->setMixMode(MixMode::CrossfadeMix);
+    engine->setMixPosition(0.0f);
+    engine->setFilterType(RuinaeFilterType::Comb);
+    engine->setFilterResonance(30.0f);               // resonance norm 1.0
+    engine->setFilterCutoff(20.0f);
+    engine->setFilterKeyTrack(0.0f);
+    engine->setFilterEnvAmount(0.0f);
+    engine->setAmpAttack(1.0f);
+    engine->setAmpSustain(1.0f);
+    engine->setMasterGain(1.0f);
+    engine->setSoftLimitEnabled(false);
+    engine->noteOn(45, 102);                         // A2, vel 0.8
+
+    std::vector<float> left(kBlock, 0.0f);
+    std::vector<float> right(kBlock, 0.0f);
+    float peak = 0.0f;
+    for (size_t pos = 0; pos < kPre + kSweep + kPark; pos += kBlock) {
+        if (pos >= kPre) {
+            const double t = std::min(1.0, static_cast<double>(pos - kPre) / kSweep);
+            engine->setFilterCutoff(static_cast<float>(20.0 * std::pow(1000.0, t)));
+        }
+        engine->processBlock(left.data(), right.data(), kBlock);
+        if (pos >= kPre) {
+            for (size_t i = 0; i < kBlock; ++i)
+                peak = std::max(peak, std::abs(0.5f * (left[i] + right[i])));
+        }
+    }
+
+    const float peakDb = 20.0f * std::log10(std::max(peak, 1e-9f));
+    INFO("comb res 1.0 sweep + park peak " << peakDb << " dBFS");
+    REQUIRE(peak > 0.0f);
+    REQUIRE(peakDb <= 6.0f);
 }
 
 TEST_CASE("RuinaeVoice: filter cutoff modulation accuracy (SC-006)", "[ruinae_voice][filter][sc-006]") {
@@ -640,6 +744,67 @@ TEST_CASE("RuinaeVoice: filter cutoff modulation accuracy (SC-006)", "[ruinae_vo
     // be 500 * 2^(48/12) = 500 * 16 = 8000 Hz, much higher than base 500 Hz.
     // The modulated voice should have significantly more energy.
     REQUIRE(rmsMod > rmsZero * 1.5f);
+}
+
+// R-133: the 12 -> 24 dB slope switch must leave stage 2 at the same cutoff a
+// voice that started at 24 dB has. Guard for the F039 priming in setFilterSvfSlope.
+TEST_CASE("RuinaeVoice: SVF slope 12 to 24 dB switch matches a voice that started at 24 dB",
+          "[ruinae_voice][filter][svf-slope]") {
+    constexpr double sampleRate = 44100.0;
+    constexpr size_t blockSize = 512;
+
+    const auto makeVoice = [&](int slopeStages) {
+        auto voice = std::make_unique<RuinaeVoice>();
+        voice->prepare(sampleRate, blockSize);
+        voice->setOscAType(OscType::PolyBLEP);
+        voice->setOscALevel(1.0f);
+        voice->setOscBLevel(0.0f);
+        voice->setMixPosition(0.0f);
+        voice->setFilterType(RuinaeFilterType::SVF_LP);
+        voice->setFilterCutoff(500.0f);
+        voice->setFilterResonance(0.707f);
+        voice->setFilterSvfSlope(slopeStages);
+        voice->getAmpEnvelope().setAttack(0.1f);
+        voice->getAmpEnvelope().setSustain(1.0f);
+        voice->noteOn(220.0f, 1.0f);
+        return voice;
+    };
+
+    auto switched = makeVoice(1);
+    auto native = makeVoice(2);
+    auto twelveDb = makeVoice(1);
+
+    // Hold in 12 dB for 300 ms, then switch; the native voice runs 24 dB throughout
+    constexpr size_t kHold = 13230;
+    processNSamples(*switched, kHold);
+    processNSamples(*native, kHold);
+    const auto reference12 = processNSamples(*twelveDb, kHold + 4410 + 882);
+    (void)reference12;
+
+    switched->setFilterSvfSlope(2);
+
+    // 5 ms filter smoothing, then the voice DC blocker (~16 ms decay) settles: compare after 100 ms
+    processNSamples(*switched, 4410);
+    processNSamples(*native, 4410);
+    const auto a = processNSamples(*switched, 4410);
+    const auto b = processNSamples(*native, 4410);
+    const auto c = std::vector<float>(reference12.end() - 4410, reference12.end());
+
+    const float rms24 = computeRMS(b.data(), b.size());
+    REQUIRE(rms24 > 0.001f);                 // not vacuous
+    // 24 dB really is a different filter from 12 dB (the comparison below can fail)
+    float slopeDiff = 0.0f;
+    for (size_t i = 0; i < b.size(); ++i) {
+        slopeDiff = std::max(slopeDiff, std::abs(b[i] - c[i]));
+    }
+    REQUIRE(slopeDiff > rms24 * 0.1f);
+
+    float maxDiff = 0.0f;
+    for (size_t i = 0; i < a.size(); ++i) {
+        maxDiff = std::max(maxDiff, std::abs(a[i] - b[i]));
+    }
+    INFO("max |switched - native| = " << maxDiff << " (24 dB RMS " << rms24 << ")");
+    REQUIRE(maxDiff < rms24 * 0.01f);
 }
 
 // =============================================================================
@@ -1547,12 +1712,10 @@ TEST_CASE("RuinaeVoice: SC-002 SpectralMorph voice CPU < 3%", "[ruinae_voice][pe
     REQUIRE(cpuPercent < 3.0);
 }
 
-TEST_CASE("RuinaeVoice: SC-003 eight basic voices CPU < 10%",
-          "[ruinae_voice][performance][sc-003][!mayfail]") {
-    // NOTE: Threshold relaxed from 8% to 10% because wall-clock timing benchmarks
-    // are inherently noisy and vary with system load, background processes, and
-    // CPU frequency scaling. The [!mayfail] tag ensures this timing-sensitive test
-    // does not block CI even if the system is under unusual load.
+TEST_CASE("RuinaeVoice: SC-003 eight basic voices CPU < 8%",
+          "[ruinae_voice][performance][sc-003]") {
+    // Timing case: [performance] keeps it out of the sharded gate; it runs alone in
+    // tools/run-cpu-tests.js and can fail there (R-127). The bar is the spec's 8%.
     constexpr double sampleRate = 44100.0;
     constexpr size_t blockSize = 512;
     constexpr int numVoices = 8;
@@ -1599,8 +1762,8 @@ TEST_CASE("RuinaeVoice: SC-003 eight basic voices CPU < 10%",
     double audioMs = 1000.0;
     double cpuPercent = (elapsedMs / audioMs) * 100.0;
 
-    // SC-003: Must be <10% CPU (relaxed from 8% for system load variation)
-    REQUIRE(cpuPercent < 10.0);
+    // SC-003: Must be <8% CPU
+    REQUIRE(cpuPercent < 8.0);
 }
 
 // =============================================================================
@@ -1983,32 +2146,67 @@ TEST_CASE("RuinaeVoice: zero aftertouch produces no modulation contribution",
     REQUIRE(rmsB > 0.0f);
 }
 
-// T025: NaN aftertouch is ignored (value unchanged)
+// NaN / Inf from a bit pattern through a volatile, so no fast-math build can
+// fold the value or the guard that rejects it.
+static float voiceNonFiniteFromBits(std::uint32_t pattern) {
+    volatile std::uint32_t bits = pattern;
+    return std::bit_cast<float>(static_cast<std::uint32_t>(bits));
+}
+
+// T025: NaN aftertouch is ignored (value unchanged). R-107: the render through
+// an Aftertouch -> FilterCutoff route must match a voice that only ever saw
+// 0.5, with NaN and Inf injected before the note and again mid-note.
 TEST_CASE("RuinaeVoice: NaN aftertouch is ignored",
           "[ruinae_voice][ext_modulation][aftertouch][nan_safety]") {
-    auto voice = createPreparedVoice();
+    const float nan = voiceNonFiniteFromBits(0x7FC00000u);
+    const float inf = voiceNonFiniteFromBits(0x7F800000u);
 
-    // Set a valid aftertouch first
-    voice.setAftertouch(0.5f);
+    // Aftertouch 0.5 opens the dark 300 Hz base by +12 semitones.
+    auto render = [&](float laterAftertouch, bool injectNonFinite) {
+        auto voice = createPreparedVoice();
+        voice.setFilterCutoff(300.0f);
+        voice.setModRoute(0, {VoiceModSource::Aftertouch, VoiceModDest::FilterCutoff, 1.0f});
+        voice.setModRouteScale(VoiceModDest::FilterCutoff, 24.0f);
+        voice.setAftertouch(0.5f);
+        if (injectNonFinite) {
+            voice.setAftertouch(nan);
+            voice.setAftertouch(inf);
+        }
+        voice.noteOn(440.0f, 0.8f);
+        auto out = processNSamples(voice, 4096);
+        if (injectNonFinite) {
+            voice.setAftertouch(nan);
+            voice.setAftertouch(inf);
+        } else {
+            voice.setAftertouch(laterAftertouch);
+        }
+        const auto tail = processNSamples(voice, 4096);
+        out.insert(out.end(), tail.begin(), tail.end());
+        return out;
+    };
+    auto maxAbsDiff = [](const std::vector<float>& a, const std::vector<float>& b) {
+        float diff = 0.0f;
+        for (size_t i = 0; i < a.size(); ++i) diff = std::max(diff, std::abs(a[i] - b[i]));
+        return diff;
+    };
 
-    // Try to set NaN -- should be ignored, value stays at 0.5
-    voice.setAftertouch(std::numeric_limits<float>::quiet_NaN());
+    const auto reference = render(0.5f, false);
+    const auto injected = render(0.5f, true);
+    const auto pressedHarder = render(1.0f, false);
+    REQUIRE(injected.size() == reference.size());
 
-    // Route Aftertouch -> FilterCutoff to verify the value
-    voice.setModRoute(0, {VoiceModSource::Aftertouch, VoiceModDest::FilterCutoff, 1.0f});
-    voice.setModRouteScale(VoiceModDest::FilterCutoff, 1.0f);
-
-    voice.noteOn(440.0f, 0.8f);
-    std::array<float, 64> buf{};
-    voice.processBlock(buf.data(), 64);
-
-    // Voice should still be active (NaN didn't break anything)
-    REQUIRE(voice.isActive());
-
-    // Inf should also be ignored
-    voice.setAftertouch(std::numeric_limits<float>::infinity());
-    voice.processBlock(buf.data(), 64);
-    REQUIRE(voice.isActive());
+    bool finite = true;
+    for (const float s : injected) finite = finite && detail::isFinite(s);
+    const float rms = computeRMS(injected.data(), injected.size());
+    const float diff = maxAbsDiff(injected, reference);
+    // The route is audible: a real aftertouch change moves the render.
+    const float audibleDiff = maxAbsDiff(pressedHarder, reference);
+    INFO("RMS " << rms << ", max |diff| vs reference " << diff
+                << ", aftertouch 0.5 -> 1.0 moves it by " << audibleDiff);
+    CHECK(finite);
+    CHECK(rms > 1e-3f);
+    CHECK(audibleDiff > 1e-3f);
+    CHECK(diff <= 1e-6f);
 }
 
 // =============================================================================
@@ -2199,6 +2397,36 @@ TEST_CASE("RuinaeVoice: all 10 OSC B types produce output at mix=1.0",
             REQUIRE(dbfs > -60.0f);
         }
     }
+}
+
+// =============================================================================
+// R-016 / R-118: SpectralFreeze survives a voice reset
+// =============================================================================
+// setActive(true) and every host preset load reset the engine, which resets
+// each voice and its active oscillator. The SpectralFreeze oscillator's reset()
+// drops its frozen spectrum, and the adapter only froze it at prepare(), so the
+// slot stayed silent until the next sample-rate change.
+
+TEST_CASE("RuinaeVoice: SpectralFreeze survives reset", "[ruinae-voice][spectral-freeze]") {
+    auto voice = createPreparedVoice();
+    voice.setFilterCutoff(20000.0f);
+    voice.setOscAType(OscType::SpectralFreeze);
+    voice.setMixPosition(0.0f); // OSC A only
+    voice.getAmpEnvelope().setAttack(0.1f);
+    voice.getAmpEnvelope().setSustain(1.0f);
+
+    voice.noteOn(440.0f, 1.0f);
+    const auto before = processNSamples(voice, 44100);
+    const float rmsBefore = computeRMS(before.data(), before.size());
+
+    voice.reset();
+    voice.noteOn(440.0f, 1.0f);
+    const auto after = processNSamples(voice, 44100);
+    const float rmsAfter = computeRMS(after.data(), after.size());
+
+    INFO("SpectralFreeze RMS before reset = " << rmsBefore << ", after reset = " << rmsAfter);
+    REQUIRE(rmsBefore > 0.1f);
+    REQUIRE(rmsAfter > 0.1f);
 }
 
 // =============================================================================
@@ -2464,6 +2692,49 @@ TEST_CASE("SpectralMorph mode responds to OSC A level",
 }
 
 // =============================================================================
+// R-023: per-voice MorphPosition route must act in SpectralMorph mode
+// =============================================================================
+
+TEST_CASE("RuinaeVoice: per-voice morph route is audible in SpectralMorph mode",
+          "[ruinae-voice][spectral-morph][modmatrix]") {
+    constexpr size_t kBlockSize = 512;
+    constexpr size_t kBlocks = 12; // past the FFT latency and the one-block route delay
+
+    auto render = [](bool routed) {
+        auto pVoice = std::make_unique<RuinaeVoice>();
+        pVoice->prepare(44100.0, kBlockSize);
+        pVoice->setFilterCutoff(20000.0f);
+        pVoice->setMixMode(MixMode::SpectralMorph);
+        pVoice->setMixPosition(0.0f);
+        pVoice->setOscAType(OscType::PolyBLEP);
+        pVoice->setOscBType(OscType::Noise);
+        pVoice->getAmpEnvelope().setAttack(0.1f);
+        pVoice->getAmpEnvelope().setSustain(1.0f);
+        if (routed) {
+            pVoice->setModRoute(0, {VoiceModSource::Velocity, VoiceModDest::MorphPosition, 1.0f});
+            pVoice->setModRouteScale(VoiceModDest::MorphPosition, 1.0f);
+        }
+        pVoice->noteOn(220.0f, 1.0f);
+        std::vector<float> out(kBlockSize * kBlocks, 0.0f);
+        for (size_t b = 0; b < kBlocks; ++b) {
+            pVoice->processBlock(out.data() + b * kBlockSize, kBlockSize);
+        }
+        return out;
+    };
+
+    const auto base = render(false);
+    const auto routed = render(true);
+
+    double diff = 0.0;
+    for (size_t i = kBlockSize * 6; i < base.size(); ++i) {
+        const double d = static_cast<double>(base[i]) - routed[i];
+        diff += d * d;
+    }
+    diff = std::sqrt(diff / static_cast<double>(base.size() - kBlockSize * 6));
+    REQUIRE(diff > 1e-3);
+}
+
+// =============================================================================
 // A retriggered voice must not resume an interrupted glide
 // =============================================================================
 // The portamento fields are set only by glideToFrequency() and were cleared by
@@ -2541,4 +2812,538 @@ TEST_CASE("RuinaeVoice: self-oscillating filter sounds at musical Q values",
         // the very top of the range.
         REQUIRE(measurePeak(25.0f) >= measurePeak(18.0f) * 0.5f);
     }
+}
+
+// =============================================================================
+// R-024 / T2.8: Spectral distortion dry/wet blend must be time-aligned
+// =============================================================================
+namespace {
+
+// Welch-averaged power spectrum (Hann, 50 % overlap) of a long render.
+std::vector<double> spectralDistMeanPsd(const std::vector<float>& x, size_t n) {
+    FFT fft;
+    fft.prepare(n);
+    std::vector<double> psd(n / 2 + 1, 0.0);
+    std::vector<float> frame(n);
+    std::vector<Complex> spec(n / 2 + 1);
+    size_t frames = 0;
+    for (size_t start = 0; start + n <= x.size(); start += n / 2) {
+        for (size_t i = 0; i < n; ++i) {
+            const double w = 0.5 - 0.5 * std::cos(2.0 * 3.14159265358979 * static_cast<double>(i) /
+                                                   static_cast<double>(n));
+            frame[i] = x[start + i] * static_cast<float>(w);
+        }
+        fft.forward(frame.data(), spec.data());
+        for (size_t k = 0; k < psd.size(); ++k) {
+            const double m = spec[k].magnitude();
+            psd[k] += m * m;
+        }
+        ++frames;
+    }
+    for (auto& p : psd) p /= static_cast<double>(frames);
+    return psd;
+}
+
+std::vector<float> renderSpectralDistNoise(float mix, size_t numSamples) {
+    auto voice = createPreparedVoice();
+    voice.setFilterCutoff(20000.0f);
+    voice.setOscAType(OscType::Noise);
+    voice.setMixPosition(0.0f);
+    voice.getAmpEnvelope().setAttack(0.1f);
+    voice.getAmpEnvelope().setSustain(1.0f);
+    voice.setDistortionType(RuinaeDistortionType::SpectralDistortion);
+    voice.setDistortionDrive(0.0f);
+    voice.setDistortionMix(mix);
+    voice.noteOn(440.0f, 1.0f);
+    auto out = processNSamples(voice, numSamples);
+    // Drop the warm-up (envelope attack + STFT latency).
+    out.erase(out.begin(), out.begin() + 8192);
+    return out;
+}
+
+} // namespace
+
+TEST_CASE("RuinaeVoice: spectral distortion at mix 0.5 has no comb",
+          "[ruinae-voice][distortion]") {
+    constexpr size_t kFft = 4096;
+    constexpr size_t kLen = 44100 * 20;
+    const auto psdRef = spectralDistMeanPsd(renderSpectralDistNoise(1.0f, kLen), kFft);
+    const auto psdMix = spectralDistMeanPsd(renderSpectralDistNoise(0.5f, kLen), kFft);
+
+    const double binHz = 44100.0 / static_cast<double>(kFft);
+    double worstDb = 0.0;
+    // Smooth over 3 bins (about 32 Hz) to bound the estimator noise, far narrower than
+    // the 86 Hz notch spacing of the comb.
+    for (size_t k = static_cast<size_t>(200.0 / binHz) + 1;
+         k < static_cast<size_t>(8000.0 / binHz) - 1; ++k) {
+        const double a = psdMix[k - 1] + psdMix[k] + psdMix[k + 1];
+        const double b = psdRef[k - 1] + psdRef[k] + psdRef[k + 1];
+        const double db = 10.0 * std::log10(a / b);
+        if (std::abs(db) > std::abs(worstDb)) worstDb = db;
+    }
+    INFO("worst deviation of mix 0.5 vs wet-only response = " << worstDb << " dB");
+    REQUIRE(std::abs(worstDb) <= 1.0);
+}
+
+// =============================================================================
+// R-019: every distortion type passes signal at drive 0
+// =============================================================================
+
+namespace {
+
+// Steady-state RMS of a 220 Hz sine voice through one distortion type at mix 1, with the
+// type-specific parameters at their registered defaults (distortion_params.h).
+float renderDistortionRms(RuinaeDistortionType type, float drive) {
+    auto voice = createPreparedVoice();
+    voice.setFilterCutoff(20000.0f);
+    voice.setOscAType(OscType::PolyBLEP);
+    voice.setOscAParam(OscParam::Waveform, 0.0f);  // Sine
+    voice.setMixPosition(0.0f);
+    voice.getAmpEnvelope().setAttack(0.1f);
+    voice.getAmpEnvelope().setSustain(1.0f);
+    voice.setDistortionSpectralBits(1.0f);
+    voice.setDistortionGrainSize(0.47f);
+    voice.setDistortionGrainDensity(0.43f);
+    voice.setDistortionFoldType(0);
+    voice.setDistortionTapeSaturation(0.5f);
+    voice.setDistortionTapeBias(0.5f);
+    voice.setDistortionRingFreqMode(1);
+    voice.setDistortionRingRatio(2.0f);
+    voice.setDistortionRingWaveform(0);
+    voice.setDistortionType(type);
+    voice.setDistortionDrive(drive);
+    voice.setDistortionMix(1.0f);
+    voice.noteOn(220.0f, 1.0f);
+    processNSamples(voice, 13230);  // 0.3 s warm-up: attack, grain fill, STFT latency
+    const auto out = processNSamples(voice, 44100);
+    return computeRMS(out.data(), out.size());
+}
+
+float rmsDb(float rms) { return 20.0f * std::log10(std::max(rms, 1e-9f)); }
+
+constexpr std::array<RuinaeDistortionType, 7> kAllDistortionTypes = {
+    RuinaeDistortionType::Clean,          RuinaeDistortionType::ChaosWaveshaper,
+    RuinaeDistortionType::SpectralDistortion, RuinaeDistortionType::GranularDistortion,
+    RuinaeDistortionType::Wavefolder,     RuinaeDistortionType::TapeSaturator,
+    RuinaeDistortionType::RingModulator};
+
+} // namespace
+
+TEST_CASE("RuinaeVoice: every distortion type passes signal at drive 0",
+          "[ruinae-voice][distortion]") {
+    const float cleanDb = rmsDb(renderDistortionRms(RuinaeDistortionType::Clean, 0.0f));
+    INFO("Clean = " << cleanDb << " dB");
+
+    for (auto type : kAllDistortionTypes) {
+        if (type == RuinaeDistortionType::Clean) continue;
+        const float at0 = rmsDb(renderDistortionRms(type, 0.0f));
+        const float at0001 = rmsDb(renderDistortionRms(type, 0.001f));
+        INFO("type " << static_cast<int>(type) << ": drive 0 = " << at0
+             << " dB, drive 0.001 = " << at0001 << " dB");
+        // Usable at the registered default drive (baseline: Wavefolder and RingMod silent,
+        // Tape -24 dB, Granular +8 dB).
+        CHECK(std::abs(at0 - cleanDb) <= 6.0f);
+        // No cliff at the bottom of the knob (baseline: Wavefolder 0 -> full, Spectral -36 dB).
+        CHECK(std::abs(at0 - at0001) <= 0.5f);
+    }
+
+    // Ruling (2026-11-16): only the drive-0 end changes; the law from ~10 % up is kept so
+    // presets do not shift. Levels measured on the code before the fix (220 Hz sine, mix 1,
+    // registered defaults); each must stay within 1 dB.
+    struct Baseline {
+        RuinaeDistortionType type;
+        float drive;
+        float db;
+    };
+    // ChaosWaveshaper rows were re-measured after T2.25 (R-009): before it the Lorenz
+    // model reset every 27.6 ms at 44.1 kHz and looped through its high-drive segment
+    // (-2.80 / -2.47 / -1.89 / -0.70 dB). Now chaotic, it sweeps the whole drive range and
+    // sits within 0.2 dB of Clean at every amount. The drive -> chaosAmount law is unchanged.
+    constexpr std::array<Baseline, 24> kBefore = {{
+        {RuinaeDistortionType::ChaosWaveshaper, 0.1f, -3.05f},
+        {RuinaeDistortionType::ChaosWaveshaper, 0.25f, -3.10f},
+        {RuinaeDistortionType::ChaosWaveshaper, 0.5f, -3.15f},
+        {RuinaeDistortionType::ChaosWaveshaper, 1.0f, -3.11f},
+        {RuinaeDistortionType::SpectralDistortion, 0.1f, -3.42f},
+        {RuinaeDistortionType::SpectralDistortion, 0.25f, 2.81f},
+        {RuinaeDistortionType::SpectralDistortion, 0.5f, 5.21f},
+        {RuinaeDistortionType::SpectralDistortion, 1.0f, 5.72f},
+        {RuinaeDistortionType::GranularDistortion, 0.1f, 5.32f},
+        {RuinaeDistortionType::GranularDistortion, 0.25f, 5.56f},
+        {RuinaeDistortionType::GranularDistortion, 0.5f, 5.74f},
+        {RuinaeDistortionType::GranularDistortion, 1.0f, 5.88f},
+        {RuinaeDistortionType::Wavefolder, 0.1f, -3.01f},
+        {RuinaeDistortionType::Wavefolder, 0.25f, -14.11f},
+        {RuinaeDistortionType::Wavefolder, 0.5f, -17.85f},
+        {RuinaeDistortionType::Wavefolder, 1.0f, -25.25f},
+        {RuinaeDistortionType::TapeSaturator, 0.1f, -22.23f},
+        {RuinaeDistortionType::TapeSaturator, 0.25f, -15.08f},
+        {RuinaeDistortionType::TapeSaturator, 0.5f, -3.87f},
+        {RuinaeDistortionType::TapeSaturator, 1.0f, 15.64f},
+        {RuinaeDistortionType::RingModulator, 0.1f, -26.02f},
+        {RuinaeDistortionType::RingModulator, 0.25f, -18.07f},
+        {RuinaeDistortionType::RingModulator, 0.5f, -12.04f},
+        {RuinaeDistortionType::RingModulator, 1.0f, -6.02f},
+    }};
+    for (const auto& b : kBefore) {
+        const float db = rmsDb(renderDistortionRms(b.type, b.drive));
+        INFO("type " << static_cast<int>(b.type) << " drive " << b.drive << ": " << db
+             << " dB, before the fix " << b.db << " dB");
+        CHECK(std::abs(db - b.db) <= 1.0f);
+    }
+}
+
+// =============================================================================
+// R-093: the Voice LFO mod source has a rate and a shape set by the engine
+// =============================================================================
+
+namespace {
+
+/// A held A4 sine through the voice SVF lowpass at 440 Hz, its cutoff swept
+/// +/-12 st by the Voice LFO (engine setters). Returns the 10 ms moving RMS of
+/// the left output from 0.2 s to 3 s.
+std::vector<float> renderVoiceLfoCutoffEnvelope(float rateHz, Waveform shape) {
+    constexpr double kRate = 44100.0;
+    constexpr size_t kBlock = 512;
+    constexpr size_t kTotal = 132300;  // 3 s
+    constexpr size_t kSkip = 8820;     // 0.2 s: attack settled
+    constexpr size_t kWindow = 441;    // 10 ms
+
+    auto engine = std::make_unique<RuinaeEngine>();
+    engine->prepare(kRate, kBlock);
+    engine->setOscAParam(OscParam::Waveform, 0.0f);  // sine
+    engine->setOscBLevel(0.0f);
+    engine->setMixMode(MixMode::CrossfadeMix);
+    engine->setMixPosition(0.0f);
+    engine->setFilterType(RuinaeFilterType::SVF_LP);
+    engine->setFilterCutoff(440.0f);
+    engine->setFilterKeyTrack(0.0f);
+    engine->setAmpAttack(1.0f);
+    engine->setAmpSustain(1.0f);
+    engine->setSoftLimitEnabled(false);
+    engine->setVoiceLfoRate(rateHz);
+    engine->setVoiceLfoWaveform(shape);
+    VoiceModRoute route;
+    route.source = VoiceModSource::VoiceLFO;
+    route.destination = VoiceModDest::FilterCutoff;
+    route.amount = 1.0f;
+    engine->setVoiceModRoute(0, route);
+    engine->setVoiceModRouteScale(VoiceModDest::FilterCutoff, 12.0f);
+    engine->noteOn(69, 127);
+
+    std::vector<float> left(kTotal, 0.0f);
+    std::vector<float> right(kTotal, 0.0f);
+    for (size_t pos = 0; pos < kTotal; pos += kBlock) {
+        const size_t n = std::min(kBlock, kTotal - pos);
+        engine->processBlock(left.data() + pos, right.data() + pos, n);
+    }
+
+    std::vector<float> envelope;
+    double sumSq = 0.0;
+    for (size_t i = 0; i < kTotal; ++i) {
+        sumSq += static_cast<double>(left[i]) * left[i];
+        if (i >= kWindow) sumSq -= static_cast<double>(left[i - kWindow]) * left[i - kWindow];
+        if (i >= kSkip) {
+            envelope.push_back(static_cast<float>(std::sqrt(std::max(sumSq, 0.0) / kWindow)));
+        }
+    }
+    return envelope;
+}
+
+/// Sample indices where `env` rises through its mid level (10 % hysteresis).
+std::vector<size_t> upwardMidCrossings(const std::vector<float>& env) {
+    const auto [lo, hi] = std::minmax_element(env.begin(), env.end());
+    const float mid = 0.5f * (*lo + *hi);
+    const float h = 0.1f * (*hi - *lo);
+    std::vector<size_t> crossings;
+    bool armed = false;
+    for (size_t i = 0; i < env.size(); ++i) {
+        if (env[i] < mid - h) armed = true;
+        if (armed && env[i] >= mid + h) {
+            crossings.push_back(i);
+            armed = false;
+        }
+    }
+    return crossings;
+}
+
+/// Fraction of `env` between 25 % and 75 % of its range.
+float midBandFraction(const std::vector<float>& env) {
+    const auto [lo, hi] = std::minmax_element(env.begin(), env.end());
+    const float range = *hi - *lo;
+    size_t inBand = 0;
+    for (float v : env) {
+        const float x = (v - *lo) / range;
+        if (x > 0.25f && x < 0.75f) ++inBand;
+    }
+    return static_cast<float>(inBand) / static_cast<float>(env.size());
+}
+
+} // namespace
+
+TEST_CASE("RuinaeVoice: voice LFO rate is configurable", "[ruinae-voice][lfo]") {
+    const auto env = renderVoiceLfoCutoffEnvelope(5.0f, Waveform::Sine);
+    const auto [lo, hi] = std::minmax_element(env.begin(), env.end());
+    INFO("envelope " << *lo << " .. " << *hi);
+    REQUIRE(*hi > 2.0f * *lo);  // the cutoff sweep is audible: not vacuous
+
+    const auto crossings = upwardMidCrossings(env);
+    REQUIRE(crossings.size() >= 2);
+    const double periodMs = 1000.0 * static_cast<double>(crossings.back() - crossings.front())
+        / static_cast<double>(crossings.size() - 1) / 44100.0;
+    INFO(crossings.size() << " cycles, period " << periodMs << " ms");
+    CHECK(periodMs == Approx(200.0).epsilon(0.02));
+
+    SECTION("the shape is configurable too") {
+        const float sineMid = midBandFraction(env);
+        const float squareMid = midBandFraction(renderVoiceLfoCutoffEnvelope(5.0f, Waveform::Square));
+        INFO("time in the middle of the sweep: sine " << sineMid << ", square " << squareMid);
+        CHECK(squareMid < 0.5f * sineMid);
+    }
+}
+
+// =============================================================================
+// R-018: note velocity reaches the VCA, scaled by the Velocity > Amp amount
+// =============================================================================
+
+namespace {
+
+/// Steady-state RMS of one held note (0.5 s, after 0.2 s of settling).
+float steadyStateRms(float velocityAmount, float velocity) {
+    auto voice = createPreparedVoice();
+    voice.setFilterCutoff(20000.0f);
+    voice.getAmpEnvelope().setAttack(1.0f);
+    voice.getAmpEnvelope().setSustain(1.0f);
+    voice.setAmpVelocityAmount(velocityAmount);
+    voice.noteOn(440.0f, velocity);
+    processNSamples(voice, 8820);
+    const auto held = processNSamples(voice, 22050);
+    return computeRMS(held.data(), held.size());
+}
+
+} // namespace
+
+TEST_CASE("RuinaeVoice: velocity scales the VCA by the amp-velocity amount", "[ruinae-voice][velocity]") {
+    constexpr float kSoft = 32.0f / 127.0f;
+    constexpr float kHard = 127.0f / 127.0f;
+
+    SECTION("amount 1: the level follows the velocity") {
+        const float soft = steadyStateRms(1.0f, kSoft);
+        const float hard = steadyStateRms(1.0f, kHard);
+        REQUIRE(hard > 0.01f);
+        const double diffDb = 20.0 * std::log10(static_cast<double>(soft) / static_cast<double>(hard));
+        const double expectedDb = 20.0 * std::log10(32.0 / 127.0);
+        INFO("soft " << soft << ", hard " << hard << ", difference " << diffDb << " dB, expected " << expectedDb);
+        CHECK(diffDb == Approx(expectedDb).margin(0.5));
+    }
+
+    SECTION("amount 0: the level ignores the velocity") {
+        const float soft = steadyStateRms(0.0f, kSoft);
+        const float hard = steadyStateRms(0.0f, kHard);
+        REQUIRE(hard > 0.01f);
+        const double diffDb = 20.0 * std::log10(static_cast<double>(soft) / static_cast<double>(hard));
+        INFO("soft " << soft << ", hard " << hard << ", difference " << diffDb << " dB");
+        CHECK(std::abs(diffDb) < 0.1);
+    }
+}
+
+// =============================================================================
+// R-017 / R-026: SpectralMorph VCA alignment, no replay of the previous note,
+// idle voices start clean
+// =============================================================================
+
+namespace {
+
+constexpr double kLifecycleSampleRate = 44100.0;
+constexpr size_t kLifecycleBlock = 512;
+
+/// Short attack, full sustain, 5 ms release.
+void setLifecycleEnvelope(RuinaeVoice& voice, float attackMs) {
+    voice.getAmpEnvelope().setAttack(attackMs);
+    voice.getAmpEnvelope().setDecay(50.0f);
+    voice.getAmpEnvelope().setSustain(1.0f);
+    voice.getAmpEnvelope().setRelease(5.0f);
+}
+
+/// Release the note and process until the voice reports idle.
+void releaseToIdle(RuinaeVoice& voice) {
+    voice.noteOff();
+    std::array<float, kLifecycleBlock> buf{};
+    for (int i = 0; i < 1000 && voice.isActive(); ++i) {
+        voice.processBlock(buf.data(), buf.size());
+    }
+}
+
+struct MorphNoteRender {
+    std::vector<float> out;
+    bool activeAtEnd = true;
+};
+
+/// SpectralMorph note (OSC A only), released at @p noteOffAt (a block multiple).
+MorphNoteRender renderMorphNote(float attackMs, size_t noteOffAt, size_t total) {
+    auto voice = createPreparedVoice(kLifecycleSampleRate, kLifecycleBlock);
+    voice.setMixMode(MixMode::SpectralMorph);
+    voice.setMixPosition(0.0f);
+    setLifecycleEnvelope(voice, attackMs);
+    voice.noteOn(440.0f, 1.0f);
+    MorphNoteRender r;
+    r.out = processNSamples(voice, noteOffAt, kLifecycleBlock);
+    voice.noteOff();
+    const auto tail = processNSamples(voice, total - noteOffAt, kLifecycleBlock);
+    r.out.insert(r.out.end(), tail.begin(), tail.end());
+    r.activeAtEnd = voice.isActive();
+    return r;
+}
+
+} // namespace
+
+TEST_CASE("RuinaeVoice_SpectralMorph_NoStaleTailAtNextNote", "[ruinae-voice][spectral-morph]") {
+    auto voice = createPreparedVoice(kLifecycleSampleRate, kLifecycleBlock);
+    voice.setMixMode(MixMode::SpectralMorph);
+    setLifecycleEnvelope(voice, 1.0f);
+
+    voice.noteOn(220.0f, 1.0f);
+    const auto note1 = processNSamples(voice, 8820, kLifecycleBlock);
+    REQUIRE(computeRMS(note1.data() + 4410, 4410) > 0.05f);
+    releaseToIdle(voice);
+    REQUIRE_FALSE(voice.isActive());
+
+    // The second note has silent inputs: anything it outputs is the first note.
+    voice.setOscALevel(0.0f);
+    voice.setOscBLevel(0.0f);
+    voice.noteOn(220.0f, 1.0f);
+    const auto note2 = processNSamples(voice, 1024, kLifecycleBlock);
+    const float rms = computeRMS(note2.data(), note2.size());
+    INFO("note 2 (silent inputs) RMS over its first 1024 samples: " << rms);
+    REQUIRE(rms < 1e-3f);
+}
+
+TEST_CASE("RuinaeVoice_SpectralMorph_AttackShapesTheOnset", "[ruinae-voice][spectral-morph]") {
+    // The pre-VCA signal is identical in both renders, so out / ref is the
+    // attack render's VCA gain over the reference's near-instant one, read on
+    // the output timeline. The ratio is exact wherever ref is not 0, so the
+    // gate is tiny: the morph's own first hop after a reset is window-weighted
+    // (its first frame has no earlier frame to overlap), which would hide the
+    // onset from a coarser gate.
+    constexpr size_t kNoteOffAt = 16 * kLifecycleBlock;  // 8192
+    constexpr size_t kTotal = kNoteOffAt + 16 * kLifecycleBlock;
+    const auto attack = renderMorphNote(1.0f, kNoteOffAt, kTotal);
+    const auto ref = renderMorphNote(0.0f, kNoteOffAt, kTotal);
+
+    float refPeak = 0.0f;
+    for (size_t n = 4096; n < kNoteOffAt; ++n) refPeak = std::max(refPeak, std::abs(ref.out[n]));
+    REQUIRE(refPeak > 0.05f);
+
+    long t10 = -1;
+    long t90 = -1;
+    for (size_t n = 0; n < kNoteOffAt && t90 < 0; ++n) {
+        if (std::abs(ref.out[n]) < 1e-6f * refPeak) continue;
+        const float gain = attack.out[n] / ref.out[n];
+        if (t10 < 0 && gain >= 0.1f) t10 = static_cast<long>(n);
+        if (gain >= 0.9f) t90 = static_cast<long>(n);
+    }
+    REQUIRE(t10 >= 0);
+    REQUIRE(t90 >= 0);
+    const double riseMs = static_cast<double>(t90 - t10) * 1000.0 / kLifecycleSampleRate;
+    INFO("10 % gain at sample " << t10 << ", 90 % at " << t90 << ": rise " << riseMs << " ms");
+    CHECK(riseMs >= 0.5);
+    CHECK(riseMs <= 1.5);
+
+    // The last 1024 samples of oscillator content before noteOff are heard at
+    // the sustain level: the release starts 1024 samples after noteOff.
+    const float steady = computeRMS(attack.out.data() + kNoteOffAt - 1024, 512);
+    const float lastContent = computeRMS(attack.out.data() + kNoteOffAt + 512, 512);
+    const float afterRelease = computeRMS(attack.out.data() + kNoteOffAt + 2048, 512);
+    INFO("steady " << steady << ", [off+512, off+1024) " << lastContent
+         << ", [off+2048, off+2560) " << afterRelease);
+    REQUIRE(steady > 0.05f);
+    CHECK(lastContent > 0.9f * steady);
+    CHECK(afterRelease < 0.01f * steady);
+    CHECK_FALSE(attack.activeAtEnd);
+}
+
+TEST_CASE("RuinaeVoice_IdleVoiceStartsClean", "[ruinae-voice][idle]") {
+    auto voice = createPreparedVoice(kLifecycleSampleRate, kLifecycleBlock);
+    voice.setMixMode(MixMode::CrossfadeMix);
+    voice.setFilterType(RuinaeFilterType::Comb);
+    voice.setFilterResonance(30.0f);
+    setLifecycleEnvelope(voice, 1.0f);
+
+    voice.noteOn(220.0f, 1.0f);
+    const auto note1 = processNSamples(voice, 8820, kLifecycleBlock);
+    REQUIRE(computeRMS(note1.data() + 4410, 4410) > 0.01f);
+    releaseToIdle(voice);
+    REQUIRE_FALSE(voice.isActive());
+
+    voice.setOscALevel(0.0f);
+    voice.setOscBLevel(0.0f);
+    voice.noteOn(220.0f, 1.0f);
+    const auto note2 = processNSamples(voice, 1024, kLifecycleBlock);
+    const float rms = computeRMS(note2.data(), note2.size());
+    INFO("note 2 (silent inputs) RMS over its first 1024 samples: " << rms);
+    REQUIRE(rms < 1e-4f);
+}
+
+// =============================================================================
+// R-162: release 0 fades the voice out instead of cutting it
+// =============================================================================
+// Release 0 ms reached the amp envelope as its own 0.1 ms minimum, so a held
+// tone ended within ~5 samples: the audit probe (sine A4, 48 kHz, release 0)
+// measured a 2.80 jump ratio at note-off. The voice is driven through
+// RuinaeEngine::setAmpRelease, the processor's path to the amp release, where
+// the floor lives. The note-off lands at eight phases across one A4 cycle,
+// since the step a release makes depends on where in the cycle it starts.
+TEST_CASE("RuinaeVoice: release 0 does not click", "[ruinae-voice][click]") {
+    constexpr double kRate = 48000.0;
+    constexpr size_t kBlock = 512;
+    constexpr size_t kHold = 24000;    // 0.5 s
+    constexpr size_t kTail = 4800;     // 0.1 s after note-off
+    constexpr size_t kWin = 240;       // +-5 ms (the probe's window)
+    constexpr size_t kRef = 960;       // 20 ms steady reference (the probe's)
+    constexpr std::array<size_t, 8> kPhaseOffsets = {0, 14, 27, 41, 55, 68, 82, 95};  // A4 period 109
+
+    double worst = 0.0;
+    std::string ratios;
+    for (const size_t offset : kPhaseOffsets) {
+        auto engine = std::make_unique<RuinaeEngine>();
+        engine->prepare(kRate, kBlock);
+        engine->setOscAParam(OscParam::Waveform, 0.0f);  // sine
+        engine->setOscBLevel(0.0f);
+        engine->setMixMode(MixMode::CrossfadeMix);
+        engine->setMixPosition(0.0f);
+        engine->setFilterCutoff(20000.0f);
+        engine->setFilterKeyTrack(0.0f);
+        engine->setFilterEnvAmount(0.0f);
+        engine->setSoftLimitEnabled(false);
+        engine->setAmpAttack(1.0f);
+        engine->setAmpSustain(1.0f);
+        engine->setAmpRelease(0.0f);
+        // The processor pushes the curve amounts every block; 0 (linear) is the default.
+        engine->setAmpAttackCurve(0.0f);
+        engine->setAmpDecayCurve(0.0f);
+        engine->setAmpReleaseCurve(0.0f);
+        engine->noteOn(69, 102);  // A4, velocity 0.8
+
+        const size_t noteOffAt = kHold + offset;
+        const size_t total = noteOffAt + kTail;
+        std::vector<float> left(total, 0.0f);
+        std::vector<float> right(total, 0.0f);
+        for (size_t pos = 0; pos < total;) {
+            if (pos == noteOffAt) engine->noteOff(69);
+            const size_t end = pos < noteOffAt ? noteOffAt : total;
+            const size_t n = std::min(kBlock, end - pos);
+            engine->processBlock(left.data() + pos, right.data() + pos, n);
+            pos += n;
+        }
+
+        std::vector<float> mono(total);
+        for (size_t i = 0; i < total; ++i) mono[i] = 0.5f * (left[i] + right[i]);
+        REQUIRE(computeRMS(mono.data() + noteOffAt - kRef, kRef) > 0.01f);
+        const double ratio = RuinaeAuditRig::clickAt(mono, noteOffAt, kWin, kRef).ratio;
+        ratios += " " + std::to_string(offset) + ":" + std::to_string(ratio);
+        worst = std::max(worst, ratio);
+    }
+    INFO("jump ratio at note-off per cycle offset (samples:ratio):" << ratios);
+    INFO("worst: " << worst);
+    CHECK(worst <= 1.5);
 }

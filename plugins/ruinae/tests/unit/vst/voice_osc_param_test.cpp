@@ -14,6 +14,8 @@
 #include "engine/ruinae_voice.h"
 #include <krate/dsp/systems/oscillator_types.h>
 
+#include "artifact_detection.h"
+
 #include <algorithm>
 #include <cmath>
 #include <numeric>
@@ -181,5 +183,130 @@ TEST_CASE("RuinaeVoice processBlock produces non-silent output after setOscAPara
         processBlock(voice, 512);
         auto output = processBlock(voice, 2048);
         REQUIRE(rms(output) > 0.001f);
+    }
+}
+
+// =============================================================================
+// Tests: static Phase Mod / Freq Mod (R-135, R-092, R-021)
+// =============================================================================
+
+namespace {
+
+// Render OSC A alone (440 Hz) in host-sized blocks, re-sending `param` before
+// every block exactly as Processor::applyParamsToEngine does once per process().
+std::vector<float> renderStaticOscParam(OscType type, OscParam param, float value,
+                                        size_t blockSize, size_t total) {
+    auto voice = createVoice(44100.0, 512);
+    voice.setOscAType(type);
+    voice.setMixPosition(0.0f);  // OSC A only
+    if (type == OscType::PolyBLEP) {
+        voice.setOscAParam(OscParam::Waveform, 0.0f);  // Sine
+    }
+    voice.noteOn(440.0f, 0.8f);
+    std::vector<float> out(total, 0.0f);
+    for (size_t pos = 0; pos < total; pos += blockSize) {
+        const size_t n = std::min(blockSize, total - pos);
+        voice.setOscAParam(param, value);
+        voice.processBlock(out.data() + pos, n);
+    }
+    return out;
+}
+
+float maxAbsDiff(const std::vector<float>& a, const std::vector<float>& b) {
+    float worst = 0.0f;
+    for (size_t i = 0; i < a.size(); ++i) worst = std::max(worst, std::abs(a[i] - b[i]));
+    return worst;
+}
+
+float maxAbsSecondDifference(const std::vector<float>& x) {
+    float worst = 0.0f;
+    for (size_t i = 2; i < x.size(); ++i) {
+        worst = std::max(worst, std::abs(x[i] - 2.0f * x[i - 1] + x[i - 2]));
+    }
+    return worst;
+}
+
+// Frequency from linearly interpolated rising zero crossings at or after `from`.
+double risingZeroCrossingFrequency(const std::vector<float>& x, size_t from, double sampleRate) {
+    double first = -1.0;
+    double last = -1.0;
+    size_t count = 0;
+    for (size_t i = std::max<size_t>(from, 1); i < x.size(); ++i) {
+        if (x[i - 1] < 0.0f && x[i] >= 0.0f) {
+            const double t = static_cast<double>(i - 1)
+                + static_cast<double>(x[i - 1]) / static_cast<double>(x[i - 1] - x[i]);
+            if (first < 0.0) first = t;
+            last = t;
+            ++count;
+        }
+    }
+    if (count < 2) return 0.0;
+    return static_cast<double>(count - 1) * sampleRate / (last - first);
+}
+
+}  // namespace
+
+TEST_CASE("OSC phase modulation is block-size independent and continuous",
+          "[ruinae-voice][osc-params]") {
+    constexpr size_t kTotal = 4096;
+
+    SECTION("Phase Mod 1.0 is a steady 1 rad shift") {
+        for (const OscType type : {OscType::PolyBLEP, OscType::Wavetable}) {
+            CAPTURE(static_cast<int>(type));
+            const auto pm64 = renderStaticOscParam(type, OscParam::PhaseModulation, 1.0f, 64, kTotal);
+            const auto pm512 = renderStaticOscParam(type, OscParam::PhaseModulation, 1.0f, 512, kTotal);
+            const auto dry512 = renderStaticOscParam(type, OscParam::PhaseModulation, 0.0f, 512, kTotal);
+
+            // Block size must not change the output.
+            REQUIRE(maxAbsDiff(pm64, pm512) <= 1e-6f);
+
+            // No block-periodic step: the second difference stays within what the
+            // unmodulated waveform itself produces.
+            const float dryCurvature = maxAbsSecondDifference(dry512);
+            CAPTURE(dryCurvature);
+            REQUIRE(maxAbsSecondDifference(pm64) <= 1.5f * dryCurvature);
+            REQUIRE(maxAbsSecondDifference(pm512) <= 1.5f * dryCurvature);
+
+            if (type == OscType::PolyBLEP) {
+                Krate::DSP::TestUtils::ClickDetectorConfig cfg{};
+                Krate::DSP::TestUtils::ClickDetector detector(cfg);
+                detector.prepare();
+                CHECK(detector.detect(pm64.data(), pm64.size()).empty());
+                CHECK(detector.detect(pm512.data(), pm512.size()).empty());
+            }
+
+            // The shift applies to every sample, not only the first of each block:
+            // a 1 rad shift makes the difference RMS 2*sin(0.5) = 0.96 of the dry RMS.
+            constexpr size_t kWindow = 64;
+            size_t checkedWindows = 0;
+            for (size_t w = 0; w + kWindow <= kTotal; w += kWindow) {
+                double dryEnergy = 0.0;
+                double diffEnergy = 0.0;
+                for (size_t i = w; i < w + kWindow; ++i) {
+                    dryEnergy += static_cast<double>(dry512[i]) * dry512[i];
+                    const double d = static_cast<double>(pm512[i]) - dry512[i];
+                    diffEnergy += d * d;
+                }
+                if (dryEnergy < kWindow * 1e-6) continue;  // still silent at the attack
+                ++checkedWindows;
+                CAPTURE(w);
+                REQUIRE(std::sqrt(diffEnergy / dryEnergy) > 0.5);
+            }
+            REQUIRE(checkedWindows >= kTotal / kWindow - 2);
+        }
+    }
+
+    SECTION("Freq Mod 1.0 raises the pitch by 1 Hz") {
+        constexpr size_t kLong = 88200;  // 2 s
+        for (const OscType type : {OscType::PolyBLEP, OscType::Wavetable}) {
+            CAPTURE(static_cast<int>(type));
+            const auto dry = renderStaticOscParam(type, OscParam::FrequencyModulation, 0.0f, 512, kLong);
+            const auto fm = renderStaticOscParam(type, OscParam::FrequencyModulation, 1.0f, 512, kLong);
+            const double fDry = risingZeroCrossingFrequency(dry, 4096, 44100.0);
+            const double fFm = risingZeroCrossingFrequency(fm, 4096, 44100.0);
+            CAPTURE(fDry, fFm);
+            REQUIRE(fDry == Approx(440.0).margin(0.5));
+            REQUIRE((fFm - fDry) == Approx(1.0).margin(0.05));
+        }
     }
 }

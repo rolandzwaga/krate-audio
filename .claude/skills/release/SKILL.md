@@ -107,10 +107,13 @@ without permission). Follow every step; do not skip or reorder.
 
 5. **Run that plugin's tests.** (For iterum, run BOTH `plugin_tests` and `approval_tests`.)
    ```bash
-   node tools/run-gate.js --filter '~[performance]~[perf]~[benchmark]~[!benchmark]' <test-target> 2>&1 | tail -20
+   node tools/run-gate.js --base <plugin>/v<previous version> --filter '~[performance]~[perf]~[benchmark]~[!benchmark]' <test-target> 2>&1 | tail -20
    ```
-   Sharded (root CLAUDE.md: never one serial exe). Iterum names both targets in the one command. The last line
-   must read "GATE GREEN"; timing tests run alone via `node tools/run-cpu-tests.js <test-target>`. If anything fails, STOP and report — do not commit.
+   Sharded (root CLAUDE.md: never one serial exe). Iterum names both targets in the one command. `--base` is the
+   previous release tag (`git ls-remote --tags origin "refs/tags/<plugin>/v*"`; `git fetch origin tag <tag>` if it
+   is not local): the gate runs only the cases the release's changes reach. The last line must read "GATE GREEN"
+   ("nothing to run" means none of the changes reaches this plugin's tests; say so). Timing tests run alone via
+   `node tools/run-cpu-tests.js --base <same tag> <test-target>`. If anything fails, STOP and report — do not commit.
 
 6. **Run pluginval.**
    ```bash

@@ -362,8 +362,21 @@ TEST_CASE("Seq toggle: FR-022a Retrigger Beat still active in Sequencer mode",
     REQUIRE(arp.seqNoteLane().currentStep() != 0);
 
     // Straddling the bar boundary triggers resetLanes(), which resets lane 9.
-    (void)collectEvents(arp, ctx, 2);
-    REQUIRE(arp.seqNoteLane().currentStep() == 0);
+    // Run block by block until the first NoteOn at or after the boundary:
+    // after the reset that step plays lane step 0, so the playhead then reads 1.
+    // R-106 rewrite: this asserted 0 two blocks on, which held only because
+    // truncated 5512-sample steps (5512.5) put step 8 4 samples BEFORE the
+    // boundary; rounded to 5513 it fires 4 samples after it, in the same block.
+    bool firedAfterBoundary = false;
+    for (int b = 0; b < 32 && !firedAfterBoundary; ++b) {
+        const int64_t blockStart = ctx.transportPositionSamples;
+        for (const auto& e : collectEvents(arp, ctx, 1)) {
+            if (e.type == ArpEvent::Type::NoteOn && blockStart + e.sampleOffset >= barSamples)
+                firedAfterBoundary = true;
+        }
+    }
+    REQUIRE(firedAfterBoundary);
+    REQUIRE(arp.seqNoteLane().currentStep() == 1);
 }
 
 TEST_CASE("Seq toggle: FR-022b Spice still active in Sequencer mode",

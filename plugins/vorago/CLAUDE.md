@@ -11,7 +11,10 @@ Auto-loads when working under `plugins/vorago/`. Root `CLAUDE.md` still applies.
 - **src skeleton:** `controller/ engine/ parameters/ preset/ processor/ ui/ update/`
   — `engine/` = `vorago_engine_config.h` (thin prepare-time config factories, no DSP);
   `parameters/` = one pack header per band (`global_params.h`, `macro_params.h`, `cloud_params.h` …
-  `life_params.h`) plus `param_mapping.h` (tapers) and `param_routes.h` (the route table);
+  `life_params.h`) plus `param_mapping.h` (tapers), `param_routes.h` (the route table) and
+  `state_migration.h` (`loadStateStream`: the one version check and migration, used by both
+  `Processor::setState` and `Controller::setComponentState`; a preset-browser load sends
+  `kMsgLoadPresetState` so the processor's `setState` runs on it too);
   `processor/sustain_latch.h` is the wrapper-side CC64 latch; `processor/ecosystem_frame.h` is the POD
   `EcosystemFrame` payload (shared by processor and controller) and `processor/ecosystem_frame_builder.h` its
   **processor-only** pure fill helpers; `ui/` holds `ecosystem_view.{h,cpp}` (`Vorago::UI::EcosystemView`, the

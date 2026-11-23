@@ -54,18 +54,19 @@ void Controller::loadSpeedCurvesFromStream(
         }
         if (!ok) break;
 
-        auto laneIdx = static_cast<size_t>(lane);
+        // The stream holds engine-order lanes; the editors sit in ring order.
+        const size_t ringIdx = kSpeedCurveRingToEngineLane[static_cast<size_t>(lane)];
 
         // Store for later application when editors are created
-        pendingSpeedCurves_[laneIdx] = curve;
+        pendingSpeedCurves_[ringIdx] = curve;
         hasPendingSpeedCurves_ = true;
 
         // Update speed curve editor if it already exists
-        if (speedCurveEditors_[laneIdx])
-            speedCurveEditors_[laneIdx]->setCurveData(curve);
+        if (speedCurveEditors_[ringIdx])
+            speedCurveEditors_[ringIdx]->setCurveData(curve);
 
-        // Send baked table to processor
-        sendSpeedCurveTable(laneIdx, curve);
+        // Nothing is sent: the processor's setState applies the curves and
+        // depths of every load (host or preset browser).
     }
 }
 
@@ -115,7 +116,7 @@ void Controller::loadMidiDelayFromStream(
     for (int i = 0; i < 32; ++i) {
         if (!streamer.readFloat(fv)) return;
         setParam(static_cast<Steinberg::Vst::ParamID>(kArpMidiDelayGateScaleStep0Id + i),
-            static_cast<double>(std::clamp(fv, 0.1f, 2.0f) - 0.1f) / 1.9);
+            (std::clamp(static_cast<double>(fv), 0.1, 2.0) - 0.1) / 1.9);
     }
     // Per-step active flags (32 steps) — EOF-safe for pre-active presets
     for (int i = 0; i < 32; ++i) {
@@ -128,7 +129,7 @@ void Controller::loadMidiDelayFromStream(
     setParam(kArpMidiDelayLaneSpeedId, speedValueToNormalized(fv));
     if (streamer.readFloat(fv))
         setParam(kArpMidiDelayLaneSwingId,
-            static_cast<double>(std::clamp(fv, 0.0f, 75.0f)) / 75.0);
+            std::clamp(static_cast<double>(fv), 0.0, 75.0) / 75.0);
     if (streamer.readInt32(iv))
         setParam(kArpMidiDelayLaneJitterId,
             static_cast<double>(std::clamp(static_cast<int>(iv), 0, 4)) / 4.0);
@@ -191,7 +192,7 @@ void loadSequencerNoteLaneFromStream(Steinberg::IBStreamer& streamer, SetParamFn
     // 6. Lane Swing (0..75)
     if (!streamer.readFloat(fv)) return;
     setParam(kArpSequencerNoteLaneSwingId,
-        static_cast<double>(std::clamp(fv, 0.0f, 75.0f)) / 75.0);
+        std::clamp(static_cast<double>(fv), 0.0, 75.0) / 75.0);
 
     // 7. Lane Jitter (0..4)
     if (!streamer.readInt32(iv)) return;
@@ -217,6 +218,9 @@ void Controller::loadFullState(Steinberg::IBStreamer& streamer, SetParamFn setPa
     suppressMarkovPresetLoad_ = true;
     loadArpParamsToController(streamer, setParam);
     suppressMarkovPresetLoad_ = false;
+    // Processor::setState forces MIDI mode (the arp is always on in Gradus);
+    // the controller holds the same value.
+    setParam(kArpOperatingModeId, static_cast<double>(kArpMIDI) / 3.0);
 
     loadSpeedCurvesFromStream(streamer, setParam);
     loadMidiDelayFromStream(streamer, setParam);

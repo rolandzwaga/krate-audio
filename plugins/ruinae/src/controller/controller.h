@@ -26,6 +26,7 @@
 #include "update/update_checker.h"
 #include "ui/arp_lane.h"
 #include "ui/mod_matrix_types.h"
+#include "controller/cached_view_registry.h"
 
 #include <array>
 #include <atomic>
@@ -34,6 +35,7 @@
 #include <memory>
 #include <cstdint>
 #include <utility>
+#include <vector>
 
 namespace Ruinae {
 class ADSRExpandedOverlayView;
@@ -70,6 +72,7 @@ namespace Ruinae {
 // ==============================================================================
 
 class Controller : public Steinberg::Vst::EditControllerEx1,
+                   public Steinberg::Vst::IMidiMapping,
                    public VSTGUI::VST3EditorDelegate,
                    public VSTGUI::IControlListener {
 public:
@@ -130,6 +133,17 @@ public:
     /// Receive IMessage from processor (playback position, transport state)
     Steinberg::tresult PLUGIN_API notify(
         Steinberg::Vst::IMessage* message) override;
+
+    // ===========================================================================
+    // IMidiMapping (R-030, R-042)
+    // ===========================================================================
+
+    /// Bus 0, every channel: pitch bend -> kMidiPitchBendId, channel aftertouch
+    /// -> kMidiAftertouchId, CC 1 -> kMidiModWheelId; anything else kResultFalse.
+    Steinberg::tresult PLUGIN_API getMidiControllerAssignment(
+        Steinberg::int32 busIndex, Steinberg::int16 channel,
+        Steinberg::Vst::CtrlNumber midiControllerNumber,
+        Steinberg::Vst::ParamID& id) override;
 
     // ===========================================================================
     // VST3EditorDelegate (VSTGUI)
@@ -220,6 +234,7 @@ public:
     DEFINE_INTERFACES
         DEF_INTERFACE(Steinberg::Vst::IEditController)
         DEF_INTERFACE(Steinberg::Vst::IEditController2)
+        DEF_INTERFACE(Steinberg::Vst::IMidiMapping)
     END_DEFINE_INTERFACES(EditController)  // NOLINT(bugprone-parent-virtual-call): SDK macro, forwards to the base on purpose
 
     DELEGATE_REFCOUNT(EditController)  // NOLINT(bugprone-parent-virtual-call): SDK macro, forwards to the base on purpose
@@ -228,24 +243,32 @@ public:
     // Test hooks
     // ===========================================================================
 
-    /// Number of cached mod-source view pointers (the nine views that live inside
-    /// the ModSourceViewMode switch container, plus the sidechain indicators) that
-    /// are currently non-null. Editor-lifecycle tests use this to assert that every
-    /// teardown path clears them: a dangling non-null pointer silently passes the
-    /// `if (ptr)` guards at the deref sites, so "null after teardown" is the only
-    /// observable invariant that distinguishes safe from use-after-free.
-    int modSourceViewPointerCount() const;
+    /// Every cached view pointer member, by name. The editor-lifecycle tests compare it with the
+    /// live frame tree: a pointer that is non-null but not in the tree passes every `if (ptr)`
+    /// guard at the deref sites, so it is a use-after-free waiting for the next sync.
+    std::vector<std::pair<const char*, VSTGUI::CView*>> cachedViewPointerInventoryForTest() const;
 
-    /// Drive the MainTab teardown hook directly. In a real editor this is invoked
-    /// from setParamNormalized() when the host/UI moves kMainTabTag; tests need it
-    /// without a live control to fake the parameter change through.
-    void notifyTabChangedForTest(int newTab) { onTabChanged(newTab); }
+    /// One ~30 fps poll of the eight arp lane playhead parameters (the UI timer calls it;
+    /// public so a test can drive it without a run loop).
+    void pollArpLanePlayheads();
+
+    /// One ~30 fps poll of every processor display-data output parameter (trance-gate step,
+    /// transport, envelope playback dots, morph pad) and the arp playheads: the body of the
+    /// editor's UI timer, public so a test can drive it without a run loop (R-005).
+    void pollProcessorDisplays();
+
+    /// The voice route the controller last loaded from a state or received from the processor.
+    [[nodiscard]] const Krate::Plugins::ModRoute& cachedVoiceRouteForTest(int index) const {
+        return cachedVoiceRoutes_.at(static_cast<size_t>(index));
+    }
 
 private:
-    /// Null every cached mod-source view pointer. Called from all three teardown
-    /// paths: willClose(), a MainTab switch away from MOD, and a ModSourceViewMode
-    /// switch (each destroys the views but leaves the cached pointers dangling).
-    void resetModSourceViewPointers();
+    /// Cache a view pointer: `member = view`, nulled again when the view is destroyed
+    /// (see CachedViewRegistry). Every view pointer verifyView() caches goes through here.
+    template <typename T, typename V>
+    void cacheView(T*& member, V* view) {
+        viewRegistry_.track<T>(view, &member);
+    }
 
     /// Wire an ADSRDisplay instance based on its control-tag
     void wireAdsrDisplay(Krate::Plugins::ADSRDisplay* display);
@@ -258,6 +281,21 @@ private:
                          uint32_t adsrBaseId, uint32_t curveBaseId,
                          uint32_t bezierEnabledId, uint32_t bezierBaseId);
 
+    /// Rate (Hz) a mod-source display shows: the note value at the display tempo when
+    /// synced, else rateFromNormalized(rate). One rule for live edit, state load and
+    /// editor open (R-108).
+    float modSourceDisplayRateHz(Steinberg::Vst::ParamID syncId, Steinberg::Vst::ParamID rateId,
+                                 Steinberg::Vst::ParamID noteValueId,
+                                 float (*rateFromNormalized)(double));
+
+    /// Full sync of a mod-source display from parameter state (state load and editor
+    /// open share these; R-108). lfoIndex: 0 = LFO 1, 1 = LFO 2.
+    void syncLfoWaveformDisplay(Krate::Plugins::LfoWaveformDisplay* display, int lfoIndex);
+    void syncChaosModDisplay();
+    void syncRunglerDisplay();
+    void syncSampleHoldDisplay();
+    void syncRandomModDisplay();
+
     /// Push a single parameter change to an ADSRDisplay if it matches
     static void syncAdsrParamToDisplay(Steinberg::Vst::ParamID tag,
                                         Steinberg::Vst::ParamValue value,
@@ -265,17 +303,27 @@ private:
                                         uint32_t adsrBaseId, uint32_t curveBaseId,
                                         uint32_t bezierEnabledId, uint32_t bezierBaseId);
 
-    /// Wire envelope display playback state pointers to ADSRDisplay instances
-    void wireEnvDisplayPlayback();
-
     /// Wire ModMatrixGrid instance with callbacks for parameter editing
     void wireModMatrixGrid(Krate::Plugins::ModMatrixGrid* grid);
 
     /// Sync ModMatrixGrid route data from current parameter state
     void syncModMatrixGrid();
 
-    /// Push all global route slot parameters from grid state to VST params
+    /// Push all seven parameters of every global route slot from grid state to VST params
     void pushAllGlobalRouteParams();
+
+    /// Push the seven parameters of one global route slot: setParamNormalized, then
+    /// performEdit. With onlyIfChanged, a value equal to the controller's current one
+    /// is not sent.
+    void pushGlobalRouteSlot(int slot, const Krate::Plugins::ModRoute& route, bool onlyIfChanged);
+
+    /// Push one global route parameter: setParamNormalized, then performEdit inside its
+    /// own gesture, or inside the grid's gesture when one is open for that ID.
+    void pushGlobalRouteParam(Steinberg::Vst::ParamID id, double value, bool onlyIfChanged);
+
+    /// Send one voice route slot to the processor (VoiceModRouteUpdate IMessage).
+    /// An inactive route clears the slot there.
+    void sendVoiceRouteToProcessor(int slot, const Krate::Plugins::ModRoute& route);
 
     /// Wire a ModRingIndicator instance found in verifyView()
     void wireModRingIndicator(Krate::Plugins::ModRingIndicator* indicator);
@@ -285,10 +333,6 @@ private:
 
     /// Select a modulation route for cross-component communication (FR-027)
     void selectModulationRoute(int sourceIndex, int destIndex);
-
-    /// Null out cached view pointers for the old tab before UIViewSwitchContainer
-    /// destroys them. Called from setParamNormalized() when kMainTabTag changes.
-    void onTabChanged(int newTab);
 
     /// Toggle settings drawer open/closed with animation
     void toggleSettingsDrawer();
@@ -303,6 +347,8 @@ private:
     Krate::Plugins::XYMorphPad* xyMorphPad_ = nullptr;
     Krate::Plugins::ModMatrixGrid* modMatrixGrid_ = nullptr;
     bool suppressModMatrixSync_ = false;  // Reentrancy guard for grid→param→sync loop
+    /// The global route parameter whose gesture the grid holds open (amount or smooth drag).
+    Steinberg::Vst::ParamID openGridGestureId_ = Steinberg::Vst::kNoParamId;
     bool suppressVoiceRouteSync_ = false; // Reentrancy guard for voice route IMessage round-trip
 
     /// Cached voice routes for applying when the mod matrix grid is wired.
@@ -472,30 +518,27 @@ private:
     /// Called once after bulk parameter loads instead of per-param updates.
     void syncAllViews();
 
-    // Playback position shared from processor via IMessage pointer
-    std::atomic<int>* tranceGatePlaybackStepPtr_ = nullptr;
-    std::atomic<bool>* isTransportPlayingPtr_ = nullptr;
+    /// ~30 fps poll of the processor's display-data output parameters (R-005)
     VSTGUI::SharedPointer<VSTGUI::CVSTGUITimer> playbackPollTimer_;
 
-    // Morph pad modulated position shared from processor via IMessage pointer
-    std::atomic<float>* modulatedMorphXPtr_ = nullptr;
-    std::atomic<float>* modulatedMorphYPtr_ = nullptr;
+    /// True once the processor has published a modulated morph position
+    /// (kMorphPadModXId / kMorphPadModYId): the morph pad then follows those
+    /// values, not the Mixer Position / Tilt parameters.
+    bool morphPadFollowsProcessor_ = false;
 
-    // Envelope display state shared from processor via IMessage pointer
-    std::atomic<float>* ampEnvOutputPtr_ = nullptr;
-    std::atomic<int>* ampEnvStagePtr_ = nullptr;
-    std::atomic<float>* filterEnvOutputPtr_ = nullptr;
-    std::atomic<int>* filterEnvStagePtr_ = nullptr;
-    std::atomic<float>* modEnvOutputPtr_ = nullptr;
-    std::atomic<int>* modEnvStagePtr_ = nullptr;
-    std::atomic<bool>* envVoiceActivePtr_ = nullptr;
+    /// The envelope the ADSR expanded overlay shows (its playback state source).
+    EnvelopeType adsrExpandedEnv_ = EnvelopeType::kAmp;
 
     // ==========================================================================
     // Arp Interaction Polish (Phase 11c)
     // ==========================================================================
 
-    /// Handle an arp skip event received via IMessage from the processor
+    /// Mark a lane's skipped step (UI thread; called from pollArpLanePlayheads)
     void handleArpSkipEvent(int lane, int step);
+
+    /// The raw code of a lane's skip output parameter (kArpSkipLane0Id + lane):
+    /// step + 1 + 33 * (seq & 3), or 0 for none (R-069)
+    long readArpSkipCode(int lane);
 
     /// Copy lane values to clipboard (Phase 11c, T059)
     void onLaneCopy(int laneIndex);
@@ -524,6 +567,7 @@ private:
     static constexpr int kArpLaneCount = 8;
     std::array<Krate::Plugins::PlayheadTrailState, 8> laneTrailStates_{};
     std::array<int32_t, 8> lastPolledSteps_{-1, -1, -1, -1, -1, -1, -1, -1};
+    std::array<long, 8> lastSkipCodes_{};  ///< Last readArpSkipCode() per lane; a change is a new skip
     bool wasTransportPlaying_ = false;  ///< Track transport state for stop→clear
 
     // ==========================================================================
@@ -569,6 +613,10 @@ private:
     std::unique_ptr<Krate::Plugins::UpdateChecker> updateChecker_;
     Krate::Plugins::UpdateBannerView* updateBannerView_ = nullptr;  // Owned by frame
 
+    /// Nulls the cached view pointers above when their views are destroyed. Declared after
+    /// them so it is destroyed first and can still clear them.
+    CachedViewRegistry viewRegistry_;
+
 protected:
     // ==========================================================================
     // Preset Loading Helpers (Spec 083)
@@ -581,7 +629,9 @@ protected:
     Steinberg::MemoryStream* createComponentStateStream();
 
     /// Load component state from stream with host notification
-    /// Mirrors setComponentState() deserialization, but calls editParamWithNotify
+    /// Hands the bytes to the processor ("LoadPresetState": the same parse and
+    /// apply as Processor::setState, R-196), then mirrors setComponentState()
+    /// deserialization, but calls editParamWithNotify
     /// @param state Stream containing component state in Processor::getState() format
     /// @param arpOnly If true, only arp parameters are applied; all others are read but discarded
     /// @return true on success
@@ -595,10 +645,16 @@ protected:
     /// Shared state deserialization logic used by both setComponentState and
     /// loadComponentStateWithNotify. The setter callback determines whether
     /// params are applied silently (host init) or with host notification
-    /// (preset browser).
+    /// (preset browser). The default state is parsed first (R-212), so packs
+    /// the stream does not reach show their defaults; each parameter is then
+    /// set once, with its final value.
     using SetParamFunc = std::function<void(Steinberg::Vst::ParamID, double)>;
     bool loadStateCore(Steinberg::IBStreamer& streamer, Steinberg::int32 version,
                        const SetParamFunc& setParam, bool arpOnly);
+
+    /// loadStateCore's parse of one stream after its version field
+    bool loadStateFields(Steinberg::IBStreamer& streamer, Steinberg::int32 version,
+                         const SetParamFunc& setParam, bool arpOnly);
 };
 
 } // namespace Ruinae

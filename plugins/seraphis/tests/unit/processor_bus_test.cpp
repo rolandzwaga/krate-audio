@@ -79,13 +79,13 @@ TEST_CASE("Seraphis_ProcessorBusSetup", "[seraphis][processor][bus]") {
 // delay to the bus that a naive implementation would be tempted to add to that
 // report:
 //
-//   (a) SpectralDelay::getLatencySamples() == fftSize_ == 1024
-//       (spectral_delay.h:542-544, :89), and
+//   (a) SpectralDelay::getLatencySamples() == fftSize_ + hop == 1536
+//       (its fixed wet FIFO plus the per-bin loop's frame, since T2.31), and
 //   (b) the send accumulator's fixed ONE-CHUNK pipeline delay, 512 samples
 //       (spec C-2 clause 5).
 //
 // Neither may be reported (FR-005): the send IS a delay, so both are absorbed
-// into its delay time, and reporting them would add ~32 ms of latency to an
+// into its delay time, and reporting them would add ~43 ms of latency to an
 // instrument for users who never enable the effect. Making the report
 // CONDITIONAL is worse still - it would be a runtime latency change on a
 // parameter move.

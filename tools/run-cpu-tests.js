@@ -36,10 +36,17 @@
 //
 // Usage: node tools/run-cpu-tests.js [target ...]     (default: all suites)
 //        SETTLE_MS=30000 node tools/run-cpu-tests.js  (longer cooldown)
+//        node tools/run-cpu-tests.js [--scope affected|all] [--base <ref>] [target ...]
+//
+// ONLY AFFECTED CASES BY DEFAULT (--scope affected): each suite runs only the timing cases whose defining source
+// file the change reaches (tools/affected-tests.js; changed vs --base, default HEAD). A suite with none is skipped.
+// No change at all is a usage error. --scope all runs every timing case and needs a "# gate-all-ok: <reason>"
+// comment (tools/hooks/guard-test-scope.js). Under CI the default is --scope all.
 
 const { spawnSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
+const affectedTests = require('./affected-tests.js');
 
 const BIN = 'build/windows-x64-release/bin/Release';
 const DEFAULT_TARGETS = [
@@ -55,7 +62,24 @@ const DEFAULT_TARGETS = [
 // Phase 14 R-6: the Vorago preset sweep never shares a CPU run
 const FILTER = '[performance],[perf],[.perf],[benchmark],[!benchmark],[long]~[vorago-sweep]';
 
-const targets = process.argv.slice(2).length ? process.argv.slice(2) : DEFAULT_TARGETS;
+const argv = process.argv.slice(2);
+const optVal = (name) => { const i = argv.indexOf(name); if (i < 0) return null; const v = argv[i + 1]; argv.splice(i, 2); return v; };
+const SCOPE = optVal('--scope') || (process.env.CI ? 'all' : 'affected');
+const BASE = optVal('--base') || 'HEAD';
+if (!['affected', 'all'].includes(SCOPE)) { console.log(`usage: --scope must be affected or all, got ${SCOPE}`); process.exit(2); }
+const targets = argv.length ? argv : DEFAULT_TARGETS;
+let REACH = null;
+if (SCOPE === 'affected') {
+  REACH = affectedTests.reach(BASE);
+  if (REACH.changed.length === 0) {
+    console.log(`usage: nothing changed since ${BASE}, so no timing case is affected. Name what to measure from (--base main, --base <plugin>/vX.Y.Z) or use --scope all with a "# gate-all-ok: <reason>" comment.`);
+    process.exit(2);
+  }
+  console.log(REACH.buildWide ? `scope: build-wide change (${REACH.buildWide}): every timing case runs`
+    : `scope: affected by ${REACH.changed.length} changed file(s) since ${BASE}`);
+}
+// One input-file line (Catch2 test-spec syntax): '\' escapes, an unescaped ',' would split the name.
+const specLine = (name) => `"${name.replace(/[\\",]/g, (c) => `\\${c}`)}"`;
 const results = [];
 
 // Synchronous cooldown between suites. Atomics.wait blocks this thread outright,
@@ -79,6 +103,18 @@ for (const t of targets) {
     console.log(`SKIP ${t} (not built)`);
     continue;
   }
+  // Narrow the suite to the affected timing cases (a Catch2 -f name file), or skip it.
+  let caseFile = '';
+  if (REACH && !REACH.buildWide) {
+    const cases = affectedTests.listCases(exe, FILTER);
+    if (cases) {
+      const keep = cases.filter((c) => affectedTests.isAffected(REACH, c.file));
+      if (keep.length === 0) { console.log(`SKIP ${t} (no timing case affected; ${cases.length} in the suite)`); continue; }
+      caseFile = path.resolve('f:/tmp', `cpu_${t}.cases`);
+      fs.writeFileSync(caseFile, [...new Set(keep.map((c) => specLine(c.name.trim())))].join('\n') + '\n');
+      console.log(`scope: ${t}: ${keep.length} of ${cases.length} timing case(s) affected`);
+    }
+  }
   if (!first && SETTLE_MS > 0) {
     process.stdout.write(`settle ${SETTLE_MS / 1000}s ... `);
     settle(SETTLE_MS);
@@ -90,8 +126,9 @@ for (const t of targets) {
   const opts = { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 };
   const r = process.platform === 'win32'
     ? spawnSync('pwsh', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass',
-        '-File', path.join('tools', 'pin-perf-cores.ps1'), '-Exe', exe, '-ExeArgs', FILTER], opts)
-    : spawnSync(exe, [FILTER], opts);
+        '-File', path.join('tools', 'pin-perf-cores.ps1'), '-Exe', exe,
+        ...(caseFile ? ['-InputFile', caseFile] : ['-ExeArgs', FILTER])], opts)
+    : spawnSync(exe, caseFile ? ['-f', caseFile, '--order', 'decl'] : [FILTER], opts);
   const out = `${r.stdout || ''}${r.stderr || ''}`;
   const log = path.join('f:/tmp', `cpu_${t}.log`);
   try { fs.writeFileSync(log, out); } catch { /* log dir optional */ }

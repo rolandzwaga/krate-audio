@@ -1,8 +1,8 @@
 // ==============================================================================
 // Bottom Bar Control Tests (081-interaction-polish, Phase 8)
 // ==============================================================================
-// T079: Dice trigger behavior - verifies beginEdit/performEdit(1.0)/
-//       performEdit(0.0)/endEdit sequence, and that param doesn't stay at 1.0.
+// T079: Dice trigger behavior - verifies a click sends the host the single
+//       performEdit(1.0) and that the param doesn't stay at 1.0 (R-142).
 // T080: Fill toggle latch behavior - verifies on/off toggling and that the
 //       parameter remains latched between clicks.
 // ==============================================================================
@@ -11,9 +11,13 @@
 #include <catch2/catch_approx.hpp>
 #include "plugin_ids.h"
 #include "controller/controller.h"
+#include "ui/action_button.h"
 
+#include "pluginterfaces/vst/ivsteditcontroller.h"
 #include "pluginterfaces/vst/vsttypes.h"
 #include "public.sdk/source/vst/vstparameters.h"
+
+#include <vector>
 
 using Catch::Approx;
 
@@ -21,19 +25,84 @@ using Catch::Approx;
 // T079: Dice Trigger Behavior Tests (SC-006)
 // ==============================================================================
 // The Dice button is an ActionButton bound to kArpDiceTriggerId. When clicked,
-// the controller must issue:
+// the host receives exactly one edit (R-142):
 //   beginEdit(kArpDiceTriggerId)
-//   performEdit(kArpDiceTriggerId, 1.0)
-//   performEdit(kArpDiceTriggerId, 0.0)
+//   performEdit(kArpDiceTriggerId, 1.0)   <- from VST3Editor, the primary listener
 //   endEdit(kArpDiceTriggerId)
-// After the sequence, the parameter must not remain at 1.0.
-//
-// Since we cannot instantiate the full VSTGUI editor in a unit test, we verify
-// the parameter protocol by checking:
-//   1. The parameter exists and is registered
-//   2. After setting to 1.0 then immediately 0.0, the value is 0.0
-//   3. The parameter ID is correct (3291)
+// The controller (a sub-listener) resets only its own parameter to 0.0 with
+// setParamNormalized; it must not send performEdit(0.0), because a processor
+// that receives 1.0 and 0.0 in one block would lose the trigger.
+// After the click, the parameter must not remain at 1.0.
 // ==============================================================================
+
+namespace {
+
+/// Records every performEdit the controller sends to the host.
+class DiceEditRecorder final : public Steinberg::Vst::IComponentHandler {
+public:
+    std::vector<std::pair<Steinberg::Vst::ParamID, double>> edits;
+
+    Steinberg::tresult PLUGIN_API beginEdit(Steinberg::Vst::ParamID /*id*/) override {
+        return Steinberg::kResultOk;
+    }
+    Steinberg::tresult PLUGIN_API performEdit(Steinberg::Vst::ParamID id,
+                                              Steinberg::Vst::ParamValue value) override {
+        edits.emplace_back(id, value);
+        return Steinberg::kResultOk;
+    }
+    Steinberg::tresult PLUGIN_API endEdit(Steinberg::Vst::ParamID /*id*/) override {
+        return Steinberg::kResultOk;
+    }
+    Steinberg::tresult PLUGIN_API restartComponent(Steinberg::int32 /*flags*/) override {
+        return Steinberg::kResultOk;
+    }
+    Steinberg::tresult PLUGIN_API queryInterface(const Steinberg::TUID /*iid*/,
+                                                 void** obj) override {
+        *obj = nullptr;
+        return Steinberg::kNoInterface;
+    }
+    // Owned by the test case's stack frame.
+    Steinberg::uint32 PLUGIN_API addRef() override { return 1; }
+    Steinberg::uint32 PLUGIN_API release() override { return 1; }
+};
+
+} // namespace
+
+TEST_CASE("BottomBar_DiceTrigger_ClickSendsSingleEdit", "[bottombar][dice]") {
+    Ruinae::Controller controller;
+    REQUIRE(controller.initialize(nullptr) == Steinberg::kResultOk);
+    DiceEditRecorder host;
+    controller.setComponentHandler(&host);
+
+    const auto paramId = static_cast<Steinberg::Vst::ParamID>(Ruinae::kArpDiceTriggerId);
+    auto* button = new Krate::Plugins::ActionButton(
+        VSTGUI::CRect(0, 0, 20, 20), nullptr, static_cast<int32_t>(paramId));
+
+    // The click as ActionButton::onMouseUp delivers it: the control holds 1.0
+    // while its listeners run. VST3Editor (primary listener) sets the
+    // parameter and sends performEdit(1.0); then the controller sub-listener.
+    controller.beginEdit(paramId);
+    button->setValueNormalized(1.0f);
+    controller.setParamNormalized(paramId, 1.0);
+    controller.performEdit(paramId, 1.0);
+    controller.valueChanged(button);
+    button->setValueNormalized(0.0f);
+    controller.endEdit(paramId);
+
+    // The host saw the trigger and nothing that cancels it.
+    REQUIRE(host.edits.size() == 1);
+    CHECK(host.edits[0].first == paramId);
+    CHECK(host.edits[0].second == Approx(1.0).margin(1e-6));
+
+    // The controller's own parameter is back at 0.0.
+    auto* param = controller.getParameterObject(paramId);
+    REQUIRE(param != nullptr);
+    CHECK(param->getNormalized() == Approx(0.0).margin(1e-6));
+
+    button->forget();
+    controller.setComponentHandler(nullptr);
+    controller.terminate();
+}
 
 TEST_CASE("BottomBar_DiceTrigger_ParameterExists", "[bottombar][dice]") {
     Ruinae::Controller controller;
@@ -59,7 +128,8 @@ TEST_CASE("BottomBar_DiceTrigger_SpikeAndReset", "[bottombar][dice]") {
 
     auto paramId = static_cast<Steinberg::Vst::ParamID>(Ruinae::kArpDiceTriggerId);
 
-    // Simulate the beginEdit/performEdit(1.0)/performEdit(0.0)/endEdit sequence
+    // Simulate the click: the parameter goes to 1.0, then the controller's
+    // local reset puts it back to 0.0
     controller.beginEdit(paramId);
     controller.setParamNormalized(paramId, 1.0);
 

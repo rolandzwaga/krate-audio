@@ -22,6 +22,8 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstddef>
+#include <cstdint>
 
 namespace Krate::DSP {
 
@@ -39,6 +41,7 @@ public:
     /// @param maxDelaySeconds Maximum delay buffer length in seconds
     void prepare(double sampleRate, float maxDelaySeconds = kDefaultMaxDelaySeconds) noexcept {
         sampleRate_ = sampleRate;
+        maxPositionMs_ = maxDelaySeconds * 1000.0f;
 
         // Prepare delay buffers
         delayL_.prepare(sampleRate, maxDelaySeconds);
@@ -66,8 +69,24 @@ public:
 
     /// Reset engine state
     void reset() noexcept {
-        delayL_.reset();
-        delayR_.reset();
+        startIncrementalReset();
+        std::size_t unlimited = SIZE_MAX;
+        (void)continueIncrementalReset(unlimited);
+    }
+
+    /// @brief Clear up to @p budget more delay-line samples (deducted from it).
+    /// @return true once the reset started by startIncrementalReset() is complete.
+    bool continueIncrementalReset(std::size_t& budget) noexcept {
+        return delayL_.continueIncrementalReset(budget) &&
+               delayR_.continueIncrementalReset(budget);
+    }
+
+    /// @brief Start a reset() whose delay-line clear is left to
+    /// continueIncrementalReset() (see DelayLine::startIncrementalReset).
+    /// Do not process until that has returned true.
+    void startIncrementalReset() noexcept {
+        delayL_.startIncrementalReset();
+        delayR_.startIncrementalReset();
         pool_.reset();
         scheduler_.reset();
         processor_.reset();
@@ -109,9 +128,9 @@ public:
         pitchSpray_ = std::clamp(amount, 0.0f, 1.0f);
     }
 
-    /// Set base delay position in milliseconds (0-2000ms)
+    /// Set base delay position in milliseconds (0 to the maxDelaySeconds given to prepare())
     void setPosition(float ms) noexcept {
-        positionMs_ = std::clamp(ms, 0.0f, 2000.0f);
+        positionMs_ = std::clamp(ms, 0.0f, maxPositionMs_);
         positionSmoother_.setTarget(positionMs_);
     }
 
@@ -336,6 +355,7 @@ private:
     float pitchSemitones_ = 0.0f;
     float pitchSpray_ = 0.0f;
     float positionMs_ = 500.0f;
+    float maxPositionMs_ = kDefaultMaxDelaySeconds * 1000.0f;
     float positionSpray_ = 0.0f;
     float reverseProbability_ = 0.0f;
     float panSpray_ = 0.0f;

@@ -2028,11 +2028,24 @@ TEST_CASE("DigitalDelay wavefold model change during feedback produces no clicks
 
     BlockContext ctx{.sampleRate = sampleRate, .tempoBPM = 120.0, .isPlaying = false};
 
-    // Feed a burst of signal to fill delay buffer
+    // Feed a burst of signal to fill delay buffer. Its last 10 ms fade out: a
+    // burst cut at a non-zero sample echoes as a step the model changes did
+    // not cause. (The delay used to start at its 500 ms default and glide to
+    // 50 ms, so no echo reached the measured span at all; it runs at 50 ms
+    // from the first sample since T2.31.)
+    constexpr size_t kBurstSamples = blockSize * 5;
+    constexpr size_t kBurstFadeSamples = 441;
     for (size_t block = 0; block < 5; ++block) {
         for (size_t i = 0; i < blockSize; ++i) {
-            float t = static_cast<float>(block * blockSize + i) / static_cast<float>(sampleRate);
-            left[i] = 0.7f * std::sin(2.0f * kPi * 220.0f * t);
+            const size_t n = block * blockSize + i;
+            float t = static_cast<float>(n) / static_cast<float>(sampleRate);
+            float gain = 1.0f;
+            if (n + kBurstFadeSamples >= kBurstSamples) {
+                const float k = static_cast<float>(n + kBurstFadeSamples - kBurstSamples + 1)
+                              / static_cast<float>(kBurstFadeSamples);
+                gain = 0.5f * (1.0f + std::cos(kPi * k));
+            }
+            left[i] = 0.7f * gain * std::sin(2.0f * kPi * 220.0f * t);
             right[i] = left[i];
         }
         delay.process(left.data(), right.data(), blockSize, ctx);

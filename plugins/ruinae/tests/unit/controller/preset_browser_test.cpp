@@ -28,11 +28,19 @@
 #include "pluginterfaces/base/ibstream.h"
 #include "public.sdk/source/vst/vstparameters.h"
 #include "public.sdk/source/common/memorystream.h"
+#include "public.sdk/source/vst/hosting/hostclasses.h"
 #include "base/source/fstreamer.h"
 
 #include "vstgui/uidescription/uiattributes.h"
 
+#include "test_helpers/uidesc_reachability.h"
+#include "test_helpers/vst_param_changes.h"
+
 #include <algorithm>
+#include <filesystem>
+#include <fstream>
+#include <iterator>
+#include <string>
 #include <vector>
 
 using Catch::Approx;
@@ -127,6 +135,162 @@ public:
     using Ruinae::Controller::loadComponentStateWithNotify;
     using Ruinae::Controller::createComponentStateStream;
 };
+
+// Processor ready for getState/notify, as a host sets it up.
+std::unique_ptr<Ruinae::Processor> makeReadyProcessor(Steinberg::FUnknown* hostContext) {
+    auto proc = std::make_unique<Ruinae::Processor>();
+    proc->initialize(hostContext);
+    Steinberg::Vst::ProcessSetup setup{};
+    setup.processMode = Steinberg::Vst::kRealtime;
+    setup.symbolicSampleSize = Steinberg::Vst::kSample32;
+    setup.sampleRate = 44100.0;
+    setup.maxSamplesPerBlock = 512;
+    proc->setupProcessing(setup);
+    proc->setActive(true);
+    return proc;
+}
+
+std::vector<char> processorStateBytes(Ruinae::Processor& proc) {
+    Steinberg::MemoryStream stream;
+    proc.getState(&stream);
+    Steinberg::int64 size = 0;
+    stream.seek(0, Steinberg::IBStream::kIBSeekEnd, &size);
+    stream.seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
+    std::vector<char> data(static_cast<size_t>(size));
+    Steinberg::int32 bytesRead = 0;
+    stream.read(data.data(), static_cast<Steinberg::int32>(size), &bytesRead);
+    return data;
+}
+
+// The 16 voice routes' bytes (14 each) of a current-version state, located by
+// reading the parameter packs that precede them in Processor::getState order.
+std::vector<char> voiceRouteBytes(const std::vector<char>& state) {
+    Steinberg::MemoryStream mem(const_cast<char*>(state.data()),
+                                static_cast<Steinberg::TSize>(state.size()));
+    Steinberg::IBStreamer streamer(&mem, kLittleEndian);
+    Steinberg::int32 version = 0;
+    if (!streamer.readInt32(version)) return {};
+
+    Ruinae::GlobalParams gp;
+    Ruinae::OscAParams oa;
+    Ruinae::OscBParams ob;
+    Ruinae::MixerParams mp;
+    Ruinae::RuinaeFilterParams fp;
+    Ruinae::RuinaeDistortionParams dp;
+    Ruinae::RuinaeTranceGateParams tp;
+    Ruinae::AmpEnvParams aep;
+    Ruinae::FilterEnvParams fep;
+    Ruinae::ModEnvParams mep;
+    Ruinae::LFO1Params l1;
+    Ruinae::LFO2Params l2;
+    Ruinae::ChaosModParams cmp;
+    Ruinae::ModMatrixParams mmp;
+    Ruinae::GlobalFilterParams gfp;
+    Ruinae::RuinaeDelayParams dlp;
+    Ruinae::RuinaeReverbParams rvp;
+    Ruinae::MonoModeParams mop;
+    Steinberg::int32 reverbType = 0;
+    if (!loadGlobalParams(gp, streamer) || !loadOscAParams(oa, streamer) ||
+        !loadOscBParams(ob, streamer) || !loadMixerParams(mp, streamer) ||
+        !loadFilterParams(fp, streamer) || !loadDistortionParams(dp, streamer) ||
+        !loadTranceGateParams(tp, streamer) || !loadAmpEnvParams(aep, streamer) ||
+        !loadFilterEnvParams(fep, streamer) || !loadModEnvParams(mep, streamer) ||
+        !loadLFO1Params(l1, streamer) || !loadLFO2Params(l2, streamer) ||
+        !loadChaosModParams(cmp, streamer) || !loadModMatrixParams(mmp, streamer) ||
+        !loadGlobalFilterParams(gfp, streamer) || !loadDelayParams(dlp, streamer) ||
+        !loadReverbParams(rvp, streamer) || !streamer.readInt32(reverbType) ||
+        !loadMonoModeParams(mop, streamer))
+        return {};
+
+    const auto begin = static_cast<size_t>(streamer.tell());
+    constexpr size_t kRouteBytes = 14 * static_cast<size_t>(Krate::Plugins::kMaxVoiceRoutes);
+    if (begin + kRouteBytes > state.size()) return {};
+    return {state.begin() + static_cast<std::ptrdiff_t>(begin),
+            state.begin() + static_cast<std::ptrdiff_t>(begin + kRouteBytes)};
+}
+
+/// A component state authored on a processor: parameter edits through one
+/// process() block and one voice route through the controller's message.
+std::vector<char> authorState(
+    const std::vector<std::pair<Steinberg::Vst::ParamID, double>>& params,
+    int routeSlot, double routeAmount) {
+    auto proc = makeReadyProcessor(nullptr);
+
+    Krate::Test::ParameterChanges changes;
+    for (const auto& [id, value] : params) changes.addChange(id, value);
+    std::vector<float> left(512, 0.0f);
+    std::vector<float> right(512, 0.0f);
+    float* channels[2] = {left.data(), right.data()};
+    Steinberg::Vst::AudioBusBuffers out{};
+    out.numChannels = 2;
+    out.channelBuffers32 = channels;
+    Steinberg::Vst::ProcessData data{};
+    data.processMode = Steinberg::Vst::kRealtime;
+    data.symbolicSampleSize = Steinberg::Vst::kSample32;
+    data.numSamples = 512;
+    data.numOutputs = 1;
+    data.outputs = &out;
+    data.inputParameterChanges = &changes;
+    proc->process(data);
+
+    auto msg = Steinberg::owned(new Steinberg::Vst::HostMessage());
+    msg->setMessageID("VoiceModRouteUpdate");
+    auto* attrs = msg->getAttributes();
+    attrs->setInt("slotIndex", routeSlot);
+    attrs->setInt("source", 1);
+    attrs->setInt("destination", 3);
+    attrs->setFloat("amount", routeAmount);
+    attrs->setInt("curve", 1);
+    attrs->setFloat("smoothMs", 7.5);
+    attrs->setInt("scale", 2);
+    attrs->setInt("bypass", 0);
+    attrs->setInt("active", 1);
+    proc->notify(msg);
+
+    auto bytes = processorStateBytes(*proc);
+    proc->setActive(false);
+    proc->terminate();
+    return bytes;
+}
+
+/// Byte size of what `save` writes.
+template <typename Save>
+size_t packSize(Save save) {
+    Steinberg::MemoryStream stream;
+    Steinberg::IBStreamer streamer(&stream, kLittleEndian);
+    save(streamer);
+    return static_cast<size_t>(stream.getSize());
+}
+
+/// Load `bytes` into `proc` through IComponent::setState, as a host does.
+void hostLoad(Ruinae::Processor& proc, const std::vector<char>& bytes) {
+    Steinberg::MemoryStream stream;
+    stream.write(const_cast<char*>(bytes.data()), static_cast<Steinberg::int32>(bytes.size()),
+                 nullptr);
+    stream.seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
+    REQUIRE(proc.setState(&stream) == Steinberg::kResultTrue);
+}
+
+/// Two distinct non-default states: synth packs, arp lanes, voice LFO and an
+/// active voice route all differ from the defaults and from each other.
+std::vector<char> presetStateA() {
+    return authorState({{Ruinae::kFilterCutoffId, 0.3},
+                        {Ruinae::kArpOperatingModeId, 1.0 / 3.0},
+                        {Ruinae::kArpVelocityLaneStep0Id, 0.25},
+                        {Ruinae::kVoiceLfoRateId, 0.7},
+                        {Ruinae::kDelayEnabledId, 1.0}},
+                       2, 0.625);
+}
+
+std::vector<char> presetStateB() {
+    return authorState({{Ruinae::kFilterCutoffId, 0.8},
+                        {Ruinae::kArpOperatingModeId, 1.0 / 3.0},
+                        {Ruinae::kArpModeId, 1.0 / 9.0},
+                        {Ruinae::kArpGateLaneStep0Id, 0.9},
+                        {Ruinae::kVoiceLfoRateId, 0.2},
+                        {Ruinae::kVoiceLfoShapeId, 0.4}},
+                       5, -0.375);
+}
 
 } // anonymous namespace
 
@@ -274,6 +438,55 @@ TEST_CASE("loadComponentStateWithNotify rejects invalid version",
     handler->release();
 }
 
+// R-076: a stream cut inside the required prefix is rejected on the controller
+// too, before any parameter is touched, so the UI never shows values the
+// processor (which rejects the same stream) does not use.
+TEST_CASE("Truncated state changes no controller parameter",
+          "[preset browser][loadState]") {
+    TestableController controller;
+    controller.initialize(nullptr);
+
+    auto* handler = new MockComponentHandler();
+    controller.setComponentHandler(handler);
+
+    const auto paramId = static_cast<Steinberg::Vst::ParamID>(Ruinae::kMasterGainId);
+    controller.setParamNormalized(paramId, 0.3);
+
+    std::vector<char> state;
+    {
+        auto proc = makeReadyProcessor(nullptr);
+        state = processorStateBytes(*proc);
+        proc->setActive(false);
+        proc->terminate();
+    }
+    REQUIRE(state.size() > 20);
+    std::vector<char> cut(state.begin(), state.begin() + 20);
+    Steinberg::MemoryStream stream;
+    stream.write(cut.data(), static_cast<Steinberg::int32>(cut.size()), nullptr);
+    stream.seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
+
+    SECTION("setComponentState") {
+        CHECK(controller.setComponentState(&stream) == Steinberg::kResultFalse);
+    }
+    SECTION("loadComponentStateWithNotify") {
+        CHECK_FALSE(controller.loadComponentStateWithNotify(&stream));
+    }
+
+    CHECK(controller.getParamNormalized(paramId) == Approx(0.3));
+    CHECK(handler->records.empty());
+
+    // The bulk-load flag is not left set: a following edit reaches the handler
+    // and the parameter as a normal edit does.
+    controller.editParamWithNotify(Ruinae::kDelayEnabledId, 1.0);
+    REQUIRE(handler->records.size() == 3);
+    CHECK(handler->records[1].action == EditRecord::Action::Perform);
+    CHECK(controller.getParamNormalized(Ruinae::kDelayEnabledId) == Approx(1.0));
+
+    controller.setComponentHandler(nullptr);
+    controller.terminate();
+    handler->release();
+}
+
 TEST_CASE("loadComponentStateWithNotify succeeds with valid v1 processor state",
           "[preset browser][loadState][roundtrip]") {
     TestableController controller;
@@ -309,6 +522,185 @@ TEST_CASE("loadComponentStateWithNotify succeeds with valid v1 processor state",
     controller.setComponentHandler(nullptr);
     controller.terminate();
     handler->release();
+}
+
+// R-124 / R-040: a browser load (loadComponentStateWithNotify, the PresetManager's
+// load provider) must leave the processor's voice routes equal to the preset's,
+// as Processor::setState does. Controller and processor are connected both ways,
+// so the processor's synchronous VoiceModRouteState echo reaches the controller
+// mid-load exactly as with a host's connection proxy.
+TEST_CASE("Controller browser load sends voice routes to the processor",
+          "[controller][presets][modmatrix]") {
+    Steinberg::Vst::HostApplication hostApp;
+
+    // State A: one active voice route in slot 2. State B: no routes.
+    std::vector<char> stateA;
+    std::vector<char> stateB;
+    {
+        auto author = makeReadyProcessor(nullptr);
+        stateB = processorStateBytes(*author);
+
+        auto msg = Steinberg::owned(new Steinberg::Vst::HostMessage());
+        msg->setMessageID("VoiceModRouteUpdate");
+        auto* attrs = msg->getAttributes();
+        attrs->setInt("slotIndex", 2);
+        attrs->setInt("source", 1);
+        attrs->setInt("destination", 3);
+        attrs->setFloat("amount", 0.625);
+        attrs->setInt("curve", 2);
+        attrs->setFloat("smoothMs", 12.5);
+        attrs->setInt("scale", 3);
+        attrs->setInt("bypass", 0);
+        attrs->setInt("active", 1);
+        REQUIRE(author->notify(msg) == Steinberg::kResultOk);
+        stateA = processorStateBytes(*author);
+        author->setActive(false);
+        author->terminate();
+    }
+    const auto routesA = voiceRouteBytes(stateA);
+    const auto routesB = voiceRouteBytes(stateB);
+    REQUIRE(routesA.size() == 224);
+    REQUIRE(routesB.size() == 224);
+    REQUIRE(routesA != routesB);
+
+    auto proc = makeReadyProcessor(&hostApp);
+    TestableController controller;
+    REQUIRE(controller.initialize(&hostApp) == Steinberg::kResultOk);
+    auto* handler = new MockComponentHandler();
+    controller.setComponentHandler(handler);
+    REQUIRE(controller.connect(proc.get()) == Steinberg::kResultOk);
+    REQUIRE(proc->connect(&controller) == Steinberg::kResultOk);
+
+    auto loadThroughBrowser = [&controller](const std::vector<char>& bytes) {
+        Steinberg::MemoryStream stream;
+        stream.write(const_cast<char*>(bytes.data()),
+                     static_cast<Steinberg::int32>(bytes.size()), nullptr);
+        stream.seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
+        return controller.loadComponentStateWithNotify(&stream);
+    };
+
+    REQUIRE(loadThroughBrowser(stateA));
+    CHECK(voiceRouteBytes(processorStateBytes(*proc)) == routesA);
+    CHECK(controller.cachedVoiceRouteForTest(2).active);
+
+    REQUIRE(loadThroughBrowser(stateB));
+    CHECK(voiceRouteBytes(processorStateBytes(*proc)) == routesB);
+    CHECK_FALSE(controller.cachedVoiceRouteForTest(2).active);
+
+    proc->disconnect(&controller);
+    controller.disconnect(proc.get());
+    controller.setComponentHandler(nullptr);
+    controller.terminate();
+    handler->release();
+    proc->setActive(false);
+    proc->terminate();
+}
+
+// R-196: a browser load and a host load run one parse and one apply in the
+// processor. The controller is the only route the browser load has into the
+// processor here (no host relays its performEdits), so every byte of the
+// processor's state must come from the stream the controller hands over.
+TEST_CASE("Browser load leaves the processor in the same state as a host load",
+          "[controller][presets][state]") {
+    Steinberg::Vst::HostApplication hostApp;
+    const auto stateA = presetStateA();
+    const auto stateB = presetStateB();
+    REQUIRE(stateA != stateB);
+
+    auto proc = makeReadyProcessor(&hostApp);
+    auto reference = makeReadyProcessor(nullptr);
+    TestableController controller;
+    REQUIRE(controller.initialize(&hostApp) == Steinberg::kResultOk);
+    auto* handler = new MockComponentHandler();
+    controller.setComponentHandler(handler);
+    REQUIRE(controller.connect(proc.get()) == Steinberg::kResultOk);
+    REQUIRE(proc->connect(&controller) == Steinberg::kResultOk);
+
+    for (const auto* state : {&stateA, &stateB}) {
+        Steinberg::MemoryStream stream;
+        stream.write(const_cast<char*>(state->data()),
+                     static_cast<Steinberg::int32>(state->size()), nullptr);
+        stream.seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
+        REQUIRE(controller.loadComponentStateWithNotify(&stream, false));
+        hostLoad(*reference, *state);
+        INFO((state == &stateA ? "after state A" : "after state B"));
+        CHECK(processorStateBytes(*proc) == processorStateBytes(*reference));
+    }
+
+    proc->disconnect(&controller);
+    controller.disconnect(proc.get());
+    controller.setComponentHandler(nullptr);
+    controller.terminate();
+    handler->release();
+    proc->setActive(false);
+    proc->terminate();
+    reference->setActive(false);
+    reference->terminate();
+}
+
+// R-196: an arp-only browser load (an "Arp" preset category) replaces the arp
+// pack in the processor and nothing else: synth packs, voice routes and the
+// voice LFO keep the loaded synth preset's values.
+TEST_CASE("Arp-only browser load replaces only the arp section in the processor",
+          "[controller][presets][state]") {
+    Steinberg::Vst::HostApplication hostApp;
+    const auto stateA = presetStateA();
+    const auto stateB = presetStateB();
+
+    auto proc = makeReadyProcessor(&hostApp);
+    hostLoad(*proc, stateA);
+    const auto baseA = processorStateBytes(*proc);
+    {
+        auto other = makeReadyProcessor(nullptr);
+        hostLoad(*other, stateB);
+        const auto baseB = processorStateBytes(*other);
+        REQUIRE(baseA.size() == baseB.size());
+        other->setActive(false);
+        other->terminate();
+
+        // The arp pack is followed by the voice LFO and the Velocity > Amp amount.
+        const size_t arpBytes = packSize([](Steinberg::IBStreamer& s) {
+            Ruinae::saveArpParams(Ruinae::ArpeggiatorParams{}, s);
+        });
+        const size_t tailBytes = packSize([](Steinberg::IBStreamer& s) {
+            Ruinae::saveVoiceLfoParams(Ruinae::VoiceLfoParams{}, s);
+            Ruinae::saveAmpVelocityAmount(Ruinae::AmpEnvParams{}, s);
+        });
+        REQUIRE(baseA.size() > arpBytes + tailBytes);
+        const size_t arpBegin = baseA.size() - tailBytes - arpBytes;
+        const size_t arpEnd = arpBegin + arpBytes;
+        auto expected = baseA;
+        std::copy(baseB.begin() + static_cast<std::ptrdiff_t>(arpBegin),
+                  baseB.begin() + static_cast<std::ptrdiff_t>(arpEnd),
+                  expected.begin() + static_cast<std::ptrdiff_t>(arpBegin));
+        REQUIRE(expected != baseA);  // the two arp packs differ
+        REQUIRE(expected != baseB);  // and so do the synth packs
+
+        TestableController controller;
+        REQUIRE(controller.initialize(&hostApp) == Steinberg::kResultOk);
+        auto* handler = new MockComponentHandler();
+        controller.setComponentHandler(handler);
+        REQUIRE(controller.connect(proc.get()) == Steinberg::kResultOk);
+        REQUIRE(proc->connect(&controller) == Steinberg::kResultOk);
+
+        Steinberg::MemoryStream stream;
+        stream.write(const_cast<char*>(stateB.data()),
+                     static_cast<Steinberg::int32>(stateB.size()), nullptr);
+        stream.seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
+        REQUIRE(controller.loadComponentStateWithNotify(&stream, true));
+
+        const auto after = processorStateBytes(*proc);
+        CHECK(voiceRouteBytes(after) == voiceRouteBytes(baseA));
+        CHECK(after == expected);
+
+        proc->disconnect(&controller);
+        controller.disconnect(proc.get());
+        controller.setComponentHandler(nullptr);
+        controller.terminate();
+        handler->release();
+    }
+    proc->setActive(false);
+    proc->terminate();
 }
 
 // =============================================================================
@@ -575,3 +967,45 @@ TEST_CASE("createCustomView handles both PresetBrowserButton and SavePresetButto
 // =============================================================================
 // (Already covered by T013 test: "openPresetBrowser is no-op when
 // presetBrowserView_ is null" at line ~375 -- no additional test needed)
+
+// =============================================================================
+// R-087: every factory preset folder maps to a browser tab
+// =============================================================================
+TEST_CASE("Every factory preset folder maps to a browser tab", "[controller][presets]") {
+    const auto cfg = Ruinae::makeRuinaePresetConfig();
+    const auto mainTabs = Ruinae::getRuinaeTabLabels();
+    const auto arpTabs = Ruinae::getRuinaeArpTabLabels();
+
+    const std::filesystem::path presetsDir =
+        std::filesystem::path(RUINAE_RESOURCES_DIR) / "presets";
+    REQUIRE(std::filesystem::is_directory(presetsDir));
+
+    int folders = 0;
+    for (const auto& entry : std::filesystem::directory_iterator(presetsDir)) {
+        if (!entry.is_directory()) continue;
+        ++folders;
+        const std::string name = entry.path().filename().string();
+        INFO("preset folder: " << name);
+        CHECK(std::find(cfg.subcategoryNames.begin(), cfg.subcategoryNames.end(), name) !=
+              cfg.subcategoryNames.end());
+        const bool inMain = std::find(mainTabs.begin(), mainTabs.end(), name) != mainTabs.end();
+        const bool inArp = std::find(arpTabs.begin(), arpTabs.end(), name) != arpTabs.end();
+        CHECK((inMain || inArp));
+    }
+    CHECK(folders > 0);
+}
+
+// =============================================================================
+// R-088: Arp Accent Velocity / Slide Time / Voicing have a control in the editor
+// =============================================================================
+TEST_CASE("Arp accent velocity, slide time and voicing are bound in the editor",
+          "[controller][arp][uidesc]") {
+    std::ifstream in(std::string(RUINAE_RESOURCES_DIR) + "/editor.uidesc", std::ios::binary);
+    REQUIRE(in.good());
+    const std::string xml((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+
+    const std::vector<int> ids = {Ruinae::kArpAccentVelocityId, Ruinae::kArpSlideTimeId,
+                                  Ruinae::kArpVoicingModeId};
+    const auto missing = Krate::Test::unreachableParams(xml, ids);
+    CHECK(missing.empty());
+}

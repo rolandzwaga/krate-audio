@@ -736,6 +736,34 @@ TEST_CASE("NoteProcessor multi-destination depth edge cases", "[note_processor][
 }
 
 // =============================================================================
+// Pitch bend advances by samples (R-010)
+// =============================================================================
+// An engine that advanced the smoother once per call moved it one sample per
+// host block, so the 5 ms bend took seconds to settle at large block sizes.
+// processPitchBend(numSamples) advances the smoother by the samples rendered,
+// so the bend settles in the configured time whatever the block size.
+
+TEST_CASE("NoteProcessor pitch bend settles in the configured time for any block size",
+          "[processors][note-processor]") {
+    constexpr double kRate = 48000.0;
+    constexpr size_t kSettleSamples = 1200;  // 25 ms at 48 kHz
+    for (size_t chunk : {size_t{32}, size_t{512}, size_t{2048}}) {
+        NoteProcessor np;
+        np.prepare(kRate);
+        np.setPitchBendRange(2.0f);
+        np.setPitchBend(1.0f);
+        size_t elapsed = 0;
+        while (elapsed < kSettleSamples) {
+            (void)np.processPitchBend(chunk);
+            elapsed += chunk;
+        }
+        const double cents = 1200.0 * std::log2(static_cast<double>(np.getFrequency(69)) / 440.0);
+        INFO("chunk " << chunk << ": bend after " << elapsed << " samples = " << cents << " cents");
+        REQUIRE(std::abs(cents - 200.0) <= 1.0);
+    }
+}
+
+// =============================================================================
 // Performance Benchmark: SC-006 getFrequency() CPU budget
 // =============================================================================
 

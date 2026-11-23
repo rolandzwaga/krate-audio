@@ -1410,6 +1410,11 @@ private:
     Krate::DSP::OnePoleSmoother fxReturnGainSm_{0.0f};   // ID 1410, the FR-008/FR-009 ramp
     Krate::DSP::OnePoleSmoother fxWanderDepthSm_{0.0f};  // ID 1441
     Krate::DSP::OnePoleSmoother fxAzimuthDepthSm_{0.0f}; // ID 1443
+    // fxReturnGainSm_'s value BEFORE advanceParamSmoothers() moved it across the
+    // current sub-slice. The send's mix interpolates from it to the smoother's
+    // current value per sample, so the 20 ms return ramp is not a staircase of
+    // one step per slice (R-195).
+    float fxReturnGainSliceStart_ = 0.0f;
 
     // FR-059a. Set ONLY by detail::SeraphisParamSmootherBypassProbe, which the
     // library never defines. false on every shipping path.

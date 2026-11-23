@@ -80,6 +80,7 @@ endmacro()
 #   src/version.h                      (from shared cmake/version.h.in)
 #   resources/win32resource.rc         (from shared cmake/win32resource.rc.in)
 #   resources/auv3/audiounitconfig.h   (kAUcomponentVersion synced to version.json)
+#   resources/au-info.plist            (only when resources/au-info.plist.in exists; AUv2 version)
 #
 # Must be called AFTER krate_plugin_read_version() so the @KRATE_PLUGIN_*@ and
 # @PROJECT_VERSION_*@ tokens resolve. This is a macro so those caller-scope
@@ -111,6 +112,19 @@ macro(krate_plugin_configure_generated_files)
         "${CMAKE_CURRENT_SOURCE_DIR}/resources/auv3/audiounitconfig.h"
         @ONLY
     )
+
+    # AUv2 Info.plist carrying the plugin version (CFBundleVersion, CFBundleShortVersionString and the
+    # AudioComponents version = kAUcomponentVersion). Opt-in per plugin: a plugin with resources/au-info.plist.in
+    # gets resources/au-info.plist generated here (gitignored) and krate_plugin_platform_setup passes that file to
+    # smtg_target_add_auv2; the SDK does not stamp the version into the AUv2 plist itself (Ruinae audit R-191).
+    # Plugins without the template keep their static resources/au-info.plist. Check: tools/check-au-plist.js.
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/resources/au-info.plist.in")
+        configure_file(
+            "${CMAKE_CURRENT_SOURCE_DIR}/resources/au-info.plist.in"
+            "${CMAKE_CURRENT_SOURCE_DIR}/resources/au-info.plist"
+            @ONLY
+        )
+    endif()
 endmacro()
 
 # ------------------------------------------------------------------------------

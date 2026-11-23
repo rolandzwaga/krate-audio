@@ -23,6 +23,7 @@
 #include "pluginterfaces/vst/ivstevents.h"
 #include "pluginterfaces/vst/ivstparameterchanges.h"
 #include "pluginterfaces/vst/ivstmessage.h"
+#include "public.sdk/source/common/memorystream.h"
 #include "public.sdk/source/vst/utility/dataexchange.h"
 
 // FTZ/DAZ for denormal prevention (SC-007). Included UNCONDITIONALLY: the
@@ -910,6 +911,12 @@ tresult PLUGIN_API Processor::setState(IBStream* state)
     if (State::readKitBlob(state, kit) != kResultOk)
         return kResultFalse;
 
+    applyKitSnapshot(kit);
+    return kResultOk;
+}
+
+void Processor::applyKitSnapshot(const State::KitSnapshot& kit)
+{
     // Hard reset every voice slot's DSP state (envelopes, modal banks,
     // filters, coupling integrators) so the prior kit's residual audio
     // state can't bleed into the new kit's first hits. Per-pad params
@@ -993,8 +1000,21 @@ tresult PLUGIN_API Processor::setState(IBStream* state)
     macroMapper_.invalidateCache();
     for (int p = 0; p < kNumPads; ++p)
         macroMapper_.syncCacheFromCfg(p, pads[static_cast<std::size_t>(p)]);
+}
 
-    return kResultOk;
+void Processor::applyPadPresetSnapshot(int pad, const State::PadPresetSnapshot& preset)
+{
+    auto& cfg = voicePool_.padConfigMut(pad);
+    State::applyPadPresetSnapshot(preset, cfg);
+
+    // Exciter, body and pitch-env time can change the pad's category.
+    padCategories_[static_cast<size_t>(pad)] = classifyPad(cfg);
+    recomputeCouplingMatrix();
+
+    // The pad keeps its macros (FR-061) and its fields are now the preset's
+    // saved post-macro values, as after setState: sync the cache so the next
+    // macro movement layers only its own change.
+    macroMapper_.syncCacheFromCfg(pad, cfg);
 }
 
 // ==============================================================================
@@ -1150,8 +1170,9 @@ tresult PLUGIN_API Processor::disconnect(IConnectionPoint* other)
 }
 
 // ==============================================================================
-// notify() -- IMessage handler. Audition-pad message is the only one we
-// understand; everything else delegates to the SDK base.
+// notify() -- IMessage handler: the audition-pad messages and the kit- and
+// pad-preset browser loads (LoadPresetState, LoadPadPreset); everything else
+// delegates to the SDK base.
 // ==============================================================================
 tresult PLUGIN_API Processor::notify(Steinberg::Vst::IMessage* message)
 {
@@ -1191,6 +1212,57 @@ tresult PLUGIN_API Processor::notify(Steinberg::Vst::IMessage* message)
             | (static_cast<std::uint32_t>(midi & 0x7F))
             | (0u << 7);  // velocity 0
         pendingAudition_.store(word, std::memory_order_release);
+        return kResultOk;
+    }
+
+    // LoadPresetState: a kit-preset browser load (R-202). The controller hands
+    // over the kit blob; it takes the same parse and apply as setState, so the
+    // voice and coupling flushes, noiseLayerGain, the body-damping sentinel and
+    // the macro cache resync all run. FR-052: a kit load keeps the selected pad.
+    if (std::strcmp(id, "LoadPresetState") == 0)
+    {
+        auto* attrs = message->getAttributes();
+        if (attrs == nullptr) return kResultFalse;
+        const void* data = nullptr;
+        Steinberg::uint32 size = 0;
+        if (attrs->getBinary("bytes", data, size) != kResultOk || data == nullptr)
+            return kResultFalse;
+
+        const auto* first = static_cast<const char*>(data);
+        std::vector<char> bytes(first, first + size);
+        Steinberg::MemoryStream stream(bytes.data(),
+                                       static_cast<Steinberg::TSize>(bytes.size()));
+        State::KitSnapshot kit;
+        if (State::readKitBlob(&stream, kit) != kResultOk)
+            return kResultFalse;
+        kit.selectedPadIndex = selectedPadIndex_;
+        applyKitSnapshot(kit);
+        return kResultOk;
+    }
+
+    // LoadPadPreset: a pad-preset browser load (R-203). The controller hands
+    // over the pad blob and the target pad; State::applyPadPresetSnapshot is
+    // the one apply (sound fields incl. noiseLayerGain and the body-damping
+    // sentinel; FR-061 keeps choke, bus, coupling, macros, enabled and pan).
+    if (std::strcmp(id, "LoadPadPreset") == 0)
+    {
+        auto* attrs = message->getAttributes();
+        if (attrs == nullptr) return kResultFalse;
+        const void* data = nullptr;
+        Steinberg::uint32 size = 0;
+        Steinberg::int64 pad = -1;
+        if (attrs->getBinary("bytes", data, size) != kResultOk || data == nullptr ||
+            attrs->getInt("pad", pad) != kResultOk || pad < 0 || pad >= kNumPads)
+            return kResultFalse;
+
+        const auto* first = static_cast<const char*>(data);
+        std::vector<char> bytes(first, first + size);
+        Steinberg::MemoryStream stream(bytes.data(),
+                                       static_cast<Steinberg::TSize>(bytes.size()));
+        State::PadPresetSnapshot preset;
+        if (State::readPadPresetBlob(&stream, preset) != kResultOk)
+            return kResultFalse;
+        applyPadPresetSnapshot(static_cast<int>(pad), preset);
         return kResultOk;
     }
 

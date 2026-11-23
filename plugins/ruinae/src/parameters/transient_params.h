@@ -1,5 +1,6 @@
 #pragma once
 #include "plugin_ids.h"
+#include "parameters/state_load_helpers.h"
 #include "pluginterfaces/base/ustring.h"
 #include "public.sdk/source/vst/vstparameters.h"
 #include "public.sdk/source/vst/vsteditcontroller.h"
@@ -140,17 +141,24 @@ inline void saveTransientParams(const TransientParams& params,
     streamer.writeFloat(params.decayMs.load(std::memory_order_relaxed));
 }
 
+// Saved-field ranges, read by both parsers (R-211)
+namespace TransientLoad {
+inline constexpr LoadedFloat kSensitivity{.lo = 0.0f, .hi = 1.0f, .def = 0.5f};
+inline constexpr LoadedFloat kAttackMs{.lo = 0.5f, .hi = 10.0f, .def = 2.0f};
+inline constexpr LoadedFloat kDecayMs{.lo = 20.0f, .hi = 200.0f, .def = 50.0f};
+} // namespace TransientLoad
+
 inline bool loadTransientParams(TransientParams& params,
                                  Steinberg::IBStreamer& streamer) {
     float fv = 0.0f;
 
-    if (!streamer.readFloat(fv)) { return false; }
+    if (!readLoaded(streamer, fv, TransientLoad::kSensitivity)) { return false; }
     params.sensitivity.store(fv, std::memory_order_relaxed);
 
-    if (!streamer.readFloat(fv)) { return false; }
+    if (!readLoaded(streamer, fv, TransientLoad::kAttackMs)) { return false; }
     params.attackMs.store(fv, std::memory_order_relaxed);
 
-    if (!streamer.readFloat(fv)) { return false; }
+    if (!readLoaded(streamer, fv, TransientLoad::kDecayMs)) { return false; }
     params.decayMs.store(fv, std::memory_order_relaxed);
 
     return true;
@@ -162,13 +170,13 @@ inline void loadTransientParamsToController(
     float fv = 0.0f;
 
     // Sensitivity: already in [0,1] range
-    if (streamer.readFloat(fv))
+    if (readLoaded(streamer, fv, TransientLoad::kSensitivity))
         setParam(kTransientSensitivityId, static_cast<double>(fv));
     // Attack: read ms, convert back to normalized
-    if (streamer.readFloat(fv))
+    if (readLoaded(streamer, fv, TransientLoad::kAttackMs))
         setParam(kTransientAttackId, transientAttackToNormalized(fv));
     // Decay: read ms, convert back to normalized
-    if (streamer.readFloat(fv))
+    if (readLoaded(streamer, fv, TransientLoad::kDecayMs))
         setParam(kTransientDecayId, transientDecayToNormalized(fv));
 }
 

@@ -1,0 +1,2423 @@
+// ==============================================================================
+// Ruinae audit probes (TEMPORARY measurement lane, [.][audit-probe])
+// ==============================================================================
+// Plays real notes through the real Ruinae::Processor and prints one line per
+// measurement:
+//   PROBE <name> | <setup> | <metric> = <value> | threshold <bar> | <ok|suspicious|bad>
+// Nothing here asserts behaviour; the only checks are that rendered output is
+// finite. Hidden tag: never part of the per-push gate.
+// ==============================================================================
+
+#include "processor/processor.h"
+#include "plugin_ids.h"
+#include "controller/controller.h"
+
+#include "public.sdk/source/common/memorystream.h"
+#include "public.sdk/source/vst/vstpresetfile.h"
+#include "pluginterfaces/base/ibstream.h"
+#include "pluginterfaces/vst/ivstevents.h"
+#include "pluginterfaces/vst/ivstparameterchanges.h"
+#include "pluginterfaces/vst/ivstprocesscontext.h"
+#include "pluginterfaces/vst/ivstnoteexpression.h"
+#include "pluginterfaces/vst/ivstmidicontrollers.h"
+
+#include <krate/dsp/core/db_utils.h>
+
+#include "vst_param_changes.h"
+
+#include <catch2/catch_test_macros.hpp>
+
+#include <algorithm>
+#include <cmath>
+#include <chrono>
+#include <complex>
+#include <cstdint>
+#include <cstdio>
+#include <cstring>
+#include <filesystem>
+#include <functional>
+#include <memory>
+#include <numeric>
+#include <random>
+#include <string>
+#include <vector>
+
+using namespace Steinberg;
+using namespace Steinberg::Vst;
+
+namespace {
+
+constexpr double kPi = 3.14159265358979323846;
+
+// ------------------------------------------------------------------------------
+// Output
+// ------------------------------------------------------------------------------
+
+std::string f2(double v, int prec = 2) {
+    char b[64];
+    std::snprintf(b, sizeof b, "%.*f", prec, v);
+    return b;
+}
+
+void probe(const std::string& name, const std::string& setup, const std::string& metric,
+           const std::string& value, const std::string& thr, const char* verdict) {
+    std::printf("PROBE %s | %s | %s = %s | threshold %s | %s\n", name.c_str(), setup.c_str(),
+                metric.c_str(), value.c_str(), thr.c_str(), verdict);
+    std::fflush(stdout);
+}
+
+double toDb(double lin) { return lin > 1e-12 ? 20.0 * std::log10(lin) : -240.0; }
+
+// verdict for "smaller is better": v <= okMax ok, v <= susMax suspicious, else bad
+const char* vLow(double v, double okMax, double susMax) {
+    if (v <= okMax) return "ok";
+    if (v <= susMax) return "suspicious";
+    return "bad";
+}
+
+// ------------------------------------------------------------------------------
+// Event list
+// ------------------------------------------------------------------------------
+
+class EvList final : public IEventList {
+public:
+    tresult PLUGIN_API queryInterface(const TUID /*iid*/, void** obj) override {
+        if (obj) *obj = nullptr;
+        return kNoInterface;
+    }
+    uint32 PLUGIN_API addRef() override { return 1; }
+    uint32 PLUGIN_API release() override { return 1; }
+    int32 PLUGIN_API getEventCount() override { return static_cast<int32>(ev.size()); }
+    tresult PLUGIN_API getEvent(int32 i, Event& e) override {
+        if (i < 0 || i >= static_cast<int32>(ev.size())) return kResultFalse;
+        e = ev[static_cast<size_t>(i)];
+        return kResultTrue;
+    }
+    tresult PLUGIN_API addEvent(Event& e) override {
+        ev.push_back(e);
+        return kResultTrue;
+    }
+    std::vector<Event> ev;
+};
+
+struct ProbeProc : Ruinae::Processor {
+    using Ruinae::Processor::engine;
+};
+
+struct Sched {
+    int64_t pos = 0;
+    bool isParam = false;
+    ParamID id = 0;
+    double value = 0.0;
+    Event ev{};
+};
+
+struct OutNote {
+    int64_t pos = 0;
+    bool on = false;
+    int pitch = 0;
+};
+
+// ------------------------------------------------------------------------------
+// Rig: one real Processor, a schedule of events/params at absolute samples, and
+// the rendered output at absolute sample indices.
+// ------------------------------------------------------------------------------
+
+class Rig {
+public:
+    explicit Rig(double sr, int32 maxBlock = 2048) : sr_(sr) {
+        proc = std::make_unique<ProbeProc>();
+        proc->initialize(nullptr);
+        ProcessSetup s{};
+        s.processMode = kRealtime;
+        s.symbolicSampleSize = kSample32;
+        s.sampleRate = sr;
+        s.maxSamplesPerBlock = maxBlock;
+        proc->setupProcessing(s);
+        proc->setActive(true);
+    }
+    ~Rig() {
+        proc->setActive(false);
+        proc->terminate();
+    }
+    Rig(const Rig&) = delete;
+    Rig& operator=(const Rig&) = delete;
+
+    double sr() const { return sr_; }
+    int64_t now() const { return now_; }
+    int64_t at(double seconds) const { return static_cast<int64_t>(std::llround(seconds * sr_)); }
+
+    void param(ParamID id, double v, int64_t pos = -1) {
+        Sched s;
+        s.pos = pos < 0 ? now_ : pos;
+        s.isParam = true;
+        s.id = id;
+        s.value = v;
+        sched_.push_back(s);
+    }
+    void noteOn(int pitch, float vel, int64_t pos, int32 noteId = -1) {
+        Sched s;
+        s.pos = pos;
+        s.ev.type = Event::kNoteOnEvent;
+        s.ev.noteOn.channel = 0;
+        s.ev.noteOn.pitch = static_cast<int16>(pitch);
+        s.ev.noteOn.velocity = vel;
+        s.ev.noteOn.noteId = noteId;
+        s.ev.noteOn.tuning = 0.0f;
+        s.ev.noteOn.length = 0;
+        sched_.push_back(s);
+    }
+    void noteOff(int pitch, int64_t pos, int32 noteId = -1) {
+        Sched s;
+        s.pos = pos;
+        s.ev.type = Event::kNoteOffEvent;
+        s.ev.noteOff.channel = 0;
+        s.ev.noteOff.pitch = static_cast<int16>(pitch);
+        s.ev.noteOff.velocity = 0.0f;
+        s.ev.noteOff.noteId = noteId;
+        s.ev.noteOff.tuning = 0.0f;
+        sched_.push_back(s);
+    }
+    void bend(int msb, int lsb, int64_t pos) {
+        Sched s;
+        s.pos = pos;
+        s.ev.type = Event::kLegacyMIDICCOutEvent;
+        s.ev.midiCCOut.controlNumber = ControllerNumbers::kPitchBend;
+        s.ev.midiCCOut.channel = 0;
+        s.ev.midiCCOut.value = static_cast<int8>(msb);
+        s.ev.midiCCOut.value2 = static_cast<int8>(lsb);
+        sched_.push_back(s);
+    }
+    void expr(int32 noteId, NoteExpressionTypeID type, double v, int64_t pos) {
+        Sched s;
+        s.pos = pos;
+        s.ev.type = Event::kNoteExpressionValueEvent;
+        s.ev.noteExpressionValue.typeId = type;
+        s.ev.noteExpressionValue.noteId = noteId;
+        s.ev.noteExpressionValue.value = v;
+        sched_.push_back(s);
+    }
+
+    void render(int64_t n, int32 bs = 512) {
+        std::stable_sort(sched_.begin(), sched_.end(),
+                         [](const Sched& a, const Sched& b) { return a.pos < b.pos; });
+        const int64_t end = now_ + n;
+        L.resize(static_cast<size_t>(end), 0.0f);
+        R.resize(static_cast<size_t>(end), 0.0f);
+        while (now_ < end) {
+            const auto len = static_cast<int32>(std::min<int64_t>(bs, end - now_));
+            params_.clear();
+            inEv_.ev.clear();
+            outEv_.ev.clear();
+            std::vector<Sched> rest;
+            for (const auto& s : sched_) {
+                if (s.pos < now_ + len) {
+                    if (s.isParam) {
+                        params_.addChange(s.id, s.value);
+                    } else {
+                        Event e = s.ev;
+                        e.sampleOffset = static_cast<int32>(std::max<int64_t>(0, s.pos - now_));
+                        inEv_.ev.push_back(e);
+                    }
+                } else {
+                    rest.push_back(s);
+                }
+            }
+            sched_.swap(rest);
+
+            float* ch[2] = {L.data() + now_, R.data() + now_};
+            AudioBusBuffers out{};
+            out.numChannels = 2;
+            out.channelBuffers32 = ch;
+
+            ProcessContext ctx{};
+            ctx.sampleRate = sr_;
+            ctx.tempo = tempo;
+            ctx.timeSigNumerator = 4;
+            ctx.timeSigDenominator = 4;
+            ctx.projectTimeMusic = ppq;
+            ctx.projectTimeSamples = now_;
+            ctx.state = ProcessContext::kTempoValid | ProcessContext::kProjectTimeMusicValid |
+                        ProcessContext::kTimeSigValid;
+            if (playing) ctx.state |= ProcessContext::kPlaying;
+
+            ProcessData d{};
+            d.processMode = kRealtime;
+            d.symbolicSampleSize = kSample32;
+            d.numSamples = len;
+            d.numInputs = 0;
+            d.numOutputs = 1;
+            d.outputs = &out;
+            d.inputParameterChanges = &params_;
+            d.inputEvents = &inEv_;
+            d.outputEvents = &outEv_;
+            d.processContext = useCtx ? &ctx : nullptr;
+            proc->process(d);
+
+            for (const auto& e : outEv_.ev) {
+                if (e.type == Event::kNoteOnEvent)
+                    outNotes.push_back({now_ + e.sampleOffset, true, e.noteOn.pitch});
+                else if (e.type == Event::kNoteOffEvent)
+                    outNotes.push_back({now_ + e.sampleOffset, false, e.noteOff.pitch});
+            }
+            if (onBlock) onBlock(now_, len);
+            now_ += len;
+            if (useCtx && playing) ppq += static_cast<double>(len) / sr_ * (tempo / 60.0);
+        }
+    }
+
+    std::vector<float> mono(size_t a = 0, size_t b = SIZE_MAX) const {
+        b = std::min(b, L.size());
+        std::vector<float> m;
+        if (a >= b) return m;
+        m.resize(b - a);
+        for (size_t i = a; i < b; ++i) m[i - a] = 0.5f * (L[i] + R[i]);
+        return m;
+    }
+
+    std::unique_ptr<ProbeProc> proc;
+    std::vector<float> L, R;
+    std::vector<OutNote> outNotes;
+    std::function<void(int64_t, int32)> onBlock;
+    bool useCtx = false;
+    bool playing = true;
+    double tempo = 120.0;
+    double ppq = 0.0;
+
+private:
+    double sr_;
+    int64_t now_ = 0;
+    std::vector<Sched> sched_;
+    Krate::Test::ParameterChanges params_;
+    EvList inEv_;
+    EvList outEv_;
+};
+
+double envNorm(double ms) { return std::cbrt(std::clamp(ms, 0.0, 10000.0) / 10000.0); }
+
+// Neutral patch: OSC A only (saw by default), filter open, Clean, FX off.
+void basePatch(Rig& r, double waveformNorm = 0.25) {
+    r.param(Ruinae::kMasterGainId, 0.5);
+    r.param(Ruinae::kVoiceModeId, 0.0);
+    r.param(Ruinae::kPolyphonyId, 7.0 / 15.0);
+    r.param(Ruinae::kSoftLimitId, 1.0);
+    r.param(Ruinae::kWidthId, 0.5);
+    r.param(Ruinae::kSpreadId, 0.0);
+    r.param(Ruinae::kOscATypeId, 0.0);
+    r.param(Ruinae::kOscAWaveformId, waveformNorm);
+    r.param(Ruinae::kOscALevelId, 1.0);
+    r.param(Ruinae::kOscATuneId, 0.5);
+    r.param(Ruinae::kOscAFineId, 0.5);
+    r.param(Ruinae::kOscBLevelId, 0.0);
+    r.param(Ruinae::kMixerModeId, 0.0);
+    r.param(Ruinae::kMixerPositionId, 0.0);
+    r.param(Ruinae::kFilterTypeId, 0.0);
+    r.param(Ruinae::kFilterCutoffId, 1.0);
+    r.param(Ruinae::kFilterResonanceId, 0.0203);
+    r.param(Ruinae::kFilterEnvAmountId, 0.5);
+    r.param(Ruinae::kFilterKeyTrackId, 0.0);
+    r.param(Ruinae::kDistortionTypeId, 0.0);
+    r.param(Ruinae::kDistortionMixId, 1.0);
+    r.param(Ruinae::kTranceGateEnabledId, 0.0);
+    r.param(Ruinae::kAmpEnvAttackId, envNorm(1.0));
+    r.param(Ruinae::kAmpEnvDecayId, envNorm(200.0));
+    r.param(Ruinae::kAmpEnvSustainId, 1.0);
+    r.param(Ruinae::kAmpEnvReleaseId, envNorm(100.0));
+    r.param(Ruinae::kDelayEnabledId, 0.0);
+    r.param(Ruinae::kReverbEnabledId, 0.0);
+    r.param(Ruinae::kModulationTypeId, 0.0);
+    r.param(Ruinae::kHarmonizerEnabledId, 0.0);
+    r.param(Ruinae::kGlobalFilterEnabledId, 0.0);
+    r.param(Ruinae::kSettingsTuningReferenceId, 0.5);
+    r.param(Ruinae::kSettingsPitchBendRangeId, 2.0 / 24.0);
+    r.param(Ruinae::kSettingsVelocityCurveId, 0.0);
+    r.param(Ruinae::kArpOperatingModeId, 0.0);
+}
+
+// ------------------------------------------------------------------------------
+// Metrics
+// ------------------------------------------------------------------------------
+
+struct Stats {
+    double peak = 0, rms = 0, dc = 0;
+    int64_t nonFinite = 0;
+    int64_t zeroRun = 0;  // longest run of exact zeros
+};
+
+Stats stats(const std::vector<float>& x, size_t a = 0, size_t b = SIZE_MAX) {
+    Stats s;
+    b = std::min(b, x.size());
+    if (a >= b) return s;
+    double sum = 0, sq = 0;
+    int64_t run = 0;
+    for (size_t i = a; i < b; ++i) {
+        const float v = x[i];
+        if (!Krate::DSP::detail::isFinite(v)) {
+            ++s.nonFinite;
+            continue;
+        }
+        s.peak = std::max(s.peak, static_cast<double>(std::fabs(v)));
+        sum += v;
+        sq += static_cast<double>(v) * v;
+        if (v == 0.0f) {
+            ++run;
+            s.zeroRun = std::max(s.zeroRun, run);
+        } else {
+            run = 0;
+        }
+    }
+    const double n = static_cast<double>(b - a);
+    s.dc = sum / n;
+    s.rms = std::sqrt(sq / n);
+    return s;
+}
+
+int64_t nonFiniteAll(const Rig& r) { return stats(r.L).nonFinite + stats(r.R).nonFinite; }
+
+void fft(std::vector<std::complex<double>>& a) {
+    const size_t n = a.size();
+    for (size_t i = 1, j = 0; i < n; ++i) {
+        size_t bit = n >> 1;
+        for (; j & bit; bit >>= 1) j ^= bit;
+        j ^= bit;
+        if (i < j) std::swap(a[i], a[j]);
+    }
+    for (size_t len = 2; len <= n; len <<= 1) {
+        const double ang = -2.0 * kPi / static_cast<double>(len);
+        const std::complex<double> wl(std::cos(ang), std::sin(ang));
+        for (size_t i = 0; i < n; i += len) {
+            std::complex<double> w(1.0, 0.0);
+            for (size_t k = 0; k < len / 2; ++k) {
+                const auto u = a[i + k];
+                const auto v = a[i + k + len / 2] * w;
+                a[i + k] = u + v;
+                a[i + k + len / 2] = u - v;
+                w *= wl;
+            }
+        }
+    }
+}
+
+// Blackman-Harris 4-term windowed power spectrum, bins 0..n/2
+std::vector<double> powerSpectrum(const float* x, size_t n) {
+    std::vector<std::complex<double>> a(n);
+    for (size_t i = 0; i < n; ++i) {
+        const double t = 2.0 * kPi * static_cast<double>(i) / static_cast<double>(n - 1);
+        const double w = 0.35875 - 0.48829 * std::cos(t) + 0.14128 * std::cos(2 * t) -
+                         0.01168 * std::cos(3 * t);
+        a[i] = std::complex<double>(static_cast<double>(x[i]) * w, 0.0);
+    }
+    fft(a);
+    std::vector<double> p(n / 2 + 1);
+    for (size_t k = 0; k <= n / 2; ++k) p[k] = std::norm(a[k]);
+    return p;
+}
+
+double goertzelMag(const float* x, size_t n, double f, double sr) {
+    const double w = 2.0 * kPi * f / sr;
+    const double c = 2.0 * std::cos(w);
+    double s1 = 0, s2 = 0;
+    for (size_t i = 0; i < n; ++i) {
+        const double win = 0.5 - 0.5 * std::cos(2.0 * kPi * static_cast<double>(i) / static_cast<double>(n - 1));
+        const double s0 = static_cast<double>(x[i]) * win + c * s1 - s2;
+        s2 = s1;
+        s1 = s0;
+    }
+    return std::sqrt(std::max(0.0, s1 * s1 + s2 * s2 - c * s1 * s2));
+}
+
+// Peak search around fExp; returns cents of the peak relative to fExp.
+double measureCents(const float* x, size_t n, double sr, double fExp, double span = 100.0) {
+    double best = -1, bestC = 0;
+    for (double c = -span; c <= span; c += 2.0) {
+        const double m = goertzelMag(x, n, fExp * std::pow(2.0, c / 1200.0), sr);
+        if (m > best) { best = m; bestC = c; }
+    }
+    const double c0 = bestC;
+    for (double c = c0 - 2.0; c <= c0 + 2.0; c += 0.05) {
+        const double m = goertzelMag(x, n, fExp * std::pow(2.0, c / 1200.0), sr);
+        if (m > best) { best = m; bestC = c; }
+    }
+    return bestC;
+}
+
+struct AliasRes {
+    double worstDbc = 0, totalDb = 0, centroidHz = 0;
+};
+
+AliasRes aliasAnalysis(const float* x, size_t n, double sr, double f0) {
+    AliasRes r;
+    const auto p = powerSpectrum(x, n);
+    const double binHz = sr / static_cast<double>(n);
+    std::vector<char> harm(p.size(), 0);
+    const auto guard = static_cast<long>(6);
+    const auto dcBins = static_cast<size_t>(std::ceil(25.0 / binHz));
+    double fundPeak = 0;
+    for (int h = 1; h < 20000 && static_cast<double>(h) * f0 < sr / 2.0; ++h) {
+        const auto c = static_cast<long>(std::llround(static_cast<double>(h) * f0 / binHz));
+        for (long k = c - guard; k <= c + guard; ++k)
+            if (k >= 0 && k < static_cast<long>(p.size())) {
+                harm[static_cast<size_t>(k)] = 1;
+                if (h == 1) fundPeak = std::max(fundPeak, p[static_cast<size_t>(k)]);
+            }
+    }
+    double hSum = 0, aSum = 0, worst = 0, num = 0, den = 0;
+    for (size_t k = 0; k < p.size(); ++k) {
+        num += static_cast<double>(k) * binHz * p[k];
+        den += p[k];
+        if (k < dcBins) continue;
+        if (harm[k]) hSum += p[k];
+        else {
+            aSum += p[k];
+            worst = std::max(worst, p[k]);
+        }
+    }
+    r.centroidHz = den > 0 ? num / den : 0;
+    r.worstDbc = (fundPeak > 0 && worst > 0) ? 10.0 * std::log10(worst / fundPeak) : -240.0;
+    r.totalDb = (hSum > 0 && aSum > 0) ? 10.0 * std::log10(aSum / hSum) : -240.0;
+    return r;
+}
+
+double centroid(const float* x, size_t n, double sr) {
+    const auto p = powerSpectrum(x, n);
+    const double binHz = sr / static_cast<double>(n);
+    double num = 0, den = 0;
+    for (size_t k = 1; k < p.size(); ++k) {
+        num += static_cast<double>(k) * binHz * p[k];
+        den += p[k];
+    }
+    return den > 0 ? num / den : 0;
+}
+
+size_t pow2Below(size_t n) {
+    size_t p = 1;
+    while (p * 2 <= n) p *= 2;
+    return p;
+}
+
+// Discontinuity at a discrete event: max |dx| in +-win around ev against the
+// steady max |dx| before and after the window.
+struct ClickRes {
+    double ratio = 0;
+    int count = 0;
+    double maxJump = 0;
+};
+
+ClickRes clickAt(const std::vector<float>& x, size_t ev, size_t win, size_t refLen) {
+    ClickRes c;
+    auto maxD = [&](size_t a, size_t b) {
+        double m = 0;
+        b = std::min(b, x.size());
+        for (size_t i = std::max<size_t>(a, 1); i < b; ++i)
+            m = std::max(m, static_cast<double>(std::fabs(x[i] - x[i - 1])));
+        return m;
+    };
+    const size_t a = ev > win ? ev - win : 0;
+    const size_t b = std::min(ev + win, x.size());
+    const double refB = a > refLen ? maxD(a - refLen, a) : maxD(0, a);
+    const double refA = maxD(b, b + refLen);
+    const double ref = std::max({refB, refA, 1e-9});
+    double m = 0;
+    for (size_t i = std::max<size_t>(a, 1); i < b; ++i) {
+        const double d = std::fabs(x[i] - x[i - 1]);
+        m = std::max(m, d);
+        if (d > 2.0 * ref) ++c.count;
+    }
+    c.maxJump = m;
+    c.ratio = m / ref;
+    return c;
+}
+
+// Clicks inside a continuous render: 2 ms frames whose max |dx| exceeds 4x the
+// median of the neighbouring frames (+-15), with frame peak above -60 dBFS.
+int localClickFrames(const std::vector<float>& x, size_t a, size_t b, double sr, double* worstRatio = nullptr) {
+    b = std::min(b, x.size());
+    const auto fr = static_cast<size_t>(0.002 * sr);
+    std::vector<double> fm, pk;
+    for (size_t s = std::max<size_t>(a, 1); s + fr <= b; s += fr) {
+        double m = 0, p = 0;
+        for (size_t i = s; i < s + fr; ++i) {
+            m = std::max(m, static_cast<double>(std::fabs(x[i] - x[i - 1])));
+            p = std::max(p, static_cast<double>(std::fabs(x[i])));
+        }
+        fm.push_back(m);
+        pk.push_back(p);
+    }
+    int clicks = 0;
+    double worst = 0;
+    std::vector<double> nb;
+    for (size_t i = 0; i < fm.size(); ++i) {
+        if (pk[i] < 1e-3) continue;
+        nb.clear();
+        for (size_t j = (i > 15 ? i - 15 : 0); j < std::min(fm.size(), i + 16); ++j)
+            if (j != i) nb.push_back(fm[j]);
+        if (nb.empty()) continue;
+        std::nth_element(nb.begin(), nb.begin() + static_cast<long>(nb.size() / 2), nb.end());
+        const double med = std::max(nb[nb.size() / 2], 1e-7);
+        const double ratio = fm[i] / med;
+        worst = std::max(worst, ratio);
+        if (ratio > 4.0) ++clicks;
+    }
+    if (worstRatio) *worstRatio = worst;
+    return clicks;
+}
+
+size_t firstAbove(const std::vector<float>& x, size_t from, double thr) {
+    for (size_t i = from; i < x.size(); ++i)
+        if (std::fabs(x[i]) > thr) return i;
+    return SIZE_MAX;
+}
+
+size_t lastAbove(const std::vector<float>& x, double thr) {
+    for (size_t i = x.size(); i-- > 0;)
+        if (std::fabs(x[i]) > thr) return i;
+    return SIZE_MAX;
+}
+
+// 1 ms RMS envelope
+std::vector<double> rmsEnv(const std::vector<float>& x, double sr, double winSec = 0.001) {
+    const auto w = std::max<size_t>(1, static_cast<size_t>(winSec * sr));
+    std::vector<double> e;
+    for (size_t s = 0; s + w <= x.size(); s += w) {
+        double q = 0;
+        for (size_t i = s; i < s + w; ++i) q += static_cast<double>(x[i]) * x[i];
+        e.push_back(std::sqrt(q / static_cast<double>(w)));
+    }
+    return e;
+}
+
+// Burst onsets: 2 ms peak envelope crossing thrRel*max after >= 20 ms below half of it.
+std::vector<size_t> burstOnsets(const std::vector<float>& x, size_t from, double sr, double thrRel) {
+    std::vector<size_t> on;
+    const auto hop = std::max<size_t>(1, static_cast<size_t>(0.002 * sr));
+    double gmax = 0;
+    for (size_t i = from; i < x.size(); ++i) gmax = std::max(gmax, static_cast<double>(std::fabs(x[i])));
+    if (gmax <= 0) return on;
+    const double thr = thrRel * gmax;
+    size_t quietHops = 1000;
+    for (size_t s = from; s + hop <= x.size(); s += hop) {
+        double p = 0;
+        for (size_t i = s; i < s + hop; ++i) p = std::max(p, static_cast<double>(std::fabs(x[i])));
+        if (p >= thr) {
+            if (quietHops >= 10) {
+                size_t i = s;
+                while (i < s + hop && std::fabs(x[i]) < thr) ++i;
+                on.push_back(i);
+            }
+            quietHops = 0;
+        } else if (p < 0.5 * thr) {
+            ++quietHops;
+        }
+    }
+    return on;
+}
+
+double noteHz(int note, double a4 = 440.0) { return a4 * std::pow(2.0, (note - 69) / 12.0); }
+
+const char* kOscNames[10] = {"PolyBLEP", "Wavetable", "PhaseDistortion", "Sync", "Additive",
+                             "Chaos", "Particle", "Formant", "SpectralFreeze", "Noise"};
+const char* kFilterNames[13] = {"SVF_LP", "SVF_HP", "SVF_BP", "SVF_Notch", "Ladder", "Formant", "Comb",
+                                "SVF_Allpass", "SVF_Peak", "SVF_LowShelf", "SVF_HighShelf",
+                                "EnvelopeFilter", "SelfOscillating"};
+const char* kDistNames[7] = {"Clean", "ChaosWaveshaper", "SpectralDistortion", "GranularDistortion",
+                             "Wavefolder", "TapeSaturator", "RingModulator"};
+const char* kDelayNames[5] = {"Digital", "Tape", "PingPong", "Granular", "Spectral"};
+const char* kModTypeNames[4] = {"None", "Phaser", "Flanger", "Chorus"};
+const char* kArpModeNames[10] = {"Up", "Down", "UpDown", "DownUp", "Converge",
+                                 "Diverge", "Random", "Walk", "AsPlayed", "Chord"};
+
+// ==============================================================================
+// 1. Oscillators
+// ==============================================================================
+
+void runOscProbe(int t) {
+    const double sr = 48000.0;
+    const int notes[3] = {33, 69, 96};
+    const char* noteNames[3] = {"A1", "A4", "C7"};
+    const bool tonal = !(t == 5 || t == 6 || t == 9);
+    for (int ni = 0; ni < 3; ++ni) {
+        const int note = notes[ni];
+        Rig r(sr);
+        basePatch(r);
+        r.param(Ruinae::kOscATypeId, t / 9.0);
+        r.param(Ruinae::kSoftLimitId, 0.0);
+        r.noteOn(note, 0.8f, 0);
+        const size_t N = 65536;
+        r.render(r.at(0.4) + static_cast<int64_t>(N));
+        const auto m = r.mono();
+        const size_t a = m.size() - N;
+        const Stats s = stats(m, a);
+        const std::string name = std::string("osc:") + kOscNames[t] + ":" + noteNames[ni];
+        const std::string setup = "OSC A alone, saw-default params, filter open, Clean, FX off, 48k, vel 0.8, steady 1.37 s";
+        const double f = noteHz(note);
+        if (tonal) {
+            const size_t pn = std::min<size_t>(N, 48000);
+            const double cents = measureCents(m.data() + (m.size() - pn), pn, sr, f);
+            probe(name, setup, "pitch error cents", f2(cents, 2), "|c|<=5 ok, <=20 suspicious",
+                  vLow(std::fabs(cents), 5.0, 20.0));
+            const auto al = aliasAnalysis(m.data() + a, N, sr, f * std::pow(2.0, cents / 1200.0));
+            probe(name, setup, "worst non-harmonic component dBc", f2(al.worstDbc, 1),
+                  "<=-50 ok, <=-30 suspicious (band-limited osc practice)", vLow(al.worstDbc, -50.0, -30.0));
+            probe(name, setup, "non-harmonic/harmonic energy dB", f2(al.totalDb, 1), "<=-40 ok, <=-20 suspicious",
+                  vLow(al.totalDb, -40.0, -20.0));
+        } else {
+            const double c = centroid(m.data() + a, N, sr);
+            probe(name, setup, "spectral centroid Hz", f2(c, 0), "info (non-tonal type)", "ok");
+        }
+        probe(name, setup, "DC offset", f2(s.dc, 5), "|dc|<=0.01 ok, <=0.05 suspicious",
+              vLow(std::fabs(s.dc), 0.01, 0.05));
+        probe(name, setup, "NaN/Inf count", std::to_string(nonFiniteAll(r)), "0", nonFiniteAll(r) == 0 ? "ok" : "bad");
+        probe(name, setup, "peak dBFS", f2(toDb(s.peak), 2), "<=0 ok, <=+6 suspicious; silent (<-80) bad",
+              s.peak < 1e-4 ? "bad" : vLow(toDb(s.peak), 0.0, 6.0));
+        probe(name, setup, "longest exact-zero run (samples, steady)", std::to_string(s.zeroRun),
+              "<=4 ok (flushed NaN shows as zeros)", vLow(static_cast<double>(s.zeroRun), 4.0, 64.0));
+        CHECK(nonFiniteAll(r) == 0);
+    }
+}
+
+#define OSC_CASE(i) \
+    TEST_CASE("AuditProbe osc type " #i, "[.][audit-probe]") { runOscProbe(i); }
+OSC_CASE(0)
+OSC_CASE(1)
+OSC_CASE(2)
+OSC_CASE(3)
+OSC_CASE(4)
+OSC_CASE(5)
+OSC_CASE(6)
+OSC_CASE(7)
+OSC_CASE(8)
+OSC_CASE(9)
+
+// ==============================================================================
+// 2. Filters: cutoff sweep 20 Hz -> 20 kHz over 2 s, park at max
+// ==============================================================================
+
+void runFilterProbe(int ft) {
+    const double rates[2] = {48000.0, 192000.0};
+    const double resos[3] = {0.0, 0.5, 1.0};
+    for (double sr : rates) {
+        for (double res : resos) {
+            Rig r(sr);
+            basePatch(r, 1.0);  // triangle (no steps: clean derivative)
+            r.param(Ruinae::kSoftLimitId, 0.0);
+            r.param(Ruinae::kFilterTypeId, ft / 12.0);
+            r.param(Ruinae::kFilterResonanceId, res);
+            r.param(Ruinae::kFilterCutoffId, 0.0);
+            r.noteOn(45, 0.8f, 0);
+            const int32 bs = 64;
+            const int64_t pre = r.at(0.2);
+            const int64_t sweep = r.at(2.0);
+            for (int64_t p = pre; p < pre + sweep; p += bs)
+                r.param(Ruinae::kFilterCutoffId, static_cast<double>(p - pre) / static_cast<double>(sweep), p);
+            r.param(Ruinae::kFilterCutoffId, 1.0, pre + sweep);
+            r.render(pre + sweep + r.at(1.0), bs);
+            const auto m = r.mono();
+            const auto sweepEnd = static_cast<size_t>(pre + sweep);
+            const Stats sw = stats(m, static_cast<size_t>(pre), sweepEnd);
+            const Stats park = stats(m, sweepEnd + static_cast<size_t>(r.at(0.1)));
+            double worst = 0;
+            const int clicks = localClickFrames(m, static_cast<size_t>(pre), sweepEnd, sr, &worst);
+            const std::string name = std::string("filter:") + kFilterNames[ft] + ":res" + f2(res, 1) + ":" +
+                                     f2(sr / 1000.0, 0) + "k";
+            const std::string setup = "triangle A2 vel 0.8, soft limit OFF, cutoff norm 0->1 per 64-sample block over 2 s, then parked at 20 kHz 1 s";
+            probe(name, setup, "sweep peak dBFS", f2(toDb(sw.peak), 2), "<=+6 ok, <=+20 suspicious (runaway)",
+                  sw.peak < 1e-5 ? "suspicious" : vLow(toDb(sw.peak), 6.0, 20.0));
+            probe(name, setup, "parked-at-max peak dBFS", f2(toDb(park.peak), 2), "<=+6 ok, <=+20 suspicious",
+                  vLow(toDb(park.peak), 6.0, 20.0));
+            probe(name, setup, "NaN/Inf count", std::to_string(nonFiniteAll(r)), "0",
+                  nonFiniteAll(r) == 0 ? "ok" : "bad");
+            probe(name, setup, "longest exact-zero run during sweep+park (samples)",
+                  std::to_string(std::max(sw.zeroRun, park.zeroRun)), "<=16 ok (NaN flush -> zeros)",
+                  vLow(static_cast<double>(std::max(sw.zeroRun, park.zeroRun)), 16.0, 256.0));
+            probe(name, setup, "click frames in sweep (2ms frame |dx| > 4x local median)",
+                  std::to_string(clicks) + " (worst ratio " + f2(worst, 1) + ")", "0 ok, <=3 suspicious",
+                  vLow(clicks, 0.0, 3.0));
+            CHECK(nonFiniteAll(r) == 0);
+        }
+    }
+}
+
+#define FILTER_CASE(i) \
+    TEST_CASE("AuditProbe filter type " #i, "[.][audit-probe]") { runFilterProbe(i); }
+FILTER_CASE(0)
+FILTER_CASE(1)
+FILTER_CASE(2)
+FILTER_CASE(3)
+FILTER_CASE(4)
+FILTER_CASE(5)
+FILTER_CASE(6)
+FILTER_CASE(7)
+FILTER_CASE(8)
+FILTER_CASE(9)
+FILTER_CASE(10)
+FILTER_CASE(11)
+FILTER_CASE(12)
+
+// ==============================================================================
+// 3. Distortion
+// ==============================================================================
+
+Stats renderDist(int dt, double drive, int64_t* nonFin) {
+    Rig r(48000.0);
+    basePatch(r, 0.0);  // sine
+    r.param(Ruinae::kSoftLimitId, 0.0);
+    r.param(Ruinae::kDistortionTypeId, dt / 6.0);
+    r.param(Ruinae::kDistortionDriveId, drive);
+    r.param(Ruinae::kDistortionMixId, 1.0);
+    r.noteOn(57, 0.8f, 0);
+    r.render(r.at(2.0));
+    *nonFin = nonFiniteAll(r);
+    const auto m = r.mono();
+    return stats(m, static_cast<size_t>(r.at(1.0)));
+}
+
+void runDistProbe(int dt) {
+    int64_t nf = 0;
+    const Stats clean = renderDist(0, 0.5, &nf);
+    const double drives[3] = {0.25, 0.75, 1.0};
+    for (double d : drives) {
+        int64_t nonFin = 0;
+        const Stats s = renderDist(dt, d, &nonFin);
+        const std::string name = std::string("dist:") + kDistNames[dt] + ":drive" + f2(d, 2);
+        const std::string setup = "sine A3 vel 0.8, mix 1, soft limit OFF, 48k, steady 1 s after 1 s";
+        probe(name, setup, "DC offset after DC blocker", f2(s.dc, 5), "|dc|<=0.005 ok, <=0.02 suspicious",
+              vLow(std::fabs(s.dc), 0.005, 0.02));
+        probe(name, setup, "NaN/Inf count", std::to_string(nonFin), "0", nonFin == 0 ? "ok" : "bad");
+        probe(name, setup, "peak dBFS", f2(toDb(s.peak), 2), "<=+6 ok, <=+12 suspicious",
+              s.peak < 1e-4 ? "bad" : vLow(toDb(s.peak), 6.0, 12.0));
+        const double dl = toDb(s.rms) - toDb(clean.rms);
+        probe(name, setup, "RMS level change vs Clean dB", f2(dl, 2), "|d|<=6 ok, <=12 suspicious",
+              vLow(std::fabs(dl), 6.0, 12.0));
+        probe(name, setup, "longest exact-zero run (samples)", std::to_string(s.zeroRun), "<=4 ok",
+              vLow(static_cast<double>(s.zeroRun), 4.0, 64.0));
+        CHECK(nonFin == 0);
+    }
+}
+
+#define DIST_CASE(i) \
+    TEST_CASE("AuditProbe distortion type " #i, "[.][audit-probe]") { runDistProbe(i); }
+DIST_CASE(1)
+DIST_CASE(2)
+DIST_CASE(3)
+DIST_CASE(4)
+DIST_CASE(5)
+DIST_CASE(6)
+
+// ==============================================================================
+// 4. Silence / self-noise
+// ==============================================================================
+
+void silenceCase(const std::string& label, const std::function<void(Rig&)>& cfg, bool arp = false) {
+    Rig r(48000.0);
+    basePatch(r);
+    cfg(r);
+    if (arp) {
+        r.useCtx = true;
+        r.playing = true;
+    }
+    r.render(r.at(2.0));
+    const auto m = r.mono();
+    const Stats s = stats(m);
+    const std::string name = "silence:" + label;
+    probe(name, "no note ever played, 48k, 2 s", "output RMS dBFS", f2(toDb(s.rms), 1), "<=-120 ok, <=-100 suspicious",
+          vLow(toDb(s.rms), -120.0, -100.0));
+    probe(name, "no note ever played, 48k, 2 s", "peak dBFS", f2(toDb(s.peak), 1), "<=-120 ok", vLow(toDb(s.peak), -120.0, -100.0));
+    probe(name, "no note ever played, 48k, 2 s", "NaN/Inf count", std::to_string(nonFiniteAll(r)), "0",
+          nonFiniteAll(r) == 0 ? "ok" : "bad");
+    CHECK(nonFiniteAll(r) == 0);
+}
+
+TEST_CASE("AuditProbe silence fx", "[.][audit-probe]") {
+    silenceCase("dry", [](Rig&) {});
+    for (int d = 0; d < 5; ++d) {
+        silenceCase(std::string("delay:") + kDelayNames[d], [d](Rig& r) {
+            r.param(Ruinae::kDelayEnabledId, 1.0);
+            r.param(Ruinae::kDelayTypeId, d / 4.0);
+            r.param(Ruinae::kDelayFeedbackId, 0.6);
+            r.param(Ruinae::kDelayMixId, 0.5);
+        });
+    }
+    for (int rv = 0; rv < 2; ++rv) {
+        silenceCase(rv == 0 ? "reverb:Plate" : "reverb:Hall(FDN)", [rv](Rig& r) {
+            r.param(Ruinae::kReverbEnabledId, 1.0);
+            r.param(Ruinae::kReverbTypeId, static_cast<double>(rv));
+            r.param(Ruinae::kReverbMixId, 0.5);
+        });
+    }
+    for (int mt = 1; mt < 4; ++mt) {
+        silenceCase(std::string("mod:") + kModTypeNames[mt], [mt](Rig& r) {
+            r.param(Ruinae::kModulationTypeId, mt / 3.0);
+        });
+    }
+    silenceCase("harmonizer", [](Rig& r) { r.param(Ruinae::kHarmonizerEnabledId, 1.0); });
+    for (int d = 0; d < 5; ++d) {
+        silenceCase(std::string("all-fx:delay=") + kDelayNames[d], [d](Rig& r) {
+            r.param(Ruinae::kDelayEnabledId, 1.0);
+            r.param(Ruinae::kDelayTypeId, d / 4.0);
+            r.param(Ruinae::kDelayFeedbackId, 1.0);
+            r.param(Ruinae::kReverbEnabledId, 1.0);
+            r.param(Ruinae::kReverbTypeId, 1.0);
+            r.param(Ruinae::kModulationTypeId, 2.0 / 3.0);
+            r.param(Ruinae::kHarmonizerEnabledId, 1.0);
+            r.param(Ruinae::kGlobalFilterEnabledId, 1.0);
+            r.param(Ruinae::kGlobalFilterResonanceId, 1.0);
+        });
+    }
+}
+
+TEST_CASE("AuditProbe silence arp and mod sources", "[.][audit-probe]") {
+    silenceCase("arp-on-no-notes:transport-playing", [](Rig& r) {
+        r.param(Ruinae::kArpOperatingModeId, 1.0 / 3.0);
+        r.param(Ruinae::kArpTempoSyncId, 1.0);
+    }, true);
+    silenceCase("arp-on-no-notes+all-fx", [](Rig& r) {
+        r.param(Ruinae::kArpOperatingModeId, 1.0);
+        r.param(Ruinae::kDelayEnabledId, 1.0);
+        r.param(Ruinae::kReverbEnabledId, 1.0);
+        r.param(Ruinae::kHarmonizerEnabledId, 1.0);
+    }, true);
+    silenceCase("chaos+rungler+random routed to master volume and global cutoff", [](Rig& r) {
+        r.param(Ruinae::kModMatrixSlot0SourceId, 9.0 / 14.0);
+        r.param(Ruinae::kModMatrixSlot0DestId, 2.0 / 14.0);
+        r.param(Ruinae::kModMatrixSlot0AmountId, 1.0);
+        r.param(Ruinae::kModMatrixSlot1SourceId, 10.0 / 14.0);
+        r.param(Ruinae::kModMatrixSlot1DestId, 0.0);
+        r.param(Ruinae::kModMatrixSlot1AmountId, 1.0);
+        r.param(Ruinae::kModMatrixSlot2SourceId, 4.0 / 14.0);
+        r.param(Ruinae::kModMatrixSlot2DestId, 3.0 / 14.0);
+        r.param(Ruinae::kModMatrixSlot2AmountId, 1.0);
+        r.param(Ruinae::kDelayEnabledId, 1.0);
+        r.param(Ruinae::kGlobalFilterEnabledId, 1.0);
+        r.param(Ruinae::kGlobalFilterResonanceId, 1.0);
+    });
+}
+
+// ==============================================================================
+// 5. Voice lifecycle
+// ==============================================================================
+
+TEST_CASE("AuditProbe voice edges attack0 release0", "[.][audit-probe]") {
+    const double sr = 48000.0;
+    const double atks[2] = {0.0, 1.0};
+    for (double atkMs : atks) {
+        Rig r(sr);
+        basePatch(r, 0.0);  // sine
+        r.param(Ruinae::kAmpEnvAttackId, envNorm(atkMs));
+        r.param(Ruinae::kAmpEnvReleaseId, 0.0);
+        const int64_t on = 1000 + 37;
+        const int64_t off = on + r.at(0.5) + 123;
+        r.noteOn(69, 0.8f, on);
+        r.noteOff(69, off);
+        r.render(off + r.at(0.5));
+        const auto m = r.mono();
+        const size_t win = static_cast<size_t>(0.005 * sr);
+        const size_t ref = static_cast<size_t>(0.02 * sr);
+        const auto cOn = clickAt(m, static_cast<size_t>(on), win, ref);
+        const auto cOff = clickAt(m, static_cast<size_t>(off), win, ref);
+        const std::string setup = "sine A4 vel 0.8, attack " + f2(atkMs, 0) + " ms, release 0 ms, 48k";
+        probe("lifecycle:note-on-edge:atk" + f2(atkMs, 0), setup, "jump ratio vs steady max|dx|",
+              f2(cOn.ratio, 2) + " (outlier samples " + std::to_string(cOn.count) + ", max|dx| " + f2(cOn.maxJump, 4) + ")",
+              "<=1.5 ok, <=3 suspicious", vLow(cOn.ratio, 1.5, 3.0));
+        probe("lifecycle:note-off-edge:atk" + f2(atkMs, 0), setup, "jump ratio vs steady max|dx|",
+              f2(cOff.ratio, 2) + " (outlier samples " + std::to_string(cOff.count) + ", max|dx| " + f2(cOff.maxJump, 4) + ")",
+              "<=1.5 ok, <=3 suspicious", vLow(cOff.ratio, 1.5, 3.0));
+        const size_t last = lastAbove(m, 1e-5);
+        const double relMs = last == SIZE_MAX ? 0.0 : (static_cast<double>(last) - static_cast<double>(off)) / sr * 1000.0;
+        probe("lifecycle:release0-tail:atk" + f2(atkMs, 0), setup, "ms from note-off until < -100 dBFS", f2(relMs, 2),
+              "info (release 0 ms)", "ok");
+        probe("lifecycle:voices-after:atk" + f2(atkMs, 0), setup, "active voices 0.5 s after note-off",
+              std::to_string(r.proc->engine().getActiveVoiceCount()), "0",
+              r.proc->engine().getActiveVoiceCount() == 0 ? "ok" : "bad");
+        CHECK(nonFiniteAll(r) == 0);
+    }
+}
+
+TEST_CASE("AuditProbe voice stealing", "[.][audit-probe]") {
+    const double sr = 48000.0;
+    const int polys[4] = {1, 4, 8, 16};
+    for (int P : polys) {
+        Rig r(sr);
+        basePatch(r, 0.0);
+        r.param(Ruinae::kPolyphonyId, (P - 1) / 15.0);
+        r.param(Ruinae::kAmpEnvReleaseId, envNorm(50.0));
+        const int count = P + 4;
+        const int64_t step = r.at(0.05);
+        for (int k = 0; k < count; ++k) r.noteOn(48 + 2 * (k % 24), 0.7f, 1000 + k * step);
+        const int64_t offAt = 1000 + count * step + r.at(0.3);
+        for (int k = 0; k < count; ++k) r.noteOff(48 + 2 * (k % 24), offAt);
+        r.render(offAt + r.at(0.5));
+        const auto m = r.mono();
+        double worstLocal = 0;
+        const int clicksLocal = localClickFrames(m, 0, m.size(), sr, &worstLocal);
+        double worstSteal = 0;
+        int stealOutliers = 0;
+        for (int k = P; k < count; ++k) {
+            const auto c = clickAt(m, static_cast<size_t>(1000 + k * step), static_cast<size_t>(0.004 * sr),
+                                   static_cast<size_t>(0.015 * sr));
+            worstSteal = std::max(worstSteal, c.ratio);
+            stealOutliers += c.count;
+        }
+        const std::string setup = "sine, polyphony " + std::to_string(P) + ", " + std::to_string(count) +
+                                  " overlapping notes 50 ms apart, release 50 ms, 48k, steal mode default";
+        probe("steal:poly" + std::to_string(P), setup, "click frames (local median x4)",
+              std::to_string(clicksLocal) + " (worst ratio " + f2(worstLocal, 1) + ")", "0 ok, <=2 suspicious",
+              vLow(clicksLocal, 0.0, 2.0));
+        probe("steal:poly" + std::to_string(P), setup, "worst jump ratio at steal events",
+              f2(worstSteal, 2) + " (outlier samples " + std::to_string(stealOutliers) + ")",
+              "<=1.5 ok, <=3 suspicious", vLow(worstSteal, 1.5, 3.0));
+        probe("steal:poly" + std::to_string(P), setup, "active voices 0.5 s after all note-offs",
+              std::to_string(r.proc->engine().getActiveVoiceCount()), "0",
+              r.proc->engine().getActiveVoiceCount() == 0 ? "ok" : "bad");
+        CHECK(nonFiniteAll(r) == 0);
+    }
+}
+
+// Instantaneous frequency per period (upward zero crossings, linear interpolation)
+std::vector<std::pair<double, double>> zcFreq(const std::vector<float>& x, size_t a, size_t b, double sr) {
+    std::vector<std::pair<double, double>> out;
+    double prev = -1;
+    for (size_t i = std::max<size_t>(a, 1); i < std::min(b, x.size()); ++i) {
+        if (x[i - 1] < 0.0f && x[i] >= 0.0f) {
+            const double t = static_cast<double>(i - 1) + static_cast<double>(-x[i - 1]) / static_cast<double>(x[i] - x[i - 1]);
+            if (prev >= 0) out.emplace_back(t, sr / (t - prev));
+            prev = t;
+        }
+    }
+    return out;
+}
+
+TEST_CASE("AuditProbe mono legato portamento", "[.][audit-probe]") {
+    const double sr = 48000.0;
+    const int modes[2] = {0, 1};
+    for (int pm : modes) {
+        Rig r(sr);
+        basePatch(r, 0.0);
+        r.param(Ruinae::kVoiceModeId, 1.0);
+        r.param(Ruinae::kMonoLegatoId, 1.0);
+        r.param(Ruinae::kMonoPortamentoTimeId, std::cbrt(200.0 / 5000.0));
+        r.param(Ruinae::kMonoPortaModeId, static_cast<double>(pm));
+        r.noteOn(60, 0.8f, 0);
+        const int64_t t2 = r.at(0.5);
+        r.noteOn(67, 0.8f, t2);
+        r.noteOff(60, r.at(0.7));
+        r.noteOff(67, r.at(1.6));
+        r.render(r.at(2.2));
+        const auto m = r.mono();
+        const auto zc = zcFreq(m, static_cast<size_t>(t2), static_cast<size_t>(r.at(1.0)), sr);
+        int nonMono = 0;
+        double reachT = -1;
+        const double target = noteHz(67);
+        for (size_t i = 1; i < zc.size(); ++i) {
+            if (zc[i].second < zc[i - 1].second * 0.997) ++nonMono;
+            if (reachT < 0 && std::fabs(1200.0 * std::log2(zc[i].second / target)) < 10.0)
+                reachT = (zc[i].first - static_cast<double>(t2)) / sr * 1000.0;
+        }
+        const size_t pn = static_cast<size_t>(r.at(0.4));
+        const double cents = measureCents(m.data() + r.at(1.1), pn, sr, target, 150.0);
+        const auto cT = clickAt(m, static_cast<size_t>(t2), static_cast<size_t>(0.005 * sr), static_cast<size_t>(0.02 * sr));
+        const auto cR = clickAt(m, static_cast<size_t>(r.at(0.7)), static_cast<size_t>(0.005 * sr), static_cast<size_t>(0.02 * sr));
+        const std::string setup = std::string("mono, legato on, porta 200 ms, mode ") + (pm == 0 ? "Always" : "LegatoOnly") +
+                                  ", sine C4 then G4 overlapping at 0.5 s, C4 off at 0.7 s";
+        const std::string name = std::string("mono-glide:") + (pm == 0 ? "Always" : "LegatoOnly");
+        probe(name, setup, "non-monotonic periods during rising glide (count, >0.3% drop)", std::to_string(nonMono),
+              "0 ok, <=2 suspicious", vLow(nonMono, 0.0, 2.0));
+        probe(name, setup, "ms to reach target within 10 cents", f2(reachT, 1), "0-400 ok (200 ms porta)",
+              (reachT >= 0 && reachT <= 400) ? "ok" : "suspicious");
+        probe(name, setup, "final pitch error cents (G4)", f2(cents, 2), "|c|<=5 ok, <=20 suspicious",
+              vLow(std::fabs(cents), 5.0, 20.0));
+        probe(name, setup, "legato transition jump ratio", f2(cT.ratio, 2), "<=1.5 ok, <=3 suspicious", vLow(cT.ratio, 1.5, 3.0));
+        probe(name, setup, "release of held-under note jump ratio", f2(cR.ratio, 2), "<=1.5 ok, <=3 suspicious",
+              vLow(cR.ratio, 1.5, 3.0));
+        probe(name, setup, "active voices 0.6 s after last note-off", std::to_string(r.proc->engine().getActiveVoiceCount()),
+              "0", r.proc->engine().getActiveVoiceCount() == 0 ? "ok" : "bad");
+        CHECK(nonFiniteAll(r) == 0);
+    }
+}
+
+TEST_CASE("AuditProbe fast retrigger", "[.][audit-probe]") {
+    const double sr = 48000.0;
+    const int polys[2] = {8, 1};
+    for (int P : polys) {
+        Rig r(sr);
+        basePatch(r, 0.0);
+        r.param(Ruinae::kPolyphonyId, (P - 1) / 15.0);
+        r.param(Ruinae::kAmpEnvReleaseId, envNorm(5.0));
+        const int64_t step = 1440;
+        for (int k = 0; k < 20; ++k) {
+            r.noteOn(69, 0.8f, 1000 + k * step);
+            r.noteOff(69, 1000 + k * step + 1000);
+        }
+        r.render(1000 + 20 * step + r.at(0.5));
+        const auto m = r.mono();
+        double worst = 0;
+        int outl = 0;
+        for (int k = 0; k < 20; ++k) {
+            const auto c = clickAt(m, static_cast<size_t>(1000 + k * step), 200, 400);
+            worst = std::max(worst, c.ratio);
+            outl += c.count;
+        }
+        const std::string setup = "sine A4, same note retriggered 20x every 30 ms (on 20.8 ms), release 5 ms, attack 1 ms, poly " + std::to_string(P);
+        probe("retrigger:poly" + std::to_string(P), setup, "worst jump ratio at note-ons", f2(worst, 2) + " (outliers " + std::to_string(outl) + ")",
+              "<=1.5 ok, <=3 suspicious", vLow(worst, 1.5, 3.0));
+        probe("retrigger:poly" + std::to_string(P), setup, "active voices 0.5 s after last off",
+              std::to_string(r.proc->engine().getActiveVoiceCount()), "0",
+              r.proc->engine().getActiveVoiceCount() == 0 ? "ok" : "bad");
+        CHECK(nonFiniteAll(r) == 0);
+    }
+}
+
+// ==============================================================================
+// 6. Tail and idle
+// ==============================================================================
+
+void runTail(const std::string& label, const std::function<void(Rig&)>& cfg) {
+    const double sr = 48000.0;
+    Rig r(sr);
+    basePatch(r);
+    cfg(r);
+    for (int n : {60, 64, 67}) r.noteOn(n, 0.8f, 0);
+    const int64_t off = r.at(1.0);
+    for (int n : {60, 64, 67}) r.noteOff(n, off);
+    int64_t voicesZeroAt = -1;
+    r.onBlock = [&](int64_t start, int32 len) {
+        if (start >= off && voicesZeroAt < 0 && r.proc->engine().getActiveVoiceCount() == 0) voicesZeroAt = start + len;
+    };
+    r.render(r.at(31.0));
+    const auto m = r.mono();
+    const size_t last = lastAbove(m, 1e-5);
+    const double decay = last == SIZE_MAX ? 0.0 : (static_cast<double>(last) - static_cast<double>(off)) / sr;
+    const Stats endS = stats(m, m.size() - static_cast<size_t>(sr));
+    const std::string name = "tail:" + label;
+    const std::string setup = "saw chord C4-E4-G4 held 1 s, release 100 ms amp, render 30 s after release, 48k";
+    const bool never = last != SIZE_MAX && last + static_cast<size_t>(0.1 * sr) >= m.size();
+    probe(name, setup, "seconds after note-off until output < -100 dBFS",
+          never ? std::string("never (still above at 30 s)") : f2(decay, 2), "finite (<30 s)", never ? "bad" : "ok");
+    probe(name, setup, "peak dBFS in last second", f2(toDb(endS.peak), 1), "<=-100 ok", vLow(toDb(endS.peak), -100.0, -60.0));
+    probe(name, setup, "seconds after note-off until active voice count == 0",
+          voicesZeroAt < 0 ? std::string("never") : f2(static_cast<double>(voicesZeroAt - off) / sr, 3),
+          "<=0.5 s for a 100 ms release", voicesZeroAt < 0 ? "bad" : vLow(static_cast<double>(voicesZeroAt - off) / sr, 0.5, 2.0));
+    probe(name, setup, "NaN/Inf count", std::to_string(nonFiniteAll(r)), "0", nonFiniteAll(r) == 0 ? "ok" : "bad");
+    CHECK(nonFiniteAll(r) == 0);
+}
+
+TEST_CASE("AuditProbe tail dry", "[.][audit-probe]") {
+    runTail("dry", [](Rig&) {});
+}
+
+#define TAIL_DELAY_CASE(i)                                                              \
+    TEST_CASE("AuditProbe tail delay max feedback " #i, "[.][audit-probe]") {           \
+        runTail(std::string("delay=") + kDelayNames[i] + ":fb=max(1.2)+reverb", [](Rig& r) { \
+            r.param(Ruinae::kDelayEnabledId, 1.0);                                      \
+            r.param(Ruinae::kDelayTypeId, (i) / 4.0);                                   \
+            r.param(Ruinae::kDelayFeedbackId, 1.0);                                     \
+            r.param(Ruinae::kDelayMixId, 0.5);                                          \
+            r.param(Ruinae::kDelayTimeId, (300.0 - 1.0) / 4999.0);                      \
+            r.param(Ruinae::kDelaySyncId, 0.0);                                         \
+            r.param(Ruinae::kReverbEnabledId, 1.0);                                     \
+            r.param(Ruinae::kReverbMixId, 0.3);                                         \
+            r.param(Ruinae::kReverbFreezeId, 0.0);                                      \
+        });                                                                             \
+    }
+TAIL_DELAY_CASE(0)
+TAIL_DELAY_CASE(1)
+TAIL_DELAY_CASE(2)
+TAIL_DELAY_CASE(3)
+TAIL_DELAY_CASE(4)
+
+TEST_CASE("AuditProbe tail reverb only", "[.][audit-probe]") {
+    runTail("reverb=Plate:mix0.5", [](Rig& r) {
+        r.param(Ruinae::kReverbEnabledId, 1.0);
+        r.param(Ruinae::kReverbTypeId, 0.0);
+        r.param(Ruinae::kReverbMixId, 0.5);
+        r.param(Ruinae::kReverbSizeId, 1.0);
+    });
+    runTail("reverb=Hall:mix0.5", [](Rig& r) {
+        r.param(Ruinae::kReverbEnabledId, 1.0);
+        r.param(Ruinae::kReverbTypeId, 1.0);
+        r.param(Ruinae::kReverbMixId, 0.5);
+        r.param(Ruinae::kReverbSizeId, 1.0);
+    });
+}
+
+// ==============================================================================
+// 7. Level
+// ==============================================================================
+
+TEST_CASE("AuditProbe level 1 vs 16 voices", "[.][audit-probe]") {
+    const double sr = 48000.0;
+    for (int limit = 1; limit >= 0; --limit) {
+        for (int nv : {1, 16}) {
+            Rig r(sr);
+            basePatch(r);
+            r.param(Ruinae::kPolyphonyId, 1.0);
+            r.param(Ruinae::kSoftLimitId, static_cast<double>(limit));
+            r.param(Ruinae::kFilterCutoffId, 0.5);
+            r.param(Ruinae::kFilterResonanceId, 0.8);
+            for (int k = 0; k < nv; ++k) r.noteOn(48 + k, 1.0f, 0);
+            r.render(r.at(1.5));
+            const Stats sL = stats(r.L), sR = stats(r.R);
+            const double pk = std::max(sL.peak, sR.peak);
+            const std::string setup = "saw, cutoff norm 0.5 (~632 Hz), resonance norm 0.8 (Q 24), vel 1.0, master gain 1.0, 48k";
+            const std::string name = "level:" + std::to_string(nv) + "voices:softlimit=" + (limit ? "on" : "off");
+            if (limit) {
+                probe(name, setup, "peak dBFS", f2(toDb(pk), 2), "<=0 dBFS with soft limiter on", vLow(toDb(pk), 0.0, 0.5));
+            } else {
+                probe(name, setup, "peak dBFS (limiter off)", f2(toDb(pk), 2), "info; <=+12 ok, <=+24 suspicious",
+                      vLow(toDb(pk), 12.0, 24.0));
+            }
+            probe(name, setup, "RMS dBFS", f2(toDb(std::max(sL.rms, sR.rms)), 2), "info", "ok");
+            CHECK(nonFiniteAll(r) == 0);
+        }
+    }
+}
+
+// ==============================================================================
+// 8. Sample accuracy and block-size invariance
+// ==============================================================================
+
+TEST_CASE("AuditProbe sample accuracy", "[.][audit-probe]") {
+    const double sr = 48000.0;
+    const int32 bs = 512;
+    const int offs[4] = {0, 1, 100, bs - 1};
+    long base = 0;
+    for (int fx = 0; fx < 2; ++fx) {
+        for (int o : offs) {
+            Rig r(sr);
+            basePatch(r);
+            r.param(Ruinae::kAmpEnvAttackId, 0.0);
+            if (fx) {
+                r.param(Ruinae::kDelayEnabledId, 1.0);
+                r.param(Ruinae::kDelayMixId, 0.5);
+                r.param(Ruinae::kReverbEnabledId, 1.0);
+                r.param(Ruinae::kHarmonizerEnabledId, 1.0);
+            }
+            const int64_t expected = 2 * bs + o;
+            r.noteOn(69, 0.8f, expected);
+            r.render(r.at(0.5), bs);
+            const auto m = r.mono();
+            const size_t first = firstAbove(m, 0, 1e-6);
+            const long delta = first == SIZE_MAX ? -99999 : static_cast<long>(first) - static_cast<long>(expected);
+            if (o == 0) base = delta;
+            const std::string setup = std::string("saw A4 attack 0, note-on at block 2 offset ") + std::to_string(o) +
+                                      ", block 512, 48k, FX " + (fx ? "delay+reverb+harmonizer on" : "off") +
+                                      ", reported latency " + std::to_string(r.proc->getLatencySamples()) +
+                                      ", engine chain latency " + std::to_string(r.proc->engine().getLatencySamples());
+            probe(std::string("sample-accuracy:offset") + std::to_string(o) + (fx ? ":fx" : ":dry"), setup,
+                  "first non-zero sample minus expected (samples)", std::to_string(delta),
+                  "same value for every offset and == reported latency (0)",
+                  (delta == base && delta >= 0 && delta <= 1) ? "ok" : (delta == base ? "suspicious" : "bad"));
+        }
+    }
+}
+
+std::vector<float> renderInvariance(int variant, int32 bs) {
+    Rig r(48000.0, 2048);
+    basePatch(r);
+    r.param(Ruinae::kFilterCutoffId, 0.6);
+    r.param(Ruinae::kFilterResonanceId, 0.3);
+    r.param(Ruinae::kFilterEnvAmountId, 0.7);
+    r.param(Ruinae::kFilterEnvAttackId, envNorm(30));
+    r.param(Ruinae::kFilterEnvDecayId, envNorm(300));
+    r.param(Ruinae::kFilterEnvSustainId, 0.3);
+    r.param(Ruinae::kAmpEnvAttackId, envNorm(5));
+    r.noteOn(60, 0.8f, 1000);
+    r.noteOn(64, 0.7f, 7777);
+    r.noteOff(60, 20000);
+    r.noteOn(67, 0.9f, 30001);
+    r.noteOff(64, 40000);
+    r.noteOff(67, 60000);
+    if (variant == 1) {
+        r.bend(127, 127, 10000);
+        r.bend(64, 0, 25000);
+        r.bend(0, 0, 45001);
+    }
+    if (variant == 2) {
+        r.param(Ruinae::kGlobalFilterEnabledId, 1.0);
+        r.param(Ruinae::kGlobalFilterCutoffId, 0.6);
+        r.param(Ruinae::kLFO1RateId, 0.622);
+        r.param(Ruinae::kLFO1DepthId, 1.0);
+        r.param(Ruinae::kLFO1SyncId, 0.0);
+        r.param(Ruinae::kModMatrixSlot0SourceId, 1.0 / 14.0);
+        r.param(Ruinae::kModMatrixSlot0DestId, 0.0);
+        r.param(Ruinae::kModMatrixSlot0AmountId, 0.9);
+        r.param(Ruinae::kModMatrixSlot1SourceId, 1.0 / 14.0);
+        r.param(Ruinae::kModMatrixSlot1DestId, 4.0 / 14.0);
+        r.param(Ruinae::kModMatrixSlot1AmountId, 0.8);
+    }
+    if (variant == 3) {
+        r.param(Ruinae::kDelayEnabledId, 1.0);
+        r.param(Ruinae::kDelayTypeId, 0.0);
+        r.param(Ruinae::kDelayMixId, 0.4);
+        r.param(Ruinae::kReverbEnabledId, 1.0);
+        r.param(Ruinae::kReverbTypeId, 0.0);
+    }
+    if (variant == 4) {
+        r.param(Ruinae::kVoiceModeId, 1.0);
+        r.param(Ruinae::kMonoLegatoId, 1.0);
+        r.param(Ruinae::kMonoPortamentoTimeId, std::cbrt(150.0 / 5000.0));
+    }
+    r.render(r.at(2.0), bs);
+    return r.mono();
+}
+
+TEST_CASE("AuditProbe block size invariance", "[.][audit-probe]") {
+    const char* vnames[5] = {"plain notes", "notes + pitch bend events", "notes + LFO1->global cutoff & all-voice cutoff",
+                             "notes + digital delay + plate reverb", "mono legato portamento"};
+    for (int v = 0; v < 5; ++v) {
+        const auto ref = renderInvariance(v, 512);
+        const Stats rs = stats(ref);
+        for (int32 bs : {32, 64, 2048}) {
+            const auto x = renderInvariance(v, bs);
+            double md = 0;
+            size_t where = 0;
+            for (size_t i = 0; i < std::min(x.size(), ref.size()); ++i) {
+                const double d = std::fabs(static_cast<double>(x[i]) - ref[i]);
+                if (d > md) { md = d; where = i; }
+            }
+            probe(std::string("block-invariance:v") + std::to_string(v) + ":bs" + std::to_string(bs),
+                  std::string(vnames[v]) + ", deterministic patch, 2 s at 48k, vs block 512 (ref peak " + f2(toDb(rs.peak), 1) + " dBFS)",
+                  "max |sample diff| (at sample)", f2(md, 7) + " (" + std::to_string(where) + ", " + f2(toDb(md), 1) + " dBFS)",
+                  "<=1e-5 ok, <=1e-3 suspicious", vLow(md, 1e-5, 1e-3));
+        }
+    }
+}
+
+// ==============================================================================
+// 9. Parameter automation mid-note
+// ==============================================================================
+
+struct StepSpec {
+    std::string name;
+    std::function<void(Rig&)> pre;
+    std::vector<std::pair<ParamID, double>> step;
+    std::vector<int> chord;
+};
+
+void runStep(const StepSpec& sp, int stepsRepeat = 1, const std::vector<std::vector<std::pair<ParamID, double>>>* seq = nullptr) {
+    const double sr = 48000.0;
+    Rig r(sr);
+    basePatch(r);
+    if (sp.pre) sp.pre(r);
+    const std::vector<int> notes = sp.chord.empty() ? std::vector<int>{57} : sp.chord;
+    for (int n : notes) r.noteOn(n, 0.8f, 0);
+    std::vector<int64_t> evs;
+    const int64_t first = 47 * 512;
+    if (seq) {
+        for (size_t k = 0; k < seq->size(); ++k) {
+            const int64_t p = first + static_cast<int64_t>(k) * 47 * 512;
+            for (auto& pv : (*seq)[k]) r.param(pv.first, pv.second, p);
+            evs.push_back(p);
+        }
+    } else {
+        for (auto& pv : sp.step) r.param(pv.first, pv.second, first);
+        evs.push_back(first);
+    }
+    (void)stepsRepeat;
+    r.render(evs.back() + r.at(0.6));
+    const auto m = r.mono();
+    for (size_t k = 0; k < evs.size(); ++k) {
+        const auto c = clickAt(m, static_cast<size_t>(evs[k]), static_cast<size_t>(0.01 * sr), static_cast<size_t>(0.05 * sr));
+        const Stats after = stats(m, static_cast<size_t>(evs[k]), static_cast<size_t>(evs[k] + r.at(0.4)));
+        const std::string name = "automation:" + sp.name + (seq ? ":step" + std::to_string(k) : std::string());
+        const std::string setup = "saw A3 (or chord) vel 0.8 held, step at block boundary, +-10 ms window vs 50 ms steady refs, 48k";
+        probe(name, setup, "jump ratio", f2(c.ratio, 2) + " (outlier samples " + std::to_string(c.count) + ")",
+              "<=1.5 ok, <=3 suspicious", vLow(c.ratio, 1.5, 3.0));
+        probe(name, setup, "NaN/Inf count + longest zero run after step",
+              std::to_string(nonFiniteAll(r)) + " / " + std::to_string(after.zeroRun), "0 / <=16",
+              (nonFiniteAll(r) == 0 && after.zeroRun <= 16) ? "ok" : "bad");
+    }
+    CHECK(nonFiniteAll(r) == 0);
+}
+
+TEST_CASE("AuditProbe automation filter and gain", "[.][audit-probe]") {
+    runStep({"cutoff 0->1", [](Rig& r) { r.param(Ruinae::kFilterCutoffId, 0.0); }, {{Ruinae::kFilterCutoffId, 1.0}}, {}});
+    runStep({"cutoff 1->0", [](Rig&) {}, {{Ruinae::kFilterCutoffId, 0.0}}, {}});
+    runStep({"resonance 0->1 (cutoff 0.5)", [](Rig& r) { r.param(Ruinae::kFilterCutoffId, 0.5); r.param(Ruinae::kFilterResonanceId, 0.0); },
+             {{Ruinae::kFilterResonanceId, 1.0}}, {}});
+    runStep({"master gain 0.25->1.0 norm", [](Rig& r) { r.param(Ruinae::kMasterGainId, 0.25); }, {{Ruinae::kMasterGainId, 1.0}}, {}});
+    runStep({"master gain 0.5->0 norm", [](Rig&) {}, {{Ruinae::kMasterGainId, 0.0}}, {}});
+    runStep({"filter type SVF_LP->Ladder (cutoff 0.6)", [](Rig& r) { r.param(Ruinae::kFilterCutoffId, 0.6); }, {{Ruinae::kFilterTypeId, 4.0 / 12.0}}, {}});
+    runStep({"filter type Ladder->Comb (cutoff 0.6)", [](Rig& r) { r.param(Ruinae::kFilterCutoffId, 0.6); r.param(Ruinae::kFilterTypeId, 4.0 / 12.0); },
+             {{Ruinae::kFilterTypeId, 6.0 / 12.0}}, {}});
+    runStep({"filter type SVF_LP->SelfOscillating (cutoff 0.6)", [](Rig& r) { r.param(Ruinae::kFilterCutoffId, 0.6); }, {{Ruinae::kFilterTypeId, 1.0}}, {}});
+}
+
+TEST_CASE("AuditProbe automation osc dist mix voice", "[.][audit-probe]") {
+    runStep({"osc type PolyBLEP->Wavetable", [](Rig&) {}, {{Ruinae::kOscATypeId, 1.0 / 9.0}}, {}});
+    runStep({"osc type PolyBLEP->Additive", [](Rig&) {}, {{Ruinae::kOscATypeId, 4.0 / 9.0}}, {}});
+    runStep({"osc type PolyBLEP->Noise", [](Rig&) {}, {{Ruinae::kOscATypeId, 1.0}}, {}});
+    runStep({"distortion Clean->Wavefolder (drive 0.5)", [](Rig& r) { r.param(Ruinae::kDistortionDriveId, 0.5); }, {{Ruinae::kDistortionTypeId, 4.0 / 6.0}}, {}});
+    runStep({"distortion Clean->TapeSaturator (drive 0.5)", [](Rig& r) { r.param(Ruinae::kDistortionDriveId, 0.5); }, {{Ruinae::kDistortionTypeId, 5.0 / 6.0}}, {}});
+    runStep({"distortion Clean->SpectralDistortion (drive 0.5)", [](Rig& r) { r.param(Ruinae::kDistortionDriveId, 0.5); }, {{Ruinae::kDistortionTypeId, 2.0 / 6.0}}, {}});
+    runStep({"mix mode Crossfade->SpectralMorph (pos 0.5, osc B saw)",
+             [](Rig& r) { r.param(Ruinae::kMixerPositionId, 0.5); r.param(Ruinae::kOscBLevelId, 1.0); r.param(Ruinae::kOscBTuneId, 0.5 + 7.0 / 48.0); },
+             {{Ruinae::kMixerModeId, 1.0}}, {}});
+    runStep({"mix mode SpectralMorph->Crossfade (pos 0.5, osc B saw)",
+             [](Rig& r) { r.param(Ruinae::kMixerPositionId, 0.5); r.param(Ruinae::kOscBLevelId, 1.0); r.param(Ruinae::kOscBTuneId, 0.5 + 7.0 / 48.0); r.param(Ruinae::kMixerModeId, 1.0); },
+             {{Ruinae::kMixerModeId, 0.0}}, {}});
+    runStep({"voice mode poly->mono (3-note chord held)", [](Rig&) {}, {{Ruinae::kVoiceModeId, 1.0}}, {57, 61, 64}});
+    runStep({"voice mode mono->poly (3-note chord held)", [](Rig& r) { r.param(Ruinae::kVoiceModeId, 1.0); }, {{Ruinae::kVoiceModeId, 0.0}}, {57, 61, 64}});
+    runStep({"polyphony 16->1 (8-note chord held)", [](Rig& r) { r.param(Ruinae::kPolyphonyId, 1.0); }, {{Ruinae::kPolyphonyId, 0.0}},
+             {48, 52, 55, 59, 62, 65, 69, 72}});
+}
+
+TEST_CASE("AuditProbe automation fx", "[.][audit-probe]") {
+    using V = std::vector<std::vector<std::pair<ParamID, double>>>;
+    {
+        V seq;
+        for (int d = 1; d < 5; ++d) seq.push_back({{Ruinae::kDelayTypeId, d / 4.0}});
+        seq.push_back({{Ruinae::kDelayTypeId, 0.0}});
+        runStep({"delay type Digital->Tape->PingPong->Granular->Spectral->Digital",
+                 [](Rig& r) { r.param(Ruinae::kDelayEnabledId, 1.0); r.param(Ruinae::kDelayMixId, 0.5); r.param(Ruinae::kDelayTimeId, 299.0 / 4999.0); },
+                 {}, {}}, 1, &seq);
+    }
+    {
+        V seq{{{Ruinae::kReverbTypeId, 1.0}}, {{Ruinae::kReverbTypeId, 0.0}}};
+        runStep({"reverb type Plate->Hall->Plate", [](Rig& r) { r.param(Ruinae::kReverbEnabledId, 1.0); r.param(Ruinae::kReverbMixId, 0.5); },
+                 {}, {}}, 1, &seq);
+    }
+    {
+        V seq{{{Ruinae::kModulationTypeId, 1.0 / 3.0}}, {{Ruinae::kModulationTypeId, 2.0 / 3.0}},
+              {{Ruinae::kModulationTypeId, 1.0}}, {{Ruinae::kModulationTypeId, 0.0}}};
+        runStep({"mod type None->Phaser->Flanger->Chorus->None", [](Rig&) {}, {}, {}}, 1, &seq);
+    }
+    {
+        V seq{{{Ruinae::kDelayEnabledId, 1.0}}, {{Ruinae::kDelayEnabledId, 0.0}}};
+        runStep({"delay enable off->on->off", [](Rig& r) { r.param(Ruinae::kDelayMixId, 0.5); }, {}, {}}, 1, &seq);
+    }
+    {
+        V seq{{{Ruinae::kReverbEnabledId, 1.0}}, {{Ruinae::kReverbEnabledId, 0.0}}};
+        runStep({"reverb enable off->on->off", [](Rig& r) { r.param(Ruinae::kReverbMixId, 0.5); }, {}, {}}, 1, &seq);
+    }
+    {
+        V seq{{{Ruinae::kHarmonizerEnabledId, 1.0}}, {{Ruinae::kHarmonizerEnabledId, 0.0}}};
+        runStep({"harmonizer enable off->on->off", [](Rig&) {}, {}, {}}, 1, &seq);
+    }
+    {
+        V seq{{{Ruinae::kGlobalFilterEnabledId, 1.0}}, {{Ruinae::kGlobalFilterEnabledId, 0.0}}};
+        runStep({"global filter enable off->on->off (cutoff 0.4)", [](Rig& r) { r.param(Ruinae::kGlobalFilterCutoffId, 0.4); }, {}, {}}, 1, &seq);
+    }
+    {
+        V seq{{{Ruinae::kTranceGateEnabledId, 1.0}}, {{Ruinae::kTranceGateEnabledId, 0.0}}};
+        runStep({"trance gate enable off->on->off", [](Rig&) {}, {}, {}}, 1, &seq);
+    }
+}
+
+// ==============================================================================
+// 10. Effects timing
+// ==============================================================================
+
+TEST_CASE("AuditProbe fx latency and echo timing", "[.][audit-probe]") {
+    const double sr = 48000.0;
+    auto blipPatch = [](Rig& r) {
+        basePatch(r, 0.0);
+        r.param(Ruinae::kAmpEnvAttackId, 0.0);
+        r.param(Ruinae::kAmpEnvDecayId, envNorm(15));
+        r.param(Ruinae::kAmpEnvSustainId, 0.0);
+        r.param(Ruinae::kAmpEnvReleaseId, envNorm(10));
+    };
+    // dry onset reference
+    long dryOnset = 0;
+    {
+        Rig r(sr);
+        blipPatch(r);
+        r.noteOn(81, 0.9f, 4800);
+        r.noteOff(81, 4800 + 960);
+        r.render(r.at(0.5));
+        dryOnset = static_cast<long>(firstAbove(r.mono(), 0, 1e-6)) - 4800;
+    }
+    for (int d = 0; d < 5; ++d) {
+        // dry path with delay enabled at mix 0
+        {
+            Rig r(sr);
+            blipPatch(r);
+            r.param(Ruinae::kDelayEnabledId, 1.0);
+            r.param(Ruinae::kDelayTypeId, d / 4.0);
+            r.param(Ruinae::kDelayMixId, 0.0);
+            r.noteOn(81, 0.9f, 4800);
+            r.noteOff(81, 4800 + 960);
+            r.render(r.at(0.5));
+            const long on = static_cast<long>(firstAbove(r.mono(), 0, 1e-6)) - 4800;
+            probe(std::string("fx-latency:") + kDelayNames[d] + ":dry-path", "blip A5, delay enabled mix 0, 48k",
+                  "dry onset shift vs delay disabled (samples)", std::to_string(on - dryOnset) +
+                  " (reported plugin latency " + std::to_string(r.proc->getLatencySamples()) + ")",
+                  "0", on == dryOnset ? "ok" : "bad");
+        }
+        // wet path, free time 250 ms, fb 0
+        {
+            Rig r(sr);
+            blipPatch(r);
+            r.param(Ruinae::kDelayEnabledId, 1.0);
+            r.param(Ruinae::kDelayTypeId, d / 4.0);
+            r.param(Ruinae::kDelayMixId, 1.0);
+            r.param(Ruinae::kDelaySyncId, 0.0);
+            r.param(Ruinae::kDelayTimeId, 249.0 / 4999.0);
+            r.param(Ruinae::kDelayFeedbackId, 0.0);
+            r.noteOn(81, 0.9f, 4800);
+            r.noteOff(81, 4800 + 960);
+            r.render(r.at(1.5));
+            const auto m = r.mono();
+            const auto b = burstOnsets(m, 0, sr, 0.1);
+            const long expected = 4800 + dryOnset + static_cast<long>(0.25 * sr);
+            const long got = b.empty() ? -1 : static_cast<long>(b[0]);
+            probe(std::string("fx-latency:") + kDelayNames[d] + ":wet-first-echo",
+                  "blip A5, mix 1 (wet only), time 250 ms free, fb 0, 48k; engine chain latency " +
+                      std::to_string(r.proc->engine().getLatencySamples()) + ", reported " + std::to_string(r.proc->getLatencySamples()),
+                  "first echo arrival minus (note onset + 250 ms) samples", b.empty() ? std::string("no echo found") : std::to_string(got - expected),
+                  "|d|<=48 (1 ms) ok, <=480 suspicious; reported latency must cover any constant offset",
+                  b.empty() ? "bad" : vLow(std::fabs(static_cast<double>(got - expected)), 48.0, 480.0));
+        }
+        // tempo-synced 1/4 at 120 BPM, fb 0.5
+        {
+            Rig r(sr);
+            r.useCtx = true;
+            r.playing = true;
+            blipPatch(r);
+            r.param(Ruinae::kDelayEnabledId, 1.0);
+            r.param(Ruinae::kDelayTypeId, d / 4.0);
+            r.param(Ruinae::kDelayMixId, 1.0);
+            r.param(Ruinae::kDelaySyncId, 1.0);
+            r.param(Ruinae::kDelayNoteValueId, 13.0 / 29.0);
+            r.param(Ruinae::kDelayFeedbackId, 0.5 / 1.2);
+            r.noteOn(81, 0.9f, 4800);
+            r.noteOff(81, 4800 + 960);
+            r.render(r.at(3.0));
+            const auto m = r.mono();
+            const auto b = burstOnsets(m, 0, sr, 0.05);
+            std::string sp;
+            double worst = 0;
+            for (size_t k = 1; k < std::min<size_t>(b.size(), 4); ++k) {
+                const double s = static_cast<double>(b[k]) - static_cast<double>(b[k - 1]);
+                sp += (k > 1 ? "," : "") + std::to_string(static_cast<long>(s));
+                worst = std::max(worst, std::fabs(s - 24000.0));
+            }
+            probe(std::string("fx-sync:") + kDelayNames[d] + ":1/4@120",
+                  "blip A5, mix 1, sync 1/4 at 120 BPM (expect 24000 samples), fb 0.5, transport playing, 48k",
+                  "echo spacings (samples)", sp.empty() ? std::string("fewer than 2 echoes") : sp,
+                  "|spacing-24000|<=48 ok, <=480 suspicious", b.size() < 2 ? "bad" : vLow(worst, 48.0, 480.0));
+            // monotonic echo peaks
+            int rises = 0;
+            double prevPk = 1e9;
+            std::string pks;
+            for (size_t k = 0; k < std::min<size_t>(b.size(), 6); ++k) {
+                double pk = 0;
+                for (size_t i = b[k]; i < std::min(m.size(), b[k] + static_cast<size_t>(0.1 * sr)); ++i)
+                    pk = std::max(pk, static_cast<double>(std::fabs(m[i])));
+                if (pk > prevPk * 1.12) ++rises;
+                prevPk = pk;
+                pks += (k ? "," : "") + f2(toDb(pk), 1);
+            }
+            probe(std::string("fx-tail-monotonic:") + kDelayNames[d], "same render, echo peak dBFS sequence: " + pks,
+                  "echo peaks rising > 1 dB over previous", std::to_string(rises), "0 ok", rises == 0 ? "ok" : "suspicious");
+        }
+    }
+    for (int rv = 0; rv < 2; ++rv) {
+        Rig r(sr);
+        blipPatch(r);
+        r.param(Ruinae::kReverbEnabledId, 1.0);
+        r.param(Ruinae::kReverbTypeId, static_cast<double>(rv));
+        r.param(Ruinae::kReverbMixId, 1.0);
+        r.param(Ruinae::kReverbSizeId, 0.7);
+        r.noteOn(81, 0.9f, 4800);
+        r.noteOff(81, 4800 + 960);
+        r.render(r.at(5.0));
+        const auto m = r.mono();
+        const auto env = rmsEnv(m, sr, 0.05);
+        size_t pkI = 0;
+        for (size_t i = 0; i < env.size(); ++i)
+            if (env[i] > env[pkI]) pkI = i;
+        int rises = 0;
+        double maxRise = 0;
+        for (size_t i = pkI + 1; i < env.size(); ++i) {
+            if (env[i] < 1e-6 || env[i - 1] < 1e-6) continue;
+            const double rise = toDb(env[i]) - toDb(env[i - 1]);
+            maxRise = std::max(maxRise, rise);
+            if (rise > 1.0) ++rises;
+        }
+        probe(std::string("fx-tail-monotonic:reverb-") + (rv ? "Hall" : "Plate"),
+              "blip A5, reverb mix 1 size 0.7, 50 ms RMS windows after peak, 48k",
+              "windows rising > 1 dB (max rise dB)", std::to_string(rises) + " (" + f2(maxRise, 2) + ")", "0 ok, <=2 suspicious",
+              vLow(rises, 0.0, 2.0));
+        CHECK(nonFiniteAll(r) == 0);
+    }
+}
+
+// ==============================================================================
+// 11. Modulation
+// ==============================================================================
+
+TEST_CASE("AuditProbe mod LFO to cutoff and stale offset", "[.][audit-probe]") {
+    const double sr = 48000.0;
+    for (int destIdx : {0, 4}) {
+        Rig r(sr);
+        basePatch(r);
+        r.param(Ruinae::kGlobalFilterEnabledId, 1.0);
+        r.param(Ruinae::kGlobalFilterCutoffId, 0.5);
+        r.param(Ruinae::kLFO1RateId, std::log(2.0 / 0.01) / std::log(5000.0));  // 2 Hz
+        r.param(Ruinae::kLFO1DepthId, 1.0);
+        r.param(Ruinae::kLFO1SyncId, 0.0);
+        r.param(Ruinae::kLFO1ShapeId, 0.0);
+        r.param(Ruinae::kModMatrixSlot0SourceId, 1.0 / 14.0);
+        r.param(Ruinae::kModMatrixSlot0DestId, destIdx / 14.0);
+        r.param(Ruinae::kModMatrixSlot0AmountId, 1.0);
+        r.noteOn(48, 0.8f, 0);
+        const int64_t zeroAt = r.at(4.0);
+        r.param(Ruinae::kModMatrixSlot0AmountId, 0.5, zeroAt);
+        const auto dest = destIdx == 0 ? Krate::DSP::RuinaeModDest::GlobalFilterCutoff : Krate::DSP::RuinaeModDest::AllVoiceFilterCutoff;
+        std::vector<std::pair<int64_t, float>> offs;
+        r.onBlock = [&](int64_t s, int32 len) { offs.emplace_back(s + len, r.proc->engine().getGlobalModOffset(dest)); };
+        r.render(r.at(6.0), 64);
+        double mn = 1e9, mx = -1e9, staleMax = 0;
+        int zc = 0;
+        float prev = 0;
+        for (const auto& o : offs) {
+            if (o.first < zeroAt && o.first > r.at(0.5)) {
+                mn = std::min(mn, static_cast<double>(o.second));
+                mx = std::max(mx, static_cast<double>(o.second));
+                if (prev < 0 && o.second >= 0) ++zc;
+            }
+            if (o.first > zeroAt + r.at(0.5)) staleMax = std::max(staleMax, static_cast<double>(std::fabs(o.second)));
+            prev = o.second;
+        }
+        const double estHz = zc / 3.5;
+        const std::string name = std::string("mod:LFO1->") + (destIdx == 0 ? "GlobalFilterCutoff" : "AllVoiceFilterCutoff");
+        const std::string setup = "LFO1 sine 2 Hz depth 1, slot0 amount +1, saw C3 held, global filter on, block 64, 48k";
+        probe(name, setup, "offset swing min..max", f2(mn, 3) + ".." + f2(mx, 3), "non-zero swing", (mx - mn) > 0.1 ? "ok" : "bad");
+        probe(name, setup, "offset frequency from upward zero crossings (Hz)", f2(estHz, 2), "2 Hz +-0.3", std::fabs(estHz - 2.0) <= 0.3 ? "ok" : "suspicious");
+        probe(name, setup, "|offset| 0.5-2 s after amount set to 0 (stale)", f2(staleMax, 5), "<=1e-4", vLow(staleMax, 1e-4, 1e-2));
+        CHECK(nonFiniteAll(r) == 0);
+    }
+}
+
+TEST_CASE("AuditProbe mod every source", "[.][audit-probe]") {
+    const double sr = 48000.0;
+    const char* srcNames[15] = {"None", "LFO1", "LFO2", "EnvFollower", "Random", "Macro1", "Macro2", "Macro3", "Macro4",
+                                "Chaos", "Rungler", "SampleHold", "PitchFollower", "Transient", "ArpExternal0"};
+    for (int s = 1; s <= 14; ++s) {
+        Rig r(sr);
+        basePatch(r);
+        r.param(Ruinae::kGlobalFilterEnabledId, 1.0);
+        r.param(Ruinae::kGlobalFilterCutoffId, 0.6);
+        r.param(Ruinae::kGlobalFilterResonanceId, 0.6);
+        r.param(Ruinae::kMacro1ValueId, 1.0);
+        r.param(Ruinae::kMacro2ValueId, 1.0);
+        r.param(Ruinae::kMacro3ValueId, 1.0);
+        r.param(Ruinae::kMacro4ValueId, 1.0);
+        r.param(Ruinae::kRunglerDepthId, 1.0);
+        r.param(Ruinae::kModMatrixSlot0SourceId, s / 14.0);
+        r.param(Ruinae::kModMatrixSlot0DestId, 0.0);
+        r.param(Ruinae::kModMatrixSlot0AmountId, 1.0);
+        r.param(Ruinae::kModMatrixSlot1SourceId, s / 14.0);
+        r.param(Ruinae::kModMatrixSlot1DestId, 4.0 / 14.0);
+        r.param(Ruinae::kModMatrixSlot1AmountId, 1.0);
+        r.param(Ruinae::kModMatrixSlot2SourceId, s / 14.0);
+        r.param(Ruinae::kModMatrixSlot2DestId, 5.0 / 14.0);
+        r.param(Ruinae::kModMatrixSlot2AmountId, 0.0);
+        r.param(Ruinae::kModMatrixSlot3SourceId, s / 14.0);
+        r.param(Ruinae::kModMatrixSlot3DestId, 8.0 / 14.0);
+        r.param(Ruinae::kModMatrixSlot3AmountId, 1.0);
+        r.noteOn(48, 0.8f, 0);
+        r.noteOn(55, 0.8f, r.at(0.3));
+        r.noteOff(48, r.at(0.8));
+        r.render(r.at(1.5));
+        const auto m = r.mono();
+        const Stats st = stats(m, static_cast<size_t>(r.at(0.05)), static_cast<size_t>(r.at(1.0)));
+        const std::string name = std::string("mod:source=") + srcNames[s];
+        const std::string setup = "source -> global cutoff (+1), all-voice cutoff (+1), all-voice morph (-1), all-voice resonance (+1); macros=1; saw notes, 48k";
+        probe(name, setup, "NaN/Inf count", std::to_string(nonFiniteAll(r)), "0", nonFiniteAll(r) == 0 ? "ok" : "bad");
+        probe(name, setup, "longest zero run while notes held", std::to_string(st.zeroRun), "<=16", vLow(static_cast<double>(st.zeroRun), 16.0, 256.0));
+        probe(name, setup, "peak dBFS", f2(toDb(st.peak), 2), "<=0 (limiter on)", vLow(toDb(st.peak), 0.0, 3.0));
+        CHECK(nonFiniteAll(r) == 0);
+    }
+}
+
+TEST_CASE("AuditProbe pitch bend and MPE", "[.][audit-probe]") {
+    const double sr = 48000.0;
+    for (int range : {2, 12}) {
+        for (int dir : {1, -1}) {
+            Rig r(sr);
+            basePatch(r, 0.0);
+            r.param(Ruinae::kSettingsPitchBendRangeId, range / 24.0);
+            r.noteOn(69, 0.8f, 0);
+            if (dir > 0) r.bend(127, 127, r.at(0.3));
+            else r.bend(0, 0, r.at(0.3));
+            r.render(r.at(1.6));
+            const auto m = r.mono();
+            const double expCents = dir > 0 ? 100.0 * range * (8191.0 / 8192.0) : -100.0 * range;
+            const double target = 440.0 * std::pow(2.0, expCents / 1200.0);
+            const double c = measureCents(m.data() + r.at(0.8), static_cast<size_t>(r.at(0.8)), sr, target, 150.0);
+            probe("pitch-bend:range" + std::to_string(range) + (dir > 0 ? ":up" : ":down"),
+                  "sine A4, legacy MIDI CC pitch bend " + std::string(dir > 0 ? "127/127" : "0/0") + " at 0.3 s, range " + std::to_string(range) + " st",
+                  "pitch error vs expected bend (cents)", f2(c, 2), "|c|<=3 ok, <=10 suspicious", vLow(std::fabs(c), 3.0, 10.0));
+            CHECK(nonFiniteAll(r) == 0);
+        }
+    }
+    // MPE tuning on one of two held notes
+    {
+        Rig r(sr);
+        basePatch(r, 0.0);
+        r.noteOn(69, 0.8f, 0, 1);
+        r.noteOn(76, 0.8f, 0, 2);
+        r.expr(1, kTuningTypeID, 0.5 + 1.0 / 240.0, r.at(0.3));
+        r.render(r.at(1.6));
+        const auto m = r.mono();
+        const size_t n = static_cast<size_t>(r.at(0.8));
+        const double c1 = measureCents(m.data() + r.at(0.8), n, sr, noteHz(70), 60.0);
+        const double c2 = measureCents(m.data() + r.at(0.8), n, sr, noteHz(76), 60.0);
+        const double resid = goertzelMag(m.data() + r.at(0.8), n, 440.0, sr) /
+                             std::max(1e-12, goertzelMag(m.data() + r.at(0.8), n, noteHz(70), sr));
+        const std::string setup = "sine A4 (noteId 1) + E5 (noteId 2), kTuningTypeID +1 st on noteId 1 at 0.3 s";
+        probe("mpe:tuned-note", setup, "noteId 1 pitch vs A#4 (cents)", f2(c1, 2), "|c|<=3 ok, <=10 suspicious", vLow(std::fabs(c1), 3.0, 10.0));
+        probe("mpe:untouched-note", setup, "noteId 2 pitch vs E5 (cents)", f2(c2, 2), "|c|<=3 ok", vLow(std::fabs(c2), 3.0, 10.0));
+        probe("mpe:residual-at-440", setup, "remaining A4 energy relative to A#4 (dB)", f2(toDb(resid), 1), "<=-30 ok", vLow(toDb(resid), -30.0, -15.0));
+        CHECK(nonFiniteAll(r) == 0);
+    }
+}
+
+// ==============================================================================
+// 12. Arpeggiator
+// ==============================================================================
+
+void arpPatch(Rig& r, int mode) {
+    basePatch(r, 0.0);
+    r.useCtx = true;
+    r.playing = true;
+    r.param(Ruinae::kArpOperatingModeId, 1.0 / 3.0);
+    r.param(Ruinae::kArpModeId, mode / 9.0);
+    r.param(Ruinae::kArpTempoSyncId, 1.0);
+    r.param(Ruinae::kArpNoteValueId, 7.0 / 29.0);  // 1/16
+    r.param(Ruinae::kArpLatchModeId, 0.0);
+    r.param(Ruinae::kArpMidiOutId, 1.0);
+    r.param(Ruinae::kArpSwingId, 0.0);
+    r.param(Ruinae::kArpOctaveRangeId, 0.0);
+    r.param(Ruinae::kAmpEnvReleaseId, envNorm(30));
+}
+
+struct Balance {
+    int on = 0, off = 0, unmatched = 0;
+};
+
+Balance balance(const std::vector<OutNote>& ev) {
+    Balance b;
+    std::vector<int> open(128, 0);
+    for (const auto& e : ev) {
+        if (e.on) { ++b.on; ++open[static_cast<size_t>(e.pitch & 127)]; }
+        else { ++b.off; if (open[static_cast<size_t>(e.pitch & 127)] > 0) --open[static_cast<size_t>(e.pitch & 127)]; }
+    }
+    for (int o : open) b.unmatched += o;
+    return b;
+}
+
+void runArpMode(int mode) {
+    const double sr = 48000.0;
+    Rig r(sr);
+    arpPatch(r, mode);
+    for (int n : {60, 64, 67}) r.noteOn(n, 0.8f, 0);
+    const int64_t bars8 = r.at(16.0);
+    for (int n : {60, 64, 67}) r.noteOff(n, bars8);
+    uint32_t voicesAtEnd = 0;
+    r.render(bars8 + r.at(1.0));
+    voicesAtEnd = r.proc->engine().getActiveVoiceCount();
+    const auto b = balance(r.outNotes);
+    const double grid = 0.125 * sr;  // 1/16 at 120 BPM
+    double maxErr = 0, firstErr = 0, lastErr = 0;
+    bool firstSet = false;
+    for (const auto& e : r.outNotes) {
+        if (!e.on || e.pos >= bars8) continue;
+        const double k = std::round(static_cast<double>(e.pos) / grid);
+        const double err = static_cast<double>(e.pos) - k * grid;
+        maxErr = std::max(maxErr, std::fabs(err));
+        if (!firstSet) { firstErr = err; firstSet = true; }
+        lastErr = err;
+    }
+    const std::string name = std::string("arp:") + kArpModeNames[mode];
+    const std::string setup = "arp MIDI mode, 1/16 sync at 120 BPM, transport playing, C4-E4-G4 held 8 bars then released, MIDI out on, 48k block 512";
+    probe(name, setup, "MIDI-out note-ons / note-offs / unmatched", std::to_string(b.on) + " / " + std::to_string(b.off) + " / " + std::to_string(b.unmatched),
+          "unmatched 0, ons ~128", b.unmatched == 0 && b.on > 0 ? "ok" : "bad");
+    probe(name, setup, "max |step onset - 1/16 grid| (samples)", f2(maxErr, 1), "<=1 ok, <=48 suspicious", vLow(maxErr, 1.0, 48.0));
+    probe(name, setup, "drift: last-step error minus first-step error (samples)", f2(lastErr - firstErr, 1), "|d|<=1 ok", vLow(std::fabs(lastErr - firstErr), 1.0, 48.0));
+    probe(name, setup, "engine active voices 1 s after release", std::to_string(voicesAtEnd), "0", voicesAtEnd == 0 ? "ok" : "bad");
+    CHECK(nonFiniteAll(r) == 0);
+}
+
+#define ARP_CASE(i) \
+    TEST_CASE("AuditProbe arp mode " #i, "[.][audit-probe]") { runArpMode(i); }
+ARP_CASE(0)
+ARP_CASE(1)
+ARP_CASE(2)
+ARP_CASE(3)
+ARP_CASE(4)
+ARP_CASE(5)
+ARP_CASE(6)
+ARP_CASE(7)
+ARP_CASE(8)
+ARP_CASE(9)
+
+TEST_CASE("AuditProbe arp stop disable release loop", "[.][audit-probe]") {
+    const double sr = 48000.0;
+    const std::string setup = "arp Up 1/16 at 120 BPM, C4-E4-G4 held, MIDI out on, 48k";
+    // a. transport stop mid-note (keys still held)
+    {
+        Rig r(sr);
+        arpPatch(r, 0);
+        for (int n : {60, 64, 67}) r.noteOn(n, 0.8f, 0);
+        r.render(r.at(2.0) + 1234);
+        r.playing = false;
+        r.render(r.at(1.5));
+        const uint32_t v = r.proc->engine().getActiveVoiceCount();
+        const auto b = balance(r.outNotes);
+        probe("arp:transport-stop", setup + ", transport stops at 2.03 s, keys held", "unmatched note-ons on MIDI out / active voices 1.5 s later",
+              std::to_string(b.unmatched) + " / " + std::to_string(v), "0 / 0", (b.unmatched == 0 && v == 0) ? "ok" : "bad");
+        for (int n : {60, 64, 67}) r.noteOff(n, r.now());
+        r.render(r.at(0.5));
+        CHECK(nonFiniteAll(r) == 0);
+    }
+    // b. arp disabled mid-note
+    {
+        Rig r(sr);
+        arpPatch(r, 0);
+        for (int n : {60, 64, 67}) r.noteOn(n, 0.8f, 0);
+        r.render(r.at(2.0) + 3000);
+        r.param(Ruinae::kArpOperatingModeId, 0.0);
+        r.render(r.at(1.5));
+        const uint32_t v = r.proc->engine().getActiveVoiceCount();
+        const auto b = balance(r.outNotes);
+        probe("arp:disable-mid-note", setup + ", arp operating mode -> Off at 2.06 s, keys still held",
+              "unmatched note-ons on MIDI out / engine active voices 1.5 s later", std::to_string(b.unmatched) + " / " + std::to_string(v),
+              "0 / 0 (held keys were consumed by the arp)", (b.unmatched == 0 && v == 0) ? "ok" : (b.unmatched == 0 ? "suspicious" : "bad"));
+        for (int n : {60, 64, 67}) r.noteOff(n, r.now());
+        r.render(r.at(1.0));
+        const uint32_t v2 = r.proc->engine().getActiveVoiceCount();
+        probe("arp:disable-mid-note:after-key-release", setup, "engine active voices 1 s after keys released", std::to_string(v2), "0",
+              v2 == 0 ? "ok" : "bad");
+        CHECK(nonFiniteAll(r) == 0);
+    }
+    // c. all keys released, latch off
+    {
+        Rig r(sr);
+        arpPatch(r, 2);
+        for (int n : {60, 64, 67}) r.noteOn(n, 0.8f, 0);
+        const int64_t off = r.at(2.0) + 777;
+        r.noteOff(60, off);
+        r.noteOff(64, off + 100);
+        r.noteOff(67, off + 2000);
+        r.render(off + r.at(1.5));
+        const uint32_t v = r.proc->engine().getActiveVoiceCount();
+        const auto b = balance(r.outNotes);
+        int onsAfter = 0;
+        for (const auto& e : r.outNotes)
+            if (e.on && e.pos > off + 2000) ++onsAfter;
+        probe("arp:release-latch-off", setup + " (UpDown), keys released at 2.02 s", "unmatched / active voices 1.5 s later / note-ons after last key-up",
+              std::to_string(b.unmatched) + " / " + std::to_string(v) + " / " + std::to_string(onsAfter), "0 / 0 / 0",
+              (b.unmatched == 0 && v == 0 && onsAfter == 0) ? "ok" : "bad");
+        CHECK(nonFiniteAll(r) == 0);
+    }
+    // d. backward ppq jump (host loop)
+    {
+        Rig r(sr);
+        arpPatch(r, 0);
+        for (int n : {60, 64, 67}) r.noteOn(n, 0.8f, 0);
+        r.render(r.at(3.0) + 1000);
+        r.ppq = 0.0;  // loop back
+        r.render(r.at(2.0));
+        for (int n : {60, 64, 67}) r.noteOff(n, r.now());
+        r.render(r.at(1.0));
+        const uint32_t v = r.proc->engine().getActiveVoiceCount();
+        const auto b = balance(r.outNotes);
+        probe("arp:backward-ppq-jump", setup + ", ppq jumps 6.04 -> 0 at 3.02 s, keys released at 5.02 s",
+              "unmatched / active voices 1 s after release", std::to_string(b.unmatched) + " / " + std::to_string(v), "0 / 0",
+              (b.unmatched == 0 && v == 0) ? "ok" : "bad");
+        CHECK(nonFiniteAll(r) == 0);
+    }
+    // e. arp without transport info (processContext null) then key release
+    {
+        Rig r(sr);
+        arpPatch(r, 0);
+        r.useCtx = false;
+        for (int n : {60, 64, 67}) r.noteOn(n, 0.8f, 0);
+        r.render(r.at(1.5));
+        for (int n : {60, 64, 67}) r.noteOff(n, r.now() + 10);
+        r.render(r.at(1.0));
+        const uint32_t v = r.proc->engine().getActiveVoiceCount();
+        const auto b = balance(r.outNotes);
+        probe("arp:no-process-context", setup + ", processContext == nullptr", "MIDI-out ons / unmatched / active voices",
+              std::to_string(b.on) + " / " + std::to_string(b.unmatched) + " / " + std::to_string(v), "ons>0 / 0 / 0",
+              (b.on > 0 && b.unmatched == 0 && v == 0) ? "ok" : "bad");
+        CHECK(nonFiniteAll(r) == 0);
+    }
+}
+
+// ==============================================================================
+// 13. State: factory presets
+// ==============================================================================
+
+std::vector<std::filesystem::path> allPresets() {
+    const std::filesystem::path root = std::filesystem::path(RUINAE_RESOURCES_DIR) / "presets";
+    std::vector<std::filesystem::path> out;
+    if (!std::filesystem::exists(root)) return out;
+    for (const auto& d : std::filesystem::directory_iterator(root)) {
+        if (!d.is_directory()) continue;
+        for (const auto& f : std::filesystem::directory_iterator(d.path()))
+            if (f.is_regular_file() && f.path().extension() == ".vstpreset") out.push_back(f.path());
+    }
+    std::sort(out.begin(), out.end());
+    return out;
+}
+
+std::vector<char> componentBytes(const std::filesystem::path& p) {
+    std::vector<char> bytes;
+    auto* stream = FileStream::open(p.string().c_str(), "rb");
+    if (!stream) return bytes;
+    {
+        PresetFile pf(stream);
+        if (pf.readChunkList() && pf.seekToComponentState()) {
+            const auto* e = pf.getEntry(kComponentState);
+            if (e) {
+                bytes.resize(static_cast<size_t>(e->size));
+                stream->seek(e->offset, IBStream::kIBSeekSet, nullptr);
+                int32 got = 0;
+                stream->read(bytes.data(), static_cast<int32>(e->size), &got);
+                bytes.resize(static_cast<size_t>(std::max<int32>(got, 0)));
+            }
+        }
+    }
+    stream->release();
+    return bytes;
+}
+
+void loadBytes(Rig& r, const std::vector<char>& bytes) {
+    MemoryStream ms;
+    int32 w = 0;
+    if (!bytes.empty()) ms.write(const_cast<char*>(bytes.data()), static_cast<int32>(bytes.size()), &w);
+    ms.seek(0, IBStream::kIBSeekSet, nullptr);
+    r.proc->setState(&ms);
+    r.render(0);  // nothing; the drain happens in the first real block anyway
+}
+
+std::vector<char> saveBytes(Rig& r) {
+    MemoryStream ms;
+    r.proc->getState(&ms);
+    std::vector<char> out(static_cast<size_t>(ms.getSize()));
+    std::memcpy(out.data(), ms.getData(), out.size());
+    return out;
+}
+
+std::vector<float> renderPresetNote(Rig& r) {
+    r.useCtx = true;
+    r.playing = true;
+    r.noteOn(48, 0.8f, 0);
+    r.noteOff(48, r.at(2.0));
+    r.render(r.at(3.0));
+    return r.mono();
+}
+
+void runPresetShard(int shard, int shards) {
+    const auto presets = allPresets();
+    const double sr = 44100.0;
+    for (size_t i = static_cast<size_t>(shard); i < presets.size(); i += static_cast<size_t>(shards)) {
+        const auto& p = presets[i];
+        const auto bytes = componentBytes(p);
+        const std::string name = "preset:" + p.parent_path().filename().string() + "/" + p.stem().string();
+        if (bytes.empty()) {
+            probe(name, "component state", "load", "failed to read component state", "readable", "bad");
+            continue;
+        }
+        std::vector<float> a, a2, b;
+        std::vector<char> saved;
+        int64_t nfA = 0, nfB = 0;
+        {
+            Rig r(sr);
+            loadBytes(r, bytes);
+            a = renderPresetNote(r);
+            nfA = nonFiniteAll(r);
+            saved = saveBytes(r);
+        }
+        {
+            Rig r(sr);
+            loadBytes(r, bytes);
+            a2 = renderPresetNote(r);
+        }
+        {
+            Rig r(sr);
+            loadBytes(r, saved);
+            b = renderPresetNote(r);
+            nfB = nonFiniteAll(r);
+        }
+        const Stats s = stats(a);
+        double selfDiff = 0, rtDiff = 0;
+        for (size_t k = 0; k < a.size(); ++k) {
+            selfDiff = std::max(selfDiff, static_cast<double>(std::fabs(a[k] - a2[k])));
+            rtDiff = std::max(rtDiff, static_cast<double>(std::fabs(a[k] - b[k])));
+        }
+        const Stats sb = stats(b);
+        const double rmsDiffDb = std::fabs(toDb(sb.rms) - toDb(s.rms));
+        const bool deterministic = selfDiff < 1e-7;
+        const std::string setup = "setState(component bytes), C3 vel 0.8 held 2 s then released, 3 s at 44.1k, 120 BPM playing";
+        probe(name, setup, "peak dBFS / RMS dBFS / DC", f2(toDb(s.peak), 1) + " / " + f2(toDb(s.rms), 1) + " / " + f2(s.dc, 5),
+              "audible (peak > -60), peak <= 0, |dc| <= 0.01",
+              (s.peak < 1e-3) ? "bad" : ((toDb(s.peak) > 0.0 || std::fabs(s.dc) > 0.01) ? "suspicious" : "ok"));
+        probe(name, setup, "NaN/Inf count (load / round-trip)", std::to_string(nfA) + " / " + std::to_string(nfB), "0",
+              (nfA == 0 && nfB == 0) ? "ok" : "bad");
+        if (deterministic) {
+            probe(name, setup + "; deterministic (two fresh loads identical)", "getState->setState round-trip max |diff|", f2(rtDiff, 7),
+                  "<=1e-6 ok, <=1e-3 suspicious", vLow(rtDiff, 1e-6, 1e-3));
+        } else {
+            probe(name, setup + "; NON-deterministic (two fresh loads differ by " + f2(selfDiff, 4) + "), RMS compared",
+                  "getState->setState round-trip RMS diff dB", f2(rmsDiffDb, 2), "<=1 dB ok, <=3 suspicious", vLow(rmsDiffDb, 1.0, 3.0));
+        }
+        probe(name, setup, "saved state bytes == loaded bytes", saved == bytes ? "identical" : ("differ (" + std::to_string(saved.size()) + " vs " + std::to_string(bytes.size()) + " bytes)"),
+              "info", "ok");
+        CHECK(nfA == 0);
+        CHECK(nfB == 0);
+    }
+}
+
+#define PRESET_CASE(i) \
+    TEST_CASE("AuditProbe presets shard " #i, "[.][audit-probe]") { runPresetShard(i, 14); }
+PRESET_CASE(0)
+PRESET_CASE(1)
+PRESET_CASE(2)
+PRESET_CASE(3)
+PRESET_CASE(4)
+PRESET_CASE(5)
+PRESET_CASE(6)
+PRESET_CASE(7)
+PRESET_CASE(8)
+PRESET_CASE(9)
+PRESET_CASE(10)
+PRESET_CASE(11)
+PRESET_CASE(12)
+PRESET_CASE(13)
+
+TEST_CASE("AuditProbe state truncated and garbage", "[.][audit-probe]") {
+    const auto presets = allPresets();
+    REQUIRE_FALSE(presets.empty());
+    std::vector<std::filesystem::path> picks;
+    for (size_t i = 0; i < presets.size(); i += presets.size() / 4) picks.push_back(presets[i]);
+    for (const auto& p : picks) {
+        const auto bytes = componentBytes(p);
+        for (double frac : {0.25, 0.5, 0.99}) {
+            std::vector<char> cut(bytes.begin(), bytes.begin() + static_cast<long>(static_cast<double>(bytes.size()) * frac));
+            Rig r(44100.0);
+            basePatch(r);
+            r.render(512);
+            loadBytes(r, cut);
+            r.noteOn(48, 0.8f, r.now());
+            r.render(r.at(1.0));
+            const Stats s = stats(r.mono());
+            probe("state-truncated:" + p.stem().string() + ":" + f2(frac * 100, 0) + "%", "setState with stream cut at " + f2(frac * 100, 0) + "%, then a note 1 s",
+                  "NaN/Inf / peak dBFS / active voices", std::to_string(nonFiniteAll(r)) + " / " + f2(toDb(s.peak), 1) + " / " + std::to_string(r.proc->engine().getActiveVoiceCount()),
+                  "0 NaN, no crash, finite", nonFiniteAll(r) == 0 ? "ok" : "bad");
+            CHECK(nonFiniteAll(r) == 0);
+        }
+    }
+    std::mt19937 rng(1234);
+    for (int g = 0; g < 6; ++g) {
+        std::vector<char> junk(static_cast<size_t>(200 + 900 * g));
+        for (auto& c : junk) c = static_cast<char>(rng() & 0xFF);
+        if (g % 2 == 0) {
+            const int32 ver = 8;
+            std::memcpy(junk.data(), &ver, sizeof ver);
+        }
+        if (g == 2) {
+            // Measured in the first probe run: this stream spun one core for > 9 min
+            // in the first process() block after a note-on (killed). Isolated by the
+            // [audit-diag] cases below: resetting only kOscBPhaseModId (212) removes
+            // the hang; the stream's raw float lands unclamped in oscB phaseMod.
+            probe("state-garbage:2", "2000 random bytes (mt19937 seed 1234, 3rd draw) with valid version 8 header; saved f:/tmp/ruinae-audit/garbage2.bin",
+                  "first process() block after note-on", "HANG (> 9 min at 100% of one core, killed); disappears when only param 212 OSC B PhaseMod is reset",
+                  "returns within one block", "bad");
+            continue;
+        }
+        Rig r(44100.0);
+        basePatch(r);
+        r.render(512);
+        loadBytes(r, junk);
+        r.noteOn(48, 0.8f, r.now());
+        r.noteOn(60, 0.8f, r.now());
+        r.render(r.at(1.0));
+        r.noteOff(48, r.now());
+        r.noteOff(60, r.now());
+        r.render(r.at(1.0));
+        const Stats s = stats(r.mono());
+        probe("state-garbage:" + std::to_string(g), std::to_string(junk.size()) + " random bytes" + (g % 2 == 0 ? " with valid version 8 header" : ""),
+              "NaN/Inf / peak dBFS / RMS dBFS", std::to_string(nonFiniteAll(r)) + " / " + f2(toDb(s.peak), 1) + " / " + f2(toDb(s.rms), 1),
+              "0 NaN, no crash, peak <= 0", nonFiniteAll(r) == 0 ? (toDb(s.peak) <= 0.0 ? "ok" : "suspicious") : "bad");
+        CHECK(nonFiniteAll(r) == 0);
+    }
+}
+
+// Diagnostic for the garbage-state hang: which stage spins.
+TEST_CASE("AuditProbe diag garbage state hang", "[.][audit-diag]") {
+    std::mt19937 rng(1234);
+    for (int g = 0; g < 6; ++g) {
+        std::vector<char> junk(static_cast<size_t>(200 + 900 * g));
+        for (auto& c : junk) c = static_cast<char>(rng() & 0xFF);
+        if (g % 2 == 0) {
+            const int32 ver = 8;
+            std::memcpy(junk.data(), &ver, sizeof ver);
+        }
+        if (g != 2) continue;
+        if (FILE* fp = std::fopen("f:/tmp/ruinae-audit/garbage2.bin", "wb")) {
+            std::fwrite(junk.data(), 1, junk.size(), fp);
+            std::fclose(fp);
+        }
+        Rig r(44100.0);
+        basePatch(r);
+        r.render(512);
+        std::printf("DIAG rendered base\n");
+        std::fflush(stdout);
+        MemoryStream ms;
+        int32 w = 0;
+        ms.write(junk.data(), static_cast<int32>(junk.size()), &w);
+        ms.seek(0, IBStream::kIBSeekSet, nullptr);
+        r.proc->setState(&ms);
+        std::printf("DIAG setState returned\n");
+        std::fflush(stdout);
+        MemoryStream out;
+        r.proc->getState(&out);
+        std::printf("DIAG getState returned (%lld bytes)\n", static_cast<long long>(out.getSize()));
+        std::fflush(stdout);
+        ProcessData d{};
+        d.numSamples = 0;
+        r.proc->process(d);
+        std::printf("DIAG drain (applyPresetSnapshot) returned\n");
+        std::fflush(stdout);
+        r.noteOn(48, 0.8f, r.now());
+        for (int b = 0; b < 40; ++b) {
+            const auto t0 = std::chrono::steady_clock::now();
+            r.render(512);
+            const double ms2 = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
+            std::printf("DIAG block %d took %.2f ms, voices %u\n", b, ms2, r.proc->engine().getActiveVoiceCount());
+            std::fflush(stdout);
+        }
+    }
+}
+
+void diagVariant(int variant) {
+    std::vector<char> junk;
+    if (FILE* fp = std::fopen("f:/tmp/ruinae-audit/garbage2.bin", "rb")) {
+        junk.resize(2000);
+        junk.resize(std::fread(junk.data(), 1, junk.size(), fp));
+        std::fclose(fp);
+    }
+    Rig r(44100.0);
+    basePatch(r);
+    r.render(512);
+    MemoryStream ms;
+    int32 w = 0;
+    ms.write(junk.data(), static_cast<int32>(junk.size()), &w);
+    ms.seek(0, IBStream::kIBSeekSet, nullptr);
+    r.proc->setState(&ms);
+    if (variant == 1) r.param(Ruinae::kArpOperatingModeId, 0.0);
+    if (variant == 2) r.noteOn(48, 0.8f, r.now());
+    if (variant == 3) { r.param(Ruinae::kArpOperatingModeId, 0.0); r.noteOn(48, 0.8f, r.now()); }
+    if (variant == 4) { r.useCtx = true; }
+    for (int b = 0; b < 10; ++b) {
+        const auto t0 = std::chrono::steady_clock::now();
+        r.render(512);
+        const double ms2 = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
+        std::printf("DIAG v%d block %d took %.2f ms, voices %u\n", variant, b, ms2, r.proc->engine().getActiveVoiceCount());
+        std::fflush(stdout);
+    }
+}
+TEST_CASE("AuditProbe diag v0", "[.][audit-diag]") { diagVariant(0); }
+TEST_CASE("AuditProbe diag v1", "[.][audit-diag]") { diagVariant(1); }
+TEST_CASE("AuditProbe diag v2", "[.][audit-diag]") { diagVariant(2); }
+TEST_CASE("AuditProbe diag v3", "[.][audit-diag]") { diagVariant(3); }
+TEST_CASE("AuditProbe diag v4", "[.][audit-diag]") { diagVariant(4); }
+
+TEST_CASE("AuditProbe diag group", "[.][audit-diag]") {
+    const char* env = std::getenv("DIAG_GROUP");
+    const long lo = env ? std::atol(env) : -1;
+    const char* envHi = std::getenv("DIAG_GROUP_HI");
+    const long hi = envHi ? std::atol(envHi) : lo + 99;
+    std::vector<char> junk;
+    if (FILE* fp = std::fopen("f:/tmp/ruinae-audit/garbage2.bin", "rb")) {
+        junk.resize(2000);
+        junk.resize(std::fread(junk.data(), 1, junk.size(), fp));
+        std::fclose(fp);
+    }
+    Rig r(44100.0);
+    basePatch(r);
+    r.render(512);
+    MemoryStream ms;
+    int32 w = 0;
+    ms.write(junk.data(), static_cast<int32>(junk.size()), &w);
+    ms.seek(0, IBStream::kIBSeekSet, nullptr);
+    r.proc->setState(&ms);
+    Ruinae::Controller ctrl;
+    ctrl.initialize(nullptr);
+    int sent = 0;
+    for (int32 i = 0; i < ctrl.getParameterCount(); ++i) {
+        ParameterInfo info{};
+        ctrl.getParameterInfo(i, info);
+        if (static_cast<long>(info.id) >= lo && static_cast<long>(info.id) <= hi) {
+            r.param(info.id, info.defaultNormalizedValue);
+            ++sent;
+        }
+    }
+    ctrl.terminate();
+    r.noteOn(48, 0.8f, 0);
+    r.render(512);
+    std::printf("DIAG group %ld-%ld (%d params reset) rendered OK\n", lo, hi, sent);
+    std::fflush(stdout);
+}
+
+// ==============================================================================
+// 14. Sample-rate consistency
+// ==============================================================================
+
+TEST_CASE("AuditProbe sample rate consistency", "[.][audit-probe]") {
+    const double rates[4] = {44100.0, 48000.0, 96000.0, 192000.0};
+    double refRms = 0, refAtk = 0, refRel = 0;
+    for (int i = 0; i < 4; ++i) {
+        const double sr = rates[i];
+        Rig r(sr, 2048);
+        basePatch(r);
+        r.param(Ruinae::kFilterCutoffId, 0.7);
+        r.param(Ruinae::kFilterResonanceId, 0.2);
+        r.param(Ruinae::kAmpEnvAttackId, envNorm(100));
+        r.param(Ruinae::kAmpEnvDecayId, envNorm(100));
+        r.param(Ruinae::kAmpEnvSustainId, 1.0);
+        r.param(Ruinae::kAmpEnvReleaseId, envNorm(300));
+        r.param(Ruinae::kSoftLimitId, 0.0);
+        const int64_t on = r.at(0.1);
+        const int64_t off = r.at(1.6);
+        r.noteOn(57, 0.8f, on);
+        r.noteOff(57, off);
+        r.render(r.at(2.6));
+        const auto m = r.mono();
+        const auto env = rmsEnv(m, sr, 0.001);
+        const double steady = stats(m, static_cast<size_t>(r.at(1.0)), static_cast<size_t>(r.at(1.5))).rms;
+        auto tCross = [&](double fromSec, double level, bool rising) {
+            for (size_t k = static_cast<size_t>(fromSec * 1000.0); k < env.size(); ++k)
+                if (rising ? env[k] >= level : env[k] <= level) return static_cast<double>(k) - fromSec * 1000.0;
+            return -1.0;
+        };
+        const double atk = tCross(0.1, 0.9 * steady, true);
+        const double rel = tCross(1.6, 0.1 * steady, false);
+        const size_t pn = pow2Below(static_cast<size_t>(r.at(0.5)));
+        const double cents = measureCents(m.data() + r.at(1.0), pn, sr, noteHz(57));
+        if (i == 1) { refRms = steady; refAtk = atk; refRel = rel; }
+        const std::string setup = "saw A3 vel 0.8, cutoff norm 0.7, amp A100/D100/S1/R300 ms, soft limit off, block 512";
+        const std::string name = "samplerate:" + f2(sr / 1000.0, 1) + "k";
+        probe(name, setup, "pitch error cents", f2(cents, 2), "|c|<=5", vLow(std::fabs(cents), 5.0, 20.0));
+        probe(name, setup, "steady RMS dBFS", f2(toDb(steady), 2), "within 1 dB across rates", "ok");
+        probe(name, setup, "attack to 90% steady RMS (ms)", f2(atk, 1), "within 10% across rates", "ok");
+        probe(name, setup, "release to 10% steady RMS (ms)", f2(rel, 1), "within 10% across rates", "ok");
+        probe(name, setup, "NaN/Inf count", std::to_string(nonFiniteAll(r)), "0", nonFiniteAll(r) == 0 ? "ok" : "bad");
+        CHECK(nonFiniteAll(r) == 0);
+    }
+    // second pass for deviations vs 48k
+    for (int i = 0; i < 4; ++i) {
+        if (i == 1) continue;
+        const double sr = rates[i];
+        Rig r(sr, 2048);
+        basePatch(r);
+        r.param(Ruinae::kFilterCutoffId, 0.7);
+        r.param(Ruinae::kFilterResonanceId, 0.2);
+        r.param(Ruinae::kAmpEnvAttackId, envNorm(100));
+        r.param(Ruinae::kAmpEnvDecayId, envNorm(100));
+        r.param(Ruinae::kAmpEnvSustainId, 1.0);
+        r.param(Ruinae::kAmpEnvReleaseId, envNorm(300));
+        r.param(Ruinae::kSoftLimitId, 0.0);
+        const int64_t on = r.at(0.1);
+        const int64_t off = r.at(1.6);
+        r.noteOn(57, 0.8f, on);
+        r.noteOff(57, off);
+        r.render(r.at(2.6));
+        const auto m = r.mono();
+        const auto env = rmsEnv(m, sr, 0.001);
+        const double steady = stats(m, static_cast<size_t>(r.at(1.0)), static_cast<size_t>(r.at(1.5))).rms;
+        auto tCross = [&](double fromSec, double level, bool rising) {
+            for (size_t k = static_cast<size_t>(fromSec * 1000.0); k < env.size(); ++k)
+                if (rising ? env[k] >= level : env[k] <= level) return static_cast<double>(k) - fromSec * 1000.0;
+            return -1.0;
+        };
+        const double atk = tCross(0.1, 0.9 * steady, true);
+        const double rel = tCross(1.6, 0.1 * steady, false);
+        const double dRms = toDb(steady) - toDb(refRms);
+        const double dAtk = refAtk > 0 ? (atk - refAtk) / refAtk * 100.0 : 0.0;
+        const double dRel = refRel > 0 ? (rel - refRel) / refRel * 100.0 : 0.0;
+        const std::string name = "samplerate-vs-48k:" + f2(sr / 1000.0, 1) + "k";
+        probe(name, "same patch as samplerate:*", "steady RMS delta dB", f2(dRms, 2), "|d|<=1 dB", vLow(std::fabs(dRms), 1.0, 3.0));
+        probe(name, "same patch as samplerate:*", "attack time delta %", f2(dAtk, 1), "|d|<=10%", vLow(std::fabs(dAtk), 10.0, 25.0));
+        probe(name, "same patch as samplerate:*", "release time delta %", f2(dRel, 1), "|d|<=10%", vLow(std::fabs(dRel), 10.0, 25.0));
+    }
+}
+
+// ==============================================================================
+// Follow-up probes (second pass): isolate what the first pass flagged
+// ==============================================================================
+
+TEST_CASE("AuditProbe2 pitch bend settle vs block size", "[.][audit-probe][audit-probe2]") {
+    const double sr = 48000.0;
+    for (int32 bs : {64, 512, 2048}) {
+        Rig r(sr);
+        basePatch(r, 0.0);
+        r.noteOn(69, 0.8f, 0);
+        const int64_t bendAt = r.at(0.5);
+        r.bend(127, 127, bendAt);
+        r.render(r.at(8.0), bs);
+        const auto m = r.mono();
+        const auto zc = zcFreq(m, static_cast<size_t>(bendAt), m.size(), sr);
+        const double target = 200.0 * 8191.0 / 8192.0;
+        double t90 = -1, t99 = -1;
+        for (const auto& z : zc) {
+            const double c = 1200.0 * std::log2(z.second / 440.0);
+            const double t = (z.first - static_cast<double>(bendAt)) / sr * 1000.0;
+            if (t90 < 0 && c >= 0.9 * target) t90 = t;
+            if (t99 < 0 && c >= 0.99 * target) t99 = t;
+        }
+        double c1s = 0;
+        for (const auto& z : zc)
+            if (z.first >= static_cast<double>(bendAt) + sr) { c1s = 1200.0 * std::log2(z.second / 440.0); break; }
+        const std::string setup = "sine A4, full-up legacy pitch bend at 0.5 s, range 2 st, block " + std::to_string(bs) +
+                                  ", 48k; NoteProcessor smoother is 5 ms per-sample";
+        probe("pitch-bend-settle:bs" + std::to_string(bs), setup, "ms to reach 90% / 99% of +200 cents",
+              (t90 < 0 ? std::string("never") : f2(t90, 1)) + " / " + (t99 < 0 ? std::string("never") : f2(t99, 1)),
+              "<=25 ms (5 ms smoother)", t90 >= 0 && t90 <= 25.0 ? "ok" : (t90 >= 0 && t90 <= 250.0 ? "suspicious" : "bad"));
+        probe("pitch-bend-settle:bs" + std::to_string(bs), setup, "bend reached 1 s after the event (cents)", f2(c1s, 1),
+              "~200", std::fabs(c1s - target) <= 3.0 ? "ok" : "bad");
+        CHECK(nonFiniteAll(r) == 0);
+    }
+}
+
+std::vector<float> renderInv2(int variant, int32 bs) {
+    Rig r(48000.0, 2048);
+    basePatch(r);
+    r.param(Ruinae::kFilterCutoffId, 0.6);
+    r.param(Ruinae::kAmpEnvAttackId, envNorm(5));
+    if (variant >= 1 && variant <= 5) {
+        r.param(Ruinae::kDelayEnabledId, 1.0);
+        r.param(Ruinae::kDelayTypeId, (variant - 1) / 4.0);
+        r.param(Ruinae::kDelayMixId, 0.4);
+        r.param(Ruinae::kDelaySyncId, 0.0);
+        r.param(Ruinae::kDelayTimeId, 299.0 / 4999.0);
+    }
+    if (variant == 6 || variant == 7) {
+        r.param(Ruinae::kReverbEnabledId, 1.0);
+        r.param(Ruinae::kReverbTypeId, variant == 6 ? 0.0 : 1.0);
+        r.param(Ruinae::kReverbMixId, 0.4);
+    }
+    if (variant == 8) r.param(Ruinae::kModulationTypeId, 1.0 / 3.0);
+    if (variant == 9) r.param(Ruinae::kModulationTypeId, 2.0 / 3.0);
+    if (variant == 10) r.param(Ruinae::kModulationTypeId, 1.0);
+    if (variant == 11) r.param(Ruinae::kHarmonizerEnabledId, 1.0);
+    r.noteOn(60, 0.8f, 1000);
+    r.noteOn(64, 0.7f, 7777);
+    r.noteOff(60, 20000);
+    r.noteOff(64, 40000);
+    r.render(r.at(2.0), bs);
+    return r.mono();
+}
+
+TEST_CASE("AuditProbe2 block invariance isolation", "[.][audit-probe][audit-probe2]") {
+    const char* names[12] = {"plain", "delay Digital", "delay Tape", "delay PingPong", "delay Granular", "delay Spectral",
+                             "reverb Plate", "reverb Hall", "Phaser", "Flanger", "Chorus", "Harmonizer"};
+    for (int v = 0; v < 12; ++v) {
+        const auto ref = renderInv2(v, 512);
+        double refSq = 0;
+        for (float x : ref) refSq += static_cast<double>(x) * x;
+        for (int32 bs : {32, 100, 441, 2048}) {
+            const auto x = renderInv2(v, bs);
+            double md = 0, dsq = 0;
+            for (size_t i = 0; i < std::min(x.size(), ref.size()); ++i) {
+                const double d = static_cast<double>(x[i]) - ref[i];
+                md = std::max(md, std::fabs(d));
+                dsq += d * d;
+            }
+            const double relDb = 10.0 * std::log10(std::max(dsq, 1e-30) / std::max(refSq, 1e-30));
+            probe(std::string("block-invariance2:") + names[v] + ":bs" + std::to_string(bs),
+                  std::string(names[v]) + " only, saw notes at 1000/7777 off 20000/40000, 2 s at 48k, vs block 512",
+                  "max |diff| / diff energy rel. to signal (dB)", f2(md, 7) + " / " + f2(relDb, 1),
+                  "max<=1e-5 ok, <=1e-3 suspicious", vLow(md, 1e-5, 1e-3));
+        }
+    }
+}
+
+TEST_CASE("AuditProbe2 spectral delay fb0 output", "[.][audit-probe][audit-probe2]") {
+    const double sr = 48000.0;
+    for (double fb : {0.0, 0.3 / 1.2}) {
+        Rig r(sr);
+        basePatch(r, 0.0);
+        r.param(Ruinae::kAmpEnvAttackId, 0.0);
+        r.param(Ruinae::kAmpEnvDecayId, envNorm(15));
+        r.param(Ruinae::kAmpEnvSustainId, 0.0);
+        r.param(Ruinae::kAmpEnvReleaseId, envNorm(10));
+        r.param(Ruinae::kDelayEnabledId, 1.0);
+        r.param(Ruinae::kDelayTypeId, 1.0);
+        r.param(Ruinae::kDelayMixId, 1.0);
+        r.param(Ruinae::kDelaySyncId, 0.0);
+        r.param(Ruinae::kDelayTimeId, 249.0 / 4999.0);
+        r.param(Ruinae::kDelayFeedbackId, fb);
+        r.noteOn(81, 0.9f, 4800);
+        r.noteOff(81, 4800 + 960);
+        r.render(r.at(3.0));
+        const auto m = r.mono();
+        std::string seg;
+        for (int k = 0; k < 12; ++k) {
+            const Stats s = stats(m, static_cast<size_t>(r.at(0.25 * k)), static_cast<size_t>(r.at(0.25 * (k + 1))));
+            seg += (k ? "," : "") + f2(toDb(s.peak), 0);
+        }
+        const Stats all = stats(m);
+        probe("fx-spectral-delay:fb" + f2(fb * 1.2, 2), "blip A5 at 0.1 s, Spectral delay mix 1 (wet only), time 250 ms, 48k; peak dBFS per 250 ms: " + seg,
+              "peak dBFS over 3 s", f2(toDb(all.peak), 1), "an echo is audible (> -40)", toDb(all.peak) > -40.0 ? "ok" : "bad");
+    }
+}
+
+TEST_CASE("AuditProbe2 spectral delay fb0 time sweep", "[.][audit-probe][audit-probe2]") {
+    const double sr = 48000.0;
+    for (double ms : {50.0, 250.0, 1000.0}) {
+        for (double fb : {0.0, 0.01 / 1.2}) {
+            Rig r(sr);
+            basePatch(r, 0.0);
+            r.param(Ruinae::kDelayEnabledId, 1.0);
+            r.param(Ruinae::kDelayTypeId, 1.0);
+            r.param(Ruinae::kDelayMixId, 1.0);
+            r.param(Ruinae::kDelaySyncId, 0.0);
+            r.param(Ruinae::kDelayTimeId, (ms - 1.0) / 4999.0);
+            r.param(Ruinae::kDelayFeedbackId, fb);
+            r.noteOn(69, 0.8f, 4800);  // held note, continuous input
+            r.render(r.at(4.0));
+            const auto m = r.mono();
+            const size_t first = firstAbove(m, 0, 1e-6);
+            const Stats s = stats(m);
+            probe("fx-spectral-delay-held:time" + f2(ms, 0) + ":fb" + f2(fb * 1.2, 2),
+                  "held saw A4 from 0.1 s, Spectral delay wet only, 48k, 4 s",
+                  "first non-zero output (s) / peak dBFS",
+                  (first == SIZE_MAX ? std::string("never") : f2(static_cast<double>(first) / sr, 3)) + " / " + f2(toDb(s.peak), 1),
+                  "output present", first == SIZE_MAX ? "bad" : "ok");
+        }
+    }
+}
+
+TEST_CASE("AuditProbe2 osc pitch tracking extremes", "[.][audit-probe][audit-probe2]") {
+    const double sr = 48000.0;
+    struct Item { int type; int note; double measureMul; const char* why; };
+    const Item items[] = {
+        {3, 33, 2.0, "Sync default ratio 2.0 -> slave at 2*f0"},
+        {3, 69, 2.0, "Sync default ratio 2.0 -> slave at 2*f0"},
+        {3, 96, 2.0, "Sync default ratio 2.0 -> slave at 2*f0"},
+        {7, 93, 1.0, "Formant A6"}, {7, 95, 1.0, "Formant B6"}, {7, 96, 1.0, "Formant C7"}, {7, 105, 1.0, "Formant A7"},
+        {8, 45, 1.0, "SpectralFreeze A2"}, {8, 57, 1.0, "SpectralFreeze A3"}, {8, 60, 1.0, "SpectralFreeze C4"},
+        {8, 69, 1.0, "SpectralFreeze A4"}, {8, 81, 1.0, "SpectralFreeze A5"},
+    };
+    for (const auto& it : items) {
+        Rig r(sr);
+        basePatch(r);
+        r.param(Ruinae::kOscATypeId, it.type / 9.0);
+        r.param(Ruinae::kSoftLimitId, 0.0);
+        r.noteOn(it.note, 0.8f, 0);
+        r.render(r.at(1.4));
+        const auto m = r.mono();
+        const size_t n = 48000;
+        const double fExp = noteHz(it.note) * it.measureMul;
+        const double c = measureCents(m.data() + (m.size() - n), n, sr, fExp, 120.0);
+        probe(std::string("osc-pitch:") + kOscNames[it.type] + ":note" + std::to_string(it.note), std::string(it.why) + ", 48k, 1 s window",
+              "strongest component near expected pitch, cents", f2(c, 2), "|c|<=5 ok, <=20 suspicious", vLow(std::fabs(c), 5.0, 20.0));
+    }
+}
+
+}  // namespace

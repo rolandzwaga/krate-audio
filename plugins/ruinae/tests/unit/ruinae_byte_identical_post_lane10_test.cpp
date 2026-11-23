@@ -33,6 +33,8 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include <algorithm>
+#include <array>
+#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -359,6 +361,8 @@ std::vector<CapturedMidi> driveRuinaeProcessor(Ruinae::Processor& processor)
     return captured;
 }
 
+double presetArpModeNormalized(const std::filesystem::path& presetPath);
+
 void verifyPreset(const std::filesystem::path& presetPath,
                   const std::filesystem::path& fixturesDir)
 {
@@ -368,6 +372,7 @@ void verifyPreset(const std::filesystem::path& presetPath,
         ("ruinae_factory_" + safe + "_golden_midi.txt");
 
     const bool regen = regenGoldensRequested();
+    const double modeBeforeCapture = presetArpModeNormalized(presetPath);
 
     // SC-004b requires 100% factory-preset coverage. A missing golden must be
     // a hard failure so any future preset added without a paired golden trips
@@ -408,11 +413,53 @@ void verifyPreset(const std::filesystem::path& presetPath,
         proc->processParameterChanges(&enableMidiOut);
     }
 
+    // R-122: in Mod-only mode (Off/MIDI/Mod/MIDI+Mod, normalized 2/3) the
+    // processor emits no MIDI, so the capture would be empty and pin nothing.
+    // Capture-only: run the same arp in MIDI+Mod (1.0) so its event stream is
+    // recorded; the preset file and the shipped behaviour are untouched.
+    if (std::abs(modeBeforeCapture - 2.0 / 3.0) < 1e-6) {
+        SingleParamChanges midiPlusMod(Ruinae::kArpOperatingModeId, 1.0);
+        proc->processParameterChanges(&midiPlusMod);
+    }
+
     auto captured = driveRuinaeProcessor(*proc);
     proc->setActive(false);
     proc->terminate();
 
     auto actual = formatCaptured(captured);
+
+    // R-122: a golden with no events pins nothing (empty-vs-empty reads as
+    // "byte-identical"), so an empty capture fails loudly, regen mode included.
+    {
+        INFO("preset: " << stem);
+        REQUIRE(!captured.empty());
+    }
+
+    // Independent of the golden (R-113), and checked in regen mode too so an
+    // unbalanced golden can never be written: every pitch gets as many
+    // NoteOffs as NoteOns, and its last event (after the 45 s key release) is
+    // a NoteOff -- nothing stays held on the downstream instrument.
+    {
+        std::array<int, 128> onCount{};
+        std::array<int, 128> offCount{};
+        std::array<bool, 128> lastIsOn{};
+        for (const auto& c : captured) {
+            const auto p = static_cast<size_t>(c.pitch & 0x7F);
+            if (c.isNoteOn) ++onCount[p]; else ++offCount[p];
+            lastIsOn[p] = c.isNoteOn;
+        }
+        std::string unbalanced;
+        for (size_t p = 0; p < 128; ++p) {
+            if (onCount[p] != offCount[p] || lastIsOn[p]) {
+                unbalanced += " " + std::to_string(p) + "(on " + std::to_string(onCount[p])
+                            + " off " + std::to_string(offCount[p])
+                            + (lastIsOn[p] ? ", ends on noteOn)" : ")");
+            }
+        }
+        INFO("preset: " << stem);
+        INFO("unbalanced pitches:" << unbalanced);
+        REQUIRE(unbalanced.empty());
+    }
 
     if (regen) {
         writeFile(goldenPath, actual);
@@ -443,7 +490,7 @@ void verifyPreset(const std::filesystem::path& presetPath,
 /// normalized value above the Off entry means the arp is live. Reading the
 /// loaded state back through the controller is the same route
 /// factory_preset_audio_test uses to inspect a preset's parameters.
-bool presetUsesArp(const std::filesystem::path& presetPath)
+double presetArpModeNormalized(const std::filesystem::path& presetPath)
 {
     auto proc = std::make_unique<RuinaeHarnessProcessor>();
     proc->initialize(nullptr);
@@ -456,7 +503,7 @@ bool presetUsesArp(const std::filesystem::path& presetPath)
     proc->setupProcessing(setup);
     proc->setActive(true);
 
-    bool usesArp = false;
+    double mode = 0.0;
     if (loadPresetFileIntoProcessor(presetPath, *proc)) {
         // Drain the deferred preset snapshot so getState reflects the preset.
         ProcessData drainData{};
@@ -469,8 +516,8 @@ bool presetUsesArp(const std::filesystem::path& presetPath)
             Ruinae::Controller controller;
             controller.initialize(nullptr);
             if (controller.setComponentState(&saved) == kResultTrue) {
-                usesArp = controller.getParamNormalized(
-                    Ruinae::kArpOperatingModeId) > 1e-6;
+                mode = controller.getParamNormalized(
+                    Ruinae::kArpOperatingModeId);
             }
             controller.terminate();
         }
@@ -478,7 +525,12 @@ bool presetUsesArp(const std::filesystem::path& presetPath)
 
     proc->setActive(false);
     proc->terminate();
-    return usesArp;
+    return mode;
+}
+
+bool presetUsesArp(const std::filesystem::path& presetPath)
+{
+    return presetArpModeNormalized(presetPath) > 1e-6;
 }
 
 /// @brief Every factory preset whose arpeggiator is enabled, wherever it lives.

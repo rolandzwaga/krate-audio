@@ -10,6 +10,7 @@
 #include "controller/parameter_helpers.h"
 #include "parameters/dropdown_mappings.h"
 #include "parameters/note_value_ui.h"
+#include "parameters/state_load_helpers.h"
 #include "pluginterfaces/base/ustring.h"
 #include "public.sdk/source/vst/vstparameters.h"
 #include "public.sdk/source/vst/vsteditcontroller.h"
@@ -72,6 +73,16 @@ inline float lfoRateFromNormalized(double value) {
 
 inline double lfoRateToNormalized(float hz) {
     return logMapToNormalized(static_cast<double>(hz), 0.01, 50.0);
+}
+
+// Sample & Hold and Random rate: 0-1 -> 0.1-50 Hz, the range their sources honour. Using the LFO's
+// 0.01-50 Hz map and clamping at 0.1 Hz left the bottom 27 % of the knob dead (R-097).
+inline float sampleHoldRateFromNormalized(double value) {
+    return static_cast<float>(logMapFromNormalized(value, 0.1, 50.0));
+}
+
+inline double sampleHoldRateToNormalized(float hz) {
+    return logMapToNormalized(static_cast<double>(hz), 0.1, 50.0);
 }
 
 // Exponential fade-in: 0-1 -> 0-5000 ms (0 = off)
@@ -155,10 +166,7 @@ inline void registerLFOParams(Steinberg::Vst::ParameterContainer& parameters,
     parameters.addParameter(label(STR16("Rate")), STR16("Hz"), 0, 0.540,
         ParameterInfo::kCanAutomate, base + kLFORateOffset);
     parameters.addParameter(createDropdownParameter(
-        label(STR16("Shape")), base + kLFOShapeOffset,
-        {STR16("Sine"), STR16("Triangle"), STR16("Sawtooth"),
-         STR16("Square"), STR16("Sample & Hold"), STR16("Smooth Random")}
-    ));
+        label(STR16("Shape")), base + kLFOShapeOffset, kWaveformStrings, kWaveformCount));
     parameters.addParameter(label(STR16("Depth")), STR16("%"), 0, 1.0,
         ParameterInfo::kCanAutomate, base + kLFODepthOffset);
     parameters.addParameter(label(STR16("Sync")), STR16(""), 1, 1.0,
@@ -248,11 +256,23 @@ inline void saveLFOParams(const LFOParams& params, Steinberg::IBStreamer& stream
     streamer.writeInt32(params.sync.load(std::memory_order_relaxed) ? 1 : 0);
 }
 
+// Saved-field ranges, read by both parsers (R-211)
+namespace LFOLoad {
+inline constexpr LoadedFloat kRateHz{.lo = 0.01f, .hi = 50.0f, .def = 1.0f};
+inline constexpr LoadedInt kShape{.lo = 0, .hi = kWaveformCount - 1};
+inline constexpr LoadedFloat kDepth{.lo = 0.0f, .hi = 1.0f, .def = 1.0f};
+inline constexpr LoadedFloat kPhaseOffset{.lo = 0.0f, .hi = 360.0f, .def = 0.0f};
+inline constexpr LoadedInt kNoteValue{.lo = 0, .hi = Parameters::kNoteValueDropdownCount - 1};
+inline constexpr LoadedFloat kFadeInMs{.lo = 0.0f, .hi = 5000.0f, .def = 0.0f};
+inline constexpr LoadedFloat kSymmetry{.lo = 0.0f, .hi = 1.0f, .def = 0.5f};
+inline constexpr LoadedInt kQuantizeSteps{.lo = 0, .hi = kQuantizeStepCount + 1};
+} // namespace LFOLoad
+
 inline bool loadLFOParams(LFOParams& params, Steinberg::IBStreamer& streamer) {
     float fv = 0.0f; Steinberg::int32 iv = 0;
-    if (!streamer.readFloat(fv)) { return false; } params.rateHz.store(fv, std::memory_order_relaxed);
-    if (!streamer.readInt32(iv)) { return false; } params.shape.store(iv, std::memory_order_relaxed);
-    if (!streamer.readFloat(fv)) { return false; } params.depth.store(fv, std::memory_order_relaxed);
+    if (!readLoaded(streamer, fv, LFOLoad::kRateHz)) { return false; } params.rateHz.store(fv, std::memory_order_relaxed);
+    if (!readLoaded(streamer, iv, LFOLoad::kShape)) { return false; } params.shape.store(iv, std::memory_order_relaxed);
+    if (!readLoaded(streamer, fv, LFOLoad::kDepth)) { return false; } params.depth.store(fv, std::memory_order_relaxed);
     if (!streamer.readInt32(iv)) { return false; } params.sync.store(iv != 0, std::memory_order_relaxed);
     return true;
 }
@@ -270,13 +290,13 @@ inline void saveLFOExtendedParams(const LFOParams& params, Steinberg::IBStreamer
 
 inline bool loadLFOExtendedParams(LFOParams& params, Steinberg::IBStreamer& streamer) {
     float fv = 0.0f; Steinberg::int32 iv = 0;
-    if (!streamer.readFloat(fv)) { return false; } params.phaseOffset.store(fv, std::memory_order_relaxed);
+    if (!readLoaded(streamer, fv, LFOLoad::kPhaseOffset)) { return false; } params.phaseOffset.store(fv, std::memory_order_relaxed);
     if (!streamer.readInt32(iv)) { return false; } params.retrigger.store(iv != 0, std::memory_order_relaxed);
-    if (!streamer.readInt32(iv)) { return false; } params.noteValue.store(iv, std::memory_order_relaxed);
+    if (!readLoaded(streamer, iv, LFOLoad::kNoteValue)) { return false; } params.noteValue.store(iv, std::memory_order_relaxed);
     if (!streamer.readInt32(iv)) { return false; } params.unipolar.store(iv != 0, std::memory_order_relaxed);
-    if (!streamer.readFloat(fv)) { return false; } params.fadeInMs.store(fv, std::memory_order_relaxed);
-    if (!streamer.readFloat(fv)) { return false; } params.symmetry.store(fv, std::memory_order_relaxed);
-    if (!streamer.readInt32(iv)) { return false; } params.quantizeSteps.store(iv, std::memory_order_relaxed);
+    if (!readLoaded(streamer, fv, LFOLoad::kFadeInMs)) { return false; } params.fadeInMs.store(fv, std::memory_order_relaxed);
+    if (!readLoaded(streamer, fv, LFOLoad::kSymmetry)) { return false; } params.symmetry.store(fv, std::memory_order_relaxed);
+    if (!readLoaded(streamer, iv, LFOLoad::kQuantizeSteps)) { return false; } params.quantizeSteps.store(iv, std::memory_order_relaxed);
     return true;
 }
 
@@ -284,9 +304,9 @@ template<typename SetParamFunc>
 inline void loadLFOParamsToController(
     Steinberg::Vst::ParamID base, Steinberg::IBStreamer& streamer, const SetParamFunc& setParam) {
     float fv = 0.0f; Steinberg::int32 iv = 0;
-    if (streamer.readFloat(fv)) setParam(base + kLFORateOffset, lfoRateToNormalized(fv));
-    if (streamer.readInt32(iv)) setParam(base + kLFOShapeOffset, static_cast<double>(iv) / (kWaveformCount - 1));
-    if (streamer.readFloat(fv)) setParam(base + kLFODepthOffset, static_cast<double>(fv));
+    if (readLoaded(streamer, fv, LFOLoad::kRateHz)) setParam(base + kLFORateOffset, lfoRateToNormalized(fv));
+    if (readLoaded(streamer, iv, LFOLoad::kShape)) setParam(base + kLFOShapeOffset, static_cast<double>(iv) / (kWaveformCount - 1));
+    if (readLoaded(streamer, fv, LFOLoad::kDepth)) setParam(base + kLFODepthOffset, static_cast<double>(fv));
     if (streamer.readInt32(iv)) setParam(base + kLFOSyncOffset, iv != 0 ? 1.0 : 0.0);
 }
 
@@ -294,13 +314,13 @@ template<typename SetParamFunc>
 inline void loadLFOExtendedParamsToController(
     Steinberg::Vst::ParamID base, Steinberg::IBStreamer& streamer, const SetParamFunc& setParam) {
     float fv = 0.0f; Steinberg::int32 iv = 0;
-    if (streamer.readFloat(fv)) setParam(base + kLFOPhaseOffsetOffset, static_cast<double>(fv) / 360.0);
+    if (readLoaded(streamer, fv, LFOLoad::kPhaseOffset)) setParam(base + kLFOPhaseOffsetOffset, static_cast<double>(fv) / 360.0);
     if (streamer.readInt32(iv)) setParam(base + kLFORetriggerOffset, iv != 0 ? 1.0 : 0.0);
-    if (streamer.readInt32(iv)) setParam(base + kLFONoteValueOffset, static_cast<double>(iv) / (Parameters::kNoteValueDropdownCount - 1));
+    if (readLoaded(streamer, iv, LFOLoad::kNoteValue)) setParam(base + kLFONoteValueOffset, static_cast<double>(iv) / (Parameters::kNoteValueDropdownCount - 1));
     if (streamer.readInt32(iv)) setParam(base + kLFOUnipolarOffset, iv != 0 ? 1.0 : 0.0);
-    if (streamer.readFloat(fv)) setParam(base + kLFOFadeInOffset, lfoFadeInToNormalized(fv));
-    if (streamer.readFloat(fv)) setParam(base + kLFOSymmetryOffset, static_cast<double>(fv));
-    if (streamer.readInt32(iv)) setParam(base + kLFOQuantizeOffset, lfoQuantizeToNormalized(iv));
+    if (readLoaded(streamer, fv, LFOLoad::kFadeInMs)) setParam(base + kLFOFadeInOffset, lfoFadeInToNormalized(fv));
+    if (readLoaded(streamer, fv, LFOLoad::kSymmetry)) setParam(base + kLFOSymmetryOffset, static_cast<double>(fv));
+    if (readLoaded(streamer, iv, LFOLoad::kQuantizeSteps)) setParam(base + kLFOQuantizeOffset, lfoQuantizeToNormalized(iv));
 }
 
 } // namespace Ruinae

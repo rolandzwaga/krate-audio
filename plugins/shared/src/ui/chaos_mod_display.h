@@ -87,6 +87,8 @@ public:
         speed_ = std::clamp(speed, 0.05f, 20.0f);
     }
 
+    [[nodiscard]] float getSpeed() const { return speed_; }
+
     void setDepth(float depth) {
         depth_ = std::clamp(depth, 0.0f, 1.0f);
     }

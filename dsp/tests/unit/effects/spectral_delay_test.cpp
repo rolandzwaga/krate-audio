@@ -10,10 +10,14 @@
 
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/catch_approx.hpp>
+#include <catch2/generators/catch_generators.hpp>
 #include <catch2/matchers/catch_matchers_floating_point.hpp>
 
 #include <krate/dsp/effects/spectral_delay.h>
 #include <krate/dsp/core/block_context.h>
+#include <krate/dsp/primitives/fft.h>
+
+#include <allocation_detector.h>
 
 #include <algorithm>
 #include <array>
@@ -169,38 +173,40 @@ TEST_CASE("SpectralDelay FFT size configuration", "[spectral-delay][foundational
         delay.setFFTSize(512);
         delay.prepare(44100.0, 512);
         REQUIRE(delay.getFFTSize() == 512);
-        REQUIRE(delay.getLatencySamples() == 512);
+        REQUIRE(delay.getLatencySamples() == 512 + 256);  // fftSize + hop
     }
 
     SECTION("1024") {
         delay.setFFTSize(1024);
         delay.prepare(44100.0, 512);
         REQUIRE(delay.getFFTSize() == 1024);
-        REQUIRE(delay.getLatencySamples() == 1024);
+        REQUIRE(delay.getLatencySamples() == 1024 + 512);  // fftSize + hop
     }
 
     SECTION("2048") {
         delay.setFFTSize(2048);
         delay.prepare(44100.0, 512);
         REQUIRE(delay.getFFTSize() == 2048);
-        REQUIRE(delay.getLatencySamples() == 2048);
+        REQUIRE(delay.getLatencySamples() == 2048 + 1024);  // fftSize + hop
     }
 
     SECTION("4096") {
         delay.setFFTSize(4096);
         delay.prepare(44100.0, 512);
         REQUIRE(delay.getFFTSize() == 4096);
-        REQUIRE(delay.getLatencySamples() == 4096);
+        REQUIRE(delay.getLatencySamples() == 4096 + 2048);  // fftSize + hop
     }
 }
 
-TEST_CASE("SpectralDelay latency equals FFT size", "[spectral-delay][foundational][SC-006]") {
+// The wet stream sits a fixed fftSize behind the input (its FIFO), plus the
+// one frame the per-bin loop costs: fftSize + hop at any block length (T2.31).
+TEST_CASE("SpectralDelay latency is FFT size plus one hop", "[spectral-delay][foundational][SC-006]") {
     SpectralDelay delay;
 
     delay.setFFTSize(1024);
     delay.prepare(44100.0, 512);
 
-    REQUIRE(delay.getLatencySamples() == 1024);
+    REQUIRE(delay.getLatencySamples() == 1024 + 512);
 }
 
 // =============================================================================
@@ -952,6 +958,203 @@ TEST_CASE("SpectralDelay feedback >1.0 is soft limited", "[spectral-delay][US4][
 
     // With soft limiting (tanh), output should stay bounded even with >100% feedback
     REQUIRE(maxPeak < 10.0f);  // Should not explode
+}
+
+namespace {
+
+/// Renders a 0.5-amplitude 100 ms 440 Hz burst through a 300 ms spectral delay
+/// (mix 1, default 1024-point FFT) and returns the mono (left) output.
+std::vector<float> renderSpectralFeedbackBurst(float feedback, float seconds,
+                                               std::size_t fftSize = 1024,
+                                               std::size_t blockSize = 512) {
+    constexpr double kSampleRate = 44100.0;
+    SpectralDelay delay;
+    delay.setFFTSize(fftSize);
+    delay.prepare(kSampleRate, blockSize);
+    delay.setBaseDelayMs(300.0f);
+    delay.setSpreadMs(0.0f);
+    delay.setDryWetMix(1.0f);
+    delay.setFeedback(feedback);
+    delay.snapParameters();
+
+    auto ctx = makeTestContext(kSampleRate);
+    const auto total = static_cast<std::size_t>(seconds * static_cast<float>(kSampleRate));
+    const auto burstLen = static_cast<std::size_t>(0.1 * kSampleRate);
+    std::vector<float> input(total, 0.0f);
+    generateSine(input.data(), burstLen, 440.0f, static_cast<float>(kSampleRate), 0.5f);
+
+    std::vector<float> out(total, 0.0f);
+    std::vector<float> left(blockSize);
+    std::vector<float> right(blockSize);
+    for (std::size_t pos = 0; pos < total; pos += blockSize) {
+        const std::size_t n = std::min(blockSize, total - pos);
+        std::copy_n(input.begin() + static_cast<std::ptrdiff_t>(pos), n, left.begin());
+        std::copy_n(input.begin() + static_cast<std::ptrdiff_t>(pos), n, right.begin());
+        delay.process(left.data(), right.data(), n, ctx);
+        std::copy_n(left.begin(), n, out.begin() + static_cast<std::ptrdiff_t>(pos));
+    }
+    return out;
+}
+
+}  // namespace
+
+// R-057: the feedback soft limiter ran tanh() on raw (unnormalised) FFT
+// magnitudes, clamping every strong bin to ~1.0, so echo 2 sat ~33 dB below
+// echo 1 at 90 % feedback. In the signal's own scale, successive echoes must
+// fall by roughly the feedback amount (0.9 = -0.9 dB).
+TEST_CASE("SpectralDelay feedback decays by the feedback amount per echo",
+          "[effects][spectral-delay]") {
+    constexpr double kSampleRate = 44100.0;
+    const std::vector<float> out = renderSpectralFeedbackBurst(0.9f, 1.6f);
+
+    // Echo k is centred near k * 300 ms + latency; measure each one over a
+    // 300 ms window that starts 50 ms before it, which holds the 100 ms burst
+    // plus the STFT smear and no neighbouring echo.
+    const auto delaySamples = static_cast<std::size_t>(0.3 * kSampleRate);
+    const auto margin = static_cast<std::size_t>(0.05 * kSampleRate);
+    const std::size_t latency = 1024;
+    auto echoRms = [&](std::size_t k) {
+        const std::size_t start = (k * delaySamples) + latency - margin;
+        return calculateRMS(out.data() + start, delaySamples);
+    };
+
+    const float echo1 = echoRms(1);
+    const float echo2 = echoRms(2);
+    const float echo3 = echoRms(3);
+    const float ratio21Db = 20.0f * std::log10(echo2 / echo1);
+    const float ratio32Db = 20.0f * std::log10(echo3 / echo2);
+    INFO("echo RMS: " << echo1 << ", " << echo2 << ", " << echo3);
+    INFO("echo2/echo1 = " << ratio21Db << " dB, echo3/echo2 = " << ratio32Db << " dB");
+
+    REQUIRE(echo1 > 0.05f);
+    REQUIRE(ratio21Db >= -2.0f);
+    REQUIRE(ratio21Db <= 0.0f);
+    REQUIRE(ratio32Db >= -2.0f);
+    REQUIRE(ratio32Db <= 0.0f);
+}
+
+TEST_CASE("SpectralDelay feedback above unity stays bounded over 10 s",
+          "[effects][spectral-delay]") {
+    const std::vector<float> out = renderSpectralFeedbackBurst(1.2f, 10.0f);
+    const float peak = findPeak(out.data(), out.size());
+    INFO("peak over 10 s at feedback 1.2: " << peak << " (input peak 0.5)");
+    REQUIRE(peak < 4.0f * 0.5f);
+}
+
+// R-195: with Hann analysis only and no synthesis window, the fractional
+// per-bin reads and the recirculated feedback leave non-zero frame edges, so
+// the wet output steps at every hop boundary. The defect concentrates the
+// largest |2nd difference| at one residue mod hop; a clean output reads alike
+// at every residue (a 0.5-amplitude 440 Hz tone's own |2nd difference| peaks
+// near 0.002).
+TEST_CASE("SpectralDelay output has no hop-edge steps", "[effects][spectral-delay]") {
+    constexpr float kSampleRate = 44100.0f;
+    const std::size_t fftSize = GENERATE(std::size_t{1024}, std::size_t{2048});
+    const std::size_t hop = fftSize / 2;
+    // One-hop blocks, as before the wet path's latency was fixed (T2.31); the
+    // latency is the same at any block length now.
+    const std::vector<float> out = renderSpectralFeedbackBurst(0.9f, 1.6f, fftSize, hop);
+    // Only whole blocks are measured.
+    const std::size_t measuredEnd = (out.size() / hop) * hop;
+
+    // Echo k sits at k * delay + (reported latency - hop): the reported
+    // latency (fftSize + hop) includes the one frame the loop spends, which
+    // the delay time already accounts for.
+    SpectralDelay sized;
+    sized.setFFTSize(fftSize);
+    const std::size_t latency = sized.getLatencySamples() - hop;
+    const auto delaySamples = static_cast<std::size_t>(0.3f * kSampleRate);
+    const auto burstLen = static_cast<std::size_t>(0.1f * kSampleRate);
+    // +-2 ms around each onset and offset, widened by half a hop for the echoes:
+    // an echo's edge is a transient, and transients land on the frame grid
+    // (R-160, documented design), up to half a hop from the nominal time. The
+    // burst's abrupt end (|2nd difference| ~0.031 in the source) otherwise
+    // reads at FFT 2048 as 0.014, 7.1 ms after the nominal echo offset - at a
+    // residue that moves with the echo, not a hop edge.
+    const auto guard = static_cast<std::size_t>(0.002f * kSampleRate) + (hop / 2);
+
+    // Onsets and offsets excluded: the dry burst's, then each echo's.
+    std::vector<std::size_t> edges{0, burstLen};
+    for (std::size_t k = 1; (k * delaySamples) + latency < out.size(); ++k) {
+        edges.push_back((k * delaySamples) + latency);
+        edges.push_back((k * delaySamples) + latency + burstLen);
+    }
+    auto nearEdge = [&](std::size_t t) {
+        return std::any_of(edges.begin(), edges.end(), [&](std::size_t e) {
+            return (t + guard >= e) && (t <= e + guard);
+        });
+    };
+
+    // Echo region: from the first echo's onset to the last whole block.
+    std::vector<float> residueMax(hop, 0.0f);
+    for (std::size_t t = delaySamples + latency; t + 1 < measuredEnd; ++t) {
+        if (nearEdge(t)) continue;
+        const float d2 = std::abs(out[t + 1] - (2.0f * out[t]) + out[t - 1]);
+        residueMax[t % hop] = std::max(residueMax[t % hop], d2);
+    }
+
+    const auto worst = std::max_element(residueMax.begin(), residueMax.end());
+    const float largest = *worst;
+    std::vector<float> sorted = residueMax;
+    std::nth_element(sorted.begin(), sorted.begin() + static_cast<std::ptrdiff_t>(hop / 2),
+                     sorted.end());
+    const float median = sorted[hop / 2];
+
+    INFO("FFT " << fftSize << ": largest per-residue max |d2| = " << largest
+                << " at residue " << (worst - residueMax.begin())
+                << ", median of per-residue maxima = " << median
+                << ", ratio = " << (largest / median));
+    REQUIRE(median > 0.0f);
+    REQUIRE(largest <= 3.0f * median);
+}
+
+// The OverlapAdd normalisation gives unity passthrough: with feedback 0 and a
+// whole-frame delay (base 0 ms: the one frame the loop costs, read unchanged),
+// the wet output is the input delayed by the reported latency, at any block
+// length (T2.31). Blocks are one hop long.
+TEST_CASE("SpectralDelay passes an unmodified frame through at unity",
+          "[effects][spectral-delay]") {
+    constexpr double kSampleRate = 44100.0;
+    const std::size_t fftSize = GENERATE(std::size_t{512}, std::size_t{1024},
+                                         std::size_t{2048}, std::size_t{4096});
+    const std::size_t kBlockSize = fftSize / 2;
+    SpectralDelay delay;
+    delay.setFFTSize(fftSize);
+    delay.prepare(kSampleRate, kBlockSize);
+    delay.setBaseDelayMs(0.0f);
+    delay.setSpreadMs(0.0f);
+    delay.setDryWetMix(1.0f);
+    delay.setFeedback(0.0f);
+    delay.snapParameters();
+
+    const std::size_t kTotal = 22 * fftSize;
+    std::vector<float> input(kTotal);
+    Xorshift32 rng{12345};
+    for (float& s : input) s = 0.5f * rng.nextFloat();
+
+    std::vector<float> out(kTotal, 0.0f);
+    std::vector<float> left(kBlockSize);
+    std::vector<float> right(kBlockSize);
+    auto ctx = makeTestContext(kSampleRate);
+    for (std::size_t pos = 0; pos < kTotal; pos += kBlockSize) {
+        std::copy_n(input.begin() + static_cast<std::ptrdiff_t>(pos), kBlockSize, left.begin());
+        std::copy_n(input.begin() + static_cast<std::ptrdiff_t>(pos), kBlockSize, right.begin());
+        delay.process(left.data(), right.data(), kBlockSize, ctx);
+        std::copy_n(left.begin(), kBlockSize, out.begin() + static_cast<std::ptrdiff_t>(pos));
+    }
+
+    // Skip the first frame after the latency: it rises from silence.
+    const std::size_t lag = delay.getLatencySamples();
+    float maxErr = 0.0f;
+    float outPeak = 0.0f;
+    for (std::size_t t = lag + fftSize; t < kTotal; ++t) {
+        outPeak = std::max(outPeak, std::abs(out[t]));
+        maxErr = std::max(maxErr, std::abs(out[t] - input[t - lag]));
+    }
+    INFO("FFT " << fftSize << ", lag " << lag << ": max |out - delayed input| = " << maxErr
+                << ", output peak " << outPeak);
+    REQUIRE(outPeak > 0.4f);
+    REQUIRE(maxErr < 1e-4f);
 }
 
 // =============================================================================
@@ -2931,6 +3134,368 @@ TEST_CASE("SpectralDelay dry/wet smoother reaches its designed time constant in 
             REQUIRE(checked > 0);
             CHECK(minRatio >= 0.5);
             CHECK(maxRatio <= 2.0);
+        }
+    }
+}
+
+// =============================================================================
+// FFT size changes on a prepared delay (Ruinae audit R-058)
+// =============================================================================
+// setFFTSize() on a prepared delay used to rewrite fftSize_ only: the STFT, the
+// spectra, the per-bin delay lines and hopSize_ kept the prepare-time size, while
+// readDelayedSpectrum's expected phase advance and getLatencySamples() read the
+// new one. A live FFT Size control therefore never changed the resolution and
+// mis-projected the phase of every fractional-frame read.
+
+namespace {
+
+constexpr double kFftSwitchSampleRate = 44100.0;
+constexpr std::size_t kFftSwitchBlock = 512;
+
+/// A delay with uniform 300 ms delay, no feedback, 100 % wet. 300 ms is a
+/// fractional number of frames at every FFT size (5.46 frames at 4096).
+void configureFftSwitchDelay(SpectralDelay& d, std::size_t fftSize) {
+    d.setFFTSize(fftSize);
+    d.prepare(kFftSwitchSampleRate, kFftSwitchBlock);
+    d.seedRng(1);
+    d.setBaseDelayMs(300.0f);
+    d.setSpreadMs(0.0f);
+    d.setFeedback(0.0f);
+    d.setDryWetMix(1.0f);
+    d.snapParameters();
+}
+
+std::vector<float> makeFftSwitchTone(std::size_t numSamples) {
+    std::vector<float> tone(numSamples);
+    generateSine(tone.data(), numSamples, 1000.0f, static_cast<float>(kFftSwitchSampleRate), 0.5f);
+    return tone;
+}
+
+/// Bins within 6 dB of the peak of an 8192-point Hann-windowed spectrum
+int peakWidthBins(const float* signal) {
+    constexpr std::size_t kN = 8192;
+    std::vector<float> windowed(kN);
+    for (std::size_t i = 0; i < kN; ++i) {
+        const double w = 0.5 - 0.5 * std::cos(6.283185307179586 * static_cast<double>(i)
+                                              / static_cast<double>(kN - 1));
+        windowed[i] = signal[i] * static_cast<float>(w);
+    }
+    FFT fft;
+    fft.prepare(kN);
+    std::vector<Complex> spectrum(kN / 2 + 1);
+    fft.forward(windowed.data(), spectrum.data());
+    float peak = 0.0f;
+    for (const auto& c : spectrum) peak = std::max(peak, c.magnitude());
+    int width = 0;
+    for (const auto& c : spectrum) {
+        if (c.magnitude() >= 0.5f * peak) ++width;
+    }
+    return width;
+}
+
+float maxStep(const std::vector<float>& x, std::size_t begin, std::size_t end) {
+    float m = 0.0f;
+    for (std::size_t i = begin + 1; i < end; ++i) m = std::max(m, std::abs(x[i] - x[i - 1]));
+    return m;
+}
+
+}  // namespace
+
+TEST_CASE("SpectralDelay FFT size change is applied consistently", "[effects][spectral-delay]") {
+    constexpr std::size_t kTotal = static_cast<std::size_t>(4.0 * kFftSwitchSampleRate);
+    constexpr std::size_t kRequestBlock = static_cast<std::size_t>(1.0 * kFftSwitchSampleRate) / kFftSwitchBlock;
+    constexpr std::size_t kCompare = static_cast<std::size_t>(2.5 * kFftSwitchSampleRate);
+    const std::vector<float> tone = makeFftSwitchTone(kTotal);
+
+    // A: prepared at 1024, asked for 4096 while running
+    SpectralDelay a;
+    configureFftSwitchDelay(a, 1024);
+    std::vector<float> outA(kTotal, 0.0f);
+    std::vector<float> l(kFftSwitchBlock);
+    std::vector<float> r(kFftSwitchBlock);
+    const std::size_t numBlocks = kTotal / kFftSwitchBlock;
+    std::size_t switchBlock = numBlocks;
+    std::size_t allocations = 0;
+    std::size_t probe = 0;
+    const BlockContext ctx = makeTestContext(kFftSwitchSampleRate);
+    {
+        TestHelpers::AllocationScope scope;
+        TestHelpers::allocateObservably();  // non-vacuity: the detector counts in this binary
+        probe = TestHelpers::AllocationDetector::instance().getAllocationCount();
+        for (std::size_t b = 0; b < numBlocks; ++b) {
+            if (b == kRequestBlock) a.setFFTSize(4096);
+            const std::size_t sizeBefore = a.getFFTSize();
+            std::copy_n(tone.begin() + static_cast<std::ptrdiff_t>(b * kFftSwitchBlock), kFftSwitchBlock, l.begin());
+            std::copy_n(l.begin(), kFftSwitchBlock, r.begin());
+            a.process(l.data(), r.data(), kFftSwitchBlock, ctx);
+            std::copy_n(l.begin(), kFftSwitchBlock, outA.begin() + static_cast<std::ptrdiff_t>(b * kFftSwitchBlock));
+            if (switchBlock == numBlocks && b >= kRequestBlock && a.getFFTSize() == 4096) {
+                // a size applied at the start of block b; one that shows up
+                // before any process() call counts from the request block
+                switchBlock = (sizeBefore == 4096) ? kRequestBlock : b;
+            }
+        }
+        allocations = TestHelpers::AllocationDetector::instance().getAllocationCount() - probe;
+    }
+    REQUIRE(probe >= 1);
+    REQUIRE(switchBlock < numBlocks);
+    REQUIRE(a.getFFTSize() == 4096);
+    REQUIRE(a.getLatencySamples() == 4096 + 2048);  // fftSize + hop
+    CHECK(allocations == 0);
+
+    const std::size_t switchStart = switchBlock * kFftSwitchBlock;
+    REQUIRE(switchStart + kCompare <= kTotal);
+
+    // B: prepared at 4096, fed the same input from the moment A switched
+    SpectralDelay bDelay;
+    configureFftSwitchDelay(bDelay, 4096);
+    const std::size_t compared = (kCompare / kFftSwitchBlock) * kFftSwitchBlock;
+    std::vector<float> outB(compared, 0.0f);
+    for (std::size_t b = 0; b < compared / kFftSwitchBlock; ++b) {
+        std::copy_n(tone.begin() + static_cast<std::ptrdiff_t>(switchStart + b * kFftSwitchBlock),
+                    kFftSwitchBlock, l.begin());
+        std::copy_n(l.begin(), kFftSwitchBlock, r.begin());
+        bDelay.process(l.data(), r.data(), kFftSwitchBlock, ctx);
+        std::copy_n(l.begin(), kFftSwitchBlock, outB.begin() + static_cast<std::ptrdiff_t>(b * kFftSwitchBlock));
+    }
+
+    // After the switch A is a 4096-point delay: same echo, same level, same resolution
+    float maxDiff = 0.0f;
+    for (std::size_t i = 0; i < compared; ++i) {
+        maxDiff = std::max(maxDiff, std::abs(outA[switchStart + i] - outB[i]));
+    }
+    const std::size_t tail = compared - static_cast<std::size_t>(1.0 * kFftSwitchSampleRate);
+    const float rmsA = calculateRMS(outA.data() + switchStart + tail, compared - tail);
+    const float rmsB = calculateRMS(outB.data() + tail, compared - tail);
+    INFO("switch at block " << switchBlock << ", max |A - B| " << maxDiff
+         << ", RMS A " << rmsA << " B " << rmsB);
+    REQUIRE(rmsB > 0.1f);
+    CHECK(maxDiff <= 1.0e-4f);
+    CHECK(std::abs(20.0f * std::log10(rmsA / rmsB)) <= 1.0f);
+    CHECK(peakWidthBins(outA.data() + switchStart + tail) == peakWidthBins(outB.data() + tail));
+}
+
+TEST_CASE("SpectralDelay FFT size change fades the wet path instead of clicking",
+          "[effects][spectral-delay]") {
+    constexpr std::size_t kTotal = static_cast<std::size_t>(2.0 * kFftSwitchSampleRate);
+    constexpr std::size_t kEarliestRequestBlock =
+        static_cast<std::size_t>(1.0 * kFftSwitchSampleRate) / kFftSwitchBlock;
+    const std::vector<float> tone = makeFftSwitchTone(kTotal);
+    const BlockContext ctx = makeTestContext(kFftSwitchSampleRate);
+
+    const auto run = [&](std::size_t from, std::size_t to) {
+        SpectralDelay d;
+        configureFftSwitchDelay(d, from);
+        std::vector<float> out(kTotal, 0.0f);
+        std::vector<float> l(kFftSwitchBlock);
+        std::vector<float> r(kFftSwitchBlock);
+        const std::size_t steadyBegin = kEarliestRequestBlock * kFftSwitchBlock / 2;
+        float steadyPeak = 0.0f;
+        std::size_t request = 0;
+        for (std::size_t b = 0; b < kTotal / kFftSwitchBlock; ++b) {
+            const std::size_t start = b * kFftSwitchBlock;
+            // Request the switch where the wet output is near its peak, the worst
+            // place to cut it: a switch that does not fade jumps by ~the peak.
+            if (request == 0 && b >= kEarliestRequestBlock
+                && std::abs(out[start - 1]) >= 0.8f * steadyPeak) {
+                d.setFFTSize(to);
+                request = start;
+            }
+            std::copy_n(tone.begin() + static_cast<std::ptrdiff_t>(start), kFftSwitchBlock, l.begin());
+            std::copy_n(l.begin(), kFftSwitchBlock, r.begin());
+            d.process(l.data(), r.data(), kFftSwitchBlock, ctx);
+            std::copy_n(l.begin(), kFftSwitchBlock, out.begin() + static_cast<std::ptrdiff_t>(start));
+            if (request == 0 && start >= steadyBegin) {
+                for (std::size_t i = 0; i < kFftSwitchBlock; ++i) {
+                    steadyPeak = std::max(steadyPeak, std::abs(l[i]));
+                }
+            }
+        }
+        REQUIRE(request > 0);
+        REQUIRE(request + kTotal / 4 <= kTotal);  // at least 0.5 s rendered after the request
+        const std::size_t end = (kTotal / kFftSwitchBlock) * kFftSwitchBlock;
+        const float steady = maxStep(out, steadyBegin, request);
+        const float across = maxStep(out, request - 1, end);
+        INFO(from << " -> " << to << ": request at sample " << request << ", steady peak " << steadyPeak
+             << ", steady max step " << steady << ", across switch " << across);
+        REQUIRE(steady > 0.01f);
+        CHECK(d.getFFTSize() == to);
+        CHECK(across <= 1.5f * steady);
+    };
+
+    SECTION("1024 -> 4096") { run(1024, 4096); }
+    SECTION("4096 -> 512") { run(4096, 512); }
+}
+
+// R-094 (Ruinae audit): the base delay range follows prepare()'s maxDelayMs; the default keeps
+// the 2000 ms limit.
+TEST_CASE("SpectralDelay base delay range follows the prepared maximum", "[spectral-delay][FR-006]") {
+    SECTION("prepared for 5000 ms, a 3000 ms base delay is kept") {
+        SpectralDelay delay;
+        delay.prepare(44100.0, 512, 5000.0f);
+        delay.setBaseDelayMs(3000.0f);
+        REQUIRE(delay.getBaseDelayMs() == Approx(3000.0f));
+        delay.setBaseDelayMs(9000.0f);
+        REQUIRE(delay.getBaseDelayMs() == Approx(5000.0f));
+    }
+    SECTION("default prepare stops a 3000 ms base delay at 2000 ms") {
+        SpectralDelay delay;
+        delay.prepare(44100.0, 512);
+        delay.setBaseDelayMs(3000.0f);
+        REQUIRE(delay.getBaseDelayMs() == Approx(SpectralDelay::kMaxDelayMs));
+    }
+}
+
+// R-161 (Ruinae audit): the stereo-phase RNG was seeded from the object's address and reset() kept
+// drawing from the running stream, so two instances, or one instance before and after a reset,
+// rendered different audio at any stereo width.
+TEST_CASE("SpectralDelay renders deterministically across instances and resets",
+          "[spectral-delay][stereo][deterministic]") {
+    constexpr std::size_t kBlockSize = 512;
+    constexpr int kBlocks = 120;
+    const auto ctx = makeTestContext();
+
+    const auto configure = [](SpectralDelay& d) {
+        d.setFFTSize(1024);
+        d.prepare(44100.0, kBlockSize);
+        d.setBaseDelayMs(100.0f);
+        d.setSpreadMs(100.0f);
+        d.setFeedback(0.5f);
+        d.setDryWetMix(1.0f);
+        d.setStereoWidth(1.0f);
+        d.snapParameters();
+    };
+    const auto render = [&](SpectralDelay& d) {
+        std::vector<float> out;
+        out.reserve(2 * kBlockSize * kBlocks);
+        std::vector<float> left(kBlockSize);
+        std::vector<float> right(kBlockSize);
+        std::size_t n = 0;
+        for (int b = 0; b < kBlocks; ++b) {
+            for (std::size_t i = 0; i < kBlockSize; ++i, ++n) {
+                const float t = static_cast<float>(n) / 44100.0f;
+                left[i] = 0.3f * std::sin(6.28318530718f * 440.0f * t) +
+                          0.2f * std::sin(6.28318530718f * 1130.0f * t);
+            }
+            std::copy(left.begin(), left.end(), right.begin());
+            d.process(left.data(), right.data(), kBlockSize, ctx);
+            out.insert(out.end(), left.begin(), left.end());
+            out.insert(out.end(), right.begin(), right.end());
+        }
+        return out;
+    };
+    const auto maxDiff = [](const std::vector<float>& a, const std::vector<float>& b) {
+        float worst = 0.0f;
+        for (std::size_t i = 0; i < a.size(); ++i) worst = std::max(worst, std::abs(a[i] - b[i]));
+        return worst;
+    };
+
+    SpectralDelay first;
+    configure(first);
+    const auto reference = render(first);
+    float peak = 0.0f;
+    for (const float s : reference) peak = std::max(peak, std::abs(s));
+    REQUIRE(peak > 0.01f);  // the wet path sounds
+
+    SECTION("a second instance renders the same") {
+        SpectralDelay second;  // alive beside `first`: another address
+        configure(second);
+        const float diff = maxDiff(reference, render(second));
+        INFO("max sample difference " << diff);
+        REQUIRE(diff <= 1e-7f);
+    }
+    SECTION("the same instance renders the same after reset()") {
+        first.reset();
+        const float diff = maxDiff(reference, render(first));
+        INFO("max sample difference " << diff);
+        REQUIRE(diff <= 1e-7f);
+    }
+}
+
+// T3.6b (R-160, Ruinae audit): characterisation of the echo timing a tempo-synced host gets
+// when it passes the grid time to setBaseDelayMs unchanged. The first echo carries the FFT
+// latency (base + fftSize); the repeats are spaced by the base delay. The delay is read at the
+// nearest frame (documented design, no 75 % overlap), so every echo can sit up to about half a
+// hop off; one hop is the design limit, not a target to tighten.
+TEST_CASE("SpectralDelay synced echo spacing is within one hop of the grid", "[spectral-delay][sync]") {
+    constexpr std::size_t kFftSize = 1024;
+    constexpr double kHop = static_cast<double>(kFftSize) / 2.0;
+    constexpr std::size_t kBlock = 512;
+    constexpr std::size_t kEchoes = 3;
+
+    struct GridCase {
+        const char* name;
+        double beats;  // quarter notes
+        double tempo;
+    };
+    constexpr std::array<GridCase, 4> kCases{{
+        {"1/4 @ 120", 1.0, 120.0},
+        {"1/8 @ 120", 0.5, 120.0},
+        {"1/16 @ 120", 0.25, 120.0},
+        {"1/4 @ 90", 1.0, 90.0},
+    }};
+
+    for (const double sampleRate : {48000.0, 44100.0}) {
+        for (const auto& c : kCases) {
+            const double gridMs = c.beats * 60000.0 / c.tempo;
+            const double grid = gridMs * sampleRate / 1000.0;
+            CAPTURE(sampleRate, c.name, grid);
+
+            SpectralDelay d;
+            d.setFFTSize(kFftSize);
+            d.prepare(sampleRate, kBlock);
+            d.setBaseDelayMs(static_cast<float>(gridMs));
+            d.setSpreadMs(0.0f);
+            d.setFeedback(0.5f);
+            d.setDryWetMix(1.0f);
+            d.snapParameters();
+            auto ctx = makeTestContext(sampleRate);
+            ctx.tempoBPM = c.tempo;
+
+            // The click sits off the frame grid (at a frame start the analysis window is 0).
+            constexpr std::size_t kClickAt = 2 * kFftSize + 173;
+            // Long enough for the last echo's whole window: (kEchoes + 1/2) grids + fftSize.
+            const auto totalLen = kClickAt + static_cast<std::size_t>(
+                (static_cast<double>(kEchoes) + 1.0) * grid + static_cast<double>(kFftSize));
+            std::vector<float> left(totalLen, 0.0f);
+            std::vector<float> right(totalLen, 0.0f);
+            left[kClickAt] = 1.0f;
+            right[kClickAt] = 1.0f;
+            for (std::size_t pos = 0; pos < totalLen; pos += kBlock) {
+                const std::size_t n = std::min(kBlock, totalLen - pos);
+                d.process(left.data() + pos, right.data() + pos, n, ctx);
+            }
+
+            // Each echo is located by the x^2 energy centroid (sub-sample) in a +/- grid/2 window
+            // around where it is expected (grid + fftSize after the click, then one grid per
+            // repeat). Not a threshold onset: the frame read leaves a weak pre-echo about one
+            // frame early, and a threshold trips on it.
+            std::vector<double> echoes;
+            for (std::size_t k = 0; k < kEchoes; ++k) {
+                const double expected = static_cast<double>(kClickAt) + grid +
+                                        static_cast<double>(kFftSize) + static_cast<double>(k) * grid;
+                const auto lo = static_cast<std::size_t>(expected - grid / 2.0);
+                const auto hi = std::min(totalLen, static_cast<std::size_t>(expected + grid / 2.0) + 1);
+                double energy = 0.0;
+                double moment = 0.0;
+                for (std::size_t i = lo; i < hi; ++i) {
+                    const double e = static_cast<double>(left[i]) * static_cast<double>(left[i]);
+                    energy += e;
+                    moment += e * static_cast<double>(i);
+                }
+                REQUIRE(energy > 0.0);  // an echo is present in the window
+                echoes.push_back(moment / energy - static_cast<double>(kClickAt));
+            }
+            INFO("echo centroids after the click " << echoes[0] << ", " << echoes[1] << ", " << echoes[2]);
+
+            const double first = echoes[0];
+            CAPTURE(first - (grid + static_cast<double>(kFftSize)));
+            CHECK(std::abs(first - (grid + static_cast<double>(kFftSize))) <= kHop / 2.0 + 128.0);
+            for (std::size_t k = 1; k < echoes.size(); ++k) {
+                const double spacing = echoes[k] - echoes[k - 1];
+                CAPTURE(k, spacing);
+                CHECK(std::abs(spacing - grid) <= kHop);
+            }
         }
     }
 }

@@ -14,10 +14,28 @@
 #include "plugin_ids.h"
 
 #include "pluginterfaces/vst/ivsteditcontroller.h"
+#include "pluginterfaces/vst/ivstmidicontrollers.h"
 
 #include <set>
+#include <vector>
+#include <memory>
+#include <cstring>
+#include <cmath>
+#include <algorithm>
+#include <utility>
+#include "processor/processor.h"
+#include "parameters/sample_hold_params.h"
+#include "parameters/random_params.h"
+#include "parameters/chaos_mod_params.h"
+#include "vst_param_changes.h"
+#include "vst_event_list.h"
+#include "public.sdk/source/common/memorystream.h"
 #include "parameters/osc_params.h"
+#include "parameters/delay_params.h"
+#include "parameters/voice_lfo_params.h"
 #include <string>
+#include <fstream>
+#include <sstream>
 
 using namespace Steinberg;
 using namespace Steinberg::Vst;
@@ -152,6 +170,23 @@ TEST_CASE("Specific parameters are registered with correct names", "[controller]
     checkParam(Ruinae::kMonoPortamentoTimeId, "Portamento Time");
 
     ctrl->terminate();
+}
+
+TEST_CASE("Mono Priority list entries name the MonoMode at the same index", "[controller][params]") {
+    auto* ctrl = makeControllerRaw();
+
+    // MonoMode enum order: LastNote = 0, LowNote = 1, HighNote = 2
+    auto entry = [&](double normalized) {
+        String128 str{};
+        REQUIRE(ctrl->getParamStringByValue(Ruinae::kMonoPriorityId, normalized, str) == kResultOk);
+        return to_string(str);
+    };
+    CHECK(entry(0.0).find("Last") != std::string::npos);
+    CHECK(entry(0.5).find("Low") != std::string::npos);
+    CHECK(entry(1.0).find("High") != std::string::npos);
+
+    ctrl->terminate();
+    ctrl->release();
 }
 
 TEST_CASE("Discrete parameters have correct step counts", "[controller][params]") {
@@ -499,4 +534,292 @@ TEST_CASE("OSC dropdowns are registered from the canonical label tables",
 
     ctrl->terminate();
     ctrl->release();
+}
+
+// =============================================================================
+// Delay FFT Size: registered default matches the processor (Ruinae audit R-187)
+// =============================================================================
+// The parameter was registered with the plain createDropdownParameter, so its
+// default was index 0 ("512") while the processor atomic and the uidesc default
+// are index 1 (1024). A host "reset to default" switched the delay to 512.
+
+TEST_CASE("Delay FFT Size registered default denormalises to the processor default",
+          "[controller][params][defaults]") {
+    auto* ctrl = makeControllerRaw();
+
+    auto* param = ctrl->getParameterObject(Ruinae::kDelaySpectralFFTSizeId);
+    REQUIRE(param != nullptr);
+    const ParamValue registeredDefault = param->getInfo().defaultNormalizedValue;
+
+    Ruinae::RuinaeDelayParams processorDefaults;
+    const int processorDefault = processorDefaults.spectralFFTSize.load();
+
+    Ruinae::RuinaeDelayParams decoded;
+    decoded.spectralFFTSize.store(-1);
+    Ruinae::handleDelayParamChange(decoded, Ruinae::kDelaySpectralFFTSizeId, registeredDefault);
+
+    INFO("registered default " << registeredDefault);
+    CHECK(processorDefault == 1);
+    CHECK(decoded.spectralFFTSize.load() == processorDefault);
+
+    ctrl->terminate();
+    ctrl->release();
+}
+
+// =============================================================================
+// Voice LFO rate and shape (Ruinae audit R-093)
+// =============================================================================
+
+TEST_CASE("Voice LFO rate and shape are registered and automatable with 1 Hz sine defaults",
+          "[controller][params][defaults]") {
+    auto* ctrl = makeControllerRaw();
+
+    Ruinae::VoiceLfoParams decoded;
+    decoded.rateHz.store(-1.0f);
+    decoded.shape.store(-1);
+    for (const auto id : {Ruinae::kVoiceLfoRateId, Ruinae::kVoiceLfoShapeId}) {
+        auto* param = ctrl->getParameterObject(id);
+        REQUIRE(param != nullptr);
+        const auto& info = param->getInfo();
+        CHECK((info.flags & ParameterInfo::kCanAutomate) != 0);
+        CHECK((info.flags & ParameterInfo::kIsHidden) == 0);
+        Ruinae::handleVoiceLfoParamChange(decoded, id, info.defaultNormalizedValue);
+    }
+    CHECK(ctrl->getParameterObject(Ruinae::kVoiceLfoShapeId)->getInfo().stepCount == 5);
+    CHECK(decoded.rateHz.load() == Catch::Approx(1.0f).margin(1e-5f));
+    CHECK(decoded.shape.load() == 0);
+
+    String128 text{};
+    REQUIRE(ctrl->getParamStringByValue(Ruinae::kVoiceLfoRateId, Ruinae::lfoRateToNormalized(5.0f), text)
+            == kResultOk);
+    CHECK(to_string(text) == "5.00 Hz");
+
+    ctrl->terminate();
+    ctrl->release();
+}
+
+TEST_CASE("Velocity > Amp is registered and automatable with default 1.0",
+          "[controller][params][defaults][velocity]") {
+    auto* ctrl = makeControllerRaw();
+
+    auto* param = ctrl->getParameterObject(Ruinae::kAmpEnvVelocityAmountId);
+    REQUIRE(param != nullptr);
+    const auto& info = param->getInfo();
+    CHECK(to_string(info.title) == "Velocity > Amp");
+    CHECK((info.flags & ParameterInfo::kCanAutomate) != 0);
+    CHECK((info.flags & ParameterInfo::kIsHidden) == 0);
+    CHECK(info.defaultNormalizedValue == 1.0);
+
+    String128 text{};
+    REQUIRE(ctrl->getParamStringByValue(Ruinae::kAmpEnvVelocityAmountId, 0.5, text) == kResultOk);
+    CHECK(to_string(text) == "50%");
+
+    ctrl->terminate();
+    ctrl->release();
+}
+
+// =============================================================================
+// MIDI controllers through IMidiMapping (Ruinae audit R-030, R-042)
+// =============================================================================
+
+// VST3 hosts and the AU wrapper deliver pitch bend, channel pressure and CCs only as parameter
+// changes on the IDs IMidiMapping names; without the mapping they never reach the plugin.
+TEST_CASE("Controller maps pitch bend, aftertouch and mod wheel", "[controller][midi]") {
+    auto* ctrl = makeControllerRaw();
+
+    FUnknownPtr<IMidiMapping> mapping(static_cast<IEditController*>(ctrl));
+    REQUIRE(mapping);
+
+    struct Expected {
+        CtrlNumber controller;
+        ParamID id;
+        ParamValue defaultValue;
+    };
+    for (const auto& e : {Expected{kPitchBend, Ruinae::kMidiPitchBendId, 0.5},
+                          Expected{kAfterTouch, Ruinae::kMidiAftertouchId, 0.0},
+                          Expected{kCtrlModWheel, Ruinae::kMidiModWheelId, 0.0}}) {
+        INFO("controller " << e.controller);
+        ParamID id = 0;
+        REQUIRE(mapping->getMidiControllerAssignment(0, 0, e.controller, id) == kResultOk);
+        CHECK(id == e.id);
+        // Every channel maps the same way.
+        ParamID idCh15 = 0;
+        REQUIRE(mapping->getMidiControllerAssignment(0, 15, e.controller, idCh15) == kResultOk);
+        CHECK(idCh15 == e.id);
+
+        auto* param = ctrl->getParameterObject(id);
+        REQUIRE(param != nullptr);
+        const auto& info = param->getInfo();
+        CHECK((info.flags & ParameterInfo::kIsHidden) != 0);
+        CHECK((info.flags & ParameterInfo::kCanAutomate) != 0);
+        CHECK(info.defaultNormalizedValue == e.defaultValue);
+        // Outside the arp routing span (processParameterChanges routes it whole to the arp).
+        CHECK((id < Ruinae::kArpBaseId || id > Ruinae::kArpEndId));
+    }
+
+    ParamID unused = 0;
+    CHECK(mapping->getMidiControllerAssignment(1, 0, kPitchBend, unused) == kResultFalse);
+    CHECK(mapping->getMidiControllerAssignment(0, 0, kCtrlVolume, unused) == kResultFalse);
+
+    ctrl->terminate();
+    ctrl->release();
+}
+
+// =============================================================================
+// UI-only view switches (Ruinae audit R-086)
+// =============================================================================
+
+// The tab and view-mode switches are ephemeral editor state: a host must neither list them nor record
+// automation for them, or its playback drives a template switch from outside the control.
+TEST_CASE("UI-only view parameters are hidden and not automatable", "[controller][params]") {
+    auto* ctrl = makeControllerRaw();
+
+    for (const auto id : {static_cast<ParamID>(Ruinae::kMainTabTag),
+                          static_cast<ParamID>(Ruinae::kModSourceViewModeTag),
+                          static_cast<ParamID>(Ruinae::kFilterViewModeTag),
+                          static_cast<ParamID>(Ruinae::kDistortionViewModeTag)}) {
+        INFO("param id " << id);
+        auto* param = ctrl->getParameterObject(id);
+        REQUIRE(param != nullptr);
+        const auto& info = param->getInfo();
+        CHECK((info.flags & ParameterInfo::kIsHidden) != 0);
+        CHECK((info.flags & ParameterInfo::kCanAutomate) == 0);
+        CHECK((info.flags & ParameterInfo::kIsList) != 0);
+    }
+
+    ctrl->terminate();
+    ctrl->release();
+}
+
+// =============================================================================
+// Registered defaults agree with the processor (Ruinae audit R-184/185/186/188/097)
+// =============================================================================
+
+TEST_CASE("Every registered default denormalises to the processor default",
+          "[controller][params][defaults]") {
+    // The processor's untouched state, read back through the controller, must put every parameter on its
+    // registered default: otherwise a fresh instance sounds one way and a host "reset to default" another.
+    auto stream = Steinberg::owned(new Steinberg::MemoryStream());
+    {
+        auto processor = std::make_unique<Ruinae::Processor>();
+        processor->initialize(nullptr);
+        Steinberg::Vst::ProcessSetup setup{};
+        setup.processMode = Steinberg::Vst::kRealtime;
+        setup.symbolicSampleSize = Steinberg::Vst::kSample32;
+        setup.sampleRate = 44100.0;
+        setup.maxSamplesPerBlock = 512;
+        processor->setupProcessing(setup);
+        processor->setActive(true);
+        REQUIRE(processor->getState(stream) == Steinberg::kResultTrue);
+        processor->setActive(false);
+        processor->terminate();
+    }
+
+    auto* ctrl = makeControllerRaw();
+    stream->seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
+    REQUIRE(ctrl->setComponentState(stream) == Steinberg::kResultOk);
+
+    // Hand-typed defaults carry rounding of a few thousandths; the audited errors are 0.008 and larger.
+    constexpr double kTolerance = 0.005;
+    std::vector<std::string> offenders;
+    for (int32 i = 0; i < ctrl->getParameterCount(); ++i) {
+        ParameterInfo info{};
+        ctrl->getParameterInfo(i, info);
+        if (info.flags & (ParameterInfo::kIsHidden | ParameterInfo::kIsReadOnly |
+                          ParameterInfo::kIsProgramChange))
+            continue;
+        const double processorSide = ctrl->getParamNormalized(info.id);
+        if (std::abs(processorSide - info.defaultNormalizedValue) > kTolerance) {
+            char line[200];
+            std::snprintf(line, sizeof(line), "%u %s: registered default %.4f, processor starts at %.4f",
+                          static_cast<unsigned>(info.id), to_string(info.title).c_str(),
+                          info.defaultNormalizedValue, processorSide);
+            offenders.emplace_back(line);
+        }
+    }
+
+    std::string list;
+    for (const auto& o : offenders)
+        list += "\n  " + o;
+    INFO("registered default differs from the processor default for:" << list);
+    CHECK(offenders.empty());
+
+    ctrl->terminate();
+    ctrl->release();
+}
+
+TEST_CASE("S&H and Random rate map [0,1] onto 0.1-50 Hz monotonically", "[params]") {
+    Ruinae::SampleHoldParams sh;
+    Ruinae::RandomParams rnd;
+
+    float prevSh = 0.0f;
+    float prevRnd = 0.0f;
+    for (int i = 0; i <= 100; ++i) {
+        const double n = i / 100.0;
+        Ruinae::handleSampleHoldParamChange(sh, Ruinae::kSampleHoldRateId, n);
+        Ruinae::handleRandomParamChange(rnd, Ruinae::kRandomRateId, n);
+        const float s = sh.rateHz.load();
+        const float r = rnd.rateHz.load();
+        INFO("normalized " << n);
+        if (i == 0) {
+            CHECK(s == Catch::Approx(0.1f).margin(1e-4));
+            CHECK(r == Catch::Approx(0.1f).margin(1e-4));
+        } else {
+            CHECK(s > prevSh);
+            CHECK(r > prevRnd);
+        }
+        if (i == 100) {
+            CHECK(s == Catch::Approx(50.0f).margin(1e-3));
+            CHECK(r == Catch::Approx(50.0f).margin(1e-3));
+        }
+        prevSh = s;
+        prevRnd = r;
+    }
+}
+
+TEST_CASE("Chaos speed maps [0,1] onto 0.05-20 monotonically", "[params]") {
+    Ruinae::ChaosModParams chaos;
+
+    float prev = 0.0f;
+    for (int i = 0; i <= 100; ++i) {
+        const double n = i / 100.0;
+        Ruinae::handleChaosModParamChange(chaos, Ruinae::kChaosModRateId, n);
+        const float v = chaos.rateHz.load();
+        INFO("normalized " << n);
+        if (i == 0)
+            CHECK(v == Catch::Approx(0.05f).margin(1e-4));
+        else
+            CHECK(v > prev);
+        if (i == 100)
+            CHECK(v == Catch::Approx(20.0f).margin(1e-3));
+        prev = v;
+    }
+}
+
+// =============================================================================
+// Gain Compensation is a hidden legacy parameter (Ruinae audit R-101, R-090)
+// =============================================================================
+// The engine's voice-count compensation was removed; the control did nothing.
+// The ID, atomic and state field stay (state layout unchanged), but the host
+// must not offer or automate it and the editor must not bind a control to it.
+
+TEST_CASE("Gain Compensation is a hidden legacy parameter", "[controller][params]") {
+    auto* ctrl = makeControllerRaw();
+
+    auto* param = ctrl->getParameterObject(Ruinae::kSettingsGainCompensationId);
+    REQUIRE(param != nullptr);
+    const auto flags = param->getInfo().flags;
+    CHECK((flags & ParameterInfo::kIsHidden) != 0);
+    CHECK((flags & ParameterInfo::kCanAutomate) == 0);
+
+    ctrl->terminate();
+    ctrl->release();
+
+    std::ifstream in(std::string(RUINAE_RESOURCES_DIR) + "/editor.uidesc", std::ios::binary);
+    REQUIRE(in.good());
+    std::stringstream ss;
+    ss << in.rdbuf();
+    const std::string uidesc = ss.str();
+    CHECK(uidesc.find("control-tag=\"SettingsGainCompensation\"") == std::string::npos);
+    CHECK(uidesc.find("title=\"Gain Compensation\"") == std::string::npos);
 }

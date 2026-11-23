@@ -41,6 +41,7 @@
 #include "parameters/harmonizer_params.h"
 
 #include "controller/mod_ring_dest_ids.h"
+#include "controller/view_sync_rules.h"
 
 #include <cmath>
 
@@ -56,32 +57,14 @@ Steinberg::tresult PLUGIN_API Controller::setParamNormalized(
     // Let the base class handle its bookkeeping first
     auto result = EditControllerEx1::setParamNormalized(tag, value);
 
-    // CRITICAL: Pointer-nulling for view lifecycle must happen even during bulk
-    // loads. The base class setParamNormalized triggers IDependent notifications
-    // which cause UIViewSwitchContainer to destroy old tab views. If we skip
-    // onTabChanged(), the cached pointers become dangling and syncAllViews()
-    // will dereference freed memory (use-after-free -> ACCESS_VIOLATION).
-    if (tag == kMainTabTag) {
-        int newTab = static_cast<int>(std::round(value * 3.0));
-        onTabChanged(newTab);
-    }
-    if (tag == kOscATypeId && value > 0.01) {
-        oscAPWKnob_ = nullptr;
-    }
-    if (tag == kOscBTypeId && value > 0.01) {
-        oscBPWKnob_ = nullptr;
-    }
-    if (tag == kDistortionTypeId) {
-        spectralCurveDropdown_ = nullptr;
-        spectralBitsGroup_ = nullptr;
-    }
-    // Same lifecycle hazard one level down: the nine mod-source views live inside
-    // the ModSourceViewMode UIViewSwitchContainer, so switching it destroys the
-    // outgoing template's children while the controller still caches pointers to
-    // them.
-    if (tag == kModSourceViewModeTag) {
-        resetModSourceViewPointers();
-    }
+    // No pointer clearing here: the base call above can already have switched a
+    // template (the incoming views are cached by now), and the cached view
+    // pointers clear themselves when their views are destroyed (viewRegistry_).
+
+    // The processor publishes the modulated morph position (R-005): from now on
+    // the poll timer, not the Mixer Position / Tilt parameters, moves the pad.
+    if (tag == kMorphPadModXId || tag == kMorphPadModYId)
+        morphPadFollowsProcessor_ = true;
 
     // During bulk parameter loads (preset switching), skip per-param view updates.
     // syncAllViews() will do a single batch sync afterwards.
@@ -190,9 +173,7 @@ Steinberg::tresult PLUGIN_API Controller::setParamNormalized(
     if (conditionLane_) {
         if (tag >= kArpConditionLaneStep0Id && tag < kArpConditionLaneStep0Id + 32) {
             int stepIndex = static_cast<int>(tag - kArpConditionLaneStep0Id);
-            auto condIndex = static_cast<uint8_t>(
-                std::clamp(static_cast<int>(std::round(value * 17.0)), 0, 17));
-            conditionLane_->setStepCondition(stepIndex, condIndex);
+            conditionLane_->setStepCondition(stepIndex, conditionIndexFromNormalized(value));
             conditionLane_->setDirty(true);
         } else if (tag == kArpConditionLaneLengthId) {
             int steps = std::clamp(
@@ -282,25 +263,6 @@ Steinberg::tresult PLUGIN_API Controller::setParamNormalized(
     }
 
     // Update LFO waveform displays when relevant parameters change
-    // Helper: compute LFO frequency from sync state, rate, and note value params
-    auto computeLfoFreq = [this](Steinberg::Vst::ParamID syncId,
-                                  Steinberg::Vst::ParamID rateId,
-                                  Steinberg::Vst::ParamID noteValueId) -> float {
-        auto* syncParam = getParameterObject(syncId);
-        bool synced = syncParam && syncParam->getNormalized() >= 0.5;
-        if (synced) {
-            auto* nvParam = getParameterObject(noteValueId);
-            int nvIdx = nvParam ? static_cast<int>(
-                nvParam->getNormalized() * (Krate::DSP::kNoteValueDropdownCount - 1) + 0.5) : 10;
-            auto mapping = Krate::DSP::getNoteValueFromDropdown(nvIdx);
-            float beats = Krate::DSP::getBeatsForNote(mapping.note, mapping.modifier);
-            float bps = Krate::Plugins::LfoWaveformDisplay::kDefaultBpm / 60.0f;
-            return bps / beats;
-        }
-        auto* rateParam = getParameterObject(rateId);
-        return rateParam ? lfoRateFromNormalized(rateParam->getNormalized()) : 1.0f;
-    };
-
     if (lfo1WaveformDisplay_) {
         if (tag == kLFO1ShapeId)
             lfo1WaveformDisplay_->setShape(static_cast<int>(value * 5.0 + 0.5));
@@ -318,7 +280,8 @@ Steinberg::tresult PLUGIN_API Controller::setParamNormalized(
             lfo1WaveformDisplay_->setFadeInMs(lfoFadeInFromNormalized(value));
         if (tag == kLFO1RateId || tag == kLFO1SyncId || tag == kLFO1NoteValueId)
             lfo1WaveformDisplay_->setFrequencyHz(
-                computeLfoFreq(kLFO1SyncId, kLFO1RateId, kLFO1NoteValueId));
+                modSourceDisplayRateHz(kLFO1SyncId, kLFO1RateId, kLFO1NoteValueId,
+                                       &lfoRateFromNormalized));
     }
     if (lfo2WaveformDisplay_) {
         if (tag == kLFO2ShapeId)
@@ -337,7 +300,8 @@ Steinberg::tresult PLUGIN_API Controller::setParamNormalized(
             lfo2WaveformDisplay_->setFadeInMs(lfoFadeInFromNormalized(value));
         if (tag == kLFO2RateId || tag == kLFO2SyncId || tag == kLFO2NoteValueId)
             lfo2WaveformDisplay_->setFrequencyHz(
-                computeLfoFreq(kLFO2SyncId, kLFO2RateId, kLFO2NoteValueId));
+                modSourceDisplayRateHz(kLFO2SyncId, kLFO2RateId, kLFO2NoteValueId,
+                                       &lfoRateFromNormalized));
     }
     if (tag == kChaosModSyncId) {
         if (chaosRateGroup_) chaosRateGroup_->setVisible(value < 0.5);
@@ -349,7 +313,8 @@ Steinberg::tresult PLUGIN_API Controller::setParamNormalized(
             chaosModDisplay_->setModel(static_cast<int>(value * (kChaosTypeCount - 1) + 0.5));
         if (tag == kChaosModRateId || tag == kChaosModSyncId || tag == kChaosModNoteValueId)
             chaosModDisplay_->setSpeed(
-                computeLfoFreq(kChaosModSyncId, kChaosModRateId, kChaosModNoteValueId));
+                modSourceDisplayRateHz(kChaosModSyncId, kChaosModRateId, kChaosModNoteValueId,
+                                       &chaosSpeedFromNormalized));
         if (tag == kChaosModDepthId)
             chaosModDisplay_->setDepth(static_cast<float>(value));
     }
@@ -372,7 +337,8 @@ Steinberg::tresult PLUGIN_API Controller::setParamNormalized(
     if (sampleHoldDisplay_) {
         if (tag == kSampleHoldRateId || tag == kSampleHoldSyncId || tag == kSampleHoldNoteValueId)
             sampleHoldDisplay_->setRate(
-                computeLfoFreq(kSampleHoldSyncId, kSampleHoldRateId, kSampleHoldNoteValueId));
+                modSourceDisplayRateHz(kSampleHoldSyncId, kSampleHoldRateId, kSampleHoldNoteValueId,
+                                       &sampleHoldRateFromNormalized));
         if (tag == kSampleHoldSlewId)
             sampleHoldDisplay_->setSlew(sampleHoldSlewFromNormalized(value));
     }
@@ -380,7 +346,8 @@ Steinberg::tresult PLUGIN_API Controller::setParamNormalized(
     if (randomModDisplay_) {
         if (tag == kRandomRateId || tag == kRandomSyncId || tag == kRandomNoteValueId)
             randomModDisplay_->setRate(
-                computeLfoFreq(kRandomSyncId, kRandomRateId, kRandomNoteValueId));
+                modSourceDisplayRateHz(kRandomSyncId, kRandomRateId, kRandomNoteValueId,
+                                       &sampleHoldRateFromNormalized));
         if (tag == kRandomSmoothnessId)
             randomModDisplay_->setSmoothness(static_cast<float>(value));
     }
@@ -475,14 +442,8 @@ Steinberg::tresult PLUGIN_API Controller::setParamNormalized(
     }
 
     // PW knob visual disable (068-osc-type-params FR-016)
-    if (tag == kOscAWaveformId && oscAPWKnob_) {
-        int wf = static_cast<int>(value * 4.0 + 0.5);
-        oscAPWKnob_->setAlphaValue(wf == 3 ? 1.0f : 0.3f);
-    }
-    if (tag == kOscBWaveformId && oscBPWKnob_) {
-        int wf = static_cast<int>(value * 4.0 + 0.5);
-        oscBPWKnob_->setAlphaValue(wf == 3 ? 1.0f : 0.3f);
-    }
+    if (tag == kOscAWaveformId) applyOscPwDimming(oscAPWKnob_, value);
+    if (tag == kOscBWaveformId) applyOscPwDimming(oscBPWKnob_, value);
     // Spectral distortion control dimming
     if (tag == kDistortionSpectralModeId) {
         int mode = std::clamp(
@@ -499,7 +460,7 @@ Steinberg::tresult PLUGIN_API Controller::setParamNormalized(
         }
     }
     // Push mixer parameter changes to XYMorphPad
-    if (xyMorphPad_ && !modulatedMorphXPtr_) {
+    if (xyMorphPad_ && !morphPadFollowsProcessor_) {
         if (tag == kMixerPositionId) {
             xyMorphPad_->setMorphPosition(
                 static_cast<float>(value), xyMorphPad_->getMorphY());
@@ -639,11 +600,9 @@ void Controller::syncAllViews() {
     // Condition lane (condition indices, not float levels)
     if (conditionLane_) {
         for (int i = 0; i < 32; ++i) {
-            auto condIndex = static_cast<uint8_t>(std::clamp(
-                static_cast<int>(std::round(
-                    paramNorm(kArpConditionLaneStep0Id + static_cast<uint32_t>(i)) * 17.0)),
-                0, 17));
-            conditionLane_->setStepCondition(i, condIndex);
+            conditionLane_->setStepCondition(
+                i, conditionIndexFromNormalized(
+                       paramNorm(kArpConditionLaneStep0Id + static_cast<uint32_t>(i))));
         }
         int condSteps = paramInt(kArpConditionLaneLengthId, 31.0, 1.0, 1, 32);
         conditionLane_->setNumSteps(condSteps);
@@ -713,106 +672,13 @@ void Controller::syncAllViews() {
     syncVisGroup(kLFO1SyncId, lfo1RateGroup_, lfo1NoteValueGroup_);
     syncVisGroup(kLFO2SyncId, lfo2RateGroup_, lfo2NoteValueGroup_);
 
-    // ---- LFO Waveform Displays ----
-    auto syncLfoWaveform = [&](Krate::Plugins::LfoWaveformDisplay* display,
-                               Steinberg::Vst::ParamID shapeId,
-                               Steinberg::Vst::ParamID symmetryId,
-                               Steinberg::Vst::ParamID quantizeId,
-                               Steinberg::Vst::ParamID unipolarId,
-                               Steinberg::Vst::ParamID phaseId,
-                               Steinberg::Vst::ParamID rateId,
-                               Steinberg::Vst::ParamID syncId,
-                               Steinberg::Vst::ParamID noteValueId,
-                               Steinberg::Vst::ParamID depthId,
-                               Steinberg::Vst::ParamID fadeInId) {
-        if (!display) return;
-        display->setShape(static_cast<int>(paramNorm(shapeId) * 5.0 + 0.5));
-        display->setSymmetry(static_cast<float>(paramNorm(symmetryId)));
-        display->setQuantizeSteps(lfoQuantizeFromNormalized(paramNorm(quantizeId)));
-        display->setUnipolar(paramNorm(unipolarId) >= 0.5);
-        display->setPhaseOffset(static_cast<float>(paramNorm(phaseId)));
-        display->setDepth(static_cast<float>(paramNorm(depthId)));
-        display->setFadeInMs(lfoFadeInFromNormalized(paramNorm(fadeInId)));
-
-        bool synced = paramNorm(syncId) >= 0.5;
-        if (synced) {
-            int nvIdx = static_cast<int>(
-                paramNorm(noteValueId) * (Krate::DSP::kNoteValueDropdownCount - 1) + 0.5);
-            auto mapping = Krate::DSP::getNoteValueFromDropdown(nvIdx);
-            float beats = Krate::DSP::getBeatsForNote(mapping.note, mapping.modifier);
-            float bps = Krate::Plugins::LfoWaveformDisplay::kDefaultBpm / 60.0f;
-            display->setFrequencyHz(bps / beats);
-        } else {
-            display->setFrequencyHz(lfoRateFromNormalized(paramNorm(rateId)));
-        }
-    };
-    syncLfoWaveform(lfo1WaveformDisplay_,
-                    kLFO1ShapeId, kLFO1SymmetryId, kLFO1QuantizeId,
-                    kLFO1UnipolarId, kLFO1PhaseOffsetId,
-                    kLFO1RateId, kLFO1SyncId, kLFO1NoteValueId,
-                    kLFO1DepthId, kLFO1FadeInId);
-    syncLfoWaveform(lfo2WaveformDisplay_,
-                    kLFO2ShapeId, kLFO2SymmetryId, kLFO2QuantizeId,
-                    kLFO2UnipolarId, kLFO2PhaseOffsetId,
-                    kLFO2RateId, kLFO2SyncId, kLFO2NoteValueId,
-                    kLFO2DepthId, kLFO2FadeInId);
-    // Sync chaos mod display
-    if (chaosModDisplay_) {
-        chaosModDisplay_->setModel(static_cast<int>(
-            paramNorm(kChaosModTypeId) * (kChaosTypeCount - 1) + 0.5));
-        // Compute effective speed from sync state
-        bool chaosSynced = paramNorm(kChaosModSyncId) >= 0.5;
-        if (chaosSynced) {
-            int nvIdx = static_cast<int>(
-                paramNorm(kChaosModNoteValueId) * (Krate::DSP::kNoteValueDropdownCount - 1) + 0.5);
-            auto mapping = Krate::DSP::getNoteValueFromDropdown(nvIdx);
-            float beats = Krate::DSP::getBeatsForNote(mapping.note, mapping.modifier);
-            float bps = 120.0f / 60.0f;
-            chaosModDisplay_->setSpeed(bps / beats);
-        } else {
-            chaosModDisplay_->setSpeed(lfoRateFromNormalized(paramNorm(kChaosModRateId)));
-        }
-        chaosModDisplay_->setDepth(static_cast<float>(paramNorm(kChaosModDepthId)));
-    }
-    // Sync rungler display
-    if (runglerDisplay_) {
-        runglerDisplay_->setOsc1Freq(runglerFreqFromNormalized(paramNorm(kRunglerOsc1FreqId)));
-        runglerDisplay_->setOsc2Freq(runglerFreqFromNormalized(paramNorm(kRunglerOsc2FreqId)));
-        runglerDisplay_->setDepth(static_cast<float>(paramNorm(kRunglerDepthId)));
-        runglerDisplay_->setFilterAmount(static_cast<float>(paramNorm(kRunglerFilterId)));
-        runglerDisplay_->setBits(runglerBitsFromNormalized(paramNorm(kRunglerBitsId)));
-        runglerDisplay_->setLoopMode(paramNorm(kRunglerLoopModeId) >= 0.5);
-    }
-    // Sync S&H display
-    if (sampleHoldDisplay_) {
-        bool shSynced = paramNorm(kSampleHoldSyncId) >= 0.5;
-        if (shSynced) {
-            int nvIdx = static_cast<int>(
-                paramNorm(kSampleHoldNoteValueId) * (Krate::DSP::kNoteValueDropdownCount - 1) + 0.5);
-            auto mapping = Krate::DSP::getNoteValueFromDropdown(nvIdx);
-            float beats = Krate::DSP::getBeatsForNote(mapping.note, mapping.modifier);
-            float bps = 120.0f / 60.0f;
-            sampleHoldDisplay_->setRate(bps / beats);
-        } else {
-            sampleHoldDisplay_->setRate(lfoRateFromNormalized(paramNorm(kSampleHoldRateId)));
-        }
-        sampleHoldDisplay_->setSlew(sampleHoldSlewFromNormalized(paramNorm(kSampleHoldSlewId)));
-    }
-    // Sync random display
-    if (randomModDisplay_) {
-        bool rndSynced = paramNorm(kRandomSyncId) >= 0.5;
-        if (rndSynced) {
-            int nvIdx = static_cast<int>(
-                paramNorm(kRandomNoteValueId) * (Krate::DSP::kNoteValueDropdownCount - 1) + 0.5);
-            auto mapping = Krate::DSP::getNoteValueFromDropdown(nvIdx);
-            float beats = Krate::DSP::getBeatsForNote(mapping.note, mapping.modifier);
-            float bps = 120.0f / 60.0f;
-            randomModDisplay_->setRate(bps / beats);
-        } else {
-            randomModDisplay_->setRate(lfoRateFromNormalized(paramNorm(kRandomRateId)));
-        }
-        randomModDisplay_->setSmoothness(static_cast<float>(paramNorm(kRandomSmoothnessId)));
-    }
+    // ---- Mod-source displays (same helpers as verifyView) ----
+    syncLfoWaveformDisplay(lfo1WaveformDisplay_, 0);
+    syncLfoWaveformDisplay(lfo2WaveformDisplay_, 1);
+    syncChaosModDisplay();
+    syncRunglerDisplay();
+    syncSampleHoldDisplay();
+    syncRandomModDisplay();
     // Sync sidechain indicators
     sidechainActive_ = paramNorm(kSidechainActiveId) >= 0.5;
     updateSidechainIndicator(sidechainIndicatorEnvFollower_);
@@ -885,14 +751,8 @@ void Controller::syncAllViews() {
     }
 
     // ---- PW knob dimming ----
-    if (oscAPWKnob_) {
-        int wf = static_cast<int>(paramNorm(kOscAWaveformId) * 4.0 + 0.5);
-        oscAPWKnob_->setAlphaValue(wf == 3 ? 1.0f : 0.3f);
-    }
-    if (oscBPWKnob_) {
-        int wf = static_cast<int>(paramNorm(kOscBWaveformId) * 4.0 + 0.5);
-        oscBPWKnob_->setAlphaValue(wf == 3 ? 1.0f : 0.3f);
-    }
+    applyOscPwDimming(oscAPWKnob_, paramNorm(kOscAWaveformId));
+    applyOscPwDimming(oscBPWKnob_, paramNorm(kOscBWaveformId));
 
     // ---- Spectral distortion control dimming ----
     {
@@ -912,7 +772,7 @@ void Controller::syncAllViews() {
     }
 
     // ---- XYMorphPad ----
-    if (xyMorphPad_ && !modulatedMorphXPtr_) {
+    if (xyMorphPad_ && !morphPadFollowsProcessor_) {
         xyMorphPad_->setMorphPosition(
             static_cast<float>(paramNorm(kMixerPositionId)),
             static_cast<float>(paramNorm(kMixerTiltId)));
@@ -970,6 +830,103 @@ void Controller::syncAllViews() {
     if (activeEditor_ && activeEditor_->getFrame()) {
         activeEditor_->getFrame()->invalid();
     }
+}
+
+// ==============================================================================
+// Mod-source display helpers (R-108): setParamNormalized, syncAllViews and
+// verifyView all go through these, so the three paths cannot drift apart.
+// ==============================================================================
+
+float Controller::modSourceDisplayRateHz(Steinberg::Vst::ParamID syncId,
+                                         Steinberg::Vst::ParamID rateId,
+                                         Steinberg::Vst::ParamID noteValueId,
+                                         float (*rateFromNormalized)(double)) {
+    auto* syncParam = getParameterObject(syncId);
+    if (syncParam && syncParam->getNormalized() >= 0.5) {
+        auto* nvParam = getParameterObject(noteValueId);
+        return syncedDisplayRateHz(
+            nvParam ? nvParam->getNormalized()
+                    : static_cast<double>(Krate::DSP::kNoteValueDefaultIndex) /
+                          (Krate::DSP::kNoteValueDropdownCount - 1));
+    }
+    auto* rateParam = getParameterObject(rateId);
+    return rateParam ? rateFromNormalized(rateParam->getNormalized()) : 1.0f;
+}
+
+void Controller::syncLfoWaveformDisplay(Krate::Plugins::LfoWaveformDisplay* display,
+                                        int lfoIndex) {
+    if (!display) return;
+    struct LfoIds {
+        Steinberg::Vst::ParamID shape, symmetry, quantize, unipolar, phase,
+            rate, sync, noteValue, depth, fadeIn;
+    };
+    static constexpr std::array<LfoIds, 2> kLfoIds{{
+        {.shape = kLFO1ShapeId, .symmetry = kLFO1SymmetryId, .quantize = kLFO1QuantizeId,
+         .unipolar = kLFO1UnipolarId, .phase = kLFO1PhaseOffsetId, .rate = kLFO1RateId,
+         .sync = kLFO1SyncId, .noteValue = kLFO1NoteValueId, .depth = kLFO1DepthId,
+         .fadeIn = kLFO1FadeInId},
+        {.shape = kLFO2ShapeId, .symmetry = kLFO2SymmetryId, .quantize = kLFO2QuantizeId,
+         .unipolar = kLFO2UnipolarId, .phase = kLFO2PhaseOffsetId, .rate = kLFO2RateId,
+         .sync = kLFO2SyncId, .noteValue = kLFO2NoteValueId, .depth = kLFO2DepthId,
+         .fadeIn = kLFO2FadeInId},
+    }};
+    const auto& ids = kLfoIds.at(static_cast<size_t>(lfoIndex));
+    auto norm = [this](Steinberg::Vst::ParamID id) {
+        auto* p = getParameterObject(id);
+        return p ? p->getNormalized() : 0.0;
+    };
+    display->setShape(static_cast<int>(norm(ids.shape) * 5.0 + 0.5));
+    display->setSymmetry(static_cast<float>(norm(ids.symmetry)));
+    display->setQuantizeSteps(lfoQuantizeFromNormalized(norm(ids.quantize)));
+    display->setUnipolar(norm(ids.unipolar) >= 0.5);
+    display->setPhaseOffset(static_cast<float>(norm(ids.phase)));
+    display->setDepth(static_cast<float>(norm(ids.depth)));
+    display->setFadeInMs(lfoFadeInFromNormalized(norm(ids.fadeIn)));
+    display->setFrequencyHz(
+        modSourceDisplayRateHz(ids.sync, ids.rate, ids.noteValue, &lfoRateFromNormalized));
+}
+
+void Controller::syncChaosModDisplay() {
+    if (!chaosModDisplay_) return;
+    auto* typeParam = getParameterObject(kChaosModTypeId);
+    chaosModDisplay_->setModel(static_cast<int>(
+        (typeParam ? typeParam->getNormalized() : 0.0) * (kChaosTypeCount - 1) + 0.5));
+    chaosModDisplay_->setSpeed(modSourceDisplayRateHz(
+        kChaosModSyncId, kChaosModRateId, kChaosModNoteValueId, &chaosSpeedFromNormalized));
+    auto* depthParam = getParameterObject(kChaosModDepthId);
+    chaosModDisplay_->setDepth(static_cast<float>(depthParam ? depthParam->getNormalized() : 0.0));
+}
+
+void Controller::syncRunglerDisplay() {
+    if (!runglerDisplay_) return;
+    auto norm = [this](Steinberg::Vst::ParamID id) {
+        auto* p = getParameterObject(id);
+        return p ? p->getNormalized() : 0.0;
+    };
+    runglerDisplay_->setOsc1Freq(runglerFreqFromNormalized(norm(kRunglerOsc1FreqId)));
+    runglerDisplay_->setOsc2Freq(runglerFreqFromNormalized(norm(kRunglerOsc2FreqId)));
+    runglerDisplay_->setDepth(static_cast<float>(norm(kRunglerDepthId)));
+    runglerDisplay_->setFilterAmount(static_cast<float>(norm(kRunglerFilterId)));
+    runglerDisplay_->setBits(runglerBitsFromNormalized(norm(kRunglerBitsId)));
+    runglerDisplay_->setLoopMode(norm(kRunglerLoopModeId) >= 0.5);
+}
+
+void Controller::syncSampleHoldDisplay() {
+    if (!sampleHoldDisplay_) return;
+    sampleHoldDisplay_->setRate(modSourceDisplayRateHz(
+        kSampleHoldSyncId, kSampleHoldRateId, kSampleHoldNoteValueId, &sampleHoldRateFromNormalized));
+    auto* slewParam = getParameterObject(kSampleHoldSlewId);
+    sampleHoldDisplay_->setSlew(
+        sampleHoldSlewFromNormalized(slewParam ? slewParam->getNormalized() : 0.0));
+}
+
+void Controller::syncRandomModDisplay() {
+    if (!randomModDisplay_) return;
+    randomModDisplay_->setRate(modSourceDisplayRateHz(
+        kRandomSyncId, kRandomRateId, kRandomNoteValueId, &sampleHoldRateFromNormalized));
+    auto* smoothParam = getParameterObject(kRandomSmoothnessId);
+    randomModDisplay_->setSmoothness(
+        static_cast<float>(smoothParam ? smoothParam->getNormalized() : 0.0));
 }
 
 } // namespace Ruinae

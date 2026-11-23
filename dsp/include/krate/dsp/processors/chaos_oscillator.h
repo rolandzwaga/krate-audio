@@ -292,6 +292,11 @@ public:
     ///
     /// @param type Attractor type to use
     void setAttractor(ChaosAttractor type) noexcept {
+        // An index past the table (a damaged preset) is clamped before
+        // updateConstants() reads kAttractorConstants with it (R-003).
+        if (static_cast<size_t>(type) >= kNumChaosAttractors) {
+            type = static_cast<ChaosAttractor>(kNumChaosAttractors - 1);
+        }
         if (type != attractor_) {
             attractor_ = type;
             updateConstants();

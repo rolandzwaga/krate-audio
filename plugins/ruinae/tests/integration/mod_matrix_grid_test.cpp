@@ -31,6 +31,12 @@
 #include "ui/bipolar_slider.h"
 #include "ui/mod_source_colors.h"
 
+#include "controller/controller.h"
+#include "parameters/dropdown_mappings.h"
+
+#include "pluginterfaces/vst/ivsteditcontroller.h"
+#include "public.sdk/source/vst/vstparameters.h"
+
 #include <cstring>
 #include <vector>
 
@@ -1455,4 +1461,272 @@ TEST_CASE("Gate Output color is distinct from StepPatternEditor accent gold",
     // Verify Gate Output green channel differs by >= 40 from accent gold
     REQUIRE(std::abs(static_cast<int>(gateColor.green) -
                      static_cast<int>(env2Color.green)) >= 40);
+}
+
+// =============================================================================
+// Fix plan T1.23 (R-082, R-143, R-083): a ModMatrixGrid wired to a real
+// Controller keeps all seven parameters of every global route slot in sync,
+// in the controller's own Parameter objects and at the host, on remove, add,
+// detail edits and amount drags.
+// =============================================================================
+
+namespace {
+
+/// Records every edit the controller reports to the host, in order.
+class GestureRecorder final : public Steinberg::Vst::IComponentHandler {
+public:
+    enum class Kind { Begin, Perform, End };
+    struct Event {
+        Kind kind;
+        Steinberg::Vst::ParamID id;
+        double value;
+    };
+    std::vector<Event> events;
+
+    Steinberg::tresult PLUGIN_API beginEdit(Steinberg::Vst::ParamID id) override {
+        events.push_back({Kind::Begin, id, 0.0});
+        return Steinberg::kResultOk;
+    }
+    Steinberg::tresult PLUGIN_API performEdit(Steinberg::Vst::ParamID id,
+                                              Steinberg::Vst::ParamValue value) override {
+        events.push_back({Kind::Perform, id, value});
+        return Steinberg::kResultOk;
+    }
+    Steinberg::tresult PLUGIN_API endEdit(Steinberg::Vst::ParamID id) override {
+        events.push_back({Kind::End, id, 0.0});
+        return Steinberg::kResultOk;
+    }
+    Steinberg::tresult PLUGIN_API restartComponent(Steinberg::int32 /*flags*/) override {
+        return Steinberg::kResultOk;
+    }
+    Steinberg::tresult PLUGIN_API queryInterface(const Steinberg::TUID /*iid*/,
+                                                 void** obj) override {
+        *obj = nullptr;
+        return Steinberg::kNoInterface;
+    }
+    // Owned by the test case's stack frame.
+    Steinberg::uint32 PLUGIN_API addRef() override { return 1; }
+    Steinberg::uint32 PLUGIN_API release() override { return 1; }
+
+    [[nodiscard]] int count(Kind kind, Steinberg::Vst::ParamID id) const {
+        int n = 0;
+        for (const auto& e : events)
+            if (e.kind == kind && e.id == id) ++n;
+        return n;
+    }
+    [[nodiscard]] int countAny(Steinberg::Vst::ParamID id) const {
+        int n = 0;
+        for (const auto& e : events)
+            if (e.id == id) ++n;
+        return n;
+    }
+    /// The last value performEdit sent for `id`, or -1 when none was sent.
+    [[nodiscard]] double lastPerformed(Steinberg::Vst::ParamID id) const {
+        double v = -1.0;
+        for (const auto& e : events)
+            if (e.kind == Kind::Perform && e.id == id) v = e.value;
+        return v;
+    }
+};
+
+Steinberg::Vst::ParamID pid(int32_t id) { return static_cast<Steinberg::Vst::ParamID>(id); }
+
+/// Normalized source parameter of a global route: UI source index i is DSP ModSource i + 1.
+double srcNorm(int uiSource) {
+    return static_cast<double>(uiSource + 1) / static_cast<double>(Ruinae::kModSourceCount - 1);
+}
+double dstNorm(int dest) {
+    return static_cast<double>(dest) / static_cast<double>(Ruinae::kModDestCount - 1);
+}
+
+/// A Controller with a recording host and a ModMatrixGrid wired to it the way
+/// the editor wires it (verifyView -> wireModMatrixGrid).
+struct WiredGridRig {
+    Ruinae::Controller ctl;
+    GestureRecorder host;
+    ModMatrixGrid* grid = nullptr;
+
+    WiredGridRig() {
+        REQUIRE(ctl.initialize(nullptr) == Steinberg::kResultOk);
+        ctl.setComponentHandler(&host);
+        grid = new ModMatrixGrid(VSTGUI::CRect(0, 0, 430, 250));
+        ctl.verifyView(grid, VSTGUI::UIAttributes{}, nullptr, nullptr);
+    }
+    ~WiredGridRig() {
+        grid->forget();
+        ctl.setComponentHandler(nullptr);
+        ctl.terminate();
+    }
+    WiredGridRig(const WiredGridRig&) = delete;
+    WiredGridRig& operator=(const WiredGridRig&) = delete;
+    WiredGridRig(WiredGridRig&&) = delete;
+    WiredGridRig& operator=(WiredGridRig&&) = delete;
+
+    double param(int32_t id) { return ctl.getParamNormalized(pid(id)); }
+    /// A slot parameter set the way a host or a state load sets it.
+    void hostSet(int32_t id, double value) { ctl.setParamNormalized(pid(id), value); }
+    /// Re-sync the grid from the controller's parameters, as automation of any
+    /// mod-matrix parameter (or an editor reopen) does.
+    void resyncGrid() { hostSet(modSlotAmountId(0), param(modSlotAmountId(0))); }
+};
+
+struct SlotExpect {
+    int32_t id;
+    double value;
+    const char* what;
+};
+
+/// The controller's parameter and the last value sent to the host both equal `e.value`.
+void checkSlotParam(WiredGridRig& rig, const SlotExpect& e) {
+    INFO(e.what);
+    CHECK(rig.param(e.id) == Approx(e.value).margin(1e-6));
+    CHECK(rig.host.lastPerformed(pid(e.id)) == Approx(e.value).margin(1e-6));
+}
+
+} // namespace
+
+TEST_CASE("ModMatrix_RemoveRoute_ShiftsAllSevenParams", "[modmatrix][controller]") {
+    WiredGridRig rig;
+
+    // Route 0: LFO 1 -> Global Filter Cutoff, +0.5, default details.
+    rig.hostSet(modSlotSourceId(0), srcNorm(0));
+    rig.hostSet(modSlotDestinationId(0), dstNorm(0));
+    rig.hostSet(modSlotAmountId(0), 0.75);
+    // Route 1: LFO 2 -> Global Filter Resonance, -0.25, bypassed, x4, Exponential, 50 ms.
+    rig.hostSet(modSlotSourceId(1), srcNorm(1));
+    rig.hostSet(modSlotDestinationId(1), dstNorm(1));
+    rig.hostSet(modSlotAmountId(1), 0.375);
+    rig.hostSet(modSlotBypassId(1), 1.0);
+    rig.hostSet(modSlotScaleId(1), 1.0);
+    rig.hostSet(modSlotCurveId(1), 1.0 / 3.0);
+    rig.hostSet(modSlotSmoothId(1), 0.5);
+    REQUIRE(rig.grid->getActiveRouteCount(0) == 2);
+    REQUIRE(rig.grid->getGlobalRoute(1).bypass);
+    rig.host.events.clear();
+
+    rig.grid->removeRoute(0);
+
+    // Slot 0 now holds route 1: all seven fields moved.
+    const SlotExpect slot0[] = {
+        {modSlotSourceId(0), srcNorm(1), "slot 0 source"},
+        {modSlotDestinationId(0), dstNorm(1), "slot 0 destination"},
+        {modSlotAmountId(0), 0.375, "slot 0 amount"},
+        {modSlotBypassId(0), 1.0, "slot 0 bypass"},
+        {modSlotScaleId(0), 1.0, "slot 0 scale"},
+        {modSlotCurveId(0), 1.0 / 3.0, "slot 0 curve"},
+        {modSlotSmoothId(0), 0.5, "slot 0 smooth"},
+    };
+    for (const auto& e : slot0) checkSlotParam(rig, e);
+
+    // Slot 1 is empty: source None, every other field at its default.
+    const SlotExpect slot1[] = {
+        {modSlotSourceId(1), 0.0, "slot 1 source"},
+        {modSlotDestinationId(1), 0.0, "slot 1 destination"},
+        {modSlotAmountId(1), 0.5, "slot 1 amount"},
+        {modSlotBypassId(1), 0.0, "slot 1 bypass"},
+        {modSlotScaleId(1), 0.5, "slot 1 scale"},
+        {modSlotCurveId(1), 0.0, "slot 1 curve"},
+        {modSlotSmoothId(1), 0.0, "slot 1 smooth"},
+    };
+    for (const auto& e : slot1) checkSlotParam(rig, e);
+
+    // A re-sync from the controller's parameters shows what the processor plays:
+    // one route, still bypassed at x4, and no ghost of the removed one.
+    rig.resyncGrid();
+    CHECK(rig.grid->getActiveRouteCount(0) == 1);
+    const auto shown = rig.grid->getGlobalRoute(0);
+    CHECK(shown.source == 1);
+    CHECK(shown.bypass);
+    CHECK(shown.scale == 4);
+    CHECK(shown.curve == 1);
+    CHECK(shown.smoothMs == Approx(50.0f).margin(1e-3));
+}
+
+TEST_CASE("ModMatrix_AddRoute_ResetsDetailParams", "[modmatrix][controller]") {
+    WiredGridRig rig;
+
+    // Slot 0 is empty (source None) but its details still hold a removed route's values.
+    rig.hostSet(modSlotBypassId(0), 1.0);
+    rig.hostSet(modSlotScaleId(0), 1.0);
+    rig.hostSet(modSlotCurveId(0), 1.0);
+    rig.hostSet(modSlotSmoothId(0), 0.8);
+    REQUIRE(rig.grid->getActiveRouteCount(0) == 0);
+    rig.host.events.clear();
+
+    REQUIRE(rig.grid->addRoute() == 0);
+    const auto shown = rig.grid->getGlobalRoute(0);
+    REQUIRE_FALSE(shown.bypass);
+    REQUIRE(shown.scale == 2);
+
+    // The controller and the processor hold the defaults the grid shows.
+    const SlotExpect expect[] = {
+        {modSlotSourceId(0), srcNorm(0), "source"},
+        {modSlotBypassId(0), 0.0, "bypass"},
+        {modSlotScaleId(0), 0.5, "scale"},
+        {modSlotCurveId(0), 0.0, "curve"},
+        {modSlotSmoothId(0), 0.0, "smooth"},
+    };
+    for (const auto& e : expect) checkSlotParam(rig, e);
+}
+
+TEST_CASE("ModMatrix_DetailEdit_UpdatesControllerParam", "[modmatrix][controller]") {
+    WiredGridRig rig;
+    REQUIRE(rig.grid->addRoute() == 0);
+    rig.grid->toggleExpanded(0);
+    REQUIRE(rig.grid->getExpandProgress(0) == Approx(1.0f));
+
+    // Click the Bypass toggle in slot 0's detail row (fireBypassToggleForSlot(0)).
+    VSTGUI::CPoint where(ModMatrixGrid::kDetailBypassLeft + 10.0,
+                         ModMatrixGrid::kTabBarHeight + 2.0 + ModMatrixGrid::kRowHeight +
+                             ModMatrixGrid::kRowHeight / 2.0);
+    rig.grid->onMouseDown(where, VSTGUI::CButtonState(VSTGUI::kLButton));
+    REQUIRE(rig.grid->getGlobalRoute(0).bypass);  // the click reached the toggle
+
+    const int32_t bypassId = modSlotBypassId(0);
+    CHECK(rig.param(bypassId) == Approx(1.0).margin(1e-6));
+    CHECK(rig.host.lastPerformed(pid(bypassId)) == Approx(1.0).margin(1e-6));
+
+    // A re-sync from the controller's parameters keeps the bypass.
+    rig.resyncGrid();
+    CHECK(rig.grid->getGlobalRoute(0).bypass);
+}
+
+TEST_CASE("ModMatrix_AmountDrag_OneGesture", "[modmatrix][controller]") {
+    using Kind = GestureRecorder::Kind;
+    WiredGridRig rig;
+    REQUIRE(rig.grid->addRoute() == 0);
+    rig.host.events.clear();
+
+    const auto amountId = pid(modSlotAmountId(0));
+    const auto sourceId = pid(modSlotSourceId(0));
+    const auto destId = pid(modSlotDestinationId(0));
+
+    // Drag slot 0's inline amount slider right in three moves.
+    const VSTGUI::CButtonState left(VSTGUI::kLButton);
+    const VSTGUI::CCoord rowMidY =
+        ModMatrixGrid::kTabBarHeight + 2.0 + ModMatrixGrid::kRowHeight / 2.0;
+    VSTGUI::CPoint down(150.0, rowMidY);
+    rig.grid->onMouseDown(down, left);
+    for (const double x : {170.0, 190.0, 210.0}) {
+        VSTGUI::CPoint move(x, rowMidY);
+        rig.grid->onMouseMoved(move, left);
+    }
+    VSTGUI::CPoint up(210.0, rowMidY);
+    rig.grid->onMouseUp(up, left);
+
+    const float amount = rig.grid->getGlobalRoute(0).amount;
+    REQUIRE(amount > 0.0f);  // the drag moved the amount
+
+    CHECK(rig.host.count(Kind::Begin, amountId) == 1);
+    CHECK(rig.host.count(Kind::End, amountId) == 1);
+    CHECK(rig.host.count(Kind::Perform, amountId) >= 1);
+    REQUIRE_FALSE(rig.host.events.empty());
+    CHECK(rig.host.events.front().kind == Kind::Begin);
+    CHECK(rig.host.events.back().kind == Kind::End);
+    CHECK(rig.host.countAny(sourceId) == 0);
+    CHECK(rig.host.countAny(destId) == 0);
+
+    const double amountNorm = static_cast<double>((amount + 1.0f) / 2.0f);
+    CHECK(rig.param(modSlotAmountId(0)) == Approx(amountNorm).margin(1e-6));
+    CHECK(rig.host.lastPerformed(amountId) == Approx(amountNorm).margin(1e-6));
 }

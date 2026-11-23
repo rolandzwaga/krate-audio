@@ -24,6 +24,10 @@ using Catch::Approx;
 #include <cstring>  // std::memcmp
 #include "vst_param_changes.h"
 
+// Bytes the state carries after the arp pack: Voice LFO rate (float) + shape (int32)
+// and the Velocity > Amp amount (float), v9.
+constexpr size_t kAfterArpSize = 12;
+
 // =============================================================================
 // Helper: create and initialize a Processor
 // =============================================================================
@@ -470,7 +474,7 @@ TEST_CASE("Arp state round-trip preserves Euclidean settings",
     constexpr size_t kArpSectionSize = 1192; // 1160 base + 32 bytes (8 lane speed floats)
     constexpr size_t kEuclideanOffsetInArp = 712;
     REQUIRE(verifyData.size() > kArpSectionSize);
-    size_t arpStart = verifyData.size() - kArpSectionSize;
+    size_t arpStart = verifyData.size() - kArpSectionSize - kAfterArpSize;
     size_t eucStart = arpStart + kEuclideanOffsetInArp;
 
     // Read the 4 Euclidean int32 values
@@ -517,7 +521,7 @@ TEST_CASE("Arp state round-trip preserves condition values",
     // Condition lane offset within arp: 712 (Euclidean end) + 16 = 728
     constexpr size_t kCondOffsetInArp = 728;
     REQUIRE(data2.size() > kArpSectionSize);
-    size_t arpStart = data2.size() - kArpSectionSize;
+    size_t arpStart = data2.size() - kArpSectionSize - kAfterArpSize;
     size_t condStart = arpStart + kCondOffsetInArp;
 
     // Read condition lane length
@@ -562,7 +566,7 @@ TEST_CASE("Arp state round-trip preserves modifier bitmasks",
     // Modifier lane offset within arp: 44 (base) + 132 (vel) + 132 (gate) + 132 (pitch) = 440
     constexpr size_t kModOffsetInArp = 440;
     REQUIRE(data2.size() > kArpSectionSize);
-    size_t arpStart = data2.size() - kArpSectionSize;
+    size_t arpStart = data2.size() - kArpSectionSize - kAfterArpSize;
     size_t modStart = arpStart + kModOffsetInArp;
 
     // Read modifier lane length
@@ -607,7 +611,7 @@ TEST_CASE("Arp state round-trip preserves float values bit-identically",
     constexpr size_t kArpSectionSize = 1192; // 1160 base + 32 bytes (8 lane speed floats)
     constexpr size_t kSpiceOffsetInArp = 864;
     REQUIRE(data2.size() > kArpSectionSize);
-    size_t arpStart = data2.size() - kArpSectionSize;
+    size_t arpStart = data2.size() - kArpSectionSize - kAfterArpSize;
     size_t spiceOffset = arpStart + kSpiceOffsetInArp;
 
     float spiceVal = 0.0f, humanizeVal = 0.0f, ratchetSwingVal = 0.0f;
@@ -639,7 +643,7 @@ TEST_CASE("Pre-arp preset loads with arp disabled",
     // The arp section is the last 892 bytes of the state.
     constexpr size_t kArpSectionSize = 1192; // 1160 base + 32 bytes (8 lane speed floats)
     REQUIRE(fullData.size() > kArpSectionSize);
-    size_t truncatedSize = fullData.size() - kArpSectionSize;
+    size_t truncatedSize = fullData.size() - kArpSectionSize - kAfterArpSize;
 
     // Create a truncated stream (everything before arp params)
     Steinberg::MemoryStream truncStream;
@@ -659,7 +663,7 @@ TEST_CASE("Pre-arp preset loads with arp disabled",
     auto savedData = extractStreamBytes(savedStream);
     REQUIRE(savedData.size() > kArpSectionSize);
 
-    size_t arpStart = savedData.size() - kArpSectionSize;
+    size_t arpStart = savedData.size() - kArpSectionSize - kAfterArpSize;
 
     // Read arp enabled flag (first int32 of arp section) -- should be 0 (disabled)
     Steinberg::int32 arpEnabled = 0;
@@ -693,7 +697,8 @@ TEST_CASE("Partial arp preset loads base params and defaults rest",
     changes.add(Ruinae::kArpModeId, 2.0 / 9.0);       // mode = UpDown (2)
     changes.add(Ruinae::kArpOctaveRangeId, 2.0 / 3.0); // octaveRange = 3
     changes.add(Ruinae::kArpTempoSyncId, 1.0);         // tempoSync = true
-    changes.add(Ruinae::kArpNoteValueId, 7.0 / 20.0);  // noteValue = 7 (1/16)
+    changes.add(Ruinae::kArpNoteValueId,
+                7.0 / (Krate::DSP::kNoteValueDropdownCount - 1));  // noteValue = 7 (1/16)
     changes.add(Ruinae::kArpGateLengthId, (60.0 - 1.0) / 199.0); // gateLength = 60%
     proc1->processParameterChanges(&changes);
 
@@ -707,7 +712,7 @@ TEST_CASE("Partial arp preset loads base params and defaults rest",
     constexpr size_t kArpSectionSize = 1192; // 1160 base + 32 bytes (8 lane speed floats)
     constexpr size_t kArpBaseParamsSize = 44;  // 11 * 4 bytes
     REQUIRE(fullData.size() > kArpSectionSize);
-    size_t arpStart = fullData.size() - kArpSectionSize;
+    size_t arpStart = fullData.size() - kArpSectionSize - kAfterArpSize;
     size_t partialSize = arpStart + kArpBaseParamsSize;
 
     // Create partial stream
@@ -728,7 +733,7 @@ TEST_CASE("Partial arp preset loads base params and defaults rest",
     auto savedData = extractStreamBytes(savedStream);
     REQUIRE(savedData.size() > kArpSectionSize);
 
-    size_t savedArpStart = savedData.size() - kArpSectionSize;
+    size_t savedArpStart = savedData.size() - kArpSectionSize - kAfterArpSize;
 
     // Verify base params were loaded (arp enabled = 1)
     Steinberg::int32 enabled = 0;

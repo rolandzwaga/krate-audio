@@ -29,6 +29,9 @@ add_executable(gradus_tests
     # Factory presets and v1 state streams load (1.10.5)
     unit/vst/factory_preset_load_test.cpp
 
+    # One preset-load path: browser load runs setState; speed-curve depth (T1.40)
+    unit/vst/preset_browser_load_test.cpp
+
     # Sequencer Note lane (lane 10) tests (spec 142, Phase 3)
     unit/processor/arpeggiator_core_sequencer_test.cpp
     unit/processor/sequencer_polymetric_test.cpp

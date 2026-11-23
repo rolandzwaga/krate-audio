@@ -31,7 +31,6 @@
 #include "vstgui/lib/cgraphicspath.h"
 #include "vstgui/lib/ccolor.h"
 #include "vstgui/lib/cfont.h"
-#include "vstgui/lib/cvstguitimer.h"
 #include "vstgui/lib/vstkeycode.h"
 #include "vstgui/uidescription/iviewcreator.h"
 #include "vstgui/uidescription/uiviewfactory.h"
@@ -360,28 +359,15 @@ public:
     // Playback Visualization
     // =========================================================================
 
+    /// Playback state as values (the owner polls its processor's display data and
+    /// pushes it here, ~30 fps). Redraws only when something changed.
     void setPlaybackState(float outputLevel, int stage, bool voiceActive) {
+        if (outputLevel == playbackOutput_ && stage == playbackStage_ && voiceActive == voiceActive_)
+            return;
         playbackOutput_ = outputLevel;
         playbackStage_ = stage;
         voiceActive_ = voiceActive;
         setDirty();
-    }
-
-    /// Set pointers to atomic playback state from processor (for timer-based polling)
-    void setPlaybackStatePointers(std::atomic<float>* outputPtr,
-                                   std::atomic<int>* stagePtr,
-                                   std::atomic<bool>* activePtr) {
-        playbackOutputPtr_ = outputPtr;
-        playbackStagePtr_ = stagePtr;
-        playbackActivePtr_ = activePtr;
-
-        // Start playback poll timer if we have valid pointers
-        if (outputPtr && stagePtr && activePtr && !playbackTimer_) {
-            playbackTimer_ = VSTGUI::makeOwned<VSTGUI::CVSTGUITimer>(
-                [this](VSTGUI::CVSTGUITimer*) {
-                    pollPlaybackState();
-                }, 33); // ~30fps
-        }
     }
 
     /// Check if the playback dot should be visible
@@ -1802,23 +1788,6 @@ private:
             btnRect, VSTGUI::kCenterText);
     }
 
-    void pollPlaybackState() {
-        if (!playbackOutputPtr_ || !playbackStagePtr_ || !playbackActivePtr_)
-            return;
-
-        float output = playbackOutputPtr_->load(std::memory_order_relaxed);
-        int stage = playbackStagePtr_->load(std::memory_order_relaxed);
-        bool active = playbackActivePtr_->load(std::memory_order_relaxed);
-
-        // Only redraw if state actually changed
-        if (output != playbackOutput_ || stage != playbackStage_ || active != voiceActive_) {
-            playbackOutput_ = output;
-            playbackStage_ = stage;
-            voiceActive_ = active;
-            setDirty();
-        }
-    }
-
     void drawPlaybackDot(VSTGUI::CDrawContext* context) const {
         if (!voiceActive_) return;
 
@@ -1953,14 +1922,6 @@ private:
     ParameterCallback paramCallback_;
     EditCallback beginEditCallback_;
     EditCallback endEditCallback_;
-
-    // Playback state atomic pointers (from processor via IMessage)
-    std::atomic<float>* playbackOutputPtr_ = nullptr;
-    std::atomic<int>* playbackStagePtr_ = nullptr;
-    std::atomic<bool>* playbackActivePtr_ = nullptr;
-
-    // Timer for playback refresh (~30fps)
-    VSTGUI::SharedPointer<VSTGUI::CVSTGUITimer> playbackTimer_;
 };
 
 // =============================================================================

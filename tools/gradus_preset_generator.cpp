@@ -819,7 +819,7 @@ std::vector<PresetDef> createAllPresets() {
         p.state.arp.scaleType = 11; // MinPent
         p.state.arp.rootNote = 7;   // G
         p.state.arp.scaleQuantizeInput = 1;
-        p.state.arp.ratchetSwing = 65.0f;
+        p.state.arp.ratchetSwing = 66.6667f;  // was 65: the parameter snaps to 50 / 66.67 / 75
         // Velocity: hypnotic pulsing
         float vel8[] = {1.0f, 0.5f, 0.7f, 0.45f, 0.9f, 0.5f, 0.65f, 0.4f};
         setVelocityLane(p.state, 8, vel8);
@@ -935,7 +935,7 @@ std::vector<PresetDef> createAllPresets() {
         setArpSwing(p.state, 20.0f);
         p.state.arp.octaveRange = 2;
         p.state.arp.humanize = 0.15f;
-        p.state.arp.ratchetSwing = 60.0f;
+        p.state.arp.ratchetSwing = 66.6667f;  // was 60: the parameter snaps to 50 / 66.67 / 75
         setEuclidean(p.state, true, 7, 16, 2);
         // Velocity: accented pattern (11-step polymetric for long evolution)
         float vel11[] = {
@@ -1010,7 +1010,7 @@ std::vector<PresetDef> createAllPresets() {
         setArpSwing(p.state, 0.0f);
         p.state.arp.octaveRange = 1;
         p.state.arp.scaleType = 8; // Chromatic
-        p.state.arp.ratchetSwing = 40.0f;
+        p.state.arp.ratchetSwing = 50.0f;  // was 40: the parameter snaps to 50 / 66.67 / 75
         setEuclidean(p.state, true, 11, 16, 3);
         // Velocity: mechanical alternating pattern
         float vel4[] = {1.0f, 0.6f, 0.8f, 0.5f};
@@ -1389,7 +1389,7 @@ std::vector<PresetDef> createAllPresets() {
         p.state.arp.humanize = 0.2f;
         p.state.arp.scaleType = 3; // MelMinor
         p.state.arp.rootNote = 11;  // B
-        p.state.arp.ratchetSwing = 40.0f;
+        p.state.arp.ratchetSwing = 50.0f;  // was 40: the parameter snaps to 50 / 66.67 / 75
         setEuclidean(p.state, true, 7, 12, 2);
         // Condition: every step has probability
         int32_t cond12[] = {
@@ -1438,7 +1438,7 @@ std::vector<PresetDef> createAllPresets() {
         p.state.arp.scaleType = 14; // DimWH
         p.state.arp.rootNote = 3;   // Eb
         p.state.arp.scaleQuantizeInput = 1;
-        p.state.arp.ratchetSwing = 30.0f;
+        p.state.arp.ratchetSwing = 50.0f;  // was 30: the parameter snaps to 50 / 66.67 / 75
         setEuclidean(p.state, true, 5, 13, 3);
         // Condition: maximum probability variation
         int32_t cond13[] = {
@@ -1577,7 +1577,7 @@ std::vector<PresetDef> createAllPresets() {
         setArpSwing(p.state, 0.0f);
         p.state.arp.octaveRange = 1;
         p.state.arp.retrigger = 1;   // Note
-        p.state.arp.ratchetSwing = 35.0f;
+        p.state.arp.ratchetSwing = 50.0f;  // was 35: the parameter snaps to 50 / 66.67 / 75
         // Velocity: strong stutter hits, quiet between
         float vel8[] = {1.0f, 0.3f, 0.5f, 0.25f, 0.9f, 0.3f, 0.4f, 0.2f};
         setVelocityLane(p.state, 8, vel8);
@@ -1664,7 +1664,7 @@ std::vector<PresetDef> createAllPresets() {
         p.state.arp.octaveRange = 3;
         p.state.arp.latchMode = 1;  // Hold
         p.state.arp.retrigger = 2;  // Beat
-        p.state.arp.ratchetSwing = 55.0f;
+        p.state.arp.ratchetSwing = 50.0f;  // was 55: the parameter snaps to 50 / 66.67 / 75
         p.state.arp.scaleType = 11; // MinPent
         p.state.arp.rootNote = 9;   // A
         // Condition: sparse main, fills add the build
@@ -1908,7 +1908,7 @@ std::vector<PresetDef> createAllPresets() {
         p.state.arp.humanize = 0.12f;
         p.state.arp.scaleType = 5;  // Mixolydian
         p.state.arp.rootNote = 7;   // G
-        p.state.arp.ratchetSwing = 55.0f;
+        p.state.arp.ratchetSwing = 50.0f;  // was 55: the parameter snaps to 50 / 66.67 / 75
         // Chord lane: stabs on strong beats, rests between
         int32_t chords16[] = {
             kChordTriad, kChordNone, kChordNone, kChordDyad,
@@ -1974,7 +1974,7 @@ std::vector<PresetDef> createAllPresets() {
         p.state.arp.spice = 0.2f;
         p.state.arp.scaleType = 2;  // HarmMinor
         p.state.arp.rootNote = 0;   // C
-        p.state.arp.ratchetSwing = 45.0f;
+        p.state.arp.ratchetSwing = 50.0f;  // was 45: the parameter snaps to 50 / 66.67 / 75
         setEuclidean(p.state, true, 7, 12, 1);
         // Chord lane length=5
         int32_t chords5[] = {kChordTriad, kChordNone, kChord7th, kChordDyad, kChordTriad};
@@ -2031,7 +2031,7 @@ std::vector<PresetDef> createAllPresets() {
         p.state.arp.scaleType = 15; // DimHW
         p.state.arp.rootNote = 1;   // Db
         p.state.arp.scaleQuantizeInput = 1;
-        p.state.arp.ratchetSwing = 35.0f;
+        p.state.arp.ratchetSwing = 50.0f;  // was 35: the parameter snaps to 50 / 66.67 / 75
         setEuclidean(p.state, true, 5, 11, 2);
         // Velocity: dramatic swings (length=7)
         float vel7[] = {1.0f, 0.2f, 0.7f, 0.95f, 0.15f, 0.8f, 0.3f};
@@ -2144,7 +2144,7 @@ std::vector<PresetDef> createAllPresets() {
         p.state.arp.scaleType = 0;   // Major
         p.state.arp.rootNote = 5;    // F
         p.state.arp.retrigger = 2;   // Beat
-        p.state.arp.ratchetSwing = 60.0f;
+        p.state.arp.ratchetSwing = 66.6667f;  // was 60: the parameter snaps to 50 / 66.67 / 75
         setEuclidean(p.state, true, 5, 8, 0);
         // Chord lane: rich progression
         int32_t chords8[] = {
@@ -2205,7 +2205,7 @@ std::vector<PresetDef> createAllPresets() {
         p.state.arp.scaleType = 6;   // Phrygian
         p.state.arp.rootNote = 4;    // E
         p.state.arp.scaleQuantizeInput = 1;
-        p.state.arp.ratchetSwing = 38.0f;
+        p.state.arp.ratchetSwing = 50.0f;  // was 38: the parameter snaps to 50 / 66.67 / 75
         setEuclidean(p.state, true, 9, 16, 3);
         // Velocity length=7
         float vel7[] = {1.0f, 0.3f, 0.7f, 0.85f, 0.2f, 0.6f, 0.9f};

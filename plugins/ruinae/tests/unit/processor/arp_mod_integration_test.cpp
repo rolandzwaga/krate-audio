@@ -626,6 +626,152 @@ TEST_CASE("ArpRateTempoSync_NegativeOffset", "[arp_mod]") {
     REQUIRE(firstStepBlock >= 0);
 }
 
+// R-049 (fix plan T2.15): in tempo-sync mode an ArpRate offset scales the
+// synced step by (1 + 0.5 * offset) and the step clock stays on the host grid.
+// It used to switch the arp to a free rate clamped to [0.5, 50] Hz, so a slow
+// note value jumped to 0.5 Hz and the steps ran off the PPQ grid.
+namespace {
+
+/// Absolute sample positions of the arp's MIDI-out NoteOns while the
+/// transport plays from PPQ 0 at a fixed tempo.
+struct ArpRateGridRig {
+    ArpModFixture f;
+    ArpModTestEventList out;
+    std::vector<Steinberg::int64> onsets;
+    double tempoBPM;
+
+    explicit ArpRateGridRig(double tempo) : tempoBPM(tempo) {
+        f.processContext.tempo = tempo;
+        // The processor syncs the arp to PPQ only when the host marks it valid.
+        f.processContext.state |= Steinberg::Vst::ProcessContext::kProjectTimeMusicValid;
+        f.data.outputEvents = &out;
+    }
+
+    void block(ArpModTestParamChanges* params = nullptr) {
+        f.data.inputParameterChanges = (params != nullptr) ? params : &f.emptyParams;
+        f.processor.process(f.data);
+        f.data.inputParameterChanges = &f.emptyParams;
+        for (Steinberg::int32 i = 0; i < out.getEventCount(); ++i) {
+            Steinberg::Vst::Event e{};
+            if (out.getEvent(i, e) == Steinberg::kResultTrue
+                && e.type == Steinberg::Vst::Event::kNoteOnEvent
+                && e.noteOn.velocity > 0.0f) {
+                onsets.push_back(f.processContext.projectTimeSamples + e.sampleOffset);
+            }
+        }
+        out.clear();
+        f.events.clear();
+        f.processContext.projectTimeSamples += static_cast<Steinberg::int64>(ArpModFixture::kBlockSize);
+        f.processContext.projectTimeMusic =
+            static_cast<double>(f.processContext.projectTimeSamples) / 44100.0 * (tempoBPM / 60.0);
+    }
+
+    /// Arp on with MIDI out, tempo sync at `noteValueIdx`, Macro 1 (= 1.0)
+    /// routed to ArpRate with `amount`; one held note.
+    void start(int noteValueIdx, double amount) {
+        ArpModTestParamChanges params;
+        params.addChange(Ruinae::kArpOperatingModeId, 1.0 / 3.0);
+        params.addChange(Ruinae::kArpMidiOutId, 1.0);
+        params.addChange(Ruinae::kArpTempoSyncId, 1.0);
+        params.addChange(Ruinae::kArpNoteValueId,
+            static_cast<double>(noteValueIdx) / static_cast<double>(Krate::DSP::kNoteValueDropdownCount - 1));
+        params.addChange(Ruinae::kModMatrixSlot0SourceId + 0, normalizeSource(kMacro1SourceIdx));
+        params.addChange(Ruinae::kModMatrixSlot0SourceId + 1, normalizeDest(kArpRateDestIdx));
+        params.addChange(Ruinae::kModMatrixSlot0SourceId + 2, normalizeAmount(amount));
+        params.addChange(Ruinae::kMacro1ValueId, 1.0);
+        block(&params);
+        for (int i = 0; i < 10; ++i) block();
+        f.events.addNoteOn(60, 0.8f);
+        block();
+    }
+
+    void runUntilSample(Steinberg::int64 endSample) {
+        while (f.processContext.projectTimeSamples < endSample) block();
+    }
+
+    /// Host loop / relocation back to `sample` (PPQ follows the tempo).
+    void jumpTo(Steinberg::int64 sample) {
+        f.processContext.projectTimeSamples = sample;
+        f.processContext.projectTimeMusic =
+            static_cast<double>(sample) / 44100.0 * (tempoBPM / 60.0);
+    }
+};
+
+} // anonymous namespace
+
+TEST_CASE("ArpRate modulation in sync mode scales the step and keeps grid lock", "[arp][modmatrix]") {
+    SECTION("1/1 at 60 BPM, offset 0.001: the step stays within 0.1 % of 4 s") {
+        ArpRateGridRig rig(60.0);
+        rig.start(19, 0.001);  // 19 = 1/1
+        rig.runUntilSample(static_cast<Steinberg::int64>(44100.0 * 4.0 * 5.0));
+
+        REQUIRE(rig.onsets.size() >= 4);
+        // The first interval runs from the note-on to the grid; skip it.
+        for (size_t i = 2; i < rig.onsets.size(); ++i) {
+            const double seconds = static_cast<double>(rig.onsets[i] - rig.onsets[i - 1]) / 44100.0;
+            INFO("interval " << i << " = " << seconds << " s (unmodulated 4 s)");
+            CHECK(seconds >= 4.0 * 0.999);
+            CHECK(seconds <= 4.0 * 1.001);
+        }
+    }
+
+    SECTION("1/16 at 120 BPM, offset +1: step = base / 1.5 and onsets stay on the PPQ grid after 8 bars") {
+        ArpRateGridRig rig(120.0);
+        rig.start(7, 1.0);  // 7 = 1/16
+        // 1/16 at 120 BPM = 5512.5 samples; / 1.5 = 3675 samples = 1/6 beat,
+        // so the scaled grid puts a step on every multiple of 3675 samples.
+        constexpr Steinberg::int64 kStep = 3675;
+        constexpr Steinberg::int64 kBarSamples = 4 * 22050;
+        rig.runUntilSample(kBarSamples);  // the route settles
+        // The host loops back to PPQ 0.1 (2205 samples), off the scaled grid:
+        // the arp restarts there and must then follow PPQ * 1.5.
+        constexpr Steinberg::int64 kLoopStart = 2205;
+        rig.jumpTo(kLoopStart);
+        rig.onsets.clear();
+        rig.runUntilSample(kLoopStart + 9 * kBarSamples);
+
+        std::vector<Steinberg::int64> late;
+        for (auto s : rig.onsets) {
+            if (s >= kLoopStart + 8 * kBarSamples) late.push_back(s);
+        }
+        REQUIRE(late.size() >= 20);
+        for (size_t i = 0; i < late.size(); ++i) {
+            const Steinberg::int64 phase = late[i] % kStep;
+            const Steinberg::int64 gridError = std::min(phase, kStep - phase);
+            INFO("onset " << late[i] << " is " << gridError << " samples off the scaled PPQ grid");
+            CHECK(gridError <= 2);
+            if (i > 0) {
+                const Steinberg::int64 interval = late[i] - late[i - 1];
+                INFO("interval " << interval << " (expected " << kStep << ")");
+                CHECK(std::llabs(interval - kStep) <= 2);
+            }
+        }
+    }
+
+    SECTION("1/16 at 120 BPM, offset switching 0 <-> +1: every step lasts between base / 1.5 and base") {
+        ArpRateGridRig rig(120.0);
+        rig.start(7, 1.0);
+        // Macro 1 toggles every 37 blocks, so the scale moves between 1 and
+        // 1.5 mid-step. The grid must stay continuous: no step shorter than
+        // the fastest (3675) or longer than the slowest (5512.5) rate allows.
+        for (int toggle = 0; toggle < 24; ++toggle) {
+            ArpModTestParamChanges params;
+            params.addChange(Ruinae::kMacro1ValueId, (toggle % 2 == 0) ? 0.0 : 1.0);
+            rig.block(&params);
+            for (int i = 0; i < 36; ++i) rig.block();
+        }
+
+        REQUIRE(rig.onsets.size() >= 100);
+        // The first interval runs from the note-on to the grid; skip it.
+        for (size_t i = 2; i < rig.onsets.size(); ++i) {
+            const Steinberg::int64 interval = rig.onsets[i] - rig.onsets[i - 1];
+            INFO("interval " << i << " = " << interval << " samples");
+            CHECK(interval >= 3675 - 2);
+            CHECK(interval <= 5513 + 2);
+        }
+    }
+}
+
 // T017: ArpDisabled_SkipModReads (FR-015)
 // Arp disabled, mod routing to ArpRate active; verify no crash
 // Then re-enable and verify mod applies within 1 block

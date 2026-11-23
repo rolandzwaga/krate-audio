@@ -28,10 +28,13 @@
 
 #include <cmath>
 #include <cstdio>
+#include <memory>
+#include <span>
 #include <string>
 #include <vector>
 #include "vst_param_changes.h"
 #include "vst_event_list.h"
+#include "test_helpers/reverb_metrics.h"
 
 using Catch::Approx;
 using namespace Krate::DSP;
@@ -137,8 +140,14 @@ static double amountToNormalized(float amount) {
 // Test fixture
 // =============================================================================
 
+// Exposes the read-only engine accessor for tests that assert on DSP state.
+class PipelineTestProcessor : public Ruinae::Processor {
+public:
+    using Ruinae::Processor::engine;
+};
+
 struct ModSourcePipelineFixture {
-    Ruinae::Processor processor;
+    PipelineTestProcessor processor;
     PipelineEmptyEventList emptyEvents;
     std::vector<float> outL;
     std::vector<float> outR;
@@ -630,4 +639,532 @@ TEST_CASE("Mod source pipeline: all sources stored correctly via handleModMatrix
             REQUIRE(recovered == expected);
         }
     }
+}
+
+// =============================================================================
+// R-050: the sidechain overrides self-analysis only while its bus is active
+// =============================================================================
+
+namespace {
+
+class SidechainOutputQueue final : public Steinberg::Vst::IParamValueQueue {
+public:
+    Steinberg::tresult PLUGIN_API queryInterface(const Steinberg::TUID, void**) override {
+        return Steinberg::kNoInterface;
+    }
+    Steinberg::uint32 PLUGIN_API addRef() override { return 1; }
+    Steinberg::uint32 PLUGIN_API release() override { return 1; }
+    Steinberg::Vst::ParamID PLUGIN_API getParameterId() override { return id; }
+    Steinberg::int32 PLUGIN_API getPointCount() override { return 1; }
+    Steinberg::tresult PLUGIN_API getPoint(Steinberg::int32, Steinberg::int32& offset,
+                                           Steinberg::Vst::ParamValue& v) override {
+        offset = 0;
+        v = value;
+        return Steinberg::kResultTrue;
+    }
+    Steinberg::tresult PLUGIN_API addPoint(Steinberg::int32, Steinberg::Vst::ParamValue v,
+                                           Steinberg::int32&) override {
+        value = v;
+        written = true;
+        return Steinberg::kResultTrue;
+    }
+    Steinberg::Vst::ParamID id = 0;
+    double value = 0.0;
+    bool written = false;
+};
+
+class SidechainOutputChanges final : public Steinberg::Vst::IParameterChanges {
+public:
+    Steinberg::tresult PLUGIN_API queryInterface(const Steinberg::TUID, void**) override {
+        return Steinberg::kNoInterface;
+    }
+    Steinberg::uint32 PLUGIN_API addRef() override { return 1; }
+    Steinberg::uint32 PLUGIN_API release() override { return 1; }
+    Steinberg::int32 PLUGIN_API getParameterCount() override { return 0; }
+    Steinberg::Vst::IParamValueQueue* PLUGIN_API getParameterData(Steinberg::int32) override {
+        return nullptr;
+    }
+    Steinberg::Vst::IParamValueQueue* PLUGIN_API addParameterData(
+        const Steinberg::Vst::ParamID& id, Steinberg::int32& index) override {
+        if (id != Ruinae::kSidechainActiveId) return nullptr;
+        queue.id = id;
+        index = 0;
+        return &queue;
+    }
+    SidechainOutputQueue queue;
+};
+
+} // namespace
+
+TEST_CASE("Inactive sidechain bus with buffers does not replace self-analysis",
+          "[integration][sidechain]") {
+    ModSourcePipelineFixture f;
+
+    std::vector<float> scL(ModSourcePipelineFixture::kBlockSize, 0.0f);
+    std::vector<float> scR(ModSourcePipelineFixture::kBlockSize, 0.0f);
+    float* scChannels[2] = {scL.data(), scR.data()};
+    Steinberg::Vst::AudioBusBuffers scBus{};
+    scBus.numChannels = 2;
+    scBus.channelBuffers32 = scChannels;
+    f.data.numInputs = 1;
+    f.data.inputs = &scBus;
+
+    SECTION("bus not activated") {
+        // keep default (inactive)
+    }
+    SECTION("bus activated") {
+        REQUIRE(f.processor.activateBus(Steinberg::Vst::kAudio, Steinberg::Vst::kInput, 0,
+                                        true) == Steinberg::kResultTrue);
+    }
+    const bool busActive = f.processor.getAudioInput(0)->isActive();
+
+    // Transient -> Master Volume (destination dropdown index 2 = RuinaeModDest 66)
+    PipelineParamChanges setup;
+    setup.addChange(Ruinae::kModMatrixSlot0SourceId, sourceToNormalized(ModSource::Transient));
+    setup.addChange(Ruinae::kModMatrixSlot0DestId, destToNormalized(2));
+    setup.addChange(Ruinae::kModMatrixSlot0AmountId, amountToNormalized(1.0f));
+    f.processWithParams(setup);
+
+    SidechainOutputChanges outChanges;
+    f.data.outputParameterChanges = &outChanges;
+
+    PipelineNoteOnEvents noteOn;
+    f.data.inputEvents = &noteOn;
+    float maxOffset = 0.0f;
+    f.processEmpty();
+    maxOffset = std::max(maxOffset, f.processor.engine().getGlobalModOffset(
+                                        Krate::DSP::RuinaeModDest::MasterVolume));
+    f.data.inputEvents = &f.emptyEvents;
+    for (int i = 0; i < 4; ++i) {
+        f.processEmpty();
+        maxOffset = std::max(maxOffset, f.processor.engine().getGlobalModOffset(
+                                            Krate::DSP::RuinaeModDest::MasterVolume));
+    }
+    f.data.outputParameterChanges = nullptr;
+
+    REQUIRE(outChanges.queue.written);
+    if (busActive) {
+        REQUIRE(outChanges.queue.value == 1.0);
+        REQUIRE(maxOffset < 1e-6f);
+    } else {
+        REQUIRE(outChanges.queue.value == 0.0);
+        REQUIRE(maxOffset > 0.0f);
+    }
+}
+
+// =============================================================================
+// R-048: the LFO Rate parameter spans 0.01-50 Hz and the DSP must honour it
+// =============================================================================
+
+namespace {
+
+// Frequency of a signal sampled once per sub-block, from its rising zero
+// crossings (mean removed, crossing time interpolated). 0 with < 2 crossings.
+double risingCrossingFrequency(const std::vector<float>& v, double intervalSec) {
+    if (v.empty()) return 0.0;
+    double mean = 0.0;
+    for (float x : v) mean += static_cast<double>(x);
+    mean /= static_cast<double>(v.size());
+    double first = 0.0;
+    double last = 0.0;
+    int count = 0;
+    for (size_t i = 1; i < v.size(); ++i) {
+        const double a = static_cast<double>(v[i - 1]) - mean;
+        const double b = static_cast<double>(v[i]) - mean;
+        if (a < 0.0 && b >= 0.0) {
+            const double t = static_cast<double>(i - 1) + a / (a - b);
+            if (count == 0) first = t;
+            last = t;
+            ++count;
+        }
+    }
+    if (count < 2 || last <= first) return 0.0;
+    return static_cast<double>(count - 1) / ((last - first) * intervalSec);
+}
+
+} // namespace
+
+TEST_CASE("LFO1 rate at normalized 1.0 runs at 50 Hz", "[integration][lfo]") {
+    constexpr double kSampleRate = 96000.0;
+    constexpr Steinberg::int32 kSubBlock = 64;
+
+    ModSourcePipelineFixture f;
+    f.processor.setActive(false);
+    Steinberg::Vst::ProcessSetup setup{};
+    setup.processMode = Steinberg::Vst::kRealtime;
+    setup.symbolicSampleSize = Steinberg::Vst::kSample32;
+    setup.sampleRate = kSampleRate;
+    setup.maxSamplesPerBlock = kSubBlock;
+    REQUIRE(f.processor.setupProcessing(setup) == Steinberg::kResultTrue);
+    f.processor.setActive(true);
+    f.data.numSamples = kSubBlock;
+
+    Steinberg::Vst::ProcessContext ctx{};
+    ctx.state = Steinberg::Vst::ProcessContext::kTempoValid;
+    ctx.tempo = 120.0;
+    ctx.sampleRate = kSampleRate;
+    f.data.processContext = &ctx;
+
+    // LFO1 (sine) -> Global Filter Cutoff, amount +1
+    PipelineParamChanges params;
+    params.addChange(Ruinae::kModMatrixSlot0SourceId, sourceToNormalized(ModSource::LFO1));
+    params.addChange(Ruinae::kModMatrixSlot0DestId, destToNormalized(0));
+    params.addChange(Ruinae::kModMatrixSlot0AmountId, amountToNormalized(1.0f));
+    params.addChange(Ruinae::kLFO1ShapeId, 0.0);
+
+    double expectedHz = 0.0;
+    SECTION("free rate, normalized 1.0 = 50 Hz") {
+        params.addChange(Ruinae::kLFO1SyncId, 0.0);
+        params.addChange(Ruinae::kLFO1RateId, 1.0);
+        expectedHz = 50.0;
+    }
+    SECTION("sync 1/64 at 120 BPM = 32 Hz") {
+        params.addChange(Ruinae::kLFO1SyncId, 1.0);
+        // Dropdown index 1 is 1/64 (core/note_value.h)
+        params.addChange(Ruinae::kLFO1NoteValueId,
+                         1.0 / static_cast<double>(Krate::DSP::kNoteValueDropdownCount - 1));
+        expectedHz = 32.0;
+    }
+    f.processWithParams(params);
+
+    // Settle 0.25 s, then sample the routed offset once per 64-sample sub-block for 2 s
+    for (int i = 0; i < 375; ++i) f.processEmpty();
+    std::vector<float> offsets;
+    offsets.reserve(3000);
+    for (int i = 0; i < 3000; ++i) {
+        f.processEmpty();
+        offsets.push_back(f.processor.engine().getGlobalModOffset(
+            Krate::DSP::RuinaeModDest::GlobalFilterCutoff));
+    }
+    f.data.processContext = nullptr;
+
+    const double measuredHz =
+        risingCrossingFrequency(offsets, static_cast<double>(kSubBlock) / kSampleRate);
+    INFO("expected " << expectedHz << " Hz, measured " << measuredHz << " Hz");
+    REQUIRE(measuredHz == Approx(expectedHz).epsilon(0.02));
+}
+
+// =============================================================================
+// R-041 / R-183: LFO 1/2 Depth and Chaos Depth scale what the source routes
+// =============================================================================
+
+namespace {
+
+/// Largest |Global Filter Cutoff offset| over 3 s (one read per 512-sample block, after
+/// 0.25 s of settling) with `source` routed there at amount +1 and its depth at `depth`.
+float peakRoutedCutoffOffset(ModSource source, Steinberg::Vst::ParamID depthId, double depth) {
+    ModSourcePipelineFixture f;
+    PipelineParamChanges params;
+    params.addChange(Ruinae::kModMatrixSlot0SourceId, sourceToNormalized(source));
+    params.addChange(Ruinae::kModMatrixSlot0DestId, destToNormalized(0));
+    params.addChange(Ruinae::kModMatrixSlot0AmountId, amountToNormalized(1.0f));
+    params.addChange(depthId, depth);
+    f.processWithParams(params);
+
+    for (int i = 0; i < 22; ++i) f.processEmpty();
+    float peak = 0.0f;
+    for (int i = 0; i < 258; ++i) {
+        f.processEmpty();
+        peak = std::max(peak, std::abs(f.processor.engine().getGlobalModOffset(
+                                  Krate::DSP::RuinaeModDest::GlobalFilterCutoff)));
+    }
+    return peak;
+}
+
+} // namespace
+
+TEST_CASE("LFO depth scales the routed modulation", "[integration][modmatrix][lfo]") {
+    struct LfoCase {
+        ModSource source;
+        Steinberg::Vst::ParamID depthId;
+        const char* name;
+    };
+    for (const auto& c : {LfoCase{ModSource::LFO1, Ruinae::kLFO1DepthId, "LFO1"},
+                          LfoCase{ModSource::LFO2, Ruinae::kLFO2DepthId, "LFO2"}}) {
+        DYNAMIC_SECTION(c.name) {
+            const float peak0 = peakRoutedCutoffOffset(c.source, c.depthId, 0.0);
+            const float peakHalf = peakRoutedCutoffOffset(c.source, c.depthId, 0.5);
+            const float peak1 = peakRoutedCutoffOffset(c.source, c.depthId, 1.0);
+            INFO("peak offset at depth 0 / 0.5 / 1: " << peak0 << " / " << peakHalf << " / " << peak1);
+            CHECK(peak0 == 0.0f);
+            CHECK(peakHalf == Approx(0.5f).margin(0.02f));
+            CHECK(peak1 == Approx(1.0f).margin(0.02f));
+        }
+    }
+
+    SECTION("Chaos") {
+        // The attractor's peak is not a fixed 1.0, so depth 0.5 is checked against
+        // half the depth-1 peak of the same (deterministic) trajectory.
+        const float peak0 = peakRoutedCutoffOffset(ModSource::Chaos, Ruinae::kChaosModDepthId, 0.0);
+        const float peakHalf = peakRoutedCutoffOffset(ModSource::Chaos, Ruinae::kChaosModDepthId, 0.5);
+        const float peak1 = peakRoutedCutoffOffset(ModSource::Chaos, Ruinae::kChaosModDepthId, 1.0);
+        INFO("peak offset at depth 0 / 0.5 / 1: " << peak0 << " / " << peakHalf << " / " << peak1);
+        CHECK(peak0 == 0.0f);
+        CHECK(peak1 > 0.1f);
+        CHECK(peakHalf == Approx(0.5f * peak1).margin(0.02f));
+    }
+}
+
+// =============================================================================
+// Sidechain input path (R-126)
+// =============================================================================
+// Every other case in this suite runs with numInputs = 0. These cases drive the
+// processor's sidechain extraction (stereo, mono duplicated), the per-segment
+// pointer offset and the change-only kSidechainActiveId output.
+
+namespace {
+
+// Output parameter changes that record what the processor writes.
+class CapturingOutputChanges final : public Steinberg::Vst::IParameterChanges {
+public:
+    struct Write { Steinberg::Vst::ParamID id; double value; };
+
+    class Queue final : public Steinberg::Vst::IParamValueQueue {
+    public:
+        Queue(CapturingOutputChanges* owner, Steinberg::Vst::ParamID id) : owner_(owner), id_(id) {}
+        Steinberg::tresult PLUGIN_API queryInterface(const Steinberg::TUID, void**) override {
+            return Steinberg::kNoInterface;
+        }
+        Steinberg::uint32 PLUGIN_API addRef() override { return 1; }
+        Steinberg::uint32 PLUGIN_API release() override { return 1; }
+        Steinberg::Vst::ParamID PLUGIN_API getParameterId() override { return id_; }
+        Steinberg::int32 PLUGIN_API getPointCount() override { return 0; }
+        Steinberg::tresult PLUGIN_API getPoint(Steinberg::int32, Steinberg::int32&,
+                                               Steinberg::Vst::ParamValue&) override {
+            return Steinberg::kResultFalse;
+        }
+        Steinberg::tresult PLUGIN_API addPoint(Steinberg::int32,
+                                               Steinberg::Vst::ParamValue value,
+                                               Steinberg::int32& index) override {
+            owner_->writes.push_back({id_, value});
+            index = 0;
+            return Steinberg::kResultTrue;
+        }
+    private:
+        CapturingOutputChanges* owner_;
+        Steinberg::Vst::ParamID id_;
+    };
+
+    Steinberg::tresult PLUGIN_API queryInterface(const Steinberg::TUID, void**) override {
+        return Steinberg::kNoInterface;
+    }
+    Steinberg::uint32 PLUGIN_API addRef() override { return 1; }
+    Steinberg::uint32 PLUGIN_API release() override { return 1; }
+    Steinberg::int32 PLUGIN_API getParameterCount() override { return 0; }
+    Steinberg::Vst::IParamValueQueue* PLUGIN_API getParameterData(Steinberg::int32) override {
+        return nullptr;
+    }
+    Steinberg::Vst::IParamValueQueue* PLUGIN_API addParameterData(
+        const Steinberg::Vst::ParamID& id, Steinberg::int32& index) override {
+        queues_.push_back(std::make_unique<Queue>(this, id));
+        index = static_cast<Steinberg::int32>(queues_.size() - 1);
+        return queues_.back().get();
+    }
+
+    [[nodiscard]] size_t countFor(Steinberg::Vst::ParamID id) const {
+        size_t n = 0;
+        for (const auto& w : writes) n += (w.id == id) ? 1u : 0u;
+        return n;
+    }
+
+    [[nodiscard]] double lastFor(Steinberg::Vst::ParamID id) const {
+        double v = -1.0;
+        for (const auto& w : writes) {
+            if (w.id == id) v = w.value;
+        }
+        return v;
+    }
+
+    std::vector<Write> writes;
+private:
+    std::vector<std::unique_ptr<Queue>> queues_;
+};
+
+// Fixture: global lowpass at a low cutoff, EnvFollower -> GlobalFilterCutoff +1,
+// a sidechain bus (stereo or mono) the test can feed.
+struct SidechainFixture : ModSourcePipelineFixture {
+    std::vector<float> scL, scR;
+    float* scChannels[2]{};
+    Steinberg::Vst::AudioBusBuffers scBus{};
+    CapturingOutputChanges outChanges;
+
+    explicit SidechainFixture(bool monoBus = false) {
+        using namespace Steinberg::Vst;
+        SpeakerArrangement ins[1] = {monoBus ? SpeakerArr::kMono : SpeakerArr::kStereo};
+        SpeakerArrangement outs[1] = {SpeakerArr::kStereo};
+        REQUIRE(processor.setBusArrangements(ins, 1, outs, 1) == Steinberg::kResultTrue);
+        REQUIRE(processor.activateBus(kAudio, kInput, 0, true) == Steinberg::kResultTrue);
+
+        scL.assign(kBlockSize, 0.0f);
+        scR.assign(kBlockSize, 0.0f);
+        scChannels[0] = scL.data();
+        scChannels[1] = scR.data();
+        scBus.numChannels = monoBus ? 1 : 2;
+        scBus.channelBuffers32 = scChannels;
+        data.numInputs = 1;
+        data.inputs = &scBus;
+        data.outputParameterChanges = &outChanges;
+
+        PipelineParamChanges setup;
+        setup.addChange(Ruinae::kGlobalFilterEnabledId, 1.0);
+        setup.addChange(Ruinae::kGlobalFilterCutoffId, 0.3);
+        setup.addChange(Ruinae::kGlobalFilterTypeId, 0.0);
+        setup.addChange(Ruinae::kDelayEnabledId, 0.0);
+        setup.addChange(Ruinae::kReverbEnabledId, 0.0);
+        setup.addChange(Ruinae::kModulationTypeId, 0.0);
+        setup.addChange(Ruinae::kModMatrixSlot0SourceId, sourceToNormalized(ModSource::EnvFollower));
+        setup.addChange(Ruinae::kModMatrixSlot0DestId, destToNormalized(0));
+        setup.addChange(Ruinae::kModMatrixSlot0AmountId, amountToNormalized(1.0f));
+        processWithParams(setup);
+    }
+
+    // 1 kHz sine from sample `from` to the end of the block, 0.8 peak.
+    void fillBurst(size_t from = 0) {
+        for (size_t i = 0; i < kBlockSize; ++i) {
+            const float v = (i >= from)
+                ? 0.8f * std::sin(6.2831853f * 1000.0f * static_cast<float>(i) / 44100.0f)
+                : 0.0f;
+            scL[i] = v;
+            scR[i] = (scBus.numChannels == 2) ? v : 0.0f;
+        }
+    }
+    void fillSilence() {
+        std::fill(scL.begin(), scL.end(), 0.0f);
+        std::fill(scR.begin(), scR.end(), 0.0f);
+    }
+
+    void run(Steinberg::Vst::IEventList* events = nullptr) {
+        data.inputEvents = events ? events : &emptyEvents;
+        processEmpty();
+        data.inputEvents = &emptyEvents;
+    }
+
+    [[nodiscard]] float cutoffOffset() const {
+        return processor.engine().getGlobalModOffset(Krate::DSP::RuinaeModDest::GlobalFilterCutoff);
+    }
+};
+
+} // namespace
+
+TEST_CASE("Processor_Sidechain_StereoDrivesEnvFollower",
+          "[integration][sidechain]") {
+    SidechainFixture f;
+
+    // A held note through a low global lowpass; the sidechain is silent.
+    Krate::Test::EventList on;
+    on.addNoteOn(60, 0.8f);
+    f.fillSilence();
+    f.run(&on);
+    for (int i = 0; i < 20; ++i) f.run();
+    const float quietOffset = f.cutoffOffset();
+    const double quietCentroid = Krate::DSP::TestUtils::spectralCentroidHz(
+        std::span<const float>(f.outL.data(), f.outL.size()), 44100.0);
+
+    // 1 kHz burst on input bus 0: the follower rises and opens the filter.
+    f.fillBurst();
+    for (int i = 0; i < 20; ++i) f.run();
+    const float burstOffset = f.cutoffOffset();
+    const double burstCentroid = Krate::DSP::TestUtils::spectralCentroidHz(
+        std::span<const float>(f.outL.data(), f.outL.size()), 44100.0);
+
+    INFO("offset quiet=" << quietOffset << " burst=" << burstOffset);
+    INFO("centroid quiet=" << quietCentroid << " burst=" << burstCentroid);
+    CHECK(quietOffset == Approx(0.0f).margin(1e-4f));
+    CHECK(burstOffset > quietOffset + 0.05f);
+    CHECK(burstCentroid > quietCentroid * 1.05);
+}
+
+TEST_CASE("Processor_Sidechain_MonoBusDuplicated",
+          "[integration][sidechain]") {
+    // The same 1 kHz burst on a stereo bus (L = R) and on a mono bus must
+    // drive the follower identically: the mono channel feeds both sides.
+    float stereoOffset = 0.0f;
+    {
+        SidechainFixture f(false);
+        f.fillBurst();
+        for (int i = 0; i < 20; ++i) f.run();
+        stereoOffset = f.cutoffOffset();
+    }
+    SidechainFixture m(true);
+    m.fillBurst();
+    for (int i = 0; i < 20; ++i) m.run();
+    const float monoOffset = m.cutoffOffset();
+
+    INFO("stereo=" << stereoOffset << " mono=" << monoOffset);
+    REQUIRE(stereoOffset > 0.05f);
+    CHECK(monoOffset == Approx(stereoOffset).margin(1e-4f));
+}
+
+TEST_CASE("Processor_Sidechain_SegmentOffsetsAligned",
+          "[integration][sidechain]") {
+    // The burst is silent for the first 300 samples of the block. Note events
+    // split the block at 100 and 200; a segment that read the sidechain from
+    // the buffer start instead of its own offset would see silence where the
+    // burst is, and the follower trace would differ from the unsplit render.
+    constexpr size_t kBurstStart = 300;
+
+    auto render = [&](bool split) {
+        SidechainFixture f;
+        f.fillBurst(kBurstStart);
+        Krate::Test::EventList events;
+        if (split) {
+            events.addNoteOn(60, 0.8f, 100);
+            events.addNoteOff(60, 200);
+        }
+        f.run(&events);
+        std::vector<float> trace;
+        trace.push_back(f.cutoffOffset());
+        f.fillBurst(0);
+        for (int i = 0; i < 4; ++i) {
+            f.run();
+            trace.push_back(f.cutoffOffset());
+        }
+        return trace;
+    };
+
+    const auto unsplit = render(false);
+    const auto split = render(true);
+    REQUIRE(unsplit.size() == split.size());
+    REQUIRE(unsplit[0] > 0.0f);  // the burst reached the follower in block 1
+    for (size_t i = 0; i < unsplit.size(); ++i) {
+        INFO("block " << i << " unsplit=" << unsplit[i] << " split=" << split[i]);
+        CHECK(split[i] == Approx(unsplit[i]).margin(1e-4f));
+    }
+}
+
+TEST_CASE("Processor_SidechainActiveParam_WrittenOnFirstBlockAndOnChange",
+          "[integration][sidechain]") {
+    using namespace Steinberg::Vst;
+    SidechainFixture f;
+    // The fixture's setup block was the first block: active written once, as 1.
+    REQUIRE(f.outChanges.countFor(Ruinae::kSidechainActiveId) == 1);
+    CHECK(f.outChanges.lastFor(Ruinae::kSidechainActiveId) == Approx(1.0));
+
+    // Unchanged state: no further write.
+    f.fillBurst();
+    f.run();
+    f.run();
+    CHECK(f.outChanges.countFor(Ruinae::kSidechainActiveId) == 1);
+
+    // Bus deactivated: one write of 0, then silence again.
+    REQUIRE(f.processor.activateBus(kAudio, kInput, 0, false) == Steinberg::kResultTrue);
+    f.run();
+    REQUIRE(f.outChanges.countFor(Ruinae::kSidechainActiveId) == 2);
+    CHECK(f.outChanges.lastFor(Ruinae::kSidechainActiveId) == Approx(0.0));
+    f.run();
+    CHECK(f.outChanges.countFor(Ruinae::kSidechainActiveId) == 2);
+
+    // Reactivated: one write of 1.
+    REQUIRE(f.processor.activateBus(kAudio, kInput, 0, true) == Steinberg::kResultTrue);
+    f.run();
+    REQUIRE(f.outChanges.countFor(Ruinae::kSidechainActiveId) == 3);
+    CHECK(f.outChanges.lastFor(Ruinae::kSidechainActiveId) == Approx(1.0));
+
+    // First-block case on a fresh processor with no sidechain: written as 0.
+    ModSourcePipelineFixture g;
+    CapturingOutputChanges out;
+    g.data.outputParameterChanges = &out;
+    g.processEmpty();
+    REQUIRE(out.countFor(Ruinae::kSidechainActiveId) == 1);
+    CHECK(out.lastFor(Ruinae::kSidechainActiveId) == Approx(0.0));
 }

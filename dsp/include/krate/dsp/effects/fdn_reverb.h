@@ -90,9 +90,6 @@ static constexpr double kReferenceSampleRate = 48000.0;
 /// Adjusted: [149, 193, 241, 307, 389, 491, 631, 797] (all prime, GCD=1 for all pairs)
 static constexpr size_t kRefDelays[8] = {149, 193, 241, 307, 389, 491, 631, 797};
 
-/// Normalization factor for 8-point Hadamard: 1/sqrt(8)
-static constexpr float kHadamardNorm = 0.35355339059327373f;  // 1/sqrt(8)
-
 /// Parameter smoothing time in milliseconds
 static constexpr float kSmoothingTimeMs = 10.0f;
 
@@ -185,6 +182,16 @@ public:
         }
         diffuserBuffer_.assign(totalDiffuserBufferSize_, 0.0f);
 
+        // Mean transit of one pass through the four in-loop diffuser steps (each
+        // read is length + 1 samples behind its write). The Hadamard steps mix
+        // the channels, so every pass through a line also pays, on average, this
+        // much diffuser delay; the Jot gains below count it (R-220).
+        meanDiffuserTransit_ = 0.0f;
+        for (const size_t length : diffuserDelayLengths_) {
+            meanDiffuserTransit_ += static_cast<float>(length + 1);
+        }
+        meanDiffuserTransit_ /= static_cast<float>(kNumChannels);
+
         // -- Pre-delay (up to 100ms) --
         preDelay_.prepare(sampleRate, 0.1f);
 
@@ -257,124 +264,11 @@ public:
     // =========================================================================
 
     /// @brief Process a single stereo sample pair in-place.
+    /// Runs the block path for one sample, so both entry points scale, filter
+    /// and mix exactly the same way (R-220: this copy once scaled the damping
+    /// filter's state by the Jot gain while processBlock scaled its output).
     void process(float& left, float& right) noexcept {
-        if (!prepared_) return;
-
-        // -- Step 1: NaN/Inf input guard (FR-019) --
-        if (detail::isNaN(left) || detail::isInf(left)) left = 0.0f;
-        if (detail::isNaN(right) || detail::isInf(right)) right = 0.0f;
-
-        // Store dry
-        const float dryL = left;
-        const float dryR = right;
-
-        // -- Step 2: Mono sum + pre-delay --
-        float mono = (left + right) * 0.5f;
-        if (freeze_) {
-            mono = 0.0f;  // Block new input during freeze (FR-018)
-        }
-
-        preDelay_.write(mono);
-        float preDelayed = preDelay_.readLinear(std::max(0.0f, preDelaySamples_));
-
-        // -- Step 3: Read delay outputs (output taps) --
-        alignas(32) float delReads[kNumChannels];
-        for (size_t i = 0; i < kNumChannels; ++i) {
-            float delayF = static_cast<float>(delayLengths_[i]);
-            delayF += lfoExcursionPerChannel_[i];
-            delayF = std::max(1.0f, delayF);
-            // Cubic interpolation for modulated channels, linear for fixed
-            if (lfoExcursionPerChannel_[i] != 0.0f) {
-                delReads[i] = delayBufReadCubic(i, delayF);
-            } else {
-                delReads[i] = delayBufReadLinear(i, delayF);
-            }
-        }
-
-        // -- Step 4: One-pole damping filters with Jot absorption (FR-011) --
-        // In freeze mode, bypass damping to preserve energy
-        if (freeze_) {
-            for (size_t i = 0; i < kNumChannels; ++i) {
-                filterStates_[i] = delReads[i];
-            }
-        } else {
-            for (size_t i = 0; i < kNumChannels; ++i) {
-                filterStates_[i] = filterCoeffs_[i] * delReads[i]
-                                 + (1.0f - filterCoeffs_[i]) * filterStates_[i];
-                filterStates_[i] *= filterGainDC_[i];
-            }
-        }
-
-        // -- Step 5: DC blockers (FR-012) --
-        // In freeze mode, bypass DC blockers to preserve energy
-        alignas(32) float processed[kNumChannels];
-        if (freeze_) {
-            for (size_t i = 0; i < kNumChannels; ++i) {
-                processed[i] = filterStates_[i];
-            }
-        } else {
-            for (size_t i = 0; i < kNumChannels; ++i) {
-                float filtered = filterStates_[i];
-                dcBlockY_[i] = filtered - dcBlockX_[i] + dcBlockR_ * dcBlockY_[i];
-                dcBlockX_[i] = filtered;
-                processed[i] = dcBlockY_[i];
-            }
-        }
-
-        // -- Step 6: Hadamard diffuser in feedback path (FR-008) --
-        // Apply 4 cascaded Hadamard steps to the processed delay outputs.
-        // Note: Diffusion continues during freeze mode intentionally —
-        // this creates an evolving frozen texture which is musically desirable.
-        for (size_t step = 0; step < kNumDiffuserSteps; ++step) {
-            applyDiffuserStep(processed, step);
-        }
-
-        // -- Step 7: Householder feedback matrix (FR-010) --
-        applyHouseholder(processed);
-
-        // -- Step 8: Apply feedback gains and add new input --
-        for (size_t i = 0; i < kNumChannels; ++i) {
-            processed[i] = processed[i] * feedbackGains_[i] + preDelayed;
-        }
-
-        // -- Step 9: Write to delay lines --
-        for (size_t i = 0; i < kNumChannels; ++i) {
-            delayBufWrite(i, processed[i]);
-        }
-
-        // -- Step 10: Advance LFO (Gordon-Smith phasor) + pre-compute excursions --
-        for (size_t j = 0; j < kNumModulatedChannels; ++j) {
-            float newSin = lfoSinState_[j] + lfoEpsilon_ * lfoCosState_[j];
-            float newCos = lfoCosState_[j] - lfoEpsilon_ * newSin;
-            lfoSinState_[j] = newSin;
-            lfoCosState_[j] = newCos;
-            lfoExcursionPerChannel_[lfoModChannels_[j]] = newSin * lfoMaxExcursion_;
-        }
-
-        // -- Step 11: Stereo output from delay reads --
-        // Odd/even channel split for stereo
-        float wetL = 0.0f;
-        float wetR = 0.0f;
-        for (size_t i = 0; i < kNumChannels; i += 2) {
-            wetL += delReads[i];
-        }
-        for (size_t i = 1; i < kNumChannels; i += 2) {
-            wetR += delReads[i];
-        }
-        wetL *= 0.25f;  // 1/4 (sum of 4 channels)
-        wetR *= 0.25f;
-
-        // Width processing
-        float mid = 0.5f * (wetL + wetR);
-        float side = 0.5f * (wetL - wetR);
-        wetL = mid + width_ * side;
-        wetR = mid - width_ * side;
-
-        // Dry/wet mix (equal-power)
-        const float dryGain = std::cos(mix_ * kHalfPi);
-        const float wetGain = std::sin(mix_ * kHalfPi);
-        left = dryGain * dryL + wetGain * wetL;
-        right = dryGain * dryR + wetGain * wetR;
+        processBlock(&left, &right, 1);
     }
 
     /// @brief Process a block of stereo samples in-place. (FR-016 SIMD path)
@@ -547,30 +441,45 @@ private:
     // Internal parameter update
     // =========================================================================
 
-    void setParamsInternal(const ReverbParams& params) noexcept {
+    void setParamsInternal(const ReverbParams& requested) noexcept {
         using namespace fdn_detail;
+
+        // A non-finite field keeps its last applied value: a NaN size or damping
+        // would write NaN into every feedback gain and filter coefficient, and the
+        // tank would recirculate it after the parameter is finite again.
+        ReverbParams params = requested;
+        const auto keepFinite = [](float& v, float last) noexcept {
+            if (!detail::isFinite(v)) v = last;
+        };
+        keepFinite(params.roomSize, appliedParams_.roomSize);
+        keepFinite(params.damping, appliedParams_.damping);
+        keepFinite(params.width, appliedParams_.width);
+        keepFinite(params.mix, appliedParams_.mix);
+        keepFinite(params.preDelayMs, appliedParams_.preDelayMs);
+        keepFinite(params.diffusion, appliedParams_.diffusion);
+        keepFinite(params.modRate, appliedParams_.modRate);
+        keepFinite(params.modDepth, appliedParams_.modDepth);
+        appliedParams_ = params;
 
         float roomSize = std::clamp(params.roomSize, 0.0f, 1.0f);
         float damping = std::clamp(params.damping, 0.0f, 1.0f);
 
-        // Map roomSize to base feedback gain (FR-017) using quadratic curve.
-        // This bounds the overall loop gain for stability.
-        float fbGain = 0.78f + 0.17f * roomSize * roomSize;
-
-        // Freeze mode (FR-018)
+        // Freeze mode (FR-018): the loop bypasses the damping filters, the Jot
+        // gains and the DC blockers, so the orthonormal matrices hold the energy.
         freeze_ = params.freeze;
-        if (freeze_) {
-            fbGain = 1.0f;
-        }
 
+        // The per-line Jot gain below is the whole loop gain (R-220). It used to
+        // be divided by a size-derived base gain 0.78 + 0.17 * size^2 applied on
+        // the write side and clamped to 1, and since every gDC exceeded that
+        // base, the clamp always won: the loop gain was the base alone and the
+        // decay ran 0.44-2.2 s whatever the T60 below asked for.
         for (float& feedbackGain : feedbackGains_) {
-            feedbackGain = fbGain;
+            feedbackGain = 1.0f;
         }
 
-        // Jot's per-delay-line absorption: each delay line gets a correction
-        // factor (filterGainDC_) that compensates for length differences, so
-        // all channels achieve the same effective T60. The base fbGain bounds
-        // overall loop gain for stability; filterGainDC_ corrects per-channel.
+        // Jot's per-delay-line absorption: each line's gain is 10^(-3 L / (T60 sr))
+        // for the samples L one pass through it takes (the line, plus the mean
+        // diffuser transit), so every path decays at the same T60.
         //
         // T60_dc derived from roomSize: 0.5s (small) to 10s (large)
         float t60dc = 0.5f + roomSize * 9.5f;
@@ -578,17 +487,19 @@ private:
         // damping=0 -> T60_nyq = T60_dc (bright), damping=1 -> T60_nyq = T60_dc/20 (dark)
         float t60nyq = t60dc * std::pow(0.05f, damping);
 
+        // The in-loop DC blocker y = x - x1 + R y1 has a passband gain of
+        // 2 / (1 + R) (+0.023 dB per pass, +1.5 dB/s), which lengthened a 10 s
+        // tail to ~13 s; the Jot gain carries (1 + R) / 2 to cancel it.
+        const float dcBlockPassbandNorm = 0.5f * (1.0f + dcBlockR_);
+
         float sr = static_cast<float>(sampleRate_);
         for (size_t i = 0; i < kNumChannels; ++i) {
-            float mi = static_cast<float>(delayLengths_[i]);
+            const float loopSamples =
+                static_cast<float>(delayLengths_[i] + 1) + meanDiffuserTransit_;
             // Per-channel ideal gain at DC and Nyquist (Jot formula)
-            float gDC = std::pow(10.0f, -3.0f * mi / (t60dc * sr));
-            float gNyq = std::pow(10.0f, -3.0f * mi / (t60nyq * sr));
-            // filterGainDC_ = correction ratio: ideal Jot gain / base fbGain
-            // Clamped to [0, 1] to never amplify beyond base loop gain
-            filterGainDC_[i] = (fbGain > 1e-10f)
-                ? std::clamp(gDC / fbGain, 0.0f, 1.0f)
-                : 1.0f;
+            float gDC = std::pow(10.0f, -3.0f * loopSamples / (t60dc * sr));
+            float gNyq = std::pow(10.0f, -3.0f * loopSamples / (t60nyq * sr));
+            filterGainDC_[i] = std::clamp(gDC * dcBlockPassbandNorm, 0.0f, 1.0f);
             // Derive one-pole coefficient from DC/Nyquist gain ratio
             // At DC: H(1) = 1.0 (pass-through), gain applied via filterGainDC_
             // At Nyquist: H(-1) = coeff / (2 - coeff)
@@ -689,75 +600,6 @@ private:
     }
 
     // =========================================================================
-    // Hadamard FWHT (FR-008)
-    // =========================================================================
-
-    /// 3-stage butterfly FWHT for 8 channels + 1/sqrt(8) normalization
-    static void applyHadamard(float x[kNumChannels]) noexcept {
-        using namespace fdn_detail;
-
-        // Stage 1: stride = 4
-        for (size_t i = 0; i < 4; ++i) {
-            float a = x[i];
-            float b = x[i + 4];
-            x[i] = a + b;
-            x[i + 4] = a - b;
-        }
-
-        // Stage 2: stride = 2
-        for (size_t k = 0; k < 8; k += 4) {
-            for (size_t i = 0; i < 2; ++i) {
-                float a = x[k + i];
-                float b = x[k + i + 2];
-                x[k + i] = a + b;
-                x[k + i + 2] = a - b;
-            }
-        }
-
-        // Stage 3: stride = 1
-        for (size_t k = 0; k < 8; k += 2) {
-            float a = x[k];
-            float b = x[k + 1];
-            x[k] = a + b;
-            x[k + 1] = a - b;
-        }
-
-        // Normalize
-        for (size_t i = 0; i < kNumChannels; ++i) {
-            x[i] *= kHadamardNorm;
-        }
-    }
-
-    /// Diffuser step: read from diffuser delay, apply Hadamard, write back (FR-008)
-    void applyDiffuserStep(float x[kNumChannels], size_t stepIndex) noexcept {
-        for (size_t ch = 0; ch < kNumChannels; ++ch) {
-            size_t idx = stepIndex * kNumChannels + ch;
-            float delayed = diffuserBufRead(stepIndex, ch, diffuserDelayLengths_[idx]);
-            diffuserBufWrite(stepIndex, ch, x[ch]);
-            x[ch] = delayed;
-        }
-
-        applyHadamard(x);
-    }
-
-    // =========================================================================
-    // Householder feedback matrix (FR-010)
-    // =========================================================================
-
-    /// y[i] = x[i] - (2/N) * sum(x) = x[i] - 0.25 * sum(x) for N=8
-    /// Total: 8 adds + 1 mul + 8 subs = 17 arithmetic ops
-    static void applyHouseholder(float x[kNumChannels]) noexcept {
-        float sum = 0.0f;
-        for (size_t i = 0; i < kNumChannels; ++i) {
-            sum += x[i];
-        }
-        float scaled = sum * 0.25f;  // 2/8 = 0.25
-        for (size_t i = 0; i < kNumChannels; ++i) {
-            x[i] -= scaled;
-        }
-    }
-
-    // =========================================================================
     // Configuration
     // =========================================================================
     double sampleRate_ = 0.0;
@@ -767,6 +609,8 @@ private:
     float width_ = 1.0f;
     float preDelaySamples_ = 0.0f;
     float dcBlockR_ = 0.9999f;  // DC blocker coefficient, computed in prepare()
+    float meanDiffuserTransit_ = 0.0f;  // samples per pass through the 4 diffuser steps
+    ReverbParams appliedParams_{};  // last applied (finite) parameters
 
     // =========================================================================
     // SoA state arrays (FR-014) - alignas(32) for SIMD

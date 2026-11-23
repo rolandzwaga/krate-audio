@@ -15,12 +15,14 @@
 
 #include "base/source/fstreamer.h"
 #include "pluginterfaces/base/ibstream.h"
+#include "public.sdk/source/common/memorystream.h"
 #include "pluginterfaces/vst/ivstevents.h"
 #include "pluginterfaces/vst/ivstparameterchanges.h"
 
 #include <algorithm>
 #include <cmath>
 #include <cstring>
+#include <vector>
 
 
 using namespace Steinberg;
@@ -517,8 +519,17 @@ tresult PLUGIN_API Processor::setState(IBStream* state)
     // Force arp to MIDI mode (always on in Gradus)
     arpParams_.operatingMode.store(kArpMIDI, std::memory_order_relaxed);
 
-    // Bake speed curve tables from deserialized curve data and apply to arpCore
+    // Bake speed curve tables from deserialized curve data and apply them, with
+    // the loaded depths, to arpCore. A load (host or preset browser) has this one
+    // writer; the SpeedCurveTable message carries only the editor's own edits.
+    // Curves, depths and engine lanes share one order (Vel, Gate, Pitch, Mod,
+    // Ratchet, Cond, Chord, Inv).
     {
+        const std::array<const std::atomic<float>*, 8> depths = {
+            &arpParams_.velocityLaneSpeedCurveDepth, &arpParams_.gateLaneSpeedCurveDepth,
+            &arpParams_.pitchLaneSpeedCurveDepth,    &arpParams_.modifierLaneSpeedCurveDepth,
+            &arpParams_.ratchetLaneSpeedCurveDepth,  &arpParams_.conditionLaneSpeedCurveDepth,
+            &arpParams_.chordLaneSpeedCurveDepth,    &arpParams_.inversionLaneSpeedCurveDepth};
         std::scoped_lock lock(arpParams_.speedCurveMutex_);
         for (size_t i = 0; i < 8; ++i) {
             const auto& curve = arpParams_.speedCurves[i];
@@ -528,6 +539,7 @@ tresult PLUGIN_API Processor::setState(IBStream* state)
             curve.bakeToTable(table);
             arpCore_.setLaneSpeedCurveTable(i, table);
             arpCore_.setLaneSpeedCurveEnabled(i, curve.enabled);
+            arpCore_.setLaneSpeedCurveDepth(i, depths[i]->load(std::memory_order_relaxed));
         }
     }
 
@@ -537,34 +549,26 @@ tresult PLUGIN_API Processor::setState(IBStream* state)
 }
 
 // ==============================================================================
-// IMessage Handler — receives speed curve tables from controller
+// IMessage Handler — preset-browser loads and the editor's speed curve tables
 // ==============================================================================
 
 tresult PLUGIN_API Processor::notify(IMessage* message)
 {
     if (!message) return kResultFalse;
 
-    // Spec 142: Sequencer Note lane param update from Controller. This is the
-    // belt-and-suspenders path that guarantees the Processor's atomics track
-    // UI edits even if the host doesn't relay them through processParameter
-    // Changes. See controller.h::sendSeqNoteLaneParam for the rationale.
-    if (strcmp(message->getMessageID(), "SeqNoteLaneParam") == 0) {
+    // A preset-browser load (R-206): the same parse and apply as a host load.
+    // Runs on the message thread, as setState does.
+    if (strcmp(message->getMessageID(), "LoadPresetState") == 0) {
         auto* attrs = message->getAttributes();
         if (!attrs) return kResultFalse;
-
-        int64 idRaw = 0;
-        int64 valueBits = 0;
-        if (attrs->getInt("id", idRaw) != kResultOk) return kResultFalse;
-        if (attrs->getInt("valueBits", valueBits) != kResultOk) return kResultFalse;
-
-        Steinberg::Vst::ParamValue value = 0.0;
-        std::memcpy(&value, &valueBits, sizeof(Steinberg::Vst::ParamValue));
-
-        auto id = static_cast<Steinberg::Vst::ParamID>(idRaw);
-        // Reuse the same handler used by processParameterChanges so the
-        // atomic-update logic stays in one place.
-        Gradus::handleArpParamChange(arpParams_, id, value);
-        return kResultOk;
+        const void* bytes = nullptr;
+        Steinberg::uint32 size = 0;
+        if (attrs->getBinary("bytes", bytes, size) != kResultOk || !bytes || size == 0)
+            return kResultFalse;
+        const auto* first = static_cast<const char*>(bytes);
+        std::vector<char> copy(first, first + size);
+        Steinberg::MemoryStream stream(copy.data(), static_cast<Steinberg::TSize>(copy.size()));
+        return setState(&stream);
     }
 
     if (strcmp(message->getMessageID(), "SpeedCurveTable") == 0) {
@@ -876,7 +880,8 @@ void Processor::applyParamsToEngine()
     // Per-lane speed curve depth: read from IMessage-set values stored
     // directly on arpCore_ (arpParams_ atomics are unreliable for
     // programmatically-created knobs — the host may not relay performEdit
-    // back through processParameterChanges). Depth is set in notify().
+    // back through processParameterChanges). Depth is set in setState() on a
+    // load and in notify() on an editor edit.
 
     // Per-lane speed curve: apply enabled flags. Consume any pending table
     // updates from IMessage (staging → active).

@@ -62,11 +62,9 @@ TEST_CASE("Stepped curve: y = floor(x * 4) / 3", "[core][modulation_curves]") {
     REQUIRE(applyModCurve(ModCurve::Stepped, 0.3f) == Approx(1.0f / 3.0f).margin(0.01f));
     // x=0.6: floor(0.6*4)/3 = floor(2.4)/3 = 2/3 = 0.667
     REQUIRE(applyModCurve(ModCurve::Stepped, 0.6f) == Approx(2.0f / 3.0f).margin(0.01f));
-    // x=1.0: floor(1.0*4)/3 = floor(4.0)/3 = 4/3 = 1.333 -> clamped to 1.0
-    // Actually per formula: floor(1.0*4)/3 = 4/3 = 1.333
-    // But input is clamped to [0,1], so at x=1.0, floor(4)/3 = 4/3 = 1.333
-    // The function returns 4/3 which is >1, so let's verify the actual output
-    REQUIRE(applyModCurve(ModCurve::Stepped, 1.0f) == Approx(4.0f / 3.0f).margin(0.01f));
+    // x=1.0: the step index is capped at 3, so full scale is the top level 3/3 = 1.0
+    // (R-013: floor(4)/3 = 4/3 overshot the routed amount by a third)
+    REQUIRE(applyModCurve(ModCurve::Stepped, 1.0f) == Approx(1.0f));
 }
 
 TEST_CASE("Stepped curve produces 4 discrete levels", "[core][modulation_curves]") {
@@ -159,6 +157,21 @@ TEST_CASE("All curves produce expected value at input 1", "[core][modulation_cur
     REQUIRE(applyModCurve(ModCurve::Linear, 1.0f) == Approx(1.0f).margin(0.01f));
     REQUIRE(applyModCurve(ModCurve::Exponential, 1.0f) == Approx(1.0f).margin(0.01f));
     REQUIRE(applyModCurve(ModCurve::SCurve, 1.0f) == Approx(1.0f).margin(0.01f));
-    // Stepped at 1.0: floor(4)/3 = 4/3 = 1.333
-    REQUIRE(applyModCurve(ModCurve::Stepped, 1.0f) == Approx(4.0f / 3.0f).margin(0.01f));
+    // Stepped at 1.0: the top level, 3/3 = 1.0
+    REQUIRE(applyModCurve(ModCurve::Stepped, 1.0f) == Approx(1.0f));
+}
+
+TEST_CASE("applyModCurve maps [0,1] into [0,1] for every curve", "[core][modulation]") {
+    constexpr ModCurve kCurves[] = {ModCurve::Linear, ModCurve::Exponential,
+                                    ModCurve::SCurve, ModCurve::Stepped};
+    for (const ModCurve curve : kCurves) {
+        INFO("curve " << static_cast<int>(curve));
+        for (int i = 0; i <= 1000; ++i) {
+            const float x = static_cast<float>(i) / 1000.0f;
+            INFO("x = " << x);
+            const float y = applyModCurve(curve, x);
+            REQUIRE(y >= 0.0f);
+            REQUIRE(y <= 1.0f);
+        }
+    }
 }

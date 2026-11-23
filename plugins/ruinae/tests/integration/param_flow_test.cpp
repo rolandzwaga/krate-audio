@@ -16,7 +16,9 @@
 #include "pluginterfaces/vst/ivstevents.h"
 #include "pluginterfaces/vst/ivstparameterchanges.h"
 
+#include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <vector>
 #include "vst_param_changes.h"
 #include "vst_event_list.h"
@@ -109,51 +111,162 @@ struct ParamFlowFixture {
 // Tests
 // =============================================================================
 
-TEST_CASE("Parameter changes are processed without crash", "[param_flow][integration]") {
-    ParamFlowFixture f;
+// -----------------------------------------------------------------------------
+// Mono Portamento Time (R-121, R-031)
+// -----------------------------------------------------------------------------
+// applyArpParams overwrote the engine's portamento time with the arp Slide Time
+// (60 ms default) every block, whatever the arp mode, so the Mono Portamento Time
+// knob had no effect: mono always glided 60 ms.
+
+namespace {
+
+/// Render a sine oscillator in Mono, legato, arp Off, at 48 kHz: note 60 from
+/// sample 0, note 72 from `secondAt` while 60 is still held. Returns the mono output.
+std::vector<float> renderMonoGlide(double portamentoNorm, int64_t secondAt, int64_t total) {
+    constexpr double kRate = 48000.0;
+    constexpr size_t kBlock = 128;
+    Ruinae::Processor processor;
+    processor.initialize(nullptr);
+    Steinberg::Vst::ProcessSetup setup{};
+    setup.processMode = Steinberg::Vst::kRealtime;
+    setup.symbolicSampleSize = Steinberg::Vst::kSample32;
+    setup.sampleRate = kRate;
+    setup.maxSamplesPerBlock = static_cast<Steinberg::int32>(kBlock);
+    processor.setupProcessing(setup);
+    processor.setActive(static_cast<Steinberg::TBool>(true));
+
+    std::vector<float> outL(kBlock);
+    std::vector<float> outR(kBlock);
+    std::vector<float> rendered;
+    rendered.reserve(static_cast<size_t>(total));
+    float* channels[2] = {outL.data(), outR.data()};
+    Steinberg::Vst::AudioBusBuffers bus{};
+    bus.numChannels = 2;
+    bus.channelBuffers32 = channels;
+    EmptyEventList events;
+    EmptyEventList outEvents;
     TestParamChanges params;
 
-    // Send changes for multiple sections simultaneously
-    params.addChange(Ruinae::kMasterGainId, 0.75);
-    params.addChange(Ruinae::kOscATypeId, 0.3);
-    params.addChange(Ruinae::kFilterCutoffId, 0.8);
-    params.addChange(Ruinae::kDistortionDriveId, 0.5);
-    params.addChange(Ruinae::kAmpEnvAttackId, 0.3);
-    params.addChange(Ruinae::kLFO1RateId, 0.5);
-    params.addChange(Ruinae::kReverbMixId, 0.4);
-
-    // Should not crash
-    f.processWithParams(params);
-    REQUIRE(true);
+    for (int64_t pos = 0; pos < total; pos += static_cast<int64_t>(kBlock)) {
+        const auto n = static_cast<Steinberg::int32>(
+            std::min<int64_t>(static_cast<int64_t>(kBlock), total - pos));
+        events.clear();
+        outEvents.clear();
+        params.clear();
+        if (pos == 0) {
+            // Sine oscillator A only, filter open, no effects, arp off.
+            params.addChange(Ruinae::kOscATypeId, 0.0);
+            params.addChange(Ruinae::kOscAWaveformId, 0.0);
+            params.addChange(Ruinae::kOscALevelId, 1.0);
+            params.addChange(Ruinae::kOscATuneId, 0.5);
+            params.addChange(Ruinae::kOscAFineId, 0.5);
+            params.addChange(Ruinae::kOscBLevelId, 0.0);
+            params.addChange(Ruinae::kMixerModeId, 0.0);
+            params.addChange(Ruinae::kMixerPositionId, 0.0);
+            params.addChange(Ruinae::kFilterTypeId, 0.0);
+            params.addChange(Ruinae::kFilterCutoffId, 1.0);
+            params.addChange(Ruinae::kFilterKeyTrackId, 0.0);
+            params.addChange(Ruinae::kDistortionTypeId, 0.0);
+            params.addChange(Ruinae::kTranceGateEnabledId, 0.0);
+            params.addChange(Ruinae::kAmpEnvSustainId, 1.0);
+            params.addChange(Ruinae::kDelayEnabledId, 0.0);
+            params.addChange(Ruinae::kReverbEnabledId, 0.0);
+            params.addChange(Ruinae::kHarmonizerEnabledId, 0.0);
+            params.addChange(Ruinae::kGlobalFilterEnabledId, 0.0);
+            params.addChange(Ruinae::kSettingsTuningReferenceId, 0.5);
+            params.addChange(Ruinae::kArpOperatingModeId, 0.0);
+            params.addChange(Ruinae::kVoiceModeId, 1.0);
+            params.addChange(Ruinae::kMonoLegatoId, 1.0);
+            params.addChange(Ruinae::kMonoPortaModeId, 0.0);
+            params.addChange(Ruinae::kMonoPortamentoTimeId, portamentoNorm);
+            events.addNoteOn(60, 0.8f, 0);
+        }
+        if (secondAt >= pos && secondAt < pos + n) {
+            events.addNoteOn(72, 0.8f, static_cast<Steinberg::int32>(secondAt - pos));
+        }
+        Steinberg::Vst::ProcessData data{};
+        data.processMode = Steinberg::Vst::kRealtime;
+        data.symbolicSampleSize = Steinberg::Vst::kSample32;
+        data.numSamples = n;
+        data.numOutputs = 1;
+        data.outputs = &bus;
+        data.inputParameterChanges = &params;
+        data.inputEvents = &events;
+        data.outputEvents = &outEvents;
+        data.processContext = nullptr;
+        processor.process(data);
+        for (Steinberg::int32 i = 0; i < n; ++i) {
+            rendered.push_back(0.5f * (outL[static_cast<size_t>(i)] + outR[static_cast<size_t>(i)]));
+        }
+    }
+    processor.setActive(static_cast<Steinberg::TBool>(false));
+    processor.terminate();
+    return rendered;
 }
 
-TEST_CASE("Multiple parameter changes in same block all take effect", "[param_flow][integration]") {
-    ParamFlowFixture f;
-    TestParamChanges params;
+/// Mean frequency over [a, b) from interpolated rising zero crossings (sine input).
+double zeroCrossingHz(const std::vector<float>& x, size_t a, size_t b, double sampleRate) {
+    double first = -1.0;
+    double last = -1.0;
+    int periods = -1;
+    for (size_t i = std::max<size_t>(a, 1); i < std::min(b, x.size()); ++i) {
+        if (x[i - 1] < 0.0f && x[i] >= 0.0f) {
+            const double t = static_cast<double>(i - 1)
+                + static_cast<double>(-x[i - 1]) / static_cast<double>(x[i] - x[i - 1]);
+            if (first < 0.0) first = t;
+            last = t;
+            ++periods;
+        }
+    }
+    if (periods < 1) return 0.0;
+    return sampleRate * static_cast<double>(periods) / (last - first);
+}
 
-    // Send changes for every section
-    params.addChange(Ruinae::kMasterGainId, 0.9);
-    params.addChange(Ruinae::kOscATypeId, 0.1);
-    params.addChange(Ruinae::kOscBLevelId, 0.5);
-    params.addChange(Ruinae::kMixerPositionId, 0.7);
-    params.addChange(Ruinae::kFilterCutoffId, 0.3);
-    params.addChange(Ruinae::kDistortionMixId, 0.6);
-    params.addChange(Ruinae::kTranceGateEnabledId, 1.0);
-    params.addChange(Ruinae::kAmpEnvReleaseId, 0.5);
-    params.addChange(Ruinae::kFilterEnvAttackId, 0.2);
-    params.addChange(Ruinae::kModEnvDecayId, 0.4);
-    params.addChange(Ruinae::kLFO1RateId, 0.6);
-    params.addChange(Ruinae::kLFO2DepthId, 0.8);
-    params.addChange(Ruinae::kChaosModRateId, 0.3);
-    params.addChange(Ruinae::kModMatrixSlot0AmountId, 0.75);
-    params.addChange(Ruinae::kGlobalFilterCutoffId, 0.5);
-    params.addChange(Ruinae::kDelayTimeId, 0.2);
-    params.addChange(Ruinae::kReverbSizeId, 0.6);
-    params.addChange(Ruinae::kMonoPortamentoTimeId, 0.3);
+/// MIDI note number (fractional) of a frequency, A4 = 440 Hz.
+double hzToNote(double hz) { return 69.0 + 12.0 * std::log2(hz / 440.0); }
 
-    // Process all changes - should not crash
-    f.processWithParams(params);
-    REQUIRE(true);
+}  // namespace
+
+TEST_CASE("Mono portamento time controls the glide", "[integration][params][mono]") {
+    constexpr double kRate = 48000.0;
+    constexpr int64_t kSecondAt = 24000;  // 0.5 s: note 60 has settled
+
+    SECTION("A: portamento 500 ms is still far from the target 100 ms after the second note") {
+        const double norm = std::cbrt(500.0 / 5000.0);  // cubic mapping, 0-5000 ms
+        const auto out = renderMonoGlide(norm, kSecondAt, kSecondAt + 28800);
+        const double before = zeroCrossingHz(out, static_cast<size_t>(kSecondAt - 4800),
+                                             static_cast<size_t>(kSecondAt), kRate);
+        // 90-110 ms after the second note
+        const double hz = zeroCrossingHz(out, static_cast<size_t>(kSecondAt + 4320),
+                                         static_cast<size_t>(kSecondAt + 5280), kRate);
+        // 550-570 ms after the second note: a 500 ms glide has ended
+        const double hzEnd = zeroCrossingHz(out, static_cast<size_t>(kSecondAt + 26400),
+                                            static_cast<size_t>(kSecondAt + 27360), kRate);
+        REQUIRE(before > 0.0);  // not vacuous: the notes sound
+        REQUIRE(hz > 0.0);
+        REQUIRE(hzEnd > 0.0);
+        const double noteBefore = hzToNote(before);
+        const double note = hzToNote(hz);
+        const double centsEnd = 100.0 * (hzToNote(hzEnd) - 72.0);
+        INFO("note before: " << noteBefore << ", note 100 ms after the second note: " << note
+             << ", cents from 72 after 560 ms: " << centsEnd);
+        CHECK(std::abs(noteBefore - 60.0) <= 0.05);
+        CHECK(note < 60.0 + 0.9 * 12.0);      // below 90 % of the way to 72
+        // The glide is linear in pitch over the set time: 1/5 of the way at 100 ms
+        CHECK(std::abs(note - (60.0 + 12.0 * 100.0 / 500.0)) <= 0.3);
+        CHECK(std::abs(centsEnd) <= 5.0);     // and it ends on time
+    }
+
+    SECTION("B: portamento 0 reaches the target within 2 ms") {
+        const auto out = renderMonoGlide(0.0, kSecondAt, kSecondAt + 9600);
+        // 2-12 ms after the second note
+        const double hz = zeroCrossingHz(out, static_cast<size_t>(kSecondAt + 96),
+                                         static_cast<size_t>(kSecondAt + 576), kRate);
+        REQUIRE(hz > 0.0);
+        const double cents = 100.0 * (hzToNote(hz) - 72.0);
+        INFO("cents from note 72, 2-12 ms after the second note: " << cents);
+        CHECK(std::abs(cents) <= 5.0);
+    }
 }
 
 TEST_CASE("Parameter changes affect subsequent audio blocks", "[param_flow][integration]") {
@@ -195,7 +308,7 @@ TEST_CASE("Parameter changes affect subsequent audio blocks", "[param_flow][inte
     f.data.inputParameterChanges = &emptyParams;
     f.processor.process(f.data);
 
-    // Process enough blocks to get past effects chain latency (6144/256 = 24 blocks)
+    // Process enough blocks for the note to settle (the effects chain adds no latency)
     EmptyEventList noEvents;
     f.data.inputEvents = &noEvents;
     for (int i = 0; i < 30; ++i) {
@@ -296,7 +409,7 @@ TEST_CASE("Section param changes produce measurable output difference", "[param_
 
     // Collect output after a note has been playing for enough blocks to pass latency
     auto collectOutput = [&](ParamFlowFixture& fix, TestParamChanges* paramChange = nullptr) {
-        // Process enough blocks for latency (6144/256=24) + stabilization
+        // Process enough blocks for stabilization (the effects chain adds no latency)
         TestParamChanges empty;
         TestParamChanges& pc = paramChange ? *paramChange : empty;
         fix.data.inputParameterChanges = &pc;
@@ -365,18 +478,4 @@ TEST_CASE("Section param changes produce measurable output difference", "[param_
             CHECK((peakDiffers || energyDiffers));
         }
     }
-}
-
-TEST_CASE("Out-of-range parameter values are clamped", "[param_flow][integration]") {
-    ParamFlowFixture f;
-    TestParamChanges params;
-
-    // Send out-of-range values (>1.0 and <0.0 could come from non-compliant hosts)
-    // These should not crash
-    params.addChange(Ruinae::kMasterGainId, 1.5);
-    params.addChange(Ruinae::kFilterCutoffId, -0.1);
-    params.addChange(Ruinae::kAmpEnvAttackId, 2.0);
-
-    f.processWithParams(params);
-    REQUIRE(true);
 }

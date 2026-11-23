@@ -12,6 +12,7 @@
 #include "ui/arp_inversion_lane.h"
 #include "ui/arp_lane.h"
 #include "plugin_ids.h"
+#include "view_lifecycle_rig.h"
 
 using namespace Krate::Plugins;
 
@@ -105,113 +106,6 @@ TEST_CASE("IArpLane_DisabledState_DefaultIsNotDisabled", "[arp][disabled]") {
 }
 
 // ==============================================================================
-// Voice Mode → Disabled Logic (controller wiring)
-// ==============================================================================
-// Tests the core logic that maps voice mode parameter value to disabled state.
-// This is the logic used in Controller::setParamNormalized for kVoiceModeId.
-// ==============================================================================
-
-TEST_CASE("VoiceModeDisabledLogic_PolyModeShouldEnableLanes", "[arp][disabled][voicemode]") {
-    // Poly mode: value < 0.5 → lanes should be enabled
-    double value = 0.0;  // Poly
-    bool isMono = value >= 0.5;
-
-    ArpChordLane chordLane(VSTGUI::CRect(0, 0, 500, 63), nullptr, -1);
-    ArpInversionLane invLane(VSTGUI::CRect(0, 0, 500, 63), nullptr, -1);
-
-    // Simulate the controller logic
-    chordLane.setDisabled(isMono, "Chord lane requires Poly voice mode");
-    invLane.setDisabled(isMono, "Inversion lane requires Poly voice mode");
-
-    REQUIRE(chordLane.isDisabled() == false);
-    REQUIRE(invLane.isDisabled() == false);
-}
-
-TEST_CASE("VoiceModeDisabledLogic_MonoModeShouldDisableLanes", "[arp][disabled][voicemode]") {
-    // Mono mode: value >= 0.5 → lanes should be disabled
-    double value = 1.0;  // Mono
-    bool isMono = value >= 0.5;
-
-    ArpChordLane chordLane(VSTGUI::CRect(0, 0, 500, 63), nullptr, -1);
-    ArpInversionLane invLane(VSTGUI::CRect(0, 0, 500, 63), nullptr, -1);
-
-    chordLane.setDisabled(isMono, "Chord lane requires Poly voice mode");
-    invLane.setDisabled(isMono, "Inversion lane requires Poly voice mode");
-
-    REQUIRE(chordLane.isDisabled() == true);
-    REQUIRE(invLane.isDisabled() == true);
-}
-
-TEST_CASE("VoiceModeDisabledLogic_BoundaryValue", "[arp][disabled][voicemode]") {
-    // At exactly 0.5, isMono should be true
-    double value = 0.5;
-    bool isMono = value >= 0.5;
-
-    ArpChordLane chordLane(VSTGUI::CRect(0, 0, 500, 63), nullptr, -1);
-    chordLane.setDisabled(isMono, "Chord lane requires Poly voice mode");
-    REQUIRE(chordLane.isDisabled() == true);
-}
-
-TEST_CASE("VoiceModeDisabledLogic_SwitchFromMonoToPoly", "[arp][disabled][voicemode]") {
-    ArpChordLane chordLane(VSTGUI::CRect(0, 0, 500, 63), nullptr, -1);
-    ArpInversionLane invLane(VSTGUI::CRect(0, 0, 500, 63), nullptr, -1);
-
-    // Start in mono
-    chordLane.setDisabled(true, "Chord lane requires Poly voice mode");
-    invLane.setDisabled(true, "Inversion lane requires Poly voice mode");
-    REQUIRE(chordLane.isDisabled() == true);
-    REQUIRE(invLane.isDisabled() == true);
-
-    // Switch to poly
-    chordLane.setDisabled(false);
-    invLane.setDisabled(false);
-    REQUIRE(chordLane.isDisabled() == false);
-    REQUIRE(invLane.isDisabled() == false);
-}
-
-// ==============================================================================
-// Null Pointer Safety (simulates onTabChanged and setParamNormalized interaction)
-// ==============================================================================
-
-TEST_CASE("NullPointerSafety_NullLanePointersSkipped", "[arp][disabled][safety]") {
-    // Simulates what happens in setParamNormalized when chordLane_ is null
-    // (e.g., after tab switch or before SEQ tab visited)
-
-    ArpChordLane* chordLane = nullptr;
-    ArpInversionLane* inversionLane = nullptr;
-    bool isMono = true;
-
-    // This mirrors the controller code — must not crash
-    if (chordLane)
-        chordLane->setDisabled(isMono, "Chord lane requires Poly voice mode");
-    if (inversionLane)
-        inversionLane->setDisabled(isMono, "Inversion lane requires Poly voice mode");
-
-    // No crash = success
-    REQUIRE(true);
-}
-
-TEST_CASE("NullPointerSafety_AfterTabSwitchPointersAreNull", "[arp][disabled][safety]") {
-    // Simulates: create lane, then null it (as onTabChanged would do),
-    // then try to call setDisabled on the nulled pointer
-
-    ArpChordLane* chordLane = new ArpChordLane(
-        VSTGUI::CRect(0, 0, 500, 63), nullptr, -1);
-    chordLane->setDisabled(true, "test");
-    REQUIRE(chordLane->isDisabled() == true);
-
-    // Simulate onTabChanged nulling
-    chordLane->forget();  // CBaseObject ref count
-    chordLane = nullptr;
-
-    // Now the controller logic should skip the null pointer
-    if (chordLane)
-        chordLane->setDisabled(false);
-
-    REQUIRE(chordLane == nullptr);
-}
-
-// ==============================================================================
 // Parameter ID Verification
 // ==============================================================================
 
@@ -247,47 +141,6 @@ TEST_CASE("ArpChordLane_StepValuesPreservedWhenDisabled", "[arp][chord][disabled
     REQUIRE(lane.getStepValue(2) == 4);
 }
 
-// ==============================================================================
-// Root Cause Scenario: Tab switch recreates lanes without disabled sync
-// ==============================================================================
-
-TEST_CASE("VoiceModeDisabledLogic_FreshLaneGetsDisabledFromParam", "[arp][disabled][voicemode]") {
-    // Simulates the actual bug scenario:
-    // 1. User sets voice mode to Mono on SOUND tab (chordLane_ is null)
-    // 2. User switches to SEQ tab, verifyView creates fresh lanes
-    // 3. The fresh lane must read the current voice mode param and disable itself
-    //
-    // This is the verifyView initialization path, not setParamNormalized.
-
-    // Step 1: Voice mode param is set to Mono (normalized 1.0)
-    double voiceModeNorm = 1.0;  // Mono
-    bool isMono = voiceModeNorm >= 0.5;
-
-    // Step 2: Fresh lanes are created (default: disabled_ = false)
-    ArpChordLane chordLane(VSTGUI::CRect(0, 0, 500, 63), nullptr, -1);
-    ArpInversionLane invLane(VSTGUI::CRect(0, 0, 500, 63), nullptr, -1);
-
-    REQUIRE(chordLane.isDisabled() == false);  // default
-    REQUIRE(invLane.isDisabled() == false);
-
-    // Step 3: verifyView syncs disabled state from param
-    chordLane.setDisabled(isMono, "Chord lane requires Poly voice mode");
-    invLane.setDisabled(isMono, "Inversion lane requires Poly voice mode");
-
-    REQUIRE(chordLane.isDisabled() == true);
-    REQUIRE(invLane.isDisabled() == true);
-}
-
-TEST_CASE("VoiceModeDisabledLogic_FreshLaneStaysEnabledInPoly", "[arp][disabled][voicemode]") {
-    double voiceModeNorm = 0.0;  // Poly
-    bool isMono = voiceModeNorm >= 0.5;
-
-    ArpChordLane chordLane(VSTGUI::CRect(0, 0, 500, 63), nullptr, -1);
-    chordLane.setDisabled(isMono, "Chord lane requires Poly voice mode");
-
-    REQUIRE(chordLane.isDisabled() == false);
-}
-
 TEST_CASE("ArpInversionLane_StepValuesPreservedWhenDisabled", "[arp][inversion][disabled]") {
     ArpInversionLane lane(VSTGUI::CRect(0, 0, 500, 63), nullptr, -1);
 
@@ -301,4 +154,81 @@ TEST_CASE("ArpInversionLane_StepValuesPreservedWhenDisabled", "[arp][inversion][
     lane.setDisabled(false);
     REQUIRE(lane.getStepValue(0) == 1);
     REQUIRE(lane.getStepValue(1) == 2);
+}
+
+// ==============================================================================
+// Controller wiring: Voice Mode -> lane disabled state (R-128)
+// ==============================================================================
+// Drives the real Ruinae::Controller with the editor open on the SEQ tab: the lane views are the
+// ones verifyView built and the controller cached, and kVoiceModeId goes through setParamNormalized.
+
+namespace {
+
+struct LaneProbe {
+    ArpChordLane* chord = nullptr;
+    ArpInversionLane* inversion = nullptr;
+};
+
+LaneProbe findLanes(const RuinaeViewLifecycleTest::ViewLifecycleRig& rig) {
+    LaneProbe p;
+    RuinaeViewLifecycleTest::forEachDescendant(rig.frame(), [&p](VSTGUI::CView* v) {
+        if (auto* c = dynamic_cast<ArpChordLane*>(v)) p.chord = c;
+        if (auto* i = dynamic_cast<ArpInversionLane*>(v)) p.inversion = i;
+    });
+    return p;
+}
+
+void requireLanesDisabled(const RuinaeViewLifecycleTest::ViewLifecycleRig& rig, bool expected) {
+    const LaneProbe p = findLanes(rig);
+    REQUIRE(p.chord != nullptr);
+    REQUIRE(p.inversion != nullptr);
+    CHECK(p.chord->isDisabled() == expected);
+    CHECK(p.inversion->isDisabled() == expected);
+}
+
+}  // namespace
+
+TEST_CASE("Controller_VoiceModeMono_DisablesChordAndInversionLanes", "[arp][disabled][voicemode][controller]") {
+    using namespace RuinaeViewLifecycleTest;
+    const auto state = defaultProcessorState();  // Poly
+    ViewLifecycleRig rig({{Ruinae::kMainTabTag, kTabSeq}});
+    requireLanesDisabled(rig, false);
+
+    rig.ctl.setParamNormalized(Ruinae::kVoiceModeId, 1.0);
+    requireLanesDisabled(rig, true);
+
+    SECTION("boundary 0.5 is Mono") {
+        rig.ctl.setParamNormalized(Ruinae::kVoiceModeId, 0.0);
+        requireLanesDisabled(rig, false);
+        rig.ctl.setParamNormalized(Ruinae::kVoiceModeId, 0.5);
+        requireLanesDisabled(rig, true);
+    }
+
+    SECTION("after switching tabs away and back") {
+        rig.clickControl(Ruinae::kMainTabTag, kTabSound);
+        rig.clickControl(Ruinae::kMainTabTag, kTabSeq);
+        requireLanesDisabled(rig, true);
+
+        rig.ctl.setParamNormalized(Ruinae::kVoiceModeId, 0.0);  // cached pointers are live again
+        requireLanesDisabled(rig, false);
+    }
+
+    SECTION("changed while the SEQ tab is away") {
+        rig.clickControl(Ruinae::kMainTabTag, kTabSound);
+        rig.ctl.setParamNormalized(Ruinae::kVoiceModeId, 0.0);
+        rig.clickControl(Ruinae::kMainTabTag, kTabSeq);
+        requireLanesDisabled(rig, false);
+    }
+
+    SECTION("after setComponentState") {
+        REQUIRE(rig.loadState(state) == Steinberg::kResultTrue);  // Poly state
+        requireLanesDisabled(rig, false);
+
+        rig.ctl.setParamNormalized(Ruinae::kVoiceModeId, 1.0);
+        requireLanesDisabled(rig, true);
+        rig.clickControl(Ruinae::kMainTabTag, kTabSound);
+        rig.clickControl(Ruinae::kMainTabTag, kTabSeq);
+        REQUIRE(rig.loadState(state) == Steinberg::kResultTrue);
+        requireLanesDisabled(rig, false);
+    }
 }

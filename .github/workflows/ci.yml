@@ -223,6 +223,11 @@ jobs:
       # shipped without the update check and Innexus never started it.
       - name: Plugin editor baseline lint (update check + version label)
         run: node tools/lint-plugin-editor-baseline.js
+      # The AUv2 .component's Info.plist is generated from au-info.plist.in so
+      # CFBundleVersion / AudioComponents version follow version.json (Ruinae
+      # audit R-191). Reads the template; a configured tree's generated plist too.
+      - name: AUv2 plist version check
+        run: node tools/check-au-plist.js ruinae
       # Catches a hand-rolled global operator new / delete. A partial or
       # hidden-visibility replacement set corrupts the heap; MSVC never shows
       # it, and on Linux it surfaces as an intermittent SIGSEGV in whatever
@@ -285,6 +290,28 @@ jobs:
       # [wallclock] cases in a quiet second pass, which only works when they are tagged.
       - name: Wall-clock test tag lint
         run: node tools/lint-wallclock-tags.js
+
+      # Catches a whole-target clang-tidy sweep (-Full / --full) in the agent instructions without a
+      # "tidy-full-ok: <reason>" comment. The runners analyze only what changed by default
+      # (tools/tidy-changed-files.js); a task that changed one DSP header once swept all 482 dsp TUs for
+      # ~40 min (2026-11-23). Runtime twin: tools/hooks/guard-tidy-scope.js. Self-tests first.
+      - name: clang-tidy scope lint (changed files only)
+        run: |
+          node tools/hooks/guard-tidy-scope.js --self-test
+          node tools/tidy-changed-files.js --self-test
+          node tools/lint-tidy-scope.js --self-test
+          node tools/lint-tidy-scope.js
+
+      # Catches a whole-suite test command in the agent instructions (run-gate.js / run-cpu-tests.js --scope all,
+      # run-close-lanes.js, an unselected ctest) without a "gate-all-ok: <reason>" comment. Locally the runners run
+      # only the cases the change reaches (tools/affected-tests.js); a close-out gate over nine suites once ran 6 h on
+      # code the change never touched (2026-11-23). CI itself keeps whole suites (CI env -> --scope all).
+      # Runtime twin: tools/hooks/guard-test-scope.js. Self-tests first.
+      - name: Test scope lint (affected cases only)
+        run: |
+          node tools/hooks/guard-test-scope.js --self-test
+          node tools/lint-test-scope.js --self-test
+          node tools/lint-test-scope.js
 
       # Identifiers that compile on Windows and Linux but not on macOS: VSTGUI's
       # platform macros (MAC / WINDOWS / LINUX) used as names, and names at

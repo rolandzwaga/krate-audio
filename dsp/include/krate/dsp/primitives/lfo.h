@@ -14,6 +14,7 @@
 
 #pragma once
 
+#include <krate/dsp/core/db_utils.h>
 #include <krate/dsp/core/note_value.h>
 #include <krate/dsp/core/phase_utils.h>
 
@@ -211,10 +212,22 @@ public:
 
     /// @brief Set the LFO frequency in Hz.
     void setFrequency(float hz) noexcept {
-        frequency_ = std::clamp(hz, kMinFrequency, kMaxFrequency);
+        // A NaN rate would make the phase accumulator NaN for good.
+        if (!detail::isFinite(hz)) return;
+        frequency_ = std::clamp(hz, kMinFrequency, maxFrequency_);
         if (!tempoSync_) {
             updatePhaseIncrement();
         }
+    }
+
+    /// @brief Set the upper frequency clamp for free and tempo-synced rates (default kMaxFrequency).
+    /// A rate set before a raise stays at the old clamp until it is set again.
+    void setMaxFrequency(float hz) noexcept {
+        if (!detail::isFinite(hz)) return;
+        maxFrequency_ = std::max(hz, kMinFrequency);
+        frequency_ = std::min(frequency_, maxFrequency_);
+        updateTempoSyncFrequency();
+        updatePhaseIncrement();
     }
 
     /// @brief Set the phase offset.
@@ -295,6 +308,7 @@ public:
     /// @brief Set the symmetry/skew of the LFO waveform.
     /// @param value 0.0-1.0 where 0.5 = no skew (centered). Affects Sine/Tri/Saw/Square.
     void setSymmetry(float value) noexcept {
+        if (!detail::isFinite(value)) return;
         symmetry_ = std::clamp(value, 0.001f, 0.999f);
     }
 
@@ -514,7 +528,7 @@ private:
         tempoSyncFrequency_ = beatsPerSecond / beatsPerNote;
 
         // Clamp to valid range
-        tempoSyncFrequency_ = std::clamp(tempoSyncFrequency_, kMinFrequency, kMaxFrequency);
+        tempoSyncFrequency_ = std::clamp(tempoSyncFrequency_, kMinFrequency, maxFrequency_);
     }
 
     void updatePhaseIncrement() noexcept {
@@ -564,6 +578,7 @@ private:
     // Frequency
     float frequency_ = 1.0f;       // Free-running frequency (Hz)
     float tempoSyncFrequency_ = 2.0f; // Tempo-synced frequency (Hz)
+    float maxFrequency_ = kMaxFrequency; // Upper rate clamp (setMaxFrequency)
     float bpm_ = 120.0f;           // Tempo (BPM)
 
     // Waveform

@@ -30,8 +30,10 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <complex>
 #include <cstddef>
 #include <cstdint>
+#include <numbers>
 
 
 namespace Krate::DSP {
@@ -92,20 +94,27 @@ inline constexpr std::array<float, 5> kDefaultFormantAmplitudes = {
 /// @brief State of a single FOF grain (damped sinusoidal burst).
 ///
 /// Each grain generates a damped sinusoid at the formant frequency,
-/// with a shaped attack envelope and exponential decay.
+/// with a shaped attack envelope, exponential decay and a raised-cosine
+/// release that brings it to zero at its end.
+///
+/// The grain runs in continuous time: it started `startOffset` samples before
+/// its first output sample, so its envelope and carrier are evaluated at
+/// t = sampleCounter + startOffset (R-159).
 struct FOFGrain {
     // Sinusoid state
     float phase = 0.0f;           ///< Current sinusoid phase [0, 1)
     float phaseIncrement = 0.0f;  ///< Phase advance per sample
 
     // Envelope state
-    float envelope = 0.0f;        ///< Current envelope amplitude
+    float envelope = 0.0f;        ///< Decay term at the current sample (1 at the end of the attack)
     float decayFactor = 0.0f;     ///< Exponential decay multiplier (per sample)
     float amplitude = 1.0f;       ///< Base amplitude (from formant amplitude)
 
-    // Timing state
-    size_t attackSamples = 0;     ///< Attack phase duration (samples)
-    size_t durationSamples = 0;   ///< Total grain duration (samples)
+    // Timing state (samples, continuous time from the grain's true onset)
+    float startOffset = 0.0f;     ///< Onset-to-first-sample offset [0, 1)
+    float attackSamples = 0.0f;   ///< Attack phase duration
+    float releaseSamples = 0.0f;  ///< Release (fade-out) duration at the end
+    float durationSamples = 0.0f; ///< Total grain duration
     size_t sampleCounter = 0;     ///< Current position in grain
     size_t age = 0;               ///< Samples since trigger (for recycling)
 
@@ -129,6 +138,12 @@ struct FormantGenerator {
     float frequency = 600.0f;   ///< Current formant center frequency (Hz)
     float bandwidth = 60.0f;    ///< Current bandwidth (Hz)
     float amplitude = 1.0f;     ///< Current amplitude [0, 1]
+
+    // Zero-mean carrier start phase (cycles) and the grain inputs it was computed for
+    float carrierPhase = 0.0f;
+    float carrierPhaseFrequency = -1.0f;
+    float carrierPhaseBandwidth = -1.0f;
+    float carrierPhaseDuration = -1.0f;
 };
 
 // =============================================================================
@@ -191,8 +206,14 @@ public:
     static constexpr float kGrainDurationMs = 20.0f; ///< Total grain duration (ms)
     static constexpr float kMasterGain = 0.4f;       ///< Output normalization gain (FR-014)
 
+    /// Release (fade-out) share of each grain's duration: the grain ends at zero,
+    /// so neither its end nor a recycled slot steps the output.
+    static constexpr float kReleaseFraction = 0.25f;
+
     static constexpr float kMinFundamental = 20.0f;    ///< Minimum fundamental (Hz)
-    static constexpr float kMaxFundamental = 2000.0f;  ///< Maximum fundamental (Hz)
+    /// Maximum fundamental (Hz). Above C8 with headroom for bend (R-149): grains
+    /// shorten with the period so kGrainsPerFormant always holds their overlap.
+    static constexpr float kMaxFundamental = 8000.0f;
     static constexpr float kMinFormantFreq = 20.0f;    ///< Minimum formant frequency (Hz)
     static constexpr float kMinBandwidth = 10.0f;      ///< Minimum bandwidth (Hz)
     static constexpr float kMaxBandwidth = 500.0f;     ///< Maximum bandwidth (Hz)
@@ -227,8 +248,8 @@ public:
         sampleRate_ = sampleRate;
 
         // Calculate timing in samples
-        attackSamples_ = static_cast<size_t>(kAttackMs * sampleRate / 1000.0);
-        durationSamples_ = static_cast<size_t>(kGrainDurationMs * sampleRate / 1000.0);
+        attackSamples_ = static_cast<float>(kAttackMs * sampleRate / 1000.0);
+        durationSamples_ = static_cast<float>(kGrainDurationMs * sampleRate / 1000.0);
 
         // Initialize fundamental phase
         fundamentalPhase_.setFrequency(fundamental_, static_cast<float>(sampleRate));
@@ -241,6 +262,7 @@ public:
                 grain.sampleCounter = 0;
                 grain.age = 0;
             }
+            formant.carrierPhaseFrequency = -1.0f;  // the phase depends on the sample rate
         }
 
         prepared_ = true;
@@ -268,7 +290,7 @@ public:
 
     /// @brief Set the fundamental (pitch) frequency (FR-012).
     ///
-    /// @param hz Frequency in Hz, clamped to [20, 2000]
+    /// @param hz Frequency in Hz, clamped to [20, 8000]
     void setFundamental(float hz) noexcept {
         fundamental_ = std::clamp(hz, kMinFundamental, kMaxFundamental);
 
@@ -290,6 +312,11 @@ public:
     ///
     /// @param vowel Vowel to select (A, E, I, O, U)
     void setVowel(Vowel vowel) noexcept {
+        // An index past the table (a damaged preset) is clamped before
+        // applyVowelPreset() reads kVowelFormants5 with it (R-003).
+        if (static_cast<size_t>(vowel) >= kNumVowels) {
+            vowel = static_cast<Vowel>(kNumVowels - 1);
+        }
         currentVowel_ = vowel;
         applyVowelPreset(vowel);
         useMorphMode_ = false;
@@ -417,9 +444,13 @@ public:
             return 0.0f;
         }
 
-        // Advance fundamental phase and trigger grains on wrap
+        // Advance fundamental phase and trigger grains on wrap. The true onset
+        // lies between samples: the wrap remainder over the increment is how
+        // long before this sample it was (R-159), so the FOF period is exact
+        // instead of jittering between floor and ceil of fs / f0.
         if (fundamentalPhase_.advance()) {
-            triggerGrains();
+            triggerGrains(static_cast<float>(subsamplePhaseWrapOffset(
+                fundamentalPhase_.phase, fundamentalPhase_.increment)));
         }
 
         // Process all formants and sum outputs
@@ -466,19 +497,88 @@ private:
     // =========================================================================
 
     /// @brief Trigger new grains in all formants.
-    void triggerGrains() noexcept {
+    /// @param startOffset Samples from the true onset to this sample [0, 1)
+    void triggerGrains(float startOffset) noexcept {
+        // Grain duration: 20 ms, shortened at high fundamentals so a grain ends
+        // before its slot is needed again (kGrainsPerFormant - 1 periods). The
+        // attack keeps its share of the duration; the release is a fixed share.
+        const double periodSamples = 1.0 / fundamentalPhase_.increment;
+        const float duration = std::min(
+            durationSamples_,
+            static_cast<float>(static_cast<double>(kGrainsPerFormant - 1) * periodSamples));
+        const float attack = attackSamples_ * (duration / durationSamples_);
+        const float release = kReleaseFraction * duration;
+
         for (size_t i = 0; i < kNumFormants; ++i) {
+            auto& formant = formants_[i];
+
             // Skip formants with zero amplitude
-            if (formants_[i].amplitude < 1e-10f) {
+            if (formant.amplitude < 1e-10f) {
                 continue;
             }
 
+            if (formant.frequency != formant.carrierPhaseFrequency ||
+                formant.bandwidth != formant.carrierPhaseBandwidth ||
+                duration != formant.carrierPhaseDuration) {
+                formant.carrierPhase = zeroMeanCarrierPhase(
+                    formant.frequency, formant.bandwidth, attack, release, duration);
+                formant.carrierPhaseFrequency = formant.frequency;
+                formant.carrierPhaseBandwidth = formant.bandwidth;
+                formant.carrierPhaseDuration = duration;
+            }
+
             // Find grain slot (inactive or oldest active)
-            FOFGrain* grain = findOldestGrain(formants_[i]);
+            FOFGrain* grain = findOldestGrain(formant);
             if (grain != nullptr) {
-                initializeGrain(*grain, i);
+                initializeGrain(*grain, i, startOffset, attack, release, duration);
             }
         }
+    }
+
+    /// @brief Carrier start phase (cycles) that gives a grain zero mean.
+    ///
+    /// A grain is env(t) sin(w t + phi). Its mean, summed once per period, is the
+    /// DC of the output: small for 20 ms grains, but grains shortened to a few
+    /// periods at high fundamentals last about one carrier cycle, and starting
+    /// every one at phase 0 put up to +2.8 of DC on the output at 8 kHz. With
+    /// F = integral of env(t) e^{j w t} dt, the mean Im(e^{j phi} F) is zero at
+    /// phi = -arg(F). F is integrated in closed form over the attack (raised
+    /// cosine), decay (exponential) and release (raised cosine) pieces, each a sum
+    /// of complex exponentials. Time is in samples.
+    [[nodiscard]] float zeroMeanCarrierPhase(float frequency, float bandwidth, float attack,
+                                             float release, float duration) const noexcept {
+        using Cplx = std::complex<double>;
+        constexpr double pi = std::numbers::pi;
+        const auto segment = [](Cplx z, double a, double b) noexcept -> Cplx {
+            // integral of e^{z t} over [a, b]
+            if (std::abs(z) < 1e-12) return {b - a, 0.0};
+            return (std::exp(z * b) - std::exp(z * a)) / z;
+        };
+
+        const double omega = 2.0 * pi * static_cast<double>(frequency) / sampleRate_;
+        const double alpha = pi * static_cast<double>(bandwidth) / sampleRate_;
+        const auto a = static_cast<double>(attack);
+        const auto r = static_cast<double>(release);
+        const auto d = static_cast<double>(duration);
+
+        // In u = t - a the grain is e^{-alpha u} e^{j w (u + a)} times
+        //   attack  [-a, 0):  0.5 + 0.25 e^{j pi u / a} + 0.25 e^{-j pi u / a}
+        //   decay   [0, uR):  1
+        //   release [uR, uD): 0.5 + 0.25 e^{j pi (u - uR) / r} + 0.25 e^{-j pi (u - uR) / r}
+        const Cplx decay{-alpha, omega};
+        const Cplx attackTurn{0.0, pi / a};
+        const Cplx releaseTurn{0.0, pi / r};
+        const double uR = d - r - a;
+        const double uD = d - a;
+        const Cplx f = 0.5 * segment(decay, -a, 0.0) +
+                       0.25 * segment(decay + attackTurn, -a, 0.0) +
+                       0.25 * segment(decay - attackTurn, -a, 0.0) +
+                       segment(decay, 0.0, uR) + 0.5 * segment(decay, uR, uD) +
+                       0.25 * std::exp(-releaseTurn * uR) * segment(decay + releaseTurn, uR, uD) +
+                       0.25 * std::exp(releaseTurn * uR) * segment(decay - releaseTurn, uR, uD);
+
+        // F = e^{j w a} f
+        return static_cast<float>(-(std::arg(f) + omega * a) / (2.0 * pi));
     }
 
     /// @brief Find oldest active grain in a formant for recycling.
@@ -504,26 +604,35 @@ private:
     }
 
     /// @brief Initialize a grain with current formant parameters.
-    void initializeGrain(FOFGrain& grain, size_t formantIndex) noexcept {
+    /// @param startOffset Samples from the grain's true onset to its first sample [0, 1)
+    void initializeGrain(FOFGrain& grain, size_t formantIndex, float startOffset,
+                         float attack, float release, float duration) noexcept {
         const auto& formant = formants_[formantIndex];
 
-        // Phase and frequency
-        grain.phase = 0.0f;
+        // Phase and frequency: the carrier starts at the formant's zero-mean phase
+        // and has run for startOffset samples
         grain.phaseIncrement = formant.frequency / static_cast<float>(sampleRate_);
-
-        // Envelope
-        grain.envelope = 0.0f;
+        grain.phase = formant.carrierPhase + startOffset * grain.phaseIncrement;
+        grain.phase -= std::floor(grain.phase);
 
         // Decay factor: decayConstant = pi * bandwidth, decayFactor = exp(-decayConstant / sampleRate)
         float decayConstant = kPi * formant.bandwidth;
         grain.decayFactor = std::exp(-decayConstant / static_cast<float>(sampleRate_));
 
+        // Decay term e^{-alpha (t - attack)} at the first sample: 1 at the end of
+        // the attack. It also runs under the attack, so the envelope's slope is
+        // continuous where the attack ends (a kink there aliases).
+        grain.envelope = std::exp(-decayConstant * (startOffset - attack) /
+                                  static_cast<float>(sampleRate_));
+
         // Amplitude from formant
         grain.amplitude = formant.amplitude;
 
         // Timing
-        grain.attackSamples = attackSamples_;
-        grain.durationSamples = durationSamples_;
+        grain.startOffset = startOffset;
+        grain.attackSamples = attack;
+        grain.releaseSamples = release;
+        grain.durationSamples = duration;
         grain.sampleCounter = 0;
         grain.age = 0;
 
@@ -537,18 +646,22 @@ private:
             return 0.0f;
         }
 
-        // Compute envelope
-        float env = 0.0f;
-        if (grain.sampleCounter < grain.attackSamples) {
+        // Compute envelope at the grain's continuous time
+        const float t = static_cast<float>(grain.sampleCounter) + grain.startOffset;
+
+        // Exponential decay (FR-001, FR-004), 1 at the end of the attack
+        float env = grain.envelope;
+        grain.envelope *= grain.decayFactor;
+
+        if (t < grain.attackSamples) {
             // Attack phase: half-cycle raised cosine (FR-001)
-            float t = static_cast<float>(grain.sampleCounter) /
-                      static_cast<float>(grain.attackSamples);
-            env = 0.5f * (1.0f - std::cos(kPi * t));
-            grain.envelope = env;  // Store for decay continuation
-        } else {
-            // Decay phase: exponential decay (FR-001, FR-004)
-            env = grain.envelope;
-            grain.envelope *= grain.decayFactor;
+            env *= 0.5f * (1.0f - std::cos(kPi * t / grain.attackSamples));
+        }
+
+        // Release: raised-cosine fade to zero at the grain's end
+        const float releaseStart = grain.durationSamples - grain.releaseSamples;
+        if (t > releaseStart) {
+            env *= 0.5f * (1.0f + std::cos(kPi * (t - releaseStart) / grain.releaseSamples));
         }
 
         // Generate damped sinusoid
@@ -566,7 +679,7 @@ private:
         grain.age++;
 
         // Check if grain completed
-        if (grain.sampleCounter >= grain.durationSamples) {
+        if (static_cast<float>(grain.sampleCounter) + grain.startOffset >= grain.durationSamples) {
             grain.active = false;
         }
 
@@ -633,8 +746,8 @@ private:
 
     // Configuration
     double sampleRate_ = 44100.0;
-    size_t attackSamples_ = 0;     ///< Attack duration in samples
-    size_t durationSamples_ = 0;   ///< Grain duration in samples
+    float attackSamples_ = 0.0f;   ///< Attack duration in samples (at the full grain duration)
+    float durationSamples_ = 0.0f; ///< Full grain duration in samples
     bool prepared_ = false;
 };
 

@@ -18,6 +18,7 @@
 
 #include <krate/dsp/core/block_context.h>
 #include <krate/dsp/core/chord_generator.h>
+#include <krate/dsp/core/db_utils.h>
 #include <krate/dsp/core/euclidean_pattern.h>
 #include <krate/dsp/core/note_value.h>
 #include <krate/dsp/core/random.h>
@@ -173,6 +174,8 @@ public:
     static constexpr double kMinSampleRate = 1000.0;
     static constexpr float kMinFreeRate = 0.5f;
     static constexpr float kMaxFreeRate = 50.0f;
+    static constexpr float kMinRateScale = 0.25f;
+    static constexpr float kMaxRateScale = 4.0f;
     static constexpr float kMinGateLength = 1.0f;
     static constexpr float kMaxGateLength = 200.0f;
     static constexpr float kMinSwing = 0.0f;
@@ -294,6 +297,7 @@ public:
         wasPlaying_ = false;
         firstStepPending_ = true;
         transportLoopPending_ = false;
+        idle_ = false;
         currentArpNoteCount_ = 0;
         pendingNoteOffCount_ = 0;
         needsDisableNoteOff_ = false;
@@ -436,12 +440,25 @@ public:
     }
 
     /// @brief Set free-running rate in Hz, clamped 0.5-50.0 (FR-014).
+    /// A non-finite rate keeps the previous one (it feeds a size_t cast).
     void setFreeRate(float hz) noexcept {
+        if (!detail::isFinite(hz)) return;
         freeRateHz_ = std::clamp(hz, kMinFreeRate, kMaxFreeRate);
     }
 
+    /// @brief Speed factor for the tempo-synced step, clamped 0.25-4 (default 1).
+    /// The synced step lasts (note value) / scale and stays on the host grid:
+    /// syncToMusicalPosition locks it to scaled PPQ. Free-rate mode ignores it.
+    /// A non-finite scale keeps the previous one (it feeds a size_t cast).
+    void setRateScale(float scale) noexcept {
+        if (!detail::isFinite(scale)) return;
+        rateScale_ = std::clamp(scale, kMinRateScale, kMaxRateScale);
+    }
+
     /// @brief Set gate length as percentage 1-200% (FR-015).
+    /// A non-finite length keeps the previous one (it feeds a size_t cast).
     void setGateLength(float percent) noexcept {
+        if (!detail::isFinite(percent)) return;
         gateLengthPercent_ = std::clamp(percent, kMinGateLength, kMaxGateLength);
     }
 
@@ -615,6 +632,15 @@ public:
         return inversionLane_;
     }
 
+    /// @brief The step each lane was on when the most recent kSkip event fired
+    /// (read before the lanes advanced). `lane` uses the lane index of
+    /// setLaneSpeed(): 0 velocity, 1 gate, 2 pitch, 3 modifier, 4 ratchet,
+    /// 5 condition, 6 chord, 7 inversion; out of range returns 0. Updated only
+    /// when a step is skipped, so a hit later in the same block leaves it alone.
+    [[nodiscard]] uint8_t lastSkipLaneStep(size_t lane) const noexcept {
+        return lane < lastSkipLaneSteps_.size() ? lastSkipLaneSteps_[lane] : uint8_t{0};
+    }
+
     // =========================================================================
     // MIDI Delay Lane Accessor
     // =========================================================================
@@ -699,7 +725,9 @@ public:
     /// Lane indices: 0=velocity, 1=gate, 2=pitch, 3=modifier, 4=ratchet,
     ///               5=condition, 6=chord, 7=inversion
     void setLaneSpeed(size_t laneIndex, float speed) noexcept {
-        if (laneIndex < kNumLanes)
+        // A non-finite speed keeps the previous one: a NaN step accumulator
+        // never crosses its threshold again and the lane freezes.
+        if (laneIndex < kNumLanes && detail::isFinite(speed))
             laneSpeedMultipliers_[laneIndex] = std::clamp(speed, 0.25f, 4.0f);
     }
 
@@ -1027,14 +1055,52 @@ public:
     /// @note When at a step boundary (stepFraction == 0), sets
     /// sampleCounter_ = currentStepDuration_ so the step fires immediately,
     /// consistent with the firstStepPending_ approach.
+    ///
+    /// With a rate scale s (setRateScale) the step grid runs on scaled PPQ:
+    /// PPQ * s from the transport start or loop, so a constant scale keeps
+    /// the steps on the host grid. A scale change re-anchors the mapping at
+    /// the current PPQ, so the scaled position stays continuous: PPQ * s
+    /// itself would jump by PPQ * (change) and scatter the steps whenever a
+    /// route moves the scale.
+    ///
+    /// With swing the grid period is a pair of steps (long, short) and the
+    /// sync also sets the swing parity (syncSwingPair); without swing it is
+    /// one straight step.
     void syncToMusicalPosition(double projectTimeMusic) noexcept {
+        if (!wasPlaying_ || transportLoopPending_) {
+            rateAnchorPpq_ = 0.0;
+            rateAnchorScaledPpq_ = 0.0;
+            syncedRateScale_ = rateScale_;
+        } else if (rateScale_ != syncedRateScale_) {
+            rateAnchorScaledPpq_ +=
+                (projectTimeMusic - rateAnchorPpq_) * static_cast<double>(syncedRateScale_);
+            rateAnchorPpq_ = projectTimeMusic;
+            // The running step was sized for the old scale; resize it so the
+            // counter below maps the step fraction onto the new length.
+            if (tempoSync_ && currentStepDuration_ > 0) {
+                currentStepDuration_ = std::max<size_t>(1, static_cast<size_t>(std::llround(
+                    static_cast<double>(currentStepDuration_) * static_cast<double>(syncedRateScale_)
+                    / static_cast<double>(rateScale_))));
+            }
+            syncedRateScale_ = rateScale_;
+        }
         if (!tempoSync_ || currentStepDuration_ == 0) return;
+        hostSyncedThisBlock_ = true;
 
         // For the arp, we only care about position within a single step
         // (not a multi-step pattern), because the arp doesn't have a fixed
         // pattern length — it advances through held notes via NoteSelector.
+        // At scale 1 with no re-anchor this is PPQ itself, exactly.
+        const double scaledPpq = rateAnchorScaledPpq_
+            + (projectTimeMusic - rateAnchorPpq_) * static_cast<double>(rateScale_);
+
+        if (swing_ > 0.0f && syncTempoBPM_ > 0.0) {
+            syncSwingPair(scaledPpq);
+            return;
+        }
+
         const auto pos = calculateMusicalStepPosition(
-            projectTimeMusic, noteValue_, noteModifier_, 1);
+            scaledPpq, noteValue_, noteModifier_, 1);
 
         // pos.stepFraction is the fractional position within one step [0, 1). Rounded, not truncated: the samples
         // into the step are usually an exact integer the product lands an ulp below, and truncating it fired the step
@@ -1085,35 +1151,93 @@ private:
     /// Uses double precision to avoid float * double precision loss.
     /// Returns at minimum 1 sample.
     size_t calculateStepDuration(const BlockContext& ctx) const noexcept {
+        return stepDurationFor(ctx.tempoBPM, ctx.sampleRate, swingStepCounter_ % 2 == 0);
+    }
+
+    /// @brief Tempo-synced step length in samples before rounding (no swing).
+    double exactBaseStepSamples(double tempoBPM, double ctxSampleRate) const noexcept {
+        // (f) Double-precision: cast getBeatsForNote() to double before multiply
+        double beatsPerStep = static_cast<double>(
+            getBeatsForNote(noteValue_, noteModifier_));
+        double secondsPerBeat = 60.0 / tempoBPM;
+        return secondsPerBeat * beatsPerStep * ctxSampleRate / static_cast<double>(rateScale_);
+    }
+
+    /// @brief calculateStepDuration for an explicit tempo, sample rate and swing half
+    /// (evenStep = the long half), so syncToMusicalPosition sizes both halves of a swing pair.
+    size_t stepDurationFor(double tempoBPM, double ctxSampleRate, bool evenStep) const noexcept {
+        // Rounded, not truncated (R-106): the tempo product is often an exact integer the double lands an ulp below
+        // (and which ones depends on the FP mode), so truncation lost a sample per step.
         size_t baseDuration = 0;
         if (tempoSync_) {
-            // (f) Double-precision: cast getBeatsForNote() to double before multiply
-            double beatsPerStep = static_cast<double>(
-                getBeatsForNote(noteValue_, noteModifier_));
-            double secondsPerBeat = 60.0 / ctx.tempoBPM;
-            baseDuration = static_cast<size_t>(
-                secondsPerBeat * beatsPerStep * ctx.sampleRate);
+            baseDuration = static_cast<size_t>(std::llround(exactBaseStepSamples(tempoBPM, ctxSampleRate)));
         } else {
-            baseDuration = static_cast<size_t>(sampleRate_ / static_cast<double>(freeRateHz_));
+            baseDuration = static_cast<size_t>(std::llround(sampleRate_ / static_cast<double>(freeRateHz_)));
         }
 
-        // Apply swing
+        // Apply swing. The short half is the pair's remainder, so long + short is exactly 2 * base.
         size_t swungDuration = baseDuration;
         if (swing_ > 0.0f) {
-            double swingVal = static_cast<double>(swing_);
-            if (swingStepCounter_ % 2 == 0) {
-                // Even step: lengthen
-                swungDuration = static_cast<size_t>(
-                    static_cast<double>(baseDuration) * (1.0 + swingVal));
+            const auto longDuration = static_cast<size_t>(
+                std::llround(static_cast<double>(baseDuration) * (1.0 + static_cast<double>(swing_))));
+            const size_t pairDuration = 2 * baseDuration;
+            if (evenStep) {
+                swungDuration = longDuration;
             } else {
-                // Odd step: shorten
-                swungDuration = static_cast<size_t>(
-                    static_cast<double>(baseDuration) * (1.0 - swingVal));
+                swungDuration = pairDuration > longDuration ? pairDuration - longDuration : 0;
             }
         }
 
         // Clamp to minimum 1 sample
         return (swungDuration > 0) ? swungDuration : 1;
+    }
+
+    /// @brief syncToMusicalPosition with swing (R-066). The swung grid repeats every
+    /// PAIR of steps: the step that starts a pair runs long and the next one short,
+    /// the order the arp plays from a transport start (step k lasts dur(k), and the
+    /// even step is the lengthened one; R-199). swingStepCounter_ holds the index of
+    /// the step the Step handler fires next, so it is even while the short half runs.
+    /// The counter is re-anchored so the next onset falls on the grid's swung onset,
+    /// rounded to the sample. An onset the counter reached up to kTol samples away
+    /// from the grid's is neither repeated nor dropped.
+    void syncSwingPair(double scaledPpq) noexcept {
+        constexpr size_t kTol = 2;
+        const double base = exactBaseStepSamples(syncTempoBPM_, syncSampleRate_);
+        const double longExact = base * (1.0 + static_cast<double>(swing_));
+        const auto pair = calculateMusicalStepPosition(scaledPpq, noteValue_, noteModifier_, 2);
+        const double posInPair = (static_cast<double>(pair.step) + pair.stepFraction) * base;
+        const bool longHalf = posInPair < longExact;
+        const auto sinceOnset = static_cast<size_t>(
+            std::llround(longHalf ? posInPair : posInPair - longExact));
+        const auto untilNext = static_cast<size_t>(
+            std::llround((longHalf ? longExact : 2.0 * base) - posInPair));
+
+        // The running step started sampleCounter_ samples ago (a counter equal to the
+        // duration is a step due at offset 0 of this block, not yet fired).
+        const bool stepRunning = sampleCounter_ > 0 && sampleCounter_ < currentStepDuration_;
+        // The counter fired the grid's next onset a sample or two early: keep it.
+        if (stepRunning && sampleCounter_ + untilNext <= kTol) return;
+
+        const bool firedThisOnset = stepRunning
+            && sampleCounter_ + kTol >= sinceOnset && sampleCounter_ <= sinceOnset + kTol;
+        auto setHalf = [this](bool even) noexcept {
+            if ((swingStepCounter_ % 2 == 0) != even) ++swingStepCounter_;
+        };
+        if (!firedThisOnset && sinceOnset <= kTol) {
+            // This half's onset is now or a sample or two ago and the counter has not
+            // fired it: fire it at offset 0. The Step handler sizes the step it fires
+            // from the counter, so the counter names this half.
+            setHalf(longHalf);
+            currentStepDuration_ = stepDurationFor(syncTempoBPM_, syncSampleRate_, longHalf);
+            sampleCounter_ = currentStepDuration_;
+            return;
+        }
+
+        // Mid-step: the running step is this half and the counter names the next one.
+        setHalf(!longHalf);
+        currentStepDuration_ = std::max(
+            stepDurationFor(syncTempoBPM_, syncSampleRate_, longHalf), untilNext);
+        sampleCounter_ = currentStepDuration_ - untilNext;
     }
 
     /// @brief Detect if a bar boundary falls within the current block.
@@ -1499,18 +1623,25 @@ private:
     /// Used by Tie evaluation to override gate-based noteOff scheduling (FR-012).
     void cancelPendingNoteOffsForCurrentNotes() noexcept {
         for (size_t n = 0; n < currentArpNoteCount_; ++n) {
-            uint8_t note = currentArpNotes_[n];
-            // Remove all pending noteOffs matching this note
-            size_t i = 0;
-            while (i < pendingNoteOffCount_) {
-                if (pendingNoteOffs_[i].note == note) {
-                    pendingNoteOffs_[i] = pendingNoteOffs_[pendingNoteOffCount_ - 1];
-                    --pendingNoteOffCount_;
-                } else {
-                    ++i;
-                }
+            cancelPendingNoteOffsFor(currentArpNotes_[n]);
+        }
+    }
+
+    /// @brief Remove every pending noteOff for one pitch.
+    /// @return true if at least one was removed.
+    bool cancelPendingNoteOffsFor(uint8_t note) noexcept {
+        bool removed = false;
+        size_t i = 0;
+        while (i < pendingNoteOffCount_) {
+            if (pendingNoteOffs_[i].note == note) {
+                pendingNoteOffs_[i] = pendingNoteOffs_[pendingNoteOffCount_ - 1];
+                --pendingNoteOffCount_;
+                removed = true;
+            } else {
+                ++i;
             }
         }
+        return removed;
     }
 
     /// @brief Process pending NoteOffs for the entire block when no new steps fire.
@@ -1697,6 +1828,7 @@ private:
     std::array<uint8_t, 32> ratchetVelocities_{}; ///< Chord mode velocities
     size_t ratchetNoteCount_{0};               ///< Chord mode note count
     uint8_t stepDelayStep_{0};                 ///< MIDI Delay lane step of the step being fired (ArpEvent::delayStep)
+    std::array<uint8_t, 8> lastSkipLaneSteps_{}; ///< Lanes 0-7's steps at the last kSkip (lastSkipLaneStep())
     float ratchetSwing_{0.50f};                ///< Ratchet swing ratio 0.50-0.75
     float ratchetDecay_{0.0f};                 ///< Ratchet velocity decay 0.0-1.0 (v1.5)
 
@@ -1778,6 +1910,12 @@ private:
     NoteValue noteValue_ = NoteValue::Eighth;
     NoteModifier noteModifier_ = NoteModifier::None;
     float freeRateHz_ = 4.0f;
+    float rateScale_ = 1.0f;        ///< Tempo-synced step speed factor (setRateScale)
+    float syncedRateScale_ = 1.0f;  ///< rateScale_ at the last syncToMusicalPosition
+    double rateAnchorPpq_ = 0.0;        ///< Host PPQ where the scaled grid was last re-anchored
+    double rateAnchorScaledPpq_ = 0.0;  ///< Scaled PPQ at rateAnchorPpq_
+    double syncTempoBPM_ = 0.0;    ///< Tempo of the last processBlock (sizes the swing pair in the PPQ sync)
+    double syncSampleRate_ = 0.0;  ///< Sample rate of the last processBlock (same use)
     float gateLengthPercent_ = 80.0f;
     float swing_ = 0.0f;  ///< Stored as 0.0-0.75 (user-facing 0-75% divided by 100)
 
@@ -1792,6 +1930,12 @@ private:
     bool wasPlaying_ = false;
     bool firstStepPending_ = true;
     bool transportLoopPending_ = false;
+    /// syncToMusicalPosition aligned the counter since the last processBlock:
+    /// the host's musical position drives the step clock this block (R-071).
+    bool hostSyncedThisBlock_ = false;
+    /// processBlock returned on an empty held buffer: the step clock is idle,
+    /// and the next held key restarts it with an immediate step (R-071).
+    bool idle_ = false;
 
     // =========================================================================
     // Latch State

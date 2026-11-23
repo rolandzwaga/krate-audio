@@ -341,7 +341,10 @@ TEST_CASE("ArpeggiatorCore: GateLane_DefaultIsPassthrough",
 TEST_CASE("ArpeggiatorCore: GateLane_MultipliesGlobalGate",
           "[processors][arpeggiator_core]") {
     // Set gate lane length=3, steps=[0.5, 1.0, 1.5], global gate=80%,
-    // run 3 steps, verify noteOff sample offsets match computed durations
+    // run 3 steps, verify noteOff sample offsets match computed durations.
+    // Three distinct pitches: step 2's 120 % gate outlives the next onset, and
+    // a re-struck pitch is released at that onset (R-067), so one held key
+    // would measure the step length instead of the gate.
     ArpeggiatorCore arp;
     arp.prepare(44100.0, 512);
     arp.setEnabled(true);
@@ -349,6 +352,8 @@ TEST_CASE("ArpeggiatorCore: GateLane_MultipliesGlobalGate",
     arp.setNoteValue(NoteValue::Eighth, NoteModifier::None);
     arp.setGateLength(80.0f);
     arp.noteOn(60, 100);
+    arp.noteOn(64, 100);
+    arp.noteOn(67, 100);
 
     // Configure gate lane
     arp.gateLane().setLength(3);

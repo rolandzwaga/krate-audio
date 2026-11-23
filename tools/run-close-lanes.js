@@ -10,6 +10,9 @@
 // CRASH DUMPS (Windows): a lane that crashes writes a minidump to f:/tmp/crashdumps and its summary line names it
 // (tools/test-crash-dumps.js; off in CI and with KRATE_CRASH_DUMPS=0).
 //
+// WHOLE SUITES, BY DESIGN: this runner does not narrow to the change (tools/run-gate.js does, by default). An agent
+// command that starts it needs a "# gate-all-ok: <reason>" comment (tools/hooks/guard-test-scope.js).
+//
 // WHAT IT DOES NOT RUN: anything tagged [performance] [perf] [benchmark] [!benchmark]. Those stay with
 // tools/run-cpu-tests.js, alone, pinned, after the box has idled.
 //

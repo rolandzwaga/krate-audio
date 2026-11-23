@@ -14,12 +14,16 @@
 # cores share one class (nothing to pin) the process runs unpinned. Pinning by
 # index was rejected earlier because it picked a core without knowing its type.
 #
-# Usage: pwsh -NoProfile -File tools/pin-perf-cores.ps1 -Exe <path> [-ExeArgs a b ...]
+# Usage: pwsh -NoProfile -File tools/pin-perf-cores.ps1 -Exe <path> [-ExeArgs a b ...] [-InputFile <cases file>]
+# -InputFile passes a Catch2 test-name file (-f) instead of a filter: run-cpu-tests.js narrows a suite to the cases
+# the change reaches (tools/affected-tests.js), and names with spaces do not survive -ExeArgs.
 # Exit code is the child's. Called by tools/run-cpu-tests.js on Windows.
 param(
     [Parameter(Mandatory = $true)][string]$Exe,
-    [string[]]$ExeArgs = @()
+    [string[]]$ExeArgs = @(),
+    [string]$InputFile = ''
 )
+if ($InputFile) { $ExeArgs = @('-f', "`"$InputFile`"", '--order', 'decl') + $ExeArgs }
 
 $ErrorActionPreference = 'Stop'
 

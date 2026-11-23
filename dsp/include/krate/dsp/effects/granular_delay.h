@@ -23,6 +23,8 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstddef>
+#include <cstdint>
 
 namespace Krate::DSP {
 
@@ -36,11 +38,14 @@ public:
 
     /// Prepare effect for processing
     /// @param sampleRate Current sample rate
-    void prepare(double sampleRate) noexcept {
+    /// @param maxDelaySeconds Longest delay time the buffer holds; setDelayTime() and the synced
+    ///        time stop there (default kMaxDelaySeconds)
+    void prepare(double sampleRate, float maxDelaySeconds = kMaxDelaySeconds) noexcept {
         sampleRate_ = sampleRate;
+        maxDelaySeconds_ = maxDelaySeconds;
 
         // Prepare granular engine
-        engine_.prepare(sampleRate, kMaxDelaySeconds);
+        engine_.prepare(sampleRate, maxDelaySeconds_);
 
         // Configure smoothers
         feedbackSmoother_.configure(kDefaultSmoothTimeMs, static_cast<float>(sampleRate));
@@ -51,7 +56,16 @@ public:
 
     /// Reset effect state
     void reset() noexcept {
-        engine_.reset();
+        startIncrementalReset();
+        std::size_t unlimited = SIZE_MAX;
+        (void)continueIncrementalReset(unlimited);
+    }
+
+    /// Start a reset() whose grain-buffer clear is left to continueIncrementalReset(),
+    /// so it fits a real-time callback (the buffer holds up to 5 s). Do not process
+    /// until that has returned true.
+    void startIncrementalReset() noexcept {
+        engine_.startIncrementalReset();
 
         // Reset feedback state
         feedbackL_ = 0.0f;
@@ -62,6 +76,12 @@ public:
         dryWetSmoother_.snapTo(dryWet_);
     }
 
+    /// Clear up to @p budget more grain-buffer samples (deducted from it).
+    /// @return true once the started reset is complete.
+    bool continueIncrementalReset(std::size_t& budget) noexcept {
+        return engine_.continueIncrementalReset(budget);
+    }
+
     // === Core Parameters ===
 
     /// Set grain size in milliseconds (10-500ms)
@@ -70,7 +90,7 @@ public:
     /// Set grain density (grains per second, 1-100 Hz)
     void setDensity(float grainsPerSec) noexcept { engine_.setDensity(grainsPerSec); }
 
-    /// Set base delay time in milliseconds (0-2000ms)
+    /// Set base delay time in milliseconds (0 to the prepared maximum, 2000 ms by default)
     void setDelayTime(float ms) noexcept { engine_.setPosition(ms); }
 
     /// Set position spray/randomization (0-1)
@@ -176,7 +196,7 @@ public:
             float syncedMs = dropdownToDelayMs(noteValueIndex_, tempo);
 
             // Clamp to max delay buffer (FR-006)
-            syncedMs = std::clamp(syncedMs, 0.0f, kMaxDelaySeconds * 1000.0f);
+            syncedMs = std::clamp(syncedMs, 0.0f, maxDelaySeconds_ * 1000.0f);
 
             engine_.setPosition(syncedMs);
         }
@@ -290,6 +310,7 @@ private:
     float dryWet_ = 0.5f;
 
     double sampleRate_ = 44100.0;
+    float maxDelaySeconds_ = kMaxDelaySeconds;
 
     // Tempo sync state (spec 038)
     TimeMode timeMode_ = TimeMode::Free;  // Default: Free mode (milliseconds)

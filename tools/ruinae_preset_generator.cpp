@@ -269,11 +269,14 @@ void setModSlot(RuinaePresetState& s, int slot, int source, int dest,
     s.modMatrix.slots[slot].smoothMs = smoothMs;
 }
 
+// Amounts are authored on the pre-v9 scales. Since state v9 a voice route to Filter
+// Resonance spans 10 Q instead of 1 Q (R-044), so its amount is divided by 10 here:
+// the factory presets keep the depth they were voiced with.
 void setVoiceRoute(RuinaePresetState& s, int slot, int source, int dest,
                    float amount) {
     s.voiceRoutes[slot].source = static_cast<int8_t>(source);
     s.voiceRoutes[slot].destination = static_cast<int8_t>(dest);
-    s.voiceRoutes[slot].amount = amount;
+    s.voiceRoutes[slot].amount = (dest == kVDstFltRes) ? amount / 10.0f : amount;
     s.voiceRoutes[slot].active = 1;
 }
 
@@ -504,9 +507,10 @@ std::vector<PresetDef> createAllPresets() {
         // --- Wrapper: a moderate HALL (not the reflex big diffuse pad wash) ---
         p.state.reverbEnabled = 1;
         p.state.reverbType = 1;           // Hall
-        p.state.reverb.size = 0.7f;
+        // was size 0.7 damping 0.45: R-220 remap
+        p.state.reverb.size = 0.0267f;
         p.state.reverb.mix = 0.35f;
-        p.state.reverb.damping = 0.45f;
+        p.state.reverb.damping = 0.0484f;
         presets.push_back(std::move(p));
     }
 
@@ -1003,7 +1007,7 @@ std::vector<PresetDef> createAllPresets() {
         //     brightness motions phase against each other.
         p.state.lfo2.rateHz = 0.08f;
         p.state.lfo2.shape = 1;                // Triangle
-        p.state.lfo2.depth = 0.6f;
+        p.state.lfo2.depth = 1.0f;
         p.state.lfo2.sync = 0;
         setModSlot(p.state, 1, kSrcLFO2, kDstAllSpecTilt, 0.3f);
         // (2) Arp pitch -> filter cutoff: every polymetric step is a different pitch,
@@ -1048,6 +1052,7 @@ std::vector<PresetDef> createAllPresets() {
         PresetDef p;
         p.name = "Reich Drift";
         p.category = "Arp Polymetric";
+        p.state.global.masterGain = 0.55f; // T5.3b (R-214): master gain was 1; measured before peak 0.9992 in the release test
 
         // --- Voice: OSC A = hard-Sync engine (buzzy, formant-rich slave) an octave
         //     down; OSC B = a square sub two octaves down for low-end weight.
@@ -1165,7 +1170,7 @@ std::vector<PresetDef> createAllPresets() {
         p.state.oscA.level = 0.85f;
         p.state.oscB.type = 7;             // Formant engine
         p.state.oscB.formantVowel = 3;     // base vowel O
-        p.state.oscB.formantMorph = 3.4f;  // parked between O and U (dark/round)
+        p.state.oscB.formantMorph = 0.4f;  // + 0.4: parked between O and U (dark/round)
         p.state.oscB.fineCents = 6.0f;     // tiny beat so the two vowels don't phase-lock
         p.state.oscB.level = 0.7f;
         p.state.mixer.mode = 0;            // Crossfade A<->B
@@ -1175,7 +1180,7 @@ std::vector<PresetDef> createAllPresets() {
         p.state.filter.type = 2;           // SVF BP
         p.state.filter.cutoffHz = 1200.0f; // centered on the vowel formant region
         p.state.filter.resonance = 2.5f;   // narrow enough to sing, not whistle
-        p.state.filter.svfSlope = 0;       // 12 dB - keep it open/airy
+        p.state.filter.svfSlope = 1;       // 12 dB - keep it open/airy (was 0: the parameter range is 1..2)
         p.state.filter.envAmount = 16.0f;  // +16 st per-note bloom (FIXED: plain semitones)
         // Plucky filter env so each probabilistic note gets a little consonant "attack"
         p.state.filterEnv.attackMs = 4.0f;
@@ -1234,6 +1239,7 @@ std::vector<PresetDef> createAllPresets() {
         PresetDef p;
         p.name = "Chaos Garden";
         p.category = "Arp Generative";
+        p.state.global.masterGain = 0.7f; // T5.3b (R-214): master gain was 1; measured before peak 1.0 in the release test
 
         // --- Voice: CHAOS oscillator (Rossler) over a sine sub for tonal anchoring ---
         // OSC A is the chaotic attractor (quasi-pitched, mutating); OSC B is a clean
@@ -1274,7 +1280,7 @@ std::vector<PresetDef> createAllPresets() {
         // --- MOD IDENTITY: chaosMod is the LIVE randomness source (source-domain) ---
         p.state.chaosMod.type = 1;         // Rossler chaos LFO
         p.state.chaosMod.rateHz = 0.8f;    // slow evolving mutation
-        p.state.chaosMod.depth = 0.5f;     // MUST raise - defaults to 0 (silent source)
+        p.state.chaosMod.depth = 1.0f;     // full depth (R-183)
         p.state.chaosMod.sync = 0;
         // Route chaos to BOTH morph and resonance so the timbre mutates on two axes...
         setModSlot(p.state, 0, kSrcChaos, kDstAllMorphPos, 0.7f, kCurveSCurve);
@@ -1287,9 +1293,10 @@ std::vector<PresetDef> createAllPresets() {
         // --- FX: drenched HALL - the "garden" is a big diffuse space ---
         p.state.reverbEnabled = 1;
         p.state.reverbType = 1;            // Hall
-        p.state.reverb.size = 0.85f;
+        // was size 0.85 damping 0.35: R-220 remap
+        p.state.reverb.size = 0.0625f;
         p.state.reverb.mix = 0.45f;
-        p.state.reverb.damping = 0.35f;
+        p.state.reverb.damping = 0.0383f;
         p.state.reverb.diffusion = 0.8f;
         p.state.reverb.preDelayMs = 20.0f;
 
@@ -1765,9 +1772,10 @@ std::vector<PresetDef> createAllPresets() {
         // --- FX: HALL reverb + SPECTRAL delay (distinct from the plate/digital siblings)
         s.reverbEnabled = 1;
         s.reverbType = 1;                // Hall
-        s.reverb.size = 0.85f;
+        // was size 0.85 damping 0.3: R-220 remap
+        s.reverb.size = 0.0625f;
         s.reverb.mix = 0.4f;
-        s.reverb.damping = 0.3f;
+        s.reverb.damping = 0.0305f;
         s.reverb.diffusion = 0.8f;
         s.delayEnabled = 1;
         s.delay.type = 4;                // Spectral delay
@@ -1815,11 +1823,12 @@ std::vector<PresetDef> createAllPresets() {
         p.name = "Lydian Aurora";
         p.category = "Arp Chords";
         auto& s = p.state;
+        s.global.masterGain = 0.45f; // T5.3b (R-214): master gain was 1; measured before peak 1.0 in the release test
         // --- Voice: Formant (vocal) oscillator A over an airy saw bed B; the mixer
         //     morphs vocal<->saw, and we hand that morph to AFTERTOUCH.
         s.oscA.type = 7;                 // Formant engine
-        s.oscA.formantVowel = 0;         // A
-        s.oscA.formantMorph = 1.5f;      // drift toward E/I -> brighter 'aah/eee'
+        s.oscA.formantVowel = 1;         // E
+        s.oscA.formantMorph = 0.5f;      // drift toward I -> brighter 'eee'
         s.oscA.level = 0.8f;
         s.oscB.type = 0;                 // PolyBLEP saw bed
         s.oscB.waveform = 1;             // Saw
@@ -1852,9 +1861,10 @@ std::vector<PresetDef> createAllPresets() {
         // --- FX: enormous, diffuse, MODULATED hall (its unmistakable reverb identity)
         s.reverbEnabled = 1;
         s.reverbType = 1;                // Hall
-        s.reverb.size = 0.92f;
+        // was size 0.92 damping 0.25: R-220 remap
+        s.reverb.size = 0.097f;
         s.reverb.mix = 0.5f;
-        s.reverb.damping = 0.25f;
+        s.reverb.damping = 0.0281f;
         s.reverb.diffusion = 0.88f;
         s.reverb.preDelayMs = 25.0f;
         s.reverb.modRateHz = 0.3f;
@@ -1916,7 +1926,7 @@ std::vector<PresetDef> createAllPresets() {
         s.filterEnv.sustain = 0.0f;
         s.filterEnv.releaseMs = 90.0f;
         s.filterEnv.decayCurve = 0.5f;   // snappy exponential pluck
-        s.global.masterGain = 0.85f;     // headroom for drive + distortion
+        s.global.masterGain = 0.4f; // T5.3b (R-214): master gain was 0.85; measured before peak 1.0 in the release test
         // --- Distortion: Tape saturator gives the stabs their punch
         s.distortion.type = 5;           // TapeSaturator
         s.distortion.drive = 0.35f;
@@ -2053,7 +2063,7 @@ std::vector<PresetDef> createAllPresets() {
         s.harmonizer.dryLevelDb = 0.0f;
         // Signature mod: skewed SmoothRandom LFO2 slowly drifts brightness (unique gesture)
         s.lfo2.rateHz = 0.07f; s.lfo2.shape = 5; // Smooth Random
-        s.lfo2.depth = 0.5f; s.lfo2.sync = 0;
+        s.lfo2.depth = 1.0f; s.lfo2.sync = 0;
         s.lfo2Ext.symmetry = 0.75f; // skewed ramp -> asymmetric organic wander
         setModSlot(s, 0, kSrcLFO2, kDstAllSpecTilt, 0.3f, kCurveSCurve);
         // Playing dynamics: velocity opens filter, key-track brightens the top
@@ -2124,7 +2134,7 @@ std::vector<PresetDef> createAllPresets() {
         s.delay.granularPitch = 12.0f; // octave-up grains
         s.delay.granularPitchSpray = 0.1f;
         s.delay.granularTexture = 0.3f;
-        s.delay.granularWidth = 1.3f;
+        s.delay.granularWidth = 1.0f; // was 1.3: the parameter range is 0..1
         // Modulated Plate reverb = chorused shimmer tail
         s.reverbEnabled = 1;
         s.reverbType = 0; // Plate
@@ -2165,11 +2175,11 @@ std::vector<PresetDef> createAllPresets() {
         s.oscB.waveform = 0; // Sine
         s.oscB.level = 0.32f;
         s.oscB.tuneSemitones = 12.0f;
-        // SpectralMorph mixer with tilt + shift ACTIVE (FFT interpolation A<->B)
+        // SpectralMorph mixer with tilt ACTIVE (FFT interpolation A<->B)
         s.mixer.mode = 1; // Spectral Morph
         s.mixer.position = 0.5f;
         s.mixer.tilt = -3.0f; // darken the morphed spectrum
-        s.mixer.shift = 0.25f; // normalized [0,1] -> 25% inharmonic frequency shift for drift
+        s.mixer.shift = 0.5f; // no shift: the shipped sound (Spectral Shift had no effect before state v9)
         // Comb filter adds a metallic resonant body with damped feedback
         s.filter.type = 6; // Comb
         s.filter.cutoffHz = 3000.0f; // comb tuning
@@ -2190,11 +2200,11 @@ std::vector<PresetDef> createAllPresets() {
         s.ampEnv.attackCurve = 0.5f; // slow-start exp swell
         // Three unsynced mod sources = never-repeating motion
         s.lfo1.rateHz = 0.15f; s.lfo1.shape = 0; // Sine
-        s.lfo1.depth = 0.6f; s.lfo1.sync = 0;
+        s.lfo1.depth = 1.0f; s.lfo1.sync = 0;
         setModSlot(s, 0, kSrcLFO1, kDstAllMorphPos, 0.5f, kCurveLinear);
         s.modMatrix.slots[0].scale = 3; // x2 depth on the morph (exercises the scale axis)
         s.lfo2.rateHz = 0.05f; s.lfo2.shape = 1; // Triangle
-        s.lfo2.depth = 0.6f; s.lfo2.sync = 0;
+        s.lfo2.depth = 1.0f; s.lfo2.sync = 0;
         setModSlot(s, 1, kSrcLFO2, kDstAllSpecTilt, 0.4f, kCurveSCurve);
         // Signature gesture: stepped S&H jitters resonance (unique to this pad)
         s.sampleHold.rateHz = 1.5f; s.sampleHold.slewMs = 100.0f;
@@ -2215,9 +2225,10 @@ std::vector<PresetDef> createAllPresets() {
         // Frozen hall = an infinite, evolving spectral bed (the pad's identity)
         s.reverbEnabled = 1;
         s.reverbType = 1; // Hall
-        s.reverb.size = 0.8f;
+        // was size 0.8 damping 0.4: R-220 remap
+        s.reverb.size = 0.0468f;
         s.reverb.mix = 0.3f; // moderate so the frozen bed sits under, not over, the dry
-        s.reverb.damping = 0.4f;
+        s.reverb.damping = 0.0436f;
         s.reverb.preDelayMs = 40.0f;
         s.reverb.diffusion = 0.85f;
         s.reverb.freeze = 1; // frozen tail -> continuous ambient bed
@@ -2233,6 +2244,7 @@ std::vector<PresetDef> createAllPresets() {
         p.name = "Choir";
         p.category = "Pads";
         auto& s = p.state;
+        s.global.masterGain = 0.45f; // T5.3b (R-214): master gain was 1; measured before peak 1.0, 1.3 % above 0.85 in the release test
         // Formant oscillator = the vocal body
         s.oscA.type = 7; // Formant
         s.oscA.level = 0.8f;
@@ -2264,7 +2276,7 @@ std::vector<PresetDef> createAllPresets() {
         s.ampEnv.releaseCurve = 0.4f; // slow exponential fade
         // LFO slowly morphs the voice/breath balance (breath swell)
         s.lfo1.rateHz = 0.09f; s.lfo1.shape = 1; // Triangle
-        s.lfo1.depth = 0.8f; s.lfo1.sync = 0;
+        s.lfo1.depth = 1.0f; s.lfo1.sync = 0;
         setModSlot(s, 0, kSrcLFO1, kDstAllMorphPos, 0.4f, kCurveLinear);
         // Smoothed Random gently animates the filter -> breathy, human air
         s.random.rateHz = 3.0f; s.random.smoothness = 0.7f;
@@ -2289,9 +2301,10 @@ std::vector<PresetDef> createAllPresets() {
         // Cathedral hall
         s.reverbEnabled = 1;
         s.reverbType = 1; // Hall
-        s.reverb.size = 0.8f;
+        // was size 0.8 damping 0.5: R-220 remap
+        s.reverb.size = 0.0468f;
         s.reverb.mix = 0.35f;
-        s.reverb.damping = 0.5f;
+        s.reverb.damping = 0.0634f;
         s.reverb.preDelayMs = 25.0f;
         s.reverb.diffusion = 0.8f;
         // Warm 432 Hz tuning for the choir
@@ -2350,10 +2363,10 @@ std::vector<PresetDef> createAllPresets() {
         s.ampEnv.decayCurve = -0.3f; // fast-start log decay
         // Signature exotic mod trio - FAST Rossler chaos-motion tempo
         s.chaosMod.rateHz = 1.1f; s.chaosMod.type = 1; // Rossler
-        s.chaosMod.depth = 0.6f;
+        s.chaosMod.depth = 1.0f;
         setModSlot(s, 0, kSrcChaos, kDstAllFltCut, 0.5f, kCurveExp, 100.0f);
         s.lfo1.rateHz = 0.08f; s.lfo1.shape = 5; // Smooth Random
-        s.lfo1.depth = 0.4f; s.lfo1.sync = 0;
+        s.lfo1.depth = 1.0f; s.lfo1.sync = 0;
         setModSlot(s, 1, kSrcLFO1, kDstAllMorphPos, 0.3f, kCurveLinear);
         s.rungler.osc1FreqHz = 1.5f; s.rungler.osc2FreqHz = 2.3f;
         s.rungler.depth = 0.35f; s.rungler.bits = 5; s.rungler.filter = 0.3f;
@@ -2381,6 +2394,7 @@ std::vector<PresetDef> createAllPresets() {
         p.name = "Supersaw";
         p.category = "Leads";
         auto& s = p.state;
+        s.global.masterGain = 0.7f; // T5.3b (R-214): master gain was 1; measured before peak 1.0 in the release test
         // Two PolyBLEP saws, detuned in OPPOSITE directions so the pair beats against itself
         s.oscA.type = 0; // PolyBLEP
         s.oscA.waveform = 1; // Saw
@@ -2598,9 +2612,10 @@ std::vector<PresetDef> createAllPresets() {
         // HALL reverb (not the default plate) with a little pre-delay for depth
         s.reverbEnabled = 1;
         s.reverbType = 1; // Hall
-        s.reverb.size = 0.7f;
+        // was size 0.7 damping 0.4: R-220 remap
+        s.reverb.size = 0.0267f;
         s.reverb.mix = 0.35f;
-        s.reverb.damping = 0.4f;
+        s.reverb.damping = 0.0398f;
         s.reverb.preDelayMs = 20.0f;
         s.reverb.modDepth = 0.1f; // gentle shimmer on the tail
         // Additive partial sum no longer clips (2026-11-13):
@@ -2757,10 +2772,10 @@ std::vector<PresetDef> createAllPresets() {
         s.phaser.feedback = 0.45f; s.phaser.mix = 0.35f;
         s.phaser.stages = 3;        // 8-stage
         // Slow free sine LFO drifts the A/B morph => the detune "breathes"
-        s.lfo2.rateHz = 0.15f; s.lfo2.shape = 0; s.lfo2.depth = 0.5f; s.lfo2.sync = 0;
+        s.lfo2.rateHz = 0.15f; s.lfo2.shape = 0; s.lfo2.depth = 1.0f; s.lfo2.sync = 0;
         setModSlot(s, 0, kSrcLFO2, kDstAllMorphPos, 0.4f, kCurveSCurve);
         // Chaos (Rossler) drifts the ladder cutoff for organic, never-repeating movement
-        s.chaosMod.rateHz = 0.4f; s.chaosMod.type = 1; s.chaosMod.depth = 0.5f; s.chaosMod.sync = 0;
+        s.chaosMod.rateHz = 0.4f; s.chaosMod.type = 1; s.chaosMod.depth = 1.0f; s.chaosMod.sync = 0;
         setModSlot(s, 1, kSrcChaos, kDstAllFltCut, 0.25f, kCurveSCurve);
         // Velocity opens the filter for dynamic playing
         setVoiceRoute(s, 0, kVSrcVelocity, kVDstFltCut, 0.45f);
@@ -2870,11 +2885,11 @@ std::vector<PresetDef> createAllPresets() {
         setModSlot(s, 0, kSrcLFO1, kDstAllFltCut, 0.5f);
         s.modMatrix.slots[0].scale = 3; // x2 => effective ~1.0 deep sweep (owns the scale axis)
         // Slot 1: synced saw LFO saws the morph at a different rate for grit complexity
-        s.lfo2.rateHz = 2.0f; s.lfo2.shape = 2; s.lfo2.depth = 0.6f; s.lfo2.sync = 1;
+        s.lfo2.rateHz = 2.0f; s.lfo2.shape = 2; s.lfo2.depth = 1.0f; s.lfo2.sync = 1;
         s.lfo2Ext.noteValue = kNote1_4;
         setModSlot(s, 1, kSrcLFO2, kDstAllMorphPos, 0.5f, kCurveStepped); // stepped = rhythmic morph jumps
         // Slot 2: chaos jitters resonance for organic, unpredictable growl
-        s.chaosMod.rateHz = 1.5f; s.chaosMod.type = 0; s.chaosMod.depth = 0.3f;
+        s.chaosMod.rateHz = 1.5f; s.chaosMod.type = 0; s.chaosMod.depth = 1.0f;
         setModSlot(s, 2, kSrcChaos, kDstAllResonance, 0.2f);
         // Velocity sets the wobble intensity via cutoff
         setVoiceRoute(s, 0, kVSrcVelocity, kVDstFltCut, 0.4f);
@@ -2915,7 +2930,7 @@ std::vector<PresetDef> createAllPresets() {
         // --- Motion 1: a glacial SmoothRandom LFO cross-fades grains<->noise ---
         s.lfo1.rateHz = 0.08f;            // ~12 s cycle
         s.lfo1.shape = 5;                 // SmoothRandom
-        s.lfo1.depth = 0.8f;
+        s.lfo1.depth = 1.0f;
         s.lfo1.sync = 0;                  // free-running, not tempo-locked
         s.lfo1Ext.fadeInMs = 4000.0f;     // motion blooms in over 4 s (owns fadeInMs)
         s.lfo1Ext.phaseOffset = 90.0f;    // start off-centre (owns phaseOffset)
@@ -2981,10 +2996,10 @@ std::vector<PresetDef> createAllPresets() {
         // --- Motion: three independent wanderers on three destinations ---
         s.lfo1.rateHz = 0.1f;
         s.lfo1.shape = 5;                 // SmoothRandom
-        s.lfo1.depth = 0.7f;
+        s.lfo1.depth = 1.0f;
         s.lfo1.sync = 0;
         setModSlot(s, 0, kSrcLFO1, kDstAllFltCut, 0.5f, kCurveLinear, 30.0f);
-        s.chaosMod.rateHz = 0.5f; s.chaosMod.type = 1; s.chaosMod.depth = 0.5f; // Rossler LFO
+        s.chaosMod.rateHz = 0.5f; s.chaosMod.type = 1; s.chaosMod.depth = 1.0f; // Rossler LFO
         setModSlot(s, 1, kSrcChaos, kDstAllSpecTilt, 0.4f, kCurveExp, 80.0f);
         s.random.rateHz = 0.8f; s.random.smoothness = 0.85f;
         setModSlot(s, 2, kSrcRandom, kDstAllMorphPos, 0.3f, kCurveLinear, 60.0f);
@@ -3015,9 +3030,10 @@ std::vector<PresetDef> createAllPresets() {
         // --- Hall reverb with slow modulation = big moving air ---
         s.reverbEnabled = 1;
         s.reverbType = 1;                 // Hall (owns Hall)
-        s.reverb.size = 0.85f;
+        // was size 0.85 damping 0.5: R-220 remap
+        s.reverb.size = 0.0625f;
         s.reverb.mix = 0.4f;
-        s.reverb.damping = 0.5f;
+        s.reverb.damping = 0.0685f;
         s.reverb.modRateHz = 0.3f;
         s.reverb.modDepth = 0.12f;
         presets.push_back(std::move(p));
@@ -3049,7 +3065,7 @@ std::vector<PresetDef> createAllPresets() {
         // --- Motion 1: a QUANTIZED LFO steps the spectral morph -> the ghost drifts in stages ---
         s.lfo1.rateHz = 0.12f;
         s.lfo1.shape = 1;                 // Triangle
-        s.lfo1.depth = 0.7f;
+        s.lfo1.depth = 1.0f;
         s.lfo1.sync = 0;
         s.lfo1Ext.quantizeSteps = 6;      // 6 discrete morph positions (owns quantizeSteps)
         setModSlot(s, 0, kSrcLFO1, kDstAllMorphPos, 0.6f, kCurveSCurve, 50.0f);
@@ -3088,9 +3104,10 @@ std::vector<PresetDef> createAllPresets() {
         // --- Modulated Hall reverb -> shimmering tail ---
         s.reverbEnabled = 1;
         s.reverbType = 1;                 // Hall
-        s.reverb.size = 0.95f;
+        // was size 0.95 damping 0.25: R-220 remap
+        s.reverb.size = 0.1199f;
         s.reverb.mix = 0.5f;
-        s.reverb.damping = 0.25f;
+        s.reverb.damping = 0.0311f;
         s.reverb.modRateHz = 0.2f;
         s.reverb.modDepth = 0.15f;        // owns reverb modulation
         // Additive partial sum no longer clips (2026-11-13):
@@ -3131,12 +3148,14 @@ std::vector<PresetDef> createAllPresets() {
         // --- Motion 1: heavily-smoothed LFO morphs the two grain layers ---
         s.lfo1.rateHz = 0.06f;
         s.lfo1.shape = 5;                 // SmoothRandom
-        s.lfo1.depth = 0.75f;
+        s.lfo1.depth = 1.0f;
         s.lfo1.sync = 0;
         setModSlot(s, 0, kSrcLFO1, kDstAllMorphPos, 0.5f, kCurveSCurve, 90.0f); // big smoothMs
         // --- Motion 2: Envelope Follower opens the allpass with dynamics, scaled x4 ---
         s.envFollower.sensitivity = 0.7f; s.envFollower.attackMs = 60.0f; s.envFollower.releaseMs = 400.0f;
-        setModSlot(s, 1, kSrcEnvFollower, kDstAllFltCut, 0.3f, kCurveExp, 40.0f);
+        // 0.25 x4 = full depth: the depth 0.3 x4 played while the Scale saturated the
+        // amount (before state v9, R-053); 0.3 would now reach 1.2.
+        setModSlot(s, 1, kSrcEnvFollower, kDstAllFltCut, 0.25f, kCurveExp, 40.0f);
         s.modMatrix.slots[1].scale = 4;   // x4 -> dramatic breathing sweep (owns scale x4)
         // --- Amp env: very slow fog roll-in ---
         s.ampEnv.attackMs = 1400.0f;
@@ -3162,9 +3181,10 @@ std::vector<PresetDef> createAllPresets() {
         // --- Enormous diffuse Hall (distinct from Particle Cloud's plate) ---
         s.reverbEnabled = 1;
         s.reverbType = 1;                 // Hall
-        s.reverb.size = 0.95f;
+        // was size 0.95 damping 0.3: R-220 remap
+        s.reverb.size = 0.1199f;
         s.reverb.mix = 0.5f;
-        s.reverb.damping = 0.3f;
+        s.reverb.damping = 0.0401f;
         s.reverb.diffusion = 0.92f;
         s.global.width = 2.0f;
         s.global.spread = 0.6f;
@@ -3286,11 +3306,11 @@ std::vector<PresetDef> createAllPresets() {
         // --- Dual TEMPO-SYNCED LFOs: fast synced saw chops cutoff with the gate,
         //     slow synced sine drifts the spectral morph.
         s.lfo1.rateHz = 4.0f; s.lfo1.shape = 2; // Saw
-        s.lfo1.depth = 0.6f;  s.lfo1.sync = 1;
+        s.lfo1.depth = 1.0f;  s.lfo1.sync = 1;
         s.lfo1Ext.noteValue = kNote1_8;
         setModSlot(s, 0, kSrcLFO1, kDstAllFltCut, 0.35f, kCurveSCurve);
         s.lfo2.rateHz = 0.5f; s.lfo2.shape = 0; // Sine
-        s.lfo2.depth = 0.5f;  s.lfo2.sync = 1;
+        s.lfo2.depth = 1.0f;  s.lfo2.sync = 1;
         s.lfo2Ext.noteValue = 19; // 1/1 whole-note, very slow drift
         setModSlot(s, 1, kSrcLFO2, kDstAllMorphPos, 0.30f, kCurveSCurve);
         // --- Signature move: the GATE itself drives the spectral morph, so every
@@ -3303,7 +3323,8 @@ std::vector<PresetDef> createAllPresets() {
         s.chorus.mix = 0.35f;
         s.reverbEnabled = 1;
         s.reverbType = 1;          // Hall
-        s.reverb.size = 0.7f; s.reverb.mix = 0.28f; s.reverb.damping = 0.4f;
+        // was size 0.7 damping 0.4: R-220 remap
+        s.reverb.size = 0.0267f; s.reverb.mix = 0.28f; s.reverb.damping = 0.0398f;
         s.global.width = 1.5f;
         s.global.spread = 0.35f;
         s.global.polyphony = 12;
@@ -3356,7 +3377,7 @@ std::vector<PresetDef> createAllPresets() {
         s.tranceGate.noteValue = kNote1_16;
         s.tranceGate.depth = 1.0f;
         s.tranceGate.attackMs = 20.0f;
-        s.tranceGate.releaseMs = 60.0f;
+        s.tranceGate.releaseMs = 50.0f; // was 60: the parameter range is 1..50
         s.tranceGate.stepLevels[0] = 0.0f; s.tranceGate.stepLevels[1] = 0.6f;
         s.tranceGate.stepLevels[2] = 1.0f; s.tranceGate.stepLevels[3] = 0.85f;
         // --- The REAL sidechain: transient detector ducks master volume on every
@@ -3431,7 +3452,7 @@ std::vector<PresetDef> createAllPresets() {
         s.tranceGate.tempoSync = 1;
         s.tranceGate.noteValue = kNote1_16;
         s.tranceGate.depth = 1.0f;
-        s.tranceGate.attackMs = 0.5f;
+        s.tranceGate.attackMs = 1.0f; // was 0.5: the parameter range is 1..20
         s.tranceGate.releaseMs = 4.0f;
         s.tranceGate.retriggerDepth = 0.85f; // the machine-gun character
         float bg[32]{};
@@ -3495,14 +3516,14 @@ std::vector<PresetDef> createAllPresets() {
         s.tranceGate.noteValue = kNote1_8;
         s.tranceGate.depth = 0.75f;
         s.tranceGate.attackMs = 12.0f;
-        s.tranceGate.releaseMs = 55.0f;
+        s.tranceGate.releaseMs = 50.0f; // was 55: the parameter range is 1..50
         s.tranceGate.stepLevels[0] = 1.0f; s.tranceGate.stepLevels[1] = 0.5f;
         s.tranceGate.stepLevels[2] = 0.85f; s.tranceGate.stepLevels[3] = 0.35f;
         s.tranceGate.stepLevels[4] = 1.0f; s.tranceGate.stepLevels[5] = 0.45f;
         s.tranceGate.stepLevels[6] = 0.9f; s.tranceGate.stepLevels[7] = 0.3f;
         // --- Own mod identity: slow free-run sine crossfades saw<->additive shimmer
         s.lfo1.rateHz = 0.2f; s.lfo1.shape = 0; // Sine
-        s.lfo1.depth = 0.5f;  s.lfo1.sync = 0;  // free-run breathing
+        s.lfo1.depth = 1.0f;  s.lfo1.sync = 0;  // free-run breathing
         setModSlot(s, 0, kSrcLFO1, kDstAllMorphPos, 0.30f, kCurveSCurve);
         setVoiceRoute(s, 0, kVSrcVelocity, kVDstMorphPos, 0.30f); // harder bow = more shimmer
         // --- Ensemble: a Flanger widens it into a string-machine (owns Flanger)
@@ -3578,7 +3599,7 @@ std::vector<PresetDef> createAllPresets() {
         // --- chaosMod gurgles the resonance for an ever-shifting texture
         s.chaosMod.rateHz = 0.8f;
         s.chaosMod.type = 1;       // Rossler
-        s.chaosMod.depth = 0.6f;   // must raise depth or the source is silent
+        s.chaosMod.depth = 1.0f;   // full depth (R-183)
         s.chaosMod.sync = 0;
         setModSlot(s, 0, kSrcChaos, kDstAllResonance, 0.4f, kCurveLinear);
         // A slow smoothed random nudges the filter for extra life
@@ -3603,7 +3624,8 @@ std::vector<PresetDef> createAllPresets() {
         s.delay.granularPosSpray = 0.4f;
         s.reverbEnabled = 1;
         s.reverbType = 1;          // Hall
-        s.reverb.size = 0.8f; s.reverb.mix = 0.4f; s.reverb.diffusion = 0.9f;
+        // was size 0.8 damping 0.5: R-220 remap
+        s.reverb.size = 0.0468f; s.reverb.damping = 0.0634f; s.reverb.mix = 0.4f; s.reverb.diffusion = 0.9f;
         s.global.width = 1.4f;
         s.global.masterGain = 1.306f;  // keeps its level now the particle swarm no longer over-spawns
         presets.push_back(std::move(p));
@@ -3649,7 +3671,7 @@ std::vector<PresetDef> createAllPresets() {
         s.ampEnv.attackMs = 12.0f; s.ampEnv.decayMs = 500.0f;
         s.ampEnv.sustain = 0.6f; s.ampEnv.releaseMs = 900.0f;
         // === UNIQUE MOD WEB: chaos->cutoff (x2 scaled), rungler->morph, S&H->res (stepped), random->tilt ===
-        s.chaosMod.rateHz = 2.0f; s.chaosMod.type = 1; s.chaosMod.depth = 0.7f; // Rossler modulator
+        s.chaosMod.rateHz = 2.0f; s.chaosMod.type = 1; s.chaosMod.depth = 1.0f; // Rossler modulator
         setModSlot(s, 0, kSrcChaos, kDstAllFltCut, 0.5f, kCurveExp);
         s.modMatrix.slots[0].scale = 3; // SCALE AXIS x2: pushes the cutoff sweep beyond +-1 for wild motion
         s.rungler.osc1FreqHz = 4.0f; s.rungler.osc2FreqHz = 7.0f;
@@ -3660,7 +3682,7 @@ std::vector<PresetDef> createAllPresets() {
         s.random.rateHz = 1.5f; s.random.smoothness = 0.3f;
         setModSlot(s, 3, kSrcRandom, kDstAllSpecTilt, 0.4f);
         // BYPASS AXIS + LFO square shape: an alternate square-wave gate the user can toggle on
-        s.lfo1.rateHz = 4.0f; s.lfo1.shape = 3; s.lfo1.depth = 0.6f; s.lfo1.sync = 0; // Square
+        s.lfo1.rateHz = 4.0f; s.lfo1.shape = 3; s.lfo1.depth = 1.0f; s.lfo1.sync = 0; // Square
         setModSlot(s, 4, kSrcLFO1, kDstAllFltCut, 0.4f);
         s.modMatrix.slots[4].bypass = 1; // wired but BYPASSED by default
         // Per-voice: velocity bites the waveshaper, mod-env pushes morph on each attack
@@ -3701,8 +3723,8 @@ std::vector<PresetDef> createAllPresets() {
         s.oscA.formantMorph = 0.0f;
         s.oscA.level = 0.8f;
         s.oscB.type = 7; // Formant
-        s.oscB.formantVowel = 3; // O (rounded, dark)
-        s.oscB.formantMorph = 2.0f; // starts mid-morph toward I/U
+        s.oscB.formantVowel = 2; // I (the vowel this preset has always played)
+        s.oscB.formantMorph = 0.0f;
         s.oscB.fineCents = 6.0f; // slight beat between the two throats
         s.oscB.level = 0.6f;
         s.mixer.position = 0.5f;
@@ -3728,7 +3750,7 @@ std::vector<PresetDef> createAllPresets() {
         s.lfo1.rateHz = 0.2f; s.lfo1.shape = 1; s.lfo1.depth = 1.0f; s.lfo1.sync = 0; // Triangle
         setModSlot(s, 0, kSrcLFO1, kDstAllMorphPos, 0.6f, kCurveSCurve); // smoothstep = natural glide
         // LFO2 (sine, very slow) breathes the filter cutoff
-        s.lfo2.rateHz = 0.08f; s.lfo2.shape = 0; s.lfo2.depth = 0.5f; s.lfo2.sync = 0; // Sine
+        s.lfo2.rateHz = 0.08f; s.lfo2.shape = 0; s.lfo2.depth = 1.0f; s.lfo2.sync = 0; // Sine
         setModSlot(s, 1, kSrcLFO2, kDstAllFltCut, 0.3f);
         // PITCH FOLLOWER -> spectral tilt: higher notes get brighter formants automatically
         s.pitchFollower.minHz = 80.0f; s.pitchFollower.maxHz = 1500.0f;
@@ -3762,7 +3784,8 @@ std::vector<PresetDef> createAllPresets() {
         s.chorus.rateHz = 0.4f; s.chorus.depth = 0.5f; s.chorus.voices = 3; s.chorus.mix = 0.35f;
         s.reverbEnabled = 1;
         s.reverbType = 1; // Hall (not Plate)
-        s.reverb.size = 0.7f; s.reverb.mix = 0.28f;
+        // was size 0.7 damping 0.5: R-220 remap
+        s.reverb.size = 0.0267f; s.reverb.damping = 0.0581f; s.reverb.mix = 0.28f;
         s.global.masterGain = 0.85f; // headroom for ring-mod + harmonizer stack
         presets.push_back(std::move(p));
     }
@@ -3809,7 +3832,7 @@ std::vector<PresetDef> createAllPresets() {
         s.transient.sensitivity = 0.6f; s.transient.attackMs = 2.0f; s.transient.decayMs = 60.0f;
         setModSlot(s, 1, kSrcTransient, kDstAllResonance, 0.4f, kCurveExp);
         // Square LFO gates the spectral tilt on/off = a lo-fi tremolo of brightness
-        s.lfo1.rateHz = 6.0f; s.lfo1.shape = 3; s.lfo1.depth = 0.6f; s.lfo1.sync = 0; // Square
+        s.lfo1.rateHz = 6.0f; s.lfo1.shape = 3; s.lfo1.depth = 1.0f; s.lfo1.sync = 0; // Square
         setModSlot(s, 2, kSrcLFO1, kDstAllSpecTilt, 0.35f);
         // Velocity drives crush intensity: play harder = more destruction
         setVoiceRoute(s, 0, kVSrcVelocity, kVDstDistDrive, 0.5f);
@@ -3865,10 +3888,10 @@ std::vector<PresetDef> createAllPresets() {
         s.envFollower.sensitivity = 0.6f; s.envFollower.attackMs = 5.0f; s.envFollower.releaseMs = 80.0f;
         setModSlot(s, 0, kSrcEnvFollower, kDstAllFltCut, 0.4f, kCurveLinear, 20.0f); // smoothMs
         // LFO1 triangle sweeps spectral tilt (slow timbral breathing)
-        s.lfo1.rateHz = 0.5f; s.lfo1.shape = 1; s.lfo1.depth = 0.7f; s.lfo1.sync = 0; // Triangle
+        s.lfo1.rateHz = 0.5f; s.lfo1.shape = 1; s.lfo1.depth = 1.0f; s.lfo1.sync = 0; // Triangle
         setModSlot(s, 1, kSrcLFO1, kDstAllSpecTilt, 0.4f);
         // LFO2 saw ramps resonance for rising 'screaming peak' motion
-        s.lfo2.rateHz = 0.3f; s.lfo2.shape = 2; s.lfo2.depth = 0.6f; s.lfo2.sync = 0; // Saw
+        s.lfo2.rateHz = 0.3f; s.lfo2.shape = 2; s.lfo2.depth = 1.0f; s.lfo2.sync = 0; // Saw
         setModSlot(s, 2, kSrcLFO2, kDstAllResonance, 0.35f);
         // Per-voice: mod-env pushes morph on each note, velocity drives the fold intensity
         setVoiceRoute(s, 0, kVSrcEnv3, kVDstMorphPos, 0.5f);
@@ -3928,10 +3951,10 @@ std::vector<PresetDef> createAllPresets() {
         s.sampleHold.rateHz = 5.0f; s.sampleHold.slewMs = 20.0f;
         setModSlot(s, 1, kSrcSampleHold, kDstAllMorphPos, 0.4f, kCurveStepped);
         // Smooth-random LFO drifts the spectral tilt (the slow 'drift' of the name)
-        s.lfo1.rateHz = 0.2f; s.lfo1.shape = 5; s.lfo1.depth = 0.6f; s.lfo1.sync = 0; // SmoothRandom
+        s.lfo1.rateHz = 0.2f; s.lfo1.shape = 5; s.lfo1.depth = 1.0f; s.lfo1.sync = 0; // SmoothRandom
         setModSlot(s, 2, kSrcLFO1, kDstAllSpecTilt, 0.35f);
         // Chaos modulator wobbles the comb resonance for unstable ringing
-        s.chaosMod.rateHz = 1.0f; s.chaosMod.type = 0; s.chaosMod.depth = 0.4f; // Lorenz
+        s.chaosMod.rateHz = 1.0f; s.chaosMod.type = 0; s.chaosMod.depth = 1.0f; // Lorenz
         setModSlot(s, 3, kSrcChaos, kDstAllResonance, 0.25f, kCurveSCurve);
         // --- Granular delay then a FROZEN reverb hold the drifting cloud ---
         s.delayEnabled = 1;
@@ -4003,9 +4026,9 @@ std::vector<PresetDef> createAllPresets() {
         s.global.width = 1.5f;
         // MOD IDENTITY: two slow free LFOs on non-default SCurve. One breathes the
         // wet mix, the other morphs the A/B wavetable blend - unique to this preset.
-        s.lfo1.rateHz = 0.1f;  s.lfo1.shape = 0; s.lfo1.depth = 0.5f; s.lfo1.sync = 0;
+        s.lfo1.rateHz = 0.1f;  s.lfo1.shape = 0; s.lfo1.depth = 1.0f; s.lfo1.sync = 0;
         setModSlot(s, 0, kSrcLFO1, kDstEffectMix, 0.25f, kCurveSCurve);
-        s.lfo2.rateHz = 0.07f; s.lfo2.shape = 0; s.lfo2.depth = 0.4f; s.lfo2.sync = 0;
+        s.lfo2.rateHz = 0.07f; s.lfo2.shape = 0; s.lfo2.depth = 1.0f; s.lfo2.sync = 0;
         setModSlot(s, 1, kSrcLFO2, kDstAllMorphPos, 0.3f, kCurveSCurve, 80.0f);
         // Velocity + key-track shape brightness per note.
         setVoiceRoute(s, 0, kVSrcVelocity, kVDstFltCut, 0.4f);
@@ -4042,8 +4065,9 @@ std::vector<PresetDef> createAllPresets() {
         // Big MODULATED HALL with pre-delay = the frozen cathedral of ice.
         s.reverbType = 1;            // Hall
         s.reverbEnabled = 1;
-        s.reverb.size = 0.95f; s.reverb.mix = 0.5f;
-        s.reverb.damping = 0.15f; s.reverb.diffusion = 0.9f;
+        // was size 0.95 damping 0.15: R-220 remap
+        s.reverb.size = 0.1199f; s.reverb.mix = 0.5f;
+        s.reverb.damping = 0.0162f; s.reverb.diffusion = 0.9f;
         s.reverb.preDelayMs = 20.0f;
         s.reverb.modRateHz = 0.2f; s.reverb.modDepth = 0.15f; // shimmering tail
         // SPECTRAL delay: an icy FFT smear (Hall+Spectral pairing, unique in the batch)
@@ -4062,12 +4086,12 @@ std::vector<PresetDef> createAllPresets() {
         s.global.width = 1.8f; s.global.spread = 0.4f;
         // MORPH MOTION = FREE LFO: a slow un-synced triangle sweeps the additive morph.
         s.lfo1.rateHz = 0.08f; s.lfo1.shape = 1; // Triangle
-        s.lfo1.depth = 0.6f; s.lfo1.sync = 0;    // free-running (not tempo-synced)
+        s.lfo1.depth = 1.0f; s.lfo1.sync = 0;    // free-running (not tempo-synced)
         setModSlot(s, 0, kSrcLFO1, kDstAllMorphPos, 0.35f, kCurveSCurve);
         // Secondary coverage: a SmoothRandom LFO (skewed via symmetry) drifts resonance,
         // pushed through the scale=x2 axis for a deeper-than-unity sweep no other pad uses.
         s.lfo2.rateHz = 0.04f; s.lfo2.shape = 5; // Smooth Random
-        s.lfo2.depth = 0.3f; s.lfo2.sync = 0;
+        s.lfo2.depth = 1.0f; s.lfo2.sync = 0;
         s.lfo2Ext.symmetry = 0.7f;   // asymmetric wander
         setModSlot(s, 1, kSrcLFO2, kDstAllResonance, 0.2f, kCurveLinear, 100.0f);
         s.modMatrix.slots[1].scale = 3; // x2 depth (the untouched scale axis)
@@ -4155,7 +4179,7 @@ std::vector<PresetDef> createAllPresets() {
         s.ampEnv.bezierAttackCp1X = 0.25f; s.ampEnv.bezierAttackCp1Y = 0.08f;
         s.ampEnv.bezierAttackCp2X = 0.60f; s.ampEnv.bezierAttackCp2Y = 0.35f;
         // MOD IDENTITY: LFO sweeps the spectral morph; S&H steps the tilt (SCurve).
-        s.lfo1.rateHz = 0.1f; s.lfo1.shape = 0; s.lfo1.depth = 0.7f; s.lfo1.sync = 0;
+        s.lfo1.rateHz = 0.1f; s.lfo1.shape = 0; s.lfo1.depth = 1.0f; s.lfo1.sync = 0;
         setModSlot(s, 0, kSrcLFO1, kDstAllMorphPos, 0.5f);
         s.sampleHold.rateHz = 1.5f; s.sampleHold.slewMs = 150.0f;
         setModSlot(s, 1, kSrcSampleHold, kDstAllSpecTilt, 0.35f, kCurveSCurve);
@@ -4168,7 +4192,7 @@ std::vector<PresetDef> createAllPresets() {
         // Subtle SPECTRAL distortion adds crystalline bit/phase character.
         s.distortion.type = 2;       // Spectral
         s.distortion.drive = 0.25f; s.distortion.spectralMode = 0;
-        s.distortion.spectralBits = 8.0f; s.distortion.mix = 0.3f;
+        s.distortion.spectralBits = 1.0f; s.distortion.mix = 0.3f; // bits was 8: the parameter range is 0..1
         // GRANULAR delay throws octave-up shards behind the cloud.
         s.delayEnabled = 1;
         s.delay.type = 3;            // Granular
@@ -4179,7 +4203,8 @@ std::vector<PresetDef> createAllPresets() {
         // HALL for the vast quantum space.
         s.reverbType = 1;            // Hall
         s.reverbEnabled = 1;
-        s.reverb.size = 0.85f; s.reverb.mix = 0.4f; s.reverb.diffusion = 0.85f;
+        // was size 0.85 damping 0.5: R-220 remap
+        s.reverb.size = 0.0625f; s.reverb.damping = 0.0685f; s.reverb.mix = 0.4f; s.reverb.diffusion = 0.85f;
         s.global.width = 1.6f; s.global.spread = 0.4f;
         // Additive partial sum no longer clips (2026-11-13):
         // re-levelled toward the Pads median (-10.2 dBFS), held to a -1 dBFS peak
@@ -4194,6 +4219,7 @@ std::vector<PresetDef> createAllPresets() {
         p.name = "Cathedral Organ";
         p.category = "Pads";
         auto& s = p.state;
+        s.global.masterGain = 0.45f; // T5.3b (R-214): master gain was 1; measured before peak 1.0 in the release test
         s.oscA.type = 0; s.oscA.waveform = 2; s.oscA.level = 0.7f; // Square = organ reed
         s.oscB.type = 0; s.oscB.waveform = 2;
         s.oscB.tuneSemitones = 12.0f; s.oscB.level = 0.4f;         // octave-up rank
@@ -4215,13 +4241,14 @@ std::vector<PresetDef> createAllPresets() {
         s.settings.tuningReferenceHz = 432.0f;
         s.settings.velocityCurve = 3; // Fixed - pipe ranks speak at a constant level, ignoring key velocity
         // MOD IDENTITY: a fast free LFO on Master Volume = the organ TREMULANT (not static).
-        s.lfo1.rateHz = 5.5f; s.lfo1.shape = 0; s.lfo1.depth = 0.5f; s.lfo1.sync = 0;
+        s.lfo1.rateHz = 5.5f; s.lfo1.shape = 0; s.lfo1.depth = 1.0f; s.lfo1.sync = 0;
         setModSlot(s, 0, kSrcLFO1, kDstMasterVol, 0.18f, kCurveSCurve);
         // Enormous PRE-DELAYED HALL = the nave.
         s.reverbType = 1;            // Hall
         s.reverbEnabled = 1;
-        s.reverb.size = 0.9f; s.reverb.mix = 0.4f;
-        s.reverb.damping = 0.35f; s.reverb.diffusion = 0.85f;
+        // was size 0.9 damping 0.35: R-220 remap
+        s.reverb.size = 0.085f; s.reverb.mix = 0.4f;
+        s.reverb.damping = 0.0429f; s.reverb.diffusion = 0.85f;
         s.reverb.preDelayMs = 40.0f; // distance to the far wall
         s.global.width = 1.3f;
         presets.push_back(std::move(p));
@@ -4251,7 +4278,7 @@ std::vector<PresetDef> createAllPresets() {
         s.mixer.mode = 1; // SpectralMorph
         s.mixer.position = 0.35f;
         s.mixer.tilt = -4.0f; // darken the morphed spectrum
-        s.mixer.shift = 12.0f; // small inharmonic freq shift for otherworldliness
+        s.mixer.shift = 0.5f; // no shift: the shipped sound (Spectral Shift had no effect before state v9)
         // FILTER: SVF LP (NON-spectral) kept below max so the corrected filter-env sweep is audible
         s.filter.type = 0; // SVF LP
         s.filter.cutoffHz = 2500.0f; s.filter.resonance = 4.09f;
@@ -4265,16 +4292,17 @@ std::vector<PresetDef> createAllPresets() {
         s.ampEnv.releaseCurve = 0.3f; // lingering exponential tail
         // LFO1: Smooth-Random - the signature unrepeatable wander (skewed by symmetry)
         s.lfo1.rateHz = 0.08f; s.lfo1.shape = 5; // SmoothRandom
-        s.lfo1.depth = 0.8f; s.lfo1.sync = 0;
+        s.lfo1.depth = 1.0f; s.lfo1.sync = 0;
         s.lfo1Ext.symmetry = 0.7f; // asymmetric ramp -> uneven, organic motion
         setModSlot(s, 0, kSrcLFO1, kDstAllFltCut, 0.4f, kCurveSCurve);
         // Chaos-mod source (Rossler) slowly warps the spectral morph position
         s.chaosMod.rateHz = 0.15f; s.chaosMod.type = 1; // Rossler
-        s.chaosMod.depth = 0.4f;
-        setModSlot(s, 1, kSrcChaos, kDstAllMorphPos, 0.35f, kCurveExp, 150.0f);
+        s.chaosMod.depth = 1.0f;
+        // smooth was 150: the parameter range is 0..100
+        setModSlot(s, 1, kSrcChaos, kDstAllMorphPos, 0.35f, kCurveExp, 100.0f);
         // LFO2 (triangle) drifts spectral tilt for slow brightness breathing
         s.lfo2.rateHz = 0.04f; s.lfo2.shape = 1; // Triangle
-        s.lfo2.depth = 0.5f; s.lfo2.sync = 0;
+        s.lfo2.depth = 1.0f; s.lfo2.sync = 0;
         setModSlot(s, 2, kSrcLFO2, kDstAllSpecTilt, 0.3f);
         // ModEnv -> spectral tilt: a slow onset bloom of brightness per note
         s.modEnv.attackMs = 800.0f; s.modEnv.decayMs = 2000.0f;
@@ -4287,8 +4315,9 @@ std::vector<PresetDef> createAllPresets() {
         // crushed wash like Spectral Drift.
         // Reverb: modulated HALL with pre-delay for a huge, gently-swirling space (NOT frozen)
         s.reverbEnabled = 1; s.reverbType = 1; // Hall
-        s.reverb.size = 0.9f; s.reverb.mix = 0.5f;
-        s.reverb.damping = 0.25f; s.reverb.diffusion = 0.9f;
+        // was size 0.9 damping 0.25: R-220 remap
+        s.reverb.size = 0.085f; s.reverb.mix = 0.5f;
+        s.reverb.damping = 0.0265f; s.reverb.diffusion = 0.9f;
         s.reverb.preDelayMs = 40.0f;
         s.reverb.modRateHz = 0.3f; s.reverb.modDepth = 0.25f; // chorused tail
         s.global.width = 1.5f; s.global.spread = 0.4f;
@@ -4332,7 +4361,7 @@ std::vector<PresetDef> createAllPresets() {
         s.distortion.character = 0.5f; s.distortion.mix = 1.0f;
         // Mod identity: one slow, symmetry-skewed triangle LFO breathing the morph position
         s.lfo1.rateHz = 0.12f; s.lfo1.shape = 1; // Triangle
-        s.lfo1.depth = 0.5f; s.lfo1.sync = 0;
+        s.lfo1.depth = 1.0f; s.lfo1.sync = 0;
         s.lfo1Ext.symmetry = 0.3f; // ramp-down bias -> lazy backwards sway
         setModSlot(s, 0, kSrcLFO1, kDstAllMorphPos, 0.3f);
         // Key-track -> filter cutoff so high notes stay present, low notes stay warm
@@ -4388,7 +4417,8 @@ std::vector<PresetDef> createAllPresets() {
         // MORPH MOTION = SMOOTHED RANDOM: a slow, heavily-interpolated Random source
         // wanders the additive<->triangle morph (the batch's smoothed-Random member).
         s.random.rateHz = 0.3f; s.random.smoothness = 0.9f; // slow, interpolated wander
-        setModSlot(s, 0, kSrcRandom, kDstAllMorphPos, 0.4f, kCurveLinear, 150.0f);
+        // smooth was 150: the parameter range is 0..100
+        setModSlot(s, 0, kSrcRandom, kDstAllMorphPos, 0.4f, kCurveLinear, 100.0f);
         // ModEnv slowly ramps the spectrum open across the note's life (not the morph)
         s.modEnv.attackMs = 1500.0f; s.modEnv.decayMs = 2000.0f;
         s.modEnv.sustain = 0.6f; s.modEnv.releaseMs = 2500.0f;
@@ -4430,7 +4460,7 @@ std::vector<PresetDef> createAllPresets() {
         s.oscA.type = 7; // Formant
         s.oscA.formantVowel = 0; s.oscA.formantMorph = 0.3f; s.oscA.level = 0.7f;
         s.oscB.type = 7; // Formant
-        s.oscB.formantVowel = 4; s.oscB.formantMorph = 3.5f; // toward U
+        s.oscB.formantVowel = 3; s.oscB.formantMorph = 0.5f; // O, halfway toward U
         s.oscB.fineCents = 5.0f; s.oscB.level = 0.55f;
         // Mixer sits at 0.5 so the LFO->MorphPos sweep crossfades A<->B = vowel morph ("talking")
         s.mixer.position = 0.5f;
@@ -4447,7 +4477,7 @@ std::vector<PresetDef> createAllPresets() {
         s.lfo1Ext.symmetry = 0.35f; // uneven vowel sweep -> more speech-like
         setModSlot(s, 0, kSrcLFO1, kDstAllMorphPos, 0.6f, kCurveSCurve);
         s.lfo2.rateHz = 0.09f; s.lfo2.shape = 1; // Triangle
-        s.lfo2.depth = 0.5f; s.lfo2.sync = 0;
+        s.lfo2.depth = 1.0f; s.lfo2.sync = 0;
         setModSlot(s, 1, kSrcLFO2, kDstAllFltCut, 0.3f); // shifts the formant-filter centre
         // DISTORTION: note-tracked Ring Modulator for a subtle metallic vocal edge
         s.distortion.type = 6; // RingModulator
@@ -4465,7 +4495,8 @@ std::vector<PresetDef> createAllPresets() {
         s.delay.spectralDiffusion = 0.5f; s.delay.spectralWidth = 0.6f;
         // Moderate Hall
         s.reverbEnabled = 1; s.reverbType = 1; // Hall
-        s.reverb.size = 0.7f; s.reverb.mix = 0.32f; s.reverb.damping = 0.45f;
+        // was size 0.7 damping 0.45: R-220 remap
+        s.reverb.size = 0.0267f; s.reverb.mix = 0.32f; s.reverb.damping = 0.0484f;
         s.global.width = 1.3f; s.global.spread = 0.4f;
         presets.push_back(std::move(p));
     }
@@ -4478,7 +4509,7 @@ std::vector<PresetDef> createAllPresets() {
         auto& s = p.state;
         // OSC A: Formant on vowel E (bright, forward), OSC B: PolyBLEP triangle body
         s.oscA.type = 7; // Formant
-        s.oscA.formantVowel = 1; s.oscA.formantMorph = 1.0f; s.oscA.level = 0.75f;
+        s.oscA.formantVowel = 1; s.oscA.formantMorph = 0.0f; s.oscA.level = 0.75f;
         s.oscB.type = 0; s.oscB.waveform = 4; // Triangle
         s.oscB.level = 0.3f;
         s.mixer.position = 0.25f; // mostly the formant voice
@@ -4505,15 +4536,16 @@ std::vector<PresetDef> createAllPresets() {
         s.harmonizer.voiceDetuneCents[2] = 4.0f; s.harmonizer.voiceDetuneCents[3] = -4.0f;
         // Mod identity: a gentle triangle shimmer on cutoff + a fast modEnv pitch-scoop into each note
         s.lfo2.rateHz = 0.07f; s.lfo2.shape = 1; // Triangle
-        s.lfo2.depth = 0.4f; s.lfo2.sync = 0;
+        s.lfo2.depth = 1.0f; s.lfo2.sync = 0;
         setModSlot(s, 0, kSrcLFO2, kDstAllFltCut, 0.25f, kCurveSCurve);
         s.modEnv.attackMs = 5.0f; s.modEnv.decayMs = 250.0f;
         s.modEnv.sustain = 0.0f; s.modEnv.releaseMs = 100.0f; // quick blip
         setVoiceRoute(s, 0, kVSrcEnv3, kVDstOscAPitch, 0.1f); // vocal pitch-scoop onset
         // Reverb: FROZEN Hall - the infinite crystalline cathedral tail
         s.reverbEnabled = 1; s.reverbType = 1; // Hall
-        s.reverb.size = 0.8f; s.reverb.mix = 0.38f;
-        s.reverb.damping = 0.3f; s.reverb.diffusion = 0.88f;
+        // was size 0.8 damping 0.3: R-220 remap
+        s.reverb.size = 0.0468f; s.reverb.mix = 0.38f;
+        s.reverb.damping = 0.0281f; s.reverb.diffusion = 0.88f;
         s.reverb.preDelayMs = 30.0f;
         s.reverb.freeze = 1; // holds the wash indefinitely for a suspended cathedral
         s.global.width = 1.6f; s.global.spread = 0.35f;
@@ -4562,11 +4594,12 @@ std::vector<PresetDef> createAllPresets() {
         s.delay.timeMs = 450.0f; s.delay.feedback = 0.3f; s.delay.mix = 0.22f;
         s.delay.sync = 0;
         s.delay.granularSizeMs = 140.0f; s.delay.granularDensity = 14.0f;
-        s.delay.granularTexture = 0.3f; s.delay.granularWidth = 1.2f;
+        s.delay.granularTexture = 0.3f; s.delay.granularWidth = 1.0f; // width was 1.2: the parameter range is 0..1
         // --- Huge diffuse HALL with pre-delay for the sense of distance
         s.reverbEnabled = 1; s.reverbType = 1;     // Hall
-        s.reverb.size = 0.95f; s.reverb.mix = 0.45f;
-        s.reverb.damping = 0.7f; s.reverb.diffusion = 0.85f;
+        // was size 0.95 damping 0.7: R-220 remap
+        s.reverb.size = 0.1199f; s.reverb.mix = 0.45f;
+        s.reverb.damping = 0.1623f; s.reverb.diffusion = 0.85f;
         s.reverb.preDelayMs = 40.0f;               // reflections arrive before the tail
         s.global.width = 1.4f; s.global.spread = 0.2f;
         presets.push_back(std::move(p));
@@ -4592,7 +4625,7 @@ std::vector<PresetDef> createAllPresets() {
         s.mixer.mode = 1;                          // SpectralMorph (not plain crossfade)
         s.mixer.position = 0.4f;                   // base blend (keyTrack sweeps it)
         s.mixer.tilt = 3.0f;                       // extra spectral brightness in the morph
-        s.mixer.shift = 0.15f;                     // subtle inharmonic freq shift
+        s.mixer.shift = 0.5f;                      // no shift: the shipped sound (no effect before state v9)
         // --- SVF Hi-Shelf filter lifts the very top for that solar sparkle
         s.filter.type = 10;                        // SVF Hi Shelf
         s.filter.cutoffHz = 3500.0f; s.filter.resonance = 2.96f;
@@ -4629,7 +4662,8 @@ std::vector<PresetDef> createAllPresets() {
         s.delay.pingPongModDepth = 0.15f;
         s.delay.pingPongModRateHz = 0.3f;
         s.reverbEnabled = 1; s.reverbType = 1;     // Hall
-        s.reverb.size = 0.85f; s.reverb.mix = 0.3f; s.reverb.damping = 0.35f;
+        // was size 0.85 damping 0.35: R-220 remap
+        s.reverb.size = 0.0625f; s.reverb.mix = 0.3f; s.reverb.damping = 0.0383f;
         s.reverb.preDelayMs = 20.0f;
         s.reverb.modRateHz = 0.3f; s.reverb.modDepth = 0.15f; // chorused tail
         s.global.width = 1.5f; s.global.spread = 0.3f;
@@ -4729,7 +4763,7 @@ std::vector<PresetDef> createAllPresets() {
         // --- MOD IDENTITY: the dedicated chaos LFO wanders the bandpass, a smoothed random
         //     source jitters resonance. Stepped curve gives an eerie quantized lurch.
         s.chaosMod.rateHz = 0.3f; s.chaosMod.type = 1; // Rossler attractor
-        s.chaosMod.depth = 0.6f; s.chaosMod.sync = 0;  // raised from default 0 so it's audible
+        s.chaosMod.depth = 1.0f; s.chaosMod.sync = 0;  // full depth (R-183)
         s.random.rateHz = 0.5f; s.random.smoothness = 0.6f;
         // Both amounts kept moderate: a wide stepped cutoff sweep over a narrow
         // resonant band lands on chaotic energy only intermittently, which reads
@@ -4745,8 +4779,9 @@ std::vector<PresetDef> createAllPresets() {
         // --- Big diffuse HALL. Wet kept below the original 0.4 so the dry chaos
         //     body still carries the patch rather than dissolving into the tail.
         s.reverbEnabled = 1; s.reverbType = 1;     // Hall
-        s.reverb.size = 0.85f; s.reverb.mix = 0.3f;
-        s.reverb.damping = 0.5f; s.reverb.diffusion = 0.8f;
+        // was size 0.85 damping 0.5: R-220 remap
+        s.reverb.size = 0.0625f; s.reverb.mix = 0.3f;
+        s.reverb.damping = 0.0685f; s.reverb.diffusion = 0.8f;
         s.global.width = 1.3f; s.global.spread = 0.4f;
         s.global.masterGain = 2.0f;                // chaos+ringmod chain still loses level
         presets.push_back(std::move(p));
@@ -4810,10 +4845,11 @@ std::vector<PresetDef> createAllPresets() {
         p.name = "Vox Machina";
         p.category = "Leads";
         auto& s = p.state;
+        s.global.masterGain = 0.2f; // T5.3b (R-214): master gain was 1; measured before peak 1.0, 6.2 % above 0.85 in the release test
         // --- Oscillator: pure Formant engine, single voice (OscB muted) ---
         s.oscA.type = 7;              // Formant
-        s.oscA.formantVowel = 1;      // base vowel 'E'
-        s.oscA.formantMorph = 2.2f;   // morph toward 'I' -> bright "eee" vocal color
+        s.oscA.formantVowel = 2;      // base vowel 'I'
+        s.oscA.formantMorph = 0.2f;   // nudged toward 'O' -> bright "eee" vocal color
         s.oscA.level = 0.85f;
         s.oscB.level = 0.0f;          // formant osc stands alone
         s.mixer.position = 0.0f;      // OscA only
@@ -5408,7 +5444,7 @@ std::vector<PresetDef> createAllPresets() {
         setVoiceRoute(s, 0, kVSrcEnv3,       kVDstOscAPitch, 0.35f); // pitch-blip
         setVoiceRoute(s, 1, kVSrcAftertouch, kVDstMorphPos,  0.5f);  // press = morph
         // Slow free LFO breathes the spectral tilt (unique -> SpecTilt gesture).
-        s.lfo1.rateHz = 0.25f; s.lfo1.shape = 0; s.lfo1.depth = 0.6f; s.lfo1.sync = 0;
+        s.lfo1.rateHz = 0.25f; s.lfo1.shape = 0; s.lfo1.depth = 1.0f; s.lfo1.sync = 0;
         setModSlot(s, 0, kSrcLFO1, kDstAllSpecTilt, 0.4f, kCurveLinear);
         // Tape delay + Hall reverb = the spacious slide tail (identity FX).
         s.delayEnabled = 1; s.delay.type = 1; // Tape
@@ -5416,7 +5452,8 @@ std::vector<PresetDef> createAllPresets() {
         s.delay.timeMs = 380.0f; s.delay.feedback = 0.27f; s.delay.mix = 0.2f;
         s.delay.tapeSaturation = 0.4f;
         s.reverbEnabled = 1; s.reverbType = 1; // Hall
-        s.reverb.size = 0.75f; s.reverb.mix = 0.3f; s.reverb.damping = 0.35f;
+        // was size 0.75 damping 0.35: R-220 remap
+        s.reverb.size = 0.0353f; s.reverb.mix = 0.3f; s.reverb.damping = 0.0334f;
         s.global.voiceMode = 1; // Mono
         s.monoMode.priority = 0; // Last-note
         s.monoMode.legato = 1; s.monoMode.portamentoTimeMs = 80.0f; // long glide
@@ -5450,7 +5487,7 @@ std::vector<PresetDef> createAllPresets() {
         s.filterEnv.sustain = 0.3f; s.filterEnv.releaseMs = 200.0f;
         // 3 Hz sine LFO sweeps the BANDPASS cutoff = nasal wah vibrato.
         // Deliberately DIFFERENT wiring from PWM Sweep (->FltCut, not ->Morph).
-        s.lfo1.rateHz = 3.0f; s.lfo1.shape = 0; s.lfo1.depth = 0.5f; s.lfo1.sync = 0;
+        s.lfo1.rateHz = 3.0f; s.lfo1.shape = 0; s.lfo1.depth = 1.0f; s.lfo1.sync = 0;
         setModSlot(s, 0, kSrcLFO1, kDstAllFltCut, 0.4f, kCurveExp);
         // Velocity opens resonance for dynamic squelch under harder playing.
         setVoiceRoute(s, 0, kVSrcVelocity, kVDstFltRes, 0.45f);
@@ -5498,7 +5535,7 @@ std::vector<PresetDef> createAllPresets() {
         // Velocity pushes the fold drive -> harder = dirtier (unique route).
         setVoiceRoute(s, 0, kVSrcVelocity, kVDstDistDrive, 0.4f);
         // Slow LFO2 nudges the auto-wah base for slow evolving motion.
-        s.lfo2.rateHz = 0.5f; s.lfo2.shape = 1; s.lfo2.depth = 0.4f; s.lfo2.sync = 0;
+        s.lfo2.rateHz = 0.5f; s.lfo2.shape = 1; s.lfo2.depth = 1.0f; s.lfo2.sync = 0;
         setModSlot(s, 0, kSrcLFO2, kDstAllFltCut, 0.25f, kCurveLinear);
         // Chorus replaces the old shared phaser -> lush stereo widening.
         s.modulationType = 3; // Chorus
@@ -5550,7 +5587,7 @@ std::vector<PresetDef> createAllPresets() {
             // chaosMod source: an independent Lorenz LFO, raised from its silent default
             s.chaosMod.type = 0;          // Lorenz
             s.chaosMod.rateHz = 0.3f;     // slow drift
-            s.chaosMod.depth = 0.6f;      // MUST raise — default 0 = silent source
+            s.chaosMod.depth = 1.0f;      // full depth (R-183)
             s.chaosMod.sync = 0;
 
             // Synced LFO1 for a tempo-locked resonance shimmer under the chaos
@@ -5626,7 +5663,7 @@ std::vector<PresetDef> createAllPresets() {
             s.phaser.centerFreqHz = 800.0f;
 
             s.global.voiceMode = 1;        // Mono
-            s.global.masterGain = 0.9f;
+            s.global.masterGain = 0.5f; // T5.3b (R-214): master gain was 0.9; measured before peak 0.9983 in the release test
             presets.push_back(std::move(p));
         }
 
@@ -5793,6 +5830,7 @@ std::vector<PresetDef> createAllPresets() {
         p.name = "Vocal Bass";
         p.category = "Bass";
         auto& s = p.state;
+        s.global.masterGain = 0.4f; // T5.3b (R-214): master gain was 1; measured before peak 1.0, 4.5 % of samples above 0.85 in the release test
         // OSC A: Formant engine on vowel 'O' — the nasal vowel body of the bass
         s.oscA.type = 7;              // Formant
         s.oscA.formantVowel = 3;      // O
@@ -5917,7 +5955,7 @@ std::vector<PresetDef> createAllPresets() {
         s.ampEnv.sustain = 0.65f; s.ampEnv.releaseMs = 120.0f;
         s.global.voiceMode = 1;
         // Mod identity #1: Chaos LFO wobbles the peak centre = unstable analog 'growl'
-        s.chaosMod.depth = 0.5f;     // raise it — chaosMod is silent by default
+        s.chaosMod.depth = 1.0f;     // raise it — chaosMod is silent by default
         s.chaosMod.rateHz = 3.0f;    // slow-ish organic wobble
         setModSlot(s, 0, kSrcChaos, kDstAllFltCut, 0.35f, kCurveExp, 15.0f);
         // Mod identity #2: velocity drives fold depth = play harder, fold harder
@@ -5984,6 +6022,7 @@ std::vector<PresetDef> createAllPresets() {
         p.name = "Swarm Sub";
         p.category = "Bass";
         auto& s = p.state;
+        s.global.masterGain = 0.55f; // T5.3b (R-214): master gain was 1; measured before peak 0.9988 in the release test
         // OSC A: Particle engine in BURST spawn mode = rhythmic grain clusters, not a smear
         s.oscA.type = 6;                 // Particle
         s.oscA.particleSpawnMode = 2;    // Burst (own this: 0=Regular,1=Random,2=Burst)
@@ -6175,7 +6214,7 @@ std::vector<PresetDef> createAllPresets() {
         s.ampEnv.sustain = 0.7f; s.ampEnv.releaseMs = 100.0f;
         // IDENTITY gesture: a chaotic Lorenz LFO wobbles resonance (scale x2) => squelch that never repeats
         s.chaosMod.rateHz = 0.8f; s.chaosMod.type = 0;   // Lorenz
-        s.chaosMod.depth = 0.6f;                         // must raise from 0 or the source is silent
+        s.chaosMod.depth = 1.0f;                         // must raise from 0 or the source is silent
         setModSlot(s, 0, kSrcChaos, kDstAllResonance, 0.4f, kCurveSCurve);
         s.modMatrix.slots[0].scale = 3;                  // x2 => exercise the untouched depth-scale axis
         // Aftertouch tips the wah's morph/centre for performable expression
@@ -6271,7 +6310,7 @@ std::vector<PresetDef> createAllPresets() {
         s.harmonizer.voiceLevelDb[1] = -6.0f;
         // LFO1: very slow, free-running, long fade-in -> Effect Mix so the whole
         // wet bed (shimmer + reverb) swells in and breathes. SCurve for smoothness.
-        s.lfo1.rateHz = 0.1f; s.lfo1.shape = 0; s.lfo1.depth = 0.8f; s.lfo1.sync = 0;
+        s.lfo1.rateHz = 0.1f; s.lfo1.shape = 0; s.lfo1.depth = 1.0f; s.lfo1.sync = 0;
         s.lfo1Ext.fadeInMs = 3000.0f;      // shimmer fades up over 3 s
         s.modMatrix.slots[0].source = 1;   // LFO1
         s.modMatrix.slots[0].dest   = 3;   // Effect Mix (breathing wet)
@@ -6280,7 +6319,7 @@ std::vector<PresetDef> createAllPresets() {
         s.modMatrix.slots[0].smoothMs = 20.0f;
         s.modMatrix.slots[0].scale  = 2;   // x1
         // LFO2: independent slow drift of the A/B morph so timbre never sits still
-        s.lfo2.rateHz = 0.13f; s.lfo2.shape = 0; s.lfo2.depth = 0.7f; s.lfo2.sync = 0;
+        s.lfo2.rateHz = 0.13f; s.lfo2.shape = 0; s.lfo2.depth = 1.0f; s.lfo2.sync = 0;
         s.modMatrix.slots[1].source = 2;   // LFO2
         s.modMatrix.slots[1].dest   = 5;   // All-voice Morph Position
         s.modMatrix.slots[1].amount = 0.3f;
@@ -6293,8 +6332,9 @@ std::vector<PresetDef> createAllPresets() {
         // REVERB: big FROZEN, MODULATED Hall - the signature. Dry voice (mix 0.45)
         // stays fully audible even if the freeze holds the tail.
         s.reverbEnabled = 1; s.reverbType = 1;    // Hall
-        s.reverb.size = 0.9f; s.reverb.mix = 0.45f;
-        s.reverb.damping = 0.2f; s.reverb.diffusion = 0.9f;
+        // was size 0.9 damping 0.2: R-220 remap
+        s.reverb.size = 0.085f; s.reverb.mix = 0.45f;
+        s.reverb.damping = 0.0197f; s.reverb.diffusion = 0.9f;
         s.reverb.preDelayMs = 40.0f;
         s.reverb.modRateHz = 0.2f; s.reverb.modDepth = 0.25f;
         s.reverb.freeze = 1;                       // frozen shimmer bed
@@ -6337,7 +6377,7 @@ std::vector<PresetDef> createAllPresets() {
         s.ampEnv.sustain = 0.8f; s.ampEnv.releaseMs = 1800.0f;
         // LFO1: Sample & Hold, free, quantized -> steps the band-pass cutoff.
         // scale x2 widens the sweep (mod-matrix scale axis, otherwise unused).
-        s.lfo1.rateHz = 3.0f; s.lfo1.shape = 4; s.lfo1.depth = 0.7f; s.lfo1.sync = 0;
+        s.lfo1.rateHz = 3.0f; s.lfo1.shape = 4; s.lfo1.depth = 1.0f; s.lfo1.sync = 0;
         s.lfo1Ext.quantizeSteps = 6;               // stair-stepped motion
         s.modMatrix.slots[0].source = 1;           // LFO1 (S&H)
         s.modMatrix.slots[0].dest   = 4;           // All-voice Filter Cutoff
@@ -6420,7 +6460,7 @@ std::vector<PresetDef> createAllPresets() {
         s.modMatrix.slots[1].curve  = kCurveStepped;    // 3
         // Secondary stepped motion: glacial SmoothRandom LFO, quantized -> All-voice resonance,
         // Stepped curve, x2 scale so the comb feedback pulses in discrete stages.
-        s.lfo1.rateHz = 0.08f; s.lfo1.shape = 5; s.lfo1.depth = 0.6f; s.lfo1.sync = 0;
+        s.lfo1.rateHz = 0.08f; s.lfo1.shape = 5; s.lfo1.depth = 1.0f; s.lfo1.sync = 0;
         s.lfo1Ext.quantizeSteps = 8;
         s.modMatrix.slots[2].source = kSrcLFO1;         // 1 (SmoothRandom)
         s.modMatrix.slots[2].dest   = kDstAllResonance; // 8
@@ -6483,7 +6523,7 @@ std::vector<PresetDef> createAllPresets() {
         s.ampEnv.attackMs = 250.0f; s.ampEnv.decayMs = 700.0f;
         s.ampEnv.sustain = 0.65f; s.ampEnv.releaseMs = 1400.0f;
         // LFO1: slow triangle with a 90-deg phase offset -> notch cutoff wobble
-        s.lfo1.rateHz = 0.25f; s.lfo1.shape = 1; s.lfo1.depth = 0.6f; s.lfo1.sync = 0;
+        s.lfo1.rateHz = 0.25f; s.lfo1.shape = 1; s.lfo1.depth = 1.0f; s.lfo1.sync = 0;
         s.lfo1Ext.phaseOffset = 90.0f;
         s.modMatrix.slots[0].source = 1;           // LFO1
         s.modMatrix.slots[0].dest   = 4;           // All-voice Filter Cutoff (notch freq)
@@ -6492,7 +6532,7 @@ std::vector<PresetDef> createAllPresets() {
         s.modMatrix.slots[0].scale  = 3;           // x2 for a wide wobble
         // Chaos LFO (Rossler) -> resonance: organic pitch-of-wow instability
         s.chaosMod.rateHz = 0.3f; s.chaosMod.type = 1;  // Rossler
-        s.chaosMod.depth = 0.4f; s.chaosMod.sync = 0;
+        s.chaosMod.depth = 1.0f; s.chaosMod.sync = 0;
         s.modMatrix.slots[1].source = 9;           // Chaos
         s.modMatrix.slots[1].dest   = 8;           // All-voice Resonance
         s.modMatrix.slots[1].amount = 0.3f;
@@ -6524,9 +6564,9 @@ std::vector<PresetDef> createAllPresets() {
         // OSC A + B: two Formant engines on OPPOSITE CLOSE vowels. This trio's bright
         // member: 'I' (ee) against 'U' (oo) - distinct from Formant Sea (A/O) and
         // Vowel Cloud (E/O). Morphing the mixer position makes the vowel genuinely shift.
-        s.oscA.type = 7; s.oscA.formantVowel = 2; s.oscA.formantMorph = 2.0f; // 'I'
+        s.oscA.type = 7; s.oscA.formantVowel = 2; s.oscA.formantMorph = 0.0f; // 'I'
         s.oscA.level = 0.65f;
-        s.oscB.type = 7; s.oscB.formantVowel = 4; s.oscB.formantMorph = 3.8f; // 'U'
+        s.oscB.type = 7; s.oscB.formantVowel = 3; s.oscB.formantMorph = 0.8f; // 'O', most of the way to 'U'
         s.oscB.level = 0.65f;
         // SpectralMorph mixer = FFT interpolation A<->B = a real vowel morph
         s.mixer.mode = 1;                          // SpectralMorph
@@ -6551,7 +6591,7 @@ std::vector<PresetDef> createAllPresets() {
         s.harmonizer.voiceInterval[1] = -5; s.harmonizer.voicePan[1] = 0.5f;
         // LFO1: slow, free, UNIPOLAR (full 0..1 sweep), long fade-in -> Morph Position.
         // Unipolar makes it sweep the whole I->U vowel range in one direction.
-        s.lfo1.rateHz = 0.12f; s.lfo1.shape = 0; s.lfo1.depth = 0.9f; s.lfo1.sync = 0;
+        s.lfo1.rateHz = 0.12f; s.lfo1.shape = 0; s.lfo1.depth = 1.0f; s.lfo1.sync = 0;
         s.lfo1Ext.unipolar = 1; s.lfo1Ext.fadeInMs = 2000.0f;
         s.modMatrix.slots[0].source = 1;           // LFO1
         s.modMatrix.slots[0].dest   = 5;           // All-voice Morph Position (vowel morph)
@@ -6578,7 +6618,8 @@ std::vector<PresetDef> createAllPresets() {
         s.delay.granularFreeze = 1;                // frozen grain cloud
         // REVERB: large modulated Hall
         s.reverbEnabled = 1; s.reverbType = 1;     // Hall
-        s.reverb.size = 0.85f; s.reverb.mix = 0.4f; s.reverb.damping = 0.25f;
+        // was size 0.85 damping 0.25: R-220 remap
+        s.reverb.size = 0.0625f; s.reverb.mix = 0.4f; s.reverb.damping = 0.0236f;
         s.reverb.diffusion = 0.85f; s.reverb.preDelayMs = 30.0f;
         s.reverb.modRateHz = 0.3f; s.reverb.modDepth = 0.15f;
         s.global.width = 1.6f; s.global.spread = 0.45f;
@@ -6633,7 +6674,8 @@ std::vector<PresetDef> createAllPresets() {
         // --- Space: big diffuse Hall with pre-delay (no delay line) ---
         s.reverbEnabled = 1;
         s.reverbType = 1;             // Hall
-        s.reverb.size = 0.75f;
+        // was size 0.75 damping 0.5: R-220 remap
+        s.reverb.size = 0.0353f; s.reverb.damping = 0.0601f;
         s.reverb.mix = 0.32f;
         s.reverb.preDelayMs = 40.0f;  // air before the wash
         s.reverb.diffusion = 0.85f;
@@ -6679,7 +6721,7 @@ std::vector<PresetDef> createAllPresets() {
         // === MOD IDENTITY: stepped-random LFO re-tunes the ping pitch (arpeggiated droplets) ===
         s.lfo1.rateHz = 0.9f;          // slow wander
         s.lfo1.shape = 5;              // SmoothRandom
-        s.lfo1.depth = 0.7f;
+        s.lfo1.depth = 1.0f;
         s.lfo1.sync = 0;               // free-running
         s.lfo1Ext.quantizeSteps = 5;   // snap to 5 discrete pitches -> pentatonic-ish pings
         s.lfo1Ext.phaseOffset = 90.0f; // stagger so L/R droplets feel offset
@@ -6739,13 +6781,13 @@ std::vector<PresetDef> createAllPresets() {
         // === MOD IDENTITY: two out-of-phase slow LFOs evolve morph position and spectral tilt ===
         s.lfo1.rateHz = 0.08f;         // ultra-slow morph drift
         s.lfo1.shape = 0;              // Sine
-        s.lfo1.depth = 0.8f;
+        s.lfo1.depth = 1.0f;
         s.lfo1.sync = 0;
         s.lfo1Ext.symmetry = 0.7f;     // skew the sine -> asymmetric evolution
         setModSlot(s, 0, 1, 5, 0.6f, 2); // LFO1 -> AllMorphPos, SCurve
         s.lfo2.rateHz = 0.05f;         // even slower, different period (never re-syncs)
         s.lfo2.shape = 1;              // Triangle
-        s.lfo2.depth = 0.6f;
+        s.lfo2.depth = 1.0f;
         s.lfo2.sync = 0;
         setModSlot(s, 1, 2, 7, 0.5f, 2); // LFO2 -> AllSpecTilt, SCurve
         // --- Spectral delay smear + modulated Hall ---
@@ -6758,7 +6800,8 @@ std::vector<PresetDef> createAllPresets() {
         s.delay.spectralTilt = 0.3f;
         s.reverbEnabled = 1;
         s.reverbType = 1;             // Hall
-        s.reverb.size = 0.7f;
+        // was size 0.7 damping 0.5: R-220 remap
+        s.reverb.size = 0.0267f; s.reverb.damping = 0.0581f;
         s.reverb.mix = 0.3f;
         s.reverb.modDepth = 0.3f;     // chorused reverb tail -> shimmer
         s.reverb.modRateHz = 0.4f;
@@ -6798,20 +6841,20 @@ std::vector<PresetDef> createAllPresets() {
         // === MOD IDENTITY: LFO with SCALE=x4 drives EXTREME resonance sweeps ===
         s.lfo1.rateHz = 0.2f;
         s.lfo1.shape = 1;              // Triangle
-        s.lfo1.depth = 0.8f;
+        s.lfo1.depth = 1.0f;
         s.lfo1.sync = 0;
         setModSlot(s, 0, 1, 8, 0.7f, 2); // LFO1 -> AllResonance, SCurve
         s.modMatrix.slots[0].scale = 4;  // x4 - pushes amount past +/-1 -> screaming resonance
         // Second LFO sweeps the band center so the shriek moves in pitch
         s.lfo2.rateHz = 0.13f;
         s.lfo2.shape = 0;              // Sine
-        s.lfo2.depth = 0.7f;
+        s.lfo2.depth = 1.0f;
         s.lfo2.sync = 0;
         setModSlot(s, 1, 2, 4, 0.5f);    // LFO2 -> AllFltCut
         // Third gesture: the dedicated chaos-mod LFO warps the morph blend
         s.chaosMod.rateHz = 0.6f;
         s.chaosMod.type = 0;           // Lorenz
-        s.chaosMod.depth = 0.5f;       // raise from default 0 so it is audible as a source
+        s.chaosMod.depth = 1.0f;       // raise from default 0 so it is audible as a source
         setModSlot(s, 2, 9, 5, 0.4f);  // Chaos -> AllMorphPos
         // --- FX: slow phaser + tape-wow delay into a plate ---
         s.modulationType = 1;          // Phaser
@@ -6891,7 +6934,8 @@ std::vector<PresetDef> createAllPresets() {
         s.delay.granularPitch = 12.0f;   // octave-up shimmer grains
         s.reverbEnabled = 1;
         s.reverbType = 1;             // Hall
-        s.reverb.size = 0.85f;
+        // was size 0.85 damping 0.5: R-220 remap
+        s.reverb.size = 0.0625f; s.reverb.damping = 0.0685f;
         s.reverb.mix = 0.4f;
         s.reverb.diffusion = 0.9f;
         s.global.width = 1.7f;
@@ -6925,7 +6969,7 @@ std::vector<PresetDef> createAllPresets() {
         s.ampEnv.attackCurve = 0.4f;                    // gentle slow-start swell
         // Slow free LFO -> spectral tilt, SCurve so the sweep eases at the extremes.
         // This is the "evolves after the tail" signature gesture.
-        s.lfo1.rateHz = 0.09f; s.lfo1.shape = 0; s.lfo1.depth = 0.8f; s.lfo1.sync = 0;
+        s.lfo1.rateHz = 0.09f; s.lfo1.shape = 0; s.lfo1.depth = 1.0f; s.lfo1.sync = 0;
         setModSlot(s, 0, 1 /*LFO1*/, 7 /*AllSpecTilt*/, 0.7f, 2 /*SCurve*/);
         // Smoothed Random -> morph position: organic, never-repeating shimmer drift.
         s.random.rateHz = 0.5f; s.random.smoothness = 0.9f;
@@ -6972,7 +7016,7 @@ std::vector<PresetDef> createAllPresets() {
         s.ampEnv.sustain = 0.7f; s.ampEnv.releaseMs = 1400.0f;
         // Global LFO slides the bandpass window so the grain cloud appears to churn
         // (the "LFO on the grains" gesture - AllFltCut is the reachable dest).
-        s.lfo1.rateHz = 0.35f; s.lfo1.shape = 1; s.lfo1.depth = 0.8f; s.lfo1.sync = 0;
+        s.lfo1.rateHz = 0.35f; s.lfo1.shape = 1; s.lfo1.depth = 1.0f; s.lfo1.sync = 0;
         setModSlot(s, 0, 1 /*LFO1*/, 4 /*AllFltCut*/, 0.6f, 0 /*Linear*/);
         // Transient detector zaps resonance on each attack -> percussive grain stabs.
         s.transient.sensitivity = 0.7f;
@@ -7020,12 +7064,12 @@ std::vector<PresetDef> createAllPresets() {
         s.ampEnv.sustain = 0.85f; s.ampEnv.releaseMs = 3500.0f;
         // The bloom: a very slow LFO with a long fade-in so the filter only begins
         // to breathe ~4 s in. This preset OWNS lfo fadeInMs.
-        s.lfo1.rateHz = 0.06f; s.lfo1.shape = 0; s.lfo1.depth = 0.9f; s.lfo1.sync = 0;
+        s.lfo1.rateHz = 0.06f; s.lfo1.shape = 0; s.lfo1.depth = 1.0f; s.lfo1.sync = 0;
         s.lfo1Ext.fadeInMs = 4000.0f;
         setModSlot(s, 0, 1 /*LFO1*/, 4 /*AllFltCut*/, 0.6f, 2 /*SCurve*/);
         s.modMatrix.slots[0].scale = 4;                 // x4 depth -> huge slow bloom
         // ChaosMod source stirs resonance for unstable, living depth.
-        s.chaosMod.rateHz = 0.15f; s.chaosMod.type = 0; s.chaosMod.depth = 0.5f;
+        s.chaosMod.rateHz = 0.15f; s.chaosMod.type = 0; s.chaosMod.depth = 1.0f;
         setModSlot(s, 1, 9 /*Chaos*/, 8 /*AllResonance*/, 0.35f, 0 /*Linear*/);
         // Sparse, pitched-down granular delay smears the drone into a cavern.
         s.delayEnabled = 1;
@@ -7036,8 +7080,9 @@ std::vector<PresetDef> createAllPresets() {
         s.delay.granularTexture = 0.6f; s.delay.granularWidth = 1.0f;
         // Near-max dark Hall.
         s.reverbEnabled = 1; s.reverbType = 1;         // Hall
-        s.reverb.size = 0.95f; s.reverb.mix = 0.45f;
-        s.reverb.damping = 0.8f; s.reverb.diffusion = 0.88f; s.reverb.preDelayMs = 40.0f;
+        // was size 0.95 damping 0.8: R-220 remap
+        s.reverb.size = 0.1199f; s.reverb.mix = 0.45f;
+        s.reverb.damping = 0.2099f; s.reverb.diffusion = 0.88f; s.reverb.preDelayMs = 40.0f;
         s.global.width = 1.3f;
         presets.push_back(std::move(p));
     }
@@ -7071,7 +7116,7 @@ std::vector<PresetDef> createAllPresets() {
         s.ampEnv.sustain = 0.6f; s.ampEnv.releaseMs = 1200.0f;
         // S&H LFO, free-run, QUANTIZED to a few steps + phase-offset start entry ->
         // the stuttering "binary rain". This preset OWNS S&H quantizeSteps + phaseOffset.
-        s.lfo1.rateHz = 9.0f; s.lfo1.shape = 4; s.lfo1.depth = 0.7f; s.lfo1.sync = 0;
+        s.lfo1.rateHz = 9.0f; s.lfo1.shape = 4; s.lfo1.depth = 1.0f; s.lfo1.sync = 0;
         s.lfo1Ext.quantizeSteps = 6;                    // gridded, stepped jumps
         s.lfo1Ext.phaseOffset = 90.0f;                  // offset entry point
         // Stepped curve makes the routing itself quantize -> extra digital jitter.
@@ -7096,14 +7141,15 @@ std::vector<PresetDef> createAllPresets() {
         p.name = "Vowel Cloud";
         p.category = "Textures";
         auto& s = p.state;
+        s.global.masterGain = 0.65f; // T5.3b (R-214): master gain was 1; measured before peak 1.0, 2.6 % above 0.85 in the release test
         // Two formant oscillators, E vs O, cross-morphed in the spectral-morph mixer.
         // This trio's WARM member: mid vowels E(1)<->O(3), distinct from Formant Sea
         // (A/O) and Vowel Ghost (I/U).
         s.oscA.type = 7;                                // Formant
-        s.oscA.formantVowel = 1; s.oscA.formantMorph = 1.0f;   // E
+        s.oscA.formantVowel = 1; s.oscA.formantMorph = 0.0f;   // E
         s.oscA.level = 0.7f;
         s.oscB.type = 7;                                // Formant
-        s.oscB.formantVowel = 3; s.oscB.formantMorph = 2.8f;   // O
+        s.oscB.formantVowel = 2; s.oscB.formantMorph = 0.8f;   // I, most of the way to O
         s.oscB.level = 0.65f;
         s.mixer.mode = 1;                               // Spectral Morph
         s.mixer.position = 0.5f; s.mixer.tilt = 1.0f;   // centered, gentle bright tilt
@@ -7115,13 +7161,13 @@ std::vector<PresetDef> createAllPresets() {
         s.ampEnv.attackCurve = 0.5f;                    // breathy slow-start swell
         // Sub-0.1 Hz LFO cross-fades the vowels via morph position; x2 scale so it
         // travels the full E<->O space (mod-matrix scale axis).
-        s.lfo1.rateHz = 0.06f; s.lfo1.shape = 1; s.lfo1.depth = 0.95f; s.lfo1.sync = 0;
+        s.lfo1.rateHz = 0.06f; s.lfo1.shape = 1; s.lfo1.depth = 1.0f; s.lfo1.sync = 0;
         setModSlot(s, 0, 1 /*LFO1*/, 5 /*AllMorphPos*/, 0.6f, 2 /*SCurve*/);
         s.modMatrix.slots[0].scale = 3;                 // x2 -> full vowel travel
         // A second, phase-offset LFO nudges spectral tilt so the "mouth" opens/closes
         // out of phase with the vowel morph - dual-LFO motion distinct from Ghost's
         // single unipolar sweep.
-        s.lfo2.rateHz = 0.11f; s.lfo2.shape = 0; s.lfo2.depth = 0.8f; s.lfo2.sync = 0;
+        s.lfo2.rateHz = 0.11f; s.lfo2.shape = 0; s.lfo2.depth = 1.0f; s.lfo2.sync = 0;
         s.lfo2Ext.phaseOffset = 120.0f;
         setModSlot(s, 1, 2 /*LFO2*/, 7 /*AllSpecTilt*/, 0.35f, 2 /*SCurve*/, 30.0f);
         // Warm tape delay doubles the choir just behind the beat (this patch's spatial identity).
@@ -7133,8 +7179,9 @@ std::vector<PresetDef> createAllPresets() {
         s.delay.tapeHead1Level = 0.0f;                  // 0 dB main head
         // Modulated Hall with pre-delay = a wide breathing cathedral.
         s.reverbEnabled = 1; s.reverbType = 1;         // Hall
-        s.reverb.size = 0.9f; s.reverb.mix = 0.4f;
-        s.reverb.damping = 0.35f; s.reverb.diffusion = 0.88f;
+        // was size 0.9 damping 0.35: R-220 remap
+        s.reverb.size = 0.085f; s.reverb.mix = 0.4f;
+        s.reverb.damping = 0.0429f; s.reverb.diffusion = 0.88f;
         s.reverb.preDelayMs = 45.0f;
         s.reverb.modRateHz = 0.4f; s.reverb.modDepth = 0.3f;
         // Wide stereo + voice spread = the choral cloud fans across the field.
@@ -7151,6 +7198,7 @@ std::vector<PresetDef> createAllPresets() {
         p.name = "Harmony Gate";
         p.category = "Rhythmic";
         auto& s = p.state;
+        s.global.masterGain = 0.45f; // T5.3b (R-214): master gain was 1; measured before peak 1.0 in the release test
         // --- Voice: classic warm virtual-analog dual saw, wide unison feel ---
         s.global.width = 1.5f;      // wide stereo bed for the harmony voices
         s.global.spread = 0.3f;     // pan-spread the poly stack
@@ -7206,7 +7254,8 @@ std::vector<PresetDef> createAllPresets() {
         s.phaser.rateHz = 0.25f; s.phaser.depth = 0.5f; s.phaser.feedback = 0.4f;
         s.phaser.mix = 0.35f; s.phaser.stages = 2; s.phaser.centerFreqHz = 900.0f;
         s.reverbEnabled = 1; s.reverbType = 1;     // Hall
-        s.reverb.size = 0.6f; s.reverb.mix = 0.25f; s.reverb.damping = 0.4f;
+        // was size 0.6 damping 0.4: R-220 remap
+        s.reverb.size = 0.0145f; s.reverb.mix = 0.25f; s.reverb.damping = 0.0391f;
         presets.push_back(std::move(p));
     }
 
@@ -7378,7 +7427,7 @@ std::vector<PresetDef> createAllPresets() {
         // --- Chaos modulator (Rossler) evolves spectral tilt + resonance unpredictably ---
         s.chaosMod.type = 1;                // Rossler
         s.chaosMod.rateHz = 0.8f;
-        s.chaosMod.depth = 0.6f;            // MUST be > 0 or the source is silent
+        s.chaosMod.depth = 1.0f;            // MUST be > 0 or the source is silent
         s.chaosMod.sync = 0;
         setModSlot(s, 0, kSrcChaos, kDstAllSpecTilt,  0.4f, kCurveLinear);
         setModSlot(s, 1, kSrcChaos, kDstAllResonance, 0.3f, kCurveLinear);
@@ -7400,7 +7449,8 @@ std::vector<PresetDef> createAllPresets() {
         s.delay.granularSizeMs = 60.0f; s.delay.granularDensity = 20.0f;
         s.delay.granularPitchSpray = 0.3f; s.delay.granularPanSpray = 0.6f;
         s.reverbEnabled = 1; s.reverbType = 1;  // Hall
-        s.reverb.size = 0.55f; s.reverb.mix = 0.22f;
+        // was size 0.55 damping 0.5: R-220 remap
+        s.reverb.size = 0.0102f; s.reverb.damping = 0.0578f; s.reverb.mix = 0.22f;
         presets.push_back(std::move(p));
     }
 
@@ -7490,7 +7540,7 @@ std::vector<PresetDef> createAllPresets() {
         s.lfo1.rateHz = 2.0f; s.lfo1.shape = 1; s.lfo1.depth = 1.0f; s.lfo1.sync = 1; // Triangle
         s.lfo1Ext.noteValue = kNote1_4;   // the main wobble tempo
         setModSlot(s, 0, kSrcLFO1, kDstAllFltCut, 0.65f, kCurveSCurve);
-        s.lfo2.rateHz = 1.0f; s.lfo2.shape = 0; s.lfo2.depth = 0.5f; s.lfo2.sync = 1; // Sine
+        s.lfo2.rateHz = 1.0f; s.lfo2.shape = 0; s.lfo2.depth = 1.0f; s.lfo2.sync = 1; // Sine
         s.lfo2Ext.noteValue = kNote1_8;   // faster timbral shimmer on the morph
         setModSlot(s, 1, kSrcLFO2, kDstAllMorphPos, 0.4f, kCurveExp);
         // Sidechain feel: transient detector ducks master on each note attack
@@ -7556,7 +7606,8 @@ std::vector<PresetDef> createAllPresets() {
         // Hall reverb (not the default plate) smears fragments into a cathedral
         s.reverbEnabled = 1;
         s.reverbType = 1; // Hall
-        s.reverb.size = 0.65f; s.reverb.mix = 0.28f; s.reverb.damping = 0.35f;
+        // was size 0.65 damping 0.35: R-220 remap
+        s.reverb.size = 0.0199f; s.reverb.mix = 0.28f; s.reverb.damping = 0.0317f;
         s.reverb.preDelayMs = 20.0f;
         // Additive partial sum no longer clips (2026-11-13):
         // re-levelled to the Rhythmic median (-15.8 dBFS)
@@ -7585,7 +7636,7 @@ std::vector<PresetDef> createAllPresets() {
         s.ampEnv.attackMs = 3.0f; s.ampEnv.decayMs = 220.0f;
         s.ampEnv.sustain = 0.6f; s.ampEnv.releaseMs = 200.0f;
         // Synced LFO gently breathes the cutoff so sustained notes never sit still
-        s.lfo1.rateHz = 1.0f; s.lfo1.shape = 1; s.lfo1.depth = 0.5f; s.lfo1.sync = 1; // Triangle
+        s.lfo1.rateHz = 1.0f; s.lfo1.shape = 1; s.lfo1.depth = 1.0f; s.lfo1.sync = 1; // Triangle
         s.lfo1Ext.noteValue = kNote1_8;
         setModSlot(s, 0, kSrcLFO1, kDstAllFltCut, 0.25f);
         // FLANGER (the category's never-used modulation FX) = deep swirling body
@@ -7630,12 +7681,12 @@ std::vector<PresetDef> createAllPresets() {
         s.ampEnv.attackMs = 2.0f; s.ampEnv.decayMs = 200.0f;
         s.ampEnv.sustain = 0.7f; s.ampEnv.releaseMs = 160.0f;
         // Dedicated chaos modulator feeds the matrix as kSrcChaos
-        s.chaosMod.rateHz = 3.0f; s.chaosMod.type = 0; s.chaosMod.depth = 0.6f; s.chaosMod.sync = 0; // Lorenz
+        s.chaosMod.rateHz = 3.0f; s.chaosMod.type = 0; s.chaosMod.depth = 1.0f; s.chaosMod.sync = 0; // Lorenz
         // Chaos -> cutoff in STEPPED jumps (its signature gesture) + chaos -> resonance
         setModSlot(s, 0, kSrcChaos, kDstAllFltCut, 0.5f, kCurveStepped);
         setModSlot(s, 1, kSrcChaos, kDstAllResonance, 0.3f, kCurveLinear);
         // A slow synced LFO adds a second, orderly layer of cutoff motion for contrast
-        s.lfo1.rateHz = 0.5f; s.lfo1.shape = 1; s.lfo1.depth = 0.4f; s.lfo1.sync = 1; // Triangle
+        s.lfo1.rateHz = 0.5f; s.lfo1.shape = 1; s.lfo1.depth = 1.0f; s.lfo1.sync = 1; // Triangle
         s.lfo1Ext.noteValue = kNote1_4;
         setModSlot(s, 2, kSrcLFO1, kDstAllMorphPos, 0.3f);
         // Euclidean E(5,8) gate = the world-rhythm signature (only Euclidean member)
@@ -7662,6 +7713,7 @@ std::vector<PresetDef> createAllPresets() {
         p.name = "Vowel Sequencer";
         p.category = "Rhythmic";
         auto& s = p.state;
+        s.global.masterGain = 0.7f; // T5.3b (R-214): master gain was 1; measured before peak 1.0 in the release test
         s.oscA.type = 0; s.oscA.waveform = 1; s.oscA.level = 0.75f; // Saw = rich source for formants
         s.oscB.type = 0; s.oscB.waveform = 4; s.oscB.level = 0.4f;  // Triangle softens the top
         s.mixer.position = 0.35f;
@@ -7722,7 +7774,8 @@ std::vector<PresetDef> createAllPresets() {
         // Rising 4-step 1/4 gate ramp = the pump shape
         s.tranceGate.enabled = 1; s.tranceGate.numSteps = 4;
         s.tranceGate.tempoSync = 1; s.tranceGate.noteValue = kNote1_4;
-        s.tranceGate.depth = 1.0f; s.tranceGate.attackMs = 25.0f; s.tranceGate.releaseMs = 140.0f;
+        // attack was 25: the parameter range is 1..20; release was 140: the parameter range is 1..50
+        s.tranceGate.depth = 1.0f; s.tranceGate.attackMs = 20.0f; s.tranceGate.releaseMs = 50.0f;
         s.tranceGate.stepLevels[0] = 0.0f; s.tranceGate.stepLevels[1] = 0.45f;
         s.tranceGate.stepLevels[2] = 0.75f; s.tranceGate.stepLevels[3] = 1.0f;
         // TapeSaturator (type 5) for the warm, glued tape colour
@@ -7734,9 +7787,9 @@ std::vector<PresetDef> createAllPresets() {
         s.transient.sensitivity = 0.8f; s.transient.attackMs = 2.0f; s.transient.decayMs = 180.0f;
         setModSlot(s, 0, kSrcTransient, kDstMasterVol, -0.7f, kCurveExp);
         // Dual TEMPO-SYNCED LFOs keep the timbre in motion under sustain
-        s.lfo1.rateHz = 0.5f; s.lfo1.shape = 0; s.lfo1.depth = 0.8f; s.lfo1.sync = 1;
+        s.lfo1.rateHz = 0.5f; s.lfo1.shape = 0; s.lfo1.depth = 1.0f; s.lfo1.sync = 1;
         s.lfo1Ext.noteValue = 16; // 1/2 note slow morph drift
-        s.lfo2.rateHz = 0.75f; s.lfo2.shape = 1; s.lfo2.depth = 0.5f; s.lfo2.sync = 1;
+        s.lfo2.rateHz = 0.75f; s.lfo2.shape = 1; s.lfo2.depth = 1.0f; s.lfo2.sync = 1;
         s.lfo2Ext.noteValue = 13; // 1/4 note cutoff shimmer
         setModSlot(s, 1, kSrcLFO1, kDstAllMorphPos, 0.6f, kCurveSCurve);
         setModSlot(s, 2, kSrcLFO2, kDstAllFltCut, 0.25f, kCurveLinear);
@@ -7753,7 +7806,8 @@ std::vector<PresetDef> createAllPresets() {
         s.delay.sync = 1; s.delay.noteValue = kNote1_8; s.delay.feedback = 0.25f; s.delay.mix = 0.18f;
         s.delay.tapeSaturation = 0.4f; s.delay.tapeWear = 0.2f;
         s.reverbEnabled = 1; s.reverbType = 1; // Hall
-        s.reverb.size = 0.8f; s.reverb.mix = 0.32f; s.reverb.damping = 0.35f; s.reverb.preDelayMs = 20.0f;
+        // was size 0.8 damping 0.35: R-220 remap
+        s.reverb.size = 0.0468f; s.reverb.mix = 0.32f; s.reverb.damping = 0.0353f; s.reverb.preDelayMs = 20.0f;
         s.global.width = 1.5f; s.global.spread = 0.4f; s.global.polyphony = 8;
         presets.push_back(std::move(p));
     }
@@ -7764,6 +7818,7 @@ std::vector<PresetDef> createAllPresets() {
         p.name = "Phase Pulse";
         p.category = "Rhythmic";
         auto& s = p.state;
+        s.global.masterGain = 0.45f; // T5.3b (R-214): master gain was 1; measured before peak 1.0, 2.1 % above 0.85 in the release test
         // Saw + a triangle sub-voice for body
         s.oscA.type = 0; s.oscA.waveform = 1; s.oscA.level = 0.78f;
         s.oscB.type = 0; s.oscB.waveform = 4; s.oscB.fineCents = 5.0f; s.oscB.level = 0.5f; // Triangle
@@ -7789,10 +7844,10 @@ std::vector<PresetDef> createAllPresets() {
         float tg[] = {1.0f,0.5f,0.85f,0.3f, 1.0f,0.6f,0.9f,0.25f};
         for (int i = 0; i < 8; ++i) s.tranceGate.stepLevels[i] = tg[i];
         // chaosMod source (Rossler, free-run) wanders the vowel brightness -> never repeats
-        s.chaosMod.rateHz = 0.4f; s.chaosMod.type = 1; s.chaosMod.depth = 0.7f; s.chaosMod.sync = 0;
+        s.chaosMod.rateHz = 0.4f; s.chaosMod.type = 1; s.chaosMod.depth = 1.0f; s.chaosMod.sync = 0;
         setModSlot(s, 0, kSrcChaos, kDstAllFltCut, 0.4f, kCurveSCurve);
         // A slow synced LFO wobbles resonance on the opposite curve for a talking motion
-        s.lfo1.rateHz = 0.5f; s.lfo1.shape = 2; s.lfo1.depth = 0.4f; s.lfo1.sync = 1;
+        s.lfo1.rateHz = 0.5f; s.lfo1.shape = 2; s.lfo1.depth = 1.0f; s.lfo1.sync = 1;
         s.lfo1Ext.noteValue = 13; // 1/4 note
         setModSlot(s, 1, kSrcLFO1, kDstAllResonance, 0.3f, kCurveExp);
         // Gate output opens its own depth for a breathing pulse envelope
@@ -7882,7 +7937,7 @@ std::vector<PresetDef> createAllPresets() {
         // Velocity drives cutoff so accented arp steps open up
         setVoiceRoute(s, 0, kVSrcVelocity, kVDstFltCut, 0.5f);
         // A slow synced LFO breathes the resonance across bars
-        s.lfo1.rateHz = 0.25f; s.lfo1.shape = 0; s.lfo1.depth = 0.4f; s.lfo1.sync = 1;
+        s.lfo1.rateHz = 0.25f; s.lfo1.shape = 0; s.lfo1.depth = 1.0f; s.lfo1.sync = 1;
         s.lfo1Ext.noteValue = 19; // whole note
         setModSlot(s, 0, kSrcLFO1, kDstAllResonance, 0.3f, kCurveSCurve);
         // PINGPONG delay bounces the ratchet bursts across the stereo field
@@ -7913,13 +7968,14 @@ std::vector<PresetDef> createAllPresets() {
         // Hard 16-step 1/16 gate with RETRIGGER DEPTH for stutter accents
         s.tranceGate.enabled = 1; s.tranceGate.numSteps = 16;
         s.tranceGate.tempoSync = 1; s.tranceGate.noteValue = kNote1_16;
-        s.tranceGate.depth = 1.0f; s.tranceGate.attackMs = 0.5f; s.tranceGate.releaseMs = 3.0f;
+        // attack was 0.5: the parameter range is 1..20
+        s.tranceGate.depth = 1.0f; s.tranceGate.attackMs = 1.0f; s.tranceGate.releaseMs = 3.0f;
         s.tranceGate.retriggerDepth = 0.6f;
         float tg[] = {1,0,0,1, 0,1,1,0, 1,1,0,0, 0,1,1,1};
         for (int i = 0; i < 16; ++i) s.tranceGate.stepLevels[i] = tg[i];
         // DUAL LFOs: lfo1 free S&H scrambles cutoff, lfo2 synced pushes the morph
-        s.lfo1.rateHz = 8.0f; s.lfo1.shape = 4; s.lfo1.depth = 0.6f; s.lfo1.sync = 0; // free S&H
-        s.lfo2.rateHz = 2.0f; s.lfo2.shape = 1; s.lfo2.depth = 0.5f; s.lfo2.sync = 1; // synced tri
+        s.lfo1.rateHz = 8.0f; s.lfo1.shape = 4; s.lfo1.depth = 1.0f; s.lfo1.sync = 0; // free S&H
+        s.lfo2.rateHz = 2.0f; s.lfo2.shape = 1; s.lfo2.depth = 1.0f; s.lfo2.sync = 1; // synced tri
         s.lfo2Ext.noteValue = 10; // 1/8
         setModSlot(s, 0, kSrcLFO1, kDstAllFltCut, 0.45f, kCurveStepped);  // stepped => hard glitch jumps
         setModSlot(s, 1, kSrcLFO2, kDstAllMorphPos, 0.4f, kCurveSCurve);
@@ -7984,7 +8040,7 @@ std::vector<PresetDef> createAllPresets() {
 
         // --- Dedicated chaos LFO adds a second, slower turbulence layer ---
         s.chaosMod.rateHz = 0.25f; s.chaosMod.type = 0; // Lorenz
-        s.chaosMod.depth = 0.6f; s.chaosMod.sync = 0;
+        s.chaosMod.depth = 1.0f; s.chaosMod.sync = 0;
 
         // --- Mod web (unique): chaos + envelope-follower drive morph & sweep depth ---
         s.modMatrix.slots[0].source = 9;  // Chaos (the dedicated chaosMod)
@@ -8001,8 +8057,8 @@ std::vector<PresetDef> createAllPresets() {
         s.modMatrix.slots[2].amount = 0.4f;
         s.envFollower.sensitivity = 0.7f; s.envFollower.attackMs = 20.0f; s.envFollower.releaseMs = 250.0f;
 
-        s.lfo1.rateHz = 0.4f; s.lfo1.shape = 0; s.lfo1.depth = 0.5f; s.lfo1.sync = 0; // free sine
-        s.lfo2.rateHz = 0.13f; s.lfo2.shape = 2; s.lfo2.depth = 0.4f; s.lfo2.sync = 0; // slow saw ramp
+        s.lfo1.rateHz = 0.4f; s.lfo1.shape = 0; s.lfo1.depth = 1.0f; s.lfo1.sync = 0; // free sine
+        s.lfo2.rateHz = 0.13f; s.lfo2.shape = 2; s.lfo2.depth = 1.0f; s.lfo2.sync = 0; // slow saw ramp
 
         // --- Mod envelope opens the peak on each note (modEnv used) ---
         s.modEnv.attackMs = 5.0f; s.modEnv.decayMs = 600.0f; s.modEnv.sustain = 0.2f; s.modEnv.releaseMs = 500.0f;
@@ -8062,7 +8118,7 @@ std::vector<PresetDef> createAllPresets() {
         s.filter.selfOscGlide = 2500.0f; // slow portamento between pitches
         s.filter.selfOscExtMix = 0.45f;  // let noise+sub bleed through the resonator
         s.filter.selfOscShape = 0.3f;    // slightly non-sine timbre
-        s.filter.selfOscRelease = 2500.0f;
+        s.filter.selfOscRelease = 2000.0f; // was 2500: the parameter range is 10..2000
         s.filter.keyTrack = 1.0f;    // resonator follows the keyboard
 
         // --- Spectral distortion: faint shimmer dusted onto the drone ---
@@ -8087,7 +8143,7 @@ std::vector<PresetDef> createAllPresets() {
         s.modMatrix.slots[0].scale = 4;   // x4 - extreme range so it truly tracks octaves
         s.modMatrix.slots[0].smoothMs = 80.0f;
         // Smooth-random LFO wobbles the resonance for a living, breathing tone
-        s.lfo1.rateHz = 0.05f; s.lfo1.shape = 5; s.lfo1.depth = 0.5f; s.lfo1.sync = 0; // SmoothRandom
+        s.lfo1.rateHz = 0.05f; s.lfo1.shape = 5; s.lfo1.depth = 1.0f; s.lfo1.sync = 0; // SmoothRandom
         s.modMatrix.slots[1].source = 1;  // LFO1
         s.modMatrix.slots[1].dest = 8;    // All Resonance
         s.modMatrix.slots[1].amount = 0.25f;
@@ -8096,7 +8152,8 @@ std::vector<PresetDef> createAllPresets() {
         // --- Reverb FREEZE: infinite cathedral wash under the drone ---
         s.reverbEnabled = 1;
         s.reverbType = 1;            // Hall
-        s.reverb.size = 0.95f; s.reverb.mix = 0.42f; s.reverb.damping = 0.55f;
+        // was size 0.95 damping 0.55: R-220 remap
+        s.reverb.size = 0.1199f; s.reverb.mix = 0.42f; s.reverb.damping = 0.1045f;
         s.reverb.freeze = 1;         // frozen tail = endless sustain bed
         s.reverb.modRateHz = 0.15f; s.reverb.modDepth = 0.3f; // slow chorus on the wash
         // keeps its level now the brown noise, the spectral distortion and the Pitch Follower no
@@ -8128,7 +8185,7 @@ std::vector<PresetDef> createAllPresets() {
         s.mixer.mode = 1;            // Spectral Morph (FFT interpolation A<->B)
         s.mixer.position = 0.5f;
         s.mixer.tilt = 3.0f;         // brighten the morph
-        s.mixer.shift = 40.0f;       // inharmonic frequency shift on the morph
+        s.mixer.shift = 1.0f;        // inharmonic frequency shift on the morph (was 40: the parameter range is 0..1)
 
         // --- Comb filter: metallic resonant body distinct from every sibling ---
         s.filter.type = 6;          // Comb
@@ -8177,8 +8234,8 @@ std::vector<PresetDef> createAllPresets() {
         s.modMatrix.slots[5].amount = 0.6f; s.modMatrix.slots[5].scale = 3; // x2 wide sweep
 
         // --- Dual LFO: triangle + S&H on the morph tilt region ---
-        s.lfo1.rateHz = 0.2f; s.lfo1.shape = 1; s.lfo1.depth = 0.7f; s.lfo1.sync = 0; // triangle
-        s.lfo2.rateHz = 3.0f; s.lfo2.shape = 4; s.lfo2.depth = 0.4f; s.lfo2.sync = 0; // S&H
+        s.lfo1.rateHz = 0.2f; s.lfo1.shape = 1; s.lfo1.depth = 1.0f; s.lfo1.sync = 0; // triangle
+        s.lfo2.rateHz = 3.0f; s.lfo2.shape = 4; s.lfo2.depth = 1.0f; s.lfo2.sync = 0; // S&H
         s.modMatrix.slots[6].source = 2;  // LFO2
         s.modMatrix.slots[6].dest = 7;    // Spectral Tilt
         s.modMatrix.slots[6].amount = 0.3f;
@@ -8224,7 +8281,7 @@ std::vector<PresetDef> createAllPresets() {
 
         // --- Formant oscillator: a synthetic voice between two vowels ---
         s.oscA.type = 7;            // Formant
-        s.oscA.formantVowel = 0; s.oscA.formantMorph = 1.5f; // between A and I
+        s.oscA.formantVowel = 1; s.oscA.formantMorph = 0.5f; // between E and I
         s.oscA.level = 0.85f;
         s.oscB.type = 0; s.oscB.waveform = 0; s.oscB.tuneSemitones = -12.0f; s.oscB.level = 0.25f; // sub body
         s.mixer.position = 0.15f;
@@ -8253,7 +8310,7 @@ std::vector<PresetDef> createAllPresets() {
         // --- Mod web (unique - NOT the shared LFO->morphPos): animate ring & vowel ---
         // Voice LFO -> distortion drive: ringRatio isn't a routable dest, so we wobble the
         // ring's intensity for the same living, talking motion (vibrato-rate vocal shimmer).
-        s.lfo1.rateHz = 5.5f; s.lfo1.shape = 0; s.lfo1.depth = 0.6f; s.lfo1.sync = 0; // vibrato rate sine
+        s.lfo1.rateHz = 5.5f; s.lfo1.shape = 0; s.lfo1.depth = 1.0f; s.lfo1.sync = 0; // vibrato rate sine
         s.voiceRoutes[0].source = 3;      // Voice LFO
         s.voiceRoutes[0].destination = 3; // Distortion Drive
         s.voiceRoutes[0].amount = 0.5f;
@@ -8269,7 +8326,7 @@ std::vector<PresetDef> createAllPresets() {
         s.voiceRoutes[2].amount = 0.4f;
         s.voiceRoutes[2].active = 1;
         // Global: synced square LFO2 chops the wet ring level rhythmically
-        s.lfo2.rateHz = 2.0f; s.lfo2.shape = 3; s.lfo2.depth = 0.4f; s.lfo2.sync = 1; s.lfo2Ext.noteValue = kNote1_8;
+        s.lfo2.rateHz = 2.0f; s.lfo2.shape = 3; s.lfo2.depth = 1.0f; s.lfo2.sync = 1; s.lfo2Ext.noteValue = kNote1_8;
         s.modMatrix.slots[0].source = 2;  // LFO2
         s.modMatrix.slots[0].dest = 3;    // Effect Mix
         s.modMatrix.slots[0].amount = 0.3f;
@@ -8282,7 +8339,8 @@ std::vector<PresetDef> createAllPresets() {
         // --- Reverb: Hall, medium-small - a room for the voice ---
         s.reverbEnabled = 1;
         s.reverbType = 1;          // Hall
-        s.reverb.size = 0.5f; s.reverb.mix = 0.24f; s.reverb.preDelayMs = 20.0f;
+        // was size 0.5 damping 0.5: R-220 remap
+        s.reverb.size = 0.0066f; s.reverb.damping = 0.0594f; s.reverb.mix = 0.24f; s.reverb.preDelayMs = 20.0f;
 
         presets.push_back(std::move(p));
     }
@@ -8336,7 +8394,7 @@ std::vector<PresetDef> createAllPresets() {
         s.voiceRoutes[0].amount = 0.5f;
         s.voiceRoutes[0].active = 1;
         // LFO1 saw slowly sweeps the grain field via spectral tilt
-        s.lfo1.rateHz = 0.3f; s.lfo1.shape = 2; s.lfo1.depth = 0.5f; s.lfo1.sync = 0; // saw ramp
+        s.lfo1.rateHz = 0.3f; s.lfo1.shape = 2; s.lfo1.depth = 1.0f; s.lfo1.sync = 0; // saw ramp
         s.modMatrix.slots[1].source = 1;  // LFO1
         s.modMatrix.slots[1].dest = 7;    // Spectral Tilt
         s.modMatrix.slots[1].amount = 0.3f;
@@ -8398,7 +8456,7 @@ std::vector<PresetDef> createAllPresets() {
         s.delay.tapeAge = 0.6f; s.delay.tapeInertiaMs = 260.0f;
         s.delay.tapeSpliceEnabled = 1; s.delay.tapeSpliceIntensity = 0.4f; // owns splice
         // Mod identity: no delay-feedback dest exists, so swell the WET level instead
-        s.lfo1.rateHz = 0.1f; s.lfo1.shape = 0; s.lfo1.depth = 0.85f; s.lfo1.sync = 0;
+        s.lfo1.rateHz = 0.1f; s.lfo1.shape = 0; s.lfo1.depth = 1.0f; s.lfo1.sync = 0;
         setModSlot(s, 0, 1, 3, 0.5f, kCurveSCurve, 20.0f); // LFO1 -> EffectMix, smoothstep swell
         setModSlot(s, 1, 1, 4, 0.25f, kCurveExp);          // LFO1 -> AllFltCut, source drifts too
         // Small PLATE, not the shared big hall
@@ -8431,8 +8489,8 @@ std::vector<PresetDef> createAllPresets() {
         // Enable the EnvFollower MODULE (auto-wah #2, routed below)
         s.envFollower.sensitivity = 0.7f; s.envFollower.attackMs = 8.0f; s.envFollower.releaseMs = 180.0f;
         // Dual free LFOs make the wah gesture never repeat (envDepth has no dest, so vary res+cut)
-        s.lfo1.rateHz = 0.2f; s.lfo1.shape = 0; s.lfo1.depth = 0.7f; s.lfo1.sync = 0; // sine
-        s.lfo2.rateHz = 0.5f; s.lfo2.shape = 1; s.lfo2.depth = 0.6f; s.lfo2.sync = 0; // triangle
+        s.lfo1.rateHz = 0.2f; s.lfo1.shape = 0; s.lfo1.depth = 1.0f; s.lfo1.sync = 0; // sine
+        s.lfo2.rateHz = 0.5f; s.lfo2.shape = 1; s.lfo2.depth = 1.0f; s.lfo2.sync = 0; // triangle
         setModSlot(s, 0, 1, 8, 0.4f, kCurveSCurve);       // LFO1 -> AllResonance (wah bite varies)
         setModSlot(s, 1, 2, 4, 0.3f, kCurveExp);          // LFO2 -> AllFltCut (center drifts)
         setModSlot(s, 2, 3, 4, 0.5f, kCurveLinear, 30.0f);// EnvFollower -> AllFltCut, smoothed breathing
@@ -8446,7 +8504,8 @@ std::vector<PresetDef> createAllPresets() {
         s.delay.granularJitter = 0.2f;
         // Airy HALL
         s.reverbEnabled = 1; s.reverbType = 1;  // Hall
-        s.reverb.size = 0.7f; s.reverb.mix = 0.32f; s.reverb.damping = 0.5f;
+        // was size 0.7 damping 0.5: R-220 remap
+        s.reverb.size = 0.0267f; s.reverb.mix = 0.32f; s.reverb.damping = 0.0581f;
         // +2 dB: its noise peaks sat 19.5 dB under the bank's median, at the quietness floor, and the
         // noise-colour fix (2026-11-13) moved its single-note peak by 1.4 dB (its RMS by 0.15 dB)
         s.global.masterGain = 1.259f;
@@ -8483,8 +8542,8 @@ std::vector<PresetDef> createAllPresets() {
         s.distortion.ringRatio = 0.17f;   // normalized -> ratio ~3.0 (metallic)
         s.distortion.ringWaveform = 0;    // Sine
         // Evolving mod web (multi-slot, not the single-LFO skeleton)
-        s.lfo1.rateHz = 0.25f; s.lfo1.shape = 0; s.lfo1.depth = 0.6f; s.lfo1.sync = 0; // slow sine
-        s.lfo2.rateHz = 6.0f;  s.lfo2.shape = 3; s.lfo2.depth = 0.3f; s.lfo2.sync = 0; // fast square
+        s.lfo1.rateHz = 0.25f; s.lfo1.shape = 0; s.lfo1.depth = 1.0f; s.lfo1.sync = 0; // slow sine
+        s.lfo2.rateHz = 6.0f;  s.lfo2.shape = 3; s.lfo2.depth = 1.0f; s.lfo2.sync = 0; // fast square
         s.random.rateHz = 1.5f; s.random.smoothness = 0.0f; // hard steps
         setModSlot(s, 0, 1, 5, 0.5f, kCurveSCurve);  // LFO1 -> AllMorphPos (smooth glide)
         setModSlot(s, 1, 4, 7, 0.4f, kCurveStepped); // Random -> AllSpecTilt (stepped 'shift' glitch)
@@ -8539,8 +8598,8 @@ std::vector<PresetDef> createAllPresets() {
         s.harmonizer.voiceInterval[2] = 6; s.harmonizer.voicePan[2] = -0.25f; s.harmonizer.voiceDetuneCents[2] = 10.0f;
         s.harmonizer.voiceInterval[3] = -3; s.harmonizer.voicePan[3] = 0.25f; s.harmonizer.voiceDelayMs[3] = 20.0f; s.harmonizer.voiceDetuneCents[3] = -8.0f;
         // Lorenz chaos as the destabilizer
-        s.chaosMod.rateHz = 0.7f; s.chaosMod.type = 0; s.chaosMod.depth = 0.5f; // Lorenz
-        s.lfo1.rateHz = 0.12f; s.lfo1.shape = 0; s.lfo1.depth = 0.5f; s.lfo1.sync = 0;
+        s.chaosMod.rateHz = 0.7f; s.chaosMod.type = 0; s.chaosMod.depth = 1.0f; // Lorenz
+        s.lfo1.rateHz = 0.12f; s.lfo1.shape = 0; s.lfo1.depth = 1.0f; s.lfo1.sync = 0;
         s.macros.values[0] = 0.3f;         // 'instability' knob start value
         setModSlot(s, 0, 9, 7, 0.35f, kCurveSCurve); // Chaos -> AllSpecTilt
         setModSlot(s, 1, 9, 5, 0.3f,  kCurveExp);    // Chaos -> AllMorphPos
@@ -8553,7 +8612,8 @@ std::vector<PresetDef> createAllPresets() {
         s.delay.sync = 0; s.delay.timeMs = 500.0f; s.delay.mix = 0.18f; s.delay.feedback = 0.3f;
         s.delay.spectralDiffusion = 0.4f; s.delay.spectralTilt = 0.2f; s.delay.spectralSpreadMs = 300.0f;
         s.reverbEnabled = 1; s.reverbType = 1; // Hall
-        s.reverb.size = 0.85f; s.reverb.mix = 0.35f;
+        // was size 0.85 damping 0.5: R-220 remap
+        s.reverb.size = 0.0625f; s.reverb.damping = 0.0685f; s.reverb.mix = 0.35f;
         s.reverb.modRateHz = 0.3f; s.reverb.modDepth = 0.2f; // shimmering reverb mod (unused)
         // Additive partial sum no longer clips (2026-11-13):
         // re-levelled to the Experimental median (-13.8 dBFS)
@@ -8588,7 +8648,7 @@ std::vector<PresetDef> createAllPresets() {
         setVoiceRoute(s, 1, 5, 1, 0.3f);   // Velocity -> FltRes (harder = longer ring)
         setVoiceRoute(s, 2, 1, 0, 0.3f);   // Env2(filterEnv) -> FltCut (attack brightness)
         // Global motion so no two plucks ring alike (combDamping has no dest -> vary cut+res)
-        s.lfo1.rateHz = 0.3f; s.lfo1.shape = 1; s.lfo1.depth = 0.4f; s.lfo1.sync = 0; // slow triangle
+        s.lfo1.rateHz = 0.3f; s.lfo1.shape = 1; s.lfo1.depth = 1.0f; s.lfo1.sync = 0; // slow triangle
         s.random.rateHz = 2.0f; s.random.smoothness = 0.1f;
         setModSlot(s, 0, 1, 4, 0.15f, kCurveSCurve); // LFO1 -> AllFltCut (subtle comb shimmer)
         setModSlot(s, 1, 4, 8, 0.25f, kCurveLinear); // Random -> AllResonance (pluck-to-pluck ring)
@@ -8617,7 +8677,7 @@ std::vector<PresetDef> createAllPresets() {
         s.mixer.mode = 1;              // Spectral Morph (FFT interpolation A<->B)
         s.mixer.position = 0.5f;
         s.mixer.tilt = -3.0f;          // darken the morphed spectrum (SpectralMorph only)
-        s.mixer.shift = 40.0f;         // small inharmonic freq shift for shimmer
+        s.mixer.shift = 1.0f;          // small inharmonic freq shift for shimmer (was 40: the parameter range is 0..1)
         // Comb filter: tuned resonant teeth turn the drone metallic/glassy.
         s.filter.type = 6;             // Comb
         s.filter.cutoffHz = 320.0f;    // comb fundamental
@@ -8631,15 +8691,17 @@ std::vector<PresetDef> createAllPresets() {
         s.modEnv.attackMs = 2500.0f; s.modEnv.decayMs = 3000.0f;
         s.modEnv.sustain = 0.6f; s.modEnv.releaseMs = 4000.0f;
         // LFO1: glacial 0.05 Hz sine -> morph position (SCurve for smooth turns).
-        s.lfo1.rateHz = 0.05f; s.lfo1.shape = 0; s.lfo1.depth = 0.6f; s.lfo1.sync = 0;
+        s.lfo1.rateHz = 0.05f; s.lfo1.shape = 0; s.lfo1.depth = 1.0f; s.lfo1.sync = 0;
         // LFO2: 0.03 Hz triangle -> spectral tilt for a slow timbral tide.
-        s.lfo2.rateHz = 0.03f; s.lfo2.shape = 1; s.lfo2.depth = 0.5f; s.lfo2.sync = 0;
+        s.lfo2.rateHz = 0.03f; s.lfo2.shape = 1; s.lfo2.depth = 1.0f; s.lfo2.sync = 0;
         // Sample & Hold gives stepped comb-pitch jumps, glide-smoothed to stay glacial.
-        s.sampleHold.rateHz = 0.08f; s.sampleHold.sync = 0; s.sampleHold.slewMs = 400.0f;
+        // rate was 0.08: the parameter range is 0.1..50
+        s.sampleHold.rateHz = 0.1f; s.sampleHold.sync = 0; s.sampleHold.slewMs = 400.0f;
         // --- Mod web ---
         setModSlot(s, 0, kSrcLFO1, kDstAllMorphPos, 0.5f, kCurveSCurve);
         setModSlot(s, 1, kSrcLFO2, kDstAllSpecTilt, 0.4f, kCurveLinear);
-        setModSlot(s, 2, kSrcSampleHold, kDstAllFltCut, 0.35f, kCurveStepped, 300.0f);
+        // smooth was 300: the parameter range is 0..100
+        setModSlot(s, 2, kSrcSampleHold, kDstAllFltCut, 0.35f, kCurveStepped, 100.0f);
         // Slot 7: a parked Random->morph route left BYPASSED to demonstrate the
         // bypass axis (flip bypass to 0 live for a busier second morph layer).
         setModSlot(s, 7, kSrcRandom, kDstAllMorphPos, 0.4f, kCurveLinear);
@@ -8649,8 +8711,9 @@ std::vector<PresetDef> createAllPresets() {
         // Frozen Hall reverb: the tail literally freezes and holds.
         s.reverbEnabled = 1;
         s.reverbType = 1;              // Hall (bigger/darker than Plate)
-        s.reverb.size = 0.95f; s.reverb.mix = 0.5f;
-        s.reverb.damping = 0.15f; s.reverb.freeze = 1;
+        // was size 0.95 damping 0.15: R-220 remap
+        s.reverb.size = 0.1199f; s.reverb.mix = 0.5f;
+        s.reverb.damping = 0.0162f; s.reverb.freeze = 1;
         presets.push_back(std::move(p));
     }
 
@@ -8683,9 +8746,9 @@ std::vector<PresetDef> createAllPresets() {
         s.ampEnv.attackMs = 150.0f; s.ampEnv.decayMs = 600.0f;
         s.ampEnv.sustain = 0.8f; s.ampEnv.releaseMs = 1800.0f;
         // LFO1 SmoothRandom drives spectral tilt (scaled x2) - unpredictable weather.
-        s.lfo1.rateHz = 0.25f; s.lfo1.shape = 5; s.lfo1.depth = 0.7f; s.lfo1.sync = 0;
+        s.lfo1.rateHz = 0.25f; s.lfo1.shape = 5; s.lfo1.depth = 1.0f; s.lfo1.sync = 0;
         // LFO2 slow triangle nudges filter cutoff underneath.
-        s.lfo2.rateHz = 0.12f; s.lfo2.shape = 1; s.lfo2.depth = 0.5f; s.lfo2.sync = 0;
+        s.lfo2.rateHz = 0.12f; s.lfo2.shape = 1; s.lfo2.depth = 1.0f; s.lfo2.sync = 0;
         // Random + EnvFollower + Macro sources feed the storm.
         s.random.rateHz = 3.0f; s.random.sync = 0; s.random.smoothness = 0.7f;
         s.envFollower.sensitivity = 0.7f; s.envFollower.attackMs = 15.0f;
@@ -8698,7 +8761,8 @@ std::vector<PresetDef> createAllPresets() {
         // Weather modulation on top of the macro:
         setModSlot(s, 3, kSrcLFO1, kDstAllSpecTilt, 0.5f, kCurveLinear);
         s.modMatrix.slots[3].scale = 3;    // x2 - push tilt beyond +/-1
-        setModSlot(s, 4, kSrcRandom, kDstAllResonance, 0.35f, kCurveLinear, 120.0f);
+        // smooth was 120: the parameter range is 0..100
+        setModSlot(s, 4, kSrcRandom, kDstAllResonance, 0.35f, kCurveLinear, 100.0f);
         setModSlot(s, 5, kSrcEnvFollower, kDstAllMorphPos, 0.3f, kCurveLinear);
         setModSlot(s, 6, kSrcLFO2, kDstAllFltCut, 0.25f, kCurveLinear);
         // Own the voice-management settings axes for a chaotic dense swarm.
@@ -8752,8 +8816,8 @@ std::vector<PresetDef> createAllPresets() {
         s.ampEnv.attackMs = 3.0f; s.ampEnv.decayMs = 450.0f;
         s.ampEnv.sustain = 0.6f; s.ampEnv.releaseMs = 350.0f;
         // LFO1 saw ramps the fold; LFO2 square jumps resonance for gated bite.
-        s.lfo1.rateHz = 0.4f; s.lfo1.shape = 2; s.lfo1.depth = 0.6f; s.lfo1.sync = 0;
-        s.lfo2.rateHz = 1.0f; s.lfo2.shape = 3; s.lfo2.depth = 0.4f; s.lfo2.sync = 0;
+        s.lfo1.rateHz = 0.4f; s.lfo1.shape = 2; s.lfo1.depth = 1.0f; s.lfo1.sync = 0;
+        s.lfo2.rateHz = 1.0f; s.lfo2.shape = 3; s.lfo2.depth = 1.0f; s.lfo2.sync = 0;
         // Rungler (Benjolin shift-register) is the chaos engine: stepped,
         // pitched-noise modulation of the vowel morph. Depth MUST be raised.
         s.rungler.osc1FreqHz = 3.5f; s.rungler.osc2FreqHz = 5.5f;
@@ -8868,9 +8932,9 @@ std::vector<PresetDef> createAllPresets() {
         s.ampEnv.sustain = 0.55f; s.ampEnv.releaseMs = 300.0f;
         // ChaosMod (Rossler) wobbles the ladder cutoff unpredictably.
         s.chaosMod.rateHz = 0.6f; s.chaosMod.type = 1; // Rossler
-        s.chaosMod.depth = 0.6f; s.chaosMod.sync = 0;
+        s.chaosMod.depth = 1.0f; s.chaosMod.sync = 0;
         // LFO1 square gates a bit of morph flutter.
-        s.lfo1.rateHz = 0.5f; s.lfo1.shape = 3; s.lfo1.depth = 0.3f; s.lfo1.sync = 0;
+        s.lfo1.rateHz = 0.5f; s.lfo1.shape = 3; s.lfo1.depth = 1.0f; s.lfo1.sync = 0;
         // --- Mod web ---
         setModSlot(s, 0, kSrcChaos, kDstAllFltCut, 0.5f, kCurveLinear);
         setModSlot(s, 1, kSrcLFO1, kDstAllMorphPos, 0.3f, kCurveLinear);
@@ -8939,7 +9003,7 @@ std::vector<PresetDef> createAllPresets() {
         // Self-mod: higher notes nudge the arp a hair faster (covers ArpPitch->ArpRate)
         setModSlot(s, 1, kSrcArpPitch, kDstArpRate, 0.15f, kCurveLinear);
         // Free LFO drizzles morph movement so sustained steps still breathe
-        s.lfo1.rateHz = 0.22f; s.lfo1.shape = 1; s.lfo1.depth = 0.4f; s.lfo1.sync = 0;
+        s.lfo1.rateHz = 0.22f; s.lfo1.shape = 1; s.lfo1.depth = 1.0f; s.lfo1.sync = 0;
         setModSlot(s, 2, kSrcLFO1, kDstAllMorphPos, 0.2f);
         // Expression: velocity opens the filter, aftertouch adds squelch resonance
         setVoiceRoute(s, 0, kVSrcVelocity, kVDstFltCut, 0.4f);
@@ -8967,7 +9031,7 @@ std::vector<PresetDef> createAllPresets() {
         // OSC A vowel formant, OSC B rich additive - blended in the FFT morph domain
         s.oscA.type = 7;                               // Formant
         s.oscA.formantVowel = 1;                       // 'E' base vowel
-        s.oscA.formantMorph = 1.2f;                    // sit between E and I for a nasal 'eee'
+        s.oscA.formantMorph = 0.2f;                    // sit between E and I for a nasal 'eee'
         s.oscA.level = 0.8f;
         s.oscB.type = 4;                               // Additive
         s.oscB.additivePartials = 28; s.oscB.additiveTilt = 3.0f; // bright partial stack
@@ -8995,7 +9059,7 @@ std::vector<PresetDef> createAllPresets() {
         // pitch -> spectral tilt (Exp: higher notes noticeably brighter)
         setModSlot(s, 1, kSrcArpPitch, kDstAllSpecTilt, 0.4f, kCurveExp);
         // Slow FREE LFO breathes the cutoff underneath so held tails move
-        s.lfo2.rateHz = 0.11f; s.lfo2.shape = 0; s.lfo2.depth = 0.5f; s.lfo2.sync = 0;
+        s.lfo2.rateHz = 0.11f; s.lfo2.shape = 0; s.lfo2.depth = 1.0f; s.lfo2.sync = 0;
         setModSlot(s, 2, kSrcLFO2, kDstAllFltCut, 0.28f);
         // Expression: velocity pushes the morph, keytrack pushes tilt (formant 'gender' feel)
         setVoiceRoute(s, 0, kVSrcVelocity, kVDstMorphPos, 0.3f);
@@ -9003,7 +9067,8 @@ std::vector<PresetDef> createAllPresets() {
         // FX: lush HALL only - vocal pad space, no delay clutter to muddy the words
         s.reverbEnabled = 1;
         s.reverbType = 1;                              // Hall
-        s.reverb.size = 0.72f; s.reverb.mix = 0.3f; s.reverb.damping = 0.3f;
+        // was size 0.72 damping 0.3: R-220 remap
+        s.reverb.size = 0.0299f; s.reverb.mix = 0.3f; s.reverb.damping = 0.0259f;
         s.reverb.preDelayMs = 25.0f;
         // Additive partial sum no longer clips (2026-11-13):
         // re-levelled to the Arp Modulation median (-15.1 dBFS)
@@ -9048,7 +9113,7 @@ std::vector<PresetDef> createAllPresets() {
         setModSlot(s, 1, kSrcArpPitch, kDstEffectMix, 0.4f, kCurveSCurve);
         s.modMatrix.slots[1].scale = 3;                // x2 depth - uses the dormant scale axis
         // Slow free LFO wanders the cutoff so the pad never sits still
-        s.lfo1.rateHz = 0.13f; s.lfo1.shape = 1; s.lfo1.depth = 0.5f; s.lfo1.sync = 0;
+        s.lfo1.rateHz = 0.13f; s.lfo1.shape = 1; s.lfo1.depth = 1.0f; s.lfo1.sync = 0;
         setModSlot(s, 2, kSrcLFO1, kDstAllFltCut, 0.25f);
         // Mod-env blooms the filter on each held note
         setVoiceRoute(s, 0, kVSrcEnv3, kVDstFltCut, 0.35f);
@@ -9111,10 +9176,10 @@ std::vector<PresetDef> createAllPresets() {
         // 0: arp pitch -> cutoff (Exp)
         setModSlot(s, 0, kSrcArpPitch, kDstAllFltCut, 0.5f, kCurveExp);
         // 1: chaos LFO -> morph position (raise chaosMod.depth first!)
-        s.chaosMod.rateHz = 2.2f; s.chaosMod.type = 0; s.chaosMod.depth = 0.6f;
+        s.chaosMod.rateHz = 2.2f; s.chaosMod.type = 0; s.chaosMod.depth = 1.0f;
         setModSlot(s, 1, kSrcChaos, kDstAllMorphPos, 0.45f);
         // 2: synced saw LFO -> spectral tilt
-        s.lfo1.rateHz = 0.3f; s.lfo1.shape = 2; s.lfo1.depth = 0.7f; s.lfo1.sync = 1;
+        s.lfo1.rateHz = 0.3f; s.lfo1.shape = 2; s.lfo1.depth = 1.0f; s.lfo1.sync = 1;
         s.lfo1Ext.noteValue = kNote1_4;
         setModSlot(s, 2, kSrcLFO1, kDstAllSpecTilt, 0.4f);
         // 3: rungler -> resonance (Stepped = quantized crunch; raise rungler.depth first!)
@@ -9184,7 +9249,7 @@ std::vector<PresetDef> createAllPresets() {
         s.macros.values[0] = 0.35f;                    // parked mid so morph is live from load
         setModSlot(s, 2, kSrcMacro1, kDstAllMorphPos, 0.7f, kCurveLinear);
         // Free LFO for gentle cutoff drift
-        s.lfo1.rateHz = 0.28f; s.lfo1.shape = 0; s.lfo1.depth = 0.5f; s.lfo1.sync = 0;
+        s.lfo1.rateHz = 0.28f; s.lfo1.shape = 0; s.lfo1.depth = 1.0f; s.lfo1.sync = 0;
         setModSlot(s, 3, kSrcLFO1, kDstAllFltCut, 0.3f);
         setVoiceRoute(s, 0, kVSrcVelocity, kVDstFltCut, 0.45f);
         setVoiceRoute(s, 1, kVSrcKeyTrack, kVDstSpecTilt, 0.25f);
@@ -9199,7 +9264,8 @@ std::vector<PresetDef> createAllPresets() {
         s.delay.digitalModDepth = 0.2f; s.delay.digitalWidth = 130.0f;
         s.reverbEnabled = 1;
         s.reverbType = 1;                              // Hall
-        s.reverb.size = 0.62f; s.reverb.mix = 0.3f;
+        // was size 0.62 damping 0.5: R-220 remap
+        s.reverb.size = 0.0165f; s.reverb.damping = 0.057f; s.reverb.mix = 0.3f;
         presets.push_back(std::move(p));
     }
 
@@ -9261,7 +9327,7 @@ std::vector<PresetDef> createAllPresets() {
         // higher notes = wetter tail (pitch pushes the delay/reverb send up)
         setModSlot(s, 5, kSrcArpPitch, kDstEffectMix,  0.20f, kCurveExp);
         // Slow free LFO drifts the PD morph so the buzz breathes between notes
-        s.lfo1.rateHz = 0.2f; s.lfo1.shape = 1; s.lfo1.depth = 0.5f; s.lfo1.sync = 0;
+        s.lfo1.rateHz = 0.2f; s.lfo1.shape = 1; s.lfo1.depth = 1.0f; s.lfo1.sync = 0;
         setModSlot(s, 6, kSrcLFO1, kDstAllMorphPos, 0.30f);
         // Performance voice routes: velocity opens cutoff, pressure adds resonance
         setVoiceRoute(s, 0, kVSrcVelocity,   kVDstFltCut, 0.5f);
@@ -9322,13 +9388,13 @@ std::vector<PresetDef> createAllPresets() {
 
         // --- Two free-running LFOs at close rates => slow phasing/beating ---
         s.lfo1.rateHz = 0.08f; s.lfo1.shape = 5;   // Smooth Random
-        s.lfo1.depth = 0.8f; s.lfo1.sync = 0;
+        s.lfo1.depth = 1.0f; s.lfo1.sync = 0;
         s.lfo1Ext.fadeInMs = 2000.0f;    // modulation fades in over 2 s
         s.lfo1Ext.symmetry = 0.35f;      // skewed random contour
         s.lfo1Ext.quantizeSteps = 6;     // stair-stepped random (extra LFO axis)
         s.lfo1Ext.retrigger = 0;         // free-run (don't reset per note)
         s.lfo2.rateHz = 0.12f; s.lfo2.shape = 0;   // Sine
-        s.lfo2.depth = 0.6f; s.lfo2.sync = 0;
+        s.lfo2.depth = 1.0f; s.lfo2.sync = 0;
         s.lfo2Ext.fadeInMs = 3000.0f;
         s.lfo2Ext.phaseOffset = 90.0f;   // quadrature vs LFO1 -> drifting motion
         s.lfo2Ext.unipolar = 1;          // push cutoff only upward
@@ -9341,7 +9407,7 @@ std::vector<PresetDef> createAllPresets() {
         setModSlot(s, 1, kSrcLFO2, kDstAllFltCut, 0.5f, kCurveLinear, 30.0f);
         s.modMatrix.slots[1].scale = 3;   // x2 depth (scale axis)
         // Chaos attractor -> spectral tilt (exp curve emphasises the peaks)
-        s.chaosMod.rateHz = 0.5f; s.chaosMod.type = 1; s.chaosMod.depth = 0.5f; // Rossler
+        s.chaosMod.rateHz = 0.5f; s.chaosMod.type = 1; s.chaosMod.depth = 1.0f; // Rossler
         setModSlot(s, 2, kSrcChaos, kDstAllSpecTilt, 0.35f, kCurveExp, 100.0f);
         // Random -> resonance (subtle x0.5 wobble)
         s.random.rateHz = 1.5f; s.random.smoothness = 0.6f;
@@ -9390,8 +9456,9 @@ std::vector<PresetDef> createAllPresets() {
         // Wrapper: big frozen HALL + spectral delay = infinite evolving space.
         // freeze=1 holds an evolving bed; damping 0.6 + mix 0.3 + soft-limit keep level bounded.
         s.reverbEnabled = 1; s.reverbType = 1;   // Hall
-        s.reverb.size = 0.85f; s.reverb.mix = 0.3f;
-        s.reverb.damping = 0.6f;
+        // was size 0.85 damping 0.6: R-220 remap
+        s.reverb.size = 0.0625f; s.reverb.mix = 0.3f;
+        s.reverb.damping = 0.0953f;
         s.reverb.diffusion = 0.85f;
         s.reverb.freeze = 1;
         s.delayEnabled = 1;
@@ -9475,7 +9542,7 @@ std::vector<PresetDef> createAllPresets() {
         s.pitchFollower.minHz = 80.0f; s.pitchFollower.maxHz = 2000.0f;
         s.pitchFollower.confidence = 0.5f; s.pitchFollower.speedMs = 40.0f;
         setModSlot(s, 0, kSrcPitchFollow, kDstAllFltCut, 0.25f, kCurveLinear, 25.0f);
-        s.lfo1.rateHz = 0.1f; s.lfo1.shape = 5; s.lfo1.depth = 0.3f; s.lfo1.sync = 0;
+        s.lfo1.rateHz = 0.1f; s.lfo1.shape = 5; s.lfo1.depth = 1.0f; s.lfo1.sync = 0;
         setModSlot(s, 1, kSrcLFO1, kDstAllMorphPos, 0.15f, kCurveSCurve);
         // Prepared-but-off alternate movement (demonstrates the per-slot BYPASS axis)
         setModSlot(s, 2, kSrcLFO2, kDstAllResonance, 0.2f, kCurveLinear);
@@ -9512,7 +9579,7 @@ std::vector<PresetDef> createAllPresets() {
         s.oscA.type = 0; s.oscA.waveform = 1; s.oscA.level = 0.7f;   // PolyBLEP saw
         s.oscB.type = 7;                          // Formant
         s.oscB.formantVowel = 1;                  // 'E'
-        s.oscB.formantMorph = 1.5f;               // sit between E and I for a nasal edge
+        s.oscB.formantMorph = 0.5f;               // sit between E and I for a nasal edge
         s.oscB.level = 0.6f;
         s.mixer.mode = 1;                         // Spectral Morph
         s.mixer.position = 0.3f;
@@ -9718,7 +9785,8 @@ std::vector<PresetDef> createAllPresets() {
         s.delay.mix = 0.26f; s.delay.feedback = 0.26f;
         s.delay.tapeSaturation = 0.45f; s.delay.tapeWear = 0.3f;
         s.reverbEnabled = 1; s.reverbType = 1;  // Hall
-        s.reverb.size = 0.5f; s.reverb.mix = 0.22f; s.reverb.damping = 0.45f;
+        // was size 0.5 damping 0.45: R-220 remap
+        s.reverb.size = 0.0066f; s.reverb.mix = 0.22f; s.reverb.damping = 0.0495f;
         s.global.masterGain = 1.4f;             // noise-excited comb is a quiet source
         presets.push_back(std::move(p));
     }
@@ -9761,7 +9829,7 @@ std::vector<PresetDef> createAllPresets() {
         for (int i = 0; i < 16; ++i) s.tranceGate.stepLevels[i] = tg[i];
         // Gate drives distortion drive: the crush intensity is itself rhythmic
         setVoiceRoute(s, 0, kVSrcGate, kVDstDistDrive, 0.45f);
-        s.lfo1.rateHz = 0.2f; s.lfo1.shape = 1; s.lfo1.depth = 0.5f; s.lfo1.sync = 1;
+        s.lfo1.rateHz = 0.2f; s.lfo1.shape = 1; s.lfo1.depth = 1.0f; s.lfo1.sync = 1;
         s.lfo1Ext.noteValue = 19;           // whole-note tilt drift
         setModSlot(s, 0, kSrcLFO1, kDstAllSpecTilt, 0.35f, kCurveSCurve);
         s.delayEnabled = 1; s.delay.type = 0;   // Digital
@@ -9777,6 +9845,7 @@ std::vector<PresetDef> createAllPresets() {
         p.name = "Swing Vox";
         p.category = "Rhythmic";
         auto& s = p.state;
+        s.global.masterGain = 0.25f; // T5.3b (R-214): master gain was 1; measured before peak 1.0, 9.0 % above 0.85 in the release test
         s.oscA.type = 7;                    // Formant
         s.oscA.formantVowel = 0; s.oscA.formantMorph = 0.3f; s.oscA.level = 0.85f;
         s.oscB.type = 0; s.oscB.waveform = 1; s.oscB.level = 0.3f;
@@ -9803,13 +9872,14 @@ std::vector<PresetDef> createAllPresets() {
         setVelocityLane(s, 5, vel5);
         // Vowel follows the arp's own pitch: higher notes open toward "ee"
         setModSlot(s, 0, kSrcArpPitch, kDstAllMorphPos, 0.55f, kCurveLinear);
-        s.lfo1.rateHz = 0.35f; s.lfo1.shape = 0; s.lfo1.depth = 0.5f; s.lfo1.sync = 0;
+        s.lfo1.rateHz = 0.35f; s.lfo1.shape = 0; s.lfo1.depth = 1.0f; s.lfo1.sync = 0;
         setModSlot(s, 1, kSrcLFO1, kDstAllFltCut, 0.25f, kCurveSCurve);
         setVoiceRoute(s, 0, kVSrcVelocity, kVDstMorphPos, 0.35f);
         s.modulationType = 3;               // Chorus widens the choir
         s.chorus.rateHz = 0.45f; s.chorus.depth = 0.5f; s.chorus.mix = 0.35f;
         s.reverbEnabled = 1; s.reverbType = 1;  // Hall
-        s.reverb.size = 0.55f; s.reverb.mix = 0.26f; s.reverb.damping = 0.4f;
+        // was size 0.55 damping 0.4: R-220 remap
+        s.reverb.size = 0.0102f; s.reverb.mix = 0.26f; s.reverb.damping = 0.0396f;
         presets.push_back(std::move(p));
     }
 
@@ -9893,7 +9963,8 @@ std::vector<PresetDef> createAllPresets() {
         s.delay.mix = 0.28f; s.delay.feedback = 0.4f;
         s.delay.pingPongWidth = 160.0f; s.delay.pingPongCrossFeed = 0.7f;
         s.reverbEnabled = 1; s.reverbType = 1;  // Hall
-        s.reverb.size = 0.7f; s.reverb.mix = 0.3f; s.reverb.damping = 0.35f;
+        // was size 0.7 damping 0.35: R-220 remap
+        s.reverb.size = 0.0267f; s.reverb.mix = 0.3f; s.reverb.damping = 0.0323f;
         // Additive partial sum no longer clips (2026-11-13):
         // re-levelled toward the Rhythmic median (-15.8 dBFS), held to a -1 dBFS peak
         p.state.global.masterGain = 0.549f;
@@ -9983,7 +10054,7 @@ std::vector<PresetDef> createAllPresets() {
         s.distortion.type = 5;              // Tape Saturator
         s.distortion.drive = 0.35f; s.distortion.mix = 0.45f;
         s.distortion.tapeSaturation = 0.5f; s.distortion.tapeBias = 0.55f;
-        s.lfo1.rateHz = 0.18f; s.lfo1.shape = 0; s.lfo1.depth = 0.4f; s.lfo1.sync = 0;
+        s.lfo1.rateHz = 0.18f; s.lfo1.shape = 0; s.lfo1.depth = 1.0f; s.lfo1.sync = 0;
         setModSlot(s, 0, kSrcLFO1, kDstAllFltCut, 0.3f, kCurveSCurve);
         setVoiceRoute(s, 0, kVSrcVelocity, kVDstFltCut, 0.4f);
         s.modulationType = 3;               // Chorus
@@ -10023,14 +10094,15 @@ std::vector<PresetDef> createAllPresets() {
         s.arp.ratchetSwing = 60.0f;
         // Arp pitch pushes spectral tilt: high notes are brighter frozen spectra
         setModSlot(s, 0, kSrcArpPitch, kDstAllSpecTilt, 0.5f, kCurveLinear);
-        s.lfo1.rateHz = 0.25f; s.lfo1.shape = 1; s.lfo1.depth = 0.5f; s.lfo1.sync = 1;
+        s.lfo1.rateHz = 0.25f; s.lfo1.shape = 1; s.lfo1.depth = 1.0f; s.lfo1.sync = 1;
         s.lfo1Ext.noteValue = 19;
         setModSlot(s, 1, kSrcLFO1, kDstAllMorphPos, 0.35f, kCurveSCurve);
         s.delayEnabled = 1; s.delay.type = 4;   // Spectral
         s.delay.sync = 1; s.delay.noteValue = kNote1_8;
         s.delay.mix = 0.3f; s.delay.feedback = 0.42f;
         s.reverbEnabled = 1; s.reverbType = 1;  // Hall
-        s.reverb.size = 0.6f; s.reverb.mix = 0.25f; s.reverb.damping = 0.4f;
+        // was size 0.6 damping 0.4: R-220 remap
+        s.reverb.size = 0.0145f; s.reverb.mix = 0.25f; s.reverb.damping = 0.0391f;
         s.global.masterGain = 1.2f;
         presets.push_back(std::move(p));
     }
@@ -10072,10 +10144,11 @@ std::vector<PresetDef> createAllPresets() {
         float vel6[] = {1.0f, 0.65f, 0.8f, 0.55f, 0.9f, 0.7f};
         setVelocityLane(s, 6, vel6);        // 6 against a 16-step bar
         setVoiceRoute(s, 0, kVSrcVelocity, kVDstFltCut, 0.4f);
-        s.lfo1.rateHz = 0.22f; s.lfo1.shape = 2; s.lfo1.depth = 0.5f; s.lfo1.sync = 0;
+        s.lfo1.rateHz = 0.22f; s.lfo1.shape = 2; s.lfo1.depth = 1.0f; s.lfo1.sync = 0;
         setModSlot(s, 0, kSrcLFO1, kDstEffectMix, 0.3f, kCurveSCurve);
         s.reverbEnabled = 1; s.reverbType = 1;  // Hall
-        s.reverb.size = 0.65f; s.reverb.mix = 0.28f; s.reverb.damping = 0.4f;
+        // was size 0.65 damping 0.4: R-220 remap
+        s.reverb.size = 0.0199f; s.reverb.mix = 0.28f; s.reverb.damping = 0.0391f;
         s.global.masterGain = 1.25f;
         presets.push_back(std::move(p));
     }
@@ -10158,7 +10231,8 @@ std::vector<PresetDef> createAllPresets() {
         // combination repeats -- over six bars of 16ths from entirely static data.
         float vel5[] = {1.0f, 0.55f, 0.85f, 0.6f, 0.95f};
         setVelocityLane(s, 5, vel5);
-        float gate7[] = {1.0f, 0.8f, 0.0f, 1.0f, 0.6f, 0.0f, 0.9f};
+        // steps 3 and 6 were 0: the parameter range is 0.01..2
+        float gate7[] = {1.0f, 0.8f, 0.01f, 1.0f, 0.6f, 0.01f, 0.9f};
         setGateLane(s, 7, gate7);
         int32_t ratch3[] = {1, 1, 2};
         setRatchetLane(s, 3, ratch3);
@@ -10166,7 +10240,7 @@ std::vector<PresetDef> createAllPresets() {
         int32_t cond4[] = {kCondAlways, kCondAlways, kCondProb75, kCondAlways};
         setConditionLane(s, 4, cond4, 0);
         setVoiceRoute(s, 0, kVSrcVelocity, kVDstFltCut, 0.5f);
-        s.lfo1.rateHz = 0.15f; s.lfo1.shape = 1; s.lfo1.depth = 0.45f; s.lfo1.sync = 1;
+        s.lfo1.rateHz = 0.15f; s.lfo1.shape = 1; s.lfo1.depth = 1.0f; s.lfo1.sync = 1;
         s.lfo1Ext.noteValue = 19;
         setModSlot(s, 0, kSrcLFO1, kDstAllFltCut, 0.3f, kCurveSCurve);
         s.modulationType = 1;               // Phaser
@@ -10255,7 +10329,7 @@ std::vector<PresetDef> createAllPresets() {
         setVoiceRoute(s, 0, kVSrcVoiceLFO, kVDstDistDrive, 0.4f);
         setVoiceRoute(s, 1, kVSrcVelocity, kVDstDistDrive, 0.35f);
         // A second synced LFO at 1/2 gives a slower, also-non-dividing swell
-        s.lfo2.shape = 1; s.lfo2.depth = 0.8f; s.lfo2.sync = 1;
+        s.lfo2.shape = 1; s.lfo2.depth = 1.0f; s.lfo2.sync = 1;
         s.lfo2Ext.noteValue = 16;           // half note
         setModSlot(s, 1, kSrcLFO2, kDstAllFltCut, 0.35f, kCurveSCurve);
         s.modulationType = 2;               // Flanger emphasises the fold harmonics
@@ -10344,7 +10418,7 @@ std::vector<PresetDef> createAllPresets() {
         s.flanger.rateHz = 0.17f; s.flanger.depth = 0.65f;
         s.flanger.feedback = 0.55f; s.flanger.mix = 0.4f;
         s.flanger.stereoSpread = 120.0f;
-        s.lfo1.rateHz = 0.28f; s.lfo1.shape = 1; s.lfo1.depth = 0.45f; s.lfo1.sync = 0;
+        s.lfo1.rateHz = 0.28f; s.lfo1.shape = 1; s.lfo1.depth = 1.0f; s.lfo1.sync = 0;
         setModSlot(s, 0, kSrcLFO1, kDstAllResonance, 0.3f, kCurveSCurve);
         s.delayEnabled = 1; s.delay.type = 1;   // Tape
         s.delay.sync = 1; s.delay.noteValue = kNote1_8T;
@@ -10352,7 +10426,8 @@ std::vector<PresetDef> createAllPresets() {
         s.delay.mix = 0.24f; s.delay.feedback = 0.28f;
         s.delay.tapeSaturation = 0.4f;
         s.reverbEnabled = 1; s.reverbType = 1;
-        s.reverb.size = 0.55f; s.reverb.mix = 0.24f; s.reverb.damping = 0.45f;
+        // was size 0.55 damping 0.45: R-220 remap
+        s.reverb.size = 0.0102f; s.reverb.mix = 0.24f; s.reverb.damping = 0.0481f;
         s.global.masterGain = 1.3f;
         presets.push_back(std::move(p));
     }
@@ -10489,7 +10564,7 @@ std::vector<PresetDef> createAllPresets() {
         setGateLane(s, 3, gate3);
         float vel5[] = {0.9f, 0.65f, 1.0f, 0.7f, 0.8f};
         setVelocityLane(s, 5, vel5);        // 5 vs 3: 15-step combined cycle
-        s.lfo1.shape = 0; s.lfo1.depth = 0.6f; s.lfo1.sync = 1;
+        s.lfo1.shape = 0; s.lfo1.depth = 1.0f; s.lfo1.sync = 1;
         s.lfo1Ext.noteValue = 19;           // whole-note morph drift
         setModSlot(s, 0, kSrcLFO1, kDstAllMorphPos, 0.4f, kCurveSCurve);
         setModSlot(s, 1, kSrcArpPitch, kDstAllSpecTilt, 0.3f, kCurveLinear);
@@ -10501,7 +10576,8 @@ std::vector<PresetDef> createAllPresets() {
         s.delay.sync = 1; s.delay.noteValue = kNote1_4D;
         s.delay.mix = 0.3f; s.delay.feedback = 0.45f;
         s.reverbEnabled = 1; s.reverbType = 1;  // Hall
-        s.reverb.size = 0.8f; s.reverb.mix = 0.38f; s.reverb.damping = 0.3f;
+        // was size 0.8 damping 0.3: R-220 remap
+        s.reverb.size = 0.0468f; s.reverb.mix = 0.38f; s.reverb.damping = 0.0281f;
         // Additive partial sum no longer clips (2026-11-13):
         // re-levelled toward the Rhythmic median (-15.8 dBFS), held to a -1 dBFS peak
         // lowered until a held chord peaks at -1 dBFS

@@ -886,7 +886,8 @@ void Controller::constructArpLanes()
             // Committed callback: sends IMessage on mouse-up / preset change
             editor->setCurveCommittedCallback(
                 [this, i](const SpeedCurveData& data) {
-                    sendSpeedCurveTable(static_cast<size_t>(i), data);
+                    sendSpeedCurveTable(
+                        kSpeedCurveRingToEngineLane[static_cast<size_t>(i)], data);
                 });
             speedCurveEditors_[i] = editor;
             // Add to the DetailStrip's parent (the frame) so it overlays
@@ -987,7 +988,7 @@ void Controller::constructArpLanes()
                     if (lane < 0 || lane >= 8) return;
                     auto laneIdx = static_cast<size_t>(lane);
                     if (speedCurveEditors_[laneIdx])
-                        sendSpeedCurveTable(laneIdx,
+                        sendSpeedCurveTable(kSpeedCurveRingToEngineLane[laneIdx],
                             speedCurveEditors_[laneIdx]->curveData());
                 });
 
@@ -1039,7 +1040,7 @@ void Controller::constructArpLanes()
                         auto data = speedCurveEditors_[laneIdx]->curveData();
                         data.enabled = enabled;
                         speedCurveEditors_[laneIdx]->setCurveData(data);
-                        sendSpeedCurveTable(laneIdx, data);
+                        sendSpeedCurveTable(kSpeedCurveRingToEngineLane[laneIdx], data);
                     }
                     showSpeedCurveForLane(lane);
                     // Show/hide depth knob + label + preset

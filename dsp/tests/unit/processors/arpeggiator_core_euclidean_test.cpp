@@ -1317,18 +1317,18 @@ TEST_CASE("EuclideanSwing_Orthogonal",
     // Verify the step spacing is non-uniform (swing is applied)
     // With swing=50%, even steps are longer, odd steps are shorter
     // At 120 BPM, base eighth note = 11025 samples
-    // Even step (lengthened): 11025 * 1.5 = 16537
-    // Odd step (shortened): 11025 * 0.5 = 5512
+    // Even step (lengthened): round(11025 * 1.5) = 16538
+    // Odd step (shortened): 2 * 11025 - 16538 = 5512 (R-106: the pair is exact)
     // Step durations cycle: [long, short, long, short, ...]
     //
     // E(3,8) hits on steps 0, 3, 6:
     // Step 0 offset: 0
-    // Step 1: 0 + 16537 = 16537 (rest)
-    // Step 2: 16537 + 5512 = 22049 (rest)
-    // Step 3: 22049 + 16537 = 38586 (hit)
-    // Step 4: 38586 + 5512 = 44098 (rest)
-    // Step 5: 44098 + 16537 = 60635 (rest)
-    // Step 6: 60635 + 5512 = 66147 (hit)
+    // Step 1: 0 + 16538 = 16538 (rest)
+    // Step 2: 16538 + 5512 = 22050 (rest)
+    // Step 3: 22050 + 16538 = 38588 (hit)
+    // Step 4: 38588 + 5512 = 44100 (rest)
+    // Step 5: 44100 + 16538 = 60638 (rest)
+    // Step 6: 60638 + 5512 = 66150 (hit)
     //
     // The key test: noteOns should NOT be at regular intervals
     if (noteOns.size() >= 3) {
@@ -1340,9 +1340,13 @@ TEST_CASE("EuclideanSwing_Orthogonal",
         CHECK(gap2 > 0);
         // With swing, the gaps between hit steps 0->3 and 3->6 differ
         // because swing alternates even/odd step durations
-        // gap1 (steps 0-3) = long+short+long = 16537+5512+16537 = 38586
-        // gap2 (steps 3-6) = short+long+short = 5512+16537+5512 = 27562
+        // gap1 (steps 0-3) = long+short+long = 16538+5512+16538 = 38588
+        // gap2 (steps 3-6) = short+long+short = 5512+16538+5512 = 27562
+        // R-199: step k lasts its own duration, long first. Before the fix the
+        // order was reversed (gap1 = 27561, gap2 = 38586, truncated halves).
         CHECK(gap1 != gap2);
+        CHECK(gap1 == 38588);
+        CHECK(gap2 == 27562);
     }
 
     // Count total noteOns per 8-step cycle to confirm Euclidean gating is correct.

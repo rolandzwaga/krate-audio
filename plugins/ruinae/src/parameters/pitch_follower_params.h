@@ -1,5 +1,6 @@
 #pragma once
 #include "plugin_ids.h"
+#include "parameters/state_load_helpers.h"
 #include "controller/parameter_helpers.h"
 #include "pluginterfaces/base/ustring.h"
 #include "public.sdk/source/vst/vstparameters.h"
@@ -170,20 +171,28 @@ inline void savePitchFollowerParams(const PitchFollowerParams& params,
     streamer.writeFloat(params.speedMs.load(std::memory_order_relaxed));
 }
 
+// Saved-field ranges, read by both parsers (R-211)
+namespace PitchFollowerLoad {
+inline constexpr LoadedFloat kMinHz{.lo = 20.0f, .hi = 500.0f, .def = 80.0f};
+inline constexpr LoadedFloat kMaxHz{.lo = 200.0f, .hi = 5000.0f, .def = 2000.0f};
+inline constexpr LoadedFloat kConfidence{.lo = 0.0f, .hi = 1.0f, .def = 0.5f};
+inline constexpr LoadedFloat kSpeedMs{.lo = 10.0f, .hi = 300.0f, .def = 50.0f};
+} // namespace PitchFollowerLoad
+
 inline bool loadPitchFollowerParams(PitchFollowerParams& params,
                                      Steinberg::IBStreamer& streamer) {
     float fv = 0.0f;
 
-    if (!streamer.readFloat(fv)) { return false; }
+    if (!readLoaded(streamer, fv, PitchFollowerLoad::kMinHz)) { return false; }
     params.minHz.store(fv, std::memory_order_relaxed);
 
-    if (!streamer.readFloat(fv)) { return false; }
+    if (!readLoaded(streamer, fv, PitchFollowerLoad::kMaxHz)) { return false; }
     params.maxHz.store(fv, std::memory_order_relaxed);
 
-    if (!streamer.readFloat(fv)) { return false; }
+    if (!readLoaded(streamer, fv, PitchFollowerLoad::kConfidence)) { return false; }
     params.confidence.store(fv, std::memory_order_relaxed);
 
-    if (!streamer.readFloat(fv)) { return false; }
+    if (!readLoaded(streamer, fv, PitchFollowerLoad::kSpeedMs)) { return false; }
     params.speedMs.store(fv, std::memory_order_relaxed);
 
     return true;
@@ -195,16 +204,16 @@ inline void loadPitchFollowerParamsToController(
     float fv = 0.0f;
 
     // Min Hz: read Hz, convert back to normalized
-    if (streamer.readFloat(fv))
+    if (readLoaded(streamer, fv, PitchFollowerLoad::kMinHz))
         setParam(kPitchFollowerMinHzId, pitchFollowerMinHzToNormalized(fv));
     // Max Hz: read Hz, convert back to normalized
-    if (streamer.readFloat(fv))
+    if (readLoaded(streamer, fv, PitchFollowerLoad::kMaxHz))
         setParam(kPitchFollowerMaxHzId, pitchFollowerMaxHzToNormalized(fv));
     // Confidence: already in [0,1] range
-    if (streamer.readFloat(fv))
+    if (readLoaded(streamer, fv, PitchFollowerLoad::kConfidence))
         setParam(kPitchFollowerConfidenceId, static_cast<double>(fv));
     // Speed: read ms, convert back to normalized
-    if (streamer.readFloat(fv))
+    if (readLoaded(streamer, fv, PitchFollowerLoad::kSpeedMs))
         setParam(kPitchFollowerSpeedId, pitchFollowerSpeedToNormalized(fv));
 }
 

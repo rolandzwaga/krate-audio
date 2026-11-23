@@ -152,6 +152,13 @@ public:
     /// @pre isPrepared() == true (otherwise no-op)
     void reset() noexcept;
 
+    /// @brief Settle the semitone and cents smoothers on their targets.
+    ///
+    /// reset() restarts the smoothers from 0, so the next process() glides
+    /// up from unison. A caller that resets a shifter while it should keep
+    /// sounding at its interval (a mode switch) calls this after reset().
+    void snapParameters() noexcept;
+
     /// @brief Check if processor is ready for processing
     /// @return true if prepare() has been called successfully
     [[nodiscard]] bool isPrepared() const noexcept;
@@ -1243,6 +1250,11 @@ inline void PitchShiftProcessor::reset() noexcept {
     pImpl_->semitoneSmoother.setTarget(pImpl_->semitones);
     pImpl_->centsSmoother.reset();
     pImpl_->centsSmoother.setTarget(pImpl_->cents);
+}
+
+inline void PitchShiftProcessor::snapParameters() noexcept {
+    pImpl_->semitoneSmoother.snapTo(pImpl_->semitones);
+    pImpl_->centsSmoother.snapTo(pImpl_->cents);
 }
 
 inline bool PitchShiftProcessor::isPrepared() const noexcept {

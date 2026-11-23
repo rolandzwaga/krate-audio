@@ -162,15 +162,14 @@ CTest integrates with CMake and can run tests across all executables.
 
 **IMPORTANT**: Use the full path to ctest.exe since the PATH may point to Python's cmake:
 
-```bash
-# Full path to ctest
-"/c/Program Files/CMake/bin/ctest.exe" --test-dir "F:/projects/iterum/build" -C Release -j 30
-```
+CTest always takes a selection (`-R` / `-L`) here: whole-suite runs go through `tools/run-gate.js`, which runs
+only the cases the change reaches (`--scope affected`, the default; `tools/affected-tests.js`). An unselected
+`ctest` is blocked by `tools/hooks/guard-test-scope.js` unless the line carries `# gate-all-ok: <reason>`.
 
-### Run All Tests
+### Run the Affected Tests
 
 ```bash
-"/c/Program Files/CMake/bin/ctest.exe" --test-dir "F:/projects/iterum/build" -C Release -j 30 --output-on-failure
+node tools/run-gate.js --filter '~[performance]~[perf]~[benchmark]~[!benchmark]' dsp_core_tests ruinae_tests
 ```
 
 ### Run Tests by Name Pattern
@@ -192,7 +191,7 @@ CTest integrates with CMake and can run tests across all executables.
 ### Verbose Output
 
 ```bash
-"/c/Program Files/CMake/bin/ctest.exe" --test-dir "F:/projects/iterum/build" -C Release -j 30 -V
+"/c/Program Files/CMake/bin/ctest.exe" --test-dir "F:/projects/iterum/build" -C Release -j 30 -R "sineFold" -V
 ```
 
 ---

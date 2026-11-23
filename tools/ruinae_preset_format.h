@@ -45,7 +45,7 @@ public:
 // Constants
 // ==============================================================================
 
-static constexpr int32_t kStateVersion = 8;
+static constexpr int32_t kStateVersion = 9;
 
 // Trance gate state version marker (must match kTranceGateStateVersion in trance_gate_params.h)
 static constexpr int32_t kTranceGateStateVersion = 3;
@@ -171,7 +171,7 @@ struct MixerState {
     int32_t mode = 0;
     float position = 0.5f;
     float tilt = 0.0f;
-    float shift = 0.0f;
+    float shift = 0.5f; // 0.5 = no shift (Spectral Shift is audible from state v9)
 
     void serialize(BinaryWriter& w) const {
         w.writeInt32(mode);
@@ -451,7 +451,7 @@ struct LFOExtState {
 struct ChaosModState {
     float rateHz = 1.0f;
     int32_t type = 0;
-    float depth = 0.0f;
+    float depth = 1.0f;
     int32_t sync = 0; // false
     int32_t noteValue = kNoteValueDefaultIndex;
 
@@ -879,6 +879,16 @@ struct TransientState {
     }
 };
 
+// Voice LFO (version 9+, appended after the arp pack)
+struct VoiceLfoState {
+    float rateHz = 1.0f;  // 0.01-50 Hz
+    int32_t shape = 0;    // Waveform: 0=Sine
+    void serialize(BinaryWriter& w) const {
+        w.writeFloat(rateHz);
+        w.writeInt32(shape);
+    }
+};
+
 struct HarmonizerState {
     int32_t harmonyMode = 0;
     int32_t key = 0;
@@ -1174,6 +1184,12 @@ struct RuinaePresetState {
     // Arpeggiator
     ArpState arp;
 
+    // Voice LFO (v9+)
+    VoiceLfoState voiceLfo;
+
+    // Velocity > Amp [0, 1] (v9+, after the voice LFO)
+    float ampVelocityAmount = 1.0f;
+
     std::vector<uint8_t> serialize() const {
         BinaryWriter w;
 
@@ -1243,6 +1259,12 @@ struct RuinaePresetState {
 
         // 34. Arpeggiator
         arp.serialize(w);
+
+        // 35. Voice LFO rate + shape (v9+)
+        voiceLfo.serialize(w);
+
+        // 36. Velocity > Amp (v9+)
+        w.writeFloat(ampVelocityAmount);
 
         return w.data;
     }

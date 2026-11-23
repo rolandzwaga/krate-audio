@@ -1,5 +1,6 @@
 #pragma once
 #include "plugin_ids.h"
+#include "parameters/state_load_helpers.h"
 #include "controller/parameter_helpers.h"
 #include "pluginterfaces/base/ustring.h"
 #include "public.sdk/source/vst/vstparameters.h"
@@ -146,17 +147,24 @@ inline void saveEnvFollowerParams(const EnvFollowerParams& params,
     streamer.writeFloat(params.releaseMs.load(std::memory_order_relaxed));
 }
 
+// Saved-field ranges, read by both parsers (R-211)
+namespace EnvFollowerLoad {
+inline constexpr LoadedFloat kSensitivity{.lo = 0.0f, .hi = 1.0f, .def = 0.5f};
+inline constexpr LoadedFloat kAttackMs{.lo = 0.1f, .hi = 500.0f, .def = 10.0f};
+inline constexpr LoadedFloat kReleaseMs{.lo = 1.0f, .hi = 5000.0f, .def = 100.0f};
+} // namespace EnvFollowerLoad
+
 inline bool loadEnvFollowerParams(EnvFollowerParams& params,
                                    Steinberg::IBStreamer& streamer) {
     float fv = 0.0f;
 
-    if (!streamer.readFloat(fv)) { return false; }
+    if (!readLoaded(streamer, fv, EnvFollowerLoad::kSensitivity)) { return false; }
     params.sensitivity.store(fv, std::memory_order_relaxed);
 
-    if (!streamer.readFloat(fv)) { return false; }
+    if (!readLoaded(streamer, fv, EnvFollowerLoad::kAttackMs)) { return false; }
     params.attackMs.store(fv, std::memory_order_relaxed);
 
-    if (!streamer.readFloat(fv)) { return false; }
+    if (!readLoaded(streamer, fv, EnvFollowerLoad::kReleaseMs)) { return false; }
     params.releaseMs.store(fv, std::memory_order_relaxed);
 
     return true;
@@ -168,13 +176,13 @@ inline void loadEnvFollowerParamsToController(
     float fv = 0.0f;
 
     // Sensitivity: already in [0,1] range
-    if (streamer.readFloat(fv))
+    if (readLoaded(streamer, fv, EnvFollowerLoad::kSensitivity))
         setParam(kEnvFollowerSensitivityId, static_cast<double>(fv));
     // Attack: read ms, convert back to normalized
-    if (streamer.readFloat(fv))
+    if (readLoaded(streamer, fv, EnvFollowerLoad::kAttackMs))
         setParam(kEnvFollowerAttackId, envFollowerAttackToNormalized(fv));
     // Release: read ms, convert back to normalized
-    if (streamer.readFloat(fv))
+    if (readLoaded(streamer, fv, EnvFollowerLoad::kReleaseMs))
         setParam(kEnvFollowerReleaseId, envFollowerReleaseToNormalized(fv));
 }
 

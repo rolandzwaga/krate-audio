@@ -35,13 +35,18 @@
 
 #include "controller/controller.h"
 #include "plugin_ids.h"
+#include "preset/vorago_preset_config.h"
 #include "vorago_test_fixture.h"
 
+#include "preset/preset_info.h"
+#include "preset/preset_manager.h"
 #include "ui/outline_button.h"
 #include "ui/preset_browser_view.h"
 
 #include <krate/dsp/core/random.h>
+#include <krate/dsp/systems/vorago_engine.h>
 
+#include <vst_event_list.h>
 #include <vst_param_changes.h>
 
 #include "pluginterfaces/base/smartpointer.h"
@@ -50,6 +55,7 @@
 #include "pluginterfaces/vst/ivsteditcontroller.h"
 #include "public.sdk/source/common/memorystream.h"
 #include "public.sdk/source/vst/hosting/hostclasses.h"
+#include "public.sdk/source/vst/vstpresetfile.h"
 #include "vstgui/lib/cbuttonstate.h"
 #include "vstgui/lib/cframe.h"
 #include "vstgui/lib/cpoint.h"
@@ -58,12 +64,16 @@
 #include "vstgui/plugin-bindings/vst3editor.h"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <filesystem>
 #include <map>
+#include <random>
 #include <set>
 #include <string>
+#include <system_error>
 #include <utility>
 #include <vector>
 
@@ -440,4 +450,337 @@ TEST_CASE("Vorago_PresetBrowser_SaveLoadRoundTrip", "[vorago][integration][prese
 
     handler.componentTarget = nullptr;
     REQUIRE(ctrl->terminate() == Steinberg::kResultOk);
+}
+
+// ==============================================================================
+// One preset-load path (fix plan T1.39, R-205)
+// ==============================================================================
+// A browser load used to run the controller's parser only, with host edits, and
+// never Processor::setState: notes held by the sustain latch kept sounding, and
+// the version migration was written once in the processor and once in the
+// controller. The pair below is wired as a host wires it: the controller's peer
+// is the processor, the browser loads a .vstpreset file through the controller's
+// own PresetManager, and the edits the controller tells the host about reach the
+// processor in the next process() call.
+// ==============================================================================
+
+namespace {
+
+using Krate::DSP::VoiceState;
+using Krate::DSP::VoragoEngine;
+
+constexpr std::size_t kPairBlock = 512;
+constexpr float kPairVelocity = 100.0f / 127.0f;
+constexpr std::size_t kMaxHoldBlocks = 375;  // 4 s at 48 kHz / 512 (sustain_test.cpp)
+
+[[nodiscard]] std::vector<char> processorStateBytes(::Vorago::Processor& proc) {
+    auto stream = Steinberg::owned(new Steinberg::MemoryStream());
+    REQUIRE(proc.getState(stream) == Steinberg::kResultOk);
+    return streamBytes(stream);
+}
+
+/// A processor state with every persisted parameter drawn from `seed`.
+[[nodiscard]] std::vector<char> randomizedState(std::uint32_t seed,
+                                                const std::vector<PersistedParam>& params) {
+    VoragoTest::ProcessorFixture fx;
+    Krate::DSP::Xorshift32 rng(seed);
+    Krate::Test::ParameterChanges pc;
+    for (const PersistedParam& p : params) {
+        pc.addChange(p.id, drawValue(rng, p.stepCount));
+    }
+    REQUIRE(fx.processNoOutputs(&pc) == Steinberg::kResultOk);
+    return processorStateBytes(*fx.proc);
+}
+
+/// `bytes` (a v3 stream) cut to an older version's length with that version word.
+[[nodiscard]] std::vector<char> asOlderVersion(std::vector<char> bytes, Steinberg::int32 version) {
+    REQUIRE(bytes.size() == ::Vorago::kStateV3Bytes);
+    const std::size_t length = (version >= 2) ? ::Vorago::kStateV2Bytes : std::size_t{60};
+    bytes.resize(length);
+    const auto v = static_cast<std::uint32_t>(version);
+    for (std::size_t b = 0; b < 4; ++b) {
+        bytes[b] = static_cast<char>((v >> (8u * b)) & 0xFFu);
+    }
+    return bytes;
+}
+
+[[nodiscard]] bool releasingOrIdle(VoiceState s) noexcept {
+    return s == VoiceState::Releasing || s == VoiceState::Idle;
+}
+
+/// A prepared processor and a controller whose peer is that processor. The
+/// controller's PresetManager reads and writes a scratch directory only.
+struct BrowserPair {
+    // Declared first, so they outlive the controller (inert ref counts).
+    RecordingComponentHandler handler;
+    Steinberg::Vst::HostApplication hostApp;
+    VoragoTest::ProcessorFixture fx;
+    Steinberg::IPtr<::Vorago::Controller> ctrl;
+    std::filesystem::path dir;
+    int presetCount = 0;
+    Krate::Test::EventList events;
+    VoragoTest::MultiParamChanges pedalChanges;
+
+    BrowserPair() {
+        std::random_device rd;
+        dir = std::filesystem::temp_directory_path() /
+              ("vorago_browser_load_" + std::to_string(rd()));
+        std::filesystem::create_directories(dir / "user");
+        std::filesystem::create_directories(dir / "factory");
+
+        fx.prepare(48000.0, static_cast<Steinberg::int32>(kPairBlock));
+        fx.reserveCapture(kPairBlock);
+
+        ctrl = Steinberg::owned(new ::Vorago::Controller());
+        REQUIRE(ctrl->initialize(&hostApp) == Steinberg::kResultOk);
+        REQUIRE(ctrl->setComponentHandler(&handler) == Steinberg::kResultOk);
+        handler.componentTarget = fx.proc.get();
+        REQUIRE(ctrl->connect(processorConnection()) == Steinberg::kResultOk);
+        ctrl->replacePresetManagerForTest(dir / "user", dir / "factory");
+
+        // The host hands the processor's state to the controller.
+        auto state = streamOf(processorStateBytes(*fx.proc));
+        REQUIRE(ctrl->setComponentState(state) == Steinberg::kResultOk);
+    }
+    ~BrowserPair() {
+        ctrl->disconnect(processorConnection());
+        handler.componentTarget = nullptr;
+        ctrl->terminate();
+        std::error_code ec;
+        std::filesystem::remove_all(dir, ec);
+    }
+    BrowserPair(const BrowserPair&) = delete;
+    BrowserPair& operator=(const BrowserPair&) = delete;
+    BrowserPair(BrowserPair&&) = delete;
+    BrowserPair& operator=(BrowserPair&&) = delete;
+
+    [[nodiscard]] Steinberg::Vst::IConnectionPoint* processorConnection() const {
+        return static_cast<Steinberg::Vst::IConnectionPoint*>(
+            static_cast<Steinberg::Vst::AudioEffect*>(fx.proc.get()));
+    }
+
+    /// Writes `component` as a .vstpreset and loads it through the browser's manager.
+    [[nodiscard]] bool browserLoad(const std::vector<char>& component) {
+        const std::filesystem::path path =
+            dir / "user" / ("preset" + std::to_string(++presetCount) + ".vstpreset");
+        {
+            auto file = Steinberg::owned(
+                Steinberg::Vst::FileStream::open(path.string().c_str(), "wb"));
+            REQUIRE(file != nullptr);
+            auto comp = streamOf(component);
+            REQUIRE(Steinberg::Vst::PresetFile::savePreset(
+                file, ::Vorago::makeVoragoPresetConfig().processorUID, comp));
+        }
+        Krate::Plugins::PresetInfo info;
+        info.name = "preset" + std::to_string(presetCount);
+        info.path = path;
+        return ctrl->presetManagerForTest()->loadPreset(info);
+    }
+
+    /// One rendered block carrying the queued notes and pedal points, plus every
+    /// edit the controller has told the host about since the last block.
+    void block() {
+        Krate::Test::ParameterChanges edits;
+        for (const EditRecord& r : handler.records) {
+            if (r.action == EditRecord::Action::Perform) {
+                edits.addChange(r.id, r.value);
+            }
+        }
+        handler.records.clear();
+        fx.capturedL.clear();
+        fx.capturedR.clear();
+        if (edits.getParameterCount() > 0) {
+            REQUIRE(pedalChanges.getParameterCount() == 0);
+            REQUIRE(fx.processBlock(kPairBlock, &events, &edits) == Steinberg::kResultOk);
+        } else {
+            REQUIRE(fx.processBlock(kPairBlock, &events, &pedalChanges) == Steinberg::kResultOk);
+        }
+        events.clear();
+        pedalChanges.clear();
+    }
+
+    void pedalDown() { pedalChanges.addQueue(::Vorago::kSustainPedalId).addTestPoint(0, 1.0); }
+
+    [[nodiscard]] const VoragoEngine& engine() const {
+        const VoragoEngine* e = fx.proc->engineForTest();
+        REQUIRE(e != nullptr);
+        return *e;
+    }
+
+    /// Note-on in its own block; returns the slot that left Idle.
+    [[nodiscard]] std::size_t strike(Steinberg::int16 pitch) {
+        std::array<VoiceState, VoragoEngine::kMaxVoices> before{};
+        for (std::size_t i = 0; i < before.size(); ++i) {
+            before[i] = engine().getVoiceState(i);
+        }
+        events.addNoteOn(pitch, kPairVelocity, 0);
+        block();
+        std::size_t found = VoragoEngine::kMaxVoices;
+        for (std::size_t i = 0; i < before.size(); ++i) {
+            if (before[i] == VoiceState::Idle && engine().getVoiceState(i) != VoiceState::Idle) {
+                found = i;
+            }
+        }
+        REQUIRE(found < VoragoEngine::kMaxVoices);
+        return found;
+    }
+
+    /// Holds until the slot is audible, so a release reads Releasing rather than
+    /// an immediate retire (sustain_test.cpp holdUntilAudible).
+    void holdUntilAudible(std::size_t slot) {
+        std::size_t held = 0;
+        while (engine().getVoiceLevel(slot) < Krate::DSP::VoragoVoice::kTailSilenceThreshold &&
+               held < kMaxHoldBlocks) {
+            block();
+            ++held;
+        }
+        REQUIRE(engine().getVoiceLevel(slot) >= Krate::DSP::VoragoVoice::kTailSilenceThreshold);
+        REQUIRE(engine().getVoiceState(slot) == VoiceState::Active);
+    }
+};
+
+}  // namespace
+
+TEST_CASE("Browser load leaves the processor in the same state as a host load",
+          "[vorago][presets][state]") {
+    BrowserPair pair;
+    const std::vector<PersistedParam> params = persistedParams(*pair.ctrl);
+    REQUIRE(params.size() == kNumPersisted);
+
+    const std::vector<char> presetA = randomizedState(0x7139A001u, params);
+    const std::vector<char> presetB = randomizedState(0x7139B002u, params);
+    REQUIRE(presetA.size() == ::Vorago::kStateV3Bytes);
+    REQUIRE(presetB.size() == ::Vorago::kStateV3Bytes);
+    REQUIRE(presetA != presetB);
+
+    REQUIRE(pair.browserLoad(presetA));
+    pair.block();
+    REQUIRE(pair.browserLoad(presetB));
+    // Sustain and channel pressure are performance controllers, never a preset value.
+    for (const EditRecord& r : pair.handler.records) {
+        REQUIRE(r.id != ::Vorago::kSustainPedalId);
+        REQUIRE(r.id != ::Vorago::kChannelPressureId);
+    }
+    pair.block();
+
+    VoragoTest::ProcessorFixture hostLoaded;
+    hostLoaded.prepare(48000.0, static_cast<Steinberg::int32>(kPairBlock));
+    hostLoaded.reserveCapture(kPairBlock);
+    REQUIRE(hostLoaded.proc->setState(streamOf(presetB)) == Steinberg::kResultOk);
+    REQUIRE(hostLoaded.processBlock(kPairBlock) == Steinberg::kResultOk);
+
+    const std::vector<char> browserBytes = processorStateBytes(*pair.fx.proc);
+    const std::vector<char> hostBytes = processorStateBytes(*hostLoaded.proc);
+    REQUIRE(browserBytes.size() == hostBytes.size());
+    std::size_t differing = 0;
+    std::size_t firstDiff = browserBytes.size();
+    for (std::size_t i = 0; i < browserBytes.size(); ++i) {
+        if (browserBytes[i] != hostBytes[i]) {
+            ++differing;
+            firstDiff = std::min(firstDiff, i);
+        }
+    }
+    INFO(differing << " differing bytes, the first at offset " << firstDiff);
+    REQUIRE(browserBytes == hostBytes);
+}
+
+TEST_CASE("Browser load releases latched and sustained notes", "[vorago][presets][state]") {
+    // The preset loaded over the held notes: the default surface, so no value in it
+    // (polyphony, envelope) can end a voice by itself.
+    const std::vector<char> preset = [] {
+        VoragoTest::ProcessorFixture fresh;
+        return processorStateBytes(*fresh.proc);
+    }();
+
+    constexpr std::array<Steinberg::int16, 2> kPitches{60, 64};
+
+    // `browser` true: the preset browser loads it; false: the host's setState.
+    const auto loadOverHeldNotes = [&](bool browser) {
+        BrowserPair pair;
+        pair.fx.shortenStage0();  // audible inside the hold cap (sustain_test.cpp)
+        std::array<std::size_t, kPitches.size()> slots{};
+        for (std::size_t i = 0; i < kPitches.size(); ++i) {
+            slots[i] = pair.strike(kPitches[i]);
+        }
+        for (const std::size_t slot : slots) {
+            pair.holdUntilAudible(slot);
+        }
+
+        // Pedal down, then every key up: every note is held by the latch.
+        pair.pedalDown();
+        pair.block();
+        for (const Steinberg::int16 pitch : kPitches) {
+            pair.events.addNoteOff(pitch, 0);
+        }
+        pair.block();
+        REQUIRE(pair.fx.proc->latchForTest().isDown());
+        REQUIRE(pair.fx.proc->globalParamsForTest().sustainPedal.load() >= 0.5f);
+        for (const std::size_t slot : slots) {
+            REQUIRE(pair.engine().getVoiceState(slot) == VoiceState::Active);
+        }
+
+        if (browser) {
+            REQUIRE(pair.browserLoad(preset));
+        } else {
+            REQUIRE(pair.fx.proc->setState(streamOf(preset)) == Steinberg::kResultOk);
+        }
+        pair.block();  // the next block
+
+        INFO((browser ? "browser load" : "host setState"));
+        REQUIRE_FALSE(pair.fx.proc->latchForTest().isDown());
+        REQUIRE(pair.fx.proc->globalParamsForTest().sustainPedal.load() == 0.0f);
+        for (std::size_t i = 0; i < slots.size(); ++i) {
+            INFO("pitch " << kPitches[i] << " slot " << slots[i]);
+            REQUIRE(releasingOrIdle(pair.engine().getVoiceState(slots[i])));
+        }
+    };
+
+    loadOverHeldNotes(false);
+    loadOverHeldNotes(true);
+}
+
+TEST_CASE("Old-version state migrates the same in controller and processor", "[vorago][state]") {
+    Steinberg::Vst::HostApplication hostApp;
+    const auto makeController = [&hostApp] {
+        auto c = Steinberg::owned(new ::Vorago::Controller());
+        REQUIRE(c->initialize(&hostApp) == Steinberg::kResultOk);
+        return c;
+    };
+
+    auto probe = makeController();
+    const std::vector<PersistedParam> params = persistedParams(*probe);
+    REQUIRE(params.size() == kNumPersisted);
+    REQUIRE(probe->terminate() == Steinberg::kResultOk);
+
+    // `prior` is what both sides hold before the old stream arrives: the fields an
+    // old stream lacks must not keep it.
+    const std::vector<char> prior = randomizedState(0x7139C003u, params);
+    const std::vector<char> current = randomizedState(0x7139D004u, params);
+
+    for (const Steinberg::int32 version : {1, 2}) {
+        INFO("version " << version);
+        const std::vector<char> old = asOlderVersion(current, version);
+
+        VoragoTest::ProcessorFixture fx;
+        REQUIRE(fx.proc->setState(streamOf(prior)) == Steinberg::kResultOk);
+        REQUIRE(fx.proc->setState(streamOf(old)) == Steinberg::kResultOk);
+
+        auto migrated = makeController();
+        REQUIRE(migrated->setComponentState(streamOf(prior)) == Steinberg::kResultOk);
+        REQUIRE(migrated->setComponentState(streamOf(old)) == Steinberg::kResultOk);
+
+        // The processor's values, read back through a current-version stream (no
+        // migration on that path).
+        auto reference = makeController();
+        REQUIRE(reference->setComponentState(streamOf(processorStateBytes(*fx.proc))) ==
+                Steinberg::kResultOk);
+
+        for (const PersistedParam& p : params) {
+            INFO("id " << p.id);
+            REQUIRE(std::fabs(migrated->getParamNormalized(p.id) -
+                              reference->getParamNormalized(p.id)) <= kValueTolerance);
+        }
+        REQUIRE(migrated->terminate() == Steinberg::kResultOk);
+        REQUIRE(reference->terminate() == Steinberg::kResultOk);
+    }
 }

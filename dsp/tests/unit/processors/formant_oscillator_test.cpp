@@ -581,7 +581,7 @@ TEST_CASE("Morphing produces no clicks (sample-to-sample differences bounded)",
 // Phase 4: User Story 4 - Pitch Control
 // ==============================================================================
 
-TEST_CASE("FR-012: setFundamental() clamps to [20, 2000] Hz range",
+TEST_CASE("FR-012: setFundamental() clamps to [20, 8000] Hz range",
           "[FormantOscillator][US4][fundamental]") {
     FormantOscillator osc;
     osc.prepare(44100.0);
@@ -590,9 +590,13 @@ TEST_CASE("FR-012: setFundamental() clamps to [20, 2000] Hz range",
     osc.setFundamental(10.0f);
     REQUIRE(osc.getFundamental() >= 20.0f);
 
+    // C8 and the old 2 kHz cap's neighbourhood are kept (R-149)
+    osc.setFundamental(4186.0f);
+    REQUIRE(osc.getFundamental() == Approx(4186.0f));
+
     // Above maximum
-    osc.setFundamental(3000.0f);
-    REQUIRE(osc.getFundamental() <= 2000.0f);
+    osc.setFundamental(12000.0f);
+    REQUIRE(osc.getFundamental() <= 8000.0f);
 
     // Valid range
     osc.setFundamental(440.0f);

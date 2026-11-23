@@ -22,7 +22,8 @@ inline Krate::Plugins::PresetManagerConfig makeRuinaePresetConfig() {
         .subcategoryNames = {
             "Pads", "Leads", "Bass", "Textures", "Rhythmic", "Experimental",
             "Arp User", "Arp Classic", "Arp Acid", "Arp Euclidean", "Arp Polymetric",
-            "Arp Generative", "Arp Performance", "Arp Chords"
+            "Arp Generative", "Arp Performance", "Arp Chords", "Arp Modulation",
+            "Modulation"
         }
     };
 }
@@ -31,7 +32,7 @@ inline Krate::Plugins::PresetManagerConfig makeRuinaePresetConfig() {
 inline std::vector<std::string> getRuinaeTabLabels() {
     return {
         "All",
-        "Pads", "Leads", "Bass", "Textures", "Rhythmic", "Experimental"
+        "Pads", "Leads", "Bass", "Textures", "Rhythmic", "Experimental", "Modulation"
     };
 }
 
@@ -40,7 +41,7 @@ inline std::vector<std::string> getRuinaeArpTabLabels() {
     return {
         "All",
         "Arp User", "Arp Classic", "Arp Acid", "Arp Euclidean", "Arp Polymetric",
-        "Arp Generative", "Arp Performance", "Arp Chords"
+        "Arp Generative", "Arp Performance", "Arp Chords", "Arp Modulation"
     };
 }
 

@@ -360,11 +360,12 @@ TEST_CASE("Modifier Shift Left: rotates bitmask pattern", "[transform][modifier]
 
     applyShiftLeft(*lane);
 
-    // After shift left: [0x02, 0x04, 0x08, 0x01]
-    REQUIRE(lane->getNormalizedStepValue(0) == Approx(0x02 / 15.0f).margin(0.001f));
-    REQUIRE(lane->getNormalizedStepValue(1) == Approx(0x04 / 15.0f).margin(0.001f));
-    REQUIRE(lane->getNormalizedStepValue(2) == Approx(0x08 / 15.0f).margin(0.001f));
-    REQUIRE(lane->getNormalizedStepValue(3) == Approx(0x01 / 15.0f).margin(0.001f));
+    // After shift left: [0x02, 0x04, 0x08, 0x01] (normalized flags / 255, R-145)
+    REQUIRE(lane->getStepFlags(0) == 0x02);
+    REQUIRE(lane->getStepFlags(1) == 0x04);
+    REQUIRE(lane->getStepFlags(2) == 0x08);
+    REQUIRE(lane->getStepFlags(3) == 0x01);
+    REQUIRE(lane->getNormalizedStepValue(0) == Approx(0x02 / 255.0f).margin(1e-6f));
 
     lane->forget();
 }
@@ -380,11 +381,12 @@ TEST_CASE("Modifier Shift Right: rotates bitmask pattern", "[transform][modifier
 
     applyShiftRight(*lane);
 
-    // After shift right: [0x08, 0x01, 0x02, 0x04]
-    REQUIRE(lane->getNormalizedStepValue(0) == Approx(0x08 / 15.0f).margin(0.001f));
-    REQUIRE(lane->getNormalizedStepValue(1) == Approx(0x01 / 15.0f).margin(0.001f));
-    REQUIRE(lane->getNormalizedStepValue(2) == Approx(0x02 / 15.0f).margin(0.001f));
-    REQUIRE(lane->getNormalizedStepValue(3) == Approx(0x04 / 15.0f).margin(0.001f));
+    // After shift right: [0x08, 0x01, 0x02, 0x04] (normalized flags / 255, R-145)
+    REQUIRE(lane->getStepFlags(0) == 0x08);
+    REQUIRE(lane->getStepFlags(1) == 0x01);
+    REQUIRE(lane->getStepFlags(2) == 0x02);
+    REQUIRE(lane->getStepFlags(3) == 0x04);
+    REQUIRE(lane->getNormalizedStepValue(0) == Approx(0x08 / 255.0f).margin(1e-6f));
 
     lane->forget();
 }
@@ -471,15 +473,19 @@ TEST_CASE("Modifier Randomize: all values in 0-15 range", "[transform][modifier]
     std::mt19937 rng(42); // deterministic seed
     std::uniform_int_distribution<int> dist(0, 15);
 
+    // The normalized encoding is flags / 255 (R-145)
+    std::array<int, 32> values{};
     for (int32_t i = 0; i < lane->getActiveLength(); ++i) {
         int value = dist(rng);
-        lane->setNormalizedStepValue(i, static_cast<float>(value) / 15.0f);
+        values[static_cast<size_t>(i)] = value;
+        lane->setNormalizedStepValue(i, static_cast<float>(value) / 255.0f);
     }
 
-    // Verify all values decode to 0-15
+    // Verify all values decode to 0-15, each to the flags it encodes
     for (int i = 0; i < 32; ++i) {
         uint8_t flags = lane->getStepFlags(i);
         REQUIRE(flags <= 0x0F);
+        REQUIRE(flags == static_cast<uint8_t>(values[static_cast<size_t>(i)]));
     }
 
     lane->forget();

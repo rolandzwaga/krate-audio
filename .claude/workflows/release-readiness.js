@@ -72,7 +72,8 @@ const results = await parallel(
 2. Build: ${CMAKE} --build ${BUILD_DIR} --config Release --target ${m.testTarget}
    Report compiler errors and the WARNING count (zero required).
 3. Run the ${m.testTarget} suite SHARDED (never one serial exe; ${requested.length} plugin agent(s) run at once, so each takes a share of the machine):
-     node tools/run-gate.js --share ${requested.length} --filter '~[performance]~[perf]~[benchmark]~[!benchmark]' ${m.testTarget} 2>&1 | tail -20
+     node tools/run-gate.js --share ${requested.length} --base <TAG> --filter '~[performance]~[perf]~[benchmark]~[!benchmark]' ${m.testTarget} 2>&1 | tail -20
+   <TAG> is the latest released tag: the highest ${p}/vX.Y.Z in \`git ls-remote --tags origin "refs/tags/${p}/v*"\` (run \`git fetch origin tag <TAG>\` if it is not local). The gate runs only the cases the changes since that release reach (tools/affected-tests.js); "GATE GREEN nothing to run" means none of them reaches ${m.testTarget}: report that as green and say so.
    Report its GATE GREEN / GATE RED line verbatim (one run, do not grep repeatedly). Timing tests are excluded here on purpose (concurrent agents make them measure load); say so.
 4. Build the plugin bundle, then run pluginval strictness 5:
    tools/pluginval.exe --strictness-level 5 --validate "${BUILD_DIR}/VST3/Release/${m.bundle}"

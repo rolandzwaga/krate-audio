@@ -155,6 +155,10 @@ struct PerfTestFixture {
     }
 };
 
+/// Normalised value of note-value dropdown index i: the handler reads
+/// value * (kNoteValueDropdownCount - 1) (arpeggiator_params.h).
+constexpr double kNoteValueSteps = static_cast<double>(Krate::DSP::kNoteValueDropdownCount - 1);
+
 } // anonymous namespace
 
 // =============================================================================
@@ -162,16 +166,14 @@ struct PerfTestFixture {
 // =============================================================================
 
 TEST_CASE("Arp CPU overhead is less than 0.5% of a single core at 44.1kHz",
-          "[arp performance][!mayfail]") {
+          "[arp][performance][wallclock]") {
     // Measure the difference in processing time between arp disabled vs enabled.
     // The overhead is expressed as a percentage of the real-time budget:
     //   budget_per_block_ms = (512 / 44100) * 1000 = ~11.6ms
     //   overhead% = (arp_time - noarp_time) / (N * budget_per_block_ms) * 100
     //
-    // NOTE: Threshold is 0.5% rather than 0.1% because wall-clock timing benchmarks
-    // are inherently noisy and vary with system load, background processes, and
-    // CPU frequency scaling. The [!mayfail] tag ensures this timing-sensitive test
-    // does not block CI even if the system is under unusual load.
+    // [performance] keeps it out of the sharded gate (tools/run-cpu-tests.js runs
+    // it alone); it can fail there (R-127).
 
     constexpr int N = 10000;
     constexpr double budgetPerBlockMs = (512.0 / 44100.0) * 1000.0;
@@ -218,7 +220,7 @@ TEST_CASE("Arp CPU overhead is less than 0.5% of a single core at 44.1kHz",
             PerfTestParamChanges params;
             params.addChange(Ruinae::kArpOperatingModeId, 1.0 / 3.0);
             params.addChange(Ruinae::kArpModeId, 0.0);              // Up
-            params.addChange(Ruinae::kArpNoteValueId, 7.0 / 20.0);  // 1/16 (index 7)
+            params.addChange(Ruinae::kArpNoteValueId, 7.0 / kNoteValueSteps);  // 1/16 (index 7)
             f.processBlockWithParams(params);
         }
 
@@ -256,8 +258,10 @@ TEST_CASE("Arp CPU overhead is less than 0.5% of a single core at 44.1kHz",
 
 TEST_CASE("Stress test: 10 notes, ratchet=4 all steps, all lanes active, "
           "spice=100%, 200 BPM, 1/32",
-          "[arp performance]") {
+          "[arp][stress]") {
     PerfTestFixture f;
+    PerfTestEventList out;
+    f.data.outputEvents = &out;
 
     // Set tempo to 200 BPM
     f.processContext.tempo = 200.0;
@@ -268,7 +272,8 @@ TEST_CASE("Stress test: 10 notes, ratchet=4 all steps, all lanes active, "
         // Enable arp, mode = Up, rate = 1/32 (index 4)
         params.addChange(Ruinae::kArpOperatingModeId, 1.0 / 3.0);
         params.addChange(Ruinae::kArpModeId, 0.0);              // Up
-        params.addChange(Ruinae::kArpNoteValueId, 4.0 / 20.0);  // 1/32 (index 4)
+        params.addChange(Ruinae::kArpNoteValueId, 4.0 / kNoteValueSteps);  // 1/32 (index 4)
+        params.addChange(Ruinae::kArpMidiOutId, 1.0);           // MIDI Out: the bus under test
 
         // All 6 lane lengths = 32
         params.addChange(Ruinae::kArpVelocityLaneLengthId, 31.0 / 31.0); // len=32
@@ -297,18 +302,66 @@ TEST_CASE("Stress test: 10 notes, ratchet=4 all steps, all lanes active, "
     }
     f.processBlock();
     f.clearEvents();
+    // `out` still holds the first step's events (it fires in the block that took the
+    // key presses); the first tally() below counts them.
 
     // Run process() for 10 seconds worth of blocks at 44.1kHz with 512-sample blocks
     // 10 seconds = 441000 samples = 441000/512 = ~861 blocks
     constexpr int kBlocksFor10Seconds = static_cast<int>(
         (10.0 * 44100.0) / 512.0) + 1;  // ~862
 
+    // The processor's per-block arp event buffer holds 128 events
+    // (Processor::arpEvents_); a block that reaches it has dropped events.
+    constexpr int kArpEventCap = 128;
+    std::array<int, 128> noteOns{};
+    std::array<int, 128> noteOffs{};
+    int totalNoteOns = 0;
+    int maxEventsInBlock = 0;
+    auto tally = [&] {
+        int inBlock = 0;
+        for (Steinberg::int32 e = 0; e < out.getEventCount(); ++e) {
+            Steinberg::Vst::Event ev{};
+            if (out.getEvent(e, ev) != Steinberg::kResultTrue) continue;
+            if (ev.type == Steinberg::Vst::Event::kNoteOnEvent && ev.noteOn.velocity > 0.0f) {
+                ++noteOns[static_cast<size_t>(ev.noteOn.pitch & 0x7F)];
+                ++totalNoteOns;
+                ++inBlock;
+            } else if (ev.type == Steinberg::Vst::Event::kNoteOnEvent) {
+                ++noteOffs[static_cast<size_t>(ev.noteOn.pitch & 0x7F)];
+                ++inBlock;
+            } else if (ev.type == Steinberg::Vst::Event::kNoteOffEvent) {
+                ++noteOffs[static_cast<size_t>(ev.noteOff.pitch & 0x7F)];
+                ++inBlock;
+            }
+        }
+        maxEventsInBlock = std::max(maxEventsInBlock, inBlock);
+        out.clear();
+    };
+
     for (int i = 0; i < kBlocksFor10Seconds; ++i) {
         f.processBlock();
+        tally();
     }
 
-    // If we reach here without assertion failures or crashes, the test passes
-    SUCCEED("Stress test completed without crashes or assertion failures");
+    // Stop the transport: the arp ends every note it still sounds.
+    f.setTransportPlaying(false);
+    for (int i = 0; i < 20; ++i) {
+        f.processBlock();
+        tally();
+    }
+
+    INFO("Note-ons on the MIDI output: " << totalNoteOns);
+    INFO("Largest event count in one block: " << maxEventsInBlock);
+
+    // 10 notes at 1/32, 200 BPM, ratchet 4: the output must carry notes ...
+    REQUIRE(totalNoteOns > 0);
+    // ... balanced per pitch (no stuck note on the bus) ...
+    for (size_t p = 0; p < noteOns.size(); ++p) {
+        INFO("pitch " << p);
+        CHECK(noteOns[p] == noteOffs[p]);
+    }
+    // ... and no block anywhere near the event cap.
+    CHECK(maxEventsInBlock < kArpEventCap);
 }
 
 // =============================================================================
@@ -319,7 +372,7 @@ TEST_CASE("Stress test: 10 notes, ratchet=4 all steps, all lanes active, "
 // transport is stopped. This ensures no stuck notes under worst-case load.
 
 TEST_CASE("Stress test: all note-on events have matching note-off events",
-          "[arp performance]") {
+          "[arp][stress]") {
     using namespace Krate::DSP;
 
     constexpr double kSampleRate = 44100.0;

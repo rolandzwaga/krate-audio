@@ -7,6 +7,7 @@
 // source of truth; amp_env_params.h / filter_env_params.h / mod_env_params.h
 // are thin re-export shims that preserve the historical per-envelope API.
 #include "plugin_ids.h"
+#include "parameters/state_load_helpers.h"
 #include "pluginterfaces/base/ustring.h"
 #include "public.sdk/source/vst/vstparameters.h"
 #include "public.sdk/source/vst/vsteditcontroller.h"
@@ -84,7 +85,13 @@ struct EnvParams {
 };
 
 struct AmpEnvParams : EnvParams {
+    static constexpr float kDefaultVelocityAmount = 1.0f;
+
     AmpEnvParams() : EnvParams(10.0f, 100.0f, 0.8f, 200.0f) {}
+
+    // Velocity > Amp [0, 1] (R-018). Not one of the envFields(): it is saved
+    // after the voice LFO (state v9), not inside the envelope pack.
+    std::atomic<float> velocityAmount{kDefaultVelocityAmount};
 };
 
 struct FilterEnvParams : EnvParams {
@@ -282,18 +289,36 @@ inline void saveEnvParams(const EnvParams& params, Steinberg::IBStreamer& stream
     }
 }
 
-inline bool loadEnvParams(EnvParams& params, Steinberg::IBStreamer& streamer) {
+// A loaded field lands in the range its normalized handler produces; a
+// non-finite value loads as the envelope's default for that field.
+inline float envFieldFromState(const EnvField& field, float v, float def) {
+    switch (field.map) {
+        case EnvMap::Time:          return finiteClamp(v, 0.0f, 10000.0f, def);
+        case EnvMap::Sustain:       return finiteClamp(v, 0.0f, 1.0f, def);
+        case EnvMap::Curve:         return finiteClamp(v, -1.0f, 1.0f, def);
+        case EnvMap::BezierEnabled: return finiteClamp(v, 0.0f, 1.0f, def) >= 0.5f ? 1.0f : 0.0f;
+        case EnvMap::BezierCp:
+        default:                    return finiteClamp(v, 0.0f, 1.0f, def);
+    }
+}
+
+inline bool loadEnvParams(EnvParams& params, Steinberg::IBStreamer& streamer,
+                          const EnvParams& defaults) {
     const EnvField* fields = envFields();
     float v = 0.0f;
+    auto store = [&](int i) {
+        const float def = (defaults.*fields[i].member).load(std::memory_order_relaxed);
+        (params.*fields[i].member).store(envFieldFromState(fields[i], v, def), std::memory_order_relaxed);
+    };
     // A/D/S/R are mandatory.
     for (int i = 0; i < kEnvMandatoryFieldCount; ++i) {
         if (!streamer.readFloat(v)) { return false; }
-        (params.*fields[i].member).store(v, std::memory_order_relaxed);
+        store(i);
     }
     // Curve/Bezier fields are optional for backward compatibility with older presets.
     for (int i = kEnvMandatoryFieldCount; i < kEnvFieldCount; ++i) {
         if (streamer.readFloat(v)) {
-            (params.*fields[i].member).store(v, std::memory_order_relaxed);
+            store(i);
         } else {
             return true;
         }
@@ -312,15 +337,19 @@ inline double envFieldToNormalized(const EnvField& field, float v) {
     }
 }
 
+// The same envFieldFromState sanitising as loadEnvParams (R-211).
 template <typename SetParamFunc>
 inline void loadEnvParamsToController(Steinberg::Vst::ParamID base,
                                       Steinberg::IBStreamer& streamer,
-                                      const SetParamFunc& setParam) {
+                                      const SetParamFunc& setParam,
+                                      const EnvParams& defaults) {
     const EnvField* fields = envFields();
     float v = 0.0f;
     for (int i = 0; i < kEnvFieldCount; ++i) {
         if (streamer.readFloat(v)) {
-            setParam(base + fields[i].offset, envFieldToNormalized(fields[i], v));
+            const float def = (defaults.*fields[i].member).load(std::memory_order_relaxed);
+            setParam(base + fields[i].offset,
+                     envFieldToNormalized(fields[i], envFieldFromState(fields[i], v, def)));
         } else {
             return;
         }
@@ -335,26 +364,64 @@ inline void loadEnvParamsToController(Steinberg::Vst::ParamID base,
 // ---- Amp envelope ----
 inline void handleAmpEnvParamChange(AmpEnvParams& params, Steinberg::Vst::ParamID id,
                                     Steinberg::Vst::ParamValue value) {
+    if (id == kAmpEnvVelocityAmountId) {
+        params.velocityAmount.store(std::clamp(static_cast<float>(value), 0.0f, 1.0f),
+                                    std::memory_order_relaxed);
+        return;
+    }
     handleEnvParamChange(params, kAmpEnvBaseId, id, value);
 }
 inline void registerAmpEnvParams(Steinberg::Vst::ParameterContainer& parameters) {
     registerEnvParams(parameters, kAmpEnvBaseId, STR16("Amp "), STR16("Amp Env "),
                       STR16("Amp "), 0.215, 0.8, 0.271);
+    parameters.addParameter(STR16("Velocity > Amp"), STR16("%"), 0,
+                            AmpEnvParams::kDefaultVelocityAmount,
+                            Steinberg::Vst::ParameterInfo::kCanAutomate, kAmpEnvVelocityAmountId);
 }
 inline Steinberg::tresult formatAmpEnvParam(Steinberg::Vst::ParamID id,
                                             Steinberg::Vst::ParamValue value,
                                             Steinberg::Vst::String128 string) {
+    if (id == kAmpEnvVelocityAmountId) {
+        Steinberg::char8 text[32];
+        snprintf(text, sizeof(text), "%.0f%%", value * 100.0);
+        Steinberg::UString(string, 128).fromAscii(text);
+        return Steinberg::kResultOk;
+    }
     return formatEnvParam(kAmpEnvBaseId, id, value, string);
 }
 inline void saveAmpEnvParams(const AmpEnvParams& params, Steinberg::IBStreamer& streamer) {
     saveEnvParams(params, streamer);
 }
 inline bool loadAmpEnvParams(AmpEnvParams& params, Steinberg::IBStreamer& streamer) {
-    return loadEnvParams(params, streamer);
+    return loadEnvParams(params, streamer, AmpEnvParams{});
 }
 template <typename SetParamFunc>
 inline void loadAmpEnvParamsToController(Steinberg::IBStreamer& streamer, const SetParamFunc& setParam) {
-    loadEnvParamsToController(kAmpEnvBaseId, streamer, std::move(setParam));
+    loadEnvParamsToController(kAmpEnvBaseId, streamer, setParam, AmpEnvParams{});
+}
+
+// Velocity > Amp: appended after the voice LFO (state version 9)
+inline void saveAmpVelocityAmount(const AmpEnvParams& params, Steinberg::IBStreamer& streamer) {
+    streamer.writeFloat(params.velocityAmount.load(std::memory_order_relaxed));
+}
+/// A state older than v9, or one that ends before the field, loads 0: velocity
+/// never reached the VCA before (R-018), so the state keeps its sound.
+inline void loadAmpVelocityAmount(AmpEnvParams& params, Steinberg::IBStreamer& streamer,
+                                  Steinberg::int32 version) {
+    float v = 0.0f;
+    const bool present = version >= 9 && streamer.readFloat(v);
+    params.velocityAmount.store(
+        present ? finiteClamp(v, 0.0f, 1.0f, AmpEnvParams::kDefaultVelocityAmount) : 0.0f,
+        std::memory_order_relaxed);
+}
+template <typename SetParamFunc>
+inline void loadAmpVelocityAmountToController(Steinberg::IBStreamer& streamer,
+                                              const SetParamFunc& setParam,
+                                              Steinberg::int32 version) {
+    AmpEnvParams params;
+    loadAmpVelocityAmount(params, streamer, version);
+    setParam(kAmpEnvVelocityAmountId,
+             static_cast<double>(params.velocityAmount.load(std::memory_order_relaxed)));
 }
 
 // ---- Filter envelope ----
@@ -375,11 +442,11 @@ inline void saveFilterEnvParams(const FilterEnvParams& params, Steinberg::IBStre
     saveEnvParams(params, streamer);
 }
 inline bool loadFilterEnvParams(FilterEnvParams& params, Steinberg::IBStreamer& streamer) {
-    return loadEnvParams(params, streamer);
+    return loadEnvParams(params, streamer, FilterEnvParams{});
 }
 template <typename SetParamFunc>
 inline void loadFilterEnvParamsToController(Steinberg::IBStreamer& streamer, const SetParamFunc& setParam) {
-    loadEnvParamsToController(kFilterEnvBaseId, streamer, std::move(setParam));
+    loadEnvParamsToController(kFilterEnvBaseId, streamer, setParam, FilterEnvParams{});
 }
 
 // ---- Mod envelope ----
@@ -400,11 +467,11 @@ inline void saveModEnvParams(const ModEnvParams& params, Steinberg::IBStreamer& 
     saveEnvParams(params, streamer);
 }
 inline bool loadModEnvParams(ModEnvParams& params, Steinberg::IBStreamer& streamer) {
-    return loadEnvParams(params, streamer);
+    return loadEnvParams(params, streamer, ModEnvParams{});
 }
 template <typename SetParamFunc>
 inline void loadModEnvParamsToController(Steinberg::IBStreamer& streamer, const SetParamFunc& setParam) {
-    loadEnvParamsToController(kModEnvBaseId, streamer, std::move(setParam));
+    loadEnvParamsToController(kModEnvBaseId, streamer, setParam, ModEnvParams{});
 }
 
 } // namespace Ruinae
