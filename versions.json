@@ -186,29 +186,29 @@
       }
     },
     "Membrum": {
-      "version": "0.12.4",
+      "version": "0.12.5",
       "download_url": "https://krateaudio.com/membrum/",
       "release_notes": "",
-      "tag": "membrum/v0.12.4",
-      "pub_date": "2026-11-15T21:01:23Z",
+      "tag": "membrum/v0.12.5",
+      "pub_date": "2026-11-23T15:52:48Z",
       "channel": "stable",
-      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/membrum/v0.12.4",
+      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/membrum/v0.12.5",
       "description": "Synthesized Drum Machine",
-      "notes_markdown": "### Changed\n\n- **Built with VST3 SDK 3.8.1.**",
+      "notes_markdown": "### Fixed\n\n- **A kit loaded from the browser did not fully replace the previous kit** — Loading a kit from the kit browser ran a separate copy of the kit loader in the editor instead of the one a project reload uses. It skipped the voice and coupling flush, so drums still ringing from the previous kit could carry over as a tonal beep or a ring that did not stop. It also left each pad's noise-layer level and the \"default\" body damping as they were, and did not update the macros. A browser load now runs the same code as a project reload.\n- **A pad preset changed the pad's on/off state and pan, and skipped its noise layer** — Loading a pad preset onto a pad overwrote the pad's enabled state and pan, which a pad preset is meant to leave alone, and did not apply the preset's noise-layer level. Pad presets now load through the sound engine's own pad-preset code: enabled and pan are kept and the noise layer is applied.",
       "platforms": {
         "darwin-universal": {
-          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/membrum/v0.12.4/Membrum-0.12.4-macOS.pkg",
-          "size": 6776042,
-          "sha256": "5cbd905dfa07ea06b23dc5156338679f340b140e682bd389835d4e723fc96c70",
-          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+Tbrn71U7UGG/jy4nlpqEciThZVuV9HRWFUSWJyFEGWejUS6Z7ojyJ7XygyRIE9p46DZyKDk2z/Gi2o4MVPg6WcvdA8=\ntrusted comment: krate:1:Membrum:0.12.4:darwin-universal:Membrum-0.12.4-macOS.pkg\ndSuo9UEHFLBRMVV/sV4qT4lw8GjuUmdpZvM08WUBRY6mWGuTGWwClLR69ZDgMTiTRkYbIcD+toSskoj0fcXrAA==\n",
+          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/membrum/v0.12.5/Membrum-0.12.5-macOS.pkg",
+          "size": 6789248,
+          "sha256": "ab3543b1a0381562da99dc27644a9d4e985e8638f8cb3efce4f5efc8d14ca6c5",
+          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+Tbrn7wx0s3q7FRGyXntsVfivqBTZPx0CIZ0XiC2krqIjGjwFT+3bbOeA4auDpPxJTpeF6MO+8RnKOeQw5qR6wGZ/Ao=\ntrusted comment: krate:1:Membrum:0.12.5:darwin-universal:Membrum-0.12.5-macOS.pkg\npe/Gspj2UIWGcKMUrl+ux2X+eo1zoHkjqTwSki3k6lIvJoe6UQ0g4ApcT/lnQOud8ojfTHS5n5UHyM7d4WcvBw==\n",
           "format": "pkg",
           "min_os": "26.5"
         },
         "linux-x86_64": {
-          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/membrum/v0.12.4/Membrum-0.12.4-Linux-x64.tar.gz",
-          "size": 1598896,
-          "sha256": "4b9bb7ce3cd79ef5f85e8e8195dae1b7b39fb28239b7f0e31295e43be202c754",
-          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+Tbrn3RTg5SACcU2QoZ5gmk99WxYyks9Qs86Ulu/i4lqur7lOrNijPtLO16Ou0+7FiQS9LX0ikXvVQSuhvU41H89oQo=\ntrusted comment: krate:1:Membrum:0.12.4:linux-x86_64:Membrum-0.12.4-Linux-x64.tar.gz\nMq/uJ9bKI+6a3UG0gMw94SkADbtm215biygQ1q5i8EPFM0TaWQQyt4OP/AC0W/ixSq5p4ZbzHvyvpq5qd8TqCw==\n",
+          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/membrum/v0.12.5/Membrum-0.12.5-Linux-x64.tar.gz",
+          "size": 1601866,
+          "sha256": "6ea2cca911529d4230dbad690f9da1572a48f74187d3a204d146d7a43cddf872",
+          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+Tbrn9Qq1dSkfsQ26QkgZg4gYJO2YOoN70iiSp6zf1S3lDd5LGnWXKCxUbewU8FTHI4ZdvheM/o6WXyZtdAr/Yw7BwQ=\ntrusted comment: krate:1:Membrum:0.12.5:linux-x86_64:Membrum-0.12.5-Linux-x64.tar.gz\nak4qx+3QViav0RdPSKObLrm9Xjq5EGs97jmynhw0tepFFeUYvr4XvcHsjQIoG9B8xwoaRkUI/Mm5FlFHLyrcDA==\n",
           "format": "tar.gz",
           "min_os": "2.38",
           "payload": {
@@ -217,10 +217,10 @@
           }
         },
         "windows-x86_64": {
-          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/membrum/v0.12.4/Membrum-0.12.4-Windows-x64.exe",
-          "size": 3498075,
-          "sha256": "1dc2d6ffac1b9ce69137e1b6af4c3283c8658ba3b5565a4d1a5ef46f7ea70f25",
-          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+Tbrn0r/2W7Ewgx7ssbPk3sV9l6pN9qF2Ufsh0uauuTuIDCQyotRZcQZygxoz4k7kKd2ysPGfvNFIvGQB2bZtesvDA0=\ntrusted comment: krate:1:Membrum:0.12.4:windows-x86_64:Membrum-0.12.4-Windows-x64.exe\nBtl7+LrXqjqN1WvI2G9xX30dbiotheimQvopNdLh2kAr4WQzXeWweHONZJEaFdSEaQOVsGXyT6z9uUQWc2TzAg==\n",
+          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/membrum/v0.12.5/Membrum-0.12.5-Windows-x64.exe",
+          "size": 3505076,
+          "sha256": "70bb6f8052b365f17a47a9d5424c89afe7bf24b4793c0a4edea7ac37be47ee9e",
+          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+Tbrn/YQWA0JDmhfVohndf6js2J1vp5cs/G7OKBMR2h02W1o2wv1OC119csPonN5nWGWBI16bN5Im8jcAzKhy3GXWQY=\ntrusted comment: krate:1:Membrum:0.12.5:windows-x86_64:Membrum-0.12.5-Windows-x64.exe\nBZKBlHAXqapqf/4J/fNEMeRTA5iJjuCL75+PTOom2AwjqfiKEBniHEgzuhf4Exf7jEEs39dbRb+Ofu64g1P4Aw==\n",
           "format": "inno-exe"
         }
       },
