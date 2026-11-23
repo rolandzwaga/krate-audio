@@ -36,7 +36,9 @@
 // shortest line's Jot gain is 0.9977, so the Nyquist round-trip gain would be
 // 1.0003 - a growing loop, measuring ~105 s against a requested 60 s. The
 // prefactor moves the peak magnitude to exactly 1.0 and leaves the pole - and
-// therefore the ~40 Hz corner - untouched. See dcBlock().
+// therefore the ~40 Hz corner - untouched. See dcBlock(). (Since R-220,
+// FDNReverb keeps the bare blocker but folds the same (1+R)/2 into its
+// per-line Jot gain, so both loops are non-expansive at DC.)
 //
 // ------------------------------------------------------------------------------
 // (3) MATRIX SIGN CONVENTION (constraint C-8) - NORMATIVE
@@ -3342,10 +3344,12 @@ private:
     /// @brief Recompute the Jot per-line gains and the damping one-pole
     ///        coefficients (plan S6.2 step 5).
     ///
-    /// The formulas are FDNReverb's, re-derived from effects/fdn_reverb.h:576-600
-    /// with ONE structural difference: THERE IS NO SEPARATE BASE fbGain. That
-    /// class divides gDC by a roomSize-derived base (:589-591); here the
-    /// per-line gain IS gDC, which is what makes FR-032's "loop gain <= 1.0 at
+    /// The formulas are FDNReverb's Jot gains, re-derived from
+    /// effects/fdn_reverb.h:480-511 (setParamsInternal). Neither class has a
+    /// separate base fbGain: the per-line gain IS gDC (FDNReverb's write-side
+    /// feedbackGains_ are a uniform 1.0 since R-220, :476-478; its exponent
+    /// also counts the in-loop diffusers' mean transit and carries the DC
+    /// blocker's (1+R)/2). That is what makes FR-032's "loop gain <= 1.0 at
     /// all times outside freeze" a property of the construction rather than a
     /// correction factor. Combined with FR-025 (M(t) exactly orthogonal, hence
     /// exactly unit loop gain) the unfrozen loop is unconditionally
@@ -3357,17 +3361,16 @@ private:
     /// JOT GAIN PLACEMENT (renderSlice step 9) - the input injection is INSIDE
     /// the per-line gain, `chanIn = (matrixOut + inject) * g_i`, and that is a
     /// deliberate divergence from plan S6.3 step 9's literal transcription of
-    /// fdn_reverb.h:336-338. The reason is a verified difference in what that
-    /// line multiplies:
+    /// FDNReverb's write step (fdn_reverb.h:385, fdnApplyFeedbackSIMD). The
+    /// reason is a difference in what that step multiplies:
     ///
-    ///   FDNReverb applies its PER-LINE Jot correction filterGainDC_[i] on the
-    ///   READ side (:304), and :337's write-side feedbackGains_[i] is a single
-    ///   UNIFORM base (:567, `feedbackGains_[i] = fbGain` for every i). Adding
-    ///   the input after a uniform gain cannot distort anything per line.
-    ///   AetherReverb has no base gain at all - the per-line gDC IS the gain -
-    ///   so putting it in :337's slot with the injection outside it would make
-    ///   the injection the ONLY signal in the loop that never pays for the
-    ///   transit it is about to make.
+    ///   FDNReverb applies its PER-LINE Jot gain filterGainDC_[i] on the READ
+    ///   side, after the damping filter (:353-356), and its write-side
+    ///   feedbackGains_[i] is a UNIFORM 1.0 (:476-478). Adding the input after
+    ///   a uniform gain cannot distort anything per line. AetherReverb applies
+    ///   its per-line gDC on the write side, so putting it in that slot with
+    ///   the injection outside it would make the injection the ONLY signal in
+    ///   the loop that never pays for the transit it is about to make.
     ///
     /// The consequence is not cosmetic. With g_i = alpha^(m_i),
     /// alpha = 10^(-3/(T60*sr)), writing everything through g_i makes the whole
