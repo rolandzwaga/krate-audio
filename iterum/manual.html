@@ -60,7 +60,7 @@
           "publisher": {
             "@id": "https://krateaudio.com/#organization"
           },
-          "dateModified": "2026-11-23T14:33:35+01:00"
+          "dateModified": "2026-11-23T19:52:36+01:00"
         },
         {
           "@type": "BreadcrumbList",
@@ -753,18 +753,26 @@ Stereo out</code></pre>
         <tr>
         <td>Spread Direction</td>
         <td>Spread Dir</td>
-        <td>Low-&gt;High, High-&gt;Low, Center Out</td>
+        <td>Low-&gt;High, High-&gt;Low, Center Out, Edges In, Cross</td>
         <td>Low-&gt;High</td>
         <td>Which bands arrive first. Center Out delays the extremes
-        most.</td>
+        most; Edges In delays the middle most, so the echo closes in on
+        the mids. Cross sweeps up on the left and down on the right at
+        the same time.</td>
         </tr>
         <tr>
         <td>Spread Curve</td>
         <td>Spread Curve</td>
-        <td>Linear, Logarithmic</td>
+        <td>Linear, Logarithmic, Exponential, Steps, Scatter,
+        Random</td>
         <td>Linear</td>
-        <td>How the spread is shared out; Logarithmic spaces the delays
-        more evenly to the ear.</td>
+        <td>How the spread is shared out over the octaves (20 Hz to 20
+        kHz). Linear: an equal share per octave, a smooth sweep.
+        Logarithmic: the low octaves get most of it. Exponential: the
+        lows and mids return together, then the highs trail out. Steps:
+        8 bands, each a separate echo. Scatter: third-octave bands in a
+        fixed shuffled order. Random: the bands keep moving to new
+        delays.</td>
         </tr>
         <tr>
         <td>Feedback Tilt</td>
