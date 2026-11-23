@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **The FX delay's Feedback did almost nothing after the first repeat** *(shared DSP)* — The spectral delay's feedback limiter worked on unscaled FFT values, so it squashed every recirculated frequency down to the same tiny level: the repeats after the first fell away by tens of dB and lost their tone colour. The limiter now works in the signal's own scale, so Feedback sustains the repeats as set and keeps their spectrum. Presets and projects with FX delay feedback above 0 repeat noticeably longer than before.
 - **The FX delay stepped at every analysis frame** *(shared DSP)* — The spectral delay overlapped its frames without a synthesis window, so with feedback its output jumped at every frame edge. It now uses matched analysis and synthesis windows, and the steps are gone.
 - **The FX delay's return fade moved in steps** — The 20 ms fade of the FX delay's return level was updated once per processing slice, so it moved as a staircase with a small jump at each slice. It now moves sample by sample.
+- **The FX delay's Spread barely swept the sound** *(shared DSP)* — Spread was laid out evenly in Hz, so everything below about 2 kHz shared the first tenth of the spread time and the echo came back as one plain echo. Spread is now laid out by octave, from 20 Hz to 20 kHz, so each echo audibly sweeps from low to high (or high to low, or out from the middle). No factory preset uses Spread; projects that do sound different.
 
 ## [1.0.5] - 2026-11-10
 

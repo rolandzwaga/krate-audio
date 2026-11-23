@@ -1808,6 +1808,107 @@ TEST_CASE("SpectralDelay logarithmic spread applies log-scaled delays",
 }
 
 // =============================================================================
+// Spread on an octave scale (2026-11-23)
+// =============================================================================
+// Spread used to be laid out linearly over the bin index (linear in Hz), so
+// everything below ~2 kHz got the first ~9 % of the spread and Low > High
+// sounded like a plain echo; "Logarithmic" was log2(1 + x), almost a straight
+// line. The spread now runs over octave position p = log(f / 20) / log(1000)
+// (20 Hz -> 0, 20 kHz -> 1): Linear = p, Logarithmic = ln(1 + 9p) / ln(10).
+// Measured: when a tone burst's echo arrives, relative to the same burst with
+// no spread.
+
+namespace {
+
+/// Time (ms) of the wet output's envelope peak for a Hann tone burst at freqHz
+double spreadEchoPeakMs(SpreadDirection dir, SpreadCurve curve, float spreadMs, float freqHz) {
+    constexpr double kSr = 44100.0;
+    constexpr std::size_t kBlock = 512;
+    constexpr std::size_t kLen = static_cast<std::size_t>(kSr * 2.0);
+    constexpr std::size_t kBurst = static_cast<std::size_t>(kSr * 0.06);
+
+    SpectralDelay delay;
+    delay.setFFTSize(1024);
+    delay.prepare(kSr, kBlock);
+    delay.setBaseDelayMs(200.0f);
+    delay.setSpreadMs(spreadMs);
+    delay.setSpreadDirection(dir);
+    delay.setSpreadCurve(curve);
+    delay.setFeedback(0.0f);
+    delay.setDiffusion(0.0f);
+    delay.setStereoWidth(0.0f);
+    delay.setDryWetMix(1.0f);
+    delay.snapParameters();
+
+    std::vector<float> left(kLen, 0.0f);
+    for (std::size_t i = 0; i < kBurst; ++i) {
+        const double w = 0.5 - 0.5 * std::cos(6.283185307179586 * static_cast<double>(i)
+                                              / static_cast<double>(kBurst - 1));
+        left[i] = static_cast<float>(0.5 * w * std::sin(6.283185307179586 * freqHz
+                                                        * static_cast<double>(i) / kSr));
+    }
+    std::vector<float> right = left;
+    auto ctx = makeTestContext();
+    for (std::size_t i = 0; i < kLen; i += kBlock) {
+        delay.process(left.data() + i, right.data() + i, std::min(kBlock, kLen - i), ctx);
+    }
+
+    // 10 ms moving energy, peak position
+    constexpr std::size_t kWin = 441;
+    double acc = 0.0;
+    double best = -1.0;
+    std::size_t bestAt = 0;
+    for (std::size_t i = 0; i < kLen; ++i) {
+        acc += static_cast<double>(left[i]) * left[i];
+        if (i >= kWin) acc -= static_cast<double>(left[i - kWin]) * left[i - kWin];
+        if (acc > best) { best = acc; bestAt = i; }
+    }
+    return 1000.0 * static_cast<double>(bestAt) / kSr;
+}
+
+/// Expected spread offset (ms) of a component at freqHz, per the octave layout
+double expectedSpreadOffsetMs(SpreadDirection dir, SpreadCurve curve, float spreadMs,
+                              float freqHz) {
+    double p = std::log(static_cast<double>(freqHz) / 20.0) / std::log(1000.0);
+    if (curve == SpreadCurve::Logarithmic) p = std::log(1.0 + 9.0 * p) / std::log(10.0);
+    double shape = p;
+    if (dir == SpreadDirection::HighToLow) shape = 1.0 - p;
+    if (dir == SpreadDirection::CenterOut) shape = std::abs(p - 0.5) * 2.0;
+    return shape * static_cast<double>(spreadMs);
+}
+
+}  // namespace
+
+TEST_CASE("SpectralDelay spread places each frequency's echo on an octave scale",
+          "[spectral-delay][spread]") {
+    constexpr float kSpreadMs = 1000.0f;
+    const auto dir = GENERATE(SpreadDirection::LowToHigh, SpreadDirection::HighToLow,
+                              SpreadDirection::CenterOut);
+    const auto curve = GENERATE(SpreadCurve::Linear, SpreadCurve::Logarithmic);
+    const float freq = GENERATE(250.0f, 1000.0f, 4000.0f);
+
+    const double unspread = spreadEchoPeakMs(dir, curve, 0.0f, freq);
+    const double spread = spreadEchoPeakMs(dir, curve, kSpreadMs, freq);
+    const double expected = expectedSpreadOffsetMs(dir, curve, kSpreadMs, freq);
+    INFO("direction " << static_cast<int>(dir) << ", curve " << static_cast<int>(curve)
+         << ", " << freq << " Hz: echo peak moved " << (spread - unspread)
+         << " ms, expected " << expected << " ms");
+    // A hop is 11.6 ms; the burst covers a few bins whose delays differ by up to ~25 ms
+    CHECK(std::abs((spread - unspread) - expected) <= 35.0);
+}
+
+TEST_CASE("SpectralDelay Logarithmic spread curve differs audibly from Linear",
+          "[spectral-delay][spread][logarithmic]") {
+    // At 1 kHz, Linear puts the echo 566 ms into a 1 s spread, Logarithmic 785 ms
+    const double lin = spreadEchoPeakMs(SpreadDirection::LowToHigh, SpreadCurve::Linear,
+                                        1000.0f, 1000.0f);
+    const double log = spreadEchoPeakMs(SpreadDirection::LowToHigh, SpreadCurve::Logarithmic,
+                                        1000.0f, 1000.0f);
+    INFO("Linear " << lin << " ms, Logarithmic " << log << " ms");
+    CHECK(log - lin >= 150.0);
+}
+
+// =============================================================================
 // Phase 3.2: Stereo Decorrelation Tests
 // =============================================================================
 // Processing L/R identically produces mono-ish output. Stereo decorrelation

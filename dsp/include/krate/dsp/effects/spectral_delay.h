@@ -58,10 +58,10 @@ enum class SpreadDirection : std::uint8_t {
 };
 
 /// @brief Spread curve modes for delay time distribution scaling
-/// Phase 3.1: Linear vs logarithmic frequency distribution
+/// Both lay the spread over octaves (20 Hz to 20 kHz); see calculateBinDelayMs
 enum class SpreadCurve : std::uint8_t {
-    Linear,      ///< Linear distribution (perceptually less even)
-    Logarithmic  ///< Logarithmic distribution (perceptually more even)
+    Linear,      ///< Equal share of the spread per octave
+    Logarithmic  ///< Low octaves get most of the spread (ln(1 + 9p) / ln(10))
 };
 
 // =============================================================================
@@ -512,7 +512,7 @@ public:
     }
 
     /// @brief Set spread curve mode (Linear or Logarithmic)
-    /// Phase 3.1: Logarithmic gives perceptually more even distribution
+    /// Linear: equal share per octave; Logarithmic: the low octaves get most of it
     void setSpreadCurve(SpreadCurve curve) noexcept {
         spreadCurve_ = curve;
     }
@@ -767,37 +767,53 @@ private:
         }
     }
 
+    /// Spread runs over octave position from kSpreadLowHz (0) to kSpreadHighHz (1)
+    static constexpr float kSpreadLowHz = 20.0f;
+    static constexpr float kSpreadHighHz = 20000.0f;
+    /// Logarithmic curve: ln(1 + k p) / ln(1 + k), front-loaded (p = 0.5 -> 0.74)
+    static constexpr float kSpreadLogShape = 9.0f;
+
     /// @brief Calculate delay time for a specific bin based on spread settings
+    ///
+    /// The spread is laid out over octaves, not over the bin index. Linear in the
+    /// bin index (linear in Hz) gave everything below ~2 kHz the first ~9 % of the
+    /// spread at 44.1 kHz, so Low > High sounded like a plain echo and High > Low
+    /// / Center Out like a plain longer one (measured 2026-11-23). On the octave
+    /// scale each octave gets an equal share (Linear), or the low octaves most of
+    /// it (Logarithmic), independent of sample rate and FFT size.
     [[nodiscard]] float calculateBinDelayMs(std::size_t bin,
                                             std::size_t numBins,
                                             float baseDelay,
                                             float spread) const noexcept {
         if (numBins <= 1) return baseDelay;
 
-        float normalizedBin = static_cast<float>(bin) /
-                              static_cast<float>(numBins - 1);
+        const float binHz = static_cast<float>(bin) * static_cast<float>(sampleRate_)
+                          / static_cast<float>(fftSize_);
+        // Clamped below the log, so DC and sub-20 Hz bins sit exactly at 0
+        float position = 0.0f;
+        if (binHz > kSpreadLowHz) {
+            position = std::clamp(std::log(binHz / kSpreadLowHz)
+                                      / std::log(kSpreadHighHz / kSpreadLowHz),
+                                  0.0f, 1.0f);
+        }
 
-        // Phase 3.1: Apply logarithmic curve if selected
-        // Log scaling gives more perceptually even distribution across frequencies
         if (spreadCurve_ == SpreadCurve::Logarithmic) {
-            // Map linear 0-1 to logarithmic 0-1
-            // log2(1 + x) / log2(2) = log2(1 + x) where x ranges 0-1
-            // This maps 0->0, 0.5->0.585, 1->1 with emphasis on lower values
-            constexpr float kLogBase = 2.0f;
-            normalizedBin = std::log2(1.0f + normalizedBin * (kLogBase - 1.0f));
+            position = std::clamp(std::log1p(kSpreadLogShape * position)
+                                      / std::log1p(kSpreadLogShape),
+                                  0.0f, 1.0f);
         }
 
         float delayOffset = 0.0f;
 
         switch (spreadDirection_) {
             case SpreadDirection::LowToHigh:
-                delayOffset = normalizedBin * spread;
+                delayOffset = position * spread;
                 break;
             case SpreadDirection::HighToLow:
-                delayOffset = (1.0f - normalizedBin) * spread;
+                delayOffset = (1.0f - position) * spread;
                 break;
             case SpreadDirection::CenterOut:
-                delayOffset = std::abs(normalizedBin - 0.5f) * 2.0f * spread;
+                delayOffset = std::abs(position - 0.5f) * 2.0f * spread;
                 break;
         }
 
