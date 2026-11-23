@@ -94,29 +94,29 @@
       }
     },
     "Innexus": {
-      "version": "1.0.6",
+      "version": "1.0.7",
       "download_url": "https://krateaudio.com/innexus/",
       "release_notes": "",
-      "tag": "innexus/v1.0.6",
-      "pub_date": "2026-11-15T20:26:58Z",
+      "tag": "innexus/v1.0.7",
+      "pub_date": "2026-11-23T14:59:32Z",
       "channel": "stable",
-      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/innexus/v1.0.6",
+      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/innexus/v1.0.7",
       "description": "Harmonic Analysis & Synthesis Engine",
-      "notes_markdown": "### Fixed\n\n- **A possible crash when a host shut Innexus down with its window still open** — If a host shut down the plugin's controller before closing the editor window, the update banner kept checking for updates, twice a second, through memory that had already been freed, which could crash the host. The update check now stays alive until the window is gone. The Sync switch on the two modulator panels also no longer touches freed memory when the panels are taken down without an open window (as in automated tests).\n- **A possible crash when opening the preset browser after a host shut Innexus down with its window still open** — In the same situation, clicking Presets read the preset list through memory that had already been freed, which could crash the host. The preset list now stays alive until the window is gone.\n- **The modulators used far more CPU than they should** — With a modulator on, every voice recomputed the pan position of all its partials on every sample, even when no modulator targeted Pan, and evolution rebuilt about 8 KB of scratch data per sample. Two modulators took about 7 % of one CPU core; they now take under 1 %. The sound is identical.\n- **Modulator 1 set to Pan did nothing while modulator 2 was on** — Whenever modulator 2 was switched on, whatever it targeted, it replaced the pan positions of every partial with its own, so modulator 1's pan movement was lost. The two modulators' pan movements now add up, as their amplitude and frequency modulations already combined. Patches that use modulator 1 on Pan with modulator 2 on (among the factory presets, Ethereal Soprano) now move in the stereo field as set.\n- **Live sidechain analysis could go deaf after one broken sample** — A single NaN or infinite sample on the sidechain input stuck the analysis's DC filter, so live analysis heard nothing from then on until the plugin was reset. Such a sample is now treated as silence, and analysis carries on from the next block.\n\n### Changed\n\n- **Built with VST3 SDK 3.8.1.**",
+      "notes_markdown": "### Fixed\n\n- **A preset loaded from the preset browser now loads all of it** — The preset browser read presets with a second, incomplete reader that never reached the sound engine directly: the envelope (ADSR) settings, voice mode, modulator tempo sync, the physical-model, impact, waveguide, bow, body and sympathetic settings, the stored memory slots and their envelopes were left as they were. A browser load now takes the same path as a project reload, so the whole preset is restored, including its stored sample, which is loaded again from its saved location.\n- **The modulator Sync switches and note values showed the wrong setting after a project reload** — Reopening a project restored Mod 1 and Mod 2 Sync and Note Value in the sound, but the controls showed their defaults. They now show the restored values.",
       "platforms": {
         "darwin-universal": {
-          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/innexus/v1.0.6/Innexus-1.0.6-macOS.pkg",
-          "size": 7119534,
-          "sha256": "603e8cba271b1ccfd3fbe8c381da09595c2970394974e4788d4907fad57cb7c4",
-          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+Tbrn3rK40MHuH/yGXAC+rilImH8a5AxPaqQLVDWSoCVMZQA01ZZ+gp7pv0BMTh1sVYLCPdNyKJlKo42okRvH1n/TA8=\ntrusted comment: krate:1:Innexus:1.0.6:darwin-universal:Innexus-1.0.6-macOS.pkg\nZJtrsBq2Q6CWauECg23iY2L4Purqs4fFCW/UCRXnZuD+OONBpOje5f6HgDiHrVpkLrLwDDbjh/AHjvkwblYWAw==\n",
+          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/innexus/v1.0.7/Innexus-1.0.7-macOS.pkg",
+          "size": 7123322,
+          "sha256": "2e470ee19b5d2bb0f99765df8f28d6c80d1195bb4506811d52ebd87c9e3883ad",
+          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+Tbrnwk9DkbqAHuUpautEweXJpDb973YjzAjrzRF3vpCph4dWNFGjVkcBt2W7V3uYMpEVE5eXDzTiE/6uULCA1+FxQk=\ntrusted comment: krate:1:Innexus:1.0.7:darwin-universal:Innexus-1.0.7-macOS.pkg\nQuDFevw3nWTd7pFLiq3yS9qSAcZf3m1srlRNx7rMm3SNaHSivPNUUgg5ojWN2YBDn+DafK/7jJbFodcwSsuEDg==\n",
           "format": "pkg",
           "min_os": "26.5"
         },
         "linux-x86_64": {
-          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/innexus/v1.0.6/Innexus-1.0.6-Linux-x64.tar.gz",
-          "size": 1674161,
-          "sha256": "43d0ee78bbd73ebefadffd1778d50f4f50581ed784b9f8aef7c315b0748c4df3",
-          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+TbrnyFZVINLfo0K1PYRfcklZeDEkpVdF7dswNqWbweYYLLvHQUTYJdYWMr1ISFjffSm+p2pQBuSNiAf6EidOnsqow8=\ntrusted comment: krate:1:Innexus:1.0.6:linux-x86_64:Innexus-1.0.6-Linux-x64.tar.gz\njfvh5oEH/RQIvd+vH+SxcgmOyJCSK/7jMF01bdukcTJocf5ENxPV/P6JUQi3dBoKzD9vUZY+O9pTQxLdxypIBQ==\n",
+          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/innexus/v1.0.7/Innexus-1.0.7-Linux-x64.tar.gz",
+          "size": 1674912,
+          "sha256": "d4896f20e7d0c5470ac09597a55b5de7445e39e76921ad4f9893b51a85d3cb5d",
+          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+TbrnzU/Aw/+tVHKh01Wx54w2s12eZo8CatHFJNZsX7Q2bK9dsk7zn1WqX87yA6/wybw6DgBc+PBb6Utk9wQJn+TxAc=\ntrusted comment: krate:1:Innexus:1.0.7:linux-x86_64:Innexus-1.0.7-Linux-x64.tar.gz\nZpftpUainEgXqnKFr2hR/KjZyZ2NGRkAHZ+O5V91JL87qKHzNpepPwTyoMznvn5nN03gGv4Mm7FvdCIS0O2BBg==\n",
           "format": "tar.gz",
           "min_os": "2.38",
           "payload": {
@@ -125,10 +125,10 @@
           }
         },
         "windows-x86_64": {
-          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/innexus/v1.0.6/Innexus-1.0.6-Windows-x64.exe",
-          "size": 3541960,
-          "sha256": "2d6952fabf916b5dcb780966ffec456ef8d11603b3581c0118b45a08195c69af",
-          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+Tbrn0ZFKirks/gnOjBPgVJKe0BI7IrhCLX5exDSV32/23Za9MjwUKb9g11XkH23mqkfGGnXCR2WOqi3uck3/N6kGAk=\ntrusted comment: krate:1:Innexus:1.0.6:windows-x86_64:Innexus-1.0.6-Windows-x64.exe\n5dSLtnQG4FDrUb3/dmGZ1+gMTfP8uF6iJMQ0a2/xDb2Bn24FqYm7VzRwVOKJJNu8KRa3Rotg92oW6quK20jXBQ==\n",
+          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/innexus/v1.0.7/Innexus-1.0.7-Windows-x64.exe",
+          "size": 3542772,
+          "sha256": "d154b775fc447b51f3b31e33591d17877f8bbe0aef1bb52cb649d4a2c4efeca7",
+          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+Tbrnxen1ZNgiWiSF1IHh+kcqco76UDvO7o2c9gtymJDHqfrMWONZDD2r7P1wkCRbWBsf6/SiSMabIgWXbox5uu1NQU=\ntrusted comment: krate:1:Innexus:1.0.7:windows-x86_64:Innexus-1.0.7-Windows-x64.exe\noY3KzBUumeLuhE2DvFtCHjJadWq7POQDKKPGYWNprD3eF3IXtqNKxVDEOrMp/UeN5vPdQHBKfzf5zokCrVsXAw==\n",
           "format": "inno-exe"
         }
       },
