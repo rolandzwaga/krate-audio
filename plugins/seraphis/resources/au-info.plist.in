@@ -17,7 +17,9 @@
 	<key>CFBundleSignature</key>
 	<string>????</string>
 	<key>CFBundleVersion</key>
-	<string>1.0</string>
+	<string>@PROJECT_VERSION@</string>
+	<key>CFBundleShortVersionString</key>
+	<string>@PROJECT_VERSION@</string>
 	<key>CSResourcesFileMapped</key>
 	<string>yes</string>
 	<key>AudioComponents</key>
@@ -26,17 +28,17 @@
 			<key>factoryFunction</key>
 			<string>AUWrapperFactory</string>
 			<key>description</key>
-			<string>Vorago Dark-Ambient Drone Instrument</string>
+			<string>Seraphis Spectral Organism Synthesizer</string>
 			<key>manufacturer</key>
 			<string>KrAt</string>
 			<key>name</key>
-			<string>Krate Audio: Vorago</string>
+			<string>Krate Audio: Seraphis</string>
 			<key>subtype</key>
-			<string>Vrgo</string>
+			<string>Srph</string>
 			<key>type</key>
 			<string>aumu</string>
 			<key>version</key>
-			<integer>1</integer>
+			<integer>@AU_COMPONENT_VERSION@</integer>
 		</dict>
 	</array>
 	<key>AudioUnit SupportedNumChannels</key>

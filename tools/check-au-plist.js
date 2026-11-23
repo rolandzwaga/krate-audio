@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Asserts that a plugin's AUv2 Info.plist carries the plugin's own version.
 //
-//   node tools/check-au-plist.js [<plugin> ...]      (default: ruinae)
+//   node tools/check-au-plist.js [<plugin> ...]      (default: every plugins/<p> with a version.json)
 //
 // For plugins/<p>/resources/au-info.plist.in (the committed template) it renders the
 // @PROJECT_VERSION@ / @AU_COMPONENT_VERSION@ tokens the way cmake/KratePlugin.cmake does
@@ -76,8 +76,17 @@ function checkPlugin(plugin) {
   return problems;
 }
 
+// No arguments: every plugin directory (one with a version.json), so a new plugin is held to the
+// template from its first push.
 const plugins = process.argv.slice(2);
-if (plugins.length === 0) plugins.push('ruinae');
+if (plugins.length === 0) {
+  for (const entry of fs.readdirSync(path.join(REPO_ROOT, 'plugins'), { withFileTypes: true })) {
+    if (entry.isDirectory() && fs.existsSync(path.join(REPO_ROOT, 'plugins', entry.name, 'version.json'))) {
+      plugins.push(entry.name);
+    }
+  }
+  plugins.sort();
+}
 
 let failures = 0;
 for (const plugin of plugins) {

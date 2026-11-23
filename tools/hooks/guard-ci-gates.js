@@ -54,6 +54,7 @@ const LINTS = [
     { script: 'lint-test-scope.js', what: 'whole-suite test run in agent instructions without a gate-all-ok reason' },
     { script: 'lint-serial-test-runs.js', args: ['--self-test'], what: 'serial-test-run lint self-test' },
     { script: 'lint-plugin-editor-baseline.js', what: 'plugin editor missing a shared view (update banner, check button, version label)' },
+    { script: 'check-au-plist.js', what: 'AUv2 plist template missing or its version not version.json (a bump needs a CMake configure to regenerate it)' },
     { script: 'lint-nonfinite-symbols.js', what: 'std::isnan/isinf/isfinite or a non-finite constant in fast-math DSP code' },
     { script: 'lint-finite-bitmask.js', what: 'hand-written finiteness bitmask (Apple clang folds it)' },
     { script: 'lint-ieee-flag-sets.js', what: '-fno-fast-math without -ffp-contract=off on the same CMake line' },
