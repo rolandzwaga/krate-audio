@@ -5,6 +5,12 @@ All notable changes to Vorago will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.5] - 2026-11-23
+
+### Fixed
+
+- **Notes held by the latch or the sustain pedal kept sounding after a browser preset load** — Loading a preset from the preset browser only changed the controls; the sound engine's own load code never ran, so latched and sustained notes from the previous preset carried on into the new one. A browser load now runs the same code as a project reload: it releases those notes and resets sustain and channel pressure. Older presets and projects are also converted by one shared routine on both paths, so they load the same way from the browser and from the host.
+
 ## [1.0.4] - 2026-11-10
 
 ### Fixed

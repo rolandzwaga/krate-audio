@@ -5,6 +5,16 @@ All notable changes to Iterum will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.4] - 2026-11-23
+
+### Fixed
+
+- **Spectral mode's Feedback did almost nothing after the first repeat** *(shared DSP)* — The feedback limiter worked on unscaled FFT values, so it squashed every recirculated frequency down to the same tiny level: the repeats after the first fell away by tens of dB and lost their tone colour. The limiter now works in the signal's own scale, so Feedback sustains the repeats as set and keeps their spectrum. Patches with Spectral feedback above 0 repeat noticeably longer than before.
+- **Spectral mode stepped at every analysis frame** *(shared DSP)* — The Spectral delay overlapped its frames without a synthesis window, so with feedback its output jumped at every frame edge (about every 10.7 ms at the default FFT size). It now uses matched analysis and synthesis windows, and the steps are gone.
+- **The Digital, Tape and Spectral delays sounded different at different buffer sizes** *(shared DSP)* — The Digital delay applied its delay time and modulation once per audio block, so the modulation moved in steps and a bounce differed from real-time playback and between hosts. The Tape delay did the same for its heads and its hiss, and the Spectral delay's echo timing moved with the block size. All three now run sample by sample (the Spectral delay at a fixed latency), so the output is the same at every buffer size.
+- **The Tape delay hissed with Wear and Age at 0** *(shared DSP)* — With Wear and Age both at 0 the Tape delay still added hiss at about -88 dBFS with no input, so Iterum never went silent in Tape mode. At Wear 0 and Age 0 it is now silent; any Wear or Age above 0 hisses as before.
+- **Spectral mode's stereo spread changed from one render to the next** *(shared DSP)* — The random phase offsets behind the stereo spread were seeded from the plugin's memory address, so two instances, or the same project rendered twice, came out slightly different. They now start from a fixed seed and restart from it on every reset, so renders repeat exactly.
+
 ## [1.0.3] - 2026-11-20
 
 ### Added

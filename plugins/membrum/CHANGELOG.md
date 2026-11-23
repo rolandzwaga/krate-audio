@@ -5,6 +5,13 @@ All notable changes to Membrum will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.12.5] - 2026-11-23
+
+### Fixed
+
+- **A kit loaded from the browser did not fully replace the previous kit** — Loading a kit from the kit browser ran a separate copy of the kit loader in the editor instead of the one a project reload uses. It skipped the voice and coupling flush, so drums still ringing from the previous kit could carry over as a tonal beep or a ring that did not stop. It also left each pad's noise-layer level and the "default" body damping as they were, and did not update the macros. A browser load now runs the same code as a project reload.
+- **A pad preset changed the pad's on/off state and pan, and skipped its noise layer** — Loading a pad preset onto a pad overwrote the pad's enabled state and pan, which a pad preset is meant to leave alone, and did not apply the preset's noise-layer level. Pad presets now load through the sound engine's own pad-preset code: enabled and pan are kept and the noise layer is applied.
+
 ## [0.12.4] - 2026-11-11
 
 ### Changed
