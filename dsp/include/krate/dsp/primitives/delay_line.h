@@ -333,12 +333,25 @@ inline void DelayLine::startIncrementalReset() noexcept {
 }
 
 inline bool DelayLine::continueIncrementalReset(std::size_t& budget) noexcept {
-    const std::size_t count = std::min(budget, buffer_.size() - clearCursor_);
-    const auto first = buffer_.begin() + static_cast<std::ptrdiff_t>(clearCursor_);
-    std::fill(first, first + static_cast<std::ptrdiff_t>(count), 0.0f);
-    clearCursor_ += count;
-    budget -= count;
-    return clearCursor_ == buffer_.size();
+    const std::size_t size = buffer_.size();
+    if (clearCursor_ >= size) {
+        clearCursor_ = size;
+        return true;
+    }
+    const std::size_t remaining = size - clearCursor_;
+    if (budget >= remaining) {
+        // Fill to end(), never a budget-derived length: callers pass SIZE_MAX for a
+        // full clear, and GCC 13 -O3 carried that into the length as a 2^64-byte
+        // memset (-Wstringop-overflow, Linux CI, 2026-11-23).
+        std::fill(buffer_.begin() + static_cast<std::ptrdiff_t>(clearCursor_), buffer_.end(), 0.0f);
+        budget -= remaining;
+        clearCursor_ = size;
+        return true;
+    }
+    std::fill_n(buffer_.data() + clearCursor_, budget, 0.0f);
+    clearCursor_ += budget;
+    budget = 0;
+    return false;
 }
 
 inline void DelayLine::write(float sample) noexcept {

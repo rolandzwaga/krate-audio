@@ -95,14 +95,21 @@ void checkOscType(int t) {
         r.param(Ruinae::kSoftLimitId, 0.0);
         r.noteOn(note, 0.8f, 0);
         const size_t n = 65536;
-        r.render(r.at(0.4) + static_cast<int64_t>(n));
+        // A chaotic source's DC is removed by its 10 Hz blocker, so over 1.4 s the
+        // mean measures the trajectory's low-frequency wander, which -ffast-math
+        // changes (macOS Chaos A1: 0.0023). Its DC is averaged over 8 s instead;
+        // the bar stays (ruling "Chaos DC window", 2026-11-23).
+        const size_t dcN = pitched ? n : static_cast<size_t>(r.at(8.0));
+        r.render(r.at(0.4) + static_cast<int64_t>(std::max(n, dcN)));
         const auto m = r.mono();
         const size_t a = m.size() - n;
         const Stats s = stats(m, a);
+        const Stats dcStats = stats(m, m.size() - dcN);
 
         REQUIRE(nonFiniteAll(r) == 0);
         CHECK(s.peak > 1e-4);
-        CHECK(std::fabs(s.dc) <= 0.001);
+        INFO("DC window " << dcN << " samples");
+        CHECK(std::fabs(dcStats.dc) <= 0.001);
 
         if (!pitched) continue;
 

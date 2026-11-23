@@ -24,6 +24,7 @@
 #include "test_helpers/vst_param_changes.h"
 
 #include <algorithm>
+#include <cmath>
 #include <cstring>
 #include <memory>
 #include <utility>
@@ -216,6 +217,107 @@ std::vector<char> processorStateBytes(Innexus::Processor& proc)
     return stream.bytes();
 }
 
+// Field-aware comparison of two Processor::getState blobs. The browser path
+// delivers values as normalized performEdits that the processor maps back to
+// plain (e.g. release time 20 * 250^v), and that round trip is exact under IEEE
+// but an ulp off under the macOS leg's -ffast-math (100 ms -> 99.99999 ms). So
+// integers and flags must match exactly; floats within 1e-5 relative.
+// The walk mirrors getState (processor_state.cpp): after the memory slots,
+// everything up to the trailing int32 marker + int64 instance ID is floats.
+struct StateDiff
+{
+    size_t mismatches = 0;
+    size_t firstOffset = 0;
+    bool layoutOk = true;
+};
+
+StateDiff compareProcessorStates(const std::vector<char>& got,
+                                 const std::vector<char>& want)
+{
+    StateDiff diff;
+    if (got.size() != want.size())
+    {
+        diff.layoutOk = false;
+        return diff;
+    }
+    size_t pos = 0;
+    const auto fail = [&](size_t at) {
+        if (diff.mismatches++ == 0)
+            diff.firstOffset = at;
+    };
+    const auto exact = [&](size_t n) {
+        if (pos + n > want.size()) { diff.layoutOk = false; pos = want.size(); return; }
+        if (std::memcmp(got.data() + pos, want.data() + pos, n) != 0)
+            fail(pos);
+        pos += n;
+    };
+    const auto readI32 = [&](size_t at) {
+        int32 v = 0;
+        if (at + 4 <= want.size())
+            std::memcpy(&v, want.data() + at, 4);
+        return v;
+    };
+    const auto i32 = [&] { const int32 v = readI32(pos); exact(4); return v; };
+    const auto i8 = [&] {
+        const auto v = (pos < want.size()) ? want[pos] : char{0};
+        exact(1);
+        return v;
+    };
+    const auto f32 = [&](size_t n) {
+        for (size_t k = 0; k < n; ++k)
+        {
+            if (pos + 4 > want.size()) { diff.layoutOk = false; pos = want.size(); return; }
+            float a = 0.0f;
+            float b = 0.0f;
+            std::memcpy(&a, got.data() + pos, 4);
+            std::memcpy(&b, want.data() + pos, 4);
+            const float scale = std::max(std::abs(a), std::abs(b));
+            if (a != b && !(std::abs(a - b) <= 1e-5f * scale))
+                fail(pos);
+            pos += 4;
+        }
+    };
+
+    i32();                                   // version
+    f32(4);                                  // M1
+    const int32 pathLen = i32();
+    exact(static_cast<size_t>(std::max(pathLen, 0)));
+    f32(4);                                  // M2 levels
+    const int32 frames = i32();
+    i32();                                   // FFT size
+    i32();                                   // hop size
+    for (int32 fr = 0; fr < frames; ++fr)
+    {
+        f32(Krate::DSP::kResidualBands + 1);
+        i8();                                // transient flag
+    }
+    i32();                                   // input source
+    i32();                                   // latency mode
+    i8();                                    // freeze
+    f32(1);                                  // morph position
+    i32();                                   // harmonic filter type
+    f32(1);                                  // responsiveness
+    i32();                                   // selected slot
+    for (int s = 0; s < 8; ++s)
+    {
+        if (i8() != 0)                       // occupied
+        {
+            f32(1);                          // f0 reference
+            i32();                           // partial count
+            f32(4 * Krate::DSP::kMaxPartials + Krate::DSP::kResidualBands + 4);
+        }
+    }
+    constexpr size_t kTail = 4 + 8;          // marker + instance ID
+    if (pos + kTail > want.size() || (want.size() - pos - kTail) % 4 != 0)
+    {
+        diff.layoutOk = false;
+        return diff;
+    }
+    f32((want.size() - pos - kTail) / 4);
+    exact(kTail);
+    return diff;
+}
+
 void writeBytes(MemStream& stream, const std::vector<char>& bytes)
 {
     stream.write(const_cast<char*>(bytes.data()),
@@ -362,12 +464,23 @@ TEST_CASE("Browser load leaves the processor in the same state as a host load",
 
     const auto got = processorStateBytes(*pair.proc);
     const auto want = processorStateBytes(*reference);
-    size_t firstDiff = 0;
-    while (firstDiff < std::min(got.size(), want.size()) && got[firstDiff] == want[firstDiff])
-        ++firstDiff;
+    const StateDiff diff = compareProcessorStates(got, want);
     INFO("browser-loaded state " << got.size() << " bytes, host-loaded "
-         << want.size() << " bytes, first difference at byte " << firstDiff);
-    CHECK(got == want);
+         << want.size() << " bytes, " << diff.mismatches
+         << " differing field(s), the first at byte " << diff.firstOffset);
+    REQUIRE(diff.layoutOk);
+    CHECK(diff.mismatches == 0);
+
+    // Non-vacuity: a 1 % change in the release time (byte 4) is a mismatch.
+    auto altered = want;
+    float release = 0.0f;
+    std::memcpy(&release, altered.data() + 4, 4);
+    release *= 1.01f;
+    std::memcpy(altered.data() + 4, &release, 4);
+    const StateDiff alteredDiff = compareProcessorStates(altered, want);
+    CHECK(alteredDiff.layoutOk);
+    CHECK(alteredDiff.mismatches == 1);
+    CHECK(alteredDiff.firstOffset == 4);
 
     reference->setActive(false);
     reference->terminate();
