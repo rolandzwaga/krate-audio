@@ -22,6 +22,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstdint>
 #include <numeric>
 #include <vector>
 
@@ -1895,6 +1896,72 @@ TEST_CASE("SpectralDelay spread places each frequency's echo on an octave scale"
          << " ms, expected " << expected << " ms");
     // A hop is 11.6 ms; the burst covers a few bins whose delays differ by up to ~25 ms
     CHECK(std::abs((spread - unspread) - expected) <= 35.0);
+}
+
+namespace {
+
+/// Steady-state wet energy (1.6 s to 3.5 s) of a held signal: kind 0 = white noise,
+/// kind 1 = an A major saw chord (A2 C#3 E3, 20 harmonics)
+double spreadSteadyWetEnergy(int kind, std::size_t fftSize, float spreadMs) {
+    constexpr double kSr = 44100.0;
+    constexpr std::size_t kBlock = 512;
+    constexpr std::size_t kLen = static_cast<std::size_t>(kSr * 3.5);
+    std::vector<float> left(kLen);
+    std::uint32_t state = 12345u;  // LCG: the same noise on every standard library
+    for (std::size_t i = 0; i < kLen; ++i) {
+        if (kind == 0) {
+            state = state * 1664525u + 1013904223u;
+            left[i] = 0.3f * (static_cast<float>(state >> 8) / 8388608.0f - 1.0f);
+            continue;
+        }
+        double s = 0.0;
+        for (const double f : {110.0, 138.59, 164.81}) {
+            for (int h = 1; h <= 20; ++h) {
+                s += std::sin(6.283185307179586 * f * h * static_cast<double>(i) / kSr) / h;
+            }
+        }
+        left[i] = static_cast<float>(0.12 * s);
+    }
+    std::vector<float> right = left;
+
+    SpectralDelay delay;
+    delay.setFFTSize(fftSize);
+    delay.prepare(kSr, kBlock);
+    delay.setBaseDelayMs(100.0f);
+    delay.setSpreadMs(spreadMs);
+    delay.setSpreadDirection(SpreadDirection::LowToHigh);
+    delay.setFeedback(0.0f);
+    delay.setDiffusion(0.0f);
+    delay.setStereoWidth(0.0f);
+    delay.setDryWetMix(1.0f);
+    delay.snapParameters();
+    auto ctx = makeTestContext();
+    for (std::size_t i = 0; i < kLen; i += kBlock) {
+        delay.process(left.data() + i, right.data() + i, std::min(kBlock, kLen - i), ctx);
+    }
+    double e = 0.0;
+    for (std::size_t i = static_cast<std::size_t>(kSr * 1.6); i < kLen; ++i) {
+        e += static_cast<double>(left[i]) * left[i];
+    }
+    return e;
+}
+
+}  // namespace
+
+TEST_CASE("SpectralDelay spread keeps the echo's level", "[spectral-delay][spread]") {
+    // Each component spans several bins; with Spread they read different frames.
+    // Without identity phase locking their phases stopped lining up and the echo
+    // partly cancelled itself: -1.4 to -5.6 dB depending on the exact spread and
+    // FFT size (2026-11-23). Locked, it stays within ~1 dB of the unspread echo.
+    const int kind = GENERATE(0, 1);
+    const std::size_t fftSize = GENERATE(std::size_t{512}, std::size_t{1024}, std::size_t{4096});
+    const double unspread = spreadSteadyWetEnergy(kind, fftSize, 0.0f);
+    for (const float spreadMs : {50.0f, 200.0f, 1000.0f}) {
+        const double db = 10.0 * std::log10(spreadSteadyWetEnergy(kind, fftSize, spreadMs) / unspread);
+        INFO((kind == 0 ? "noise" : "chord") << ", FFT " << fftSize << ", spread " << spreadMs
+             << " ms: echo level " << db << " dB vs no spread");
+        CHECK(std::abs(db) <= 2.0);
+    }
 }
 
 TEST_CASE("SpectralDelay Logarithmic spread curve differs audibly from Linear",

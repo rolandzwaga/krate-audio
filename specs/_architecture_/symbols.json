@@ -721,7 +721,7 @@
       "scope": "Krate::DSP::SpectralDelay",
       "layer": "effects",
       "header": "dsp/include/krate/dsp/effects/spectral_delay.h",
-      "line": 824
+      "line": 825
     },
     {
       "name": "DelayEngine",

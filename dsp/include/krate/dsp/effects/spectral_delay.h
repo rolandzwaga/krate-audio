@@ -202,6 +202,7 @@ public:
         blurredMag_.assign(kMaxBins, 0.0f);
         binDelayFrames_.assign(kMaxBins, 0.0f);
         peaks_.assign(kMaxBins, 0);
+        regionPeak_.assign(kMaxBins, 0);
         for (DelayedSpectrum* s : {&delayedL_, &delayedR_}) {
             s->magNew.assign(kMaxBins, 0.0f);
             s->advance.assign(kMaxBins, 0.0f);
@@ -891,9 +892,11 @@ private:
                 peaks_[peakCount++] = bin;
             }
         }
+        for (std::size_t bin = 0; bin < numBins; ++bin) regionPeak_[bin] = bin;
         if (peakCount > 0) {
             for (std::size_t bin = 0; bin < peaks_[0]; ++bin) {
                 out.advance[bin] = out.advance[peaks_[0]];
+                regionPeak_[bin] = peaks_[0];
             }
             for (std::size_t p = 0; p + 1 < peakCount; ++p) {
                 const std::size_t left = peaks_[p];
@@ -903,11 +906,14 @@ private:
                     if (out.magNew[bin] < out.magNew[lowest]) lowest = bin;
                 }
                 for (std::size_t bin = left + 1; bin < right; ++bin) {
-                    out.advance[bin] = out.advance[bin <= lowest ? left : right];
+                    const std::size_t owner = bin <= lowest ? left : right;
+                    out.advance[bin] = out.advance[owner];
+                    regionPeak_[bin] = owner;
                 }
             }
             for (std::size_t bin = peaks_[peakCount - 1] + 1; bin < numBins; ++bin) {
                 out.advance[bin] = out.advance[peaks_[peakCount - 1]];
+                regionPeak_[bin] = peaks_[peakCount - 1];
             }
         }
 
@@ -918,6 +924,28 @@ private:
             const float frac = delayFrames - std::floor(delayFrames);
             const float stepFromNearer = (frac <= 0.5f) ? -frac : (1.0f - frac);
             out.phase[bin] += stepFromNearer * out.advance[bin];
+        }
+
+        // Pass 4: identity phase locking. A component spans several bins (the
+        // window's main lobe); with Spread they read different frames, so their
+        // phases no longer line up and the component partly cancelled itself in
+        // the resynthesis (-1.4 to -5.6 dB depending on the exact spread, measured
+        // 2026-11-23). Every bin of a region takes its phase relative to the peak
+        // from the PEAK's nearer frame, so the component leaves whole at the peak's
+        // timing; each bin keeps its own delayed magnitude. With no spread every
+        // bin reads the peak's frame already, and this changes nothing.
+        for (std::size_t bin = 0; bin < numBins; ++bin) {
+            const std::size_t peak = regionPeak_[bin];
+            if (peak == bin) continue;
+            const float peakDelay = binDelayFrames_[peak];
+            const auto peakNewer = static_cast<std::size_t>(peakDelay);
+            const std::size_t peakFrame =
+                peakNewer + ((peakDelay - static_cast<float>(peakNewer)) <= 0.5f ? 0u : 1u);
+            const float phaseBin = std::atan2(imagLines[bin].read(peakFrame),
+                                              realLines[bin].read(peakFrame));
+            const float phasePeak = std::atan2(imagLines[peak].read(peakFrame),
+                                               realLines[peak].read(peakFrame));
+            out.phase[bin] = out.phase[peak] + (phaseBin - phasePeak);
         }
     }
 
@@ -1311,6 +1339,7 @@ private:
     // Fractional-frame read (readDelayedSpectrum)
     std::vector<float> binDelayFrames_;
     std::vector<std::size_t> peaks_;
+    std::vector<std::size_t> regionPeak_;  ///< each bin's region peak (readDelayedSpectrum)
     DelayedSpectrum delayedL_;
     DelayedSpectrum delayedR_;
 };
