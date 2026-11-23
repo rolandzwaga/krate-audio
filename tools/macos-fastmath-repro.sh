@@ -214,7 +214,6 @@ report_nan() {  # report_nan <object> <source>
   fi
 }
 TUOBJS=()
-NAME=""
 declare -A TU_SRC
 for tu in "${TUS[@]}"; do
   o="$OBJ/tu_$(basename "$tu" .cpp).o"
@@ -223,8 +222,13 @@ for tu in "${TUS[@]}"; do
   report_nan "$o" "$ROOT/dsp/tests/unit/$tu"
   TUOBJS+=("$o")
   TU_SRC[$ROOT/dsp/tests/unit/$tu]=1
-  NAME="${NAME}_$(basename "$tu" .cpp)"
 done
+# The executable (and its .link.log) is named after the first TU; with more than one, a hash of the whole list keeps the
+# name unique and short. Joining every TU's name hit NAME_MAX (255) at ~10 TUs: "File name too long", no link (2026-11-23).
+NAME="_$(basename "${TUS[0]}" .cpp)"
+if [ ${#TUS[@]} -gt 1 ]; then
+  NAME="${NAME}+$(( ${#TUS[@]} - 1 ))-$(printf '%s\n' "${TUS[@]}" | md5sum | cut -c1-10)"
+fi
 EXE="$OBJ/run$NAME"
 
 # ---- link: one allocation owner, and siblings for symbols another TU of the executable defines ------------------------
