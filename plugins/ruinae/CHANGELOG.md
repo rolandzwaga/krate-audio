@@ -5,10 +5,46 @@ All notable changes to Ruinae will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.12.6] - 2026-11-20
+## [1.0.0] - 2026-11-23
+
+The first stable release. A full audit of Ruinae and the shared DSP it uses found about 215 problems; every one is fixed, or measured and documented, and regression tests now guard voices, oscillators, filters, effects, the arpeggiator, the mod matrix, presets and saved state.
+
+### Added
+
+- **Velocity > Amp** — A new knob (VEL, in the AMP envelope) sets how far note velocity scales the level. See "Note velocity never changed the level" below.
+- **Voice LFO Rate and Shape** — The voice LFO had no rate or shape control. It now has both, defaulting to 1 Hz sine, so the presets that use it sound as before.
+
+### Changed
+
+- **Swing plays the long step first, also with the host playing** — Free-running swing played each pair short step first while gates and ratchets were sized for the long one, and with the host transport running Ruinae re-locked to the host every block, which undid the swing. Each step now lasts its own swung length, long first, and gates and ratchets fit their step. Swung presets and projects swing the other way round.
+- **A free-rate arpeggio keeps running with the transport stopped** — Tempo-synced rates still follow the transport.
+- **Voice routes to Filter Resonance use the global route's 10 Q scale** — Projects saved before this version keep their sound.
+
+### Removed
+
+- **The Gain Compensation switch** — It did nothing. Its parameter stays hidden, so saved projects still load.
 
 ### Fixed
 
+- **A possible crash after switching editor tabs** — Switching the modulation source, the distortion view or the effects tab left the editor holding controls that no longer existed; editing afterwards could crash the host.
+- **A damaged preset could hang the audio thread** — An extreme oscillator Phase Mod value in a preset or project took the audio thread into a near-endless loop. Every oscillator value now loads within its range.
+- **Stuck notes from the arpeggiator and voice-mode changes** — Turning the arpeggiator off, changing its mode or resetting it with keys held, a slide step on a chord, and switching between Poly and Mono could leave notes sounding. Each path now ends every note it started, and arp resets send note-offs for notes already sent to the MIDI output.
+- **Delay and reverb went silent after an engine reset** — After the host restarted processing (a sample-rate change, a bypass, a transport reset), the delay and the reverb stayed silent until their switches were toggled.
+- **Switching between Plate and Hall glitched** — The reverb crossfade restarted every block and could fade an instance into itself. It now runs once and reverses cleanly when switched back mid-fade.
+- **Pitch bend and tuning** — Mono mode ignored pitch bend and the tuning reference; pitch-bend smoothing depended on the buffer size; pitch bend, channel aftertouch and the mod wheel did not arrive through the host's MIDI mapping; mono Portamento Time was overwritten by the arpeggiator's Slide Time.
+- **Oscillators** — OSC Phase Mod and Freq Mod acted on one sample per block; the SpectralFreeze oscillator played out of tune and went silent after a reset; the Formant oscillator went out of tune towards C8; the Additive oscillator's partials sat on whole FFT bins (now fractional, floor -70 dBc).
+- **Controls that did nothing** — The Dice button, Mixer Spectral Shift, per-voice Morph Position in SpectralMorph mode, Formant Vowel (Morph is now an offset from the chosen vowel; old projects keep their sound), the free-run trance-gate Rate (stuck at 4 Hz), the Spectral Tilt destination, and the global LFO above about 20 Hz (it now reaches the 50 Hz the knob shows).
+- **Filters** — The self-oscillating filter stopped ringing under cutoff modulation; a filter type switch jumped (it now crossfades); SVF drive stepped; the Comb filter at full resonance was 22 dB louder than the other types (its level is now compensated).
+- **Delays** — Echoes came 6144 samples late through a hidden wet-path latency; the Spectral delay's Feedback did almost nothing after the first repeat and its output stepped at every analysis frame; changing its FFT Size could glitch; a Delay Time beyond what a type can hold is now visibly limited; the Spectral delay's stereo spread is the same on every render.
+- **Harmonizer** — It collapsed the mix to mono and its limiter acted on the dry signal; it now keeps the stereo dry signal, limits the harmony only, and ramps its transitions.
+- **Distortion** — Several types were silent or 24 dB quieter at Drive 0 (the low end of the drive range is now neutral; the rest of the law is unchanged); the Spectral distortion's Mix blended a dry signal that was out of time with the wet; the ChaosWaveshaper's Lorenz mode looped instead of staying chaotic.
+- **Modulation** — Global route edits could leave the seven slot parameters out of step; voice-matrix destinations used two different numberings; a route whose source or destination changed briefly applied its old amount (a burst on preset switch); Master Volume and global filter modulation stepped; Arp Rate modulation fell off the tempo grid; voice-route Curve, Smooth and scales did not behave as shown.
+- **Voices** — Note-off and steal bookkeeping could address the wrong note; Steal Mode and mono retrigger did not do what their names say; the mono voice was off centre; a SpectralMorph voice could replay the previous note.
+- **Arpeggiator** — Retrigger Beat did nothing without host musical time; a single held key with a gate above 100 % played staccato; the first note after a pause could wait out the old step; step lengths were truncated by a sample and drifted against the tempo; keys took effect at the block start rather than their sample; skip highlights were sent from the audio thread; only two of the eight lanes showed a playhead; a pasted Modifier lane step stored the wrong value.
+- **The output depended on the host buffer size** — The delays, the Hall reverb and the modulation grid rendered differently at different buffer sizes, so a bounce could differ from playback. Every section now renders the same at 32, 100, 441 and 2048 samples.
+- **Preset loads caused dropouts at small buffers** — Loading a preset cleared every delay buffer in one block (2.5-3.3 ms of work); the clear is now spread over blocks (0.1 ms per block). Envelope curve tables are no longer rebuilt on every parameter update (252 to 17 µs with curved envelopes).
+- **A browser preset load and a host restore could differ** — Loading from the preset browser skipped the voice routes and the engine and arp resets. Both now run the same code.
+- **Host and editor** — Ruinae now reports its tail, silence and bus layout to hosts as the VST3 contract asks; editor-only switches no longer appear as automatable parameters; closing the editor could touch freed controls; 38 overlapping and 26 out-of-bounds controls in the editor are fixed; missing arp controls and hidden preset categories are back; the macOS AU reports the plugin's real version.
 - **Release 0 clicked at note-off** — With the amp envelope's Release at 0, a note stopped within about 5 samples, which clicks. It now fades out over 2 ms, and the tail Ruinae reports to the host includes those 2 ms, so a host that stops processing at the end of the tail does not cut the fade. Factory presets are unaffected: their releases are all 50 ms or longer.
 - **The Chaos, S&H and Random rate knobs showed and defaulted to the wrong rates** — The three knobs used the LFO's 0.01–50 Hz scale, while the sources run at 0.05–20x (Chaos) and 0.1–50 Hz (S&H, Random), so the displayed value and the default did not match what played. Each knob now uses its source's own range, and the defaults are the rates the processor starts at. Saved projects and presets keep their rates. Host automation recorded on these three knobs now maps to different rates, so re-check any automation lanes on them.
 - **The modulation heatmap lit random cells and hid some routes** — The heatmap kept a grid smaller than the Global tab's 14 sources by 15 destinations, so its bottom rows showed cells that were not routed (a different pattern each time), and routes from Tran or ArpP, or to AGat, AOct, ASwg or ASpc, never appeared. Every source and destination now has its own cell.

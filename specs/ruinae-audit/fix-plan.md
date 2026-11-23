@@ -1658,3 +1658,20 @@ Fill this in with evidence gathered at that moment, not from memory. One row per
 - [ ] **Lints:** `node tools/lint-serial-test-runs.js`, `tools/lint-wallclock-tags.js`, `tools/uidesc-inventory.js --check` (Ruinae), `tools/lint-plugin-editor-baseline.js` clean.
 - [ ] **Version and changelog:** not bumped by this plan. Add bullets under the unreleased entry of `plugins/ruinae/CHANGELOG.md` for every user-visible change (PRESET-IMPACT and STATE-COMPAT tasks in particular); `version.json` changes only when the user asks for a release.
 - [ ] **Nothing pushed, nothing amended;** `git status` clean; `specs/ruinae-audit/findings.json` and `implementation-plan.md` untouched (`git diff --stat f8ed81e1 -- specs/ruinae-audit/findings.json specs/ruinae-audit/implementation-plan.md` empty).
+
+### Close-out record (2026-11-23, main loop)
+
+Gathered at close-out; boxes above stay unticked where this record says "open". Logs under `f:/tmp/ruinae-close/`.
+
+| Item | Evidence | Status |
+|---|---|---|
+| Gate | No whole-suite re-run (user, 2026-11-23: test runs cover only what a change reaches; enforced since 7b22f84e). Every task gated its own consumers; T6.10's gate covered ruinae_tests (941 cases) with T6.7 / T6.8 already in the tree: `GATE GREEN dsp_effects_tests cases=602 \| dsp_ieee_tests cases=187 \| ruinae_tests cases=941` (+ 3 `[presets][long]` cases). The morning's 9-executable gate: 249 of 261 shards green, 0 red, the 12 unrun shards were hidden Profundum evidence cases. | done (scoped) |
+| CPU lane | Skipped by the user's decision (2026-11-23) after `--base main` reached 465 serial cases in dsp_systems_tests (425 `[long]` renders). Passed before the stop: dsp_core 5, dsp_primitives 21, dsp_processors 45 affected timing cases. T1.34 / T2.33 values not re-measured at close-out (measured in their tasks: 252 → 17 µs; 2.5-3.3 ms → 0.09-0.14 ms per block). | skipped (user) |
+| ASan | `node tools/run-gate.js --bin build-asan/bin/Debug --base main --filter '[lifecycle]...' ruinae_tests` → `GATE GREEN ruinae_tests cases=28 assertions=935`, no AddressSanitizer report in any shard log (baseline 6 heap-use-after-free). | done |
+| pluginval | Ruinae exit 0 at strictness 5 (T6.10, final binary). Gradus (T4.4) and Iterum (T3.6a) passed after their last code change; since then only their CHANGELOG / version.json changed. | done |
+| clang-tidy | ruinae + dsp: 0 warnings (T6.10; dsp over all 482 TUs). shared / gradus: 0 warnings at their last changing task. | done |
+| macOS proxies | `node tools/check-portability.js`: all clear, 122 changed TUs (GCC). lint-apple-globals, lint-musical-time-truncation clean. `tools/macos-fastmath-repro.sh` not run. macOS itself unverified until CI. | partly open |
+| Probes | T6.6 table above (1753 / 29 / 45; every non-ok line owned or ruled; the 3 open items became T6.7-T6.9, R-220 became T6.10). | done |
+| Rulings | Every row in the rulings table has the user's answer and date. | done |
+| Version and changelog | User ruling (2026-11-23): Ruinae becomes 1.0.0, the first stable release; the unreleased 0.12.6 entry is now `## [1.0.0] - 2026-11-23` with Added / Changed / Removed / Fixed for the audit's user-visible changes. Other plugins reached by the shared changes have their own entries (ef661a29). | done |
+| Per-finding rows, thresholds, removed features, goldens list | Not re-verified row by row at close-out. | open |
