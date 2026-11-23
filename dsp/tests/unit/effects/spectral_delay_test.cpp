@@ -1822,8 +1822,9 @@ TEST_CASE("SpectralDelay logarithmic spread applies log-scaled delays",
 namespace {
 
 /// Time (ms) of the wet output's envelope peak for a Hann tone burst at freqHz
+/// (left channel, or the right one with rightChannel)
 double spreadEchoPeakMs(SpreadDirection dir, SpreadCurve curve, float spreadMs, float freqHz,
-                        std::size_t fftSize = 1024) {
+                        std::size_t fftSize = 1024, bool rightChannel = false) {
     constexpr double kSr = 44100.0;
     constexpr std::size_t kBlock = 512;
     constexpr std::size_t kLen = static_cast<std::size_t>(kSr * 2.0);
@@ -1856,13 +1857,14 @@ double spreadEchoPeakMs(SpreadDirection dir, SpreadCurve curve, float spreadMs, 
     }
 
     // 10 ms moving energy, peak position
+    const std::vector<float>& out = rightChannel ? right : left;
     constexpr std::size_t kWin = 441;
     double acc = 0.0;
     double best = -1.0;
     std::size_t bestAt = 0;
     for (std::size_t i = 0; i < kLen; ++i) {
-        acc += static_cast<double>(left[i]) * left[i];
-        if (i >= kWin) acc -= static_cast<double>(left[i - kWin]) * left[i - kWin];
+        acc += static_cast<double>(out[i]) * out[i];
+        if (i >= kWin) acc -= static_cast<double>(out[i - kWin]) * out[i - kWin];
         if (acc > best) { best = acc; bestAt = i; }
     }
     return 1000.0 * static_cast<double>(bestAt) / kSr;
@@ -1878,6 +1880,7 @@ double expectedSpreadOffsetMs(SpreadDirection dir, SpreadCurve curve, float spre
     double shape = p;
     if (dir == SpreadDirection::HighToLow) shape = 1.0 - p;
     if (dir == SpreadDirection::CenterOut) shape = std::abs(p - 0.5) * 2.0;
+    if (dir == SpreadDirection::EdgesIn) shape = 1.0 - std::abs(p - 0.5) * 2.0;
     return shape * static_cast<double>(spreadMs);
 }
 
@@ -1887,7 +1890,7 @@ TEST_CASE("SpectralDelay spread places each frequency's echo on an octave scale"
           "[spectral-delay][spread]") {
     constexpr float kSpreadMs = 1000.0f;
     const auto dir = GENERATE(SpreadDirection::LowToHigh, SpreadDirection::HighToLow,
-                              SpreadDirection::CenterOut);
+                              SpreadDirection::CenterOut, SpreadDirection::EdgesIn);
     const auto curve = GENERATE(SpreadCurve::Linear, SpreadCurve::Logarithmic,
                                 SpreadCurve::Exponential);
     const float freq = GENERATE(250.0f, 1000.0f, 4000.0f);
@@ -1900,6 +1903,26 @@ TEST_CASE("SpectralDelay spread places each frequency's echo on an octave scale"
          << " ms, expected " << expected << " ms");
     // A hop is 11.6 ms; the burst covers a few bins whose delays differ by up to ~25 ms
     CHECK(std::abs((spread - unspread) - expected) <= 35.0);
+}
+
+TEST_CASE("SpectralDelay Cross spread sweeps up on the left and down on the right",
+          "[spectral-delay][spread][cross]") {
+    // Cross: the left channel lays the spread out Low > High, the right High > Low
+    constexpr float kSpreadMs = 1000.0f;
+    const auto curve = GENERATE(SpreadCurve::Linear, SpreadCurve::Logarithmic);
+    const float freq = GENERATE(250.0f, 1000.0f, 4000.0f);
+    for (const bool right : {false, true}) {
+        const double unspread =
+            spreadEchoPeakMs(SpreadDirection::Cross, curve, 0.0f, freq, 1024, right);
+        const double spread =
+            spreadEchoPeakMs(SpreadDirection::Cross, curve, kSpreadMs, freq, 1024, right);
+        const double expected = expectedSpreadOffsetMs(
+            right ? SpreadDirection::HighToLow : SpreadDirection::LowToHigh, curve, kSpreadMs, freq);
+        INFO((right ? "right" : "left") << ", curve " << static_cast<int>(curve) << ", " << freq
+             << " Hz: echo peak moved " << (spread - unspread) << " ms, expected " << expected
+             << " ms");
+        CHECK(std::abs((spread - unspread) - expected) <= 35.0);
+    }
 }
 
 TEST_CASE("SpectralDelay Steps spread puts each of 8 bands at one delay",

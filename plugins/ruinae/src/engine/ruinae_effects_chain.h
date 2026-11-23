@@ -674,7 +674,8 @@ public:
         spectralDelay_.setSpreadMs(ms);
     }
     void setDelaySpectralDirection(int dir) noexcept {
-        spectralDelay_.setSpreadDirection(static_cast<SpreadDirection>(std::clamp(dir, 0, 2)));
+        spectralDelay_.setSpreadDirection(
+            static_cast<SpreadDirection>(std::clamp(dir, 0, kNumSpreadDirections - 1)));
     }
     void setDelaySpectralCurve(int curve) noexcept {
         spectralDelay_.setSpreadCurve(

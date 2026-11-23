@@ -349,15 +349,18 @@ static_assert(std::size(kFFTSizeStrings) == static_cast<std::size_t>(kFFTSizeCou
 static_assert(std::size(Krate::DSP::kSpectralDelayFFTSizes) == static_cast<std::size_t>(kFFTSizeCount));
 
 // =============================================================================
-// Spectral Delay: SpreadDirection dropdown (3 directions, stepCount = 2)
+// Spectral Delay: SpreadDirection dropdown (5 directions, stepCount = 4; Krate::DSP::
+// SpreadDirection order, saved as the index, so new directions go last)
 // =============================================================================
 
-inline constexpr int kSpreadDirectionCount = 3;
+inline constexpr int kSpreadDirectionCount = 5;
 
 inline const Steinberg::Vst::TChar* const kSpreadDirectionStrings[] = {
     STR16("Low > High"),
     STR16("High > Low"),
     STR16("Center Out"),
+    STR16("Edges In"),
+    STR16("Cross"),
 };
 
 // =============================================================================

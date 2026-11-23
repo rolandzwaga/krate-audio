@@ -55,8 +55,13 @@ namespace Krate::DSP {
 enum class SpreadDirection : std::uint8_t {
     LowToHigh,  ///< Higher bins get longer delays (rising effect)
     HighToLow,  ///< Lower bins get longer delays (falling effect)
-    CenterOut   ///< Edge bins get longer delays, center is base delay
+    CenterOut,  ///< Edge bins get longer delays, center is base delay
+    EdgesIn,    ///< Center bins get longer delays, the edges arrive first (closing in)
+    Cross       ///< Left channel Low > High, right channel High > Low
 };
+
+/// Number of SpreadDirection values (plugins size their menus from it)
+inline constexpr int kNumSpreadDirections = 5;
 
 namespace detail {
 
@@ -236,6 +241,7 @@ public:
         wetFifoR_.assign(2 * kMaxFFTSize + maxBlockSize, 0.0f);
         blurredMag_.assign(kMaxBins, 0.0f);
         binDelayFrames_.assign(kMaxBins, 0.0f);
+        binDelayFramesR_.assign(kMaxBins, 0.0f);
         peaks_.assign(kMaxBins, 0);
         regionPeak_.assign(kMaxBins, 0);
         for (DelayedSpectrum* s : {&delayedL_, &delayedR_}) {
@@ -858,10 +864,13 @@ private:
     /// / Center Out like a plain longer one (measured 2026-11-23). On the octave
     /// scale each octave gets an equal share (Linear), or the low octaves most of
     /// it (Logarithmic), independent of sample rate and FFT size.
+    /// Cross lays the left channel out Low > High and the right High > Low;
+    /// every other direction is the same on both channels (rightChannel ignored).
     [[nodiscard]] float calculateBinDelayMs(std::size_t bin,
                                             std::size_t numBins,
                                             float baseDelay,
-                                            float spread) const noexcept {
+                                            float spread,
+                                            bool rightChannel = false) const noexcept {
         if (numBins <= 1) return baseDelay;
 
         const float binHz = static_cast<float>(bin) * static_cast<float>(sampleRate_)
@@ -913,6 +922,12 @@ private:
             case SpreadDirection::CenterOut:
                 delayOffset = std::abs(position - 0.5f) * 2.0f * spread;
                 break;
+            case SpreadDirection::EdgesIn:
+                delayOffset = (1.0f - std::abs(position - 0.5f) * 2.0f) * spread;
+                break;
+            case SpreadDirection::Cross:
+                delayOffset = (rightChannel ? 1.0f - position : position) * spread;
+                break;
         }
 
         return baseDelay + delayOffset;
@@ -930,7 +945,7 @@ private:
     static constexpr float kPeakFloor = 1e-9f;
 
     /// @brief Read one channel's spectrum at each bin's fractional frame delay
-    ///        (binDelayFrames_) into out.mag / out.phase
+    ///        (delayFrames) into out.mag / out.phase
     ///
     /// Most delay times fall between two STFT frames. Blending the frames' complex
     /// values linearly cancels: at 50 % overlap a bin's phase turns by up to pi per
@@ -945,13 +960,14 @@ private:
     /// whole-frame delay reads the newer frame unchanged.
     void readDelayedSpectrum(const std::vector<DelayLine>& realLines,
                              const std::vector<DelayLine>& imagLines,
+                             const std::vector<float>& delayFrames,
                              DelayedSpectrum& out, std::size_t numBins) noexcept {
         // Pass 1: newer-frame magnitude and phase, blended magnitude, and each
         // bin's own true phase advance per hop (expected plus wrapped deviation)
         for (std::size_t bin = 0; bin < numBins; ++bin) {
-            const float delayFrames = binDelayFrames_[bin];
-            const auto newer = static_cast<std::size_t>(delayFrames);
-            const float frac = delayFrames - static_cast<float>(newer);
+            const float binDelay = delayFrames[bin];
+            const auto newer = static_cast<std::size_t>(binDelay);
+            const float frac = binDelay - static_cast<float>(newer);
 
             const float reNew = realLines[bin].read(newer);
             const float imNew = imagLines[bin].read(newer);
@@ -1017,8 +1033,8 @@ private:
         // Pass 3: step each bin's phase from its nearer frame by the locked advance:
         // back by frac from the newer frame, forward by (1 - frac) from the older
         for (std::size_t bin = 0; bin < numBins; ++bin) {
-            const float delayFrames = binDelayFrames_[bin];
-            const float frac = delayFrames - std::floor(delayFrames);
+            const float binDelay = delayFrames[bin];
+            const float frac = binDelay - std::floor(binDelay);
             const float stepFromNearer = (frac <= 0.5f) ? -frac : (1.0f - frac);
             out.phase[bin] += stepFromNearer * out.advance[bin];
         }
@@ -1034,7 +1050,7 @@ private:
         for (std::size_t bin = 0; bin < numBins; ++bin) {
             const std::size_t peak = regionPeak_[bin];
             if (peak == bin) continue;
-            const float peakDelay = binDelayFrames_[peak];
+            const float peakDelay = delayFrames[peak];
             const auto peakNewer = static_cast<std::size_t>(peakDelay);
             const std::size_t peakFrame =
                 peakNewer + ((peakDelay - static_cast<float>(peakNewer)) <= 0.5f ? 0u : 1u);
@@ -1171,10 +1187,20 @@ private:
             binDelayFrames_[bin] =
                 std::max(0.0f, (binDelayMs / 1000.0f) * frameRate - 1.0f);
         }
+        // Cross gives the right channel its own (mirrored) layout
+        const bool cross = spreadDirection_ == SpreadDirection::Cross;
+        if (cross) {
+            for (std::size_t bin = 0; bin < numBins; ++bin) {
+                const float binDelayMs =
+                    calculateBinDelayMs(bin, numBins, baseDelay, spread, /*rightChannel=*/true);
+                binDelayFramesR_[bin] = std::max(0.0f, (binDelayMs / 1000.0f) * frameRate - 1.0f);
+            }
+        }
 
         // Read the delayed spectra (before this frame's write, see above)
-        readDelayedSpectrum(binRealDelaysL_, binImagDelaysL_, delayedL_, numBins);
-        readDelayedSpectrum(binRealDelaysR_, binImagDelaysR_, delayedR_, numBins);
+        readDelayedSpectrum(binRealDelaysL_, binImagDelaysL_, binDelayFrames_, delayedL_, numBins);
+        readDelayedSpectrum(binRealDelaysR_, binImagDelaysR_,
+                            cross ? binDelayFramesR_ : binDelayFrames_, delayedR_, numBins);
 
         // Feedback soft limiter, in the signal's own (time-domain) scale (R-057).
         // tanh() on raw FFT magnitudes (FFT::forward is unnormalised: a sine of
@@ -1442,6 +1468,7 @@ private:
 
     // Fractional-frame read (readDelayedSpectrum)
     std::vector<float> binDelayFrames_;
+    std::vector<float> binDelayFramesR_;  ///< right channel's layout, used only by SpreadDirection::Cross
     std::vector<std::size_t> peaks_;
     std::vector<std::size_t> regionPeak_;  ///< each bin's region peak (readDelayedSpectrum)
     DelayedSpectrum delayedL_;

@@ -132,7 +132,7 @@ echo can sit up to about 5 ms off the grid.
 | Mix | Dry/Wet | 0–100 % | 50 % | Dry/wet balance. |
 | Freeze | Freeze | Off / On | Off | Holds the current spectrum. |
 | Spread | Spread | 0–2000 ms | 0 ms | The extra delay across the bands; 0 makes every band arrive together. |
-| Spread Direction | Spread Dir | Low->High, High->Low, Center Out | Low->High | Which bands arrive first. Center Out delays the extremes most. |
+| Spread Direction | Spread Dir | Low->High, High->Low, Center Out, Edges In, Cross | Low->High | Which bands arrive first. Center Out delays the extremes most; Edges In delays the middle most, so the echo closes in on the mids. Cross sweeps up on the left and down on the right at the same time. |
 | Spread Curve | Spread Curve | Linear, Logarithmic, Exponential, Steps, Scatter, Random | Linear | How the spread is shared out over the octaves (20 Hz to 20 kHz). Linear: an equal share per octave, a smooth sweep. Logarithmic: the low octaves get most of it. Exponential: the lows and mids return together, then the highs trail out. Steps: 8 bands, each a separate echo. Scatter: third-octave bands in a fixed shuffled order. Random: the bands keep moving to new delays. |
 | Feedback Tilt | Feedback Tilt | −100 to +100 % | 0 % | Negative favours the lows in the feedback, positive the highs. |
 | Diffusion | Diffusion | 0–100 % | 0 % | Blurs neighbouring bands together for a softer, washier tail. |
