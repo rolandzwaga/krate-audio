@@ -519,8 +519,13 @@ node tools/run-gate.js --filter '~[performance]~[perf]~[benchmark]~[!benchmark]'
 node tools/run-gate.js --filter '~[performance]~[perf]~[benchmark]~[!benchmark]' profundum_tests shared_tests
 # When several agents/lanes run gates at the same time, give each a slice of the machine: --share <N>.
 
-# Run all tests via CTest (always with -j: ctest is serial by default)
-ctest --test-dir build/windows-x64-release -C Release -j 30 --output-on-failure
+# run-gate.js and run-cpu-tests.js run ONLY the cases the change reaches (--scope affected, the default;
+# `node tools/affected-tests.js [--base <ref>]` shows the reach). Committed work: --base main / --base <plugin>/vX.Y.Z.
+# Nothing changed = a usage error, never a vacuous green. A whole-suite run (--scope all, run-close-lanes.js, an
+# unselected ctest) needs "# gate-all-ok: <reason>" on the line: tools/hooks/guard-test-scope.js blocks it otherwise,
+# tools/lint-test-scope.js gates workflow text in CI. Under CI the default stays --scope all.
+# CTest only with a selection (always with -j: ctest is serial by default):
+ctest --test-dir build/windows-x64-release -C Release -j 30 -R "<case name regex>" --output-on-failure
 # NOTE: to run ONE test case, invoke its exe directly (bin/Release/<name>.exe "<TestName>") — do NOT use
 # `ctest -R <exe>`. catch_discover_tests registers individual Catch2 CASE names, not
 # executable names, so `ctest -R dsp_core_tests` matches nothing and reports success.
@@ -539,8 +544,8 @@ ctest --test-dir build/windows-x64-release -C Release -j 30 --output-on-failure
 # because they assert wall-clock against audio time: any competing load -- another
 # suite, a build, clang-tidy, parallel agents -- inflates the number and produces a
 # false red on untouched code. Run them ONCE, alone, nothing else executing:
-node tools/run-cpu-tests.js              # all suites, strictly one at a time
-node tools/run-cpu-tests.js dsp_systems_tests   # or just the ones you touched
+node tools/run-cpu-tests.js              # the timing cases the change reaches, every suite, strictly one at a time
+node tools/run-cpu-tests.js dsp_systems_tests   # or just the suites you name
 # Isolation has a SECOND clause: not concurrently, and not back-to-back either.
 # Sustained benchmarking heats the CPU and boost clocks drop -- measured here, the
 # same code drifted +14% across one session and five unrelated perf tests went red
@@ -578,8 +583,8 @@ cmake -S . -B build-asan -G "Visual Studio 17 2022" -A x64 -DENABLE_ASAN=ON
 # Build (use Debug for better stack traces)
 cmake --build build-asan --config Debug
 
-# Run tests - ASan will abort and report if memory errors occur
-ctest --test-dir build-asan -C Debug -j 30 --output-on-failure
+# Run the affected tests - ASan will abort and report if memory errors occur
+node tools/run-gate.js --bin build-asan/bin/Debug --filter '~[performance]~[perf]~[benchmark]~[!benchmark]' <exe> [<exe> ...]
 ```
 
 **When to use ASan:**

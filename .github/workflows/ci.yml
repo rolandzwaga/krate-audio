@@ -302,6 +302,17 @@ jobs:
           node tools/lint-tidy-scope.js --self-test
           node tools/lint-tidy-scope.js
 
+      # Catches a whole-suite test command in the agent instructions (run-gate.js / run-cpu-tests.js --scope all,
+      # run-close-lanes.js, an unselected ctest) without a "gate-all-ok: <reason>" comment. Locally the runners run
+      # only the cases the change reaches (tools/affected-tests.js); a close-out gate over nine suites once ran 6 h on
+      # code the change never touched (2026-11-23). CI itself keeps whole suites (CI env -> --scope all).
+      # Runtime twin: tools/hooks/guard-test-scope.js. Self-tests first.
+      - name: Test scope lint (affected cases only)
+        run: |
+          node tools/hooks/guard-test-scope.js --self-test
+          node tools/lint-test-scope.js --self-test
+          node tools/lint-test-scope.js
+
       # Identifiers that compile on Windows and Linux but not on macOS: VSTGUI's
       # platform macros (MAC / WINDOWS / LINUX) used as names, and names at
       # global or anonymous-namespace scope that MacTypes.h also declares

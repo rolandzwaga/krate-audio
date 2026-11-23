@@ -407,7 +407,8 @@ Read each script's header comment first if its arguments are unclear (some take 
 The bundle target is "Ruinae" (the built bundle is ${BUILD_DIR}/VST3/Release/Ruinae.vst3); if MSBuild says the target does not exist, grep -rn RUINAE_NAME CMakeLists.txt cmake plugins/ruinae/CMakeLists.txt for the real name. If ${BUILD_DIR} does not exist, configure first: ${CMAKE} --preset windows-x64-release. A post-build copy failure into "C:/Program Files/Common Files/VST3/" is NOT an error (the compile succeeded). Report every compiler WARNING (the project requires zero) as kind=build-warning with file:line, and any error as build-error. Record the wall clock.`, { schema: LANE_SCHEMA, agentType: 'build-test-runner', model: 'sonnet' })
 
     lane.gate = await laneStep('gate', `STEP: run the per-push Ruinae suite SHARDED, taking a quarter of the machine:
-  node tools/run-gate.js --share 4 --filter '~[performance]~[perf]~[benchmark]~[!benchmark]' ruinae_tests
+  node tools/run-gate.js --share 4 --scope all --filter '~[performance]~[perf]~[benchmark]~[!benchmark]' ruinae_tests   # gate-all-ok: the audit measures the whole Ruinae suite
+(Keep the "# gate-all-ok: ..." comment: without it tools/hooks/guard-test-scope.js blocks a whole-suite run; without the scope flag the gate runs only cases touched by uncommitted changes.)
 Run it ONCE, capture to a log, then read the log. Report the GATE GREEN / GATE RED line verbatim in summary. For every failed case report kind=test-red with the test file:line and the failed assertion text (per-shard logs are under f:/tmp/gate/). Also note skipped/hidden/[!mayfail] cases you see in the log, and the slowest five cases from shard-times.tsv. Timing tests are excluded on purpose; do NOT run tools/run-cpu-tests.js.`, { schema: LANE_SCHEMA, agentType: 'build-test-runner', model: 'sonnet' })
 
     lane.pluginval = await laneStep('pluginval', `STEP: validate the bundle:

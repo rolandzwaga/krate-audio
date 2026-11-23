@@ -31,6 +31,14 @@
 // tools/analyze-crashdump.js, then tools/resolve_pdb_addrs.js for file:line (tools/test-crash-dumps.js has the
 // details). No admin rights or registry change; off on Linux / macOS, in CI, and with KRATE_CRASH_DUMPS=0.
 //
+// ONLY AFFECTED CASES BY DEFAULT (--scope affected): each executable runs only the cases whose defining source file
+// the change reaches (tools/affected-tests.js: changed files vs --base, default HEAD, plus untracked; their #include
+// reach; tests that read a changed data file). An executable with no affected case is skipped. No change at all is a
+// usage error, never a vacuous green: pass --base <ref> (main, the last release tag) or --scope all. A whole-suite
+// run (--scope all) needs a "# gate-all-ok: <reason>" comment on the command line or tools/hooks/guard-test-scope.js
+// blocks it (tools/lint-test-scope.js checks workflow text). Under CI (the CI env var) the default is --scope all.
+// A build-wide change (CMakeLists.txt, *.cmake, CMakePresets.json) runs every case.
+//
 // NOT FOR TIMING TESTS: everything here runs concurrently. Filters must exclude [performance] [perf] [benchmark]
 // [!benchmark] (tools/run-cpu-tests.js runs those alone). The runner refuses a filter that does not.
 //
@@ -43,6 +51,8 @@
 //   --case-times <file>  also write each test case's seconds (Catch2 --durations yes), slowest first.
 //   --filenames-as-tags true  run Catch2 with -# so a filter can name source files as [#<file>] (tsan-nightly.yml,
 //             fed by tools/tsan-scope.js --filter).
+//   --scope affected|all  affected (default; all under CI): only the cases the change reaches (see above).
+//   --base <ref>  what "changed" is measured from (default HEAD = uncommitted work; main = the branch).
 //   Defaults: workers = cpu count - 2, shards-per-exe = 4 x workers, out = f:/tmp/gate/<timestamp> (Windows) or <os tmpdir>/gate/<timestamp>,
 //             bin = build/windows-x64-release/bin/Release.
 // Writes <out>/<exe>-<k>.log per shard (its case list in <exe>-<k>.cases) and <out>/shard-times.tsv (one row per
@@ -57,6 +67,7 @@ const os = require('os');
 const path = require('path');
 const { parseCatch2Failures } = require('./ci-test-shard.js');
 const crashDumps = require('./test-crash-dumps.js');
+const affectedTests = require('./affected-tests.js');
 
 const args = process.argv.slice(2);
 const exes = [];
@@ -111,6 +122,33 @@ exes.splice(0, exes.length, ...exes.filter((e) => /_tests$/.test(e)));
 if (exes.length === 0) usage('no *_tests executable among the targets');
 for (const e of exes) if (!fs.existsSync(exePath(e))) usage(`missing ${exePath(e)}`);
 
+// --scope affected: the case names each executable may run (lower-cased, trimmed), from the change's reach.
+const SCOPE = opts.scope || (process.env.CI ? 'all' : 'affected');
+if (!['affected', 'all'].includes(SCOPE)) usage(`--scope must be affected or all, got ${SCOPE}`);
+const BASE = opts.base || 'HEAD';
+const allowedNames = new Map();   // exe -> Set of allowed case names; absent = no narrowing for that exe
+const skippedExes = new Set();    // executables with no affected case: not run, not red
+if (SCOPE === 'affected') {
+    const r = affectedTests.reach(BASE);
+    if (r.changed.length === 0) {
+        usage(`nothing changed since ${BASE}, so no test case is affected. Name what to measure from (--base main, --base <plugin>/vX.Y.Z) or run whole suites with --scope all and a "# gate-all-ok: <reason>" comment`);
+    }
+    if (r.buildWide) {
+        console.log(`scope: build-wide change (${r.buildWide}) since ${BASE}: every case of the filter runs`);
+    } else {
+        for (const exe of exes) {
+            const cases = affectedTests.listCases(exePath(exe), filter, FILE_TAGS);
+            if (!cases) { console.log(`scope: ${exe}: listing failed, running the whole filter`); continue; }
+            const keep = cases.filter((c) => affectedTests.isAffected(r, c.file));
+            console.log(`scope: ${exe}: ${keep.length} of ${cases.length} case(s) affected by ${r.changed.length} changed file(s) since ${BASE}`);
+            if (cases.length > 0 && keep.length === 0) skippedExes.add(exe);
+            allowedNames.set(exe, new Set(keep.map((c) => c.name.trim().replace(/[A-Z]/g, (ch) => ch.toLowerCase()))));
+        }
+    }
+} else {
+    console.log('scope: all (every case of the filter)');
+}
+
 // stdout + exit code of one executable run (listings).
 function capture(exe, argv) {
     return new Promise((resolve) => {
@@ -150,7 +188,8 @@ async function planShards(exe, pass, passFilter, count) {
     });
     const listed = await capture(exe, [passFilter, ...LIST]);
     if (listed.rc !== 0) return contiguous(`listing exit ${listed.rc}`);
-    const names = parseList(listed.text);
+    const allowed = allowedNames.get(exe);
+    const names = parseList(listed.text).filter((n) => !allowed || allowed.has(lowerAscii(n.trim())));
     if (!listedNames.has(exe)) listedNames.set(exe, new Set());
     for (const n of names) listedNames.get(exe).add(n.trim());
     // No shard at all: an EMPTY input file selects every case of the executable (measured).
@@ -252,6 +291,12 @@ function startHeartbeat(total) {
 
 (async () => {
     if (crashDumps.wrapper()) console.log(`crash dumps: a crashing shard writes a minidump to ${crashDumps.DUMP_DIR}`);
+    if (skippedExes.size) console.log(`skipped (no case affected by the change): ${[...skippedExes].join(', ')}`);
+    exes.splice(0, exes.length, ...exes.filter((e) => !skippedExes.has(e)));
+    if (exes.length === 0) {
+        console.log(`GATE GREEN nothing to run: no case of the named executables is affected by the change since ${BASE} (${[...skippedExes].join(', ')} skipped)`);
+        process.exit(0);
+    }
     const plans = await Promise.all([
         ...exes.map((exe) => planShards(exe, 1, PASS1, SHARDS)),
         ...(TWO_PASS ? exes.map((exe) => planShards(exe, 2, PASS2, WALL_SHARDS)) : []),

@@ -50,6 +50,8 @@ const LINTS = [
     { script: 'lint-tidy-scope.js', args: ['--self-test'], what: 'clang-tidy scope lint self-test' },
     { script: 'lint-tidy-scope.js', what: 'whole-target clang-tidy (-Full) in agent instructions without a tidy-full-ok reason' },
     { script: 'tidy-changed-files.js', args: ['--self-test'], what: 'clang-tidy changed-file selector self-test' },
+    { script: 'lint-test-scope.js', args: ['--self-test'], what: 'test scope lint self-test' },
+    { script: 'lint-test-scope.js', what: 'whole-suite test run in agent instructions without a gate-all-ok reason' },
     { script: 'lint-serial-test-runs.js', args: ['--self-test'], what: 'serial-test-run lint self-test' },
     { script: 'lint-plugin-editor-baseline.js', what: 'plugin editor missing a shared view (update banner, check button, version label)' },
     { script: 'lint-nonfinite-symbols.js', what: 'std::isnan/isinf/isfinite or a non-finite constant in fast-math DSP code' },
