@@ -177,13 +177,12 @@ public:
     /// original balance by calling processSample() unscaled.
     [[nodiscard]] float processSample() noexcept
     {
-        if (bloomActive_) stepBloom();
-        if (mix_ <= 0.0f) {
-            (void)noise_.process();
-            (void)filter_.process(0.0f);
-            (void)envelope_.process();
+        // Mix 0 is silent and mix_ only changes in configure*() before the
+        // next trigger(), which resets noise, filter and envelope and re-arms
+        // bloom: skipping them here is output-identical (MB-048).
+        if (mix_ <= 0.0f)
             return 0.0f;
-        }
+        if (bloomActive_) stepBloom();
         const float n   = noise_.process();
         const float f   = filter_.process(n);
         const float env = envelope_.process();
@@ -196,13 +195,8 @@ public:
     void processBlock(float* out, int numSamples) noexcept
     {
         if (mix_ <= 0.0f) {
-            for (int i = 0; i < numSamples; ++i) {
-                if (bloomActive_) stepBloom();
-                (void)noise_.process();
-                (void)filter_.process(0.0f);
-                (void)envelope_.process();
-                out[i] = 0.0f;
-            }
+            // Silent: nothing advances (see processSample(), MB-048).
+            std::fill(out, out + numSamples, 0.0f);
             return;
         }
         for (int i = 0; i < numSamples; ++i) {

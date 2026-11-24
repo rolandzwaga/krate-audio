@@ -18,6 +18,7 @@
 
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
 #include <vector>
 
 using Catch::Approx;
@@ -176,6 +177,42 @@ TEST_CASE("NoiseLayer: processBlock equals processSample",
         const float s = b.processSample();
         REQUIRE(s == Approx(out[static_cast<std::size_t>(i)]).margin(1e-6f));
     }
+}
+
+// MB-048: a layer at mix 0 is silent, so it must not spend CPU advancing the
+// noise oscillator, filter and envelope. trigger() resets all three at the
+// next note-on, so skipping them is output-identical.
+TEST_CASE("NoiseLayer: mix 0 does not advance the noise, filter or envelope",
+          "[membrum][dsp][noise_layer]")
+{
+    constexpr double        kSR   = 48000.0;
+    constexpr std::uint32_t kVoice = 5u;
+    Membrum::NoiseLayerParams p{};
+    p.mix = 0.0f; p.cutoff = 0.5f; p.resonance = 0.3f; p.decay = 0.5f; p.color = 0.5f;
+
+    Membrum::NoiseLayer layer;
+    layer.prepare(kSR, kVoice);
+    layer.configure(p);
+    layer.trigger(1.0f);
+
+    std::vector<float> out(64, 1.0f);
+    layer.processBlock(out.data(), 64);
+    for (const float s : out)
+        REQUIRE(s == 0.0f);
+
+    // Reference: a fresh oscillator with the same seed and colour, reset the
+    // way prepare() + configure() + trigger() leave the layer's oscillator.
+    Krate::DSP::NoiseOscillator ref;
+    ref.prepare(kSR);
+    ref.setSeed(kVoice + 1u);
+    ref.setColor(Krate::DSP::NoiseColor::White);
+    ref.setColor(Krate::DSP::NoiseColor::Pink);  // color 0.5 -> Pink
+    ref.reset();
+
+    const float layerNext = layer.oscillator().process();
+    const float refFirst  = ref.process();
+    INFO("layer oscillator next = " << layerNext << ", fresh first = " << refFirst);
+    CHECK(layerNext == refFirst);
 }
 
 // Phase 3 (CRASH-REDESIGN-PLAN.md): the bloom cutoff envelope starts dark,

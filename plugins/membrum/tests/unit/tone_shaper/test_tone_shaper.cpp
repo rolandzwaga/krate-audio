@@ -11,6 +11,9 @@
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
 
+#include "dsp/drum_voice.h"
+#include "dsp/pad_config.h"
+#include "dsp/pad_config_apply.h"
 #include "dsp/tone_shaper.h"
 
 #include <allocation_detector.h>
@@ -324,4 +327,49 @@ TEST_CASE("ToneShaper: all methods are zero-allocation",
         ts.noteOff();
         CHECK(scope.getAllocationCount() == 0);
     }
+}
+
+// MB-047: VoicePool applies the whole PadConfig to a voice at every note-on on
+// the audio thread. Each pitch-envelope setter used to rebuild the LUTs
+// (256 powf per table), so an unchanged pad paid 8 rebuilds per note-on.
+TEST_CASE("ToneShaper: pitch-envelope tables are rebuilt only when an input changes",
+          "[tone_shaper][rt-safety]")
+{
+    Membrum::DrumVoice voice;
+    voice.prepare(48000.0);
+
+    Membrum::PadConfig cfg{};
+    cfg.tsPitchEnvTime        = 0.1f;   // 50 ms
+    cfg.tsPitchEnvKneeEnabled = 1.0f;
+    cfg.tsPitchEnvStart       = 0.6f;
+    cfg.tsPitchEnvEnd         = 0.2f;
+
+    // Warm-up: the first apply after prepare legitimately builds the tables.
+    Membrum::applyPadConfigToVoice(voice, cfg);
+    voice.noteOn(1.0f);
+    const std::uint32_t warm = voice.toneShaper().pitchEnvRebuildCountForTest();
+
+    // Same config, next note-on: nothing changed, nothing is rebuilt.
+    Membrum::applyPadConfigToVoice(voice, cfg);
+    voice.noteOn(1.0f);
+    const std::uint32_t same = voice.toneShaper().pitchEnvRebuildCountForTest();
+    INFO("rebuilds for an unchanged pad: " << (same - warm));
+    CHECK(same == warm);
+
+    // One input changes: exactly one rebuild.
+    cfg.tsPitchEnvEnd = 0.3f;
+    Membrum::applyPadConfigToVoice(voice, cfg);
+    voice.noteOn(1.0f);
+    const std::uint32_t changed = voice.toneShaper().pitchEnvRebuildCountForTest();
+    INFO("rebuilds after one changed input: " << (changed - same));
+    CHECK(changed == same + 1u);
+
+    // Disabled envelope (time 0): a changed input builds nothing.
+    cfg.tsPitchEnvTime = 0.0f;
+    cfg.tsPitchEnvEnd  = 0.4f;
+    Membrum::applyPadConfigToVoice(voice, cfg);
+    voice.noteOn(1.0f);
+    const std::uint32_t disabled = voice.toneShaper().pitchEnvRebuildCountForTest();
+    INFO("rebuilds with the envelope disabled: " << (disabled - changed));
+    CHECK(disabled == changed);
 }

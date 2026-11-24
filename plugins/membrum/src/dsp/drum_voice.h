@@ -852,8 +852,15 @@ private:
             // into the body output before the UnnaturalZone chain so
             // ModeInject / NonlinearCoupling / ToneShaper treat the combined
             // signal.
-            noiseLayer_.processBlock(noiseScratch, chunk);
+            // Mix 0 (MB-048): the layer is silent, so skip it and the gain
+            // pass and just zero the scratch once.
+            if (noiseLayer_.mix() <= 0.0f)
             {
+                std::fill(noiseScratch, noiseScratch + chunk, 0.0f);
+            }
+            else
+            {
+                noiseLayer_.processBlock(noiseScratch, chunk);
                 // Wire coupling: wireGainMod_ (block-rate, from the previous
                 // chunk's modal energy) scales the buzz so it tracks the head.
                 // 1.0 when coupling is off => bit-exact legacy path.

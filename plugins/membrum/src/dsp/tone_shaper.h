@@ -110,9 +110,11 @@ public:
 
         // Pitch envelope (Phase 10): 1- or 2-segment Hz trajectory driven by
         // PitchSegmentEnvelope. Initial config rebuilt here from current
-        // state; subsequent setter calls trigger rebuildPitchEnv_().
+        // state; subsequent setter calls mark it dirty and the next noteOn()
+        // or processPitchEnvelope() rebuilds it (ensurePitchEnvBuilt_()).
         pitchEnv_.prepare(static_cast<float>(sampleRate));
         rebuildPitchEnv_();
+        pitchEnvDirty_ = false;
 
         prepared_ = true;
     }
@@ -225,22 +227,24 @@ public:
     // Pitch envelope setters
     // ------------------------------------------------------------------
 
+    // Each pitch-envelope setter only stores its input and marks the LUTs
+    // dirty when the value actually changed; the rebuild runs lazily in
+    // ensurePitchEnvBuilt_() (MB-047). An unchanged pad applied at every
+    // note-on therefore costs no table fill.
+
     void setPitchEnvStartHz(float hz) noexcept
     {
-        pitchEnvStartHz_ = std::clamp(hz, 20.0f, 2000.0f);
-        if (prepared_) rebuildPitchEnv_();
+        setPitchEnvInput_(pitchEnvStartHz_, std::clamp(hz, 20.0f, 2000.0f));
     }
 
     void setPitchEnvEndHz(float hz) noexcept
     {
-        pitchEnvEndHz_ = std::clamp(hz, 20.0f, 2000.0f);
-        if (prepared_) rebuildPitchEnv_();
+        setPitchEnvInput_(pitchEnvEndHz_, std::clamp(hz, 20.0f, 2000.0f));
     }
 
     void setPitchEnvTimeMs(float ms) noexcept
     {
-        pitchEnvTimeMs_ = std::max(0.0f, ms);
-        if (prepared_) rebuildPitchEnv_();
+        setPitchEnvInput_(pitchEnvTimeMs_, std::max(0.0f, ms));
     }
 
     /// Continuous curve amount in [-1, +1]. 0 = linear; negative = fast initial
@@ -248,8 +252,7 @@ public:
     /// slow start / fast end. When knee is enabled this drives segment 1.
     void setPitchEnvCurveAmount(float amount) noexcept
     {
-        pitchEnvCurve1Amount_ = std::clamp(amount, -1.0f, 1.0f);
-        if (prepared_) rebuildPitchEnv_();
+        setPitchEnvInput_(pitchEnvCurve1Amount_, std::clamp(amount, -1.0f, 1.0f));
     }
 
     /// Alias for callers that conceptually mean "curve of segment 1".
@@ -260,26 +263,25 @@ public:
 
     void setPitchEnvCurve2Amount(float amount) noexcept
     {
-        pitchEnvCurve2Amount_ = std::clamp(amount, -1.0f, 1.0f);
-        if (prepared_) rebuildPitchEnv_();
+        setPitchEnvInput_(pitchEnvCurve2Amount_, std::clamp(amount, -1.0f, 1.0f));
     }
 
     void setPitchEnvKneeEnabled(bool enabled) noexcept
     {
+        if (enabled == pitchEnvKneeEnabled_)
+            return;
         pitchEnvKneeEnabled_ = enabled;
-        if (prepared_) rebuildPitchEnv_();
+        pitchEnvDirty_       = true;
     }
 
     void setPitchEnvMidHz(float hz) noexcept
     {
-        pitchEnvMidHz_ = std::clamp(hz, 20.0f, 2000.0f);
-        if (prepared_) rebuildPitchEnv_();
+        setPitchEnvInput_(pitchEnvMidHz_, std::clamp(hz, 20.0f, 2000.0f));
     }
 
     void setPitchEnvMidFraction(float fraction) noexcept
     {
-        pitchEnvMidFraction_ = std::clamp(fraction, 0.0f, 1.0f);
-        if (prepared_) rebuildPitchEnv_();
+        setPitchEnvInput_(pitchEnvMidFraction_, std::clamp(fraction, 0.0f, 1.0f));
     }
 
     /// Legacy 2-option setter: kept for pre-existing test/perf/tooling code.
@@ -318,6 +320,7 @@ public:
 
     void noteOn(float velocity) noexcept
     {
+        ensurePitchEnvBuilt_();
         // Reset the SVF integrator state on every retrigger. Without
         // this, a voice slot that's been re-used (voice-steal or
         // polyphony rotation) inherits the *previous* note's filter
@@ -379,6 +382,7 @@ public:
     /// via the MultiStageEnvelope output (1.0 -> 0.0 envelope).
     [[nodiscard]] float processPitchEnvelope() noexcept
     {
+        ensurePitchEnvBuilt_();
         if (pitchEnvTimeMs_ == 0.0f)
         {
             return naturalFundamentalHz_;
@@ -481,6 +485,12 @@ public:
     [[nodiscard]] float getPitchEnvEndHz() const noexcept { return pitchEnvEndHz_; }
     [[nodiscard]] float getPitchEnvTimeMs() const noexcept { return pitchEnvTimeMs_; }
 
+    /// Number of pitch-envelope LUT rebuilds since construction (MB-047 test hook).
+    [[nodiscard]] std::uint32_t pitchEnvRebuildCountForTest() const noexcept
+    {
+        return pitchEnvRebuildCount_;
+    }
+
 private:
     double sampleRate_ = 44100.0;
 
@@ -533,13 +543,39 @@ private:
     PitchSegmentEnvelope            pitchEnv_{};
 
     bool prepared_ = false;
+    bool pitchEnvDirty_ = false;  // a pitch-env input changed since the last rebuild
+    std::uint32_t pitchEnvRebuildCount_ = 0;
+
+    // Store one pitch-envelope input; mark the LUTs dirty only on a change.
+    void setPitchEnvInput_(float& member, float value) noexcept
+    {
+        if (value == member)
+            return;
+        member         = value;
+        pitchEnvDirty_ = true;
+    }
+
+    // Rebuild the LUTs if an input changed and the envelope is enabled. A
+    // disabled envelope (time 0) is never read (processPitchEnvelope() returns
+    // the natural fundamental, noteOn() does not start it), so it stays dirty
+    // until it is enabled.
+    void ensurePitchEnvBuilt_() noexcept
+    {
+        if (pitchEnvDirty_ && prepared_ && pitchEnvTimeMs_ > 0.0f)
+        {
+            rebuildPitchEnv_();
+            pitchEnvDirty_ = false;
+        }
+    }
 
     // Rebuild the PitchSegmentEnvelope LUTs from the current parameter state.
-    // Called from every pitch-env setter and at prepare time. Runs O(256) per
-    // segment for the power-curve table fill; well-budgeted for user-edit and
-    // per-pad apply paths, never invoked from process().
+    // Runs O(256) powf per segment for the power-curve table fill. Called at
+    // prepare time and from ensurePitchEnvBuilt_(), which runs on the audio
+    // thread at note-on (VoicePool applies the pad config inside noteOn) and
+    // in processPitchEnvelope(), but only when an input changed.
     void rebuildPitchEnv_() noexcept
     {
+        ++pitchEnvRebuildCount_;
         // Use sample-time of at least 1 ms when the env is "enabled" so a stage
         // of exactly 0 samples doesn't produce a divide-by-zero in the LUT
         // phase calculation. When the user-set time is 0, we still call
