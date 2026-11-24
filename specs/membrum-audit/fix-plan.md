@@ -126,6 +126,7 @@ Tasks that stop for the user's ruling before their commit (every PRESET-IMPACT t
 | T1.11 | Raised by the run, 2026-11-24: (Q1) the Nyquist-click case's absolute zero is unreachable (the bare strike onset is one detection) and its patch never reaches the guard; (Q2) T1.10's release case reads 1.141 against 1.10 because the swept pad now really ends an octave below the plain reference. | - | (Q1) Option (a) (2026-11-24): cross the guard with Mode Stretch 1.0 and require that the sweep adds no detection over the same pad without it; the 32-sample grid stays. (Q2) (2026-11-24): keep the 1.10 bar, reference = same pad held at the 80 Hz end pitch, plus a SECTION with the sweep still running at the note-off. See the T1.11 section. |
 | T1.13 | Raised by the run, 2026-11-24: the plan's 50 ms auto-release hold turns "Per-pad single hit decays to silence on Orchestral" red (s8 1.75e-4 vs 1e-4). 20 ms, or 50 ms with a relaxed bar? | - | 20 ms (2026-11-24); every bar stays. See the T1.13 section. |
 | T1.15 | Raised by the run, 2026-11-24: the default hat's single-hit hi50 fresh/warm difference reads 2.47 dB against 2 dB after the fix; the residue is per-hit noise (identical noise: 0.000 dB). How to measure? | - | (a) power mean of 4 fresh-slot hits against the same 4 slots warm, 2 dB bar kept (2026-11-24). See the T1.15 section. |
+| T1.16 | Raised by the run, 2026-11-24: case 2's 5 s retirement bound ("keeps T1.7's guarantee") conflicts with its +3 dB sustain bar at budget level; T1.7 asserts 20 s. Which bound? | - | (a) (2026-11-24): retire within 20 s and no later than the same pad with the Mallet exciter; level-consistent design (ungated 0.15 s strike, highpassed regulated loop, Amount sets the loop envelope). See the T1.16 section. |
 | T2.8 | Read paths for released versions 1 and 2, or a documented break? | Read paths (STATE-COMPAT rule). Per-pad automation IDs of the 64-wide stride cannot be remapped by the plugin; the CHANGELOG says so. | |
 | T2.9 | FR-114 says a note-off does nothing to a percussion voice; since Phase 8A.5 it gates and damps, which cuts 180 of 185 long pads to under half their decay. Which is wanted? | None: ask. | |
 | T4.1 | Wire Snare Buzz, Tom Resonance and Coupling Amount into a receiver model, or remove them? | Wire them: nothing is removed. | |
@@ -1411,6 +1412,15 @@ Context. `ToneShaper::prepare` sets the SVF to 20 kHz while smoothing is still o
 - **Findings:** MB-017 (high, CONFIRMED).
 - **Flags:** PRESET-IMPACT.
 - **Prerequisites:** T1.6 (strike-normalisation probe and cache rework), T1.7 (Feedback voices retire).
+- **Ruling (user, 2026-11-24, after attempt 2):**
+  - Case 2's retirement bound at Amount 1.0, v 1.0 is T1.7's own bound, no longer the plan's 5 s: the voice retires within 20 s with no note-off.
+  - It also retires no later than the same pad with the Mallet exciter, normalised to the same budget. Measured: Plate 8.15 s, Membrane 3.92 s.
+  - Why: the plan's 5 s rested on a wrong premise ("keeps T1.7's guarantee", but T1.7 asserts 20 s). On the test's Plate pad (Decay 0.85), Impulse and Mallet already retire at 8.01 / 8.15 s. Across 84 level-consistent designs, the +3 dB Membrane sustain bar and a 5 s Plate bound never held together.
+  - Design to build, keeping the Feedback pads near the strike budget:
+    - an ungated fixed 0.15 s strike, so the open-loop probe matches the live note;
+    - a highpassed loop regulated at thr x velocity;
+    - Feedback Amount sets the loop envelope.
+  - Case 1, the +3 dB RMS bar, the strictly increasing fall time and "FeedbackExciter: non-zero body feedback sustains longer than zero" all stay as they are.
 - **Estimate:** 180 min.
 
 Today a Feedback-exciter voice skips the strike normalisation. `DrumVoice::noteOn` (`plugins/membrum/src/dsp/drum_voice.h:269-276`, the `feedbackExciter` branch inside the output-stage block) sets `bank.setOutputGain(1.0f)` and `bank.setOutputSoftClipThreshold(0.707f)`. The raw modal sum runs far above 0.707, so `ModalResonatorBank::applyOutputStage` (`dsp/include/krate/dsp/processors/modal_resonator_bank.h:894-900`, `softClip(x / t) * t`, with `softClip` returning exactly ±1 beyond ±3 at `dsp/include/krate/dsp/core/dsp_utils.h:105-112`) pins the bank at ±0.707 for 1-3 s. The voice output is that square wave times the amp envelope (`processBlockSlow`, `drum_voice.h:1026-1061`, ending in `hardClip(shaped * env * level)` at :1061). The loop never leaves the clip, so `FeedbackExciter::setFeedbackAmount` (`plugins/membrum/src/dsp/exciters/feedback_exciter.h:100-103`, applied in `trigger` at :105-126) cannot change anything audible.

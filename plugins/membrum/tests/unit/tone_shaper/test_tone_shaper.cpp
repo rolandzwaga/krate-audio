@@ -17,7 +17,9 @@
 #include "dsp/tone_shaper.h"
 
 #include <allocation_detector.h>
+#include <test_signals.h>
 
+#include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <random>
@@ -256,8 +258,20 @@ TEST_CASE("ToneShaper: Filter envelope sweep modulates LP cutoff (US5-2)",
     //   t ≈ 1 ms    (filter still closed, lowpass blocks 3 kHz)
     //   t ≈ 10 ms   (near attack peak, lots of 3 kHz)
     //   t ≈ 150 ms  (after decay, filter back to low cutoff)
+    // Hann-windowed: with a rectangular 3 ms window the resonant 200 Hz
+    // content leaks into the 3 kHz bin and dominates the t=150 ms snapshot.
+    // (The snapshots only differed before T1.15 because the SVF still glided
+    // down from 20 kHz at t=10 ms.)
     auto windowMag = [&](int startSample, int lengthSamples, double hz) {
-        return goertzelMag(out.data() + startSample, lengthSamples, kSampleRate, hz);
+        std::vector<float> seg(static_cast<std::size_t>(lengthSamples), 0.0f);
+        for (int i = 0; i < lengthSamples; ++i)
+        {
+            const double w = 0.5 - 0.5 * std::cos(2.0 * kPi * (static_cast<double>(i) + 0.5)
+                                                  / static_cast<double>(lengthSamples));
+            seg[static_cast<std::size_t>(i)] =
+                static_cast<float>(out[static_cast<std::size_t>(startSample + i)] * w);
+        }
+        return goertzelMag(seg.data(), lengthSamples, kSampleRate, hz);
     };
 
     const int lenWin  = static_cast<int>(kSampleRate * 0.003);  // 3 ms windows
@@ -372,4 +386,65 @@ TEST_CASE("ToneShaper: pitch-envelope tables are rebuilt only when an input chan
     const std::uint32_t disabled = voice.toneShaper().pitchEnvRebuildCountForTest();
     INFO("rebuilds with the envelope disabled: " << (disabled - changed));
     CHECK(disabled == changed);
+}
+
+// MB-042 / MB-265: the SVF coefficient smoother used to carry g, k and the mode
+// mix from whatever the slot played last (20 kHz lowpass on a fresh instance),
+// so a hit at LP 300 Hz passed its attack almost unfiltered.
+TEST_CASE("ToneShaper: a note starts at its own filter cutoff and type",
+          "[tone_shaper][filter]")
+{
+    constexpr double kSr     = 48000.0;
+    constexpr int    kWin    = 240;   // 5 ms at 48 kHz
+    constexpr int    kNoiseN = 4800;  // 100 ms at 48 kHz
+
+    std::vector<float> noise(static_cast<std::size_t>(kNoiseN), 0.0f);
+    TestHelpers::generateWhiteNoise(noise.data(), noise.size());
+
+    const auto rmsOf = [](const std::vector<float>& x, int n) {
+        double s = 0.0;
+        for (int i = 0; i < n; ++i)
+            s += static_cast<double>(x[static_cast<std::size_t>(i)])
+                 * static_cast<double>(x[static_cast<std::size_t>(i)]);
+        return std::sqrt(s / static_cast<double>(n));
+    };
+    const auto dbOf = [](double r) { return 20.0 * std::log10(std::max(r, 1e-30)); };
+
+    const auto playNote = [&](Membrum::ToneShaper& ts, Membrum::ToneShaperFilterType type,
+                              float cutoffHz, int n) {
+        ts.setFilterType(type);
+        ts.setFilterCutoff(cutoffHz);
+        ts.setFilterEnvAmount(0.0f);
+        ts.noteOn(1.0f);
+        std::vector<float> out(static_cast<std::size_t>(n), 0.0f);
+        for (int i = 0; i < n; ++i)
+            out[static_cast<std::size_t>(i)] =
+                ts.processSample(noise[static_cast<std::size_t>(i)]);
+        return out;
+    };
+
+    const double inDb = dbOf(rmsOf(noise, kWin));
+
+    Membrum::ToneShaper fresh;
+    fresh.prepare(kSr);
+    const auto freshOut =
+        playNote(fresh, Membrum::ToneShaperFilterType::Lowpass, 300.0f, kWin);
+    const double freshDb = dbOf(rmsOf(freshOut, kWin));
+
+    SECTION("fresh")
+    {
+        INFO("input 0-5 ms " << inDb << " dB, output " << freshDb << " dB");
+        REQUIRE(freshDb <= inDb - 20.0);
+    }
+
+    SECTION("after a highpass note")
+    {
+        // Same instance: the fresh LP note, then a highpass note, then LP again.
+        (void)playNote(fresh, Membrum::ToneShaperFilterType::Highpass, 14000.0f, kNoiseN);
+        const auto out =
+            playNote(fresh, Membrum::ToneShaperFilterType::Lowpass, 300.0f, kWin);
+        const double afterDb = dbOf(rmsOf(out, kWin));
+        INFO("fresh " << freshDb << " dB, after a highpass note " << afterDb << " dB");
+        REQUIRE(std::abs(afterDb - freshDb) <= 0.5);
+    }
 }

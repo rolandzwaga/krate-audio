@@ -321,22 +321,20 @@ public:
     void noteOn(float velocity) noexcept
     {
         ensurePitchEnvBuilt_();
-        // Reset the SVF integrator state on every retrigger. Without
-        // this, a voice slot that's been re-used (voice-steal or
-        // polyphony rotation) inherits the *previous* note's filter
-        // state. With high-Q settings on cymbals/hats the residual
-        // resonant energy decays at the previous note's cutoff and
-        // bleeds into the new hit's first samples -- the perceived
-        // "monotonous beep that's there sometimes" the user reported
-        // intermittently after kit switches and rapid hits. (The SVF
-        // doc recommends snapToTarget() for retriggers under the
-        // assumption that stale energy decays naturally, but with
-        // Q close to 1 it doesn't decay fast enough.)
         // Wipe per-note state from any previous voice that was on this
-        // slot. Three things to clear:
-        //   (1) SVF integrator tail (ic1eq/ic2eq) -- without this the
-        //       previous note's resonant energy decays at the previous
-        //       cutoff and bleeds into the new hit as a residual tone.
+        // slot (voice steal or polyphony rotation), so a hit sounds the
+        // same whatever played on the slot before. Three things to clear:
+        //   (1) The SVF -- reset() zeroes the integrators (ic1eq/ic2eq),
+        //       so the previous note's resonant energy cannot bleed into
+        //       the new hit as a residual tone, AND snaps g, k and the
+        //       mode mix to this pad's cutoff, type and resonance (set
+        //       just before by applyPadConfigToVoice). Without the snap
+        //       the note started from the coefficients the slot's last
+        //       note left (a 20 kHz lowpass on a fresh slot) and the
+        //       one-pole smoother on g = tan(pi fc / fs) took 20-55 ms to
+        //       close, so the attack passed unfiltered (MB-042, MB-265).
+        //       Smoothing stays enabled within the note for the filter
+        //       envelope.
         //   (2) Filter envelope output -- ADSR's Hard retrigger calls
         //       enterAttack() but ramps from the current output_, not
         //       from 0. If the previous voice left the env in Sustain at
@@ -348,7 +346,7 @@ public:
         //       at 50 Hz) would leave pitchEnv at 0; gate(true) ramps
         //       from there, so the new note's pitch glide starts at the
         //       wrong frequency.
-        filter_.resetIntegrators();
+        filter_.reset();
         filterEnv_.reset();
         pitchEnv_.reset();
         cutoffUpdateCounter_ = kCutoffUpdateInterval; // force update on first sample
