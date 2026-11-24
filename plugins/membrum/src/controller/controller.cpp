@@ -838,6 +838,26 @@ tresult PLUGIN_API Controller::setParamNormalized(ParamID tag, ParamValue value)
         requestViewRefresh(kRefreshPitchEnvDisplay);
     }
 
+    // MB-087: an edit of a pad's body-damping parameter makes it an explicit
+    // override, so the preset saves write the parameter instead of the -1
+    // "derive" sentinel. The load paths write through the base class and
+    // never reach this override.
+    {
+        const int dampOffset = padOffsetFromParamId(static_cast<int>(tag));
+        if (dampOffset == kPadBodyDampingB1 || dampOffset == kPadBodyDampingB3)
+        {
+            const int padIdx = padIndexFromParamId(static_cast<int>(tag));
+            if (padIdx >= 0 && padIdx < kNumPads)
+            {
+                auto& fields = padParamless_[static_cast<std::size_t>(padIdx)];
+                if (dampOffset == kPadBodyDampingB1)
+                    fields.dampingB1Derived = false;
+                else
+                    fields.dampingB3Derived = false;
+            }
+        }
+    }
+
     // If we're in the middle of a pad switch, don't recurse.
     if (suppressProxyForward_)
         return result;
@@ -869,6 +889,15 @@ tresult PLUGIN_API Controller::setParamNormalized(ParamID tag, ParamValue value)
             suppressProxyForward_ = true;
             EditControllerEx1::setParamNormalized(padId, value);
             suppressProxyForward_ = false;
+
+            // MB-087: a damping edit through the proxy makes the selected
+            // pad's damping an explicit override (see the per-pad case above).
+            auto& fields =
+                padParamless_[static_cast<std::size_t>(selectedPadIndex_)];
+            if (mapping.padOffset == kPadBodyDampingB1)
+                fields.dampingB1Derived = false;
+            else if (mapping.padOffset == kPadBodyDampingB3)
+                fields.dampingB3Derived = false;
 
             // FR-065 (spec 141, Phase 8 / US7): when the Output Bus proxy
             // changes, refresh the pad grid so its "BUS{N}" indicator picks

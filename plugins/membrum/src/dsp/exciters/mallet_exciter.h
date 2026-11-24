@@ -48,6 +48,15 @@ struct MalletExciter
 
     void reset() noexcept { core_.reset(); }
 
+    /// Re-arm to the post-prepare state when ExciterBank selects this type
+    /// again (audio thread); see ImpulseExciter::restart. The body-size hint
+    /// is a host parameter and is kept.
+    void restart(double sampleRate, std::uint32_t voiceId) noexcept
+    {
+        core_.prepare(sampleRate, voiceId);
+        core_.reset();
+    }
+
     /// D4 (06-orchestralKit-fix-plan.md): body-size contact hint. The fixed
     /// mass 0.3 gives a ~9.5 ms base Hertzian contact -- right for drums,
     /// hopeless for small metals (a ~8 ms Hann-ish pulse has a spectral null

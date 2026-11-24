@@ -199,6 +199,9 @@ TEST_CASE("Membrum state round-trip preserves all parameter values",
         pad0.strikePosition = 0.9f;
         pad0.level          = 0.6f;
     }
+    // MB-001: the pad was written straight into the engine; republish it for
+    // getState.
+    processor.publishPadConfigsForTest();
 
     // Save state -> load into a fresh processor -> round-trip values.
     auto* saveStream = new MemoryStream();
@@ -210,6 +213,15 @@ TEST_CASE("Membrum state round-trip preserves all parameter values",
     REQUIRE(loader.setupProcessing(setup) == kResultOk);
     REQUIRE(loader.setActive(true) == kResultOk);
     REQUIRE(loader.setState(saveStream) == kResultOk);
+    {
+        // MB-001: a load on an active processor applies in the next block
+        // (one block without output buses).
+        ProcessData data{};
+        data.processMode = kRealtime;
+        data.symbolicSampleSize = kSample32;
+        data.numSamples = 64;
+        loader.process(data);
+    }
 
     const auto& loaded = loader.voicePoolForTest().padConfig(0);
     CHECK(loaded.material       == Approx(0.2f).margin(1e-6f));
@@ -274,6 +286,9 @@ TEST_CASE("Membrum Controller setComponentState syncs parameters",
         pad0.strikePosition = 0.9f;
         pad0.level          = 0.6f;
     }
+    // MB-001: the pad was written straight into the engine; republish it for
+    // getState.
+    processor.publishPadConfigsForTest();
 
     auto* stream = new MemoryStream();
     REQUIRE(processor.getState(stream) == kResultOk);

@@ -40,6 +40,17 @@ struct StringBody
         string_.silence();
     }
 
+    /// Re-arm to the post-prepare state when BodyBank selects this body again
+    /// (audio thread, no allocation): silence the loop and re-seed the
+    /// waveguide RNG as prepareVoice() did. The smoother configuration and
+    /// energy-follower coefficients prepare() set are never changed, and
+    /// noteOn() snaps the smoothers.
+    void restart(std::uint32_t voiceId) noexcept
+    {
+        string_.silence();
+        string_.prepareVoice(voiceId);
+    }
+
     void configureForNoteOn(Krate::DSP::ModalResonatorBank& /*sharedBank*/,
                             const VoiceCommonParams& params,
                             float pitchHz) noexcept
@@ -78,7 +89,7 @@ struct StringBody
     // Block-rate entry point (Phase 9 SIMD emergency fallback / plan.md §SIMD).
     // WaveguideString has no SIMD block entry, so we loop per-sample. The
     // real win here is that the outer per-sample chain (unnatural + tone
-    // shaper + env) can still be block-free of std::variant dispatch.
+    // shaper + env) can still be block-free of per-sample type dispatch.
     void processBlock(Krate::DSP::ModalResonatorBank& /*sharedBank*/,
                       const float* excitation,
                       float* out,

@@ -60,11 +60,12 @@ TEST_CASE("NoiseLayer: allocation-free after prepare", "[membrum][dsp][noise_lay
     p.decay     = 0.3f;
     p.color     = 0.5f;
 
+    // The output buffer is the test's own allocation: made before the scope opens.
+    std::vector<float> out(1024, 0.0f);
     {
         TestHelpers::AllocationScope scope;
         layer.configure(p);
         layer.trigger(1.0f);
-        std::vector<float> out(1024, 0.0f);
         layer.processBlock(out.data(), static_cast<int>(out.size()));
         CHECK(scope.getAllocationCount() == 0);
     }

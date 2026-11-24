@@ -444,6 +444,9 @@ TEST_CASE("Regression: Processor::setState round-trip is byte-exact with non-neu
     pads[3].macroBodySize = 0.7f;
     pads[3].macroTightness = 0.3f;
     pads[3].macroComplexity = 0.65f;
+    // MB-001: the pad was written straight into the engine; republish it for
+    // getState.
+    p.publishPadConfigsForTest();
 
     Steinberg::MemoryStream s1;
     REQUIRE(p.getState(&s1) == Steinberg::kResultOk);
@@ -452,6 +455,8 @@ TEST_CASE("Regression: Processor::setState round-trip is byte-exact with non-neu
     preparedProcessor(p2);
     s1.seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
     REQUIRE(p2.setState(&s1) == Steinberg::kResultOk);
+    // MB-001: a load on an active processor applies in the next block.
+    runEmptyBlock(p2, nullptr);
 
     Steinberg::MemoryStream s2;
     REQUIRE(p2.getState(&s2) == Steinberg::kResultOk);

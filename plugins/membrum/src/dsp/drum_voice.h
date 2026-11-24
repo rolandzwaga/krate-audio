@@ -568,8 +568,8 @@ public:
 
     // Block-level audio-thread hot path (T043 / FR-001 / FR-002 / research.md §1,
     // plus Phase 9 SIMD emergency fallback per plan.md §SIMD Emergency Fallback /
-    // FR-071). Dispatches the ExciterBank and BodyBank std::variants exactly
-    // ONCE per block via their withActive() / processBlock() single-visit
+    // FR-071). Dispatches the ExciterBank and BodyBank alternatives exactly
+    // ONCE per block via their withActive() / processBlock() single-dispatch
     // helpers.
     //
     // Two code paths:
@@ -1314,7 +1314,8 @@ private:
     // local copies -- ImpactExciter::prepare allocates a comb-delay line, so a
     // per-probe local ExciterBank would allocate on the audio thread. Triggering
     // exciterBank_ here applies the deferred exciter-type swap that noteOn()
-    // performs a few lines later anyway (so the net allocation is unchanged),
+    // performs a few lines later anyway; the swap only re-arms an alternative
+    // ExciterBank::prepare already prepared, so it allocates nothing (MB-002),
     // and both components are re-triggered for the audible note below --
     // trigger() fully re-seeds/resets their state, so the probe leaves no
     // residue on the note (bit-identity preserved). exciterType is passed only

@@ -12,6 +12,7 @@
 
 #include <allocation_detector.h>
 
+#include <algorithm>
 #include <array>
 #include <cstdint>
 #include <cstring>
@@ -234,5 +235,69 @@ TEST_CASE("ExciterBodyMatrix: sample-rate sweep (42 combos × 5 rates, no NaN/In
                 CHECK(peakAbs <= 2.0f);  // generous safety bound
             }
         }
+    }
+}
+
+// MB-002 / MB-020 guard: a type that is selected again after another type
+// played must render exactly like a freshly prepared one (same RNG seeds,
+// filter and envelope state, secondary parameters).
+namespace {
+
+std::array<float, 4096> renderExciter(Membrum::ExciterBank& bank, Membrum::ExciterType type)
+{
+    bank.setExciterType(type);
+    bank.trigger(0.8f);
+    std::array<float, 4096> out{};
+    for (auto& s : out)
+        s = bank.process(0.0f);
+    return out;
+}
+
+void setNonDefaultSecondaryParams(Membrum::ExciterBank& bank)
+{
+    bank.setFMRatio(0.6f);
+    bank.setFeedbackAmount(0.4f);
+    bank.setFrictionPressure(0.7f);
+    bank.setNoiseBurstContactMs(0.25f);
+    bank.setMalletBodySizeHint(0.3f);
+}
+
+} // namespace
+
+TEST_CASE("ExciterBank: a re-selected exciter renders like a freshly prepared one",
+          "[exciter_bank][rt-safety]")
+{
+    constexpr int kNumExciters = static_cast<int>(Membrum::ExciterType::kCount);
+    constexpr std::uint32_t kVoiceId = 5u;
+
+    for (int x = 0; x < kNumExciters; ++x)
+    {
+        const auto typeX = static_cast<Membrum::ExciterType>(x);
+        const auto typeY = static_cast<Membrum::ExciterType>((x + 1) % kNumExciters);
+
+        Membrum::ExciterBank fresh;
+        fresh.prepare(48000.0, kVoiceId);
+        setNonDefaultSecondaryParams(fresh);
+        const auto expected = renderExciter(fresh, typeX);
+
+        Membrum::ExciterBank reused;
+        reused.prepare(48000.0, kVoiceId);
+        setNonDefaultSecondaryParams(reused);
+        (void)renderExciter(reused, typeX);
+        (void)renderExciter(reused, typeY);
+        const auto actual = renderExciter(reused, typeX);
+
+        float maxDiff = 0.0f;
+        float peak    = 0.0f;
+        for (std::size_t i = 0; i < expected.size(); ++i)
+        {
+            const float d = expected[i] - actual[i];
+            maxDiff = std::max(maxDiff, d < 0.0f ? -d : d);
+            peak    = std::max(peak, expected[i] < 0.0f ? -expected[i] : expected[i]);
+        }
+        INFO("exciter " << exName(typeX) << " re-selected after " << exName(typeY)
+             << ": max abs diff " << maxDiff << ", fresh peak " << peak);
+        CHECK(peak > 0.0f);
+        CHECK(maxDiff <= 1e-6f);
     }
 }

@@ -3,9 +3,12 @@
 // ==============================================================================
 // BodyBank -- Phase 2 swap-in body dispatcher (data-model.md §3.8)
 // ==============================================================================
-// Owns the shared ModalResonatorBank plus a std::variant of 6 body backends.
-// Deferred-swap pattern: setBodyModel() stores pendingType_ only; the swap
-// happens inside configureForNoteOn() called at the start of DrumVoice::noteOn.
+// Owns the shared ModalResonatorBank plus one resident instance of each of the
+// 6 body backends, all prepared in prepare() (setup thread). Deferred-swap
+// pattern: setBodyModel() stores pendingType_ only; the swap happens inside
+// configureForNoteOn() called at the start of DrumVoice::noteOn and only
+// re-arms the selected instance, so it never allocates or frees on the audio
+// thread (MB-002).
 // ==============================================================================
 
 #include "bodies/bell_body.h"
@@ -21,31 +24,65 @@
 #include <krate/dsp/processors/modal_resonator_bank.h>
 
 #include <cstdint>
+#include <tuple>
 #include <utility>
-#include <type_traits>
-#include <variant>
 
 namespace Membrum {
 
 class BodyBank
 {
-public:
-    BodyBank() noexcept : active_(std::in_place_type<MembraneBody>) {}
+    // Declared ahead of the public members: a function with a deduced return
+    // type must be defined before it is used, also inside the class.
+    using Alternatives = std::tuple<
+        MembraneBody,
+        PlateBody,
+        ShellBody,
+        StringBody,
+        BellBody,
+        NoiseBody>;
 
+    // One switch on currentType_ per call; currentType_ is never kCount
+    // (applyPendingSwap maps it to Membrane).
+    template <typename Fn>
+    decltype(auto) dispatch(Fn&& fn) noexcept
+    {
+        auto& a = alternatives_;
+        switch (currentType_)
+        {
+        case BodyModelType::Plate:     return std::forward<Fn>(fn)(std::get<PlateBody>(a));
+        case BodyModelType::Shell:     return std::forward<Fn>(fn)(std::get<ShellBody>(a));
+        case BodyModelType::String:    return std::forward<Fn>(fn)(std::get<StringBody>(a));
+        case BodyModelType::Bell:      return std::forward<Fn>(fn)(std::get<BellBody>(a));
+        case BodyModelType::NoiseBody: return std::forward<Fn>(fn)(std::get<NoiseBody>(a));
+        case BodyModelType::Membrane:
+        case BodyModelType::kCount:    break;
+        }
+        return std::forward<Fn>(fn)(std::get<MembraneBody>(a));
+    }
+
+public:
+    BodyBank() noexcept = default;
+
+    /// Setup thread only: prepares the shared bank and every body (String
+    /// sizes its waveguide delay lines here).
     void prepare(double sampleRate, std::uint32_t voiceId) noexcept
     {
-        sampleRate_ = sampleRate;
-        voiceId_    = voiceId;
+        voiceId_ = voiceId;
         sharedBank_.prepare(sampleRate);
-        std::visit([sampleRate, voiceId](auto& b) noexcept {
-            b.prepare(sampleRate, voiceId);
-        }, active_);
+        // Start every body from its constructed state, so each is prepared
+        // exactly once, as a freshly swapped-in body used to be (a second
+        // prepare() is not idempotent: NoiseBody's SVF keeps the mix targets
+        // of the mode it had at its previous prepare(); see ExciterBank).
+        alternatives_ = Alternatives{};
+        std::apply([sampleRate, voiceId](auto&... b) noexcept {
+            (b.prepare(sampleRate, voiceId), ...);
+        }, alternatives_);
     }
 
     void reset() noexcept
     {
         sharedBank_.reset();
-        std::visit([this](auto& b) noexcept { b.reset(sharedBank_); }, active_);
+        dispatch([this](auto& b) noexcept { b.reset(sharedBank_); });
         lastOutput_ = 0.0f;
     }
 
@@ -61,26 +98,22 @@ public:
         if (pendingType_ != currentType_)
             applyPendingSwap();
 
-        std::visit(
-            [this, &params, pitchEnvStartHz](auto& b) noexcept {
-                b.configureForNoteOn(sharedBank_, params, pitchEnvStartHz);
-            },
-            active_);
+        dispatch([this, &params, pitchEnvStartHz](auto& b) noexcept {
+            b.configureForNoteOn(sharedBank_, params, pitchEnvStartHz);
+        });
     }
 
     [[nodiscard]] float processSample(float excitation) noexcept
     {
-        const float out = std::visit(
-            [this, excitation](auto& b) noexcept {
-                return b.processSample(sharedBank_, excitation);
-            },
-            active_);
+        const float out = dispatch([this, excitation](auto& b) noexcept {
+            return b.processSample(sharedBank_, excitation);
+        });
         lastOutput_ = out;
         return out;
     }
 
     // Block-level entry point (Phase 9 SIMD emergency fallback / plan.md §SIMD).
-    // Single std::visit dispatch per block. Each body variant implements
+    // Single dispatch per block. Each body implements
     // processBlock(sharedBank, excitation, out, numSamples) which routes the
     // modal work through ModalResonatorBank::processBlock — the SIMD-accelerated
     // fast path (Highway kernel processModalBankSampleSIMD). This is what makes
@@ -93,27 +126,23 @@ public:
                       const float* excitation,
                       int numSamples) noexcept
     {
-        std::visit(
-            [this, out, excitation, numSamples](auto& b) noexcept {
-                b.processBlock(sharedBank_, excitation, out, numSamples);
-                if (numSamples > 0)
-                    lastOutput_ = out[numSamples - 1];
-            },
-            active_);
+        dispatch([this, out, excitation, numSamples](auto& b) noexcept {
+            b.processBlock(sharedBank_, excitation, out, numSamples);
+            if (numSamples > 0)
+                lastOutput_ = out[numSamples - 1];
+        });
     }
 
-    // Single-visit helper: invokes `fn` with a reference to the currently
+    // Single-dispatch helper: invokes `fn` with a reference to the currently
     // active body alternative and the shared ModalResonatorBank. Callers can
-    // then drive the body per-sample using direct typed calls, so the
-    // std::variant dispatch happens exactly ONCE per block per voice
-    // (research.md §1 / T043 / FR-001, FR-002). Used by DrumVoice::processBlock
-    // to run the exciter×body inner sample loop without a per-sample visit.
+    // then drive the body per-sample using direct typed calls, so the type
+    // dispatch happens exactly ONCE per block per voice (research.md §1 /
+    // T043 / FR-001, FR-002). Used by DrumVoice::processBlock to run the
+    // exciter×body inner sample loop without a per-sample dispatch.
     template <typename Fn>
     void withActive(Fn&& fn) noexcept
     {
-        std::visit(
-            [this, &fn](auto& b) noexcept { std::forward<Fn>(fn)(b, sharedBank_); },
-            active_);
+        dispatch([this, &fn](auto& b) noexcept { std::forward<Fn>(fn)(b, sharedBank_); });
     }
 
     void setLastOutput(float y) noexcept { lastOutput_ = y; }
@@ -125,8 +154,8 @@ public:
     // No-op for every modal body (their pitch is handled via the shared bank).
     void setStringFrequency(float pitchHz) noexcept
     {
-        if (auto* s = std::get_if<StringBody>(&active_))
-            s->string_.setFrequency(pitchHz);
+        if (currentType_ == BodyModelType::String)
+            std::get<StringBody>(alternatives_).string_.setFrequency(pitchHz);
     }
 
     // Audit M-1: re-apply the String mapper's material-derived settings
@@ -135,11 +164,12 @@ public:
     // morph doesn't fight the pitch-envelope glide. No-op for modal bodies.
     void refreshStringMaterial(const VoiceCommonParams& params) noexcept
     {
-        if (auto* s = std::get_if<StringBody>(&active_))
+        if (currentType_ == BodyModelType::String)
         {
+            auto& s = std::get<StringBody>(alternatives_);
             const auto r = Bodies::StringMapper::map(params, 0.0f);
-            s->string_.setBrightness(r.brightness);
-            s->string_.setDecay(r.decayTime);
+            s.string_.setBrightness(r.brightness);
+            s.string_.setDecay(r.decayTime);
         }
     }
 
@@ -159,65 +189,33 @@ public:
     }
 
 private:
-    using Variant = std::variant<
-        MembraneBody,
-        PlateBody,
-        ShellBody,
-        StringBody,
-        BellBody,
-        NoiseBody>;
-
-    // std::visit throws bad_variant_access only on a valueless variant, and a variant only becomes valueless when an
-    // emplace throws. Every alternative is nothrow default-constructible (applyPendingSwap only default-emplaces), so
-    // the visits on the audio path cannot throw (.clang-tidy ignores bad_variant_access for that reason).
-    static_assert([]<typename... T>(std::variant<T...>*) {
-        return (std::is_nothrow_default_constructible_v<T> && ...);
-    }(static_cast<Variant*>(nullptr)), "a throwing alternative constructor could leave the variant valueless");
-
     void applyPendingSwap() noexcept
     {
         // Clear shared-bank state before installing the new body so the tail
         // of the previous body doesn't bleed into the new one.
         sharedBank_.reset();
 
-        switch (pendingType_)
-        {
-        case BodyModelType::Membrane:
-            active_.emplace<MembraneBody>();
-            break;
-        case BodyModelType::Plate:
-            active_.emplace<PlateBody>();
-            break;
-        case BodyModelType::Shell:
-            active_.emplace<ShellBody>();
-            break;
-        case BodyModelType::String:
-            active_.emplace<StringBody>();
-            break;
-        case BodyModelType::Bell:
-            active_.emplace<BellBody>();
-            break;
-        case BodyModelType::NoiseBody:
-            active_.emplace<NoiseBody>();
-            break;
-        case BodyModelType::kCount:
-            active_.emplace<MembraneBody>();
+        if (pendingType_ == BodyModelType::kCount)
             pendingType_ = BodyModelType::Membrane;
-            break;
-        }
         currentType_ = pendingType_;
 
-        const double sr        = sampleRate_;
+        // Re-arm the resident body to its post-prepare state without
+        // allocating: String re-seeds its waveguide RNG in restart(); every
+        // other body's reset() already restores its post-prepare state.
         const std::uint32_t vid = voiceId_;
-        std::visit([sr, vid](auto& b) noexcept { b.prepare(sr, vid); }, active_);
+        dispatch([this, vid](auto& b) noexcept {
+            if constexpr (requires { b.restart(vid); })
+                b.restart(vid);
+            else
+                b.reset(sharedBank_);
+        });
     }
 
-    Variant                          active_;
+    Alternatives                     alternatives_{};
     Krate::DSP::ModalResonatorBank   sharedBank_;
     BodyModelType                    currentType_ = BodyModelType::Membrane;
     BodyModelType                    pendingType_ = BodyModelType::Membrane;
     float                            lastOutput_  = 0.0f;
-    double                           sampleRate_  = 44100.0;
     std::uint32_t                    voiceId_     = 0;
 };
 

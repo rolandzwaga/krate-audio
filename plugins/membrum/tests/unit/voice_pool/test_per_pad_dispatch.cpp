@@ -7,6 +7,7 @@
 #include "voice_pool/voice_pool.h"
 #include "voice_pool_test_helpers.h"
 #include "dsp/pad_config.h"
+#include "dsp/default_kit.h"
 
 #include <allocation_detector.h>
 
@@ -356,14 +357,10 @@ TEST_CASE("SC-007: Zero allocations with 32 pads, stealing, and choke groups",
     pool.setMaxPolyphony(16);
     pool.setVoiceStealingPolicy(Membrum::VoiceStealingPolicy::Oldest);
 
-    // Configure all 32 pads with per-pad parameter variations.
-    // Use uniform exciter/body types across pads (Impulse + Membrane) because
-    // ExciterBank/BodyBank variant swaps during voice stealing (std::swap in
-    // beginFastRelease) involve move-constructing ~220 KB DrumVoice temporaries
-    // that trigger MSVC CRT heap allocations for stack overflow guard pages
-    // on the audio thread. The real-time-safe contract (SC-007) guarantees
-    // zero allocations from VoicePool's own code; per-pad dispatch, choke
-    // groups, and parameter updates are the Phase 4 surface under test.
+    // Configure all 32 pads with per-pad parameter variations. Every pad uses
+    // Impulse + Membrane here; the exciter/body type swaps that mixed pads
+    // cause at note-on are covered by "SC-007: zero allocations with
+    // heterogeneous exciter/body pads" below.
     Membrum::TestHelpers::setAllPadsVoiceParams(pool, 0.5f, 0.5f, 0.5f, 0.3f, 0.8f);
     Membrum::TestHelpers::setAllPadsExciterType(pool, Membrum::ExciterType::Impulse);
     Membrum::TestHelpers::setAllPadsBodyModel(pool, Membrum::BodyModelType::Membrane);
@@ -440,4 +437,103 @@ TEST_CASE("SC-007: Zero allocations with 32 pads, stealing, and choke groups",
     const size_t allocCount = detector.stopTracking();
     INFO("Allocations during 10s stress test with 32 pads, stealing, choke groups: " << allocCount);
     CHECK(allocCount == 0);
+}
+
+// ==============================================================================
+// MB-137: the same 10 s fuzz with pads of DIFFERENT exciter and body types, so
+// voice slots rotating between pads swap the exciter/body type at note-on.
+// ==============================================================================
+TEST_CASE("SC-007: zero allocations with heterogeneous exciter/body pads",
+          "[membrum][voice_pool][pad_config][rt-safety]")
+{
+    constexpr double kSampleRate   = 44100.0;
+    constexpr int    kBlockSize    = 128;
+    constexpr double kDurationSecs = 10.0;
+    constexpr int    kNoteOnPeriodBlocks = 4; // ~5 ms (matches Phase 3.5 fuzz)
+
+    Membrum::VoicePool pool;
+    pool.prepare(kSampleRate, kBlockSize);
+    pool.setMaxPolyphony(16);
+    pool.setVoiceStealingPolicy(Membrum::VoiceStealingPolicy::Oldest);
+
+    SECTION("round robin")
+    {
+        Membrum::TestHelpers::setAllPadsVoiceParams(pool, 0.5f, 0.5f, 0.5f, 0.3f, 0.8f);
+        constexpr int kNumExciters = static_cast<int>(Membrum::ExciterType::kCount);
+        constexpr int kNumBodies   = static_cast<int>(Membrum::BodyModelType::kCount);
+        for (int p = 0; p < Membrum::kNumPads; ++p)
+        {
+            pool.setPadConfigSelector(p, Membrum::kPadExciterType, p % kNumExciters);
+            pool.setPadConfigSelector(p, Membrum::kPadBodyModel, p % kNumBodies);
+        }
+    }
+    SECTION("default kit")
+    {
+        Membrum::DefaultKit::apply(pool.padConfigsArray());
+    }
+
+    // Per-pad parameter variations and choke groups, as in the uniform case.
+    for (int p = 0; p < Membrum::kNumPads; ++p)
+    {
+        pool.setPadConfigField(p, Membrum::kPadMaterial, (p * 0.03f));
+        pool.setPadConfigField(p, Membrum::kPadSize, 0.2f + (p * 0.025f));
+        pool.setPadConfigField(p, Membrum::kPadDecay, 0.1f + (p * 0.02f));
+        pool.setPadChokeGroup(p, static_cast<std::uint8_t>((p / 4) + 1));
+    }
+
+    std::vector<float> outL(static_cast<std::size_t>(kBlockSize), 0.0f);
+    std::vector<float> outR(static_cast<std::size_t>(kBlockSize), 0.0f);
+
+    // Prime: trigger one note and process one block to flush first-touch init.
+    pool.noteOn(36, 0.7f);
+    pool.processBlock(outL.data(), outR.data(), kBlockSize);
+
+    const int totalBlocks =
+        static_cast<int>((kSampleRate * kDurationSecs) / kBlockSize);
+
+    std::mt19937 rng(0xDEADBEEFu);
+    std::uniform_int_distribution<int>    noteDist(Membrum::kFirstDrumNote, Membrum::kLastDrumNote);
+    std::uniform_real_distribution<float> velDist(0.1f, 1.0f);
+    std::uniform_int_distribution<int>    chokeDist(0, 8);
+    std::uniform_int_distribution<int>    polyDist(4, 16);
+    std::uniform_int_distribution<int>    policyDist(0, 2);
+
+    auto& detector = ::TestHelpers::AllocationDetector::instance();
+    detector.startTracking();
+
+    for (int b = 0; b < totalBlocks; ++b)
+    {
+        if ((b % kNoteOnPeriodBlocks) == 0)
+        {
+            const auto n1 = static_cast<std::uint8_t>(noteDist(rng));
+            pool.noteOn(n1, velDist(rng));
+            if ((b & 0x3) == 0)
+            {
+                const auto n2 = static_cast<std::uint8_t>(noteDist(rng));
+                pool.noteOn(n2, velDist(rng));
+            }
+            pool.noteOff(n1);
+        }
+
+        if ((b & 0x1F) == 0)
+        {
+            pool.setMaxPolyphony(polyDist(rng));
+            pool.setVoiceStealingPolicy(
+                static_cast<Membrum::VoiceStealingPolicy>(policyDist(rng)));
+            pool.setChokeGroup(static_cast<std::uint8_t>(chokeDist(rng)));
+
+            int padIdx = b % Membrum::kNumPads;
+            pool.setPadConfigField(padIdx, Membrum::kPadMaterial, velDist(rng));
+            pool.setPadConfigField(padIdx, Membrum::kPadSize, velDist(rng));
+            pool.setPadConfigField(padIdx, Membrum::kPadDecay, velDist(rng));
+            pool.setPadChokeGroup(padIdx,
+                static_cast<std::uint8_t>(chokeDist(rng)));
+        }
+
+        pool.processBlock(outL.data(), outR.data(), kBlockSize);
+    }
+
+    const size_t allocCount = detector.stopTracking();
+    INFO("Allocations during 10s heterogeneous-pad stress test: " << allocCount);
+    REQUIRE(allocCount == 0);
 }

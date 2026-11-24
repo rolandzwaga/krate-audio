@@ -70,6 +70,19 @@ constexpr const char* bodyName(Membrum::BodyModelType t) noexcept
 } // namespace
 
 // ==============================================================================
+// MB-136 positive control: this binary's detector counts an allocation made
+// inside a still-open AllocationScope. Without it every scope-based
+// zero-allocation CHECK in membrum_tests could pass while counting nothing.
+// ==============================================================================
+TEST_CASE("AllocationScope counts inside an open scope in membrum_tests", "[allocation]")
+{
+    const TestHelpers::AllocationScope scope;
+    TestHelpers::allocateObservably();
+    REQUIRE(scope.getAllocationCount() >= 1);
+    REQUIRE(scope.hadAllocations());
+}
+
+// ==============================================================================
 // SC-011: allocation_detector wraps noteOn / process / noteOff across all 36
 // combinations — must report zero heap allocations for every entry point.
 //
@@ -101,13 +114,11 @@ TEST_CASE("AllocationMatrix: zero heap allocs on audio-thread entries for all 36
             voice.setExciterType(ex);
             voice.setBodyModel(body);
 
-            // "Warm up" the variant swap: call noteOn once BEFORE the tracked
-            // scope so the pending exciter/body types are applied during an
-            // untracked noteOn. This matches the FR-072 contract: the first
-            // note after a type change is where the swap happens, and the
-            // swap itself uses std::variant::emplace which is guaranteed not
-            // to allocate for our in-place types. We still want to measure
-            // the *steady-state* audio-thread path too.
+            // Warm-up noteOn outside the tracked scope: it applies the pending
+            // exciter/body types, so the scopes below measure the steady-state
+            // audio-thread path of this combo. The type swap itself (the first
+            // noteOn after a type change) is measured by "AllocationMatrix: a
+            // noteOn that swaps the exciter or body type allocates nothing".
             voice.noteOn(kVelocity);
             // Process a small chunk to get past transient branches.
             {
@@ -166,4 +177,92 @@ TEST_CASE("AllocationMatrix: zero heap allocs on audio-thread entries for all 36
             }
         }
     }
+}
+
+// ==============================================================================
+// MB-002 / MB-020: a voice slot serves every pad, so a noteOn whose pad has a
+// different exciter or body type than the slot's previous pad swaps the type
+// on the audio thread. That swap must not allocate (no FMOperator wavetable
+// build, no comb or waveguide delay-line resize, no free of the old type).
+// ==============================================================================
+namespace {
+
+// Plays type A to a quiescent tail, switches to type B, and returns the
+// allocation count of the swapping noteOn plus one 512-sample block.
+size_t allocationsOfSwap(Membrum::ExciterType exA, Membrum::BodyModelType bodyA,
+                         Membrum::ExciterType exB, Membrum::BodyModelType bodyB)
+{
+    Membrum::DrumVoice voice;
+    voice.prepare(48000.0, 0u);
+    voice.setMaterial(0.5f);
+    voice.setSize(0.5f);
+    voice.setDecay(0.5f);
+    voice.setStrikePosition(0.3f);
+    voice.setLevel(0.8f);
+    voice.setExciterType(exA);
+    voice.setBodyModel(bodyA);
+
+    voice.noteOn(kVelocity);
+    std::array<float, 64> small{};
+    voice.processBlock(small.data(), 64);
+    voice.noteOff();
+    for (int i = 0; i < 200; ++i)
+        voice.processBlock(small.data(), 64);
+
+    voice.setExciterType(exB);
+    voice.setBodyModel(bodyB);
+
+    std::array<float, 512> block{};
+    TestHelpers::AllocationScope scope;
+    voice.noteOn(kVelocity);
+    voice.processBlock(block.data(), 512);
+    return scope.getAllocationCount();
+}
+
+} // namespace
+
+TEST_CASE("AllocationMatrix: a noteOn that swaps the exciter or body type allocates nothing",
+          "[allocation][rt-safety]")
+{
+    constexpr int kNumExciters = static_cast<int>(Membrum::ExciterType::kCount);
+    constexpr int kNumBodies   = static_cast<int>(Membrum::BodyModelType::kCount);
+
+    int exciterPairs = 0;
+    for (int a = 0; a < kNumExciters; ++a)
+    {
+        for (int b = 0; b < kNumExciters; ++b)
+        {
+            if (a == b)
+                continue;
+            ++exciterPairs;
+            const auto exA = static_cast<Membrum::ExciterType>(a);
+            const auto exB = static_cast<Membrum::ExciterType>(b);
+            const size_t count = allocationsOfSwap(exA, Membrum::BodyModelType::Membrane,
+                                                   exB, Membrum::BodyModelType::Membrane);
+            INFO("exciter swap " << exciterName(exA) << " -> " << exciterName(exB)
+                 << " (Membrane body): " << count << " allocations");
+            CHECK(count == 0u);
+        }
+    }
+
+    int bodyPairs = 0;
+    for (int a = 0; a < kNumBodies; ++a)
+    {
+        for (int b = 0; b < kNumBodies; ++b)
+        {
+            if (a == b)
+                continue;
+            ++bodyPairs;
+            const auto bodyA = static_cast<Membrum::BodyModelType>(a);
+            const auto bodyB = static_cast<Membrum::BodyModelType>(b);
+            const size_t count = allocationsOfSwap(Membrum::ExciterType::Impulse, bodyA,
+                                                   Membrum::ExciterType::Impulse, bodyB);
+            INFO("body swap " << bodyName(bodyA) << " -> " << bodyName(bodyB)
+                 << " (Impulse exciter): " << count << " allocations");
+            CHECK(count == 0u);
+        }
+    }
+
+    CHECK(exciterPairs == 42);
+    CHECK(bodyPairs == 30);
 }

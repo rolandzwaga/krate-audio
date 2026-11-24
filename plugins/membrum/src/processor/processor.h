@@ -24,16 +24,18 @@
 #include <krate/dsp/primitives/delay_line.h>
 #include <krate/dsp/processors/true_peak_limiter.h>
 
+#include "state/state_codec.h"
+
 #include <array>
 #include <atomic>
 #include <chrono>
 #include <cmath>
+#include <cstdint>
 #include <memory>
+#include <mutex>
 
 // Forward-declare DataExchangeHandler so processor.h stays cheap to include.
 namespace Steinberg::Vst { class DataExchangeHandler; }
-
-namespace Membrum::State { struct KitSnapshot; struct PadPresetSnapshot; }
 
 namespace Membrum {
 
@@ -73,13 +75,23 @@ public:
     // Test-only accessors (Phase 4)
     VoicePool& voicePoolForTest() noexcept { return voicePool_; }
     const VoicePool& voicePoolForTest() const noexcept { return voicePool_; }
-    void setSelectedPadIndexForTest(int idx) noexcept { selectedPadIndex_ = idx; }
-    int selectedPadIndexForTest() const noexcept { return selectedPadIndex_; }
+    void setSelectedPadIndexForTest(int idx) noexcept { selectedPadIndex_.store(idx); }
+    int selectedPadIndexForTest() const noexcept { return selectedPadIndex_.load(); }
+
+    /// Test-only: a test that wrote pad configs straight through
+    /// voicePoolForTest() (behind the audio thread's back) republishes them so
+    /// getState sees the write. Call only while no process() call can run.
+    void publishPadConfigsForTest() noexcept { publishPadConfigs(); }
 
     // Test-only accessors (Phase 5: coupling)
     Krate::DSP::SympatheticResonance& couplingEngineForTest() noexcept { return couplingEngine_; }
     const CouplingMatrix& couplingMatrixForTest() const noexcept { return couplingMatrix_; }
     float energyEnvelopeForTest() const noexcept { return energyEnvelope_; }
+    /// Test-only: how many times recomputeCouplingMatrix() has run (MB-075).
+    std::uint32_t couplingMatrixRecomputeCountForTest() const noexcept
+    {
+        return couplingMatrixRecomputeCount_;
+    }
 
     // Test-only accessors (Phase 6: macros, publishers)
     MacroMapper& macroMapperForTest() noexcept { return macroMapper_; }
@@ -95,13 +107,63 @@ private:
     /// Applies a parsed kit: the one apply that setState and a kit-preset
     /// browser load ("LoadPresetState", R-202) share. Flushes the voices and
     /// the coupling engine, installs every pad and global, resyncs the macro
-    /// cache.
+    /// cache. Runs only through consumePendingLoad (MB-001): on the audio
+    /// thread, or while processing is stopped.
     void applyKitSnapshot(const State::KitSnapshot& kit);
 
     /// Applies a parsed pad preset to one pad through
     /// State::applyPadPresetSnapshot (the one pad-preset apply, R-203), then
     /// refreshes the pad's category, the coupling matrix and its macro cache.
     void applyPadPresetSnapshot(int pad, const State::PadPresetSnapshot& preset);
+
+    // ---- Preset-load hand-off (MB-001) ----------------------------------
+    // notify("LoadPresetState" / "LoadPadPreset") and setState run on the
+    // host's message thread. They never write the engine while processing is
+    // active: each parses into pendingLoad_ and publishes it through
+    // pendingSlot_; process() applies it at its top, before the block's
+    // parameter changes. Contract: processor.cpp, "Preset-load hand-off".
+
+    /// A parsed load not yet applied. Fixed size, allocated once in the
+    /// constructor; the audio thread never allocates while applying it.
+    struct PendingLoad
+    {
+        bool hasKit = false;
+        State::KitSnapshot kit{};
+        bool keepSelectedPad = false;  ///< kit message: FR-052 keeps the pad
+        std::array<bool, kNumPads> hasPadPreset{};
+        std::array<State::PadPresetSnapshot, kNumPads> padPresets{};
+    };
+
+    /// Slot states of pendingSlot_.
+    static constexpr int kSlotIdle = 0;      ///< nothing pending
+    static constexpr int kSlotWriting = 1;   ///< a host-thread call owns pendingLoad_
+    static constexpr int kSlotReady = 2;     ///< published, not yet applied
+    static constexpr int kSlotApplying = 3;  ///< being applied (audio thread, or processing stopped)
+
+    /// Takes pendingSlot_ for a host-thread call (yields while it is being
+    /// applied). Returns the state it held: kSlotIdle or kSlotReady.
+    int acquireLoadSlot() noexcept;
+
+    /// The one publish of the three load paths: takes lifecycleMutex_, lets
+    /// `fill` write pendingLoad_ (`fill(load)`), then hands it to the audio
+    /// thread, or applies it at once when processing is not active.
+    template <typename Fill>
+    void publishLoad(const Fill& fill);
+
+    /// Applies a published pendingLoad_ if there is one: the kit first, then
+    /// each pad preset in pad order. Audio thread at the top of process();
+    /// setActive / setupProcessing / an inactive load while processing is
+    /// stopped. Allocation-free and lock-free.
+    void consumePendingLoad() noexcept;
+
+    /// Copies the live pad configs into the triple buffer and publishes them
+    /// for getState. Single writer: the audio thread while active, the
+    /// lifecycle calls while inactive.
+    void publishPadConfigs() noexcept;
+
+    /// The newest published pad configs. Single reader: getState, under
+    /// lifecycleMutex_.
+    const std::array<PadConfig, kNumPads>& latestPublishedPadConfigs() noexcept;
 
     /// Phase 6 (US4): recompute the coupling matrix passing the current
     /// per-pad couplingAmount values so they are baked into effectiveGain
@@ -133,7 +195,38 @@ private:
     std::array<bool, kMaxOutputBuses> busActive_ = {true};  // bus 0 always active
 
     // ---- Phase 4: selected pad index (for state only, not used in audio) ----
-    int selectedPadIndex_ = 0;
+    // Written by processParameterChanges (audio thread), read by getState.
+    std::atomic<int> selectedPadIndex_{0};
+
+    // ---- Preset-load hand-off (MB-001) ----
+    std::unique_ptr<PendingLoad> pendingLoad_;
+    std::atomic<int> pendingSlot_{kSlotIdle};
+
+    /// True between setActive(true) and setActive(false): process() may run,
+    /// so a load defers to it.
+    std::atomic<bool> active_{false};
+
+    /// Serialises setActive, setupProcessing, setState, the preset-load
+    /// messages and getState. Never taken by process(). A host that calls
+    /// setActive on one thread while setState runs on another cannot make
+    /// the load read "inactive" and then write the engine after processing
+    /// began; getState never saves a load half-applied.
+    std::mutex lifecycleMutex_;
+
+    // Published pad configs for getState (triple buffer: the writer owns
+    // padCopyBack_, the reader padCopyFront_, padCopyMiddle_ holds the third
+    // index plus kPadCopyFresh when it is newer than the reader's).
+    static constexpr std::uint8_t kPadCopyIndexMask = 0x3u;
+    static constexpr std::uint8_t kPadCopyFresh = 0x4u;
+    std::unique_ptr<std::array<std::array<PadConfig, kNumPads>, 3>> padCopies_;
+    std::atomic<std::uint8_t> padCopyMiddle_{1};
+    std::uint8_t padCopyBack_ = 0;
+    std::uint8_t padCopyFront_ = 2;
+
+    /// A pad config changed in this block (parameter changes, a load apply):
+    /// publish at the block's end. Audio thread (or a lifecycle call while
+    /// inactive) only.
+    bool padsDirty_ = false;
 
     // ---- Phase 5: Cross-pad coupling (sympathetic resonance) ----
     Krate::DSP::SympatheticResonance  couplingEngine_;
@@ -143,6 +236,7 @@ private:
     // per-voice path can run linear (no per-voice softClip gain stage).
     Krate::DSP::TruePeakLimiter       busLimiter_;
     CouplingMatrix                    couplingMatrix_;
+    std::uint32_t couplingMatrixRecomputeCount_ = 0;  ///< test-only rebuild counter
 
     // Global coupling parameters (atomics for thread-safe parameter updates)
     std::atomic<float> globalCoupling_{0.0f};

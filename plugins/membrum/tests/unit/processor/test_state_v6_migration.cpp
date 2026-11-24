@@ -63,6 +63,17 @@ struct V6Fixture
         processor.setActive(false);
         processor.terminate();
     }
+
+    // MB-001: a load on an active processor applies in the next process()
+    // block. One block without output buses.
+    void processEmptyBlock()
+    {
+        ProcessData data{};
+        data.processMode = kRealtime;
+        data.symbolicSampleSize = kSample32;
+        data.numSamples = 128;
+        processor.process(data);
+    }
 };
 
 // Append raw bytes helper.
@@ -145,12 +156,16 @@ TEST_CASE("State (FR-084): round-trip preserves non-default macros",
     // First save, then load into fx -- this reapplies macros so the underlying
     // params are self-consistent with the macro-derived targets. Any
     // subsequent save-load-save pair must then be byte-exact (FR-084).
+    // MB-001: the pads were written straight into the engine; republish them
+    // for getState.
+    fx.processor.publishPadConfigsForTest();
     MemoryStream s0;
     REQUIRE(fx.processor.getState(&s0) == kResultOk);
 
     V6Fixture fx1;
     s0.seek(0, IBStream::kIBSeekSet, nullptr);
     REQUIRE(fx1.processor.setState(&s0) == kResultOk);
+    fx1.processEmptyBlock();
 
     // Verify reloaded PadConfigs carry the expected macro values.
     for (int pad = 0; pad < Membrum::kNumPads; ++pad)
@@ -272,12 +287,15 @@ TEST_CASE("State: macro-driven couplingAmount survives save-load",
     const float renderedCoupling = pads[0].couplingAmount;
     REQUIRE(renderedCoupling > 0.5f); // Complexity=1.0 should boost above base.
 
+    // MB-001: the pad was written straight into the engine; republish it.
+    fx.processor.publishPadConfigsForTest();
     MemoryStream stream;
     REQUIRE(fx.processor.getState(&stream) == kResultOk);
 
     V6Fixture fx2;
     stream.seek(0, IBStream::kIBSeekSet, nullptr);
     REQUIRE(fx2.processor.setState(&stream) == kResultOk);
+    fx2.processEmptyBlock();
 
     const auto& p0 = fx2.processor.voicePoolForTest().padConfig(0);
     CHECK(p0.couplingAmount  == Approx(renderedCoupling).margin(1e-6f));

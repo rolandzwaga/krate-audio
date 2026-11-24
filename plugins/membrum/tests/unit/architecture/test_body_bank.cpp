@@ -11,6 +11,9 @@
 
 #include <allocation_detector.h>
 
+#include <algorithm>
+#include <array>
+#include <cstddef>
 #include <cstdint>
 #include <cstring>
 
@@ -148,5 +151,78 @@ TEST_CASE("BodyBank: cycling through all body types does not crash or NaN",
             float s = bank.processSample(i == 0 ? 1.0f : 0.0f);
             REQUIRE(isFiniteSample(s));
         }
+    }
+}
+
+// MB-002 guard: a body that is selected again after another body played must
+// render exactly like a freshly prepared one (String's waveguide RNG seed and
+// delay lines, NoiseBody's noise layer, the shared modal bank).
+namespace {
+
+std::array<float, 4096> renderBody(Membrum::BodyBank& bank, Membrum::BodyModelType type)
+{
+    bank.setBodyModel(type);
+    bank.configureForNoteOn(defaultParams(), 160.0f);
+
+    std::array<float, 64> impulse{};
+    impulse[0] = 1.0f;
+    const std::array<float, 64> silence{};
+
+    std::array<float, 4096> out{};
+    bank.processBlock(out.data(), impulse.data(), 64);
+    for (std::size_t i = 64; i < out.size(); i += 64)
+        bank.processBlock(out.data() + i, silence.data(), 64);
+    return out;
+}
+
+const char* bodyTypeName(Membrum::BodyModelType t) noexcept
+{
+    switch (t)
+    {
+    case Membrum::BodyModelType::Membrane:  return "Membrane";
+    case Membrum::BodyModelType::Plate:     return "Plate";
+    case Membrum::BodyModelType::Shell:     return "Shell";
+    case Membrum::BodyModelType::String:    return "String";
+    case Membrum::BodyModelType::Bell:      return "Bell";
+    case Membrum::BodyModelType::NoiseBody: return "NoiseBody";
+    default:                                return "Unknown";
+    }
+}
+
+} // namespace
+
+TEST_CASE("BodyBank: a re-selected body renders like a freshly prepared one",
+          "[body_bank][rt-safety]")
+{
+    constexpr int kNumBodies = static_cast<int>(Membrum::BodyModelType::kCount);
+    constexpr std::uint32_t kVoiceId = 5u;
+
+    for (int x = 0; x < kNumBodies; ++x)
+    {
+        const auto typeX = static_cast<Membrum::BodyModelType>(x);
+        const auto typeY = static_cast<Membrum::BodyModelType>((x + 1) % kNumBodies);
+
+        Membrum::BodyBank fresh;
+        fresh.prepare(48000.0, kVoiceId);
+        const auto expected = renderBody(fresh, typeX);
+
+        Membrum::BodyBank reused;
+        reused.prepare(48000.0, kVoiceId);
+        (void)renderBody(reused, typeX);
+        (void)renderBody(reused, typeY);
+        const auto actual = renderBody(reused, typeX);
+
+        float maxDiff = 0.0f;
+        float peak    = 0.0f;
+        for (std::size_t i = 0; i < expected.size(); ++i)
+        {
+            const float d = expected[i] - actual[i];
+            maxDiff = std::max(maxDiff, d < 0.0f ? -d : d);
+            peak    = std::max(peak, expected[i] < 0.0f ? -expected[i] : expected[i]);
+        }
+        INFO("body " << bodyTypeName(typeX) << " re-selected after " << bodyTypeName(typeY)
+             << ": max abs diff " << maxDiff << ", fresh peak " << peak);
+        CHECK(peak > 0.0f);
+        CHECK(maxDiff <= 1e-6f);
     }
 }

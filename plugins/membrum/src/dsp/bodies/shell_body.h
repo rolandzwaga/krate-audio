@@ -61,7 +61,7 @@ struct ShellBody
     // get the per-sample scalar path's cache/inlining behavior while
     // amortizing `smoothCoefficients()` (3 FLOPs × numModes per sample →
     // 3 FLOPs × numModes per block), which is a ~30% reduction in Shell's
-    // per-sample cost. The variant dispatch is still only one std::visit
+    // per-sample cost. The body-type dispatch is still only one switch
     // per block (from BodyBank::processBlock).
     static void processBlock(Krate::DSP::ModalResonatorBank& sharedBank,
                       const float* excitation,

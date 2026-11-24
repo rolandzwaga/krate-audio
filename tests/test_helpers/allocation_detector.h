@@ -115,19 +115,17 @@ public:
     }
 
     ~AllocationScope() {
-        count_ = AllocationDetector::instance().stopTracking();
+        (void)AllocationDetector::instance().stopTracking();
     }
 
+    // Live count of the open scope (see the note above ThreadScopedAllocationScope).
     size_t getAllocationCount() const {
-        return count_;
+        return AllocationDetector::instance().getAllocationCount();
     }
 
     bool hadAllocations() const {
-        return count_ > 0;
+        return getAllocationCount() > 0;
     }
-
-private:
-    size_t count_ = 0;
 };
 
 // ==============================================================================
@@ -142,9 +140,12 @@ private:
 // same binary - which is what keeps the default-off guarantee true for the
 // existing AllocationScope consumers.
 //
-// Like AllocationScope, the count is latched in the DESTRUCTOR: to read it while
-// the scope is still open, call
-// AllocationDetector::instance().getAllocationCount().
+// Both AllocationScope and ThreadScopedAllocationScope report the LIVE count of
+// the open scope: getAllocationCount() reads the detector's counter, so it is
+// meant to be called while the scope is still open (MB-136: a count latched in
+// the destructor read 0 for the scope's whole lifetime). Nested scopes share
+// one counter: an inner scope's constructor calls startTracking(), which resets
+// it, and its destructor stops tracking for the outer scope too.
 
 class ThreadScopedAllocationScope {
 public:
@@ -159,7 +160,7 @@ public:
 
     ~ThreadScopedAllocationScope() {
         auto& detector = AllocationDetector::instance();
-        count_ = detector.stopTracking();
+        (void)detector.stopTracking();
         detector.setThreadFilterEnabled(priorFilterEnabled_);
         tAllocationTrackThisThread = priorThreadOptIn_;
     }
@@ -169,18 +170,18 @@ public:
     ThreadScopedAllocationScope(ThreadScopedAllocationScope&&) = delete;
     ThreadScopedAllocationScope& operator=(ThreadScopedAllocationScope&&) = delete;
 
+    // Live count of the open scope (see the note above).
     size_t getAllocationCount() const {
-        return count_;
+        return AllocationDetector::instance().getAllocationCount();
     }
 
     bool hadAllocations() const {
-        return count_ > 0;
+        return getAllocationCount() > 0;
     }
 
 private:
     bool priorFilterEnabled_ = false;
     bool priorThreadOptIn_ = false;
-    size_t count_ = 0;
 };
 
 /// One heap allocation the optimiser cannot remove, for a detector's non-vacuity check ("the detector counts in this

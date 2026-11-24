@@ -113,8 +113,19 @@ double readParam(const EditControllerEx1& ctrl, ParamID id) noexcept
 // Per-pad bridging
 // ==============================================================================
 
+PadParamlessFields paramlessFieldsFromSnapshot(
+    const std::array<double, 59>& sound) noexcept
+{
+    PadParamlessFields fields;
+    fields.noiseLayerGain = sound[57];
+    fields.dampingB1Derived = sound[42] < 0.0;
+    fields.dampingB3Derived = sound[43] < 0.0;
+    return fields;
+}
+
 Membrum::State::PadSnapshot
-buildPadSnapshotFromParams(const EditControllerEx1& ctrl, int pad) noexcept
+buildPadSnapshotFromParams(const EditControllerEx1& ctrl, int pad,
+                           const PadParamlessFields& paramless) noexcept
 {
     Membrum::State::PadSnapshot snap;
 
@@ -155,12 +166,20 @@ buildPadSnapshotFromParams(const EditControllerEx1& ctrl, int pad) noexcept
             static_cast<ParamID>(padParamId(pad, kExciterSecOffsets[j])));
     }
 
-    // Sound[34..51]: Phase 7+ late slots.
+    // Sound[34..56, 58]: Phase 7+ late slots.
     for (const auto& slot : kLateSlots)
     {
         snap.sound[slot.snapIndex] = readParam(ctrl,
             static_cast<ParamID>(padParamId(pad, slot.offset)));
     }
+
+    // The fields no parameter holds (MB-087): noiseLayerGain (sound[57]) and
+    // the body-damping "derive" sentinel (sound[42/43]) of an unedited pad.
+    snap.sound[57] = paramless.noiseLayerGain;
+    if (paramless.dampingB1Derived)
+        snap.sound[42] = -1.0;
+    if (paramless.dampingB3Derived)
+        snap.sound[43] = -1.0;
 
     // Authoritative uint8 choke/bus (quantised from normalised).
     snap.chokeGroup = static_cast<std::uint8_t>(
@@ -194,19 +213,13 @@ void applyPadSnapshotToParams(
            (static_cast<double>(snap.bodyModel) + 0.5) /
                static_cast<double>(BodyModelType::kCount));
 
-    // Phase 8G ORDERING: macros FIRST. Each macro arriving at the processor
-    // through processParameterChanges fires MacroMapper::apply, which under
-    // the incremental contract layers (newDelta - oldDelta) onto the
-    // per-pad cfg.material/size/decay/etc. By writing all five macros
-    // before the per-pad fields, the macros run on default cfg values
-    // (cache initialised at 0.5 -> apply layers preset_macro - 0.5 worth
-    // of delta onto defaults), and the subsequent per-pad-field writes
-    // OVERWRITE whatever the macros affected with the preset's saved
-    // post-macro values. End state: cfg = preset values, cache = preset
-    // macros. Subsequent macro-knob movements then layer the correct
-    // delta on top of the loaded preset. Pre-fix order (per-pad fields
-    // first, macros last) drifted cfg fields by an extra macro_delta
-    // every save-load cycle for any preset with non-neutral macros.
+    // Phase 8G ORDERING: macros FIRST. The order matters only for a setter
+    // that notifies the processor per parameter: there, each macro fires
+    // MacroMapper::apply, which layers (newDelta - oldDelta) onto the
+    // per-pad fields, and writing the per-pad fields afterwards overwrites
+    // that with the preset's saved post-macro values. Every caller today
+    // passes the plain setParamNormalized (the processor applies loads
+    // itself, MB-152), so no processor replay happens; the order is kept.
     for (std::size_t j = 0; j < kMacroOffsets.size(); ++j)
     {
         setter(static_cast<ParamID>(padParamId(pad, kMacroOffsets[j])),
@@ -327,7 +340,8 @@ void applyPadPresetSnapshotToParams(
 // ==============================================================================
 
 Membrum::State::KitSnapshot
-buildSnapshot(const EditControllerEx1& ctrl, int selectedPadIndex) noexcept
+buildSnapshot(const EditControllerEx1& ctrl, int selectedPadIndex,
+              const std::array<PadParamlessFields, kNumPads>& paramless) noexcept
 {
     Membrum::State::KitSnapshot kit;
 
@@ -357,8 +371,8 @@ buildSnapshot(const EditControllerEx1& ctrl, int selectedPadIndex) noexcept
 
     for (int pad = 0; pad < kNumPads; ++pad)
     {
-        kit.pads[static_cast<std::size_t>(pad)] =
-            buildPadSnapshotFromParams(ctrl, pad);
+        kit.pads[static_cast<std::size_t>(pad)] = buildPadSnapshotFromParams(
+            ctrl, pad, paramless[static_cast<std::size_t>(pad)]);
     }
 
     return kit;

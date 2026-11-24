@@ -169,6 +169,8 @@ TEST_CASE("Phase 7 (SC-005): state v5 round-trip with non-default globals + "
     StateFixture fx2;
     stream.seek(0, IBStream::kIBSeekSet, nullptr);
     REQUIRE(fx2.processor.setState(&stream) == kResultOk);
+    // MB-001: a load on an active processor applies in the next block.
+    fx2.processor.process(fx2.data);
 
     // ---- Verify globals round-tripped ----
     // We can't read the atomics directly, but we can read them back via

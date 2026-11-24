@@ -39,6 +39,8 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
+#include <mutex>
+#include <thread>
 #include <utility>
 #include <vector>
 
@@ -48,6 +50,8 @@ using namespace Steinberg;
 using namespace Steinberg::Vst;
 
 Processor::Processor()
+    : pendingLoad_(std::make_unique<PendingLoad>())
+    , padCopies_(std::make_unique<std::array<std::array<PadConfig, kNumPads>, 3>>())
 {
     setControllerClass(kControllerUID);
 }
@@ -109,6 +113,7 @@ tresult PLUGIN_API Processor::initialize(FUnknown* context)
     // FR-030: Initialize all 32 pads with GM-inspired default templates.
     // This is overwritten by setState() if a saved state is loaded.
     DefaultKit::apply(voicePool_.padConfigsArray());
+    publishPadConfigs();
 
     // Phase 5: Initialize pad categories from default kit configuration.
     for (int i = 0; i < kNumPads; ++i)
@@ -130,6 +135,7 @@ tresult PLUGIN_API Processor::initialize(FUnknown* context)
 // Tier 1 knobs, pad categories, and per-pad coupling amounts.
 void Processor::recomputeCouplingMatrix() noexcept
 {
+    ++couplingMatrixRecomputeCount_;
     std::array<float, kNumPads> amounts{};
     for (int pad = 0; pad < kNumPads; ++pad)
         amounts[static_cast<size_t>(pad)] =
@@ -148,6 +154,16 @@ void Processor::processParameterChanges(IParameterChanges* paramChanges)
         return;
 
     int32 numParams = paramChanges->getParameterCount();
+
+    // Per-pad IDs, the selected-pad proxies and the macros all write pad
+    // configs: republish them for getState at the end of this block.
+    if (numParams > 0)
+        padsDirty_ = true;
+
+    // The coupling matrix is rebuilt once, after the loop, when any change of
+    // this block touched one of its inputs (MB-075).
+    bool couplingMatrixDirty = false;
+
     for (int32 i = 0; i < numParams; ++i)
     {
         auto* queue = paramChanges->getParameterData(i);
@@ -184,7 +200,7 @@ void Processor::processParameterChanges(IParameterChanges* paramChanges)
                 // Phase 5: exciter type change can affect pad category
                 padCategories_[static_cast<size_t>(padIdx)] =
                     classifyPad(voicePool_.padConfig(padIdx));
-                recomputeCouplingMatrix();
+                couplingMatrixDirty = true;
             }
             else if (padOff == kPadBodyModel)
             {
@@ -195,7 +211,7 @@ void Processor::processParameterChanges(IParameterChanges* paramChanges)
                 // Phase 5: body model change can affect pad category
                 padCategories_[static_cast<size_t>(padIdx)] =
                     classifyPad(voicePool_.padConfig(padIdx));
-                recomputeCouplingMatrix();
+                couplingMatrixDirty = true;
             }
             else if (padOff == kPadTSPitchEnvTime)
             {
@@ -203,7 +219,7 @@ void Processor::processParameterChanges(IParameterChanges* paramChanges)
                 // Phase 5: pitch env time change can affect pad category (Kick vs Tom)
                 padCategories_[static_cast<size_t>(padIdx)] =
                     classifyPad(voicePool_.padConfig(padIdx));
-                recomputeCouplingMatrix();
+                couplingMatrixDirty = true;
             }
             else if (padOff == kPadCouplingAmount)
             {
@@ -212,7 +228,7 @@ void Processor::processParameterChanges(IParameterChanges* paramChanges)
                 // the matrix so a pad with amount = 0 is fully excluded as
                 // both source and receiver.
                 voicePool_.setPadConfigField(padIdx, padOff, fValue);
-                recomputeCouplingMatrix();
+                couplingMatrixDirty = true;
             }
             else if (padOff >= kPadMacroTightness && padOff <= kPadMacroComplexity)
             {
@@ -220,11 +236,15 @@ void Processor::processParameterChanges(IParameterChanges* paramChanges)
                 // changed. Store the new macro value, then let the MacroMapper
                 // recompute the derived underlying parameters for this pad.
                 voicePool_.setPadConfigField(padIdx, padOff, fValue);
+                // apply() returns early on a clean pad, so couplingAmount moves
+                // only when the macros were dirty before it ran.
+                const bool macrosDirty =
+                    macroMapper_.isDirty(padIdx, voicePool_.padConfig(padIdx));
                 macroMapper_.apply(padIdx, voicePool_.padConfigMut(padIdx));
-                if (padOff == kPadMacroComplexity)
+                if (padOff == kPadMacroComplexity && macrosDirty)
                 {
                     // Complexity drives couplingAmount; matrix must refresh.
-                    recomputeCouplingMatrix();
+                    couplingMatrixDirty = true;
                 }
             }
             else
@@ -412,14 +432,14 @@ void Processor::processParameterChanges(IParameterChanges* paramChanges)
         {
             const float clamped = std::clamp(fValue, 0.0f, 1.0f);
             snareBuzz_.store(clamped, std::memory_order_relaxed);
-            recomputeCouplingMatrix();
+            couplingMatrixDirty = true;
             break;
         }
         case kTomResonanceId:
         {
             const float clamped = std::clamp(fValue, 0.0f, 1.0f);
             tomResonance_.store(clamped, std::memory_order_relaxed);
-            recomputeCouplingMatrix();
+            couplingMatrixDirty = true;
             break;
         }
         case kCouplingDelayId:
@@ -533,6 +553,9 @@ void Processor::processParameterChanges(IParameterChanges* paramChanges)
             break;
         }
     }
+
+    if (couplingMatrixDirty)
+        recomputeCouplingMatrix();
 }
 
 // Consume a pending audition request (posted via IMessage "AuditionPad") and
@@ -616,6 +639,10 @@ tresult PLUGIN_API Processor::process(ProcessData& data)
     // T045: start CPU-usage timer (steady_clock::now is lock-free and
     // allocation-free on all supported platforms).
     const auto cpuT0 = std::chrono::steady_clock::now();
+
+    // MB-001: a kit or pad preset the message thread parsed lands here, before
+    // this block's parameter changes, so they apply on top of the new kit.
+    consumePendingLoad();
 
     processParameterChanges(data.inputParameterChanges);
     processEvents(data.inputEvents);
@@ -849,6 +876,11 @@ tresult PLUGIN_API Processor::process(ProcessData& data)
         }
     }
 
+    // MB-001: getState reads the pad configs from this published copy, never
+    // the live ones this thread writes.
+    if (padsDirty_)
+        publishPadConfigs();
+
     return kResultOk;
 }
 
@@ -868,10 +900,143 @@ tresult PLUGIN_API Processor::process(ProcessData& data)
 //   [int32] selectedPadIndex [0, 31]
 // ==============================================================================
 
+// ==============================================================================
+// Preset-load hand-off (MB-001)
+// ==============================================================================
+// setState, notify("LoadPresetState") and notify("LoadPadPreset") run on the
+// host's message thread while process() may run on the audio thread, so none
+// of them writes the voice pool, the pad configs, the allocator or the
+// coupling engine.
+//
+// - pendingLoad_ (PendingLoad, allocated once in the constructor) holds the
+//   parsed load: a kit and/or one pad preset per pad. Only the thread that
+//   moved pendingSlot_ to kSlotWriting (a host-thread call) writes or reads
+//   it; only the thread that moved it to kSlotApplying (process() on the audio
+//   thread, or a lifecycle call while processing is stopped) applies it.
+// - pendingSlot_ hands it over:
+//     Idle/Ready -> Writing   host thread, CAS, acquire
+//     Writing    -> Ready     host thread, store, release (publishes the load)
+//     Ready      -> Applying  consumer, CAS, acquire
+//     Applying   -> Idle      consumer, store, release
+//   The audio thread never waits: a slot held for Writing is applied a block
+//   later. The host thread yields while a slot is Applying.
+// - A kit replaces a kit and every pad preset not yet applied; a pad preset
+//   keeps a pending kit, which applies first.
+// - While processing is not active (active_ false) the load applies at once on
+//   its own thread. setState, the load messages, setActive, setupProcessing
+//   and getState hold lifecycleMutex_ (process() never does).
+// - getState reads the pad configs from a copy the writer publishes after
+//   every block that changed one (triple buffer, never the live configs), and
+//   returns a load that is still pending as if it were applied.
+// ==============================================================================
+
+int Processor::acquireLoadSlot() noexcept
+{
+    for (;;)
+    {
+        int slot = pendingSlot_.load(std::memory_order_acquire);
+        if ((slot == kSlotIdle || slot == kSlotReady) &&
+            pendingSlot_.compare_exchange_weak(slot, kSlotWriting,
+                                               std::memory_order_acquire,
+                                               std::memory_order_relaxed))
+            return slot;
+        std::this_thread::yield();  // being applied: wait for it
+    }
+}
+
+template <typename Fill>
+void Processor::publishLoad(const Fill& fill)
+{
+    const std::scoped_lock lifecycle(lifecycleMutex_);
+    (void)acquireLoadSlot();
+    fill(*pendingLoad_);
+    pendingSlot_.store(kSlotReady, std::memory_order_release);
+
+    // Processing is stopped: no audio thread can exist, apply it now.
+    if (!active_.load(std::memory_order_acquire))
+        consumePendingLoad();
+}
+
+void Processor::consumePendingLoad() noexcept
+{
+    int expected = kSlotReady;
+    if (!pendingSlot_.compare_exchange_strong(expected, kSlotApplying,
+                                              std::memory_order_acquire,
+                                              std::memory_order_relaxed))
+        return;  // nothing published, or a host-thread call holds the slot
+
+    PendingLoad& load = *pendingLoad_;
+    if (load.hasKit)
+    {
+        // FR-052: a kit-preset browser load keeps the selected pad.
+        if (load.keepSelectedPad)
+            load.kit.selectedPadIndex = selectedPadIndex_.load();
+        applyKitSnapshot(load.kit);
+    }
+    for (int pad = 0; pad < kNumPads; ++pad)
+    {
+        if (load.hasPadPreset[static_cast<std::size_t>(pad)])
+            applyPadPresetSnapshot(pad, load.padPresets[static_cast<std::size_t>(pad)]);
+    }
+    load.hasKit = false;
+    load.keepSelectedPad = false;
+    load.hasPadPreset.fill(false);
+
+    // Publish before the slot reads Idle, so a getState that sees Idle sees
+    // the loaded pads together with the loaded globals.
+    publishPadConfigs();
+    pendingSlot_.store(kSlotIdle, std::memory_order_release);
+}
+
+void Processor::publishPadConfigs() noexcept
+{
+    auto& copies = *padCopies_;
+    copies[padCopyBack_] = voicePool_.padConfigsArray();
+    padCopyBack_ = static_cast<std::uint8_t>(
+        padCopyMiddle_.exchange(static_cast<std::uint8_t>(padCopyBack_ | kPadCopyFresh),
+                                std::memory_order_acq_rel) & kPadCopyIndexMask);
+    padsDirty_ = false;
+}
+
+const std::array<PadConfig, kNumPads>& Processor::latestPublishedPadConfigs() noexcept
+{
+    if ((padCopyMiddle_.load(std::memory_order_acquire) & kPadCopyFresh) != 0u)
+    {
+        padCopyFront_ = static_cast<std::uint8_t>(
+            padCopyMiddle_.exchange(padCopyFront_, std::memory_order_acq_rel)
+            & kPadCopyIndexMask);
+    }
+    return (*padCopies_)[padCopyFront_];
+}
+
 tresult PLUGIN_API Processor::getState(IBStream* state)
 {
     if (!state)
         return kResultFalse;
+
+    // A load, setActive or setupProcessing on another thread finishes first;
+    // process() never waits.
+    const std::scoped_lock lifecycle(lifecycleMutex_);
+
+    // Hold a load the audio thread has not applied yet (it is the newest
+    // state), so it cannot be applied while this reads.
+    bool holdsPending = false;
+    for (;;)
+    {
+        int slot = pendingSlot_.load(std::memory_order_acquire);
+        if (slot == kSlotIdle)
+            break;
+        if (slot == kSlotReady &&
+            pendingSlot_.compare_exchange_weak(slot, kSlotWriting,
+                                               std::memory_order_acquire,
+                                               std::memory_order_relaxed))
+        {
+            holdsPending = true;
+            break;
+        }
+        if (slot != kSlotReady)
+            std::this_thread::yield();  // being applied: wait for it
+    }
 
     // Build a KitSnapshot from the current processor state and delegate to
     // the shared codec. Session-scoped fields (uiMode) are NOT emitted from
@@ -880,7 +1045,7 @@ tresult PLUGIN_API Processor::getState(IBStream* state)
     State::KitSnapshot kit;
     kit.maxPolyphony        = maxPolyphony_.load();
     kit.voiceStealingPolicy = voiceStealingPolicy_.load();
-    kit.selectedPadIndex    = selectedPadIndex_;
+    kit.selectedPadIndex    = selectedPadIndex_.load();
     kit.globalCoupling      =
         static_cast<double>(globalCoupling_.load(std::memory_order_relaxed));
     kit.snareBuzz           =
@@ -892,11 +1057,43 @@ tresult PLUGIN_API Processor::getState(IBStream* state)
     kit.masterGainNorm      =
         static_cast<double>(masterGainNorm_.load(std::memory_order_relaxed));
 
+    const PendingLoad* pending = holdsPending ? pendingLoad_.get() : nullptr;
+    if (pending != nullptr && pending->hasKit)
+    {
+        // The values applyKitSnapshot would store (the globals live in float
+        // atomics).
+        const auto& k = pending->kit;
+        kit.maxPolyphony        = k.maxPolyphony;
+        kit.voiceStealingPolicy = k.voiceStealingPolicy;
+        if (!pending->keepSelectedPad)
+            kit.selectedPadIndex = k.selectedPadIndex;
+        kit.globalCoupling  = static_cast<double>(static_cast<float>(k.globalCoupling));
+        kit.snareBuzz       = static_cast<double>(static_cast<float>(k.snareBuzz));
+        kit.tomResonance    = static_cast<double>(static_cast<float>(k.tomResonance));
+        kit.couplingDelayMs = static_cast<double>(static_cast<float>(k.couplingDelayMs));
+        kit.masterGainNorm  = static_cast<double>(static_cast<float>(k.masterGainNorm));
+    }
+
+    const auto& pads = latestPublishedPadConfigs();
     for (int pad = 0; pad < kNumPads; ++pad)
     {
-        kit.pads[static_cast<std::size_t>(pad)] =
-            State::toPadSnapshot(voicePool_.padConfig(pad));
+        const auto p = static_cast<std::size_t>(pad);
+        if (pending == nullptr)
+        {
+            kit.pads[p] = State::toPadSnapshot(pads[p]);
+            continue;
+        }
+        // The pad as the pending apply leaves it: the kit, then the pad preset.
+        PadConfig cfg = pads[p];
+        if (pending->hasKit)
+            State::applyPadSnapshot(pending->kit.pads[p], cfg);
+        if (pending->hasPadPreset[p])
+            State::applyPadPresetSnapshot(pending->padPresets[p], cfg);
+        kit.pads[p] = State::toPadSnapshot(cfg);
     }
+
+    if (holdsPending)
+        pendingSlot_.store(kSlotReady, std::memory_order_release);
 
     kit.hasSession = false;
     return State::writeKitBlob(state, kit);
@@ -911,7 +1108,14 @@ tresult PLUGIN_API Processor::setState(IBStream* state)
     if (State::readKitBlob(state, kit) != kResultOk)
         return kResultFalse;
 
-    applyKitSnapshot(kit);
+    // A host load carries its selected pad. A kit replaces any pad preset not
+    // yet applied.
+    publishLoad([&kit](PendingLoad& load) {
+        load.hasKit = true;
+        load.kit = kit;
+        load.keepSelectedPad = false;
+        load.hasPadPreset.fill(false);
+    });
     return kResultOk;
 }
 
@@ -1070,6 +1274,10 @@ tresult PLUGIN_API Processor::setupProcessing(ProcessSetup& setup)
     // so setting it on the setup thread never reached the audio thread; it is
     // now a ScopedDenormalMode at the top of process(). Do not re-add it here.
 
+    // MB-001: processing is stopped here; apply a load still pending.
+    const std::scoped_lock lifecycle(lifecycleMutex_);
+    consumePendingLoad();
+
     sampleRate_ = setup.sampleRate;
     maxBlockSize_ = setup.maxSamplesPerBlock;
     voicePool_.prepare(sampleRate_, maxBlockSize_);
@@ -1092,6 +1300,13 @@ tresult PLUGIN_API Processor::setupProcessing(ProcessSetup& setup)
 
 tresult PLUGIN_API Processor::setActive(TBool state)
 {
+    // MB-001: processing is stopped on both edges; a load still pending
+    // applies here. A load on another thread waits for the flag to settle.
+    const std::scoped_lock lifecycle(lifecycleMutex_);
+    if (!state)
+        active_.store(false, std::memory_order_release);
+    consumePendingLoad();
+
     if (state)
     {
         voicePool_.prepare(sampleRate_, maxBlockSize_);
@@ -1113,6 +1328,8 @@ tresult PLUGIN_API Processor::setActive(TBool state)
             setup.symbolicSampleSize  = Steinberg::Vst::kSample32;
             dataExchangeHandler_->onActivate(setup);
         }
+
+        active_.store(true, std::memory_order_release);
     }
     else
     {
@@ -1219,6 +1436,7 @@ tresult PLUGIN_API Processor::notify(Steinberg::Vst::IMessage* message)
     // over the kit blob; it takes the same parse and apply as setState, so the
     // voice and coupling flushes, noiseLayerGain, the body-damping sentinel and
     // the macro cache resync all run. FR-052: a kit load keeps the selected pad.
+    // MB-001: parsed here (message thread), applied by the next process().
     if (std::strcmp(id, "LoadPresetState") == 0)
     {
         auto* attrs = message->getAttributes();
@@ -1235,8 +1453,12 @@ tresult PLUGIN_API Processor::notify(Steinberg::Vst::IMessage* message)
         State::KitSnapshot kit;
         if (State::readKitBlob(&stream, kit) != kResultOk)
             return kResultFalse;
-        kit.selectedPadIndex = selectedPadIndex_;
-        applyKitSnapshot(kit);
+        publishLoad([&kit](PendingLoad& load) {
+            load.hasKit = true;
+            load.kit = kit;
+            load.keepSelectedPad = true;
+            load.hasPadPreset.fill(false);  // a kit replaces unapplied pad presets
+        });
         return kResultOk;
     }
 
@@ -1262,7 +1484,12 @@ tresult PLUGIN_API Processor::notify(Steinberg::Vst::IMessage* message)
         State::PadPresetSnapshot preset;
         if (State::readPadPresetBlob(&stream, preset) != kResultOk)
             return kResultFalse;
-        applyPadPresetSnapshot(static_cast<int>(pad), preset);
+        // MB-001: applied by the next process(), after a pending kit.
+        const auto padIdx = static_cast<std::size_t>(pad);
+        publishLoad([&preset, padIdx](PendingLoad& load) {
+            load.hasPadPreset[padIdx] = true;
+            load.padPresets[padIdx] = preset;
+        });
         return kResultOk;
     }
 

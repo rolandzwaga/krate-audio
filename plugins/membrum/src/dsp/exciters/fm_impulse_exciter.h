@@ -15,8 +15,11 @@
 //   amplitude        = velocity
 //
 // NOTE: FMOperator::prepare() is NOT real-time safe (wavetable generation).
-//       prepare() is only called from DrumVoice::prepare() (host setup),
-//       never on the audio thread.
+//       prepare() runs only from ExciterBank::prepare() inside
+//       DrumVoice::prepare() (host setup), never on the audio thread: when
+//       ExciterBank selects this type again it calls reset(), which restores
+//       the post-prepare state (the operator ratio and feedback set below are
+//       never changed afterwards; frequency and level are set before use).
 // ==============================================================================
 
 #include <krate/dsp/processors/fm_operator.h>

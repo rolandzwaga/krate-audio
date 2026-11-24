@@ -8,6 +8,7 @@
 #include "public.sdk/source/vst/utility/dataexchange.h"
 #include "pluginterfaces/vst/ivstdataexchange.h"
 #include "pluginterfaces/vst/ivstmessage.h"
+#include "controller/controller_state_codec.h"
 #include "dsp/pad_config.h"
 #include "dsp/pad_glow_publisher.h"
 #include "processor/meters_block.h"
@@ -128,8 +129,9 @@ public:
     /// Produces a 9036-byte kit preset blob (v4 without selectedPadIndex)
     Steinberg::IBStream* kitPresetStateProvider();
     /// Loads a kit preset blob: sends it to the processor ("LoadPresetState",
-    /// the setState path) and mirrors it into the controller params with
-    /// performEdit (R-202)
+    /// the setState path, the only apply), mirrors it into the controller
+    /// params with the plain setter (no performEdit, MB-152) and tells the
+    /// host through restartComponent(kParamValuesChanged) and setDirty
     bool kitPresetLoadProvider(Steinberg::IBStream* stream);
 
     // Phase 6 (T046): IDataExchangeReceiver for MetersBlock.
@@ -168,8 +170,10 @@ public:
     /// Produces a 284-byte pad preset blob for the currently selected pad
     Steinberg::IBStream* padPresetStateProvider();
     /// Loads a pad preset blob onto the selected pad: sends it to the
-    /// processor ("LoadPadPreset", State::applyPadPresetSnapshot) and mirrors
-    /// it into the controller params with performEdit (R-203)
+    /// processor ("LoadPadPreset", State::applyPadPresetSnapshot, the only
+    /// apply), mirrors it into the controller params with the plain setter
+    /// (no performEdit, MB-152) and tells the host through
+    /// restartComponent(kParamValuesChanged) and setDirty
     bool padPresetLoadProvider(Steinberg::IBStream* stream);
 
 private:
@@ -179,6 +183,10 @@ private:
                             Steinberg::Vst::ParamValue value);
 
     int selectedPadIndex_ = 0;
+    // MB-087: per-pad mirror of the sound fields no parameter holds
+    // (noiseLayerGain, the body-damping sentinel), filled by every load path
+    // and read by the kit and pad preset save providers.
+    std::array<ControllerState::PadParamlessFields, kNumPads> padParamless_{};
     bool suppressProxyForward_ = false;  // prevent re-entrancy during pad switch
     std::array<bool, kMaxOutputBuses> busActive_ = {true}; // bus 0 always active
 

@@ -414,20 +414,56 @@ constexpr int32  kPpBlockSize  = 256;
 constexpr double kPpSampleRate = 48000.0;
 
 // A host's component handler: records every performEdit the controller sends,
-// so the test can forward them to the processor as a host would.
-class PpRecordingHandler final : public IComponentHandler
+// so the test can forward them to the processor as a host would, and counts
+// the edit gestures, restartComponent flag words and setDirty calls.
+class PpRecordingHandler final : public IComponentHandler, public IComponentHandler2
 {
 public:
     std::vector<std::pair<ParamID, ParamValue>> edits;
+    int beginEdits = 0;
+    int endEdits = 0;
+    std::vector<int32> restartFlags;
+    std::vector<bool> dirtyCalls;
 
-    tresult PLUGIN_API beginEdit(ParamID /*id*/) override { return kResultOk; }
+    tresult PLUGIN_API beginEdit(ParamID /*id*/) override
+    {
+        ++beginEdits;
+        return kResultOk;
+    }
     tresult PLUGIN_API performEdit(ParamID id, ParamValue value) override
     {
         edits.emplace_back(id, value);
         return kResultOk;
     }
-    tresult PLUGIN_API endEdit(ParamID /*id*/) override { return kResultOk; }
-    tresult PLUGIN_API restartComponent(int32 /*flags*/) override { return kResultOk; }
+    tresult PLUGIN_API endEdit(ParamID /*id*/) override
+    {
+        ++endEdits;
+        return kResultOk;
+    }
+    tresult PLUGIN_API restartComponent(int32 flags) override
+    {
+        restartFlags.push_back(flags);
+        return kResultOk;
+    }
+
+    // IComponentHandler2
+    tresult PLUGIN_API setDirty(TBool state) override
+    {
+        dirtyCalls.push_back(state != 0);
+        return kResultOk;
+    }
+    tresult PLUGIN_API requestOpenEditor(FIDString /*name*/) override { return kResultOk; }
+    tresult PLUGIN_API startGroupEdit() override { return kResultOk; }
+    tresult PLUGIN_API finishGroupEdit() override { return kResultOk; }
+
+    void resetCounts()
+    {
+        edits.clear();
+        beginEdits = 0;
+        endEdits = 0;
+        restartFlags.clear();
+        dirtyCalls.clear();
+    }
 
     tresult PLUGIN_API queryInterface(const TUID iid, void** obj) override
     {
@@ -435,6 +471,11 @@ public:
             FUnknownPrivate::iidEqual(iid, FUnknown::iid))
         {
             *obj = static_cast<IComponentHandler*>(this);
+            return kResultOk;
+        }
+        if (FUnknownPrivate::iidEqual(iid, IComponentHandler2::iid))
+        {
+            *obj = static_cast<IComponentHandler2*>(this);
             return kResultOk;
         }
         *obj = nullptr;
@@ -628,6 +669,39 @@ struct PadPresetPair
     }
 };
 
+// The state a browser pad load must reach: the start kit with the target pad
+// set by the processor-side helper, loaded through setState, one block.
+std::vector<char> ppReferenceStateBytes(const Membrum::State::PadPresetSnapshot& preset)
+{
+    auto refKit = ppStartKit();
+    {
+        Membrum::PadConfig cfg;
+        Membrum::State::applyPadSnapshot(refKit.pads[kPpTargetPad], cfg);
+        Membrum::State::applyPadPresetSnapshot(preset, cfg);
+        refKit.pads[kPpTargetPad] = Membrum::State::toPadSnapshot(cfg);
+    }
+    auto reference = makePpProcessor(nullptr);
+    {
+        const auto bytes = ppKitBytes(refKit);
+        MemoryStream stream(const_cast<char*>(bytes.data()),
+                            static_cast<TSize>(bytes.size()));
+        REQUIRE(reference->setState(&stream) == kResultOk);
+    }
+    processPpBlock(*reference, nullptr);
+    auto state = ppProcessorStateBytes(*reference);
+    reference->setActive(false);
+    reference->terminate();
+    return state;
+}
+
+std::size_t ppFirstDifference(const std::vector<char>& a, const std::vector<char>& b)
+{
+    std::size_t i = 0;
+    while (i < std::min(a.size(), b.size()) && a[i] == b[i])
+        ++i;
+    return i;
+}
+
 } // namespace
 
 TEST_CASE("Pad preset load keeps the target pad's enabled and pan",
@@ -680,34 +754,121 @@ TEST_CASE("Browser pad load leaves the processor in the same state as applyPadPr
     REQUIRE(pair.browserLoad(ppPadPresetBytes(preset)));
     pair.forwardEditsAndProcess();
 
-    // Reference: the start kit with the target pad set by the processor-side
-    // helper, loaded through setState.
-    auto refKit = ppStartKit();
-    {
-        Membrum::PadConfig cfg;
-        Membrum::State::applyPadSnapshot(refKit.pads[kPpTargetPad], cfg);
-        Membrum::State::applyPadPresetSnapshot(preset, cfg);
-        refKit.pads[kPpTargetPad] = Membrum::State::toPadSnapshot(cfg);
-    }
-    auto reference = makePpProcessor(nullptr);
-    {
-        const auto bytes = ppKitBytes(refKit);
-        MemoryStream stream(const_cast<char*>(bytes.data()),
-                            static_cast<TSize>(bytes.size()));
-        REQUIRE(reference->setState(&stream) == kResultOk);
-    }
-    processPpBlock(*reference, nullptr);
-
     const auto got = ppProcessorStateBytes(*pair.proc);
-    const auto want = ppProcessorStateBytes(*reference);
-    std::size_t firstDiff = 0;
-    while (firstDiff < std::min(got.size(), want.size()) &&
-           got[firstDiff] == want[firstDiff])
-        ++firstDiff;
+    const auto want = ppReferenceStateBytes(preset);
     INFO("browser-loaded state " << got.size() << " bytes, reference "
-         << want.size() << " bytes, first difference at byte " << firstDiff);
+         << want.size() << " bytes, first difference at byte "
+         << ppFirstDifference(got, want));
     CHECK(got == want);
+}
 
-    reference->setActive(false);
-    reference->terminate();
+TEST_CASE("Pad browser load sends no parameter edits", "[presets][pad][state]")
+{
+    const auto preset = ppPreset();
+
+    PadPresetPair pair;
+    pair.handler.resetCounts();
+    REQUIRE(pair.browserLoad(ppPadPresetBytes(preset)));
+
+    INFO("performEdit " << pair.handler.edits.size() << ", beginEdit "
+         << pair.handler.beginEdits << ", endEdit " << pair.handler.endEdits);
+    CHECK(pair.handler.edits.empty());
+    CHECK(pair.handler.beginEdits == 0);
+    CHECK(pair.handler.endEdits == 0);
+
+    const auto& flags = pair.handler.restartFlags;
+    const auto valuesRestarts = std::count_if(flags.begin(), flags.end(),
+        [](int32 f) { return (f & kParamValuesChanged) != 0; });
+    CHECK(valuesRestarts == 1);
+    const auto& dirty = pair.handler.dirtyCalls;
+    CHECK(std::find(dirty.begin(), dirty.end(), true) != dirty.end());
+
+    // The UI still mirrors the load.
+    const auto materialId = static_cast<ParamID>(
+        Membrum::padParamId(kPpTargetPad, Membrum::kPadMaterial));
+    CHECK(pair.controller.getParamNormalized(materialId) == Approx(0.25).margin(1e-6));
+
+    pair.forwardEditsAndProcess();
+    const auto got = ppProcessorStateBytes(*pair.proc);
+    const auto want = ppReferenceStateBytes(preset);
+    INFO("first state difference at byte " << ppFirstDifference(got, want));
+    CHECK(got == want);
+}
+
+// ==============================================================================
+// Pad preset SAVE from the controller (MB-087, MB-162, MB-030, MB-043, MB-166,
+// MB-139)
+// ==============================================================================
+// padPresetStateProvider builds the blob from the controller. noiseLayerGain
+// (sound[57]) and the body-damping -1 sentinel (sound[42/43]) come from the
+// controller's mirror of the loaded state, so a saved pad reloads unchanged.
+// ==============================================================================
+
+TEST_CASE("Pad preset saved from the controller reloads to the processor's pad config",
+          "[presets][pad][save]")
+{
+    int pad = -1;
+    SECTION("pad 2 (note 38, noiseLayerGain 6.2)") { pad = 2; }
+    SECTION("pad 5 (note 41, body-damping B1 sentinel)") { pad = 5; }
+    REQUIRE(pad >= 0);
+
+    auto p1 = makePpProcessor(nullptr);
+    processPpBlock(*p1, nullptr);
+    const auto bytes0 = ppProcessorStateBytes(*p1);
+
+    std::vector<char> saved;
+    {
+        HostApplication host;
+        Membrum::Controller controller;
+        REQUIRE(controller.initialize(&host) == kResultOk);
+        {
+            MemoryStream stream(const_cast<char*>(bytes0.data()),
+                                static_cast<TSize>(bytes0.size()));
+            REQUIRE(controller.setComponentState(&stream) == kResultOk);
+        }
+        controller.setParamNormalized(Membrum::kSelectedPadId,
+                                      static_cast<double>(pad) / 31.0);
+        IBStream* s = controller.padPresetStateProvider();
+        REQUIRE(s != nullptr);
+        std::array<char, 4096> chunk{};
+        int32 bytesRead = 0;
+        while (s->read(chunk.data(), static_cast<int32>(chunk.size()), &bytesRead) ==
+                   kResultOk &&
+               bytesRead > 0)
+        {
+            saved.insert(saved.end(), chunk.data(), chunk.data() + bytesRead);
+        }
+        s->release();
+        controller.terminate();
+    }
+    REQUIRE_FALSE(saved.empty());
+
+    auto p2 = makePpProcessor(nullptr);
+    {
+        auto msg = Steinberg::owned(new HostMessage());
+        msg->setMessageID("LoadPadPreset");
+        auto* attrs = msg->getAttributes();
+        REQUIRE(attrs != nullptr);
+        attrs->setBinary("bytes", saved.data(),
+                         static_cast<Steinberg::uint32>(saved.size()));
+        attrs->setInt("pad", static_cast<Steinberg::int64>(pad));
+        REQUIRE(p2->notify(msg) == kResultOk);
+    }
+    processPpBlock(*p2, nullptr);
+    const auto bytes1 = ppProcessorStateBytes(*p2);
+
+    const auto& want = p1->voicePoolForTest().padConfig(pad);
+    const auto& got = p2->voicePoolForTest().padConfig(pad);
+    INFO("pad " << pad << ": noiseLayerGain " << want.noiseLayerGain << " -> "
+         << got.noiseLayerGain << ", bodyDampingB1 " << want.bodyDampingB1 << " -> "
+         << got.bodyDampingB1 << ", bodyDampingB3 " << want.bodyDampingB3 << " -> "
+         << got.bodyDampingB3 << "; first state difference at byte "
+         << ppFirstDifference(bytes1, bytes0));
+    const bool identical = (bytes1 == bytes0);
+    CHECK(identical);
+
+    p1->setActive(false);
+    p1->terminate();
+    p2->setActive(false);
+    p2->terminate();
 }

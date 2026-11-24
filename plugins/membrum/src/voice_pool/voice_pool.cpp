@@ -894,11 +894,12 @@ void VoicePool::beginFastRelease(int slot, bool force) noexcept
 
     // FR-124 / Q5 / T3.2.4: snapshot the currently-sounding DrumVoice into
     // the shadow slot. DrumVoice's implicit COPY assignment is DELETED by
-    // the compiler (one of the exciter variant alternatives,
+    // the compiler (one of the exciter alternatives,
     // FrictionExciter -> Krate::DSP::BowExciter, explicitly deletes its
     // copy operators). DrumVoice's MOVE assignment is however defaulted
     // and functional -- BowExciter declares `= default` move ops and
-    // std::variant of move-only alternatives is itself move-assignable.
+    // ExciterBank's std::tuple of move-only alternatives is itself
+    // move-assignable.
     // We therefore snapshot via `std::swap`, which is implemented in
     // terms of move-assignment. After the swap:
     //   - releasingVoices_[slot] now holds the currently-sounding voice

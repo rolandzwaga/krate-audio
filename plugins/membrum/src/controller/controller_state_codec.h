@@ -24,27 +24,51 @@
 #include "public.sdk/source/vst/vsteditcontroller.h"
 #include "pluginterfaces/vst/vsttypes.h"
 
+#include <array>
 #include <functional>
 
 namespace Membrum::ControllerState {
 
-/// Type-erased parameter writer. Two callers exist:
-///   * setComponentState  — host has already pushed values to the processor,
-///                          so the writer is a plain
-///                          `EditControllerEx1::setParamNormalized` (no
-///                          performEdit chain).
-///   * kitPresetLoadProvider — preset load bypasses the host, so the writer
-///                          performs `beginEdit / performEdit / endEdit` as
-///                          well as the parameter-object write.
+/// The per-pad sound fields that no controller parameter can hold, mirrored
+/// from the last loaded state so a preset SAVE from the controller writes
+/// what the processor plays (MB-087, MB-162):
+///   * `noiseLayerGain` (sound[57], 0.1..16) has no ParamID;
+///   * the body-damping -1 sentinel (sound[42] / sound[43], "derive the
+///     damping from Decay and Material") cannot be a normalised [0, 1] value.
+///     A `...Derived` flag stays set until the pad's B1 / B3 parameter is
+///     edited (`Controller::setParamNormalized`), after which the parameter
+///     value is saved as the explicit override.
+/// The defaults are `PadConfig`'s (noiseLayerGain 1.0, B1 / B3 -1).
+struct PadParamlessFields {
+    double noiseLayerGain = 1.0;
+    bool dampingB1Derived = true;
+    bool dampingB3Derived = true;
+};
+
+/// Read the mirror fields of one pad from a snapshot's sound array (the
+/// layout of `PadSnapshot::sound` and `PadPresetSnapshot::sound`).
+[[nodiscard]] PadParamlessFields paramlessFieldsFromSnapshot(
+    const std::array<double, 59>& sound) noexcept;
+
+/// Type-erased parameter writer. Every caller (setComponentState and the kit
+/// and pad preset load providers) passes a plain
+/// `EditControllerEx1::setParamNormalized`: the processor already holds the
+/// values (host setState, or the "LoadPresetState" / "LoadPadPreset"
+/// message), so a load performs no `beginEdit / performEdit / endEdit`
+/// (MB-152). The preset load providers tell the host through
+/// `restartComponent(kParamValuesChanged)` and `setDirty` instead.
 using ParamSetter =
     std::function<void(Steinberg::Vst::ParamID, double)>;
 
 /// Encode a single pad's controller parameters into a `PadSnapshot`. The
 /// snapshot's slot layout matches the on-wire format defined in
 /// `state_codec.h`; see the comments on `Membrum::State::PadSnapshot::sound`.
+/// noiseLayerGain (sound[57]) and the body-damping sentinel (sound[42/43])
+/// come from `paramless`, the controller's mirror of the loaded pad.
 [[nodiscard]] Membrum::State::PadSnapshot
 buildPadSnapshotFromParams(
-    const Steinberg::Vst::EditControllerEx1& ctrl, int pad) noexcept;
+    const Steinberg::Vst::EditControllerEx1& ctrl, int pad,
+    const PadParamlessFields& paramless) noexcept;
 
 /// Apply a `PadSnapshot` to a single pad's controller parameters. Writes
 /// every active offset (Phase 1..8F) -- adding a new offset only requires
@@ -75,14 +99,15 @@ void applyPadPresetSnapshotToParams(
 ///     couplingDelayMs)
 ///   * `selectedPadIndex` (taken as a parameter because it lives outside
 ///     the parameter system)
-///   * 32 per-pad snapshots
+///   * 32 per-pad snapshots, each with its `paramless` mirror entry
 ///
 /// The snapshot's `hasSession`, `uiMode`, and `overrides` fields are NOT
 /// touched here -- callers fill them based on their context (kit-preset
 /// save sets `hasSession=true`; processor `getState` does not).
 [[nodiscard]] Membrum::State::KitSnapshot
 buildSnapshot(const Steinberg::Vst::EditControllerEx1& ctrl,
-              int selectedPadIndex) noexcept;
+              int selectedPadIndex,
+              const std::array<PadParamlessFields, kNumPads>& paramless) noexcept;
 
 /// Behavioural switches for `applySnapshot`. Both default to false; each
 /// call site enables only the parts it needs.

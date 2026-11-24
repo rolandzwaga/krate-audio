@@ -124,6 +124,7 @@ add_executable(membrum_tests
     unit/processor/test_pad_glow_publisher.cpp
     unit/processor/test_macro_automation_extreme.cpp
     unit/processor/test_publisher_lock_freedom.cpp
+    unit/processor/test_preset_load_handoff.cpp
     unit/controller/test_phase6_parameters.cpp
     unit/controller/test_ui_mode_session_scope.cpp
     unit/controller/test_param_reachability_in_editor.cpp

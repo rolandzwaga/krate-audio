@@ -80,9 +80,9 @@ TEST_CASE("TestHelpers_AllocationDetector_ThreadFilterIsOptIn", "[test_helpers]"
 
     SECTION("clause 1: filter off (default) counts allocations on every thread")
     {
-        // AllocationScope latches its count in its DESTRUCTOR
-        // (allocation_detector.h AllocationScope), so the counter is sampled
-        // from the singleton while the scope is still OPEN.
+        // AllocationScope reports the live count of the open scope
+        // (allocation_detector.h AllocationScope); the per-thread deltas are
+        // sampled from the singleton while the scope is still OPEN.
         std::size_t mainDelta = 0;
         std::size_t workerDelta = 0;
 
@@ -147,5 +147,27 @@ TEST_CASE("TestHelpers_AllocationDetector_ThreadFilterIsOptIn", "[test_helpers]"
             mainDelta = allocationDeltaHere();
         }
         REQUIRE(mainDelta > 0);
+    }
+}
+
+// MB-136: both scopes must report the live count while they are still open. A
+// count latched only in the destructor reads 0 for the scope's whole lifetime,
+// which made every `CHECK(scope.getAllocationCount() == 0)` unable to fail.
+TEST_CASE("TestHelpers_AllocationScope_CountsWhileOpen", "[test_helpers]")
+{
+    SECTION("AllocationScope")
+    {
+        const TestHelpers::AllocationScope scope;
+        TestHelpers::allocateObservably();
+        REQUIRE(scope.getAllocationCount() >= 1);
+        REQUIRE(scope.hadAllocations());
+    }
+
+    SECTION("ThreadScopedAllocationScope")
+    {
+        const TestHelpers::ThreadScopedAllocationScope scope;
+        TestHelpers::allocateObservably();
+        REQUIRE(scope.getAllocationCount() >= 1);
+        REQUIRE(scope.hadAllocations());
     }
 }

@@ -86,6 +86,10 @@ tresult PLUGIN_API Controller::setComponentState(IBStream* state)
         };
     Membrum::ControllerState::applySnapshot(
         kit, setDirect, {.applySelectedPad = true});
+    // MB-087: mirror the fields no parameter holds, for the preset saves.
+    for (std::size_t p = 0; p < padParamless_.size(); ++p)
+        padParamless_[p] =
+            Membrum::ControllerState::paramlessFieldsFromSnapshot(kit.pads[p].sound);
 
     selectedPadIndex_ = kit.selectedPadIndex;
     pushKitEnabledToGrid(kit);
@@ -108,7 +112,8 @@ IBStream* Controller::kitPresetStateProvider()
     // session-scoped uiMode that only kit-presets persist (FR-030 / FR-072).
     auto* stream = new MemoryStream();
 
-    auto kit = Membrum::ControllerState::buildSnapshot(*this, selectedPadIndex_);
+    auto kit = Membrum::ControllerState::buildSnapshot(
+        *this, selectedPadIndex_, padParamless_);
     kit.hasSession = true;
     kit.uiMode     = (getParamNormalized(kUiModeId) >= 0.5) ? 1 : 0;
 
@@ -158,18 +163,21 @@ bool Controller::kitPresetLoadProvider(IBStream* stream)
         }
     }
 
-    // The edits tell the host (automation, undo, dirty flag) and the UI the
-    // new values; they carry the values the processor already holds.
-    Membrum::ControllerState::ParamSetter setAndNotify =
+    // The message above is the processor's only apply (MB-152): mirror the
+    // values into the controller's parameters with the plain setter, as
+    // setComponentState does. No begin / perform / endEdit: a replay would
+    // apply the kit a second time and put every parameter into the host's
+    // undo and automation. The host learns of the change below.
+    Membrum::ControllerState::ParamSetter setDirect =
         [this](Steinberg::Vst::ParamID id, double v) {
-            const double clamped = std::clamp(v, 0.0, 1.0);
-            Steinberg::Vst::EditControllerEx1::setParamNormalized(id, clamped);
-            beginEdit(id);
-            performEdit(id, clamped);
-            endEdit(id);
+            Steinberg::Vst::EditControllerEx1::setParamNormalized(id, v);
         };
     Membrum::ControllerState::applySnapshot(
-        kit, setAndNotify, {.applySelectedPad = false});
+        kit, setDirect, {.applySelectedPad = false});
+    // MB-087: mirror the fields no parameter holds, for the preset saves.
+    for (std::size_t p = 0; p < padParamless_.size(); ++p)
+        padParamless_[p] =
+            Membrum::ControllerState::paramlessFieldsFromSnapshot(kit.pads[p].sound);
 
     // Session-scoped uiMode: kit presets restore it when present, but the
     // controller-side write is direct (no performEdit) because the processor
@@ -186,6 +194,12 @@ bool Controller::kitPresetLoadProvider(IBStream* stream)
     // (FR-052), so the global proxy sync uses the EXISTING value.
     syncGlobalProxyFromPad(selectedPadIndex_);
 
+    // A preset change inside the plugin: the host re-reads every parameter
+    // value and marks the project modified.
+    if (auto* handler = getComponentHandler())
+        handler->restartComponent(kParamValuesChanged);
+    setDirty(static_cast<TBool>(true));
+
     return true;
 }
 
@@ -198,8 +212,8 @@ IBStream* Controller::padPresetStateProvider()
     auto* stream = new MemoryStream();
 
     const int pad = selectedPadIndex_;
-    const auto full =
-        Membrum::ControllerState::buildPadSnapshotFromParams(*this, pad);
+    const auto full = Membrum::ControllerState::buildPadSnapshotFromParams(
+        *this, pad, padParamless_[static_cast<std::size_t>(pad)]);
 
     // Project the per-pad snapshot down to the per-pad preset slice (no choke,
     // bus, coupling or macros). The sound array has the same 59 slots; the
@@ -256,21 +270,26 @@ bool Controller::padPresetLoadProvider(IBStream* stream)
         }
     }
 
-    // The edits tell the host (automation, undo, dirty flag) and the UI the
-    // new values; they carry the values the processor already holds.
-    Membrum::ControllerState::ParamSetter setAndNotify =
+    // The message above is the processor's only apply (MB-152): mirror the
+    // values into the controller's parameters with the plain setter, no
+    // begin / perform / endEdit replay. The host learns of the change below.
+    Membrum::ControllerState::ParamSetter setDirect =
         [this](Steinberg::Vst::ParamID id, double v) {
-            const double clamped = std::clamp(v, 0.0, 1.0);
-            Steinberg::Vst::EditControllerEx1::setParamNormalized(id, clamped);
-            beginEdit(id);
-            performEdit(id, clamped);
-            endEdit(id);
+            Steinberg::Vst::EditControllerEx1::setParamNormalized(id, v);
         };
 
     Membrum::ControllerState::applyPadPresetSnapshotToParams(
-        selectedPadIndex_, preset, setAndNotify);
+        selectedPadIndex_, preset, setDirect);
+    padParamless_[static_cast<std::size_t>(selectedPadIndex_)] =
+        Membrum::ControllerState::paramlessFieldsFromSnapshot(preset.sound);
 
     syncGlobalProxyFromPad(selectedPadIndex_);
+
+    // A preset change inside the plugin: the host re-reads every parameter
+    // value and marks the project modified.
+    if (auto* handler = getComponentHandler())
+        handler->restartComponent(kParamValuesChanged);
+    setDirty(static_cast<TBool>(true));
     return true;
 }
 } // namespace Membrum

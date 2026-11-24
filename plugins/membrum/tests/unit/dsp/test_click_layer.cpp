@@ -47,11 +47,12 @@ TEST_CASE("ClickLayer: allocation-free after prepare", "[membrum][dsp][click_lay
     Membrum::ClickLayerParams p{};
     p.mix = 0.7f; p.contactMs = 0.5f; p.brightness = 0.6f;
 
+    // The output buffer is the test's own allocation: made before the scope opens.
+    std::vector<float> out(512, 0.0f);
     {
         TestHelpers::AllocationScope scope;
         layer.configure(p);
         layer.trigger(1.0f);
-        std::vector<float> out(512, 0.0f);
         layer.processBlock(out.data(), static_cast<int>(out.size()));
         CHECK(scope.getAllocationCount() == 0);
     }
