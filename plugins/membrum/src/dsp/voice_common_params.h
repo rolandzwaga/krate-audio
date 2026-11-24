@@ -10,6 +10,12 @@
 
 namespace Membrum {
 
+/// The Body Damping b1 / b3 value that plays the law the body derives from
+/// Decay / Material / Size exactly. The encoding (b1 a factor, b3 an offset
+/// relative to that derived law) is defined once, next to
+/// Bodies::dampingLawFromParams in bodies/membrane_mapper.h (fix plan T1.23).
+inline constexpr float kBodyDampingDerived = 0.5f;
+
 struct VoiceCommonParams
 {
     // Phase 1 parameters
@@ -35,12 +41,11 @@ struct VoiceCommonParams
     float clickLayerContactMs  = 0.3f;
     float clickLayerBrightness = 0.6f;
 
-    // Phase 8A: per-mode damping law overrides (normalized [0, 1]).
-    // Sentinel -1.0f means "derive from decay/material" -- the mapper will
-    // fall back to the legacy decayTime/brightness derivation for Phase 1
-    // bit-identity.
-    float bodyDampingB1        = -1.0f;
-    float bodyDampingB3        = -1.0f;
+    // Phase 8A: per-mode damping law, normalized [0, 1], relative to the law
+    // the mapper derives from decay/material (bodies/membrane_mapper.h).
+    // kBodyDampingDerived (0.5) plays the derived law exactly.
+    float bodyDampingB1        = kBodyDampingDerived;
+    float bodyDampingB3        = kBodyDampingDerived;
 
     // Phase 8C: air-loading correction + per-mode scatter.
     //   airLoading: [0, 1] applied as f_k *= (1 - airLoading * curve[k]).

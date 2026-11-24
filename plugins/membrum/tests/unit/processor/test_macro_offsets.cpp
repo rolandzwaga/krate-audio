@@ -481,7 +481,7 @@ TEST_CASE("Macro offsets: a version-5 state loads with its macro positions and i
     shutdown(*proc);
 }
 
-TEST_CASE("Macro offsets: a version-5 pad preset loads unchanged",
+TEST_CASE("Macro offsets: a version-5 pad preset loads unchanged but for its body damping",
           "[macro_mapper][macro_offsets][state]")
 {
     std::array<Membrum::PadConfig, Membrum::kNumPads> pads;
@@ -505,7 +505,25 @@ TEST_CASE("Macro offsets: a version-5 pad preset loads unchanged",
         REQUIRE(Membrum::State::readPadPresetBlob(&in, got) == kResultOk);
         CHECK(got.exciterType == src.exciterType);
         CHECK(got.bodyModel == src.bodyModel);
-        CHECK(got.sound == src.sound);
+        if (v == 6)
+        {
+            CHECK(got.sound == src.sound);
+            continue;
+        }
+        // Fix plan T1.23: version 5 stored body damping as absolute values
+        // (b1 = 0.2 + n * 49.8 s^-1, b3 = n * 1e-3 s); the read path
+        // re-encodes slots 42 / 43 relative to the pad's derived law. Every
+        // other slot reads unchanged.
+        auto rest = got.sound;
+        rest[42] = src.sound[42];
+        rest[43] = src.sound[43];
+        CHECK(rest == src.sound);
+        Membrum::PadConfig played;
+        Membrum::State::applyPadPresetSnapshot(src, played);
+        const auto want = Membrum::Bodies::encodeLegacyBodyDamping(played, src.sound[42],
+                                                                    src.sound[43]);
+        CHECK(got.sound[42] == static_cast<double>(want.b1));
+        CHECK(got.sound[43] == static_cast<double>(want.b3));
     }
     for (const int32 v : {3, 4, 7})
     {

@@ -5,6 +5,7 @@
 #include "controller.h"
 #include "plugin_ids.h"
 #include "dsp/pad_config.h"
+#include "dsp/bodies/membrane_mapper.h"  // Body Damping b1 / b3 encoding (T1.23)
 #include "dsp/exciter_type.h"
 #include "dsp/body_model_type.h"
 #include "state/state_codec.h"
@@ -105,6 +106,38 @@ void formatMultiplier(Steinberg::Vst::ParamValue norm,
     const float x = minX + static_cast<float>(norm) * (maxX - minX);
     char text[32];
     std::snprintf(text, sizeof(text), "%.2fx", x);
+    writeString128(out, text);
+}
+
+// Body Damping b1 (fix plan T1.23): the factor on the pad's derived b1, "Auto"
+// at exactly the derived law. The encoding is Bodies::dampingLawFromParams'.
+void formatBodyDampingB1(Steinberg::Vst::ParamValue norm, Steinberg::Vst::String128 out)
+{
+    const auto n = static_cast<float>(norm);
+    if (std::clamp(n, 0.0f, 1.0f) == kBodyDampingDerived)
+    {
+        writeString128(out, "Auto");
+        return;
+    }
+    char text[32];
+    std::snprintf(text, sizeof(text), "x%.2f",
+                  static_cast<double>(Bodies::bodyDampingB1Factor(n)));
+    writeString128(out, text);
+}
+
+// Body Damping b3 (fix plan T1.23): the offset on the pad's derived b3 (s,
+// shown in microseconds), "Auto" at exactly the derived law.
+void formatBodyDampingB3(Steinberg::Vst::ParamValue norm, Steinberg::Vst::String128 out)
+{
+    const auto n = static_cast<float>(norm);
+    if (std::clamp(n, 0.0f, 1.0f) == kBodyDampingDerived)
+    {
+        writeString128(out, "Auto");
+        return;
+    }
+    char text[32];
+    std::snprintf(text, sizeof(text), "%+.1f us",
+                  static_cast<double>(Bodies::bodyDampingB3Offset(n)) * 1.0e6);
     writeString128(out, text);
 }
 
@@ -316,6 +349,10 @@ bool formatByPadOffset(int offset,
     // --- Phase 8F per-pad enable toggle ---------------------------------
     case kPadEnabled:           formatOnOff(norm, out);    return true;
 
+    // --- Phase 8A body damping, relative to the derived law (T1.23) -----
+    case kPadBodyDampingB1:     formatBodyDampingB1(norm, out); return true;
+    case kPadBodyDampingB3:     formatBodyDampingB3(norm, out); return true;
+
     // --- All params that map straight to a percentage readout -----------
     // Grouped via fall-through to eliminate identical-branch noise. Covers
     // resonance, drive, fold, sustain, mode-inject, nonlinear coupling,
@@ -332,8 +369,6 @@ bool formatByPadOffset(int offset,
     case kPadCouplingAmount:
     case kPadNoiseLayerMix:
     case kPadClickLayerMix:
-    case kPadBodyDampingB1:
-    case kPadBodyDampingB3:
     case kPadAirLoading:
     case kPadModeScatter:
     case kPadCouplingStrength:
@@ -391,6 +426,10 @@ Steinberg::tresult PLUGIN_API Controller::getParamStringByValue(
     case kPadEnabledId:        formatOnOff(valueNormalized, string);    return kResultOk;
     case kSecondaryMaterialId: formatMaterial(valueNormalized, string); return kResultOk;
 
+    // Phase 8A body damping, relative to the derived law (fix plan T1.23).
+    case kBodyDampingB1Id: formatBodyDampingB1(valueNormalized, string); return kResultOk;
+    case kBodyDampingB3Id: formatBodyDampingB3(valueNormalized, string); return kResultOk;
+
     // Phase 5 coupling delay (right-column Coupling section).
     case kCouplingDelayId: formatLinearMs(valueNormalized, 0.5f, 2.0f, string); return kResultOk;
 
@@ -410,8 +449,6 @@ Steinberg::tresult PLUGIN_API Controller::getParamStringByValue(
     case kUnnaturalNonlinearCouplingId:
     case kNoiseLayerMixId:
     case kClickLayerMixId:
-    case kBodyDampingB1Id:
-    case kBodyDampingB3Id:
     case kAirLoadingId:
     case kModeScatterId:
     case kCouplingStrengthId:

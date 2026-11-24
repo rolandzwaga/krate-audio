@@ -58,8 +58,8 @@ inline void applyPadConfigToVoice(DrumVoice& v, const PadConfig& cfg) noexcept
     v.setFMRatio(cfg.fmRatio);
     v.setFeedbackAmount(cfg.feedbackAmount);
     v.setFrictionPressure(cfg.frictionPressure);
-    // Phase 8A: per-mode damping law overrides (sentinel -1.0f preserves
-    // legacy brightness-derived behaviour).
+    // Phase 8A: per-mode damping law, relative to the derived law
+    // (kBodyDampingDerived plays it exactly; bodies/membrane_mapper.h).
     v.setBodyDampingB1(cfg.bodyDampingB1);
     v.setBodyDampingB3(cfg.bodyDampingB3);
     // Phase 8C: air-loading + per-mode scatter.

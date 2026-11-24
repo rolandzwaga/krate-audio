@@ -720,9 +720,13 @@ add_executable(membrum_preset_generator
 )
 target_compile_features(membrum_preset_generator PRIVATE cxx_std_20)
 # Fix plan T1.22: the generator stores base values through the plugin's own
-# macro-offset header (plugins/membrum/src/dsp/macro_offsets.h).
+# macro-offset header (plugins/membrum/src/dsp/macro_offsets.h). T1.23: it
+# re-encodes the authored body damping through the plugin's body mappers
+# (plugins/membrum/src/dsp/bodies/body_damping_encoding.h), which include
+# KrateDSP headers (header-only use: no link dependency).
 target_include_directories(membrum_preset_generator PRIVATE
     "${CMAKE_SOURCE_DIR}/plugins/membrum/src"
+    "${CMAKE_SOURCE_DIR}/dsp/include"
 )
 set_target_properties(membrum_preset_generator PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"

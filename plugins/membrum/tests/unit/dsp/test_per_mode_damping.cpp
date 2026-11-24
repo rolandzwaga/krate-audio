@@ -5,11 +5,12 @@
 //   1. The ModalResonatorBank DampingLaw overload produces per-mode radii
 //      matching R_k = exp(-(b1 + b3 * f_k^2) / sampleRate).
 //   2. updateDampingLaw() mutates radii without touching frequency state.
-//   3. MembraneMapper::dampingLawFromParams() falls back to the legacy
-//      decayTime/brightness derivation when bodyDampingB1/B3 are sentinels
-//      (-1.0f), preserving Phase 1 bit-identity.
-//   4. Non-sentinel overrides yield the advertised [0.2, 50] s^-1 and
-//      [0, 8e-5] s*rad^-2 ranges.
+//   3. MembraneMapper::dampingLawFromParams() returns the legacy
+//      decayTime/brightness derivation when bodyDampingB1/B3 are at
+//      kBodyDampingDerived (0.5), preserving Phase 1 bit-identity.
+//   4. Other values scale b1 (x1/64 .. x64, floor 0.2 s^-1) and offset b3
+//      (-2.5e-3 .. +2.5e-3 s, floor 0, then scaled by Decay) relative to that law
+//      (fix plan T1.23).
 //   5. A Membrane voice swept by bodyDampingB3 retains the same fundamental
 //      (no pitch shift) but produces lower high-mode energy as b3 rises --
 //      the "material axis" the plan exit gate calls for.
@@ -110,12 +111,13 @@ TEST_CASE("Phase 8A: updateDampingLaw changes radii, preserves frequencies",
     }
 }
 
-TEST_CASE("Phase 8A: dampingLawFromParams returns legacy law for sentinel overrides",
+TEST_CASE("Phase 8A: dampingLawFromParams returns legacy law at the derived value",
           "[phase8a][mapper][damping]")
 {
+    // Fix plan T1.23: no sentinel; kBodyDampingDerived (0.5) is the derived law.
     VoiceCommonParams p{};
-    p.bodyDampingB1 = -1.0f;
-    p.bodyDampingB3 = -1.0f;
+    p.bodyDampingB1 = Membrum::kBodyDampingDerived;
+    p.bodyDampingB3 = Membrum::kBodyDampingDerived;
 
     const float legacyDecayTime = 0.5f;
     const float legacyBrightness = 0.25f;
@@ -128,42 +130,47 @@ TEST_CASE("Phase 8A: dampingLawFromParams returns legacy law for sentinel overri
     CHECK(law.b3 == Approx(legacy.b3).margin(1e-10f));
 }
 
-TEST_CASE("Phase 8A: dampingLawFromParams denormalises non-sentinel overrides",
+TEST_CASE("Phase 8A: dampingLawFromParams scales and offsets the derived law",
           "[phase8a][mapper][damping]")
 {
+    // Fix plan T1.23: derived law at decayTime 0.5 s, brightness 0.5 is
+    // b1 = 2 s^-1, b3 = 2e-5 s. b1 spans x1/64 .. x64 (floor 0.2 s^-1), b3
+    // spans -2.5e-3 .. +2.5e-3 s around it (floor 0). At Decay 0.5 Decay's factor
+    // on an overridden b3 is 1 (ruling (a'), membrane_mapper.h).
     VoiceCommonParams p{};
+    p.decay = 0.5f;
 
-    SECTION("bodyDampingB1=0.0 -> 0.2 s^-1 floor")
+    SECTION("bodyDampingB1=0.0 -> 2/64 s^-1, floored at 0.2 s^-1")
     {
         p.bodyDampingB1 = 0.0f;
-        p.bodyDampingB3 = -1.0f;  // keep legacy b3
+        p.bodyDampingB3 = Membrum::kBodyDampingDerived;
         const auto law = dampingLawFromParams(p, 0.5f, 0.5f);
         CHECK(law.b1 == Approx(0.2f).margin(1e-5f));
     }
-    SECTION("bodyDampingB1=1.0 -> 50 s^-1")
+    SECTION("bodyDampingB1=1.0 -> 2 x 64 = 128 s^-1")
     {
         p.bodyDampingB1 = 1.0f;
-        p.bodyDampingB3 = -1.0f;
+        p.bodyDampingB3 = Membrum::kBodyDampingDerived;
         const auto law = dampingLawFromParams(p, 0.5f, 0.5f);
-        CHECK(law.b1 == Approx(50.0f).margin(1e-4f));
+        CHECK(law.b1 == Approx(128.0f).epsilon(1e-5f));
     }
     SECTION("bodyDampingB3=0.0 -> 0")
     {
-        p.bodyDampingB1 = -1.0f;
+        p.bodyDampingB1 = Membrum::kBodyDampingDerived;
         p.bodyDampingB3 = 0.0f;
         const auto law = dampingLawFromParams(p, 0.5f, 0.5f);
         CHECK(law.b3 == Approx(0.0f).margin(1e-12f));
     }
-    SECTION("bodyDampingB3=1.0 -> 1e-3 s*rad^-2")
+    SECTION("bodyDampingB3=1.0 -> 2e-5 + 2.5e-3 s (Hz convention)")
     {
-        p.bodyDampingB1 = -1.0f;
+        p.bodyDampingB1 = Membrum::kBodyDampingDerived;
         p.bodyDampingB3 = 1.0f;
         const auto law = dampingLawFromParams(p, 0.5f, 0.5f);
-        CHECK(law.b3 == Approx(1.0e-3f).margin(1e-9f));
+        CHECK(law.b3 == Approx(2.52e-3f).margin(1e-9f));
     }
 }
 
-TEST_CASE("Phase 8A: Membrane mapper preserves Phase 1 decayTime/brightness on sentinel",
+TEST_CASE("Phase 8A: Membrane mapper preserves Phase 1 decayTime/brightness at the derived value",
           "[phase8a][mapper][membrane][bit_identity]")
 {
     VoiceCommonParams p{};
@@ -174,9 +181,9 @@ TEST_CASE("Phase 8A: Membrane mapper preserves Phase 1 decayTime/brightness on s
     p.level          = 0.8f;
     p.modeStretch    = 1.0f;
     p.decaySkew      = 0.0f;
-    // Sentinel: no damping law override.
-    p.bodyDampingB1  = -1.0f;
-    p.bodyDampingB3  = -1.0f;
+    // The derived law exactly (fix plan T1.23; formerly the -1 sentinel).
+    p.bodyDampingB1  = Membrum::kBodyDampingDerived;
+    p.bodyDampingB3  = Membrum::kBodyDampingDerived;
 
     const auto result = MembraneMapper::map(p, /*pitchHz*/ 0.0f);
     const auto legacy = ModalResonatorBank::dampingLawFromLegacy(
@@ -204,7 +211,7 @@ TEST_CASE("Phase 8A: raising bodyDampingB3 attenuates high modes without moving 
     pLow.bodyDampingB3 = 0.0f;   // zero frequency-squared damping
 
     VoiceCommonParams pHigh = pLow;
-    pHigh.bodyDampingB3    = 1.0f; // full 8e-5 high-mode damping
+    pHigh.bodyDampingB3    = 1.0f; // derived b3 + 1e-3 s high-mode damping
 
     const auto rLow  = MembraneMapper::map(pLow,  0.0f);
     const auto rHigh = MembraneMapper::map(pHigh, 0.0f);
@@ -272,8 +279,9 @@ double renderVoice500msRms(float b1Norm, float b3Norm)
 TEST_CASE("Phase 8A.5: held-note b1 sweep yields a clearly-audible RMS delta",
           "[phase8a][drum_voice][audio]")
 {
-    const double rmsLo = renderVoice500msRms(0.0f, -1.0f);   // b1 = 0.2
-    const double rmsHi = renderVoice500msRms(1.0f, -1.0f);   // b1 = 50
+    // b1 at x1/64 (floored at 0.2 s^-1) vs x64 of the derived law; b3 derived.
+    const double rmsLo = renderVoice500msRms(0.0f, Membrum::kBodyDampingDerived);
+    const double rmsHi = renderVoice500msRms(1.0f, Membrum::kBodyDampingDerived);
     INFO("rmsLo=" << rmsLo << " rmsHi=" << rmsHi
          << " ratio=" << (rmsHi > 0 ? rmsLo / rmsHi : -1));
     REQUIRE(rmsLo > 1e-4);

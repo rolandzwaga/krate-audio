@@ -178,14 +178,13 @@ const PadParamSpec kPadParamSpecs[] = {
     {.offset = kPadClickLayerMix,        .name = "Click Mix",           .isDiscrete = false, .stepCount = 0, .defaultValue = 0.5 },
     {.offset = kPadClickLayerContactMs,  .name = "Click Contact",       .isDiscrete = false, .stepCount = 0, .defaultValue = 0.3 },
     {.offset = kPadClickLayerBrightness, .name = "Click Brightness",    .isDiscrete = false, .stepCount = 0, .defaultValue = 0.6 },
-    // Phase 8A: per-mode damping law. Default 0.5 = neutral override:
-    //   b1 norm 0.5 -> 25 s^-1 (mid-tight)
-    //   b3 norm 0.5 -> 4e-5 s (Hz convention; equivalent to legacy brightness=0.5)
-    // The effective override only kicks in once the host/user actively
-    // writes a value; DrumVoice stores -1.0f sentinel by default, preserving
-    // Phase 1 bit-identity for untouched pads (see DrumVoice::bodyDampingB1_).
-    {.offset = kPadBodyDampingB1,        .name = "Body Damping b1",     .isDiscrete = false, .stepCount = 0, .defaultValue = 0.5 },
-    {.offset = kPadBodyDampingB3,        .name = "Body Damping b3",     .isDiscrete = false, .stepCount = 0, .defaultValue = 0.5 },
+    // Phase 8A: per-mode damping law, relative to the law the body derives
+    // from Decay / Material / Size (fix plan T1.23; the encoding is defined in
+    // dsp/bodies/membrane_mapper.h). The default kBodyDampingDerived (0.5)
+    // plays the derived law exactly; b1 scales it (x1/64 .. x64), b3 offsets
+    // it (-2.5e-3 .. +2.5e-3 s, then scaled by Decay).
+    {.offset = kPadBodyDampingB1,        .name = "Body Damping b1",     .isDiscrete = false, .stepCount = 0, .defaultValue = kBodyDampingDerived },
+    {.offset = kPadBodyDampingB3,        .name = "Body Damping b3",     .isDiscrete = false, .stepCount = 0, .defaultValue = kBodyDampingDerived },
     // Phase 8C (air-loading + per-mode scatter).
     {.offset = kPadAirLoading,           .name = "Air Loading",         .isDiscrete = false, .stepCount = 0, .defaultValue = 0.6 },
     {.offset = kPadModeScatter,          .name = "Mode Scatter",        .isDiscrete = false, .stepCount = 0, .defaultValue = 0.0 },
@@ -586,13 +585,13 @@ tresult PLUGIN_API Controller::initialize(FUnknown* context)
         new RangeParameter(STR16("Click Brightness"), kClickLayerBrightnessId, nullptr,
                            0.0, 1.0, 0.6, 0, kProxyParamFlags));
 
-    // ---- Phase 8A global proxies: per-mode damping law ----
+    // ---- Phase 8A global proxies: per-mode damping law (default = derived) ----
     parameters.addParameter(
         new RangeParameter(STR16("Body Damping b1"), kBodyDampingB1Id, nullptr,
-                           0.0, 1.0, 0.5, 0, kProxyParamFlags));
+                           0.0, 1.0, kBodyDampingDerived, 0, kProxyParamFlags));
     parameters.addParameter(
         new RangeParameter(STR16("Body Damping b3"), kBodyDampingB3Id, nullptr,
-                           0.0, 1.0, 0.5, 0, kProxyParamFlags));
+                           0.0, 1.0, kBodyDampingDerived, 0, kProxyParamFlags));
 
     // ---- Phase 8C global proxies: air-loading + per-mode scatter ----
     parameters.addParameter(
@@ -829,24 +828,15 @@ tresult PLUGIN_API Controller::setParamNormalized(ParamID tag, ParamValue value)
         requestViewRefresh(kRefreshPitchEnvDisplay);
     }
 
-    // MB-087: an edit of a pad's body-damping parameter makes it an explicit
-    // override, so the preset saves write the parameter instead of the -1
-    // "derive" sentinel. The load paths write through the base class and
-    // never reach this override.
+    // MB-098: the Material Morph XY pad draws its own cursor from X / Y it
+    // holds itself; move it on every source of change (automation, a per-pad
+    // write for the selected pad through the MB-099 mirror below, the pad's
+    // own Y edit). Pad selection and state loads reach it through
+    // syncGlobalProxyFromPad.
+    if (tag == static_cast<ParamID>(kMorphStartId)
+        || tag == static_cast<ParamID>(kMorphEndId))
     {
-        const int dampOffset = padOffsetFromParamId(static_cast<int>(tag));
-        if (dampOffset == kPadBodyDampingB1 || dampOffset == kPadBodyDampingB3)
-        {
-            const int padIdx = padIndexFromParamId(static_cast<int>(tag));
-            if (padIdx >= 0 && padIdx < kNumPads)
-            {
-                auto& fields = padParamless_[static_cast<std::size_t>(padIdx)];
-                if (dampOffset == kPadBodyDampingB1)
-                    fields.dampingB1Derived = false;
-                else
-                    fields.dampingB3Derived = false;
-            }
-        }
+        requestViewRefresh(kRefreshMorphPad);
     }
 
     // If we're in the middle of a pad switch, don't recurse.
@@ -884,15 +874,6 @@ tresult PLUGIN_API Controller::setParamNormalized(ParamID tag, ParamValue value)
             suppressProxyForward_ = true;
             EditControllerEx1::setParamNormalized(padId, value);
             suppressProxyForward_ = false;
-
-            // MB-087: a damping edit through the proxy makes the selected
-            // pad's damping an explicit override (see the per-pad case above).
-            auto& fields =
-                padParamless_[static_cast<std::size_t>(selectedPadIndex_)];
-            if (mapping.padOffset == kPadBodyDampingB1)
-                fields.dampingB1Derived = false;
-            else if (mapping.padOffset == kPadBodyDampingB3)
-                fields.dampingB3Derived = false;
 
             // FR-065 (spec 141, Phase 8 / US7): when the Output Bus proxy
             // changes, refresh the pad grid so its "BUS{N}" indicator picks
@@ -1068,7 +1049,7 @@ void Controller::syncGlobalProxyFromPad(int padIndex)
     // setComponentState off the UI thread defers the mutation (finding 12).
     requestViewRefresh(kRefreshMorphControls | kRefreshFilterEnvDisplay
                        | kRefreshPitchEnvDisplay | kRefreshPitchEnvControls
-                       | kRefreshMorphToggleVis);
+                       | kRefreshMorphToggleVis | kRefreshMorphPad);
 }
 
 void Controller::forwardGlobalToPad(ParamID globalId, ParamValue value)
@@ -1105,7 +1086,7 @@ VSTGUI::CView* Controller::createCustomView(
     VSTGUI::UTF8StringPtr name,
     const VSTGUI::UIAttributes& attributes,
     const VSTGUI::IUIDescription* /*description*/,
-    VSTGUI::VST3Editor* /*editor*/)
+    VSTGUI::VST3Editor* editor)
 {
     if (!name)
         return nullptr;
@@ -1242,11 +1223,15 @@ VSTGUI::CView* Controller::createCustomView(
     }
     if (std::strcmp(name, "PolyphonySlider") == 0)
     {
-        // Horizontal integer slider for kMaxPolyphonyId. Tagged so VST3Editor
-        // routes valueChanged() through the standard parameter pipeline.
+        // Horizontal integer slider for kMaxPolyphonyId. The uidesc declares it
+        // as a plain CView, so no control creator sets its listener: set the
+        // editor here, so VST3Editor::verifyView binds its
+        // ParameterChangeListener (edits reach setParamNormalized + performEdit,
+        // and the slider follows automation, kit loads and setComponentState).
         auto* view = new UI::PolyphonySliderView(viewRect, kMaxPolyphonyId);
         view->setValueNormalized(
             static_cast<float>(getParamNormalized(kMaxPolyphonyId)));
+        view->setListener(editor);
         return view;
     }
     if (std::strcmp(name, "ModeToggleButton") == 0)
@@ -1434,7 +1419,8 @@ VSTGUI::CView* Controller::verifyView(VSTGUI::CView* view,
 
     // MaterialMorph XY pad (Advanced template). The shared XYMorphPad drives
     // its X-axis via the CControl tag (MaterialMorph -> kMorphStartId) and its
-    // Y-axis through a direct performEdit() on this edit controller. The
+    // Y-axis through setParamNormalized() + performEdit() on this edit
+    // controller; updateMorphPadPosition() moves its cursor afterwards. The
     // secondary-tag="MorphEnd" attribute wires Y to kMorphEndId via the
     // ViewCreator; the controller pointer must be wired here.
     // Track whether any Material Morph view was just cached so we can apply

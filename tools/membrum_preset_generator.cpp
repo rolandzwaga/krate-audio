@@ -33,6 +33,7 @@
 #include <string>
 #include <vector>
 
+#include "dsp/bodies/body_damping_encoding.h"
 #include "dsp/macro_offsets.h"
 
 // ==============================================================================
@@ -40,7 +41,8 @@
 // ==============================================================================
 
 constexpr int kNumPads           = 32;
-constexpr int kVersion           = 6;  // T1.22: 59-slot sound array; sound fields are base values the macros offset
+constexpr int kVersion           = 6;  // T1.22: 59-slot sound array; sound fields are base values the macros offset.
+                                       // T1.23: body damping b1 / b3 relative to the derived law (same version 6)
 constexpr int kSoundSlotsPerPad  = 59;
 
 // kProcessorUID(0x4D656D62, 0x72756D50, 0x726F6331, 0x00000136)
@@ -130,10 +132,13 @@ struct Pad {
     double clickLayerMix        = 0.5;
     double clickLayerContactMs  = 0.3;
     double clickLayerBrightness = 0.6;
-    // Phase 8A per-mode damping. The PadConfig sentinel (-1.0 = "let mapper
-    // derive") cannot survive the controller's normalised parameter system,
-    // so write explicit mid-range defaults. b1=0.40 -> ~0.35 s decay floor;
-    // b3=0.40 -> moderate woody high-mode damping.
+    // Phase 8A per-mode damping, AUTHORED as an absolute law in the legacy
+    // normalised form: b1 = 0.2 + n * 49.8 s^-1, b3 = n * 1e-3 s (a negative
+    // value would keep the derived coefficient). encodeBodyDamping() below
+    // converts it into the stored values, which are relative to the pad's
+    // derived law (fix plan T1.23, dsp/bodies/body_damping_encoding.h), so
+    // Decay, Material and the macros stay live on every pad. b1=0.40 ->
+    // 20.1 s^-1; b3=0.40 -> 4e-4 s, moderate woody high-mode damping.
     double bodyDampingB1 = 0.40;
     double bodyDampingB3 = 0.40;
     // Phase 8C air-loading + modeScatter. 0.6 is the realistic membrane
@@ -309,6 +314,33 @@ MacroResets resetUnreproducibleMacros(Pad& p) {
         if (!changed)
             return resets;
     }
+}
+
+// Fix plan T1.23: the authored (absolute) body damping of `p`, re-encoded as
+// the stored values relative to the law the pad's body derives from the fields
+// it plays (its authored fields: the macro positions that remain reproduce
+// them). Call before storeBaseFields. Returns true when the authored law falls
+// outside the encoding's range (the nearest end is stored).
+bool encodeBodyDamping(Pad& p) {
+    Membrum::PadConfig played;
+    played.bodyModel      = static_cast<Membrum::BodyModelType>(p.bodyModel);
+    played.material       = static_cast<float>(p.material);
+    played.size           = static_cast<float>(p.size);
+    played.decay          = static_cast<float>(p.decay);
+    played.strikePosition = static_cast<float>(p.strikePosition);
+    played.level          = static_cast<float>(p.level);
+    played.modeStretch    = static_cast<float>(p.modeStretch);
+    played.decaySkew      = static_cast<float>(p.decaySkew);
+    played.airLoading     = static_cast<float>(p.airLoading);
+    played.modeScatter    = static_cast<float>(p.modeScatter);
+    played.morphEnabled   = static_cast<float>(p.morphEnabled);
+    played.morphStart     = static_cast<float>(p.morphStart);
+    played.morphCurve     = static_cast<float>(p.morphCurve);
+    const auto norms =
+        Membrum::Bodies::encodeLegacyBodyDamping(played, p.bodyDampingB1, p.bodyDampingB3);
+    p.bodyDampingB1 = static_cast<double>(norms.b1);
+    p.bodyDampingB3 = static_cast<double>(norms.b3);
+    return norms.clipped;
 }
 
 // Replaces the fields of `p` with the base values that play them at its macro
@@ -613,6 +645,8 @@ int main(int argc, char* argv[]) {
     };
 
     int generated = 0;
+    int clippedDamping = 0;
+    double minB1 = 1.0, maxB1 = 0.0, minB3 = 1.0, maxB3 = 0.0;
     int totalClampedPads = 0;
     int totalKept = 0;
     MacroResets totalResets;
@@ -643,6 +677,20 @@ int main(int argc, char* argv[]) {
                                    pads[i].macroComplexity}) {
                 if (m != 0.5)
                     ++keptMacros;
+            }
+            const double authoredB1 = pads[i].bodyDampingB1;
+            const double authoredB3 = pads[i].bodyDampingB3;
+            const bool dampingClipped = encodeBodyDamping(pads[i]);
+            minB1 = std::min(minB1, pads[i].bodyDampingB1);
+            maxB1 = std::max(maxB1, pads[i].bodyDampingB1);
+            minB3 = std::min(minB3, pads[i].bodyDampingB3);
+            maxB3 = std::max(maxB3, pads[i].bodyDampingB3);
+            if (dampingClipped) {
+                ++clippedDamping;
+                std::cout << "  DAMPING CLIPPED: " << kit.name << " pad " << i
+                          << " (body " << pads[i].bodyModel << "): authored b1 " << authoredB1
+                          << " b3 " << authoredB3 << " -> stored " << pads[i].bodyDampingB1
+                          << " / " << pads[i].bodyDampingB3 << "\n";
             }
             if (storeBaseFields(pads[i]) > 0) {
                 ++clampedPads;
@@ -676,6 +724,11 @@ int main(int argc, char* argv[]) {
 
     std::cout << "\nGenerated " << generated << " of " << kits.size()
               << " factory kit presets." << std::endl;
+    std::cout << "Body damping (T1.23): stored b1 in [" << minB1 << ", " << maxB1
+              << "], b3 in [" << minB3 << ", " << maxB3 << "]; " << clippedDamping
+              << " pads outside the encoding's range" << std::endl;
+    if (clippedDamping > 0)
+        return 1;
     std::cout << "Clamped pads: " << totalClampedPads << "; non-neutral macros kept "
               << totalKept << ", reset " << totalResets.total()
               << " (Tightness " << totalResets.tightness

@@ -118,8 +118,6 @@ PadParamlessFields paramlessFieldsFromSnapshot(
 {
     PadParamlessFields fields;
     fields.noiseLayerGain = sound[57];
-    fields.dampingB1Derived = sound[42] < 0.0;
-    fields.dampingB3Derived = sound[43] < 0.0;
     return fields;
 }
 
@@ -173,13 +171,8 @@ buildPadSnapshotFromParams(const EditControllerEx1& ctrl, int pad,
             static_cast<ParamID>(padParamId(pad, slot.offset)));
     }
 
-    // The fields no parameter holds (MB-087): noiseLayerGain (sound[57]) and
-    // the body-damping "derive" sentinel (sound[42/43]) of an unedited pad.
+    // The field no parameter holds (MB-087): noiseLayerGain (sound[57]).
     snap.sound[57] = paramless.noiseLayerGain;
-    if (paramless.dampingB1Derived)
-        snap.sound[42] = -1.0;
-    if (paramless.dampingB3Derived)
-        snap.sound[43] = -1.0;
 
     // Authoritative uint8 choke/bus (quantised from normalised).
     snap.chokeGroup = static_cast<std::uint8_t>(
@@ -252,25 +245,11 @@ void applyPadSnapshotToParams(
     // silently drop noiseLayer / clickLayer / bodyDamping / airLoading /
     // secondary coupling / tensionModAmt / enabled on every kit load --
     // the on-wire blob carries them, but the UI / global proxies would
-    // stay at PadConfig defaults until the user touched a knob.
-    //
-    // EXCEPTION: bodyDampingB1/B3 use a sentinel value of -1.0 to mean
-    // "let the audio mapper derive damping from decay/material" (Phase 8A
-    // bit-identity preservation). VST3 parameters are normalised to
-    // [0, 1], so the sentinel cannot survive a controller-side write:
-    // the clamping setter would store 0.0 and a notifying setter would
-    // performEdit(0.0) into the host, clobbering the processor's sentinel
-    // with an explicit "0.2 s^-1 decay floor" (which produces ~10 s
-    // sustains on every pad). Skip the write when the snapshot value is
-    // the sentinel; the processor keeps whatever it already had (sentinel
-    // by default on a fresh PadConfig, or the most recent explicit value
-    // the user set via the global proxy).
+    // stay at PadConfig defaults until the user touched a knob. Body damping
+    // b1 / b3 are written like every other slot: since fix plan T1.23 they
+    // are relative to the derived law (0.5 = derived), with no sentinel.
     for (const auto& slot : kLateSlots)
     {
-        const bool isSentinelSlot =
-            (slot.offset == kPadBodyDampingB1 || slot.offset == kPadBodyDampingB3);
-        if (isSentinelSlot && snap.sound[slot.snapIndex] < 0.0)
-            continue;
         setter(static_cast<ParamID>(padParamId(pad, slot.offset)),
                snap.sound[slot.snapIndex]);
     }
@@ -309,15 +288,10 @@ void applyPadPresetSnapshotToParams(
 
     // Phase 7+ late slots. The preset blob carries all 59 sound slots, but
     // the target pad's enable flag (51) and pan (56) are kept (FR-061), the
-    // same slots `State::applyPadPresetSnapshot` skips. Same bodyDamping
-    // sentinel guard as `applyPadSnapshotToParams` -- see the comment there.
+    // same slots `State::applyPadPresetSnapshot` skips.
     for (const auto& slot : kLateSlots)
     {
         if (slot.offset == kPadEnabled || slot.offset == kPadPan)
-            continue;
-        const bool isSentinelSlot =
-            (slot.offset == kPadBodyDampingB1 || slot.offset == kPadBodyDampingB3);
-        if (isSentinelSlot && preset.sound[slot.snapIndex] < 0.0)
             continue;
         setter(static_cast<ParamID>(padParamId(pad, slot.offset)),
                preset.sound[slot.snapIndex]);

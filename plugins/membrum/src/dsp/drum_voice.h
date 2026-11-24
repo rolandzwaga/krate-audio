@@ -1583,10 +1583,10 @@ private:
         // [25, 80] s^-1 (t60 ≈ 0.09..0.28 s). Verified by the stress test in
         // test_kit_switch_infinite_ring.cpp.
         const float mat = std::clamp(secondaryMaterial_, 0.0f, 1.0f);
-        // Body's effective b1 from current per-pad damping override.
-        const float bodyN = std::clamp((bodyDampingB1_ >= 0.0f)
-                                       ? bodyDampingB1_ : 0.4f, 0.0f, 1.0f);
-        const float bodyB1 = 0.2f + bodyN * 49.8f;
+        // The body's effective b1: the law the voice applied at note-on
+        // (fix plan T1.23: no re-denormalisation, no 0.4 fallback for a
+        // derived law).
+        const float bodyB1 = cachedMapperResult_.damping.b1;
         // Shell b1 sits at least 2.5× above the body so its t60 is at most
         // ~40 % of the body's; soft floor of 25 s⁻¹ keeps the shell short
         // even when the body is set to a low-damping (long-tail) config.
@@ -2047,9 +2047,10 @@ private:
     float strikePos_ = 0.3f;
     float level_     = 0.8f;
 
-    // Phase 8A: per-mode damping law overrides (-1.0f = use legacy derivation).
-    float bodyDampingB1_ = -1.0f;
-    float bodyDampingB3_ = -1.0f;
+    // Phase 8A: per-mode damping law, relative to the derived law
+    // (kBodyDampingDerived = the derived law exactly; bodies/membrane_mapper.h).
+    float bodyDampingB1_ = kBodyDampingDerived;
+    float bodyDampingB3_ = kBodyDampingDerived;
 
     // Phase 8C: air-loading + per-mode scatter.
     float airLoading_  = 0.0f;

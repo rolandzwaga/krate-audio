@@ -7,6 +7,7 @@
 
 #include "exciter_type.h"
 #include "body_model_type.h"
+#include "voice_common_params.h"
 #include <array>
 #include <cstdint>
 
@@ -271,16 +272,13 @@ struct PadConfig
     float clickLayerContactMs  = 0.3f;  // normalised: 0 = 2 ms, 1 = 5 ms
     float clickLayerBrightness = 0.6f;
 
-    // Phase 8A: per-mode damping law overrides. Normalised [0, 1];
-    // denormalisation happens at the mapper.
-    //   bodyDampingB1: 0 -> 0.2 s^-1 (matches legacy 5.0 s decayTime floor),
-    //                  1 -> 50 s^-1 (very short t60).
-    //   bodyDampingB3: 0 -> 0 (pure flat damping, "metallic"),
-    //                  1 -> 8e-5 s * rad^-2 (strong high-mode damping, "wood").
-    // Default -1.0f sentinel means "derive from decay/material via mapper"
-    // -- preserves Phase 1 bit-identity.
-    float bodyDampingB1        = -1.0f;
-    float bodyDampingB3        = -1.0f;
+    // Phase 8A: per-mode damping law, normalised [0, 1] and RELATIVE to the
+    // law the body derives from Decay / Material / Size: b1 a factor, b3 an
+    // offset (fix plan T1.23; ranges and units in one place, next to
+    // Bodies::dampingLawFromParams in bodies/membrane_mapper.h).
+    // kBodyDampingDerived (0.5) plays the derived law exactly.
+    float bodyDampingB1        = kBodyDampingDerived;
+    float bodyDampingB3        = kBodyDampingDerived;
 
     // Phase 8C: air-loading correction + per-mode scatter.
     //   airLoading:  0 -> pure Bessel, 1 -> full Rossing-curve depression.

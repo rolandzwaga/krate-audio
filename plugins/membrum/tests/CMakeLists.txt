@@ -130,6 +130,8 @@ add_executable(membrum_tests
     # Fix plan T1.22: macros are offsets on stored base values
     unit/processor/test_macro_offsets.cpp
     unit/processor/test_state_v6_migration.cpp
+    # Fix plan T1.23: body damping B1/B3 relative to the derived law
+    unit/processor/test_body_damping_encoding.cpp
     unit/processor/test_pad_glow_publisher.cpp
     unit/processor/test_macro_automation_extreme.cpp
     unit/processor/test_publisher_lock_freedom.cpp
@@ -142,6 +144,8 @@ add_executable(membrum_tests
     unit/controller/test_pitch_env_body_gate.cpp
     unit/controller/test_adsr_persist.cpp
     unit/controller/test_audit_ui_controller_batch.cpp
+    unit/controller/test_polyphony_slider_binding.cpp
+    unit/controller/test_xy_morph_pad_sync.cpp
     unit/diagnose/test_orchestral_distortion.cpp
     unit/diagnose/test_body_resonant_peak.cpp
     unit/diagnose/test_snare_body_diagnose.cpp

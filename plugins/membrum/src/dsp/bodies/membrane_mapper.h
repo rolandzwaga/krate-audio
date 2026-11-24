@@ -32,11 +32,10 @@ struct MapperResult
     float stretch     = 0.0f;
     float scatter     = 0.0f;
 
-    // Phase 8A: explicit per-mode damping law. Always populated by the mapper:
-    // when VoiceCommonParams.bodyDampingB1/B3 are sentinels (-1.0f), this is
-    // derived from decayTime/brightness (legacy bit-identical path); when
-    // non-sentinel, this takes precedence over decayTime/brightness and
-    // directly drives ModalResonatorBank::setModes.
+    // Phase 8A: per-mode damping law, always populated by the mapper through
+    // dampingLawFromParams: the law derived from decayTime/brightness, scaled
+    // and offset by VoiceCommonParams.bodyDampingB1/B3 (0.5 = the derived law
+    // exactly). Drives ModalResonatorBank::setModes.
     Krate::DSP::ModalResonatorBank::DampingLaw damping{};
 };
 
@@ -50,33 +49,124 @@ struct MapperResult
 /// keeps Decay Skew a spectral-balance control rather than a mode selector.
 inline constexpr float kDecaySkewMaxModeTilt = 8.0f;
 
-/// Build a DampingLaw from the mapper's legacy decayTime/brightness pair,
-/// letting explicit VoiceCommonParams.bodyDamping{B1,B3} overrides take
-/// precedence when they are not the sentinel value (-1.0f).
-/// Denormalisation for the override path:
-///   b1 = 0.2 + norm * 49.8     -> [0.2, 50.0] s^-1
-///   b3 = norm * 1.0e-3         -> [0, 1e-3] s (Hz convention; ~25 x legacy kMaxB3)
-///   b3 ceiling was widened empirically: the plan's original 8e-5 gave only
-///   a ~2 dB drop in the above-1-kHz band (inaudible), 4e-4 gave ~6 dB, and
-///   1e-3 gives the ~9 dB total-energy drop that the perceptual contract
-///   ("metallic ring -> wood thump") requires. The widened range is exercised
-///   by test_per_mode_damping's "b3 sweep" test (CHECK totalRatio < 0.5).
+// ==============================================================================
+// Body damping B1 / B3 encoding (fix plan T1.23, MB-074 / MB-029 / MB-109 /
+// MB-216). The ONE definition of the per-pad Body Damping b1 / b3 values:
+// PadConfig, VoiceCommonParams, DrumVoice, the controller (registration and
+// display), DefaultKit, the state codec and tools/membrum_preset_generator.cpp
+// refer here instead of restating it.
+//
+// Units are the bank's (ModalResonatorBank::DampingLaw): the decay rate of a
+// mode at f Hz is b1 + b3 * f^2 in s^-1, so b1 is in s^-1 and b3 in s with f in
+// Hz (not rad/s; a per-rad^2 figure would be (2 pi)^2 ~= 39.5x smaller).
+//
+// The stored value n in [0, 1] is RELATIVE to the law the body derives from
+// Decay, Material, Size and Decay Skew (b1d = 1 / decayTime in [0.2, 100] s^-1,
+// b3d = (1 - brightness) * 4e-5 s, ModalResonatorBank::dampingLawFromLegacy):
+//
+//   b1 = max(0.2, b1d * 2^(12 * (n1 - 0.5)))         x1/64 .. x64 of the derived b1
+//   b3 = max(0, b3d + (n3 - 0.5) * 5e-3) * D          -2.5e-3 .. +2.5e-3 s around it,
+//        D = b1d(Decay) / b1d(Decay 0.5)               scaled by Decay like b1
+//
+// D is the user's ruling (a') of 2026-11-24: Decay scales the override's whole
+// b3, so it moves both damping terms the same way and stays live on a pad whose
+// b3 is overridden. Every modal mapper's decayTime is k * 0.3 * 10^Decay, so
+// D = b1d / b1d(decayTime * 10^(0.5 - Decay)), each b1d through
+// dampingLawFromLegacy's [0.01, 5] s clamp: D = 10^(0.5 - Decay) inside it.
+// D is 1 at Decay 0.5; a re-encode divides it out, so a stored law plays at
+// the Decay it was stored with.
+//
+// n = 0.5 is the derived law EXACTLY, produced by a branch (the macOS leg builds
+// with -ffast-math, so arithmetic that cancels is not exact). There is no hidden
+// "derive" sentinel any more: every stored value is a parameter value the knob
+// can show, and Decay, Material and the macros stay live under any override.
+// The b1 floor 0.2 s^-1 is the derived law's own (decayTime <= 5 s).
+// The +-6 octaves keep a 0.01 knob step at 2^0.12 = 1.087x (under 10 % on the
+// ring time) and cover every absolute b1 the factory kits and DefaultKit were
+// authored with. The stored b3 part is b3Abs / D - b3d, so a b3 range of
+// +-2.5e-3 s holds every factory-kit and DefaultKit value (the largest needs
+// 1.12e-3 s) and any former absolute b3 in [0, 1e-3] s up to Decay 0.9, and
+// below b3Abs 7.9e-4 s at Decay 1 (D >= 10^-0.5). A 0.01 step is 5e-5 s x D,
+// which keeps the step under 10 % of the ring time on the default kit's
+// explicit-b3 pads (a range wide enough for every former value at Decay 1,
+// +-3.16e-3 s, made a 0.01 step move the floor tom's decay by 10.2 %). The
+// generator and the version-5 read path re-encode the absolute values through
+// Bodies::encodeBodyDampingFromAbsolute (body_damping_encoding.h); the
+// generator fails on a value out of range, the read path stores the nearest end.
+// ==============================================================================
+
+// The stored value that plays the derived law exactly (the default) is
+// Membrum::kBodyDampingDerived = 0.5 (voice_common_params.h, the lowest header
+// PadConfig and VoiceCommonParams share).
+/// b1 spans +-kBodyDampingB1Octaves / 2 octaves around the derived b1.
+inline constexpr float kBodyDampingB1Octaves = 12.0f;
+/// b3 spans +-kBodyDampingB3Span / 2 seconds around the derived b3.
+inline constexpr float kBodyDampingB3Span    = 5.0e-3f;
+/// b1 never goes below the derived law's own floor (1 / 5 s).
+inline constexpr float kBodyDampingB1Floor   = 0.2f;
+
+/// The factor a stored b1 value applies to the derived b1 (1 at exactly 0.5).
+[[nodiscard]] inline float bodyDampingB1Factor(float n) noexcept
+{
+    const float c = std::clamp(n, 0.0f, 1.0f);
+    if (c == kBodyDampingDerived)
+        return 1.0f;
+    return std::exp2(kBodyDampingB1Octaves * (c - kBodyDampingDerived));
+}
+
+/// The offset (s) a stored b3 value adds to the derived b3 (0 at exactly 0.5).
+[[nodiscard]] inline float bodyDampingB3Offset(float n) noexcept
+{
+    const float c = std::clamp(n, 0.0f, 1.0f);
+    if (c == kBodyDampingDerived)
+        return 0.0f;
+    return (c - kBodyDampingDerived) * kBodyDampingB3Span;
+}
+
+/// The Decay at which an overridden b3 plays its stored value unscaled (D = 1).
+inline constexpr float kBodyDampingB3RefDecay = 0.5f;
+
+/// D, Decay's factor on an overridden b3 (see the encoding above): the derived
+/// b1 at `decay` over the derived b1 at kBodyDampingB3RefDecay, for a body whose
+/// mapper gave `decayTime` at `decay`.
+[[nodiscard]] inline float bodyDampingB3DecayScale(float decayTime, float decay) noexcept
+{
+    using Bank = Krate::DSP::ModalResonatorBank;
+    const float refDecayTime =
+        decayTime * std::pow(10.0f, kBodyDampingB3RefDecay - decay);
+    return Bank::dampingLawFromLegacy(decayTime, 1.0f).b1 /
+           Bank::dampingLawFromLegacy(refDecayTime, 1.0f).b1;
+}
+
+/// Apply stored b1 / b3 values to a derived law; `b3DecayScale` is D
+/// (bodyDampingB3DecayScale), used only when b3 is overridden.
+[[nodiscard]] inline Krate::DSP::ModalResonatorBank::DampingLaw
+applyBodyDamping(Krate::DSP::ModalResonatorBank::DampingLaw derived,
+                 float b1Norm, float b3Norm, float b3DecayScale) noexcept
+{
+    auto law = derived;
+    if (std::clamp(b1Norm, 0.0f, 1.0f) != kBodyDampingDerived)
+        law.b1 = std::max(kBodyDampingB1Floor, derived.b1 * bodyDampingB1Factor(b1Norm));
+    if (std::clamp(b3Norm, 0.0f, 1.0f) != kBodyDampingDerived)
+        law.b3 = std::max(0.0f, derived.b3 + bodyDampingB3Offset(b3Norm)) * b3DecayScale;
+    return law;
+}
+
+/// Build the body's DampingLaw: the law derived from the mapper's
+/// decayTime / brightness pair, scaled and offset by the stored
+/// VoiceCommonParams.bodyDamping{B1,B3} values (see the encoding above).
 [[nodiscard]] inline Krate::DSP::ModalResonatorBank::DampingLaw
 dampingLawFromParams(const VoiceCommonParams& params,
                      float legacyDecayTime,
                      float legacyBrightness) noexcept
 {
-    auto law = Krate::DSP::ModalResonatorBank::dampingLawFromLegacy(
-        legacyDecayTime, legacyBrightness);
-    if (params.bodyDampingB1 >= 0.0f) {
-        const float n = std::clamp(params.bodyDampingB1, 0.0f, 1.0f);
-        law.b1 = 0.2f + n * 49.8f;
-    }
-    if (params.bodyDampingB3 >= 0.0f) {
-        const float n = std::clamp(params.bodyDampingB3, 0.0f, 1.0f);
-        law.b3 = n * 1.0e-3f;
-    }
-    return law;
+    const float b3DecayScale =
+        (std::clamp(params.bodyDampingB3, 0.0f, 1.0f) != kBodyDampingDerived)
+            ? bodyDampingB3DecayScale(legacyDecayTime, params.decay)
+            : 1.0f;
+    return applyBodyDamping(
+        Krate::DSP::ModalResonatorBank::dampingLawFromLegacy(legacyDecayTime, legacyBrightness),
+        params.bodyDampingB1, params.bodyDampingB3, b3DecayScale);
 }
 
 struct MembraneMapper

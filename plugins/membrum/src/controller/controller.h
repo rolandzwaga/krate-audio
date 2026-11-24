@@ -356,6 +356,13 @@ private:
     /// UIViewSwitchContainer rebuilds the template. Tolerant of a null display.
     void updatePitchEnvelopeDisplay() noexcept;
 
+    /// MB-098: place the Material Morph XY pad's cursor at the current
+    /// kMorphStartId / kMorphEndId values (the selected pad's, through the
+    /// proxies), so it follows pad selection, automation and preset loads and
+    /// the pad's relative edits (wheel, Escape) start from the shown pad.
+    /// Leaves the cursor alone while the user drags it. Tolerant of a null pad.
+    void updateMorphPadPosition() noexcept;
+
     /// Audit finding 12: view mutations triggered by the SDK-`[UI-thread]`
     /// callbacks setParamNormalized() / setComponentState() are applied
     /// immediately when we are on the UI thread (the compliant-host case) and
@@ -370,6 +377,7 @@ private:
         kRefreshMorphToggleVis   = 1u << 2,
         kRefreshFilterEnvDisplay = 1u << 3,
         kRefreshPitchEnvDisplay  = 1u << 4,
+        kRefreshMorphPad         = 1u << 5,
     };
 
     /// Apply now (UI thread) or queue for the poll timer (other thread).

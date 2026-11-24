@@ -121,6 +121,16 @@ void Controller::applyViewRefresh(std::uint32_t flags) noexcept
     if (flags & kRefreshMorphToggleVis)   updateMorphEnabledToggleVisibility();
     if (flags & kRefreshFilterEnvDisplay) updateFilterEnvDisplay();
     if (flags & kRefreshPitchEnvDisplay)  updatePitchEnvelopeDisplay();
+    if (flags & kRefreshMorphPad)         updateMorphPadPosition();
+}
+
+void Controller::updateMorphPadPosition() noexcept
+{
+    if (xyMorphPad_ == nullptr || xyMorphPad_->isDragging())
+        return;
+    xyMorphPad_->setMorphPosition(
+        static_cast<float>(getParamNormalized(static_cast<ParamID>(kMorphStartId))),
+        static_cast<float>(getParamNormalized(static_cast<ParamID>(kMorphEndId))));
 }
 
 void Controller::updateMorphControlsEnabled() noexcept

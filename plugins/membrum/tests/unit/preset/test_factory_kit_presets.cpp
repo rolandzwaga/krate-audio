@@ -14,6 +14,7 @@
 
 #include <catch2/catch_test_macros.hpp>
 
+#include "dsp/bodies/body_damping_encoding.h"
 #include "dsp/default_kit.h"
 #include "dsp/macro_offsets.h"
 #include "dsp/pad_config.h"
@@ -271,10 +272,31 @@ TEST_CASE("Factory kit presets: stored macros reach the sound and every kit play
             }
 
             // The macros applied to the stored base play the fixture's fields.
-            const auto played =
-                Membrum::State::toPadSnapshot(Membrum::applyMacroOffsets(stored));
+            const auto effective = Membrum::applyMacroOffsets(stored);
+            const auto played = Membrum::State::toPadSnapshot(effective);
+
+            // Fix plan T1.23: body damping (sound[42] / sound[43]) is stored
+            // relative to the pad's derived law; the fixture holds the
+            // version-5 ABSOLUTE encoding (b1 = 0.2 + n * 49.8 s^-1, b3 = n *
+            // 1e-3 s). The law the pad plays must be that absolute law.
+            {
+                const auto law = Membrum::Bodies::playedBodyDamping(effective);
+                const double wantB1 = 0.2 + static_cast<double>(want[42]) * 49.8;
+                const double wantB3 = static_cast<double>(want[43]) * 1.0e-3;
+                const double dB1 = std::abs(static_cast<double>(law.b1) - wantB1) / wantB1;
+                const double dB3 = std::abs(static_cast<double>(law.b3) - wantB3);
+                if (dB1 > 1.0e-5 || dB3 > 1.0e-9)
+                {
+                    ++mismatches;
+                    UNSCOPED_INFO("pad " << p << " damping plays b1 " << law.b1 << " b3 "
+                                  << law.b3 << ", was " << wantB1 << " / " << wantB3);
+                }
+            }
+
             for (std::size_t i = 0; i < played.sound.size(); ++i)
             {
+                if (i == 42 || i == 43)
+                    continue;
                 const double d = std::abs(played.sound[i] - static_cast<double>(want[i]));
                 worst = std::max(worst, d);
                 if (d > 1e-6)

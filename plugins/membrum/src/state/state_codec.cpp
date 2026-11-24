@@ -4,6 +4,7 @@
 
 #include "state/state_codec.h"
 
+#include "dsp/bodies/body_damping_encoding.h"
 #include "dsp/macro_offsets.h"
 
 #include "base/source/fstreamer.h"
@@ -86,6 +87,18 @@ void baseFieldsFromBakedMacros(PadSnapshot& pad) noexcept
     storeBase(pad.sound[22], played.nonlinearCoupling,  base.nonlinearCoupling);
     storeBase(pad.sound[32], played.noiseBurstDuration, base.noiseBurstDuration);
     storeBase(pad.couplingAmount, played.couplingAmount, base.couplingAmount);
+}
+
+/// Version 5 stored body damping b1 / b3 as ABSOLUTE values (b1 = 0.2 + n *
+/// 49.8 s^-1, b3 = n * 1e-3 s, a negative value = derive the coefficient);
+/// version 6 stores them relative to the pad's derived law (fix plan T1.23).
+/// Re-encode slots 42 / 43 against `played`, the config the pad played, so it
+/// keeps its sound.
+void bodyDampingFromAbsolute(std::array<double, 59>& sound, const PadConfig& played) noexcept
+{
+    const auto norms = Bodies::encodeLegacyBodyDamping(played, sound[42], sound[43]);
+    sound[42] = static_cast<double>(norms.b1);
+    sound[43] = static_cast<double>(norms.b3);
 }
 
 } // namespace
@@ -240,19 +253,10 @@ void applyPadSnapshot(const PadSnapshot& snap, PadConfig& cfg) noexcept
     cfg.clickLayerMix        = std::clamp(static_cast<float>(snap.sound[39]), 0.0f, 1.0f);
     cfg.clickLayerContactMs  = std::clamp(static_cast<float>(snap.sound[40]), 0.0f, 1.0f);
     cfg.clickLayerBrightness = std::clamp(static_cast<float>(snap.sound[41]), 0.0f, 1.0f);
-    // Phase 8A: per-mode damping law overrides. Sentinel -1.0f is preserved
-    // verbatim (mapper falls back to legacy derivation); other values are
-    // clamped to [0, 1] before denormalisation in the mapper.
-    {
-        const double b1Raw = snap.sound[42];
-        const double b3Raw = snap.sound[43];
-        cfg.bodyDampingB1 = (b1Raw < 0.0)
-            ? -1.0f
-            : std::clamp(static_cast<float>(b1Raw), 0.0f, 1.0f);
-        cfg.bodyDampingB3 = (b3Raw < 0.0)
-            ? -1.0f
-            : std::clamp(static_cast<float>(b3Raw), 0.0f, 1.0f);
-    }
+    // Phase 8A: body damping b1 / b3, relative to the derived law (fix plan
+    // T1.23; a version-5 blob's absolute values were mapped by readKitBlob).
+    cfg.bodyDampingB1 = std::clamp(static_cast<float>(snap.sound[42]), 0.0f, 1.0f);
+    cfg.bodyDampingB3 = std::clamp(static_cast<float>(snap.sound[43]), 0.0f, 1.0f);
     // Phase 8C: air-loading + per-mode scatter.
     cfg.airLoading  = std::clamp(static_cast<float>(snap.sound[44]), 0.0f, 1.0f);
     cfg.modeScatter = std::clamp(static_cast<float>(snap.sound[45]), 0.0f, 1.0f);
@@ -359,17 +363,11 @@ void applyPadPresetSnapshot(const PadPresetSnapshot& snap, PadConfig& cfg) noexc
     cfg.noiseLayerGain       = std::clamp(static_cast<float>(snap.sound[57]), 0.1f, 16.0f);
     // Wire coupling: preset carries buzz-follows-body depth (sound character).
     cfg.wireCoupling         = std::clamp(static_cast<float>(snap.sound[58]), 0.0f, 1.0f);
-    // Phase 8A: per-mode damping law overrides (sentinel -1.0f kept verbatim).
-    {
-        const double b1Raw = snap.sound[42];
-        const double b3Raw = snap.sound[43];
-        cfg.bodyDampingB1 = (b1Raw < 0.0)
-            ? -1.0f
-            : std::clamp(static_cast<float>(b1Raw), 0.0f, 1.0f);
-        cfg.bodyDampingB3 = (b3Raw < 0.0)
-            ? -1.0f
-            : std::clamp(static_cast<float>(b3Raw), 0.0f, 1.0f);
-    }
+    // Phase 8A: body damping b1 / b3, relative to the derived law (fix plan
+    // T1.23; a version-5 preset's absolute values were mapped by
+    // readPadPresetBlob).
+    cfg.bodyDampingB1 = std::clamp(static_cast<float>(snap.sound[42]), 0.0f, 1.0f);
+    cfg.bodyDampingB3 = std::clamp(static_cast<float>(snap.sound[43]), 0.0f, 1.0f);
     // Phase 8C: air-loading + per-mode scatter.
     cfg.airLoading  = std::clamp(static_cast<float>(snap.sound[44]), 0.0f, 1.0f);
     cfg.modeScatter = std::clamp(static_cast<float>(snap.sound[45]), 0.0f, 1.0f);
@@ -542,7 +540,13 @@ tresult readKitBlob(IBStream* stream, KitSnapshot& kit)
     if (version == kBakedMacroBlobVersion)
     {
         for (auto& pad : kit.pads)
+        {
+            // Version-5 kit fields are what the pad played (macros baked in).
+            PadConfig played;
+            applyPadSnapshot(pad, played);
+            bodyDampingFromAbsolute(pad.sound, played);
             baseFieldsFromBakedMacros(pad);
+        }
     }
 
     // Optional session field: present only when the producer set hasSession.
@@ -595,7 +599,8 @@ tresult readPadPresetBlob(IBStream* stream, PadPresetSnapshot& pad)
     int32 version = 0;
     if (!readT(streamer, version))
         return kResultFalse;
-    // A pad preset carries no macros, so a version-5 one reads unchanged.
+    // A pad preset carries no macros; a version-5 one only has its body
+    // damping slots re-encoded (below).
     if (version != kPadBlobVersion && version != kBakedMacroBlobVersion)
         return kResultFalse;
 
@@ -614,6 +619,15 @@ tresult readPadPresetBlob(IBStream* stream, PadPresetSnapshot& pad)
     {
         if (!readT(streamer, slot))
             return kResultFalse;
+    }
+
+    // Version 5 held absolute body damping values. A pad preset carries no
+    // macros, so its fields are what it played.
+    if (version == kBakedMacroBlobVersion)
+    {
+        PadConfig played;
+        applyPadPresetSnapshot(pad, played);
+        bodyDampingFromAbsolute(pad.sound, played);
     }
     return kResultOk;
 }

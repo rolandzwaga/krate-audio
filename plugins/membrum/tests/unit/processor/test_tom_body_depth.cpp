@@ -291,11 +291,13 @@ TEST_CASE("Tom pitch env glides DOWN onto natural f0", "[tom_depth]") {
         REQUIRE(endHz   == Approx(f0).epsilon(0.05));           // END == natural f0
         REQUIRE(startHz > endHz);                               // DOWNWARD glide
         REQUIRE(startHz < f0 * 1.15f);                          // subtle, not a boing
-        // PadConfig stores the NORMALIZED b3 (denorm b3 = norm*1e-3 in mapper).
-        REQUIRE(c.bodyDampingB3 == Approx(0.15f));              // Fix B (norm)
+        // Fix B: the tom plays b3 = 0.15 * 1e-3 s. PadConfig stores it relative
+        // to the pad's derived law (fix plan T1.23), so check the law it plays.
+        const auto law = Membrum::Bodies::playedBodyDamping(c);
+        REQUIRE(law.b3 == Approx(0.15e-3f).margin(1e-9f));      // Fix B
         REQUIRE(c.tensionModAmt == Approx(0.25f));              // Fix A.2
-        // bodyDampingB1 must stay sentinel so the fundamental keeps its long ring.
-        REQUIRE(c.bodyDampingB1 < 0.0f);
+        // bodyDampingB1 stays the derived law so the fundamental keeps its long ring.
+        REQUIRE(c.bodyDampingB1 == Membrum::kBodyDampingDerived);
     }
 }
 

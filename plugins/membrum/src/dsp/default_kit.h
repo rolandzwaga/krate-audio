@@ -12,6 +12,7 @@
 #include "pad_config.h"
 #include "exciter_type.h"
 #include "body_model_type.h"
+#include "bodies/body_damping_encoding.h"
 
 #include <array>
 #include <cmath>
@@ -41,6 +42,14 @@ inline void applyTemplate(PadConfig& cfg, DrumTemplate tmpl, float sizeOverride 
 {
     // Start from PadConfig defaults (already initialized by aggregate init)
     cfg = PadConfig{};
+
+    // Body damping is authored as an ABSOLUTE law in the legacy normalised
+    // form (b1 = 0.2 + n * 49.8 s^-1, b3 = n * 1e-3 s; -1 = keep the derived
+    // coefficient) and converted below, once every field the derived law
+    // depends on is set, into the stored values relative to the pad's derived
+    // law (fix plan T1.23, Bodies::encodeLegacyBodyDamping).
+    double authoredB1 = -1.0;
+    double authoredB3 = -1.0;
 
     switch (tmpl) {
         case DrumTemplate::Kick:
@@ -101,7 +110,7 @@ inline void applyTemplate(PadConfig& cfg, DrumTemplate tmpl, float sizeOverride 
             // Size 0.4 -> f0 ~199 Hz, on the measured 14" (0,1) mode (Rossing &
             // Bork 1992). Was 0.5 -> ~158 Hz, a whole tone flat.
             cfg.size           = 0.4f;
-            // Short "tat": fast decay + b1 override (~30 s^-1) so the body is a
+            // Short "tat": fast decay + b1 ~30 s^-1 so the body is a
             // snares-on thwack, not a sustained tom-like tone (the woodblock).
             cfg.decay          = 0.13f;
             cfg.strikePosition = 0.3f;
@@ -127,8 +136,8 @@ inline void applyTemplate(PadConfig& cfg, DrumTemplate tmpl, float sizeOverride 
             cfg.clickLayerBrightness = 0.7f;
             // Short-tat damping: b1 ~30 s^-1 (fast head decay), moderate b3 so
             // the body still has some crack (not over-damped into a dull thud).
-            cfg.bodyDampingB1 = 0.60f;
-            cfg.bodyDampingB3 = 0.40f;
+            authoredB1 = 0.60;
+            authoredB3 = 0.40;
             // Phase 8C: moderate air-loading; scatter 0.28 reproduces the
             // (0,1)/(1,1) mode splitting of a real snare head.
             cfg.airLoading  = 0.5f;
@@ -167,11 +176,10 @@ inline void applyTemplate(PadConfig& cfg, DrumTemplate tmpl, float sizeOverride 
             // dissolves the inharmonic 100-500 Hz mid cluster (which rang
             // nearly as long as the fundamental and made toms read as thin/
             // toy-like) while the low fundamental keeps its long ring.
-            // Stored NORMALIZED; the mapper denormalizes to b3 = norm * 1.0e-3
-            // (dampingLawFromParams, membrane_mapper.h). bodyDampingB1 is left
-            // at its sentinel (-1) so b1 stays on the legacy long-decay path --
-            // an override here would clobber the long fundamental.
-            cfg.bodyDampingB3 = 0.15f;
+            // Authored as b3 = 0.15 * 1.0e-3 s. b1 is left derived (-1) so it
+            // stays on the long-decay Decay / Material law -- a fixed b1 here
+            // would clobber the long fundamental.
+            authoredB3 = 0.15;
             // Phase 8D coupling: off by default, seed values for tom shell.
             cfg.secondarySize     = 0.5f;
             cfg.secondaryMaterial = 0.4f;
@@ -238,7 +246,8 @@ inline void applyTemplate(PadConfig& cfg, DrumTemplate tmpl, float sizeOverride 
             // top octave dies in ~0.5 s via the f^2 term. This long low ring is
             // also what keeps the voice above the pool's -60 dBFS auto-release
             // floor for the full tail instead of being cut at ~1.5 s.
-            //   b1 = 0.2 + 0.020*49.8 ~ 1.2 s^-1  -> lowest-mode T60 ~ 4.6 s
+            //   b1 = 0.2 + 0.020*49.8 ~ 1.2 s^-1  -> T60 ~ 5.8 s (5.6 s at the
+            //                                        752 Hz fundamental)
             //   b3 = 8.0e-5 * 1e-3 s              -> 15 kHz decayRate ~ 19 s^-1
             //                                        -> top-octave T60 ~ 0.36 s
             // b3 is tuned up (vs the naive 6e-5) because a slightly faster HF
@@ -246,8 +255,8 @@ inline void applyTemplate(PadConfig& cfg, DrumTemplate tmpl, float sizeOverride 
             // of surviving mid modes reinforces a pitch, whereas rolling them
             // off sooner leaves the broadband wash in charge (lower tail pitch
             // salience -- AC-4).
-            cfg.bodyDampingB1 = 0.020f;
-            cfg.bodyDampingB3 = 0.00008f;
+            authoredB1 = 0.020;
+            authoredB3 = 0.00008;
             // Phase 7.1: sustained shimmer noise, short stick click.
             cfg.noiseLayerMix        = 0.95f;
             cfg.noiseLayerCutoff     = 0.82f;
@@ -320,8 +329,8 @@ inline void applyTemplate(PadConfig& cfg, DrumTemplate tmpl, float sizeOverride 
             cfg.strikePosition = 0.3f;
             cfg.level          = 0.8f;
             // Fast modal decay so the four bursts do not smear together.
-            cfg.bodyDampingB1  = 0.65f;   // high flat damping (short T60)
-            cfg.bodyDampingB3  = 0.30f;
+            authoredB1 = 0.65;   // high flat damping (short T60)
+            authoredB3 = 0.30;
             // Diffuse "room" tail: low-passed white noise, ~200 ms decay. Gain is
             // START value; the burst-resolvability test (test_clap_acceptance
             // test 1) and the tail-audibility test (test 4) TRADE OFF against
@@ -354,6 +363,11 @@ inline void applyTemplate(PadConfig& cfg, DrumTemplate tmpl, float sizeOverride 
     if (sizeOverride >= 0.0f) {
         cfg.size = sizeOverride;
     }
+
+    // Default macros are neutral, so cfg is what the pad plays.
+    const auto damping = Bodies::encodeLegacyBodyDamping(cfg, authoredB1, authoredB3);
+    cfg.bodyDampingB1 = damping.b1;
+    cfg.bodyDampingB3 = damping.b3;
 }
 
 // ---------------------------------------------------------------------------

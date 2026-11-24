@@ -31,18 +31,12 @@ namespace Membrum::ControllerState {
 
 /// The per-pad sound fields that no controller parameter can hold, mirrored
 /// from the last loaded state so a preset SAVE from the controller writes
-/// what the processor plays (MB-087, MB-162):
-///   * `noiseLayerGain` (sound[57], 0.1..16) has no ParamID;
-///   * the body-damping -1 sentinel (sound[42] / sound[43], "derive the
-///     damping from Decay and Material") cannot be a normalised [0, 1] value.
-///     A `...Derived` flag stays set until the pad's B1 / B3 parameter is
-///     edited (`Controller::setParamNormalized`), after which the parameter
-///     value is saved as the explicit override.
-/// The defaults are `PadConfig`'s (noiseLayerGain 1.0, B1 / B3 -1).
+/// what the processor plays (MB-087, MB-162): `noiseLayerGain` (sound[57],
+/// 0.1..16) has no ParamID. (Body damping b1 / b3 are ordinary parameter
+/// values since fix plan T1.23: 0.5 is the derived law, no sentinel.)
+/// The default is `PadConfig`'s (noiseLayerGain 1.0).
 struct PadParamlessFields {
     double noiseLayerGain = 1.0;
-    bool dampingB1Derived = true;
-    bool dampingB3Derived = true;
 };
 
 /// Read the mirror fields of one pad from a snapshot's sound array (the
@@ -63,8 +57,8 @@ using ParamSetter =
 /// Encode a single pad's controller parameters into a `PadSnapshot`. The
 /// snapshot's slot layout matches the on-wire format defined in
 /// `state_codec.h`; see the comments on `Membrum::State::PadSnapshot::sound`.
-/// noiseLayerGain (sound[57]) and the body-damping sentinel (sound[42/43])
-/// come from `paramless`, the controller's mirror of the loaded pad.
+/// noiseLayerGain (sound[57]) comes from `paramless`, the controller's mirror
+/// of the loaded pad.
 [[nodiscard]] Membrum::State::PadSnapshot
 buildPadSnapshotFromParams(
     const Steinberg::Vst::EditControllerEx1& ctrl, int pad,

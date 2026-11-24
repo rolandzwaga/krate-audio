@@ -110,8 +110,12 @@ struct PadPresetSnapshot
 //   6: same layout (fix plan T1.22); a pad's sound fields are BASE values and
 //      its macros are offsets on them (dsp/macro_offsets.h). readKitBlob maps
 //      a version-5 kit's fields to bases with baseFromEffective, so it keeps
-//      its macro positions and its sound. Pad presets carry no macros: a
-//      version-5 pad preset reads unchanged.
+//      its macro positions and its sound. Pad presets carry no macros.
+//      Body damping b1 / b3 (sound[42] / sound[43], fix plan T1.23) are
+//      relative to the pad's derived law (0.5 = derived); version 5 stored
+//      them absolute (b1 = 0.2 + n * 49.8 s^-1, b3 = n * 1e-3 s, -1 = derive),
+//      so readKitBlob and readPadPresetBlob re-encode a version-5 blob's two
+//      slots against the fields the pad played.
 // ============================================================================
 
 constexpr Steinberg::int32 kBlobVersion    = 6;

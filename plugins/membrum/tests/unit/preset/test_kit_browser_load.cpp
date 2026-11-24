@@ -176,7 +176,8 @@ Membrum::State::KitSnapshot defaultKit()
 
 // Kit preset A (variantB = false) or B, written as a kit-preset file carries
 // it (with the session uiMode). They differ in a pad's noiseLayerGain, an
-// explicit B1/B3 body damping (A) versus the -1 sentinel (B), the macros and
+// explicit B1/B3 body damping (A) versus the derived law (B; 0.5 since fix
+// plan T1.23 replaced the -1 sentinel), the macros and
 // the coupling matrix inputs (global coupling, snare buzz, tom resonance,
 // coupling delay, per-pad coupling amount).
 Membrum::State::KitSnapshot makeKitSnapshot(bool variantB)
@@ -194,8 +195,8 @@ Membrum::State::KitSnapshot makeKitSnapshot(bool variantB)
     snare.sound[57] = pick(2.5, 0.75);       // noiseLayerGain (no ParamID)
 
     auto& tom = kit.pads[5];
-    tom.sound[42] = pick(0.4, -1.0);         // bodyDampingB1: explicit vs sentinel
-    tom.sound[43] = pick(0.3, -1.0);         // bodyDampingB3
+    tom.sound[42] = pick(0.4, Membrum::kBodyDampingDerived);  // bodyDampingB1: explicit vs derived
+    tom.sound[43] = pick(0.3, Membrum::kBodyDampingDerived);  // bodyDampingB3
 
     auto& kick = kit.pads[0];
     kick.macros = variantB ? std::array<double, 5>{0.7, 0.3, 0.6, 0.4, 0.2}
@@ -446,7 +447,7 @@ TEST_CASE("Kit browser load sends no parameter edits and rebuilds the coupling m
 TEST_CASE("A stale edit batch from an earlier kit load cannot leave a hybrid kit",
           "[presets][kit][state]")
 {
-    // Kit A: explicit body damping on pad 5. Kit B: the -1 sentinel there, and
+    // Kit A: explicit body damping on pad 5. Kit B: the derived law there, and
     // a different exciter and body on pads 0-9 (the snare, note 38, included).
     const auto snapA = makeKitSnapshot(false);
     auto snapB = makeKitSnapshot(true);
@@ -538,9 +539,10 @@ TEST_CASE("Browser load and host load agree on out-of-range sound slots",
 // MB-139, MB-152 save half)
 // ==============================================================================
 // The editor's Save button builds the blob from the controller. noiseLayerGain
-// (sound[57]) has no parameter and the body-damping -1 sentinel (sound[42/43])
-// cannot be a normalised value, so both must come from a controller mirror of
-// the loaded state: a saved kit reloads to the state it was saved from.
+// (sound[57]) has no parameter, so it must come from a controller mirror of
+// the loaded state: a saved kit reloads to the state it was saved from. (The
+// body-damping -1 sentinel that needed the same mirror is gone since fix plan
+// T1.23: the derived law is the parameter value 0.5.)
 // ==============================================================================
 
 namespace {
@@ -590,7 +592,7 @@ TEST_CASE("Kit preset saved from the controller reloads to the processor's own s
     {
         kit = makeKitPreset(false);
     }
-    SECTION("kit preset B: noiseLayerGain 0.75, damping sentinel on pad 5")
+    SECTION("kit preset B: noiseLayerGain 0.75, derived damping on pad 5")
     {
         kit = makeKitPreset(true);
     }
@@ -725,12 +727,12 @@ TEST_CASE("Macro offsets: a controller-side kit save reproduces the processor's 
     loaded->terminate();
 }
 
-TEST_CASE("A sentinel pad loaded after an explicit one saves as the sentinel",
+TEST_CASE("A derived-damping pad loaded after an explicit one saves as derived",
           "[presets][state][save]")
 {
     KitBrowserPair pair;
-    // Kit A: pad 5 explicit B1 0.4 / B3 0.3. Kit B: pad 5 on the sentinel,
-    // pad 1 noiseLayerGain 0.75.
+    // Kit A: pad 5 explicit B1 0.4 / B3 0.3. Kit B: pad 5 on the derived law
+    // (kBodyDampingDerived; fix plan T1.23), pad 1 noiseLayerGain 0.75.
     loadComponentState(pair.controller, makeKitPreset(false));
     REQUIRE(pair.browserLoad(makeKitPreset(true)));
 
@@ -740,8 +742,8 @@ TEST_CASE("A sentinel pad loaded after an explicit one saves as the sentinel",
     SECTION("untouched")
     {
         const auto saved = savedKitSnapshot(pair.controller);
-        CHECK(saved.pads[5].sound[42] == -1.0);
-        CHECK(saved.pads[5].sound[43] == -1.0);
+        CHECK(saved.pads[5].sound[42] == static_cast<double>(Membrum::kBodyDampingDerived));
+        CHECK(saved.pads[5].sound[43] == static_cast<double>(Membrum::kBodyDampingDerived));
         CHECK(saved.pads[1].sound[57] == 0.75);
     }
 

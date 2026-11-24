@@ -8,8 +8,10 @@
 // cursor with crosshair lines, optional modulation visualization, and labels.
 //
 // X parameter: Controlled via standard CControl tag binding (morph position).
-// Y parameter: Controlled via direct performEdit() on the edit controller
-//              (spectral tilt), using the dual-parameter pattern from Disrumpo.
+// Y parameter: Controlled directly on the edit controller (spectral tilt):
+//              setParamNormalized() then performEdit(), the pair VST3Editor
+//              sends for a tagged control, so the controller's own value
+//              (preset saves, proxies, the generic UI) follows the edit.
 //
 // Features:
 // - Bilinear gradient background with configurable corner colors
@@ -265,7 +267,7 @@ public:
             valueChanged();
 
             if (controller_ && secondaryParamId_ != 0) {
-                controller_->performEdit(secondaryParamId_, 0.5);
+                editSecondary(0.5);
                 controller_->endEdit(secondaryParamId_);
             }
 
@@ -304,8 +306,7 @@ public:
 
         if (controller_ && secondaryParamId_ != 0) {
             controller_->beginEdit(secondaryParamId_);
-            controller_->performEdit(secondaryParamId_,
-                                     static_cast<double>(morphY_));
+            editSecondary(static_cast<double>(newY));
         }
 
         invalid();
@@ -372,8 +373,7 @@ public:
 
         // Send Y via secondary parameter
         if (controller_ && secondaryParamId_ != 0) {
-            controller_->performEdit(secondaryParamId_,
-                                     static_cast<double>(morphY_));
+            editSecondary(static_cast<double>(newY));
         }
 
         invalid();
@@ -421,10 +421,11 @@ public:
         valueChanged();
         endEdit();
 
+        // newY, not morphY_: the X edit above may already have re-placed the
+        // cursor from the controller's values (a host-side cursor refresh).
         if (controller_ && secondaryParamId_ != 0) {
             controller_->beginEdit(secondaryParamId_);
-            controller_->performEdit(secondaryParamId_,
-                                     static_cast<double>(morphY_));
+            editSecondary(static_cast<double>(newY));
             controller_->endEdit(secondaryParamId_);
         }
 
@@ -437,14 +438,14 @@ public:
 
         if (isDragging_ && event.virt == VSTGUI::VirtualKey::Escape) {
             // Restore pre-drag values
+            const float restoreY = preDragMorphY_;
             morphX_ = preDragMorphX_;
-            morphY_ = preDragMorphY_;
+            morphY_ = restoreY;
             setValue(morphX_);
             valueChanged();
 
             if (controller_ && secondaryParamId_ != 0) {
-                controller_->performEdit(secondaryParamId_,
-                    static_cast<double>(morphY_));
+                editSecondary(static_cast<double>(restoreY));
                 controller_->endEdit(secondaryParamId_);
             }
 
@@ -457,6 +458,15 @@ public:
     }
 
 private:
+    /// Send a secondary (Y) value: the controller's own value first, then the
+    /// host edit (the pair VST3Editor sends for a tagged control). performEdit
+    /// alone only reaches the host, so the controller kept the old value.
+    /// Callers check controller_ and secondaryParamId_.
+    void editSecondary(double y) {
+        controller_->setParamNormalized(secondaryParamId_, y);
+        controller_->performEdit(secondaryParamId_, y);
+    }
+
     // =========================================================================
     // Internal Drawing Methods
     // =========================================================================
