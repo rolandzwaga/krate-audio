@@ -18,6 +18,7 @@
 #include "vstgui/lib/vstguibase.h"
 #include "vstgui/lib/platform/platform_linux.h"
 
+#include "pluginterfaces/base/funknownimpl.h"
 #include "pluginterfaces/base/smartpointer.h"
 #include "pluginterfaces/gui/iplugview.h"
 
@@ -48,8 +49,22 @@ public:
     bool unregisterTimer(VSTGUI::ITimerHandler* handler) override;
 
 private:
-    struct EventAdapter;
-    struct TimerAdapter;
+    // The host calls these; they forward to the VSTGUI handler the bridge registered them for.
+    struct EventAdapter : Steinberg::U::Implements<Steinberg::U::Directly<Steinberg::Linux::IEventHandler>> {
+        EventAdapter(VSTGUI::IEventHandler* h, int descriptor) : handler(h), fd(descriptor) {}
+        void PLUGIN_API onFDIsSet(Steinberg::Linux::FileDescriptor) override { handler->onEvent(); }
+
+        VSTGUI::IEventHandler* handler;
+        int fd;
+    };
+
+    struct TimerAdapter : Steinberg::U::Implements<Steinberg::U::Directly<Steinberg::Linux::ITimerHandler>> {
+        TimerAdapter(VSTGUI::ITimerHandler* h, uint64_t ms) : handler(h), interval(ms) {}
+        void PLUGIN_API onTimer() override { handler->onTimer(); }
+
+        VSTGUI::ITimerHandler* handler;
+        uint64_t interval;
+    };
 
     [[nodiscard]] Steinberg::Linux::IRunLoop* activeLoop() const noexcept;
     void moveRegistrations(Steinberg::Linux::IRunLoop* from, Steinberg::Linux::IRunLoop* to);

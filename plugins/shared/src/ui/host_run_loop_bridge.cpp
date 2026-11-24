@@ -1,7 +1,5 @@
 #include "ui/host_run_loop_bridge.h"
 
-#include "pluginterfaces/base/funknownimpl.h"
-
 #if SMTG_OS_LINUX
 #include "vstgui/lib/platform/linux/linuxfactory.h"
 #include "vstgui/lib/platform/platformfactory.h"
@@ -10,23 +8,6 @@
 #include <algorithm>
 
 namespace Krate::Plugins {
-
-// The host calls these; they forward to the VSTGUI handler the bridge registered them for.
-struct HostRunLoopBridge::EventAdapter : Steinberg::U::Implements<Steinberg::U::Directly<Steinberg::Linux::IEventHandler>> {
-    EventAdapter(VSTGUI::IEventHandler* h, int descriptor) : handler(h), fd(descriptor) {}
-    void PLUGIN_API onFDIsSet(Steinberg::Linux::FileDescriptor) override { handler->onEvent(); }
-
-    VSTGUI::IEventHandler* handler;
-    int fd;
-};
-
-struct HostRunLoopBridge::TimerAdapter : Steinberg::U::Implements<Steinberg::U::Directly<Steinberg::Linux::ITimerHandler>> {
-    TimerAdapter(VSTGUI::ITimerHandler* h, uint64_t ms) : handler(h), interval(ms) {}
-    void PLUGIN_API onTimer() override { handler->onTimer(); }
-
-    VSTGUI::ITimerHandler* handler;
-    uint64_t interval;
-};
 
 HostRunLoopBridge::HostRunLoopBridge() = default;
 HostRunLoopBridge::~HostRunLoopBridge() = default;
