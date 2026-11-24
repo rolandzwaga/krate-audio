@@ -140,29 +140,29 @@
       }
     },
     "Iterum": {
-      "version": "1.1.0",
+      "version": "1.1.1",
       "download_url": "https://krateaudio.com/iterum/",
       "release_notes": "",
-      "tag": "iterum/v1.1.0",
-      "pub_date": "2026-11-23T19:38:26Z",
+      "tag": "iterum/v1.1.1",
+      "pub_date": "2026-11-24T17:42:35Z",
       "channel": "stable",
-      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/iterum/v1.1.0",
+      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/iterum/v1.1.1",
       "description": "Multi-Mode Delay",
-      "notes_markdown": "### Added\n\n- **Four new Spectral spread curves** — Spread Curve now also offers Exponential (the lows and mids return together, then the highs trail out), Steps (eight bands, each a separate echo, like a multitap arpeggiating the spectrum), Scatter (third-octave bands in a fixed shuffled order, the same on every echo) and Random (the bands keep gliding to new delays, so no two echoes are alike).\n- **Two new Spectral spread directions** — Spread Direction now also offers Edges In (the lows and highs return first and the echo closes in on the mids) and Cross (the echo sweeps up on the left and down on the right at the same time).\n\n### Changed\n\n- **Spectral mode's Spread now sweeps through the sound** *(shared DSP)* — Spread was laid out evenly in Hz, so everything below about 2 kHz, most of a mix, shared the first tenth of the spread time: Low->High came back as one plain echo with a faint treble trail, and High->Low and Center Out as one plain later echo. Spread is now laid out by octave, from 20 Hz to 20 kHz, so each echo audibly sweeps from low to high, high to low, or out from the middle. Logarithmic now really differs from Linear: it gives the low octaves most of the spread. Every patch that uses Spread sounds different.\n- **Spread Direction and Spread Curve are menus** — With five and six entries they no longer fit as segment buttons, so both are drop-down menus in the Spread section. Saved patches keep their direction and curve.\n\n### Fixed\n\n- **Spectral mode's echo got 1 to 6 dB quieter with Spread** *(shared DSP)* — Each sound covers several neighbouring frequency bands; with Spread they left the delay at different moments, their phases stopped lining up and the sound partly cancelled itself, by an amount that jumped around with the exact Spread setting. The bands of one sound now leave together, and the echo keeps its level with Spread on.",
+      "notes_markdown": "### Fixed\n\n- **Opening the editor crashed Carla on Linux** *(shared editor)* — Carla hands a plugin its event loop only through the editor window, which left the GUI library without one, so opening the editor crashed the host. The editor now takes the event loop from its own window, keeps it working while several instances have their editors open, and lets go of it when the last editor closes. Hosts that worked before are unaffected.",
       "platforms": {
         "darwin-universal": {
-          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/iterum/v1.1.0/Iterum-1.1.0-macOS.pkg",
-          "size": 7886459,
-          "sha256": "529b0d62c1f2a6b35f14b758118bbc5a3cf4bbae41465eabc24a8e4b6e2b037d",
-          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+Tbrn/RWDDoGR6DIqDHESZDd6kC/9MOfaeGKs0lHiT2p4bhFkeHo2/nHlSau3TL/brT4ngvyOGpdsSZ6DJFM20CX7Qg=\ntrusted comment: krate:1:Iterum:1.1.0:darwin-universal:Iterum-1.1.0-macOS.pkg\nIk7hg5bmNpCQwdFF0QcIVkm+jQk1vYRDmY6HPi2v5DqBsv99sGWdidZn6yYnPnQXl5Z5y+mqNUzA8LeS0nKxDg==\n",
+          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/iterum/v1.1.1/Iterum-1.1.1-macOS.pkg",
+          "size": 7892913,
+          "sha256": "7ae34335b626972ab9636a0c891e37b5bd8063ad92973b3532317e17c82b5f58",
+          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+Tbrn8VEbrJpU8r35dtrNuboMg9JvOZeaDhi1ghRfR8zIffn1Dp2igBLsds3hzoQauQhNnfT+O9sNHRFjvQaAOAN9Qk=\ntrusted comment: krate:1:Iterum:1.1.1:darwin-universal:Iterum-1.1.1-macOS.pkg\nkNi1PWb7Xfvq2MoRCpPomgNgsvaKXGwixFOSgqvGRkklLDYLt6+Jm85EIFMFwCBuu9S+H/T1q6wyLg9LtAYMDw==\n",
           "format": "pkg",
           "min_os": "26.5"
         },
         "linux-x86_64": {
-          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/iterum/v1.1.0/Iterum-1.1.0-Linux-x64.tar.gz",
-          "size": 1707536,
-          "sha256": "90d23626406a4aa784e2e12496c8283bd954267ac2460fd79c37852274ab8477",
-          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+Tbrn/icH8jA2yzVyN4H6+9MYGvngNCtGJNMzcWEFR8ey5yDWArKb1lWmhI31ogDYl+tYA/p3iVOjcq6fBxezpPbxQ4=\ntrusted comment: krate:1:Iterum:1.1.0:linux-x86_64:Iterum-1.1.0-Linux-x64.tar.gz\nTI/Un/ISRGTULro20EJXMZv30LNWrk5m/Yur7Vv35DPXRykagE2te20iZquXtOA3KjRub+PQNPxAzFEL3jnrBQ==\n",
+          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/iterum/v1.1.1/Iterum-1.1.1-Linux-x64.tar.gz",
+          "size": 1716431,
+          "sha256": "4cbe05732170d603a17c3062c7ce5d9acbc5d5b3b89a321bad1d4f959055cd88",
+          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+Tbrn2xcnKG50nBf9v2I6o9kjeQHpLAGj87Vzz/0a/8BajchAdReuB77r7IsclkZAEQbQyTe1LsGM7IJIKWuUeNY7wY=\ntrusted comment: krate:1:Iterum:1.1.1:linux-x86_64:Iterum-1.1.1-Linux-x64.tar.gz\n1gS4OYjxrm914Sx4Vnw32aecmnsaGoSewLQ7cm3fzxyeC6NQDXNgeiAUgZa2wW3hhES+KVC27ipwKcWUZeeaCA==\n",
           "format": "tar.gz",
           "min_os": "2.38",
           "payload": {
@@ -171,10 +171,10 @@
           }
         },
         "windows-x86_64": {
-          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/iterum/v1.1.0/Iterum-1.1.0-Windows-x64.exe",
-          "size": 3592598,
-          "sha256": "d6c6238b5831afee04cb61f39ce814a8110af7594a4755d36e38e48dc573bece",
-          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+Tbrn/9hYhmB5SceBMvnXMp2JEvd1hX7G2BHZqHSqpGToaclWmeZLg6Mq/jh3nsTyPUQ1l5DGEzGSL6qxMh2LbCA/w0=\ntrusted comment: krate:1:Iterum:1.1.0:windows-x86_64:Iterum-1.1.0-Windows-x64.exe\nmOk9hkg0xCoezAV9EtJib5X+eltz0pXZwMONt/LehSN00G7BAYIW+l+BQGNczfVTXkq82Qaez5whWx6N38dVBw==\n",
+          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/iterum/v1.1.1/Iterum-1.1.1-Windows-x64.exe",
+          "size": 3594625,
+          "sha256": "a46637027cd95f98871dd87e18a13b16d01835508c4f951cb65f7af5dc693c03",
+          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+TbrnxnR0BDHmKIs5WVvOepbF09HiUKmYYuJ3IrHTxUkcUugEsKbiilzt1dN/iYk1UHIx1lL1pL/ohUquRZ3oN/DQQw=\ntrusted comment: krate:1:Iterum:1.1.1:windows-x86_64:Iterum-1.1.1-Windows-x64.exe\nJ/kc3z5ZmX53nTP1E6Jc/HhdX0S8uK6Cp8YnCEEg7RJ2ZcurM+psA0+jVRES1ohpaftc9ol7jZCmoPvZkExxBA==\n",
           "format": "inno-exe"
         }
       },
