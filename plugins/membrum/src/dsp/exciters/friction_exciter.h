@@ -8,9 +8,16 @@
 // the bow pressure up and releases within ≤ 50 ms. Sustained bowing is out of
 // scope (deferred to Phase 4).
 //
-// Velocity mapping (FR-013):
+// Velocity mapping (FR-013, FR-016):
 //   bow pressure = lerp(0.1, 0.5, velocity)
 //   bow speed    = lerp(0.2, 0.8, velocity)
+//   bandpass     = 400 x 20^velocity Hz (brightness, SC-004)
+//   output gain  = velocity x bandpass / 8 kHz (T1.17, MB-019)
+// The output gain makes the peak rise with velocity (v 0.1 -> 1.0: +20 dB),
+// so the voice's strike normalisation at velocity 1.0 calibrates the loudest
+// hit, as for the other exciters. Without it the exciter was loudest at the
+// softest hit (-23 dB from v 0.1 to 1.0) and soft hits drove the body into
+// the voice's hardClip rail.
 //
 // Envelope (A=1ms, D=40ms, S=0, R=5ms) → total duration ≈ 46 ms ≤ 50 ms.
 // The bow auto-releases when the envelope reaches its decay stage's sustain
@@ -88,6 +95,20 @@ struct FrictionExciter
         bodyFilter_.snapToTarget();
         bodyFilter_.reset();
 
+        // T1.17 (MB-019): output gain = velocity x cutoff / 8 kHz. The SVF
+        // bandpass has a constant 0 dB PEAK, so below its centre it passes the
+        // bow-force onset (the part that drives the body's modes) at about
+        // f / (Q x cutoff): moving the centre up 20x for brightness also cut
+        // the low end 20x, and the exciter came out 23 dB quieter at velocity
+        // 1.0 than at 0.1. The cutoff factor makes the skirt velocity-
+        // independent (constant-skirt bandpass, the peak rises with the
+        // centre), and the velocity factor sets the amplitude linearly, as
+        // Impulse and FMImpulse do. At velocity 1.0 the gain is 1, so the
+        // full-velocity hit, and with it the voice's strike-normalisation
+        // probe, is unchanged. The bow mapping above stays as it is: it holds
+        // the stick-slip texture (US1-4) and the Friction Pressure response.
+        outputGain_ = velocity * (cutoff / kMaxCutoffHz);
+
         // Retrigger-safe: reset envelope and sample counter before gating.
         bowEnvelope_.reset();
         bowEnvelope_.gate(true);
@@ -122,7 +143,7 @@ struct FrictionExciter
         // the transient mode with zero feedback so the stick-slip signature
         // still emerges from the internal rosin jitter and friction junction.
         const float raw = core_.process(0.0f);
-        const float out = bodyFilter_.process(raw);
+        const float out = bodyFilter_.process(raw) * outputGain_;
 
         if (!bowEnvelope_.isActive())
         {
@@ -137,6 +158,9 @@ struct FrictionExciter
     }
 
 private:
+    // Bandpass centre at velocity 1.0 (400 x 20^1); the output-gain reference.
+    static constexpr float kMaxCutoffHz = 8000.0f;
+
     Krate::DSP::BowExciter   core_{};
     Krate::DSP::ADSREnvelope bowEnvelope_{};
     Krate::DSP::SVF          bodyFilter_{};
@@ -145,6 +169,8 @@ private:
     int    autoReleaseSamples_ = 0;
     // User Friction Pressure bias [0,1]; 0 = legacy velocity-only behaviour.
     float  pressureAmount_     = 0.0f;
+    // Per-trigger output gain, velocity x cutoff / kMaxCutoffHz (T1.17).
+    float  outputGain_         = 1.0f;
     bool   active_             = false;
 };
 

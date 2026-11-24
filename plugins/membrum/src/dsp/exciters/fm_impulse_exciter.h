@@ -4,15 +4,23 @@
 // FMImpulseExciter -- Phase 2 (data-model.md §2.5, FR-014)
 // ==============================================================================
 // Chowning-style bell-like FM impulse:
-//   carrier (FMOperator)   at f = 1500 Hz * carrierRatio
-//   modulator (FMOperator) at f = 1500 Hz * modulatorRatio (default 1.4)
+//   carrier (FMOperator)   at f = referenceHz * 6.25^velocity
+//   modulator (FMOperator) at f = carrier * modulatorRatio (1..4, default 1.4)
 //   ampEnv       gates carrier amplitude over ≤ 100 ms
 //   modIndexEnv  scales modulator amplitude (= modulation index) over ≤ 30 ms
 //     → modIndexEnv decays FASTER than ampEnv (FR-014)
 //
+// referenceHz (T1.18, MB-261): DrumVoice sets it to the struck body's natural
+// fundamental at every note-on, so the carrier and its sidebands sit at fixed
+// multiples of the body's pitch whatever the Size: an FM Ratio step no longer
+// moves a sideband on or off one long-ringing mode of a fixed-Hz spectrum.
+// Without a body (the exciter on its own) it stays at 400 Hz, the former
+// fixed 400 -> 2500 Hz carrier sweep.
+//
 // Velocity mapping (FR-014):
 //   modulation index = lerp(0.5, 3.0, velocity)
 //   amplitude        = velocity
+//   carrier          = referenceHz * 6.25^velocity (FR-016 / SC-004 brightness)
 //
 // NOTE: FMOperator::prepare() is NOT real-time safe (wavetable generation).
 //       prepare() runs only from ExciterBank::prepare() inside
@@ -75,15 +83,18 @@ struct FMImpulseExciter
 
         // Chowning bell: carrier:modulator = 1:1.4 (FR-014).
         // FR-016 / SC-004: velocity scales the base frequency so the spectral
-        // centroid doubles between v=0.23 and v=1.0. 400 Hz (soft) → 2500 Hz
-        // (hard). The 1:1.4 ratio is preserved at every velocity.
+        // centroid doubles between v=0.23 and v=1.0: referenceHz (soft) to
+        // 6.25 x referenceHz (hard), i.e. 400 → 2500 Hz at the 400 Hz default.
+        // The carrier:modulator ratio is preserved at every velocity.
+        // T1.18 (MB-261): referenceHz is the body's natural fundamental, so the
+        // carrier-to-body ratio does not depend on Size.
         constexpr float kCarrierRatio  = 1.0f;
         // FM Ratio parameter: norm [0,1] -> [1.0, 4.0] (default norm 0.13333
         // reproduces the classic 1.4 Chowning-bell ratio).
         const float kModulatorRatio = 1.0f + 3.0f * modulatorRatioNorm_;
         carrierRatio_   = kCarrierRatio;
         modulatorRatio_ = kModulatorRatio;
-        const float baseFreq = 400.0f * std::pow(6.25f, velocity); // 400 → 2500
+        const float baseFreq = referenceHz_ * std::pow(6.25f, velocity);
 
         carrier_.setFrequency(baseFreq * kCarrierRatio);
         modulator_.setFrequency(baseFreq * kModulatorRatio);
@@ -113,6 +124,15 @@ struct FMImpulseExciter
     void setModulatorRatio(float normalized) noexcept
     {
         modulatorRatioNorm_ = std::clamp(normalized, 0.0f, 1.0f);
+    }
+
+    /// T1.18 (MB-261): the frequency the carrier sweep starts from (the
+    /// carrier is hz x 6.25^velocity). DrumVoice passes the body's natural
+    /// fundamental before each trigger(); applied on the next trigger().
+    /// FMOperator clamps the resulting frequencies below Nyquist.
+    void setReferenceFrequencyHz(float hz) noexcept
+    {
+        referenceHz_ = std::max(hz, 0.0f);
     }
 
     [[nodiscard]] float process(float /*bodyFeedback*/) noexcept
@@ -160,6 +180,7 @@ private:
     float  modulatorRatio_   = 1.4f;
     // Normalized FM ratio; default (1.4-1.0)/3.0 -> 1.4 modulator ratio.
     float  modulatorRatioNorm_ = (1.4f - 1.0f) / 3.0f;
+    float  referenceHz_      = 400.0f;  // T1.18: set per note from the body
     float  modulationIndex_  = 0.0f;
     float  carrierAmplitude_ = 0.0f;
     bool   active_           = false;

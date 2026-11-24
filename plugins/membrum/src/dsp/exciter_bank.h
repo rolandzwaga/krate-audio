@@ -235,6 +235,14 @@ public:
         std::get<MalletExciter>(alternatives_).setBodySizeHint(sizeNorm);
     }
 
+    /// T1.18 (MB-261): forward the body's natural fundamental to the
+    /// FMImpulse exciter's carrier sweep. Cached so a later swap re-applies it.
+    void setFMReferenceFrequencyHz(float hz) noexcept
+    {
+        pendingFMReferenceHz_ = hz;
+        std::get<FMImpulseExciter>(alternatives_).setReferenceFrequencyHz(hz);
+    }
+
 private:
     // Re-arm one alternative to its post-prepare state without allocating: an
     // alternative with restart() re-seeds what its reset() keeps (Impulse /
@@ -253,6 +261,7 @@ private:
     {
         std::get<NoiseBurstExciter>(alternatives_).setContactMs(pendingNoiseBurstContactNorm_);
         std::get<FMImpulseExciter>(alternatives_).setModulatorRatio(pendingFMRatioNorm_);
+        std::get<FMImpulseExciter>(alternatives_).setReferenceFrequencyHz(pendingFMReferenceHz_);
         std::get<FeedbackExciter>(alternatives_).setFeedbackAmount(pendingFeedbackNorm_);
         std::get<FrictionExciter>(alternatives_).setPressure(pendingFrictionNorm_);
         std::get<MalletExciter>(alternatives_).setBodySizeHint(pendingMalletSizeHint_);
@@ -285,6 +294,7 @@ private:
     float        pendingFeedbackNorm_ = 0.0f;
     float        pendingFrictionNorm_ = 0.0f;
     float        pendingMalletSizeHint_ = 1.0f;  // D4: neutral = legacy mass
+    float        pendingFMReferenceHz_  = 400.0f;  // T1.18: FMImpulse carrier reference
     std::uint32_t voiceId_    = 0;
 };
 

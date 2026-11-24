@@ -274,11 +274,12 @@ void VoicePool::noteOn(std::uint8_t midiNote, float velocity) noexcept
             applyPadConfigToSlot(slot, padIndex);
             // T1.6: the pad's strike-norm gains come from the per-pad table
             // (measured in prepare / on the worker), not from a probe render
-            // inside this note-on.
+            // inside this note-on. An FMImpulse pad's gain is looked up at
+            // this note's velocity (T1.18, MB-260).
             if (strikeNorm_.isPrepared())
             {
                 const auto g = strikeNorm_.gainsForNoteOn(
-                    padIndex, padConfigs_[static_cast<std::size_t>(padIndex)]);
+                    padIndex, padConfigs_[static_cast<std::size_t>(padIndex)], clampedVel);
                 mainVoice(slot).setSuppliedStrikeNormGains(g.body, g.shell);
             }
             mainVoice(slot).noteOn(clampedVel);

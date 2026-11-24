@@ -11,7 +11,8 @@
 // Cases (a)-(f) use only the pre-fix API and fail on the pre-fix code on their
 // values; (g)-(j) pin the StrikeNormTable protocol (VoicePool owns one gain per
 // pad, measured on a probe voice in prepare(), on a worker thread after an edit,
-// and inline only for a hit that arrives before the worker has delivered).
+// and inline only for a hit that arrives before the worker has delivered);
+// (k) pins an FMImpulse pad's per-velocity table (T1.18, MB-260).
 // ==============================================================================
 
 #include <catch2/catch_approx.hpp>
@@ -428,9 +429,9 @@ StrikeNormGains preparedReference(const PadConfig& cfg, double sr, int block)
     return g;
 }
 
-float hitGain(VoicePool& pool, std::uint8_t note)
+float hitGain(VoicePool& pool, std::uint8_t note, float velocity = 1.0f)
 {
-    pool.noteOn(note, 1.0f);
+    pool.noteOn(note, velocity);
     const int slot = activeSlotFor(pool, note);
     REQUIRE(slot >= 0);
     return pool.mainVoiceRef(slot).lastStrikeNormGains().body;
@@ -543,6 +544,7 @@ TEST_CASE("StrikeNormTable: worker thread against the audio thread under random 
     {
         PadConfig cfg;
         StrikeNormGains gains;
+        float velocity = 1.0f;
     };
     std::vector<Record> records;
     records.reserve(6000);
@@ -583,11 +585,12 @@ TEST_CASE("StrikeNormTable: worker thread against the audio thread under random 
         {
             const int pad = padDist(rng);
             const auto note = static_cast<std::uint8_t>(36 + pad);
-            pool->noteOn(note, velDist(rng));
+            const float vel = velDist(rng);
+            pool->noteOn(note, vel);
             const int slot = activeSlotFor(*pool, note);
             REQUIRE(slot >= 0);
             records.push_back({pool->padConfig(pad),
-                               pool->mainVoiceRef(slot).lastStrikeNormGains()});
+                               pool->mainVoiceRef(slot).lastStrikeNormGains(), vel});
         }
         pool->processBlock(l.data(), r.data(), kBlock);
         for (int i = 0; i < kBlock; ++i)
@@ -601,17 +604,29 @@ TEST_CASE("StrikeNormTable: worker thread against the audio thread under random 
     CHECK(allFinite);
     REQUIRE(!records.empty());
 
-    // Reference: the same measurement on a fresh probe voice.
+    // Reference: the same measurement on a fresh probe voice, at velocity 1.0,
+    // or at the note's velocity step for an FMImpulse pad (T1.18).
     auto probe = preparedVoice(kSr);
-    std::vector<std::pair<PadConfig, StrikeNormGains>> refs;
+    struct Ref
+    {
+        PadConfig       cfg;
+        float           velocity;
+        StrikeNormGains gains;
+    };
+    std::vector<Ref> refs;
     int mismatches = 0;
     for (const auto& rec : records)
     {
-        auto it = std::find_if(refs.begin(), refs.end(),
-                               [&rec](const auto& e) { return e.first == rec.cfg; });
+        const float refVel =
+            DrumVoice::strikeNormFollowsVelocity(rec.cfg.exciterType)
+                ? static_cast<float>(DrumVoice::strikeNormVelocityStep(rec.velocity)) / 127.0f
+                : 1.0f;
+        auto it = std::find_if(refs.begin(), refs.end(), [&rec, refVel](const Ref& e) {
+            return e.cfg == rec.cfg && e.velocity == refVel;
+        });
         if (it == refs.end())
         {
-            refs.emplace_back(rec.cfg, StrikeNormTable::measure(*probe, rec.cfg));
+            refs.push_back({rec.cfg, refVel, StrikeNormTable::measure(*probe, rec.cfg, refVel)});
             it = std::prev(refs.end());
         }
         // A String body runs a waveguide, not the modal bank: its bank gain
@@ -620,15 +635,15 @@ TEST_CASE("StrikeNormTable: worker thread against the audio thread under random 
         // the shell gain is compared for it.
         const bool bodyIsMeasured = rec.cfg.bodyModel != BodyModelType::String;
         const bool bodyOk = !bodyIsMeasured ||
-                            rec.gains.body == Catch::Approx(it->second.body).epsilon(1e-6);
-        const bool shellOk = rec.gains.shell == Catch::Approx(it->second.shell).epsilon(1e-6);
+                            rec.gains.body == Catch::Approx(it->gains.body).epsilon(1e-6);
+        const bool shellOk = rec.gains.shell == Catch::Approx(it->gains.shell).epsilon(1e-6);
         if (!bodyOk || !shellOk)
         {
             if (++mismatches <= 5)
                 std::printf("mismatch: exc %d body %d gains %g/%g ref %g/%g\n",
                             static_cast<int>(rec.cfg.exciterType),
                             static_cast<int>(rec.cfg.bodyModel), rec.gains.body,
-                            rec.gains.shell, it->second.body, it->second.shell);
+                            rec.gains.shell, it->gains.body, it->gains.shell);
         }
     }
     INFO(mismatches << " of " << records.size() << " note-ons differ from the reference");
@@ -662,4 +677,79 @@ TEST_CASE("StrikeNormTable: note-on with a changed pad is allocation-free",
     CHECK(pool->strikeNorm().inlineMeasureCount() == inline0 + 1u);
     INFO("allocations during the note-on: " << allocations);
     CHECK(allocations == 0u);
+}
+
+// ------------------------------------------------------------------------------
+// (k) T1.18 (MB-260): an FMImpulse pad's gain is per MIDI velocity step
+// ------------------------------------------------------------------------------
+TEST_CASE("StrikeNormTable: an FMImpulse pad serves every MIDI velocity from its table",
+          "[voice_pool][strike_norm][velocity]")
+{
+    constexpr double kSr = 48000.0;
+    constexpr int kBlock = 64;
+    PadConfig fm;
+    fm.exciterType = ExciterType::FMImpulse;
+    fm.bodyModel = BodyModelType::Bell;
+    fm.size = 0.22f;
+    std::vector<float> l(kBlock);
+    std::vector<float> r(kBlock);
+
+    // Reference: velocity step k on a fresh probe voice.
+    auto probe = preparedVoice(kSr);
+    auto refGain = [&](int k) {
+        return StrikeNormTable::measure(*probe, fm, static_cast<float>(k) / 127.0f).body;
+    };
+
+    SECTION("prepared table: 127 velocities, no inline measurement")
+    {
+        auto pool = std::make_unique<VoicePool>();
+        pool->padConfigMut(0) = fm;
+        const auto t0 = std::chrono::steady_clock::now();
+        pool->prepare(kSr, kBlock);
+        const auto t1 = std::chrono::steady_clock::now();
+        std::printf("StrikeNormTable: prepare with one FMImpulse pad took %.1f ms\n",
+                    std::chrono::duration<double, std::milli>(t1 - t0).count());
+        const auto inline0 = pool->strikeNorm().inlineMeasureCount();
+        double worstUs = 0.0;
+        for (int k = 1; k <= 127; ++k)
+        {
+            const auto a = std::chrono::steady_clock::now();
+            const float g = hitGain(*pool, 36, static_cast<float>(k) / 127.0f);
+            const auto b = std::chrono::steady_clock::now();
+            worstUs = std::max(worstUs, std::chrono::duration<double, std::micro>(b - a).count());
+            if (k % 18 == 1 || k == 127)
+            {
+                INFO("velocity step " << k);
+                CHECK(g == Catch::Approx(refGain(k)).epsilon(1e-6));
+            }
+            pool->processBlock(l.data(), r.data(), kBlock);
+            pool->noteOff(36);
+        }
+        std::printf("StrikeNormTable: 127 FMImpulse velocities, slowest note-on %.2f us\n", worstUs);
+        CHECK(pool->strikeNorm().inlineMeasureCount() == inline0);
+    }
+
+    SECTION("an edit before the worker delivers measures only the steps played")
+    {
+        auto pool = std::make_unique<VoicePool>();
+        pool->prepare(kSr, kBlock);
+        auto& table = pool->strikeNorm();
+        table.setManualConsumer(true);
+        pool->processBlock(l.data(), r.data(), kBlock);
+        pool->padConfigMut(0) = fm;
+        const auto inline0 = table.inlineMeasureCount();
+
+        CHECK(hitGain(*pool, 36, 100.0f / 127.0f) == Catch::Approx(refGain(100)).epsilon(1e-6));
+        CHECK(hitGain(*pool, 36, 100.0f / 127.0f) == Catch::Approx(refGain(100)).epsilon(1e-6));
+        CHECK(table.inlineMeasureCount() == inline0 + 1u);
+        CHECK(hitGain(*pool, 36, 64.0f / 127.0f) == Catch::Approx(refGain(64)).epsilon(1e-6));
+        CHECK(table.inlineMeasureCount() == inline0 + 2u);
+
+        pool->processBlock(l.data(), r.data(), kBlock);
+        CHECK(table.drainOnce());
+        pool->processBlock(l.data(), r.data(), kBlock);
+        CHECK(hitGain(*pool, 36, 37.0f / 127.0f) == Catch::Approx(refGain(37)).epsilon(1e-6));
+        CHECK(hitGain(*pool, 36, 1.0f) == Catch::Approx(refGain(127)).epsilon(1e-6));
+        CHECK(table.inlineMeasureCount() == inline0 + 2u);
+    }
 }

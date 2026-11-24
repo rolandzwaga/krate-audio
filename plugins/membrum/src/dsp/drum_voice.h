@@ -231,6 +231,26 @@ public:
         gainsSupplied_     = true;
     }
 
+    /// T1.18 (MB-260): whether an exciter's strike-norm gain depends on the
+    /// note's velocity. FMImpulse's velocity moves its spectrum (carrier
+    /// 400 x 6.25^v Hz, sidebands, modulation index), so a gain probed at
+    /// velocity 1.0 is wrong for every other velocity on a sparse body; it is
+    /// probed at the note's own (MIDI-quantised) velocity instead. Every other
+    /// exciter keeps the velocity-1.0 probe.
+    [[nodiscard]] static constexpr bool strikeNormFollowsVelocity(ExciterType t) noexcept
+    {
+        return t == ExciterType::FMImpulse;
+    }
+
+    /// T1.18: the MIDI velocity step (1..127) a velocity-following strike-norm
+    /// gain is probed and keyed at; the probe velocity is step / 127, exact
+    /// for every MIDI note.
+    [[nodiscard]] static int strikeNormVelocityStep(float velocity) noexcept
+    {
+        const float v = std::clamp(velocity, 0.0f, 1.0f);
+        return std::clamp(static_cast<int>(std::lround(v * 127.0f)), 1, 127);
+    }
+
     /// The strike-norm gains the last noteOn applied (body, shell). Shell is
     /// 1.0 when the note did not engage the secondary bank.
     [[nodiscard]] StrikeNormGains lastStrikeNormGains() const noexcept
@@ -302,12 +322,10 @@ public:
         // When disabled this is naturalFundamentalHz_; when enabled it's pitchEnvStartHz_.
         const float initialPitchHz = toneShaper_.processPitchEnvelope();
 
-        // Phase 11 (spec 145): configure the modal bank's output stage based on
-        // the exciter the next note will use. FeedbackExciter closes a
-        // body -> exciter loop and is the only documented passivity-loss path,
-        // so it keeps the +/-0.707 soft-clip safety net. Every other exciter
-        // gets the field-standard transparent path -- 1/N summation
-        // normalisation only -- so per-mode damping modulation (Material,
+        // Phase 11 (spec 145): configure the modal bank's output stage. Every
+        // exciter, FeedbackExciter included since T1.16 (MB-017), gets the
+        // field-standard transparent path -- strike normalisation, no soft
+        // clip -- so per-mode damping modulation (Material,
         // decay, body-damping b1/b3) propagates audibly. See research
         // citations: Faust physmodels.lib :> /(nModes); STK Modal (no clip);
         // Bilbao NSS Chapter 5; Aramaki & Kronland-Martinet on material-as-
@@ -345,6 +363,10 @@ public:
         // probe below, so the probe strikes with this pad's own contact (it
         // used to run with the previous note's hint: MB-003).
         exciterBank_.setMalletBodySizeHint(size_);
+        // T1.18 (MB-261): the FMImpulse carrier tracks the body's natural
+        // fundamental, so its sidebands sit at fixed multiples of the body's
+        // pitch. Set before the probe too (the gain is keyed on body + Size).
+        exciterBank_.setFMReferenceFrequencyHz(naturalFundamentalHz_);
 
         {
             // Phase 11 (spec 145): drop the modal bank's output soft-clip
@@ -364,21 +386,18 @@ public:
             // this voice's post-chain still bounds the final voice output
             // to [-1, 1] for the audio bus.
             //
-            // FeedbackExciter loops body -> exciter and IS a documented
-            // passivity-loss path (Karjalainen et al.), so it keeps the
-            // legacy -3 dBFS safety clip. No gain scaling for that path
-            // either -- the loop's own gain budget is calibrated against
-            // the clipped output.
-            const bool feedbackExciter =
-                exciterBank_.getPendingType() == ExciterType::Feedback;
+            // FeedbackExciter (T1.16, MB-017) is normalised like every other
+            // exciter: the probe measures its OPEN-loop strike (see
+            // probeStrikePeakExcited), and the bank runs without a soft clip.
+            // It used to run at unity gain into a 0.707 soft clip, which the
+            // raw modal sum pinned for 1-3 s: a square at 0.707 x velocity
+            // whatever the body or Feedback Amount. The closed loop stays
+            // bounded without the clip: every pole is |R| < 1, the exciter's
+            // output is tanh-bounded, its loop is regulated against the
+            // normalised body's level and faded by an envelope Feedback
+            // Amount sets (feedback_exciter.h), so the loop dies out.
             auto& bank = bodyBank_.getSharedBank();
-            if (feedbackExciter)
-            {
-                bank.setOutputGain(1.0f);
-                bank.setOutputSoftClipThreshold(0.707f);
-                usedBodyGain_ = 1.0f;
-            }
-            else if (bodyBank_.getCurrentType() == BodyModelType::String)
+            if (bodyBank_.getCurrentType() == BodyModelType::String)
             {
                 // String runs a WaveguideString, not the shared modal bank, so
                 // the bank's output gain never reaches the audio path. Keep the
@@ -407,12 +426,14 @@ public:
                 // supplies the per-pad gain here, so this note-on does not
                 // render. A DrumVoice used on its own measures here, cached on
                 // every input that changes the strike (MB-003 / MB-021).
+                // FMImpulse is probed at this note's velocity (T1.18, MB-260).
                 const float g = gainsSupplied_
                     ? suppliedBodyGain_
                     : measuredStrikeOutputGain(bank, params_,
                                                bodyBank_.getCurrentType(),
                                                exciterBank_.getPendingType(),
-                                               seedPitch ? initialPitchHz : 0.0f);
+                                               seedPitch ? initialPitchHz : 0.0f,
+                                               velocity);
                 bank.setOutputGain(g);
                 bank.setOutputSoftClipThreshold(0.0f);
                 usedBodyGain_ = g;
@@ -1287,9 +1308,13 @@ private:
     // maximum has appeared for 10 ms, and at the latest after 100 ms. A slow
     // ring-up (Mallet / Plate and Mallet / Bell peak at 40-48 ms) keeps setting
     // new maxima, so the window grows with it instead of cutting it at 30 ms.
+    // The primary-body probe renders the whole 100 ms (minimum = maximum,
+    // T1.17): a beating Bell ring-up peaks at 31 ms and again, higher, at
+    // 62-63 ms, so any quiet-span stop shorter than the beat period cut it
+    // and the full-velocity hit peaked 2.2 dB over kBodyHeadroom.
     static constexpr float kProbeQuietSec      = 0.010f;
     static constexpr float kProbeMaxSec        = 0.100f;
-    static constexpr float kProbeMinExcitedSec = 0.060f;  // primary-body probe
+    static constexpr float kProbeMinExcitedSec = kProbeMaxSec;  // primary-body probe
 
     // Audit N-1: render a canonical strike through the (already mode-configured)
     // bank and return its raw peak. RT-safe: no allocation, the excitation is a
@@ -1360,17 +1385,23 @@ private:
     // trigger() fully re-seeds/resets their state, so the probe leaves no
     // residue on the note (bit-identity preserved). exciterType is passed only
     // to key the cache; the live bank already holds the pending type.
+    // `probeVelocity` drives the exciter and the click layer: 1.0 for every
+    // exciter whose spectrum does not follow velocity, the note's quantised
+    // velocity for FMImpulse (T1.18, MB-260), so the probe excites the bank
+    // with exactly the spectrum the note will.
     [[nodiscard]] float probeStrikePeakExcited(
-        Krate::DSP::ModalResonatorBank& bank, ExciterType exciterType) noexcept
+        Krate::DSP::ModalResonatorBank& bank, ExciterType exciterType,
+        float probeVelocity) noexcept
     {
         (void)exciterType;
         const float sr = static_cast<float>(sampleRate_);
-        // At least 60 ms: spans the NoiseBurst (up to ~15 ms) and the body's
+        // The full 100 ms: spans the NoiseBurst (up to ~15 ms) and the body's
         // resonant ring-up, including the slow beating ring-up of a large
         // Mallet / Plate (Orchestral 49 sits near its 20 ms level until 47 ms,
         // then peaks at 47.8 ms: no new maximum for over 25 ms, so a 30 ms
-        // minimum with the 10 ms quiet stop still cut it, MB-263). Then the
-        // adaptive stop (no new maximum for 10 ms, 100 ms at most).
+        // minimum with the 10 ms quiet stop still cut it, MB-263) and of a
+        // Bell (peaks at 31 ms, then higher at 62-63 ms: a 60 ms minimum
+        // still cut it, T1.17).
         const int minLen   = std::max(1, static_cast<int>(kProbeMinExcitedSec * sr));
         const int quietLen = std::max(1, static_cast<int>(kProbeQuietSec * sr));
         const int maxLen   = std::max(minLen, static_cast<int>(kProbeMaxSec * sr));
@@ -1384,17 +1415,17 @@ private:
         bank.prepareBlockSmoothing();
 
         // Reference velocity 1.0 = canonical hard strike (the level
-        // kBodyHeadroom is defined against). Applies the deferred exciter swap.
+        // kBodyHeadroom is defined against); FMImpulse uses the note's own
+        // velocity (see above). Applies the deferred exciter swap.
         // Reset first: a retrigger keeps exciter state the previous note left
         // (the Friction bow's energy and rosin-noise position), which moved the
         // probed peak by ~5 dB against a fresh voice (MB-021 test (b)).
         exciterBank_.reset();
-        exciterBank_.trigger(1.0f);
+        exciterBank_.trigger(probeVelocity);
         clickLayer_.configure(clickLayerParams_);
-        clickLayer_.trigger(1.0f);
+        clickLayer_.trigger(probeVelocity);
 
         float peak     = 0.0f;
-        float lastBody = 0.0f;
         int lastMaxIndex = 0;
         for (int i = 0; i < maxLen; ++i)
         {
@@ -1402,11 +1433,13 @@ private:
                 break;
             const float clickSample =
                 clickLayer_.processSample() * ClickLayer::kStandaloneOutputGain;
-            // Non-feedback exciters ignore the feedback arg; Feedback never
-            // reaches this path (it keeps the soft-clip branch instead).
-            const float exc = exciterBank_.process(lastBody) + clickSample * 0.5f;
-            lastBody = bank.processSampleNoSmooth(exc);
-            const float a = std::abs(lastBody);
+            // Open loop: the Feedback exciter gets 0 instead of the body's
+            // last output (T1.16). Closing the loop at the probe's unity bank
+            // gain is the saturation the normalisation removes, and the
+            // open-loop strike does not depend on Feedback Amount (it scales
+            // the zero feedback input). The other exciters ignore the arg.
+            const float exc = exciterBank_.process(0.0f) + clickSample * 0.5f;
+            const float a = std::abs(bank.processSampleNoSmooth(exc));
             if (a > peak) {
                 peak = a;
                 lastMaxIndex = i;
@@ -1438,13 +1471,19 @@ private:
     }
 
     // Snare-body Fix D: real-excitation variant for the PRIMARY body.
+    // T1.18 (MB-260): probed at `probeVelocity`, the gain is
+    // kBodyHeadroom x probeVelocity / peak, so the body peaks at
+    // kBodyHeadroom x velocity before the amp envelope: the velocity-1.0 law
+    // of a linear exciter, now also where the spectrum moves with velocity.
+    // probeVelocity is 1.0 for every exciter but FMImpulse (unchanged gain).
     [[nodiscard]] float measuredStrikeOutputGainExcited(
-        Krate::DSP::ModalResonatorBank& bank, ExciterType exciter) noexcept
+        Krate::DSP::ModalResonatorBank& bank, ExciterType exciter,
+        float probeVelocity) noexcept
     {
-        const float peak = probeStrikePeakExcited(bank, exciter);
-        if (peak <= 1.0e-4f)
+        const float peak = probeStrikePeakExcited(bank, exciter, probeVelocity);
+        if (peak <= 1.0e-4f * probeVelocity)
             return kBodyHeadroom / bank.getInputGainSum();
-        return kBodyHeadroom / peak;
+        return kBodyHeadroom * probeVelocity / peak;
     }
 
     // Cached variant for the primary body: re-measures only when the mapper
@@ -1457,8 +1496,16 @@ private:
         const VoiceCommonParams& p,
         BodyModelType body,
         ExciterType exciter,
-        float startPitchHz) noexcept
+        float startPitchHz,
+        float velocity) noexcept
     {
+        // T1.18: FMImpulse is probed (and keyed) at the note's MIDI-quantised
+        // velocity; every other exciter at 1.0 with a fixed key of 0.
+        const bool followsVelocity = strikeNormFollowsVelocity(exciter);
+        const int velocityStep = followsVelocity ? strikeNormVelocityStep(velocity) : 0;
+        const float probeVelocity = followsVelocity
+            ? static_cast<float>(velocityStep) / 127.0f
+            : 1.0f;
         const StrikeNormKey key{
             .body = body, .exciter = exciter, .material = p.material, .size = p.size, .decay = p.decay, .strikePos = p.strikePos, .modeStretch = p.modeStretch,
             .decaySkew = p.decaySkew, .airLoading = p.airLoading, .modeScatter = p.modeScatter,
@@ -1470,9 +1517,10 @@ private:
             .frictionPressure = exciterBank_.getPendingFrictionNorm(),
             .feedbackAmount = exciterBank_.getPendingFeedbackNorm(),
             .sampleRate = static_cast<float>(sampleRate_),
-            .startPitchHz = startPitchHz};
+            .startPitchHz = startPitchHz,
+            .velocityStep = velocityStep};
         if (!(key == strikeNormKey_)) {
-            strikeNormGain_ = measuredStrikeOutputGainExcited(bank, exciter);
+            strikeNormGain_ = measuredStrikeOutputGainExcited(bank, exciter, probeVelocity);
             strikeNormKey_  = key;
         }
         return strikeNormGain_;
@@ -1973,6 +2021,9 @@ private:
         // T1.11 (MB-026): the seeded pitch-envelope start the probe measures
         // the bank at (0 when the pitch envelope is off).
         float startPitchHz = 0.0f;
+        // T1.18 (MB-260): the MIDI velocity step an FMImpulse strike is probed
+        // at (1..127); 0 for every exciter probed at velocity 1.0.
+        int velocityStep = 0;
         [[nodiscard]] bool operator==(const StrikeNormKey&) const = default;
     };
     StrikeNormKey strikeNormKey_{};

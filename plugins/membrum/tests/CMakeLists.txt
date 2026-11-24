@@ -144,6 +144,9 @@ add_executable(membrum_tests
     unit/diagnose/test_snare_body_diagnose.cpp
     unit/diagnose/test_snare_audition.cpp
     unit/dsp/test_body_headroom_budget.cpp
+    unit/dsp/test_feedback_exciter_headroom.cpp
+    unit/dsp/test_friction_velocity_response.cpp
+    unit/dsp/test_fm_strike_velocity.cpp
     unit/ui/test_pad_grid_view.cpp
     unit/ui/test_pitch_envelope_display.cpp
     unit/preset/test_kit_uimode_roundtrip.cpp

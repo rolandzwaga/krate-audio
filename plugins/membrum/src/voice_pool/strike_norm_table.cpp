@@ -37,7 +37,8 @@ StrikeNormTable::~StrikeNormTable()
     stopWorker();
 }
 
-StrikeNormGains StrikeNormTable::measure(DrumVoice& probe, const PadConfig& cfg) noexcept
+StrikeNormGains StrikeNormTable::measure(DrumVoice& probe, const PadConfig& cfg,
+                                         float velocity) noexcept
 {
     // Same FTZ / DAZ state on every thread that measures (the audio thread
     // runs under process()'s guard, the setup thread and the worker do not),
@@ -46,12 +47,34 @@ StrikeNormGains StrikeNormTable::measure(DrumVoice& probe, const PadConfig& cfg)
     probe.resetForStrikeProbe();
     applyPadConfigToVoice(probe, cfg);
     probe.invalidateStrikeNormCache();
-    // Velocity 1.0: the canonical hard strike kBodyHeadroom is defined against
-    // (velocity-dependent FMImpulse normalisation belongs to T1.18).
-    probe.noteOn(1.0f);
+    // Velocity 1.0 is the canonical hard strike kBodyHeadroom is defined
+    // against; only an FMImpulse gain depends on the velocity passed (T1.18).
+    probe.noteOn(velocity);
     const StrikeNormGains g = probe.lastStrikeNormGains();
     probe.resetForKitSwitch();
     return g;
+}
+
+template <typename StillCurrent>
+bool StrikeNormTable::measureAll(DrumVoice& probe, const PadConfig& cfg,
+                                 StrikeNormGains& gains, VelocityTable& velTable,
+                                 const StillCurrent& stillCurrent) noexcept
+{
+    if (!DrumVoice::strikeNormFollowsVelocity(cfg.exciterType))
+    {
+        gains = measure(probe, cfg);
+        return true;
+    }
+    // T1.18 (MB-260): one body gain per MIDI velocity step. Step 127 is
+    // velocity 1.0, which also gives the pad's velocity-1.0 entry.
+    for (int k = 1; k < kVelocitySteps; ++k)
+    {
+        if (!stillCurrent())
+            return false;
+        gains = measure(probe, cfg, static_cast<float>(k) / 127.0f);
+        velTable[static_cast<std::size_t>(k)] = gains.body;
+    }
+    return true;
 }
 
 void StrikeNormTable::prepare(double sampleRate,
@@ -73,7 +96,9 @@ void StrikeNormTable::prepare(double sampleRate,
         {
             keyCfg_[i] = pads[i];
             ticket_[i] = nextTicket(ticket_[i]);
-            gains_[i]  = measure(*inlineProbe_, pads[i]);
+            (void)measureAll(*inlineProbe_, pads[i], gains_[i], velBody_[i],
+                             []() noexcept { return true; });
+            velValid_[i].fill(true);
             valid_[i]  = true;
             latestTicket_[i].store(ticket_[i], std::memory_order_release);
         }
@@ -114,6 +139,7 @@ void StrikeNormTable::syncPad(int p, const PadConfig& cfg) noexcept
         ticket_[i] = nextTicket(ticket_[i]);
         latestTicket_[i].store(ticket_[i], std::memory_order_release);
         valid_[i] = false;
+        velValid_[i].fill(false);
         retry_[i] = consumerAttached_.load(std::memory_order_acquire) && !pushRequest(p);
     }
     else if (retry_[i])
@@ -126,14 +152,40 @@ void StrikeNormTable::syncPad(int p, const PadConfig& cfg) noexcept
     {
         gains_[i].body  = resultBody_[i].load(std::memory_order_relaxed);
         gains_[i].shell = resultShell_[i].load(std::memory_order_relaxed);
+        if (DrumVoice::strikeNormFollowsVelocity(keyCfg_[i].exciterType))
+        {
+            for (int k = 1; k < kVelocitySteps; ++k)
+            {
+                const auto ki = static_cast<std::size_t>(k);
+                velBody_[i][ki] = resultVelBody_[i][ki].load(std::memory_order_relaxed);
+            }
+        }
+        velValid_[i].fill(true);
         valid_[i]       = true;
     }
 }
 
-StrikeNormGains StrikeNormTable::gainsForNoteOn(int pad, const PadConfig& cfg) noexcept
+StrikeNormGains StrikeNormTable::gainsForNoteOn(int pad, const PadConfig& cfg,
+                                                float velocity) noexcept
 {
     const auto i = static_cast<std::size_t>(pad);
     syncPad(pad, cfg);
+    if (DrumVoice::strikeNormFollowsVelocity(keyCfg_[i].exciterType))
+    {
+        // T1.18: an FMImpulse pad's body gain is per velocity step. Before the
+        // worker delivers the table, measure only the step this note needs.
+        const int k   = DrumVoice::strikeNormVelocityStep(velocity);
+        const auto ki = static_cast<std::size_t>(k);
+        if (!velValid_[i][ki])
+        {
+            const StrikeNormGains g = measure(*inlineProbe_, cfg, static_cast<float>(k) / 127.0f);
+            velBody_[i][ki]  = g.body;
+            gains_[i].shell  = g.shell;
+            velValid_[i][ki] = true;
+            ++inlineMeasureCount_;
+        }
+        return {.body = velBody_[i][ki], .shell = gains_[i].shell};
+    }
     if (!valid_[i])
     {
         // The worker has not delivered this config yet: measure it here, once.
@@ -162,7 +214,22 @@ bool StrikeNormTable::drainOnce() noexcept
         // A newer edit has superseded this request: skip it.
         if (latestTicket_[i].load(std::memory_order_acquire) != req.ticket)
             continue;
-        const StrikeNormGains g = measure(*workerProbe_, req.cfg);
+        // An FMImpulse table is 127 measurements: stop as soon as a newer
+        // edit supersedes it.
+        StrikeNormGains g;
+        VelocityTable velTable{};
+        if (!measureAll(*workerProbe_, req.cfg, g, velTable, [this, i, &req]() noexcept {
+                return latestTicket_[i].load(std::memory_order_acquire) == req.ticket;
+            }))
+            continue;
+        if (DrumVoice::strikeNormFollowsVelocity(req.cfg.exciterType))
+        {
+            for (int k = 1; k < kVelocitySteps; ++k)
+            {
+                const auto ki = static_cast<std::size_t>(k);
+                resultVelBody_[i][ki].store(velTable[ki], std::memory_order_relaxed);
+            }
+        }
         resultBody_[i].store(g.body, std::memory_order_relaxed);
         resultShell_[i].store(g.shell, std::memory_order_relaxed);
         resultTicket_[i].store(req.ticket, std::memory_order_release);

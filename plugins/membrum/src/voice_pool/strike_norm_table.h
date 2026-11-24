@@ -15,6 +15,12 @@
 // a fixed voice id. A gain is therefore a pure function of (PadConfig, rate):
 // it does not depend on the slot or on what played before.
 //
+// An FMImpulse pad's body gain depends on the note's velocity (T1.18, MB-260:
+// its velocity moves the excitation spectrum), so such a pad holds one body
+// gain per MIDI velocity step 1..127, all measured wherever the pad is
+// measured; every other pad holds one gain measured at velocity 1.0. Inline,
+// an FMImpulse pad measures only the velocity step the note-on needs.
+//
 // When a gain is measured (at most once per pad per config change):
 //   - prepare() (setup thread): every pad whose config or rate changed;
 //   - the worker thread (startWorker(), started by Processor::setActive(true)):
@@ -45,6 +51,10 @@ class StrikeNormTable
 public:
     static constexpr std::uint32_t kProbeVoiceId = 0u;
     static constexpr std::uint32_t kRingSize     = 64u;
+    /// Velocity-table size of a velocity-following (FMImpulse) pad: index =
+    /// DrumVoice::strikeNormVelocityStep (1..127); index 0 is unused.
+    static constexpr int kVelocitySteps = 128;
+    using VelocityTable = std::array<float, kVelocitySteps>;
 
     StrikeNormTable();
     ~StrikeNormTable();
@@ -55,10 +65,12 @@ public:
     StrikeNormTable& operator=(StrikeNormTable&&)      = delete;
 
     /// Measure one config on `probe` (prepared at the target rate): a clean
-    /// probe, the config, one velocity-1.0 note, the gains that note applied.
+    /// probe, the config, one note at `velocity`, the gains that note applied.
+    /// Only an FMImpulse config's gain depends on the velocity (T1.18).
     /// Leaves the probe silent. Allocation-free; one compiled copy serves
     /// every thread.
-    static StrikeNormGains measure(DrumVoice& probe, const PadConfig& cfg) noexcept;
+    static StrikeNormGains measure(DrumVoice& probe, const PadConfig& cfg,
+                                   float velocity = 1.0f) noexcept;
 
     /// Setup thread (processing stopped): stops the worker, prepares the probe
     /// voices and measures every pad that is new, edited, or all of them when
@@ -69,9 +81,11 @@ public:
     /// worker, adopt the worker's results.
     void syncAll(const std::array<PadConfig, kNumPads>& pads) noexcept;
 
-    /// Audio thread, at note-on: the pad's gains for `cfg`, measured inline
-    /// only when no current measurement exists yet.
-    [[nodiscard]] StrikeNormGains gainsForNoteOn(int pad, const PadConfig& cfg) noexcept;
+    /// Audio thread, at note-on: the pad's gains for `cfg` at `velocity`,
+    /// measured inline only when no current measurement exists yet (for an
+    /// FMImpulse pad: for this velocity step).
+    [[nodiscard]] StrikeNormGains gainsForNoteOn(int pad, const PadConfig& cfg,
+                                                 float velocity = 1.0f) noexcept;
 
     /// Consumer (worker thread, or a test with setManualConsumer(true)):
     /// measure every queued request that is still current. Returns whether a
@@ -105,6 +119,12 @@ private:
 
     void syncPad(int p, const PadConfig& cfg) noexcept;
     [[nodiscard]] bool pushRequest(int p) noexcept;
+    // Every gain of one config: `gains` at velocity 1.0 and, for an FMImpulse
+    // config, `velTable` at every velocity step. Stops early and returns
+    // false once `stillCurrent()` reports the request superseded.
+    template <typename StillCurrent>
+    static bool measureAll(DrumVoice& probe, const PadConfig& cfg, StrikeNormGains& gains,
+                           VelocityTable& velTable, const StillCurrent& stillCurrent) noexcept;
 
     // Allocated in the constructor (host thread).
     std::unique_ptr<DrumVoice>                    inlineProbe_;
@@ -119,6 +139,10 @@ private:
     std::array<StrikeNormGains, kNumPads> gains_{};
     std::array<bool, kNumPads>            valid_{};
     std::array<bool, kNumPads>            retry_{};
+    // FMImpulse pads (T1.18): body gain per velocity step, and which steps
+    // hold a current measurement (all of them once valid_ is set).
+    std::array<VelocityTable, kNumPads>                     velBody_{};
+    std::array<std::array<bool, kVelocitySteps>, kNumPads>  velValid_{};
     double                                keyRate_            = 0.0;
     std::uint32_t                         inlineMeasureCount_ = 0;
 
@@ -128,6 +152,7 @@ private:
     std::array<std::atomic<std::uint32_t>, kNumPads> resultTicket_{};
     std::array<std::atomic<float>, kNumPads>         resultBody_{};
     std::array<std::atomic<float>, kNumPads>         resultShell_{};
+    std::array<std::array<std::atomic<float>, kVelocitySteps>, kNumPads> resultVelBody_{};
     std::atomic<std::uint32_t>                       workerMeasureCount_{0};
 
     // Worker lifecycle (setup / host thread).

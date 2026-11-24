@@ -1657,6 +1657,18 @@ Kit experimentalKit() {
     pads[31].bodyDampingB1 = 0.30; pads[31].bodyDampingB3 = 0.0;
     pads[31].outputBus = 1; pads[31].pan = 0.70;
 
+    // T1.16 (MB-017): the Feedback exciter now runs strike-normalised below the
+    // clip rail and Feedback Amount sets its sustain. Amount and level retuned
+    // toward each pad's old decay and rms500 (kit-quality probe, velocity 100);
+    // the levels stop where the pad would reach the bus limiter (pad 18 and 21).
+    pads[2].feedbackAmount  = 0.80; pads[2].level  = 1.00;
+    pads[15].feedbackAmount = 0.45; pads[15].level = 1.00;
+    pads[18].feedbackAmount = 0.45; pads[18].level = 0.90;
+    pads[21].feedbackAmount = 0.45; pads[21].level = 0.60;
+    pads[24].feedbackAmount = 0.45; pads[24].level = 1.00;
+    pads[25].feedbackAmount = 0.55; pads[25].level = 1.00;
+    pads[27].feedbackAmount = 0.55; pads[27].level = 1.00;
+
     k.opts.maxPolyphony   = 16;
     k.opts.globalCoupling = 0.30;
     // crafted left empty: all 32 pads stay live (FX-kit design).
@@ -3729,6 +3741,15 @@ Kit modularWestCoastKit() {
     pads[19].clickLayerMix = 0.0;
     pads[19].bodyDampingB1 = 0.25; pads[19].bodyDampingB3 = 0.20;
     pads[19].outputBus = 1; pads[19].pan = 0.28;
+
+    // T1.16 (MB-017): the Feedback exciter now runs strike-normalised below the
+    // clip rail and Feedback Amount sets its sustain. Amount and level retuned
+    // toward each pad's old decay and rms500 (kit-quality probe, velocity 100).
+    pads[0].feedbackAmount  = 1.00; pads[0].level  = 1.00;
+    pads[7].feedbackAmount  = 1.00; pads[7].level  = 1.00;
+    pads[11].feedbackAmount = 1.00; pads[11].level = 1.00;
+    pads[14].feedbackAmount = 1.00; pads[14].level = 1.00;
+    pads[18].feedbackAmount = 0.55; pads[18].level = 1.00;
 
     k.opts.maxPolyphony    = 12;
     k.opts.stealingPolicy  = 1;
@@ -6217,6 +6238,16 @@ Kit droneSustainKit() {
         }
     }
 
+    // T1.16 (MB-017): the Feedback exciter now runs strike-normalised below the
+    // clip rail and Feedback Amount sets its sustain. Amount and level retuned
+    // toward each pad's old decay and rms500 (kit-quality probe, velocity 100).
+    pads[8].feedbackAmount  = 1.00; pads[8].level  = 1.00;
+    pads[9].feedbackAmount  = 0.70; pads[9].level  = 1.00;
+    pads[10].feedbackAmount = 1.00; pads[10].level = 1.00;
+    pads[11].feedbackAmount = 0.90; pads[11].level = 1.00;
+    pads[12].feedbackAmount = 1.00; pads[12].level = 1.00;
+    pads[13].feedbackAmount = 1.00; pads[13].level = 1.00;
+
     k.opts.maxPolyphony    = 8;
     k.opts.stealingPolicy  = 1;
     k.opts.globalCoupling  = 0.85;
@@ -6477,6 +6508,14 @@ Kit chaosEngineKit() {
     pads[17].bodyDampingB1 = 0.30; pads[17].bodyDampingB3 = 0.0;
     pads[17].outputBus = 2; pads[17].macroComplexity = 0.85;
     pads[17].couplingAmount = 0.78; pads[17].pan = 0.50;
+
+    // T1.16 (MB-017): the Feedback exciter now runs strike-normalised below the
+    // clip rail and Feedback Amount sets its sustain. Amount and level retuned
+    // toward each pad's old decay and rms500 (kit-quality probe, velocity 100).
+    pads[1].feedbackAmount  = 0.70; pads[1].level  = 1.00;
+    pads[3].feedbackAmount  = 1.00; pads[3].level  = 1.00;
+    pads[12].feedbackAmount = 0.55; pads[12].level = 1.00;
+    pads[13].feedbackAmount = 0.55; pads[13].level = 1.00;
 
     k.opts.maxPolyphony    = 12;
     k.opts.stealingPolicy  = 2;
