@@ -18,7 +18,8 @@ namespace Krate::Plugins::Parameters {
 using Krate::DSP::kNoteValueDropdownCount;
 using Krate::DSP::kNoteValueDefaultIndex;
 
-inline const Steinberg::Vst::TChar* const kNoteValueDropdownStrings[] = {
+// constexpr, not just const: Profundum's pack static_asserts read these labels at compile time (hasListLabels).
+inline constexpr const Steinberg::Vst::TChar* const kNoteValueDropdownStrings[] = {
     STR16("1/64T"),   // 0
     STR16("1/64"),    // 1
     STR16("1/64D"),   // 2

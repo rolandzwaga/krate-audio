@@ -77,12 +77,12 @@ namespace morph_pack_detail {
         const FieldInfo& f = lawOf(r.leaf);
         if (r.leaf2 != kNoLeaf) {
             const int product = (static_cast<int>(f.maxEnum) + 1) * (static_cast<int>(lawOf(r.leaf2).maxEnum) + 1);
-            return !(r.labelCount != product || product != Krate::DSP::kNoteValueDropdownCount || r.labels == nullptr);
+            return !(r.labelCount != product || product != Krate::DSP::kNoteValueDropdownCount || !hasListLabels(r));
         }
         if (f.kind == MorphState::Kind::F32) {
             return !(r.labels != nullptr || r.labelCount != 0 || r.display == DisplayUnit::List);
         }
-        if (r.labels == nullptr || r.labelCount != static_cast<int>(f.maxEnum) + 1) {
+        if (!hasListLabels(r) || r.labelCount != static_cast<int>(f.maxEnum) + 1) {
             return false;
         }
         if (f.kind == MorphState::Kind::Bool && r.labelCount != 2) {

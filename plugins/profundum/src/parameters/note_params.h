@@ -112,7 +112,7 @@ inline constexpr std::uint8_t kLastLeaf = 24;
         if (f.kind == MorphState::Kind::F32) {
             return r.labels == nullptr && r.labelCount == 0 && r.leaf2 == kNoLeaf;
         }
-        if (r.labels == nullptr) {
+        if (!hasListLabels(r)) {
             return false;
         }
         if (r.leaf2 != kNoLeaf) {

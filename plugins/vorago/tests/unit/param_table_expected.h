@@ -280,13 +280,20 @@ inline constexpr std::array<Phase11Row, 14> kPhase11Rows = {{
     {.id = 111, .title = "Mass", .units = "%", .stepCount = 0, .flags = kAuto, .defaultNormalized = 0.0},
 }};
 
+// Searches with a found flag, never a null check on findRow(): GCC -fsanitize=undefined (-fsanitize=null
+// implies -fno-delete-null-pointer-checks) cannot fold `&kExpectedParams[i] == nullptr`, so the static_assert
+// below stopped being a constant expression in the sanitizer nightly (2026-11-24).
 [[nodiscard]] constexpr bool phase11RowsUnchanged() noexcept {
     for (const auto& p : kPhase11Rows) {
-        const ExpectedParamRow* r = findRow(p.id);
-        if (r == nullptr) { return false; }
-        if (!strEq(r->title, p.title) || !strEq(r->units, p.units)) { return false; }
-        if (r->stepCount != p.stepCount || r->flags != p.flags) { return false; }
-        if (r->defaultNormalized != p.defaultNormalized) { return false; }
+        bool found = false;
+        for (const auto& r : kExpectedParams) {
+            if (r.id != p.id) { continue; }
+            found = true;
+            if (!strEq(r.title, p.title) || !strEq(r.units, p.units)) { return false; }
+            if (r.stepCount != p.stepCount || r.flags != p.flags) { return false; }
+            if (r.defaultNormalized != p.defaultNormalized) { return false; }
+        }
+        if (!found) { return false; }
     }
     return true;
 }

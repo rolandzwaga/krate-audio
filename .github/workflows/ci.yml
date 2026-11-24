@@ -1310,7 +1310,9 @@ jobs:
           if [ -n "$TARGETS" ]; then
             echo "Building targets:$TARGETS"
             set -o pipefail
-            cmake --build build --parallel --target $TARGETS 2>&1 | tee build-output.log
+            # Sanitizer lane: keep going past a failed TU (ninja -k 0), so one nightly reports every compile
+            # error. It stopped at the first once and hid three more behind it (2026-11-24).
+            cmake --build build --parallel --target $TARGETS ${{ inputs.sanitize && '-- -k 0' || '' }} 2>&1 | tee build-output.log
           else
             echo "No targets to build"
           fi

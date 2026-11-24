@@ -77,7 +77,7 @@ static_assert(
                     return false;
                 }
             } else {
-                if (r.labels == nullptr || r.display != DisplayUnit::List ||
+                if (!hasListLabels(r) || r.display != DisplayUnit::List ||
                     static_cast<int>(r.labelCount) != static_cast<int>(f.maxEnum) + 1) {
                     return false;
                 }
