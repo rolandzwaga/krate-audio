@@ -67,6 +67,20 @@ struct SoundParamRow {
     return Krate::DSP::BassMorphEngine::kLawTable[leaf];  // bass_morph_engine.h:74
 }
 
+/// A list row carries its labels: the pack static_asserts' check, in a form GCC folds under -fsanitize=undefined.
+/// There -fsanitize=null implies -fno-delete-null-pointer-checks, so `labels == nullptr` on a real array is not a
+/// constant expression and every pack static_assert stopped compiling (sanitizer nightly, 2026-11-24). Reading the
+/// last label instead makes a null or too-short array a non-constant expression: the static_assert fails to
+/// compile. Compile-time checks only; at run time a null array would be dereferenced.
+[[nodiscard]] constexpr bool hasListLabels(const SoundParamRow& r) noexcept {
+    if (r.labelCount == 0) {
+        return false;
+    }
+    const Steinberg::Vst::TChar* const last = r.labels[r.labelCount - 1];
+    static_cast<void>(last);
+    return true;
+}
+
 // ------------------------------------------------------------------------------
 // Leaf words
 // ------------------------------------------------------------------------------

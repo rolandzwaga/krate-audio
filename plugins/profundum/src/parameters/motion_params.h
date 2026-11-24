@@ -113,13 +113,13 @@ template <std::size_t N>
         if (r.leaf2 != kNoLeaf) {
             const FieldInfo& f2 = lawOf(r.leaf2);
             const int pairCount = (static_cast<int>(f.maxEnum) + 1) * (static_cast<int>(f2.maxEnum) + 1);
-            if (r.labels == nullptr || r.display != DisplayUnit::List || f.kind != MorphState::Kind::Enum8 ||
+            if (!hasListLabels(r) || r.display != DisplayUnit::List || f.kind != MorphState::Kind::Enum8 ||
                 f2.kind != MorphState::Kind::Enum8 || static_cast<int>(r.labelCount) != pairCount ||
                 pairCount != Krate::DSP::kNoteValueDropdownCount) {
                 return false;
             }
         } else if (f.kind != MorphState::Kind::F32) {
-            if (r.labels == nullptr || r.display != DisplayUnit::List ||
+            if (!hasListLabels(r) || r.display != DisplayUnit::List ||
                 static_cast<int>(r.labelCount) != static_cast<int>(f.maxEnum) + 1) {
                 return false;
             }
