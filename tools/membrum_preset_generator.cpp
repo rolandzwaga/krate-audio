@@ -33,12 +33,14 @@
 #include <string>
 #include <vector>
 
+#include "dsp/macro_offsets.h"
+
 // ==============================================================================
 // Constants matching plugins/membrum/src/state/state_codec.h
 // ==============================================================================
 
 constexpr int kNumPads           = 32;
-constexpr int kVersion           = 5;  // wire-coupling: 59-slot sound array (added wireCoupling)
+constexpr int kVersion           = 6;  // T1.22: 59-slot sound array; sound fields are base values the macros offset
 constexpr int kSoundSlotsPerPad  = 59;
 
 // kProcessorUID(0x4D656D62, 0x72756D50, 0x726F6331, 0x00000136)
@@ -215,6 +217,146 @@ void disableUncraftedPads(std::vector<Pad>& pads, const std::vector<int>& crafte
 
 std::vector<Pad> defaultPads() {
     return std::vector<Pad>(kNumPads);
+}
+
+// Fix plan T1.22 (MB-084): a pad's macros are offsets on its stored base
+// fields (plugins/membrum/src/dsp/macro_offsets.h). A kit below is written as
+// the fields each pad plays plus its macro positions; replace the fields with
+// the base values that play them at those positions (storeBaseFields below).
+
+// The macro targets and macros of `p`, as the pad plays them today.
+Membrum::PadConfig playedConfig(const Pad& p) {
+    Membrum::PadConfig played;
+    played.material           = static_cast<float>(p.material);
+    played.size               = static_cast<float>(p.size);
+    played.decay              = static_cast<float>(p.decay);
+    played.tsFilterCutoff     = static_cast<float>(p.tsFilterCutoff);
+    played.tsPitchEnvStart    = static_cast<float>(p.tsPitchEnvStart);
+    played.tsPitchEnvTime     = static_cast<float>(p.tsPitchEnvTime);
+    played.modeStretch        = static_cast<float>(p.modeStretch);
+    played.decaySkew          = static_cast<float>(p.decaySkew);
+    played.modeInjectAmount   = static_cast<float>(p.modeInjectAmount);
+    played.nonlinearCoupling  = static_cast<float>(p.nonlinearCoupling);
+    played.noiseBurstDuration = static_cast<float>(p.noiseBurstDuration);
+    played.couplingAmount     = static_cast<float>(p.couplingAmount);
+    played.macroTightness     = static_cast<float>(p.macroTightness);
+    played.macroBrightness    = static_cast<float>(p.macroBrightness);
+    played.macroBodySize      = static_cast<float>(p.macroBodySize);
+    played.macroPunch         = static_cast<float>(p.macroPunch);
+    played.macroComplexity    = static_cast<float>(p.macroComplexity);
+    return played;
+}
+
+// Macro resets per macro (Tightness, Brightness, Body Size, Punch, Complexity).
+struct MacroResets {
+    int tightness = 0, brightness = 0, bodySize = 0, punch = 0, complexity = 0;
+    [[nodiscard]] int total() const {
+        return tightness + brightness + bodySize + punch + complexity;
+    }
+};
+
+// Fix plan T1.22, user ruling 2026-11-24 (option A): a field the kit writes
+// that no base in [0, 1] reproduces at the pad's macro positions (for example
+// modeInjectAmount 0 under Brightness or Complexity above 0.5) has its driving
+// macro(s) set back to 0.5. Those macro positions never reached the sound
+// (MB-084), so the kit plays exactly what it played; every other macro keeps
+// its position. Repeats until every field is reproducible.
+MacroResets resetUnreproducibleMacros(Pad& p) {
+    MacroResets resets;
+    for (;;) {
+        const Membrum::PadConfig played = playedConfig(p);
+        const auto d = Membrum::MacroOffsetsDetail::fieldDeltas(
+            played, played.tsPitchEnvTime > 0.0f);
+        // Mirrors baseFromEffective: the base of `field` is field - delta.
+        const auto outside = [](float field, float delta) {
+            if (delta == 0.0f)
+                return false;
+            const float raw = field - delta;
+            return raw < 0.0f || raw > 1.0f;
+        };
+        const bool timeOutside = d.tsPitchEnvTimeMul != 1.0f &&
+                                 played.tsPitchEnvTime / d.tsPitchEnvTimeMul > 1.0f;
+
+        // Field -> the macros that drive it (dsp/macro_offsets.h fieldDeltas).
+        const bool tight = outside(played.material, d.material) ||
+                           outside(played.decay, d.decay) ||
+                           outside(played.decaySkew, d.decaySkew);
+        const bool bright = outside(played.tsFilterCutoff, d.tsFilterCutoff) ||
+                            outside(played.modeInjectAmount, d.modeInjectAmount);
+        const bool body = outside(played.size, d.size) ||
+                          outside(played.modeStretch, d.modeStretch) ||
+                          outside(played.decay, d.decay);
+        const bool punch = outside(played.tsPitchEnvStart, d.tsPitchEnvStart) ||
+                           outside(played.noiseBurstDuration, d.noiseBurstDuration) ||
+                           timeOutside;
+        const bool complexity = outside(played.couplingAmount, d.couplingAmount) ||
+                                outside(played.nonlinearCoupling, d.nonlinearCoupling) ||
+                                outside(played.modeInjectAmount, d.modeInjectAmount);
+
+        bool changed = false;
+        const auto reset = [&changed](bool hit, double& macro, int& count) {
+            if (hit && macro != 0.5) {
+                macro = 0.5;
+                ++count;
+                changed = true;
+            }
+        };
+        reset(tight, p.macroTightness, resets.tightness);
+        reset(bright, p.macroBrightness, resets.brightness);
+        reset(body, p.macroBodySize, resets.bodySize);
+        reset(punch, p.macroPunch, resets.punch);
+        reset(complexity, p.macroComplexity, resets.complexity);
+        if (!changed)
+            return resets;
+    }
+}
+
+// Replaces the fields of `p` with the base values that play them at its macro
+// positions. Returns the number of fields whose base fell outside [0, 1]
+// (those cannot be reproduced; zero after resetUnreproducibleMacros).
+int storeBaseFields(Pad& p) {
+    const Membrum::PadConfig played = playedConfig(p);
+
+    int clamped = 0;
+    const Membrum::PadConfig base = Membrum::baseFromEffective(played, &clamped);
+    if (clamped > 0) {
+        // Name each field the base cannot reproduce at this macro position.
+        const Membrum::PadConfig plays = Membrum::applyMacroOffsets(base);
+        const auto report = [](const char* name, float want, float got) {
+            if (std::abs(want - got) > 1e-6f)
+                std::cout << "    " << name << ": written " << want << ", plays " << got << "\n";
+        };
+        report("material",           played.material,           plays.material);
+        report("size",               played.size,               plays.size);
+        report("decay",              played.decay,              plays.decay);
+        report("tsFilterCutoff",     played.tsFilterCutoff,     plays.tsFilterCutoff);
+        report("tsPitchEnvStart",    played.tsPitchEnvStart,    plays.tsPitchEnvStart);
+        report("tsPitchEnvTime",     played.tsPitchEnvTime,     plays.tsPitchEnvTime);
+        report("modeStretch",        played.modeStretch,        plays.modeStretch);
+        report("decaySkew",          played.decaySkew,          plays.decaySkew);
+        report("modeInjectAmount",   played.modeInjectAmount,   plays.modeInjectAmount);
+        report("nonlinearCoupling",  played.nonlinearCoupling,  plays.nonlinearCoupling);
+        report("noiseBurstDuration", played.noiseBurstDuration, plays.noiseBurstDuration);
+        report("couplingAmount",     played.couplingAmount,     plays.couplingAmount);
+    }
+    // A field the macros do not move keeps its authored double.
+    const auto storeBase = [](double& field, float playedValue, float baseValue) {
+        if (baseValue != playedValue)
+            field = static_cast<double>(baseValue);
+    };
+    storeBase(p.material,           played.material,           base.material);
+    storeBase(p.size,               played.size,               base.size);
+    storeBase(p.decay,              played.decay,              base.decay);
+    storeBase(p.tsFilterCutoff,     played.tsFilterCutoff,     base.tsFilterCutoff);
+    storeBase(p.tsPitchEnvStart,    played.tsPitchEnvStart,    base.tsPitchEnvStart);
+    storeBase(p.tsPitchEnvTime,     played.tsPitchEnvTime,     base.tsPitchEnvTime);
+    storeBase(p.modeStretch,        played.modeStretch,        base.modeStretch);
+    storeBase(p.decaySkew,          played.decaySkew,          base.decaySkew);
+    storeBase(p.modeInjectAmount,   played.modeInjectAmount,   base.modeInjectAmount);
+    storeBase(p.nonlinearCoupling,  played.nonlinearCoupling,  base.nonlinearCoupling);
+    storeBase(p.noiseBurstDuration, played.noiseBurstDuration, base.noiseBurstDuration);
+    storeBase(p.couplingAmount,     played.couplingAmount,     base.couplingAmount);
+    return clamped;
 }
 
 // ==============================================================================
@@ -471,6 +613,9 @@ int main(int argc, char* argv[]) {
     };
 
     int generated = 0;
+    int totalClampedPads = 0;
+    int totalKept = 0;
+    MacroResets totalResets;
     for (const auto& kit : kits) {
         const auto dir = outputBase / kit.subdir;
         std::filesystem::create_directories(dir);
@@ -480,17 +625,64 @@ int main(int argc, char* argv[]) {
         if (!kit.crafted.empty())
             disableUncraftedPads(pads, kit.crafted);
 
+        // Fix plan T1.22: store base values that play these fields at the
+        // kit's macro positions, after setting back to 0.5 the macros whose
+        // position no base reproduces (option A, user ruling 2026-11-24).
+        int clampedPads = 0;
+        MacroResets kitResets;
+        int keptMacros = 0;
+        for (std::size_t i = 0; i < pads.size(); ++i) {
+            const MacroResets r = resetUnreproducibleMacros(pads[i]);
+            kitResets.tightness  += r.tightness;
+            kitResets.brightness += r.brightness;
+            kitResets.bodySize   += r.bodySize;
+            kitResets.punch      += r.punch;
+            kitResets.complexity += r.complexity;
+            for (const double m : {pads[i].macroTightness, pads[i].macroBrightness,
+                                   pads[i].macroBodySize, pads[i].macroPunch,
+                                   pads[i].macroComplexity}) {
+                if (m != 0.5)
+                    ++keptMacros;
+            }
+            if (storeBaseFields(pads[i]) > 0) {
+                ++clampedPads;
+                std::cout << "  CLAMPED: " << kit.name << " pad " << i
+                          << ": the base of each field listed above falls outside [0, 1]\n";
+            }
+        }
+
         const auto blob = writeKitBlob(pads, kit.opts);
         const auto path = dir / (kit.name + ".vstpreset");
 
         if (writeVstPreset(path, blob, kit.name, kit.subdir)) {
-            std::cout << "  Wrote " << blob.size() << " bytes to " << path.string() << "\n";
+            std::cout << "  Wrote " << blob.size() << " bytes to " << path.string()
+                      << " (" << clampedPads << " pads clamped; macros kept "
+                      << keptMacros << ", reset " << kitResets.total()
+                      << ": Tightness " << kitResets.tightness
+                      << ", Brightness " << kitResets.brightness
+                      << ", Body Size " << kitResets.bodySize
+                      << ", Punch " << kitResets.punch
+                      << ", Complexity " << kitResets.complexity << ")\n";
             ++generated;
         }
+        totalClampedPads += clampedPads;
+        totalKept += keptMacros;
+        totalResets.tightness  += kitResets.tightness;
+        totalResets.brightness += kitResets.brightness;
+        totalResets.bodySize   += kitResets.bodySize;
+        totalResets.punch      += kitResets.punch;
+        totalResets.complexity += kitResets.complexity;
     }
 
     std::cout << "\nGenerated " << generated << " of " << kits.size()
               << " factory kit presets." << std::endl;
+    std::cout << "Clamped pads: " << totalClampedPads << "; non-neutral macros kept "
+              << totalKept << ", reset " << totalResets.total()
+              << " (Tightness " << totalResets.tightness
+              << ", Brightness " << totalResets.brightness
+              << ", Body Size " << totalResets.bodySize
+              << ", Punch " << totalResets.punch
+              << ", Complexity " << totalResets.complexity << ")" << std::endl;
     return generated == static_cast<int>(kits.size()) ? 0 : 1;
 }
 

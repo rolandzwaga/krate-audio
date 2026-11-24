@@ -122,7 +122,7 @@ struct StateFixture
 TEST_CASE("kCurrentStateVersion is the pinned pre-release value",
           "[coupling_state][phase7][state]")
 {
-    STATIC_REQUIRE(Membrum::kCurrentStateVersion == 5);
+    STATIC_REQUIRE(Membrum::kCurrentStateVersion == 6);
 }
 
 // ==============================================================================

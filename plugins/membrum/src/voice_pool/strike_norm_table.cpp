@@ -6,6 +6,7 @@
 
 #include "strike_norm_table.h"
 
+#include "../dsp/macro_offsets.h"
 #include "../dsp/pad_config_apply.h"
 
 #include <krate/dsp/core/scoped_denormal_mode.h>
@@ -45,7 +46,9 @@ StrikeNormGains StrikeNormTable::measure(DrumVoice& probe, const PadConfig& cfg,
     // so a config measures one value wherever it is measured.
     const Krate::DSP::ScopedDenormalMode denormalGuard;
     probe.resetForStrikeProbe();
-    applyPadConfigToVoice(probe, cfg);
+    // T1.22: measure what the pad plays. The table keys on the stored config,
+    // macros included, so a macro move re-measures the pad.
+    applyPadConfigToVoice(probe, applyMacroOffsets(cfg));
     probe.invalidateStrikeNormCache();
     // Velocity 1.0 is the canonical hard strike kBodyHeadroom is defined
     // against; only an FMImpulse gain depends on the velocity passed (T1.18).

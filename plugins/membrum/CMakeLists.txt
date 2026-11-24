@@ -31,6 +31,8 @@ target_sources(membrum_dsp INTERFACE
     # Per-pad configuration + default kit templates
     src/dsp/pad_config.h
     src/dsp/default_kit.h
+    # Fix plan T1.22: the five macros as offsets on stored base values
+    src/dsp/macro_offsets.h
 
     # Phase 5: cross-pad coupling
     src/dsp/pad_category.h
@@ -160,7 +162,6 @@ smtg_target_setup_universal_binary(membrum_preset_io)
 add_library(membrum_core STATIC
     src/processor/processor.h
     src/processor/processor.cpp
-    src/processor/macro_mapper.cpp
     src/processor/meters_block.h
     src/controller/controller.h
     src/controller/controller.cpp

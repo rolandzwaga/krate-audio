@@ -10,6 +10,7 @@
 
 #include "voice_pool.h"
 
+#include "../dsp/macro_offsets.h"
 #include "../dsp/pad_config_apply.h"
 
 #include <algorithm>
@@ -298,7 +299,8 @@ void VoicePool::noteOn(std::uint8_t midiNote, float velocity) noexcept
             // skip resonator registration entirely. No CPU cost for silenced
             // pads.
             if (couplingEngine_ != nullptr &&
-                padConfigs_[static_cast<std::size_t>(padIndex)].couplingAmount > 0.0f)
+                applyMacroOffsets(padConfigs_[static_cast<std::size_t>(padIndex)])
+                        .couplingAmount > 0.0f)
             {
                 auto partials = mainVoice(slot).getPartialInfo();
                 couplingEngine_->noteOn(slot, partials);
@@ -742,8 +744,10 @@ void VoicePool::applyPadConfigToSlot(int slot, int padIndex) noexcept
     // removed in audit L-12), so kit presets never propagated tone-shaper /
     // pitch-envelope / unnatural-zone / morph fields -- the 808 tom row
     // sounded identical across pads until it was restored.
+    // T1.22: the voice plays the stored base fields with the pad's macro
+    // offsets applied (a stack copy; the stored config is never modified).
     applyPadConfigToVoice(mainVoice(slot),
-                          padConfigs_[static_cast<std::size_t>(padIndex)]);
+                          applyMacroOffsets(padConfigs_[static_cast<std::size_t>(padIndex)]));
 }
 
 // ------------------------------------------------------------------

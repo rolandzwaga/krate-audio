@@ -120,12 +120,12 @@ TEST_CASE("state_codec: kit blob round-trip preserves populated snapshot",
     CHECK(dst.uiMode == 0);
 }
 
-TEST_CASE("state_codec: readKitBlob rejects every version other than kBlobVersion",
+TEST_CASE("state_codec: readKitBlob rejects every version it cannot map",
           "[state_codec][version]")
 {
-    // Pre-release reset: only the single current kBlobVersion is accepted on
-    // read. Every other version (legacy or future) is rejected.
-    for (int32 badVersion : { 0, 1, 2, 3, 4, 6, 7, 8, 9, 10, 11, 12, 13, 14, 99 })
+    // kBlobVersion and the released version 5 (fix plan T1.22) are read;
+    // every other version (unreleased or future) is rejected.
+    for (int32 badVersion : { 0, 1, 2, 3, 4, 7, 8, 9, 10, 11, 12, 13, 14, 99 })
     {
         MemoryStream stream;
         stream.write(&badVersion, sizeof(badVersion), nullptr);
@@ -156,7 +156,7 @@ TEST_CASE("state_codec: kit blob header is little-endian on the wire",
     const auto* bytes = reinterpret_cast<const std::uint8_t*>(stream.getData());
     REQUIRE(stream.getSize() >= 8);
 
-    // Offset 0: int32 version == kBlobVersion (2), little-endian.
+    // Offset 0: int32 version == kBlobVersion, little-endian.
     CHECK(bytes[0] == static_cast<std::uint8_t>(Membrum::State::kBlobVersion));
     CHECK(bytes[1] == 0x00);
     CHECK(bytes[2] == 0x00);
@@ -254,11 +254,11 @@ TEST_CASE("state_codec: per-pad preset round-trip",
     }
 }
 
-TEST_CASE("state_codec: readPadPresetBlob rejects every version other than kPadBlobVersion",
+TEST_CASE("state_codec: readPadPresetBlob rejects every version it cannot map",
           "[state_codec][pad_preset][version]")
 {
-    // Pre-release reset: only the single current kPadBlobVersion is accepted.
-    for (int32 badVersion : { 0, 1, 2, 3, 4, 6, 7, 8, 99 })
+    // kPadBlobVersion and the released version 5 (fix plan T1.22) are read.
+    for (int32 badVersion : { 0, 1, 2, 3, 4, 7, 8, 99 })
     {
         MemoryStream stream;
         stream.write(&badVersion, sizeof(badVersion), nullptr);

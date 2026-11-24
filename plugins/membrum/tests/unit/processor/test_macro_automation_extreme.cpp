@@ -121,8 +121,8 @@ TEST_CASE("Extreme macro automation at block rate produces clean audio, zero all
     };
 
     // Warm-up: run a handful of full-workload blocks (note-on, param changes,
-    // recomputeCouplingMatrix) so every lazy allocation (MacroMapper defaults
-    // cache, voice pool first-steal allocations, coupling matrix scratch) is
+    // recomputeCouplingMatrix) so every lazy allocation (voice pool
+    // first-steal allocations, coupling matrix scratch) is
     // already done before allocation tracking starts.
     Event noteOn{};
     noteOn.type = Event::kNoteOnEvent;

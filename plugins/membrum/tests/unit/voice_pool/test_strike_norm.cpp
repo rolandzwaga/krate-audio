@@ -20,6 +20,7 @@
 
 #include "dsp/default_kit.h"
 #include "dsp/drum_voice.h"
+#include "dsp/macro_offsets.h"
 #include "dsp/pad_config.h"
 #include "dsp/pad_config_apply.h"
 #include "state/state_codec.h"
@@ -151,9 +152,17 @@ bool loadFactoryKit(const char* category, const char* name, State::KitSnapshot& 
     return State::readKitBlob(&ms, snap) == kResultOk;
 }
 
-// The audit limiter probe's neutralAll(): every post-bank stage neutral.
+// The audit limiter probe's neutralAll(): every post-bank stage neutral. Since
+// fix plan T1.22 a pad's macros offset its stored fields, so the pad as it
+// plays (macro offsets folded in, macros neutral) is neutralised.
 PadConfig neutralAll(PadConfig c)
 {
+    c = applyMacroOffsets(c);
+    c.macroTightness = 0.5f;
+    c.macroBrightness = 0.5f;
+    c.macroBodySize = 0.5f;
+    c.macroPunch = 0.5f;
+    c.macroComplexity = 0.5f;
     c.tsDriveAmount = 0.0f;
     c.tsFoldAmount = 0.0f;
     c.tsFilterCutoff = 1.0f;

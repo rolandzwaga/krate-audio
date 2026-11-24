@@ -130,7 +130,7 @@ TEST_CASE("Pad preset: blob format is version + exciterType + bodyModel + 56 flo
 
     int32 version = 0;
     stream->read(&version, sizeof(version), nullptr);
-    CHECK(version == 5);  // wire-coupling codec version
+    CHECK(version == Membrum::State::kPadBlobVersion);  // 6 since fix plan T1.22
 
     int32 exciterTypeI32 = -1;
     stream->read(&exciterTypeI32, sizeof(exciterTypeI32), nullptr);

@@ -15,6 +15,7 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include "dsp/default_kit.h"
+#include "dsp/macro_offsets.h"
 #include "dsp/pad_config.h"
 #include "plugin_ids.h"
 #include "preset/membrum_preset_container.h"
@@ -24,10 +25,14 @@
 #include "public.sdk/source/vst/vstpresetfile.h"
 #include "pluginterfaces/base/ibstream.h"
 
+#include <algorithm>
+#include <array>
+#include <cmath>
 #include <cstdint>
 #include <cstring>
 #include <filesystem>
 #include <fstream>
+#include <string>
 #include <vector>
 
 using namespace Steinberg;
@@ -148,6 +153,151 @@ TEST_CASE("Factory kit presets: every .vstpreset under resources/ parses as a "
 
     // All three factory kits must be present and verified.
     CHECK(count >= 3);
+}
+
+// ------------------------------------------------------------------------------
+// Fix plan T1.22 (MB-084): the factory kits store base values and keep their
+// macro positions, and every kit plays what it played before macros became
+// offsets. golden/factory_kit_fields_v5.bin holds, per kit (the order below)
+// and per pad, the 59 sound slots, couplingAmount and the five macros (float32)
+// as the version-5 kits loaded before T1.22.
+// ------------------------------------------------------------------------------
+namespace {
+
+// `nonNeutralMacros`: the kit's non-neutral macro values before T1.22 (281 in
+// all). `keptMacros`: those the kit keeps. Under the offset model the
+// generator sets back to 0.5 only a macro whose position no base in [0, 1]
+// reproduces at the pad's written fields (user ruling 2026-11-24, option A:
+// 148 values, Brightness 61, Complexity 85, Punch 2); those positions never
+// reached the sound (MB-084).
+struct FactoryKitRef
+{
+    const char* category;
+    const char* name;
+    int nonNeutralMacros;
+    int keptMacros;
+};
+
+constexpr std::array<FactoryKitRef, 20> kFactoryKits{{
+    {"Acoustic", "Acoustic Studio Kit", 0, 0}, {"Acoustic", "Jazz Brushes", 46, 32},
+    {"Acoustic", "Orchestral", 23, 8}, {"Acoustic", "Rock Big Room", 27, 18},
+    {"Acoustic", "Vintage Wood", 25, 11}, {"Electronic", "808 Electronic Kit", 3, 0},
+    {"Electronic", "909 Drum Machine", 11, 7}, {"Electronic", "LinnDrum CR-78", 10, 6},
+    {"Electronic", "Modular West Coast", 10, 2}, {"Electronic", "Trap Modern", 15, 11},
+    {"Percussive", "Cajon and Frames", 5, 2}, {"Percussive", "Hand Drums", 6, 6},
+    {"Percussive", "Latin Perc", 13, 5}, {"Percussive", "Tabla", 9, 2},
+    {"Percussive", "World Metal", 5, 0}, {"Unnatural", "Chaos Engine", 15, 4},
+    {"Unnatural", "Drone and Sustain", 14, 4}, {"Unnatural", "Experimental FX Kit", 25, 15},
+    {"Unnatural", "Ghost Bones", 16, 0}, {"Unnatural", "Glass Bell Garden", 3, 0},
+}};
+
+constexpr std::size_t kFixtureFloatsPerPad = 59 + 1 + 5;
+
+KitSnapshot loadFactoryKit(const std::filesystem::path& root, const FactoryKitRef& ref)
+{
+    const auto bytes = readFile(root / ref.category / (std::string(ref.name) + ".vstpreset"));
+    REQUIRE(!bytes.empty());
+    auto presetStream = owned(new MemoryStream(const_cast<std::uint8_t*>(bytes.data()),
+                                               static_cast<TSize>(bytes.size())));
+    presetStream->seek(0, IBStream::kIBSeekSet, nullptr);
+    PresetFile pf(presetStream);
+    REQUIRE(pf.readChunkList());
+    const auto* compEntry = pf.getEntry(kComponentState);
+    REQUIRE(compEntry != nullptr);
+    std::vector<std::uint8_t> comp(static_cast<std::size_t>(compEntry->size));
+    presetStream->seek(compEntry->offset, IBStream::kIBSeekSet, nullptr);
+    int32 got = 0;
+    REQUIRE(presetStream->read(comp.data(), static_cast<int32>(comp.size()), &got) == kResultOk);
+    MemoryStream componentStream;
+    componentStream.write(comp.data(), static_cast<int32>(comp.size()), nullptr);
+    componentStream.seek(0, IBStream::kIBSeekSet, nullptr);
+    KitSnapshot kit;
+    REQUIRE(readKitBlob(&componentStream, kit) == kResultOk);
+    return kit;
+}
+
+} // namespace
+
+TEST_CASE("Factory kit presets: stored macros reach the sound and every kit plays as before",
+          "[membrum][preset][factory][kit_preset]")
+{
+    const auto root = factoryPresetRoot();
+    REQUIRE(!root.empty());
+
+    const auto fixtureBytes = readFile(std::filesystem::path(MEMBRUM_RESOURCES_DIR) / ".." /
+                                       "tests" / "golden" / "factory_kit_fields_v5.bin");
+    REQUIRE(fixtureBytes.size() ==
+            kFactoryKits.size() * Membrum::kNumPads * kFixtureFloatsPerPad * sizeof(float));
+    std::vector<float> fixture(fixtureBytes.size() / sizeof(float));
+    std::memcpy(fixture.data(), fixtureBytes.data(), fixtureBytes.size());
+
+    int totalNonNeutral = 0;
+    int totalKept = 0;
+    for (std::size_t k = 0; k < kFactoryKits.size(); ++k)
+    {
+        const auto& ref = kFactoryKits[k];
+        CAPTURE(ref.name);
+        const KitSnapshot kit = loadFactoryKit(root, ref);
+
+        int nonNeutral = 0;
+        int kept = 0;
+        int mismatches = 0;
+        double worst = 0.0;
+        for (int p = 0; p < Membrum::kNumPads; ++p)
+        {
+            const auto* want =
+                fixture.data() + (k * Membrum::kNumPads + static_cast<std::size_t>(p)) *
+                                     kFixtureFloatsPerPad;
+            Membrum::PadConfig stored;
+            Membrum::State::applyPadSnapshot(kit.pads[static_cast<std::size_t>(p)], stored);
+
+            // Every stored macro is the fixture's macro, or set back to
+            // neutral (option A).
+            const std::array<float, 5> macros{stored.macroTightness, stored.macroBrightness,
+                                              stored.macroBodySize, stored.macroPunch,
+                                              stored.macroComplexity};
+            for (std::size_t m = 0; m < macros.size(); ++m)
+            {
+                if (macros[m] != want[60 + m] && macros[m] != 0.5f)
+                {
+                    ++mismatches;
+                    UNSCOPED_INFO("pad " << p << " macro " << m << " stored " << macros[m]
+                                  << ", was " << want[60 + m]);
+                }
+                if (want[60 + m] != 0.5f)
+                    ++nonNeutral;
+                if (macros[m] != 0.5f && macros[m] == want[60 + m])
+                    ++kept;
+            }
+
+            // The macros applied to the stored base play the fixture's fields.
+            const auto played =
+                Membrum::State::toPadSnapshot(Membrum::applyMacroOffsets(stored));
+            for (std::size_t i = 0; i < played.sound.size(); ++i)
+            {
+                const double d = std::abs(played.sound[i] - static_cast<double>(want[i]));
+                worst = std::max(worst, d);
+                if (d > 1e-6)
+                {
+                    ++mismatches;
+                    UNSCOPED_INFO("pad " << p << " sound[" << i << "] plays " << played.sound[i]
+                                  << ", was " << want[i]);
+                }
+            }
+            const double dc = std::abs(played.couplingAmount - static_cast<double>(want[59]));
+            worst = std::max(worst, dc);
+            if (dc > 1e-6)
+                ++mismatches;
+        }
+        INFO("worst field difference " << worst);
+        CHECK(mismatches == 0);
+        CHECK(nonNeutral == ref.nonNeutralMacros);
+        CHECK(kept == ref.keptMacros);
+        totalNonNeutral += nonNeutral;
+        totalKept += kept;
+    }
+    CHECK(totalNonNeutral == 281);
+    CHECK(totalKept == 133);
 }
 
 // ------------------------------------------------------------------------------

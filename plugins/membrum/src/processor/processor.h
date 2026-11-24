@@ -18,7 +18,6 @@
 #include "dsp/pad_category.h"
 #include "dsp/coupling_matrix.h"
 #include "dsp/pad_glow_publisher.h"
-#include "processor/macro_mapper.h"
 #include "voice_pool/voice_pool.h"
 
 #include <krate/dsp/systems/sympathetic_resonance.h>
@@ -94,8 +93,7 @@ public:
         return couplingMatrixRecomputeCount_;
     }
 
-    // Test-only accessors (Phase 6: macros, publishers)
-    MacroMapper& macroMapperForTest() noexcept { return macroMapper_; }
+    // Test-only accessors (Phase 6: publishers)
     PadGlowPublisher& padGlowPublisherForTest() noexcept { return padGlowPublisher_; }
     bool editorOpenForTest() const noexcept { return editorOpen_.load(); }
     void setEditorOpenForTest(bool open) noexcept { editorOpen_.store(open); }
@@ -109,8 +107,7 @@ private:
 
     /// Applies a parsed kit: the one apply that setState and a kit-preset
     /// browser load ("LoadPresetState", R-202) share. Flushes the voices and
-    /// the coupling engine, installs every pad and global, resyncs the macro
-    /// cache. Runs only through consumePendingLoad (MB-001): on the audio
+    /// the coupling engine, installs every pad and global. Runs only through consumePendingLoad (MB-001): on the audio
     /// thread, or while processing is stopped.
     void applyKitSnapshot(const State::KitSnapshot& kit);
 
@@ -120,9 +117,13 @@ private:
     /// on a kit apply, so the stored amount is always the live one.
     void resetCouplingState() noexcept;
 
+    /// The category of what `pad` plays: classifyPad of its config with the
+    /// macro offsets applied (T1.22).
+    [[nodiscard]] PadCategory effectivePadCategory(int pad) const noexcept;
+
     /// Applies a parsed pad preset to one pad through
     /// State::applyPadPresetSnapshot (the one pad-preset apply, R-203), then
-    /// refreshes the pad's category, the coupling matrix and its macro cache.
+    /// refreshes the pad's category and the coupling matrix.
     void applyPadPresetSnapshot(int pad, const State::PadPresetSnapshot& preset);
 
     // ---- Preset-load hand-off (MB-001) ----------------------------------
@@ -264,8 +265,7 @@ private:
     // Energy limiter state
     float energyEnvelope_ = 0.0f;
 
-    // ---- Phase 6: Macros, publishers, meters DataExchange, editor state ----
-    MacroMapper              macroMapper_;
+    // ---- Phase 6: publishers, meters DataExchange, editor state ----
     PadGlowPublisher         padGlowPublisher_;
     std::unique_ptr<Steinberg::Vst::DataExchangeHandler> dataExchangeHandler_;
     std::atomic<bool>        editorOpen_{false};
@@ -275,11 +275,6 @@ private:
     /// the audio thread and read back into MetersBlock. `steady_clock::now()`
     /// is allocation-free on all supported platforms.
     float cpuPermilleEwma_ = 0.0f;
-
-    /// Phase 6: build the RegisteredDefaultsTable consumed by MacroMapper.
-    /// Mirrors the Controller's registered-default values for Phase 4/5 per-pad
-    /// parameters referenced by the five macros.
-    [[nodiscard]] static RegisteredDefaultsTable buildRegisteredDefaultsTable() noexcept;
 
     /// One-pole envelope follower energy limiter (FR-014, SC-007).
     /// Caps coupling output below -20 dBFS.

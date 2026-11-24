@@ -83,9 +83,9 @@ enum PadParamOffset : std::uint8_t  // NOLINT(cppcoreguidelines-use-enum-class)
     kPadActiveParamCountV5   = 37,  // offsets 0-36 are active in Phase 5
 
     // Phase 6: five per-pad macro controls (Tightness, Brightness, Body Size,
-    // Punch, Complexity). Each macro is a normalised [0, 1] proxy that the
-    // Processor-side MacroMapper translates into deltas on underlying voice
-    // parameters at control-rate. See spec 141 FR-070 / FR-072.
+    // Punch, Complexity). Each macro is a normalised [0, 1] offset on the
+    // pad's stored base fields, applied where the engine reads the pad
+    // (dsp/macro_offsets.h, fix plan T1.22). See spec 141 FR-070 / FR-072.
     kPadMacroTightness       = 37,
     kPadMacroBrightness      = 38,
     kPadMacroBodySize        = 39,
@@ -239,8 +239,8 @@ struct PadConfig
     // Phase 5: per-pad coupling participation [0.0, 1.0]
     float couplingAmount     = 0.5f;
 
-    // Phase 6: per-pad macros (normalised [0.0, 1.0]). 0.5 is neutral
-    // (zero delta against registered defaults).
+    // Phase 6: per-pad macros (normalised [0.0, 1.0]). 0.5 is neutral (no
+    // offset); the fields above are base values (dsp/macro_offsets.h).
     float macroTightness     = 0.5f;
     float macroBrightness    = 0.5f;
     float macroBodySize      = 0.5f;

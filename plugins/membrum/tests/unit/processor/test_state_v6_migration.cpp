@@ -1,23 +1,21 @@
 // ==============================================================================
 // State Round-Trip Tests -- Membrum Phase 6 UI (spec 141)
 //
-// Covers FR-082 (MacroMapper::reapplyAll after load), FR-084 (bit-exact
-// round-trip of state blobs including macros), and session-scoped param
-// exclusion (kUiModeId never in IBStream).
+// Covers FR-082 (macros after a load: offsets on the loaded base values, fix
+// plan T1.22), FR-084 (bit-exact round-trip of state blobs including macros),
+// and session-scoped param exclusion (kUiModeId never in IBStream).
 //
-// All legacy version migration logic was dropped in the pre-release codec
-// reset -- only kCurrentStateVersion (= 1) is accepted on read. Test cases
-// retain the historical "v6" naming in the file name for git history; the
-// assertions all target the current format.
+// kCurrentStateVersion (6) and the released version 5 are read; the
+// version-5 migration is pinned in test_macro_offsets.cpp.
 // ==============================================================================
 
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
 
 #include "controller/controller.h"
+#include "dsp/macro_offsets.h"
 #include "dsp/pad_config.h"
 #include "plugin_ids.h"
-#include "processor/macro_mapper.h"
 #include "processor/processor.h"
 #include "voice_pool/voice_pool.h"
 
@@ -107,13 +105,13 @@ std::vector<std::uint8_t> readAllBytes(MemoryStream& stream)
 } // namespace
 
 // ==============================================================================
-// kCurrentStateVersion sanity check (pinned at 3 by the M-9 per-pad pan update).
+// kCurrentStateVersion sanity check (6 since fix plan T1.22).
 // ==============================================================================
 
-TEST_CASE("State (FR-080): kCurrentStateVersion is 5",
+TEST_CASE("State (FR-080): kCurrentStateVersion is 6",
           "[phase6_state][state_v6][state]")
 {
-    STATIC_REQUIRE(Membrum::kCurrentStateVersion == 5);
+    STATIC_REQUIRE(Membrum::kCurrentStateVersion == 6);
 }
 
 // ==============================================================================
@@ -215,15 +213,15 @@ TEST_CASE("State (FR-084): blob wraps macros + sound slots + master gain, no ove
 }
 
 // ==============================================================================
-// Version rejection: only kCurrentStateVersion is accepted; everything else
-// (legacy or future) returns kResultFalse.
+// Version rejection: kCurrentStateVersion and the released version 5 are
+// accepted; every other version (unreleased or future) returns kResultFalse.
 // ==============================================================================
 
-TEST_CASE("State: setState rejects every version other than kCurrentStateVersion",
+TEST_CASE("State: setState rejects every version it cannot map",
           "[phase6_state][state_v6][state]")
 {
     V6Fixture fx;
-    for (int32 v : {0, 1, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 99, -1})
+    for (int32 v : {0, 1, 2, 3, 4, 7, 8, 9, 10, 11, 12, 13, 14, 15, 99, -1})
     {
         std::vector<std::uint8_t> buf;
         appendBytes(buf, &v, sizeof(v));
@@ -256,35 +254,20 @@ TEST_CASE("State (FR-082): session-scoped params are not on the wire",
 }
 
 // ==============================================================================
-// FR-082: MacroMapper::reapplyAll() is invoked after a v6 load with
-// non-neutral macros -- verified indirectly by observing an underlying
-// target parameter (cfg.couplingAmount on pad 0) change away from its
-// loaded value toward the macro-derived value.
+// FR-082 (fix plan T1.22): after a load, a non-neutral macro offsets the
+// loaded base value. The stored couplingAmount stays the base on every
+// save-load cycle; the pad plays base + the Complexity offset.
 // ==============================================================================
 
 TEST_CASE("State: macro-driven couplingAmount survives save-load",
           "[phase6_state][state_v6][state]")
 {
-    // Phase 8G: setState no longer "fixes" inconsistent saved state by calling
-    // reapplyAll. With incremental MacroMapper, reapplyAll on load would drift
-    // bytes on every save-load cycle (each load layers another delta on top
-    // of the saved post-macro values). The contract now is: saved state is
-    // loaded verbatim. To exercise macro-derived couplingAmount, we let the
-    // MacroMapper apply Complexity properly first, then verify save+load
-    // round-trips what was rendered to cfg.
     V6Fixture fx;
 
     auto& pads = fx.processor.voicePoolForTest().padConfigsArray();
+    pads[0].couplingAmount = 0.5f;
     pads[0].macroComplexity = 1.0f;
-    Membrum::MacroMapper mapper;
-    Membrum::RegisteredDefaultsTable defaults{};
-    defaults.byOffset[Membrum::kPadCouplingAmount]    = 0.5f;
-    defaults.byOffset[Membrum::kPadNonlinearCoupling] = 0.0f;
-    defaults.byOffset[Membrum::kPadModeInjectAmount]  = 0.0f;
-    mapper.prepare(defaults);
-    mapper.apply(0, pads[0]);
-
-    const float renderedCoupling = pads[0].couplingAmount;
+    const float renderedCoupling = Membrum::applyMacroOffsets(pads[0]).couplingAmount;
     REQUIRE(renderedCoupling > 0.5f); // Complexity=1.0 should boost above base.
 
     // MB-001: the pad was written straight into the engine; republish it.
@@ -298,10 +281,11 @@ TEST_CASE("State: macro-driven couplingAmount survives save-load",
     fx2.processEmptyBlock();
 
     const auto& p0 = fx2.processor.voicePoolForTest().padConfig(0);
-    CHECK(p0.couplingAmount  == Approx(renderedCoupling).margin(1e-6f));
+    CHECK(p0.couplingAmount  == 0.5f);  // the stored base, not re-baked
     CHECK(p0.macroComplexity == Approx(1.0f).margin(1e-7f));
+    CHECK(Membrum::applyMacroOffsets(p0).couplingAmount ==
+          Approx(renderedCoupling).margin(1e-6f));
 }
 
-// (SC-006 v5-blob audio parity test removed along with the v5->v6 migration
-// code path; with a single on-wire version there is no cross-version audio
-// comparison to perform.)
+// (The version-5 migration, its sound and its macro positions, is pinned in
+// test_macro_offsets.cpp.)

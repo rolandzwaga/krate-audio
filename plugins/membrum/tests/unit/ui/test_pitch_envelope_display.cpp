@@ -7,7 +7,7 @@
 // BeginEditCallback + EndEditCallback.
 
 #include "ui/pitch_envelope_display.h"
-#include "processor/macro_mapper.h"
+#include "dsp/macro_offsets.h"
 #include "plugin_ids.h"
 
 #include "vstgui/lib/crect.h"
@@ -305,24 +305,27 @@ TEST_CASE("PitchEnvelopeDisplay appears in SelectedPadSimple template",
 
 // ------------------------------------------------------------------------------
 // T079: Punch curve constants are correct in MacroCurves namespace. This test
-// directly reads the constants from macro_mapper.h (FR / US8 Punch macro wiring
-// verification). The MacroMapper's numerical path is covered by T020 tests;
-// this test only verifies the constants themselves.
+// directly reads the constants from dsp/macro_offsets.h (FR / US8 Punch macro
+// wiring verification). The numerical path is covered by test_macro_mapper.cpp;
+// this test only verifies the constants themselves. Since fix plan T1.22
+// Punch scales the pitch-envelope time by a factor (one octave each way at
+// the extremes) instead of adding a span.
 // ------------------------------------------------------------------------------
 TEST_CASE("MacroCurves Punch pitch-envelope span constants match US8 mapping",
           "[pitch_envelope][phase6][macro_curves]")
 {
-    // Punch @ 1.0 must move tsPitchEnvStart by +kPunchPitchEnvDepthSpan * 0.5
-    // and tsPitchEnvTime  by -kPunchPitchEnvTimeSpan  * 0.5 (expressed as
-    // macro delta m = (value - 0.5) -> at value=1.0, m=0.5).
-    REQUIRE_THAT(MacroCurves::kPunchPitchEnvDepthSpan, WithinAbs(0.50f, 1e-6f));
-    REQUIRE_THAT(MacroCurves::kPunchPitchEnvTimeSpan,  WithinAbs(0.40f, 1e-6f));
+    // Punch @ 1.0 moves an enveloped pad's tsPitchEnvStart by
+    // +kPunchPitchEnvDepthSpan and halves its tsPitchEnvTime; Punch @ 0.0
+    // doubles it.
+    REQUIRE_THAT(MacroCurves::kPunchPitchEnvDepthSpan,   WithinAbs(0.50f, 1e-6f));
+    REQUIRE_THAT(MacroCurves::kPunchPitchEnvTimeOctaves, WithinAbs(1.00f, 1e-6f));
+    REQUIRE_THAT(MacroCurves::punchTimeFactor(1.0f), WithinAbs(0.5f, 1e-6f));
+    REQUIRE_THAT(MacroCurves::punchTimeFactor(0.0f), WithinAbs(2.0f, 1e-6f));
 
     // Sanity: spans are strictly positive and <= 1.0 so macro @ 1.0 keeps the
     // output in the normalised [0, 1] VST parameter range when the registered
     // default is near 0.5.
     REQUIRE(MacroCurves::kPunchPitchEnvDepthSpan > 0.0f);
     REQUIRE(MacroCurves::kPunchPitchEnvDepthSpan <= 1.0f);
-    REQUIRE(MacroCurves::kPunchPitchEnvTimeSpan  > 0.0f);
-    REQUIRE(MacroCurves::kPunchPitchEnvTimeSpan  <= 1.0f);
+    REQUIRE(MacroCurves::punchTimeFactor(0.5f) == 1.0f);
 }

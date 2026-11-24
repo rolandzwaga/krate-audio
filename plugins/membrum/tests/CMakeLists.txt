@@ -127,6 +127,8 @@ add_executable(membrum_tests
 
     # Phase 6: macros, session-scoped params, publishers, custom editor, lifecycle
     unit/processor/test_macro_mapper.cpp
+    # Fix plan T1.22: macros are offsets on stored base values
+    unit/processor/test_macro_offsets.cpp
     unit/processor/test_state_v6_migration.cpp
     unit/processor/test_pad_glow_publisher.cpp
     unit/processor/test_macro_automation_extreme.cpp

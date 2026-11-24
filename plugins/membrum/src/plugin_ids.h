@@ -29,8 +29,11 @@ static constexpr auto kSubCategories = "Instrument|Drum";
 // M-9 bumped 2 -> 3 to accompany the per-pad pan slot (56 -> 57) and the
 // per-pad param-stride widening (64 -> 128). snare-body bumped 3 -> 4 for the
 // per-pad noiseLayerGain slot (57 -> 58). wire-coupling bumped 4 -> 5 for the
-// per-pad wireCoupling slot (58 -> 59).
-constexpr Steinberg::int32 kCurrentStateVersion = 5;
+// per-pad wireCoupling slot (58 -> 59). Fix plan T1.22 bumped 5 -> 6 with the
+// same layout: a pad's sound fields are now base values that its macros
+// offset; a version-5 state (released v0.12.0 - v0.12.5) is read and mapped
+// (state/state_codec.h).
+constexpr Steinberg::int32 kCurrentStateVersion = 6;
 
 // Number of new globals introduced by Phase 6 (kUiModeId, kOutputBusId).
 constexpr int kPhase6GlobalCount = 2;
@@ -237,8 +240,8 @@ static_assert(kCouplingDelayId < kUiModeId,
               "Phase 5 and Phase 6 parameter ID ranges must not overlap");
 static_assert(kUiModeId + kPhase6GlobalCount <= kPadBaseId,
               "Phase 6 global parameters must not collide with per-pad range");
-static_assert(kCurrentStateVersion == 5,
-              "Pre-release codec is pinned at state version 5 (wire-coupling)");
+static_assert(kCurrentStateVersion == 6,
+              "Codec is pinned at state version 6 (macros as offsets, T1.22)");
 
 // Phase 7 collision guards: proxy IDs 290..297 must sit below the per-pad base.
 static_assert(kClickLayerBrightnessId < kPadBaseId,

@@ -1,45 +1,34 @@
 // ==============================================================================
-// MacroMapper preset-load regression tests
+// Macro preset-load regression tests (rewritten for fix plan T1.22)
 // ==============================================================================
 // Pin the contract that surfaced from the v0.8.0 "808 toms all sound the same
-// pitch" investigation. Every test here is a guard against a SPECIFIC failure
-// mode that was once shipped:
+// pitch" investigation, under the offset model of fix plan T1.22: a pad's
+// stored fields are base values, a macro is an offset applied where the engine
+// reads the pad (dsp/macro_offsets.h), and nothing ever writes a macro's delta
+// into a stored field. Every test here guards a failure mode that once shipped:
 //
-//   1. MacroMapper::apply must NOT clobber cfg fields with defaults+delta on
-//      first apply when macros are at neutral (0.5). That was the original
-//      bug: kit-preset load fired processParameterChanges -> apply for every
-//      macro arrival, the -1.0 sentinel forced a first-apply, and the
-//      applier wrote `cfg.size = defaults_[kPadSize] (0.5) + linDelta(0.5) =
-//      0.5`, collapsing every per-pad preset size to 0.5 (mode 0 = 158 Hz
-//      uniform across all six 808 toms).
+//   1. Neutral macros (0.5) must leave every field exactly as the preset
+//      placed it (the original bug collapsed every 808 tom size to 0.5).
 //
-//   2. MacroMapper::apply must layer (newDelta - oldDelta), so repeated
-//      applies with the same macro values are no-ops (no drift).
+//   2. Reading a pad's played config repeatedly must not drift it.
 //
-//   3. MacroMapper::apply with a NON-neutral macro must layer the delta on
-//      top of the EXISTING cfg field, not on top of `defaults_`. Pre-fix,
-//      a per-pad cfg.size = 0.85 with macroBodySize = 0.7 was clobbered to
-//      `0.5 + 0.08 = 0.58`; post-fix it must end at `0.85 + 0.08 = 0.93`.
+//   3. A NON-neutral macro offsets the pad's OWN base value, not a registered
+//      default: a base size 0.85 with Body Size 0.7 plays 0.85 + 0.08 = 0.93.
 //
-//   4. Processor::setState must NOT call reapplyAll. That call drifted bytes
-//      across save-load cycles under the new incremental contract (it would
-//      re-add the macro deltas onto already-baked cfg fields). It must
-//      instead sync the cache to the loaded macro values via
-//      MacroMapper::syncCacheFromCfg so subsequent macro-knob movements see
-//      the correct previous state.
+//   4. A new base value under a non-neutral macro plays the new base plus the
+//      same offset.
 //
-//   5. The kit-preset-load path (Controller -> performEdit -> host ->
-//      Processor::processParameterChanges) must preserve per-pad cfg fields
-//      even when the kit's macros are non-neutral. Concretely: the
-//      Controller writes macros BEFORE the per-pad fields so the per-pad
-//      fields overwrite anything the macros' first apply changed; cache
-//      ends up at the preset's macro values.
+//   5. Processor::setState loads the stored base and macros verbatim; a load
+//      never re-bakes a macro into a field, so save-load cycles cannot drift.
+//
+//   6. The kit-preset-load path (Controller -> processor) writes macros
+//      before the per-pad fields (the order no longer matters, it is kept).
 // ==============================================================================
 
 #include "controller/controller_state_codec.h"
+#include "dsp/macro_offsets.h"
 #include "dsp/pad_config.h"
 #include "plugin_ids.h"
-#include "processor/macro_mapper.h"
 #include "processor/processor.h"
 #include "state/state_codec.h"
 
@@ -57,45 +46,15 @@ using Catch::Matchers::WithinAbs;
 using namespace Membrum;
 using namespace Membrum::MacroCurves;
 
-namespace {
-
-// Mirror of the helper in test_macro_mapper.cpp -- the registered defaults
-// table the Controller would build from kPadParamSpecs.
-RegisteredDefaultsTable makeNeutralDefaults()
-{
-    RegisteredDefaultsTable t{};
-    t.byOffset[kPadMaterial]           = 0.5f;
-    t.byOffset[kPadSize]               = 0.5f;
-    t.byOffset[kPadDecay]              = 0.3f;
-    t.byOffset[kPadDecaySkew]          = 0.5f;
-    t.byOffset[kPadModeInjectAmount]   = 0.0f;
-    t.byOffset[kPadModeStretch]        = 0.333333f;
-    t.byOffset[kPadNonlinearCoupling]  = 0.0f;
-    t.byOffset[kPadCouplingAmount]     = 0.5f;
-    t.byOffset[kPadTSFilterCutoff]     = 1.0f;
-    t.byOffset[kPadTSPitchEnvStart]    = 0.0f;
-    t.byOffset[kPadTSPitchEnvEnd]      = 0.0f;
-    t.byOffset[kPadTSPitchEnvTime]     = 0.0f;
-    t.byOffset[kPadNoiseBurstDuration] = 0.5f;
-    return t;
-}
-
-} // namespace
-
 // ==============================================================================
-// (1) Neutral macros must leave a non-default cfg field UNTOUCHED on first
-// apply. This is the headline regression: every 808 tom rendered at 158 Hz
-// because the fresh PadCache (-1.0 sentinel) plus neutral macros (0.5)
-// triggered first-apply, which wrote `cfg.size = defaults[kPadSize] (=0.5)
-// + linDelta(0.5) = 0.5`, clobbering the preset's per-tom 0.85, 0.75, 0.65,
-// 0.55, 0.48, 0.40.
+// (1) Neutral macros leave a non-default field untouched. This is the
+// headline regression: every 808 tom rendered at 158 Hz because a neutral
+// macro arrival wrote `cfg.size = defaults[kPadSize] (=0.5) + linDelta(0.5)`,
+// clobbering the preset's per-tom 0.85, 0.75, 0.65, 0.55, 0.48, 0.40.
 // ==============================================================================
 TEST_CASE("Regression: neutral macros + preset-loaded cfg.size leaves cfg.size untouched",
           "[macro_mapper][regression][preset_load]")
 {
-    MacroMapper m;
-    m.prepare(makeNeutralDefaults());
-
     PadConfig cfg{};
     cfg.size = 0.85f;        // simulate the 808 low tom's preset size
     cfg.material = 0.18f;    //              "        material
@@ -110,119 +69,130 @@ TEST_CASE("Regression: neutral macros + preset-loaded cfg.size leaves cfg.size u
     REQUIRE(cfg.macroPunch      == 0.5f);
     REQUIRE(cfg.macroComplexity == 0.5f);
 
-    m.apply(0, cfg);
+    const PadConfig eff = applyMacroOffsets(cfg);
 
-    // Critical fields preserved bit-exact -- the bug was these getting
-    // overwritten with defaults_.byOffset[X] + linDelta(0.5, span).
-    REQUIRE_THAT(cfg.size,            WithinAbs(0.85f,  1e-7f));
-    REQUIRE_THAT(cfg.material,        WithinAbs(0.18f,  1e-7f));
-    REQUIRE_THAT(cfg.decay,           WithinAbs(0.65f,  1e-7f));
-    REQUIRE_THAT(cfg.tsPitchEnvStart, WithinAbs(0.521f, 1e-7f));
-    REQUIRE_THAT(cfg.tsPitchEnvTime,  WithinAbs(0.50f,  1e-7f));
+    // Critical fields preserved bit-exact.
+    REQUIRE(eff.size            == 0.85f);
+    REQUIRE(eff.material        == 0.18f);
+    REQUIRE(eff.decay           == 0.65f);
+    REQUIRE(eff.tsPitchEnvStart == 0.521f);
+    REQUIRE(eff.tsPitchEnvTime  == 0.50f);
 }
 
 // ==============================================================================
-// (2) Repeated apply with the SAME macro values is a no-op (idempotent under
-// re-apply). Pre-fix code was idempotent because `cfg.x = defaults + delta`
-// always recomputed the same value; the new incremental contract only stays
-// idempotent if (a) the cache reflects what was previously applied, and (b)
-// each apply layers (newDelta - oldDelta) instead of `defaults + delta`.
+// (2) Reading the played config repeatedly does not drift the pad: the
+// offset is a pure function of the stored base and the macro.
 // ==============================================================================
 TEST_CASE("Regression: repeat apply with unchanged macros does not drift cfg",
           "[macro_mapper][regression][drift]")
 {
-    MacroMapper m;
-    m.prepare(makeNeutralDefaults());
-
     PadConfig cfg{};
     cfg.size = 0.40f; // 808 high tom
     cfg.macroBodySize = 0.7f;
 
-    m.apply(0, cfg);
-    const float afterFirst = cfg.size;
-
+    const float afterFirst = applyMacroOffsets(cfg).size;
     for (int i = 0; i < 100; ++i)
-        m.apply(0, cfg);
-
-    REQUIRE_THAT(cfg.size, WithinAbs(afterFirst, 1e-6f));
+        REQUIRE(applyMacroOffsets(cfg).size == afterFirst);
+    REQUIRE(cfg.size == 0.40f);
 }
 
 // ==============================================================================
-// (3) Non-neutral macro layers its delta onto the existing cfg field. Pre-fix
+// (3) A non-neutral macro offsets the pad's own base value. Pre-fix
 // `applyBodySize` wrote `cfg.size = defaults_[kPadSize] + linDelta(0.7) =
-// 0.5 + (0.7-0.5)*0.40 = 0.58`, clobbering a preset size of 0.85. Post-fix it
-// must layer the delta: 0.85 + 0.08 = 0.93.
+// 0.5 + (0.7-0.5)*0.40 = 0.58`, clobbering a preset size of 0.85. It must
+// play 0.85 + 0.08 = 0.93.
 // ==============================================================================
 TEST_CASE("Regression: non-neutral macro layers delta on existing cfg, not on defaults",
           "[macro_mapper][regression][delta]")
 {
-    MacroMapper m;
-    m.prepare(makeNeutralDefaults());
-
     PadConfig cfg{};
     cfg.size = 0.85f;
     cfg.macroBodySize = 0.7f;
 
-    m.apply(0, cfg);
-
     // 0.85 + (0.7 - 0.5) * kBodySizeSizeSpan (= 0.40) = 0.85 + 0.08 = 0.93.
-    REQUIRE_THAT(cfg.size, WithinAbs(0.85f + 0.2f * kBodySizeSizeSpan, 1e-6f));
+    REQUIRE_THAT(applyMacroOffsets(cfg).size, WithinAbs(0.85f + 0.2f * kBodySizeSizeSpan, 1e-6f));
 }
 
 // ==============================================================================
-// (4) After invalidateCache, the next apply re-layers the macro delta on the
-// CURRENT cfg state. This is the new contract; the old "defaults+delta"
-// contract was overwriting cfg with a value derived solely from the macro
-// position, ignoring any user-set or preset-set value.
+// (4) A new base value under a non-neutral macro plays the new base plus the
+// same offset (the old "invalidateCache + re-apply" contract).
 // ==============================================================================
-TEST_CASE("Regression: invalidateCache + re-apply layers delta on current cfg",
+TEST_CASE("Regression: a new base under a non-neutral macro plays base + offset",
           "[macro_mapper][regression][invalidate]")
 {
-    MacroMapper m;
-    m.prepare(makeNeutralDefaults());
-
     PadConfig cfg{};
     cfg.size = 0.6f;
     cfg.macroBodySize = 0.75f;
-    m.apply(0, cfg);
-    const float beforeStomp = cfg.size;
+    const float before = applyMacroOffsets(cfg).size;
 
-    cfg.size = 0.40f; // user-stomped (e.g. preset reload)
-    m.invalidateCache();
-    m.apply(0, cfg);
-
-    // Post-fix: re-apply layers the same macro_delta on top of the stomped
-    // cfg.size. delta = (0.75 - 0.5) * kBodySizeSizeSpan.
+    cfg.size = 0.40f; // user-set (e.g. preset reload)
     const float expectedDelta = 0.25f * kBodySizeSizeSpan;
-    REQUIRE_THAT(cfg.size, WithinAbs(0.40f + expectedDelta, 1e-6f));
-    // Sanity: the delta is the SAME magnitude that produced beforeStomp from
+    REQUIRE_THAT(applyMacroOffsets(cfg).size, WithinAbs(0.40f + expectedDelta, 1e-6f));
+    // Sanity: the offset is the SAME magnitude that produced `before` from
     // 0.6 (not zero, not "defaults + delta = 0.5 + delta").
-    REQUIRE_THAT(beforeStomp, WithinAbs(0.6f + expectedDelta, 1e-6f));
+    REQUIRE_THAT(before, WithinAbs(0.6f + expectedDelta, 1e-6f));
 }
 
 // ==============================================================================
-// (5) syncCacheFromCfg makes a subsequent re-apply a no-op even when macros
-// are non-neutral. This is the mechanism Processor::setState now uses to
-// avoid drifting cfg fields across save-load cycles.
+// (5) A loaded state's stored base and macros play base + offset and are not
+// re-baked on load (the old syncCacheFromCfg contract).
 // ==============================================================================
-TEST_CASE("Regression: syncCacheFromCfg + apply with same macros is a no-op",
+namespace {
+
+void runLoadBlock(Membrum::Processor& p)
+{
+    constexpr int kBlock = 256;
+    std::array<float, kBlock> outL{};
+    std::array<float, kBlock> outR{};
+    float* outChans[2] = {outL.data(), outR.data()};
+    Steinberg::Vst::AudioBusBuffers outBus{};
+    outBus.numChannels = 2;
+    outBus.channelBuffers32 = outChans;
+    Steinberg::Vst::ProcessData d{};
+    d.processMode = Steinberg::Vst::kRealtime;
+    d.symbolicSampleSize = Steinberg::Vst::kSample32;
+    d.numSamples = kBlock;
+    d.numOutputs = 1;
+    d.outputs = &outBus;
+    p.process(d);
+}
+
+} // namespace
+
+TEST_CASE("Regression: a loaded base and macro are stored verbatim, not re-baked",
           "[macro_mapper][regression][sync_cache]")
 {
-    MacroMapper m;
-    m.prepare(makeNeutralDefaults());
+    Membrum::State::KitSnapshot kit;
+    std::array<PadConfig, kNumPads> pads{};
+    pads[0].size = 0.83f;            // stored base
+    pads[0].macroBodySize = 0.7f;    // macro position
+    for (int i = 0; i < kNumPads; ++i)
+        kit.pads[static_cast<std::size_t>(i)] =
+            Membrum::State::toPadSnapshot(pads[static_cast<std::size_t>(i)]);
+    Steinberg::MemoryStream blob;
+    REQUIRE(Membrum::State::writeKitBlob(&blob, kit) == Steinberg::kResultOk);
 
-    PadConfig cfg{};
-    cfg.size = 0.93f;            // saved post-macro effective value
-    cfg.macroBodySize = 0.7f;    // matching macro position
+    Membrum::Processor p;
+    p.initialize(nullptr);
+    Steinberg::Vst::ProcessSetup ps{};
+    ps.processMode = Steinberg::Vst::kRealtime;
+    ps.symbolicSampleSize = Steinberg::Vst::kSample32;
+    ps.maxSamplesPerBlock = 256;
+    ps.sampleRate = 48000.0;
+    p.setupProcessing(ps);
+    p.setActive(true);
+    blob.seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
+    REQUIRE(p.setState(&blob) == Steinberg::kResultOk);
+    for (int i = 0; i < 4; ++i)
+        runLoadBlock(p);
 
-    // Simulate Processor::setState: blob already carries consistent cfg +
-    // macro values, no need to re-derive cfg from the macro.
-    m.invalidateCache();
-    m.syncCacheFromCfg(0, cfg);
-    m.apply(0, cfg);
+    const auto& cfg = p.voicePoolForTest().padConfig(0);
+    REQUIRE(cfg.size == 0.83f);
+    REQUIRE(cfg.macroBodySize == 0.7f);
+    REQUIRE_THAT(applyMacroOffsets(cfg).size, WithinAbs(0.83f + 0.2f * kBodySizeSizeSpan, 1e-6f));
 
-    REQUIRE_THAT(cfg.size, WithinAbs(0.93f, 1e-7f));
-    REQUIRE_FALSE(m.isDirty(0, cfg));
+    p.setActive(false);
+    p.terminate();
 }
 
 // ==============================================================================
@@ -352,8 +322,8 @@ TEST_CASE("Regression: kit-preset-load via processParameterChanges preserves per
     // The exact sequence the host performs when the user loads the 808 kit:
     // - Per-pad fields written first via performEdit (kPadSize, etc.)
     // - Macros written last (all neutral 0.5).
-    // The MacroMapper used to clobber cfg.size on macro arrival; this test
-    // pins the fixed behaviour.
+    // A macro arrival once clobbered cfg.size; this test pins the fixed
+    // behaviour (since T1.22 a macro never writes a field).
     Membrum::Processor p;
     preparedProcessor(p);
 
@@ -394,8 +364,7 @@ TEST_CASE("Regression: kit-preset-load via processParameterChanges preserves per
           "(non-neutral macros, host-correct ordering)",
           "[processor][regression][preset_load][param_dispatch][drift]")
 {
-    // applyPadSnapshotToParams sends macros BEFORE per-pad fields so the
-    // per-pad fields overwrite anything the macros' first-apply changed.
+    // applyPadSnapshotToParams sends macros BEFORE per-pad fields.
     // This test reproduces that order and verifies cfg.size lands at the
     // saved preset value, not at `defaults + macro_delta`.
     Membrum::Processor p;

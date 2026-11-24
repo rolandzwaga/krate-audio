@@ -34,9 +34,9 @@ TEST_CASE("Phase 6 global parameter IDs are allocated correctly", "[phase6_param
         STATIC_REQUIRE(kPhase6GlobalCount == 2);
     }
 
-    SECTION("kCurrentStateVersion pinned at 5 (wire-coupling)")
+    SECTION("kCurrentStateVersion pinned at 6 (macros as offsets, T1.22)")
     {
-        STATIC_REQUIRE(kCurrentStateVersion == 5);
+        STATIC_REQUIRE(kCurrentStateVersion == 6);
     }
 }
 

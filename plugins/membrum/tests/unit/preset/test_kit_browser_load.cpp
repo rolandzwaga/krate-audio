@@ -8,6 +8,7 @@
 // resync were skipped. These cases pin a browser load to the host load.
 // ==============================================================================
 
+#include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
 
 #include "controller/controller.h"
@@ -26,6 +27,7 @@
 #include "pluginterfaces/vst/ivsteditcontroller.h"
 #include "pluginterfaces/vst/ivstevents.h"
 
+#include "render_fingerprint.h"
 #include "vst_param_changes.h"
 #include "unit/controller/recording_component_handler.h"
 
@@ -639,6 +641,88 @@ TEST_CASE("Kit preset saved from the controller reloads to the processor's own s
     p1->terminate();
     p2->setActive(false);
     p2->terminate();
+}
+
+// ==============================================================================
+// Macros are offsets on stored base values (fix plan T1.22, MB-073 b): a kit
+// saved from the controller after a macro gesture reloads to the processor's
+// own state and sound.
+// ==============================================================================
+
+namespace {
+
+// `samples` of a `note` hit at velocity 0.8 (left channel).
+std::vector<float> renderKbHit(Membrum::Processor& proc, int16 note, int samples)
+{
+    KbEventList events;
+    events.noteOn(note, 0.8f);
+    std::vector<float> out;
+    std::vector<float> block;
+    while (std::cmp_less(out.size(), samples))
+    {
+        processKbBlock(proc, nullptr, events, &block);
+        out.insert(out.end(), block.begin(), block.begin() + kKbBlockSize);
+    }
+    out.resize(static_cast<std::size_t>(samples));
+    return out;
+}
+
+} // namespace
+
+TEST_CASE("Macro offsets: a controller-side kit save reproduces the processor's sound",
+          "[macro_mapper][macro_offsets][preset]")
+{
+    KitBrowserPair pair;
+    // The pair starts in sync: the controller mirrors the processor's state.
+    loadComponentState(pair.controller, processorStateBytes(*pair.proc));
+    pair.controller.setParamNormalized(Membrum::kSelectedPadId, 0.0);
+
+    // The Tightness knob edits the selected pad (pad 0) through a gesture.
+    pair.controller.beginEdit(Membrum::kMacroTightnessId);
+    REQUIRE(pair.controller.setParamNormalized(Membrum::kMacroTightnessId, 0.8) == kResultTrue);
+    pair.controller.performEdit(Membrum::kMacroTightnessId,
+                                pair.controller.getParamNormalized(Membrum::kMacroTightnessId));
+    pair.controller.endEdit(Membrum::kMacroTightnessId);
+    REQUIRE_FALSE(pair.handler.edits.empty());
+    pair.forwardEditsAndProcess();
+    REQUIRE(pair.proc->voicePoolForTest().padConfig(0).macroTightness ==
+            Catch::Approx(0.8).margin(1e-6));
+
+    std::vector<char> saved;
+    {
+        IBStream* s = pair.controller.kitPresetStateProvider();
+        REQUIRE(s != nullptr);
+        saved = readAllBytes(*s);
+        s->release();
+    }
+    REQUIRE_FALSE(saved.empty());
+
+    auto loaded = makeKbProcessor(nullptr);
+    hostLoad(*loaded, saved);
+    KbEventList none;
+    processKbBlock(*loaded, nullptr, none);
+
+    const auto want = processorStateBytes(*pair.proc);
+    const auto got = processorStateBytes(*loaded);
+    INFO("saved-and-loaded state first differs from the processor's at byte "
+         << firstDifference(got, want));
+    CHECK(got == want);
+
+    for (const int16 note : {int16{36}, int16{38}})
+    {
+        CAPTURE(note);
+        const auto a = renderKbHit(*pair.proc, note, 48000);
+        const auto b = renderKbHit(*loaded, note, 48000);
+        const auto cmp = Krate::DSP::TestUtils::compareFingerprints(
+            Krate::DSP::TestUtils::fingerprintRender(b),
+            Krate::DSP::TestUtils::fingerprintRender(a));
+        INFO("worst metric error " << cmp.worstMetricRelativeError << ", worst checkpoint error "
+             << cmp.worstSampleError << " (" << cmp.detail << ")");
+        CHECK(cmp.withinTolerance());
+    }
+
+    loaded->setActive(false);
+    loaded->terminate();
 }
 
 TEST_CASE("A sentinel pad loaded after an explicit one saves as the sentinel",

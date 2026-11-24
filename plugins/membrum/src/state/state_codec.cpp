@@ -4,6 +4,8 @@
 
 #include "state/state_codec.h"
 
+#include "dsp/macro_offsets.h"
+
 #include "base/source/fstreamer.h"
 
 #include <algorithm>
@@ -53,6 +55,37 @@ void writeT(IBStreamer& s, const T& src) noexcept
         s.writeInt8u(src);
     else
         static_assert(sizeof(T) == 0, "writeT: unsupported codec type");
+}
+
+/// The released version whose kit fields hold what a pad played.
+constexpr int32 kBakedMacroBlobVersion = 5;
+
+/// Version 5 stored a pad's macro-target fields with the macro deltas baked in
+/// (what it played); version 6 stores base values that the macros offset. Map
+/// the version-5 fields to bases, so the pad keeps its macro positions and
+/// plays the same (fix plan T1.22, user ruling 2026-11-24). A field the
+/// macros do not move keeps its stored double.
+void baseFieldsFromBakedMacros(PadSnapshot& pad) noexcept
+{
+    PadConfig played;
+    applyPadSnapshot(pad, played);
+    const PadConfig base = baseFromEffective(played);
+    const auto storeBase = [](double& slot, float playedValue, float baseValue) noexcept {
+        if (baseValue != playedValue)
+            slot = static_cast<double>(baseValue);
+    };
+    storeBase(pad.sound[0],  played.material,           base.material);
+    storeBase(pad.sound[1],  played.size,               base.size);
+    storeBase(pad.sound[2],  played.decay,              base.decay);
+    storeBase(pad.sound[6],  played.tsFilterCutoff,     base.tsFilterCutoff);
+    storeBase(pad.sound[11], played.tsPitchEnvStart,    base.tsPitchEnvStart);
+    storeBase(pad.sound[13], played.tsPitchEnvTime,     base.tsPitchEnvTime);
+    storeBase(pad.sound[19], played.modeStretch,        base.modeStretch);
+    storeBase(pad.sound[20], played.decaySkew,          base.decaySkew);
+    storeBase(pad.sound[21], played.modeInjectAmount,   base.modeInjectAmount);
+    storeBase(pad.sound[22], played.nonlinearCoupling,  base.nonlinearCoupling);
+    storeBase(pad.sound[32], played.noiseBurstDuration, base.noiseBurstDuration);
+    storeBase(pad.couplingAmount, played.couplingAmount, base.couplingAmount);
 }
 
 } // namespace
@@ -428,7 +461,7 @@ tresult readKitBlob(IBStream* stream, KitSnapshot& kit)
     int32 version = 0;
     if (!readT(streamer, version))
         return kResultFalse;
-    if (version != kBlobVersion)
+    if (version != kBlobVersion && version != kBakedMacroBlobVersion)
         return kResultFalse;
 
     int32 maxPoly = 8;
@@ -506,6 +539,12 @@ tresult readKitBlob(IBStream* stream, KitSnapshot& kit)
         return kResultFalse;
     kit.masterGainNorm = std::clamp(mg, 0.0, 1.0);
 
+    if (version == kBakedMacroBlobVersion)
+    {
+        for (auto& pad : kit.pads)
+            baseFieldsFromBakedMacros(pad);
+    }
+
     // Optional session field: present only when the producer set hasSession.
     int32 uiMode = 0;
     if (readT(streamer, uiMode))
@@ -556,7 +595,8 @@ tresult readPadPresetBlob(IBStream* stream, PadPresetSnapshot& pad)
     int32 version = 0;
     if (!readT(streamer, version))
         return kResultFalse;
-    if (version != kPadBlobVersion)
+    // A pad preset carries no macros, so a version-5 one reads unchanged.
+    if (version != kPadBlobVersion && version != kBakedMacroBlobVersion)
         return kResultFalse;
 
     int32 excI = 0;

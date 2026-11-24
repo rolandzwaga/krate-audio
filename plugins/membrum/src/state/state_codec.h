@@ -101,12 +101,21 @@ struct PadPresetSnapshot
 };
 
 // ============================================================================
-// On-wire version constants. Single current format -- no legacy versions are
-// accepted on read. Bumping these is a breaking change.
+// On-wire version constants. Writers write the current version; a version a
+// released build wrote is read and mapped into the current meaning, any other
+// version is rejected.
+//   5: wire-coupling, 59-slot sound array (released v0.12.0 - v0.12.5). A
+//      pad's macro-target sound fields hold what the pad played: the macro
+//      deltas already baked in.
+//   6: same layout (fix plan T1.22); a pad's sound fields are BASE values and
+//      its macros are offsets on them (dsp/macro_offsets.h). readKitBlob maps
+//      a version-5 kit's fields to bases with baseFromEffective, so it keeps
+//      its macro positions and its sound. Pad presets carry no macros: a
+//      version-5 pad preset reads unchanged.
 // ============================================================================
 
-constexpr Steinberg::int32 kBlobVersion    = 5;  // wire-coupling: 59-slot sound array (added wireCoupling)
-constexpr Steinberg::int32 kPadBlobVersion = 5;  // wire-coupling: 59-slot sound array (added wireCoupling)
+constexpr Steinberg::int32 kBlobVersion    = 6;
+constexpr Steinberg::int32 kPadBlobVersion = 6;
 
 // ============================================================================
 // Blob codec -- one format for full kit/state.
@@ -129,8 +138,9 @@ constexpr Steinberg::int32 kPadBlobVersion = 5;  // wire-coupling: 59-slot sound
 //     [int32 uiMode]
 //
 // writeKitBlob: always succeeds for a valid stream.
-// readKitBlob:  accepts only kBlobVersion. Returns kResultFalse on any other
-//               version or on a short read.
+// readKitBlob:  accepts kBlobVersion and version 5 (its sound fields mapped to
+//               base values). Returns kResultFalse on any other version or on
+//               a short read.
 //               uiMode is OPTIONAL on read -- if the stream is exhausted
 //               after the master-gain field, kit.hasSession=false and uiMode
 //               stays at its default.
@@ -145,7 +155,7 @@ Steinberg::tresult readKitBlob(Steinberg::IBStream* stream,
 // ============================================================================
 // Per-pad preset codec.
 // Layout:
-//   [int32 version == kPadBlobVersion]
+//   [int32 version == kPadBlobVersion, or 5 on read]
 //   [int32 exciterType]
 //   [int32 bodyModel]
 //   [57 x float64 sound]

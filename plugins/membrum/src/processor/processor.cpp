@@ -12,6 +12,7 @@
 #include "dsp/default_kit.h"
 #include "dsp/exciter_type.h"
 #include "dsp/body_model_type.h"
+#include "dsp/macro_offsets.h"
 #include "dsp/pad_category.h"
 #include "dsp/tone_shaper.h"
 #include "voice_pool/choke_group_table.h"
@@ -58,35 +59,10 @@ Processor::Processor()
 
 Processor::~Processor() = default;
 
-// Phase 6 (T025): mirror the Controller's registered-default values for each
-// per-pad parameter the MacroMapper targets. Kept in sync with kPadParamSpecs.
-RegisteredDefaultsTable Processor::buildRegisteredDefaultsTable() noexcept
+// T1.22: a pad's category follows what it plays (its macro offsets applied).
+PadCategory Processor::effectivePadCategory(int pad) const noexcept
 {
-    RegisteredDefaultsTable t{};
-    t.byOffset[kPadMaterial]           = 0.5f;
-    t.byOffset[kPadSize]               = 0.5f;
-    t.byOffset[kPadDecay]              = 0.3f;
-    t.byOffset[kPadStrikePosition]     = 0.3f;
-    t.byOffset[kPadLevel]              = 0.8f;
-    t.byOffset[kPadTSFilterCutoff]     = 1.0f;
-    t.byOffset[kPadTSPitchEnvStart]    = 0.0f;
-    t.byOffset[kPadTSPitchEnvEnd]      = 0.0f;
-    t.byOffset[kPadTSPitchEnvTime]     = 0.0f;
-    t.byOffset[kPadModeStretch]        = 0.333333f;
-    t.byOffset[kPadDecaySkew]          = 0.5f;
-    t.byOffset[kPadModeInjectAmount]   = 0.0f;
-    t.byOffset[kPadNonlinearCoupling]  = 0.0f;
-    t.byOffset[kPadFMRatio]            = 0.133333f; // -> 1.4 bell ratio
-    t.byOffset[kPadFeedbackAmount]     = 0.0f;
-    t.byOffset[kPadNoiseBurstDuration] = 0.5f;
-    t.byOffset[kPadFrictionPressure]   = 0.0f;
-    t.byOffset[kPadCouplingAmount]     = 0.5f;
-    // Phase 10: three-point pitch envelope extension defaults.
-    t.byOffset[kPadTSPitchEnvKneeEnabled] = 0.0f;
-    t.byOffset[kPadTSPitchEnvMidPitch]    = 0.5f;
-    t.byOffset[kPadTSPitchEnvMidFraction] = 0.5f;
-    t.byOffset[kPadTSPitchEnvCurve2]      = 0.5f;
-    return t;
+    return classifyPad(applyMacroOffsets(voicePool_.padConfig(pad)));
 }
 
 tresult PLUGIN_API Processor::initialize(FUnknown* context)
@@ -117,12 +93,7 @@ tresult PLUGIN_API Processor::initialize(FUnknown* context)
 
     // Phase 5: Initialize pad categories from default kit configuration.
     for (int i = 0; i < kNumPads; ++i)
-        padCategories_[static_cast<size_t>(i)] =
-            classifyPad(voicePool_.padConfig(i));
-
-    // Phase 6 (T025): cache registered defaults for the MacroMapper. This
-    // must happen before any audio-thread apply() call.
-    macroMapper_.prepare(buildRegisteredDefaultsTable());
+        padCategories_[static_cast<size_t>(i)] = effectivePadCategory(i);
 
     return kResultOk;
 }
@@ -132,14 +103,15 @@ tresult PLUGIN_API Processor::initialize(FUnknown* context)
 // ==============================================================================
 
 // Phase 6 (US4 / FR-014, FR-023): rebuild effectiveGain using the current
-// Tier 1 knobs, pad categories, and per-pad coupling amounts.
+// Tier 1 knobs, pad categories, and per-pad coupling amounts (T1.22: the
+// effective amount, with the Complexity macro's offset applied).
 void Processor::recomputeCouplingMatrix() noexcept
 {
     ++couplingMatrixRecomputeCount_;
     std::array<float, kNumPads> amounts{};
     for (int pad = 0; pad < kNumPads; ++pad)
         amounts[static_cast<size_t>(pad)] =
-            voicePool_.padConfig(pad).couplingAmount;
+            applyMacroOffsets(voicePool_.padConfig(pad)).couplingAmount;
 
     couplingMatrix_.recomputeFromTier1(
         snareBuzz_.load(std::memory_order_relaxed),
@@ -199,7 +171,7 @@ void Processor::processParameterChanges(IParameterChanges* paramChanges)
                 voicePool_.setPadConfigSelector(padIdx, padOff, idx);
                 // Phase 5: exciter type change can affect pad category
                 padCategories_[static_cast<size_t>(padIdx)] =
-                    classifyPad(voicePool_.padConfig(padIdx));
+                    effectivePadCategory(padIdx);
                 couplingMatrixDirty = true;
             }
             else if (padOff == kPadBodyModel)
@@ -210,7 +182,7 @@ void Processor::processParameterChanges(IParameterChanges* paramChanges)
                 voicePool_.setPadConfigSelector(padIdx, padOff, idx);
                 // Phase 5: body model change can affect pad category
                 padCategories_[static_cast<size_t>(padIdx)] =
-                    classifyPad(voicePool_.padConfig(padIdx));
+                    effectivePadCategory(padIdx);
                 couplingMatrixDirty = true;
             }
             else if (padOff == kPadTSPitchEnvTime)
@@ -218,7 +190,7 @@ void Processor::processParameterChanges(IParameterChanges* paramChanges)
                 voicePool_.setPadConfigField(padIdx, padOff, fValue);
                 // Phase 5: pitch env time change can affect pad category (Kick vs Tom)
                 padCategories_[static_cast<size_t>(padIdx)] =
-                    classifyPad(voicePool_.padConfig(padIdx));
+                    effectivePadCategory(padIdx);
                 couplingMatrixDirty = true;
             }
             else if (padOff == kPadCouplingAmount)
@@ -232,20 +204,16 @@ void Processor::processParameterChanges(IParameterChanges* paramChanges)
             }
             else if (padOff >= kPadMacroTightness && padOff <= kPadMacroComplexity)
             {
-                // Phase 6 (US1 / T025, FR-022, FR-023): a macro parameter
-                // changed. Store the new macro value, then let the MacroMapper
-                // recompute the derived underlying parameters for this pad.
+                // T1.22 (MB-073, MB-173): a macro is an offset on the stored
+                // base fields, applied where the engine reads the pad
+                // (dsp/macro_offsets.h). Only the macro value is stored.
+                const bool changed =
+                    padOff == kPadMacroComplexity &&
+                    voicePool_.padConfig(padIdx).macroComplexity != fValue;
                 voicePool_.setPadConfigField(padIdx, padOff, fValue);
-                // apply() returns early on a clean pad, so couplingAmount moves
-                // only when the macros were dirty before it ran.
-                const bool macrosDirty =
-                    macroMapper_.isDirty(padIdx, voicePool_.padConfig(padIdx));
-                macroMapper_.apply(padIdx, voicePool_.padConfigMut(padIdx));
-                if (padOff == kPadMacroComplexity && macrosDirty)
-                {
-                    // Complexity drives couplingAmount; matrix must refresh.
+                // Complexity drives the effective couplingAmount.
+                if (changed)
                     couplingMatrixDirty = true;
-                }
             }
             else
             {
@@ -1031,23 +999,8 @@ void Processor::applyKitSnapshot(const State::KitSnapshot& kit)
 
     // Refresh categories and recompute the coupling matrix.
     for (int i = 0; i < kNumPads; ++i)
-        padCategories_[static_cast<size_t>(i)] =
-            classifyPad(voicePool_.padConfig(i));
+        padCategories_[static_cast<size_t>(i)] = effectivePadCategory(i);
     recomputeCouplingMatrix();
-
-    // Phase 8G: with the incremental MacroMapper (apply layers
-    // newDelta-oldDelta onto cfg, never overwrites with defaults+delta), a
-    // freshly-loaded preset is already self-consistent: cfg fields ARE the
-    // saved post-macro values, and the macro fields ARE the macro values.
-    // Calling reapplyAll here would re-add the macro deltas a second time
-    // (cache resets to 0.5 on invalidate, then applies non-neutral macros
-    // on top of the already-baked cfg values), drifting bytes on every
-    // save-load cycle. Sync the cache to the freshly-loaded macro values
-    // so subsequent macro changes see the correct previous state.
-    auto& pads = voicePool_.padConfigsArray();
-    macroMapper_.invalidateCache();
-    for (int p = 0; p < kNumPads; ++p)
-        macroMapper_.syncCacheFromCfg(p, pads[static_cast<std::size_t>(p)]);
 }
 
 void Processor::resetCouplingState() noexcept
@@ -1066,14 +1019,10 @@ void Processor::applyPadPresetSnapshot(int pad, const State::PadPresetSnapshot& 
     auto& cfg = voicePool_.padConfigMut(pad);
     State::applyPadPresetSnapshot(preset, cfg);
 
-    // Exciter, body and pitch-env time can change the pad's category.
-    padCategories_[static_cast<size_t>(pad)] = classifyPad(cfg);
+    // Exciter, body and pitch-env time can change the pad's category. The pad
+    // keeps its macros (FR-061); they now offset the preset's fields.
+    padCategories_[static_cast<size_t>(pad)] = effectivePadCategory(pad);
     recomputeCouplingMatrix();
-
-    // The pad keeps its macros (FR-061) and its fields are now the preset's
-    // saved post-macro values, as after setState: sync the cache so the next
-    // macro movement layers only its own change.
-    macroMapper_.syncCacheFromCfg(pad, cfg);
 }
 
 // ==============================================================================
