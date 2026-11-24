@@ -15,26 +15,28 @@
 // never inside `DrumVoice`.
 //
 // Two-slot crossfade technique (plan.md Architecture): to keep the old voice
-// audible during its 5 ms fade, the pool holds a shadow
-// `std::array<DrumVoice, kMaxVoices>` + shadow meta array and renders both
-// arrays each block. One fade-out is in flight per slot at a time.
+// audible during its 5 ms fade, each slot owns a second (shadow) DrumVoice +
+// shadow meta entry, and the pool renders both roles each block. One
+// fade-out is in flight per slot at a time. A steal or choke hands the
+// sounding voice to the shadow role by exchanging two indices, never by
+// moving a DrumVoice (audit MB-005).
 //
 // ------------------------------------------------------------------
 // sizeof(DrumVoice) decision (plan.md Open Question #1)
 // ------------------------------------------------------------------
-// Measured on MSVC x64 Release (Phase 3.0, test_voice_pool_scaffold.cpp):
-//   sizeof(DrumVoice) = 224 096 bytes (~218.8 KiB)
-//   32 * sizeof(DrumVoice) = ~6.84 MiB
+// Measured on MSVC x64 Release (test_voice_pool_scaffold.cpp, re-measured
+// 2026-11-24 by audit T2.5):
+//   sizeof(DrumVoice) = 276 576 bytes (~270.1 KiB)
+//   32 * sizeof(DrumVoice) = ~8.44 MiB
 //
 // Decision: per the plan's criteria (`sizeof > 32768` -> fallback), Phase 3
 // takes the **per-slot single-fade reservation** path: exactly one fade-out
-// in flight per slot at a time. `voices_[16]` + `releasingVoices_[16]` are
-// both declared here so Phase 3.2's fast-release ramp can crossfade without
-// touching `DrumVoice` (FR-194), but `VoicePool::beginFastRelease` will
-// reject re-entry on a slot that is already `FastReleasing` (FR-127) --
-// ensuring the shadow footprint stays bounded at `kMaxVoices` entries.
-// The ~6.84 MiB peak is accepted as the Phase 3 memory cost; see
-// `plan.md §Complexity Tracking` for the full rationale.
+// in flight per slot at a time. 16 main + 16 shadow voices are held here so
+// Phase 3.2's fast-release ramp can crossfade without touching `DrumVoice`
+// (FR-194), but `VoicePool::beginFastRelease` will reject re-entry on a slot
+// that is already `FastReleasing` (FR-127) -- ensuring the shadow footprint
+// stays bounded at `kMaxVoices` entries. The ~8.4 MiB heap peak is accepted
+// as the memory cost; see `plan.md §Complexity Tracking` for the rationale.
 //
 // Phase 3.0: scaffolding only -- all methods are stubs. Real bodies land in
 // Phases 3.1 (allocator integration) and 3.2 (fast-release ramp).
@@ -259,6 +261,9 @@ public:
     // ------------------------------------------------------------------
     [[nodiscard]] DrumVoice& mainVoiceRef(int slot) noexcept;
 
+    /// Read access to the voice in a slot's shadow (fast-release) role.
+    [[nodiscard]] const DrumVoice& releasingVoiceRef(int slot) const noexcept;
+
 private:
     // ------------------------------------------------------------------
     // Private helpers (Phase 3.1)
@@ -270,10 +275,9 @@ private:
     /// Returns -1 when no Active slot exists.
     [[nodiscard]] int selectQuietestActiveSlot() const noexcept;
 
-    /// Phase 3.2 hook — snapshot a main slot into the shadow slot and start
-    /// the fast-release ramp. Phase 3.1 provides a scaffolding body that
-    /// transitions `releasingMeta_[slot]` to `FastReleasing`; Phase 3.2
-    /// replaces it with the full exponential decay.
+    /// Phase 3.2 hook — hand a slot's main voice to its shadow role (an
+    /// index exchange, no DrumVoice moves: audit MB-005) and start the
+    /// fast-release ramp on it.
     ///
     /// `force` (audit M-8): the default (false) keeps the FR-127 idempotent
     /// short-circuit — a re-entrant call on a slot already FastReleasing
@@ -319,25 +323,37 @@ private:
                          float& gainL, float& gainR) const noexcept;
 
 
-    // ------------------------------------------------------------------
-    // Main voice storage (FR-110) -- always sized `kMaxVoices`; the active
-    // count is `maxPolyphony_`, controlled by `allocator_.setVoiceCount`.
-    // Heap-allocated via unique_ptr in the constructor so the 32 * 220 KiB
-    // DrumVoice footprint does not blow up the stack when VoicePool is an
-    // owning member of Processor. All pointer targets are fully constructed
-    // by the time `prepare()` runs; no audio-thread allocation occurs after
-    // construction (FR-116).
-    // ------------------------------------------------------------------
-    std::unique_ptr<std::array<DrumVoice, kMaxVoices>> voicesPtr_;
-    std::array<VoiceMeta, kMaxVoices>                  meta_{};
+    /// The voice in a slot's main (sounding) role.
+    [[nodiscard]] DrumVoice& mainVoice(int slot) noexcept;
+
+    /// The voice in a slot's shadow (fast-release) role.
+    [[nodiscard]] DrumVoice& shadowVoice(int slot) noexcept;
 
     // ------------------------------------------------------------------
-    // Shadow voice storage for the two-array fast-release crossfade. One
-    // fade-out in flight per slot at a time. See `voice_pool.h` comment at
-    // top for the fallback decision criteria.
+    // Voice storage (FR-110): 2 * kMaxVoices DrumVoices, 16 main + 16
+    // shadow. Heap-allocated via unique_ptr in the constructor so the
+    // 32 * ~270 KiB DrumVoice footprint does not blow up the stack when
+    // VoicePool is an owning member of Processor. All voices are fully
+    // constructed by the time `prepare()` runs; no audio-thread allocation
+    // occurs after construction (FR-116).
+    //
+    // A slot's two roles are reached through `mainIndex_` / `shadowIndex_`.
+    // `beginFastRelease` exchanges the two indices of a slot (audit MB-005)
+    // instead of moving two whole DrumVoice objects, so a voice never
+    // changes address. Each slot's pair stays {slot, slot + kMaxVoices}.
+    // The active count is `maxPolyphony_`, controlled by
+    // `allocator_.setVoiceCount`.
     // ------------------------------------------------------------------
-    std::unique_ptr<std::array<DrumVoice, kMaxVoices>> releasingVoicesPtr_;
-    std::array<VoiceMeta, kMaxVoices>                  releasingMeta_{};
+    static constexpr std::size_t kVoiceStorageCount =
+        2 * static_cast<std::size_t>(kMaxVoices);
+    std::unique_ptr<std::array<DrumVoice, kVoiceStorageCount>> voiceStoragePtr_;
+    std::array<std::uint8_t, kMaxVoices>                   mainIndex_{};
+    std::array<std::uint8_t, kMaxVoices>                   shadowIndex_{};
+    std::array<VoiceMeta, kMaxVoices>                      meta_{};
+
+    // Shadow metadata for the fast-release crossfade. One fade-out in
+    // flight per slot at a time.
+    std::array<VoiceMeta, kMaxVoices>                      releasingMeta_{};
 
     // ------------------------------------------------------------------
     // Allocator + choke table
@@ -384,7 +400,7 @@ private:
 //       + sizeof(Krate::DSP::VoiceAllocator)
 //       + sizeof(ChokeGroupTable)
 //       + 1 KiB slack for bookkeeping scalars and unique_ptr header fields.
-// Note that the two `unique_ptr<std::array<DrumVoice, 16>>` heap blocks are
+// Note that the `unique_ptr<std::array<DrumVoice, 32>>` heap block is
 // intentionally included in the 32-slot budget (16 main + 16 shadow = 32).
 // ------------------------------------------------------------------
 constexpr std::size_t kVoicePoolSizeLimit =

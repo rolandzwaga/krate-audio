@@ -86,10 +86,52 @@ public:
     ~FMOperator() = default;
 
     /// @brief Copy and move operations.
-    FMOperator(const FMOperator&) = default;
-    FMOperator& operator=(const FMOperator&) = default;
-    FMOperator(FMOperator&&) noexcept = default;
-    FMOperator& operator=(FMOperator&&) noexcept = default;
+    ///
+    /// prepare() points the internal oscillator at this operator's own
+    /// sineTable_. A member-wise copy would keep the SOURCE's table pointer,
+    /// which dangles once the source is destroyed or its storage reused, so
+    /// every copy / move re-points a prepared operator at its own table.
+    /// An unprepared source keeps the oscillator's null table.
+    FMOperator(const FMOperator& other)
+        : frequency_(other.frequency_),
+          ratio_(other.ratio_),
+          feedbackAmount_(other.feedbackAmount_),
+          level_(other.level_),
+          previousRawOutput_(other.previousRawOutput_),
+          sineTable_(other.sineTable_),
+          osc_(other.osc_),
+          sampleRate_(other.sampleRate_),
+          prepared_(other.prepared_) {
+        repointWavetable();
+    }
+
+    FMOperator& operator=(const FMOperator& other) {
+        if (this != &other) {
+            assignFrom(other);
+        }
+        return *this;
+    }
+
+    // Every member is trivially copyable, so a move is the copy above.
+    FMOperator(FMOperator&& other) noexcept
+        : frequency_(other.frequency_),
+          ratio_(other.ratio_),
+          feedbackAmount_(other.feedbackAmount_),
+          level_(other.level_),
+          previousRawOutput_(other.previousRawOutput_),
+          sineTable_(other.sineTable_),
+          osc_(other.osc_),
+          sampleRate_(other.sampleRate_),
+          prepared_(other.prepared_) {
+        repointWavetable();
+    }
+
+    FMOperator& operator=(FMOperator&& other) noexcept {
+        if (this != &other) {
+            assignFrom(other);
+        }
+        return *this;
+    }
 
     /// @brief Initialize the operator for the given sample rate (FR-002).
     ///
@@ -323,6 +365,30 @@ private:
     // =========================================================================
     // Internal Helpers
     // =========================================================================
+
+    /// @brief Copy every member of `other`, then re-point the oscillator.
+    void assignFrom(const FMOperator& other) noexcept {
+        frequency_ = other.frequency_;
+        ratio_ = other.ratio_;
+        feedbackAmount_ = other.feedbackAmount_;
+        level_ = other.level_;
+        previousRawOutput_ = other.previousRawOutput_;
+        sineTable_ = other.sineTable_;
+        osc_ = other.osc_;
+        sampleRate_ = other.sampleRate_;
+        prepared_ = other.prepared_;
+        repointWavetable();
+    }
+
+    /// @brief After a copy, a prepared operator reads its own sine table.
+    /// prepare() is the only place that sets the oscillator's table, and it
+    /// always sets it to &sineTable_, so `prepared_` tells whether the source
+    /// pointed at its own table.
+    void repointWavetable() noexcept {
+        if (prepared_) {
+            osc_.setWavetable(&sineTable_);
+        }
+    }
 
     /// @brief Branchless output sanitization (FR-012).
     [[nodiscard]] static float sanitize(float x) noexcept {

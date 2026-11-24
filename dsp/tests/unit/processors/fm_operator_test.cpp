@@ -23,7 +23,10 @@
 #include <cmath>
 #include <cstddef>
 #include <limits>
+#include <memory>
 #include <numeric>
+#include <optional>
+#include <utility>
 #include <vector>
 
 using Catch::Approx;
@@ -1128,6 +1131,70 @@ TEST_CASE("FR-003: After reset(), output matches freshly prepared operator",
         }
     }
     REQUIRE(allMatch);
+}
+
+namespace {
+
+void prepareLifetimeOperator(FMOperator& op) noexcept {
+    op.prepare(48000.0);
+    op.setFrequency(440.0f);
+    op.setRatio(1.0f);
+    op.setFeedback(0.0f);
+    op.setLevel(1.0f);
+}
+
+} // namespace
+
+// Membrum audit MB-007: prepare() points the internal oscillator at the
+// operator's own sine table. A copied or moved operator must read ITS table,
+// not the source's, which may be destroyed and its storage reused.
+TEST_CASE("FMOperator: a moved or copied operator reads its own wavetable",
+          "[fm_operator][lifetime]") {
+    constexpr size_t kNumSamples = 512;
+
+    // Heap storage: each FMOperator holds a ~90 KB wavetable inline.
+    auto source = std::make_unique<std::optional<FMOperator>>();
+    source->emplace();
+    prepareLifetimeOperator(**source);
+
+    std::unique_ptr<FMOperator> dest;
+
+    SECTION("copy construction") {
+        dest = std::make_unique<FMOperator>(**source);
+    }
+    SECTION("move construction") {
+        dest = std::make_unique<FMOperator>(std::move(**source));
+    }
+    SECTION("copy assignment") {
+        dest = std::make_unique<FMOperator>();
+        *dest = **source;
+    }
+    SECTION("move assignment") {
+        dest = std::make_unique<FMOperator>();
+        *dest = std::move(**source);
+    }
+
+    // End the source's lifetime and reuse its storage for a fresh,
+    // unprepared operator (an empty sine table).
+    (*source).reset();
+    source->emplace();
+
+    auto reference = std::make_unique<FMOperator>();
+    prepareLifetimeOperator(*reference);
+
+    REQUIRE(dest != nullptr);
+
+    float maxDiff = 0.0f;
+    float refPeak = 0.0f;
+    for (size_t i = 0; i < kNumSamples; ++i) {
+        const float a = dest->process();
+        const float r = reference->process();
+        maxDiff = std::max(maxDiff, std::abs(a - r));
+        refPeak = std::max(refPeak, std::abs(r));
+    }
+    INFO("maxDiff = " << maxDiff << ", refPeak = " << refPeak);
+    REQUIRE(refPeak > 0.5f);
+    REQUIRE(maxDiff <= 1e-6f);
 }
 
 // ==============================================================================

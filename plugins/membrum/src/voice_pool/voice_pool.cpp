@@ -17,32 +17,46 @@
 #include <cstdint>
 #include <cstring>
 #include <numbers>
-#include <type_traits>
 #include <utility>
 
 namespace Membrum {
-
-// Aliases to make indexing readable without the `(*voicesPtr_)[i]` noise.
-#define VP_VOICES   (*voicesPtr_)
-#define VP_RVOICES  (*releasingVoicesPtr_)
 
 // ------------------------------------------------------------------
 // Construction
 // ------------------------------------------------------------------
 
 VoicePool::VoicePool()
-    : voicesPtr_(std::make_unique<std::array<DrumVoice, kMaxVoices>>())
-    , releasingVoicesPtr_(std::make_unique<std::array<DrumVoice, kMaxVoices>>())
+    : voiceStoragePtr_(std::make_unique<std::array<DrumVoice, kVoiceStorageCount>>())
 {
-    // Both DrumVoice arrays are default-constructed on the heap via
-    // make_unique. Per FR-116 this is the only allocation point outside of
-    // prepare() -- it runs on the host thread during Processor construction,
-    // not on the audio thread.
+    // The 32 DrumVoices are default-constructed on the heap via make_unique.
+    // Per FR-116 this is the only allocation point outside of prepare() --
+    // it runs on the host thread during Processor construction, not on the
+    // audio thread.
+    for (int i = 0; i < kMaxVoices; ++i)
+    {
+        mainIndex_[static_cast<std::size_t>(i)]   = static_cast<std::uint8_t>(i);
+        shadowIndex_[static_cast<std::size_t>(i)] = static_cast<std::uint8_t>(i + kMaxVoices);
+    }
+}
+
+DrumVoice& VoicePool::mainVoice(int slot) noexcept
+{
+    return (*voiceStoragePtr_)[mainIndex_[static_cast<std::size_t>(slot)]];
+}
+
+DrumVoice& VoicePool::shadowVoice(int slot) noexcept
+{
+    return (*voiceStoragePtr_)[shadowIndex_[static_cast<std::size_t>(slot)]];
 }
 
 DrumVoice& VoicePool::mainVoiceRef(int slot) noexcept
 {
-    return (*voicesPtr_)[static_cast<std::size_t>(slot)];
+    return mainVoice(slot);
+}
+
+const DrumVoice& VoicePool::releasingVoiceRef(int slot) const noexcept
+{
+    return (*voiceStoragePtr_)[shadowIndex_[static_cast<std::size_t>(slot)]];
 }
 
 // ------------------------------------------------------------------
@@ -87,8 +101,8 @@ void VoicePool::prepare(double sampleRate, int maxBlockSize) noexcept
 
     // Prepare every main + shadow voice with voiceId = slot index. Main and
     // shadow slots at the same index share the same voiceId because the
-    // two-array fast-release crossfade (beginFastRelease) swaps them via
-    // std::swap, and any voiceId-derived state (PRNG seeds, per-voice
+    // fast-release crossfade (beginFastRelease) exchanges their roles, and
+    // any voiceId-derived state (PRNG seeds, per-voice
     // decorrelation) must be IDENTICAL across the two arrays so that a
     // freshly-swapped voice behaves BIT-IDENTICALLY to a pristine voice at
     // that slot (FR-124 bit-identity clause / T3.3.2(c)). If the two arrays
@@ -106,8 +120,8 @@ void VoicePool::prepare(double sampleRate, int maxBlockSize) noexcept
     for (int i = 0; i < kMaxVoices; ++i)
     {
         const auto vid = static_cast<std::uint32_t>(i);
-        VP_VOICES[i].prepare(sampleRate_, vid);
-        VP_RVOICES[i].prepare(sampleRate_, vid);
+        mainVoice(i).prepare(sampleRate_, vid);
+        shadowVoice(i).prepare(sampleRate_, vid);
 
         meta_[i]          = VoiceMeta{};
         releasingMeta_[i] = VoiceMeta{};
@@ -230,7 +244,7 @@ void VoicePool::noteOn(std::uint8_t midiNote, float velocity) noexcept
 
             // Configure the voice from the pad's config (Phase 4 per-pad dispatch).
             applyPadConfigToSlot(slot, padIndex);
-            VP_VOICES[slot].noteOn(clampedVel);
+            mainVoice(slot).noteOn(clampedVel);
 
             // Phase 5: Register this voice's partials with the coupling engine.
             // The engine will create sympathetic resonators at the voice's
@@ -243,7 +257,7 @@ void VoicePool::noteOn(std::uint8_t midiNote, float velocity) noexcept
             if (couplingEngine_ != nullptr &&
                 padConfigs_[static_cast<std::size_t>(padIndex)].couplingAmount > 0.0f)
             {
-                auto partials = VP_VOICES[slot].getPartialInfo();
+                auto partials = mainVoice(slot).getPartialInfo();
                 couplingEngine_->noteOn(slot, partials);
             }
 
@@ -271,8 +285,8 @@ void VoicePool::resetAllVoicesForKitSwitch() noexcept
     {
         if (couplingEngine_ != nullptr && meta_[slot].state != VoiceSlotState::Free)
             couplingEngine_->noteOff(slot);
-        VP_VOICES[slot].resetForKitSwitch();
-        VP_RVOICES[slot].resetForKitSwitch();
+        mainVoice(slot).resetForKitSwitch();
+        shadowVoice(slot).resetForKitSwitch();
         meta_[slot]          = VoiceMeta{};
         releasingMeta_[slot] = VoiceMeta{};
     }
@@ -293,7 +307,7 @@ void VoicePool::noteOff(std::uint8_t midiNote) noexcept
         if (meta_[slot].state == VoiceSlotState::Active
             && meta_[slot].originatingNote == midiNote)
         {
-            VP_VOICES[slot].noteOff();
+            mainVoice(slot).noteOff();
         }
     }
     (void)allocator_.noteOff(midiNote);
@@ -351,9 +365,9 @@ void VoicePool::processBlock(float* outL, float* outR, int numSamples) noexcept
 
     for (int slot = 0; slot < maxPolyphony_; ++slot)
     {
-        if (VP_VOICES[slot].isActive())
+        if (mainVoice(slot).isActive())
         {
-            VP_VOICES[slot].processBlock(scratch, numSamples);
+            mainVoice(slot).processBlock(scratch, numSamples);
 
             // M-9: equal-power per-pad pan (DrumVoice is mono).
             float gainL = 1.0f;
@@ -380,7 +394,7 @@ void VoicePool::processBlock(float* outL, float* outR, int numSamples) noexcept
             if (peak < kSilenceThreshold &&
                 meta_[slot].state == VoiceSlotState::Active)
             {
-                VP_VOICES[slot].noteOff();
+                mainVoice(slot).noteOff();
             }
         }
         else if (meta_[slot].state == VoiceSlotState::Active)
@@ -407,7 +421,7 @@ void VoicePool::processBlock(float* outL, float* outR, int numSamples) noexcept
             continue;
 
         // Render the shadow copy of the drum voice into scratchL_.
-        VP_RVOICES[slot].processBlock(scratch, numSamples);
+        shadowVoice(slot).processBlock(scratch, numSamples);
 
         // Apply the exponential fast-release ramp. Returns the count of
         // samples before the 1e-6 floor triggered (numSamples if the fade
@@ -466,9 +480,9 @@ void VoicePool::processBlock(float* outL, float* outR,
 
     for (int slot = 0; slot < maxPolyphony_; ++slot)
     {
-        if (VP_VOICES[slot].isActive())
+        if (mainVoice(slot).isActive())
         {
-            VP_VOICES[slot].processBlock(scratch, numSamples);
+            mainVoice(slot).processBlock(scratch, numSamples);
 
             // M-9: equal-power per-pad pan (applied to main and aux alike).
             float gainL = 1.0f;
@@ -508,7 +522,7 @@ void VoicePool::processBlock(float* outL, float* outR,
             if (peak < kSilenceThreshold &&
                 meta_[slot].state == VoiceSlotState::Active)
             {
-                VP_VOICES[slot].noteOff();
+                mainVoice(slot).noteOff();
             }
         }
         else if (meta_[slot].state == VoiceSlotState::Active)
@@ -525,7 +539,7 @@ void VoicePool::processBlock(float* outL, float* outR,
         if (releasingMeta_[slot].state != VoiceSlotState::FastReleasing)
             continue;
 
-        VP_RVOICES[slot].processBlock(scratch, numSamples);
+        shadowVoice(slot).processBlock(scratch, numSamples);
         const int liveCount = applyFastRelease(slot, scratch, numSamples);
 
         // M-9: the fading shadow voice keeps its pad's pan position.
@@ -781,7 +795,7 @@ void VoicePool::applyPadConfigToSlot(int slot, int padIndex) noexcept
     // removed in audit L-12), so kit presets never propagated tone-shaper /
     // pitch-envelope / unnatural-zone / morph fields -- the 808 tom row
     // sounded identical across pads until it was restored.
-    applyPadConfigToVoice(VP_VOICES[slot],
+    applyPadConfigToVoice(mainVoice(slot),
                           padConfigs_[static_cast<std::size_t>(padIndex)]);
 }
 
@@ -892,35 +906,24 @@ void VoicePool::beginFastRelease(int slot, bool force) noexcept
     if (releasingMeta_[slot].state == VoiceSlotState::FastReleasing && !force)
         return;
 
-    // FR-124 / Q5 / T3.2.4: snapshot the currently-sounding DrumVoice into
-    // the shadow slot. DrumVoice's implicit COPY assignment is DELETED by
-    // the compiler (one of the exciter alternatives,
-    // FrictionExciter -> Krate::DSP::BowExciter, explicitly deletes its
-    // copy operators). DrumVoice's MOVE assignment is however defaulted
-    // and functional -- BowExciter declares `= default` move ops and
-    // ExciterBank's std::tuple of move-only alternatives is itself
-    // move-assignable.
-    // We therefore snapshot via `std::swap`, which is implemented in
-    // terms of move-assignment. After the swap:
-    //   - releasingVoices_[slot] now holds the currently-sounding voice
-    //     state (the "live" voice that must fade out).
-    //   - voices_[slot] holds the previous contents of
-    //     releasingVoices_[slot] -- either a freshly-prepared idle
-    //     DrumVoice (first steal on that slot) or a naturally-ended
-    //     fast-releasing voice from a prior fade (both of which are
-    //     valid DSP states ready to receive a new noteOn).
+    // FR-124 / Q5 / T3.2.4: hand the currently-sounding DrumVoice to the
+    // shadow role by exchanging the slot's two storage indices (audit
+    // MB-005). No DrumVoice is moved or copied: the voices stay where they
+    // are, so there is no ~270 KB stack temporary on the audio thread and
+    // no self-referencing member (FMOperator's wavetable pointer) ever
+    // points into another voice's storage. After the exchange:
+    //   - shadowVoice(slot) is the currently-sounding voice (the "live"
+    //     voice that must fade out).
+    //   - mainVoice(slot) is the slot's previous shadow voice -- either a
+    //     freshly-prepared idle DrumVoice (first steal on that slot) or a
+    //     naturally-ended fast-releasing voice from a prior fade (both of
+    //     which are valid DSP states ready to receive a new noteOn).
     // The subsequent allocator NoteOn path calls
-    // `applySharedParamsToSlot(slot)` + `voices_[slot].noteOn(v)` which
+    // `applyPadConfigToSlot(slot)` + `mainVoice(slot).noteOn(v)` which
     // fully re-initializes the envelope and re-triggers the exciter, so
-    // any residual state in voices_[slot] after the swap is overwritten
-    // cleanly. We must call noteOff() on the re-acquired voice first to
-    // gate the envelope off and release the exciter, otherwise a lingering
-    // amp-envelope from a prior fade could add a tiny transient to the new
-    // note's attack.
-    static_assert(std::is_move_assignable_v<DrumVoice>,
-                  "DrumVoice must be move-assignable for the shadow swap "
-                  "technique (Phase 3.2 fast-release).");
-    std::swap(VP_RVOICES[slot], VP_VOICES[slot]);
+    // any residual state in mainVoice(slot) is overwritten cleanly.
+    std::swap(mainIndex_[static_cast<std::size_t>(slot)],
+              shadowIndex_[static_cast<std::size_t>(slot)]);
     // The re-acquired main voice receives a fresh noteOn from the
     // subsequent allocator NoteOn event, which fully re-initializes
     // the envelope and re-triggers the exciter. We do NOT call
@@ -928,14 +931,14 @@ void VoicePool::beginFastRelease(int slot, bool force) noexcept
     // churn (small but non-zero) and could introduce bit-level
     // differences versus a freshly-prepared DrumVoice.
 
-    // Phase 8A.5: the shadow voice (VP_RVOICES[slot]) is now the live
+    // Phase 8A.5: the shadow voice (shadowVoice(slot)) is now the live
     // voice that must fade out. Under Option-D envelope (sustain = 1.0)
     // its body is still ringing at full amplitude, so the multiplicative
     // 5 ms fastRelease ramp alone is not enough to keep the residual
     // below the -30 dBFS click bound. Fire the aggressive fast-release
     // damp on the shadow's modal bank so the body decays within ~1 ms
     // (well inside the fast-release window) through its own damping law.
-    VP_RVOICES[slot].fastReleaseDamp();
+    shadowVoice(slot).fastReleaseDamp();
 
     // Starting gain is UNITY. The shadow slot's DrumVoice already produces
     // the voice's absolute amplitude via its own envelopes and filters;
@@ -951,13 +954,13 @@ void VoicePool::beginFastRelease(int slot, bool force) noexcept
     releasingMeta_[slot].currentLevel      = 0.0f;
     releasingMeta_[slot].state             = VoiceSlotState::FastReleasing;
 
-    // NOTE: We deliberately do NOT call VP_VOICES[slot].noteOff() here.
+    // NOTE: We deliberately do NOT call mainVoice(slot).noteOff() here.
     // The main slot is about to be overwritten by the new note's
     // `applySharedParamsToSlot` + `noteOn(velocity)` call, which will reset
     // the amp envelope and exciter cleanly. Calling noteOff first would
     // waste a few instructions and could affect envelope timing on the
-    // new note's attack. The shadow copy retains its own independent state
-    // because we duplicated the DrumVoice above.
+    // new note's attack. The shadow voice keeps its own independent state
+    // because it is a separate DrumVoice object.
 }
 
 int VoicePool::applyFastRelease(int slot,
