@@ -503,7 +503,7 @@ TEST_CASE("Phase 8E: Tom tension modulation drifts pitch vs velocity",
         float peakF0 = 0.0f;
         for (int b = 0; b < blocks; ++b) {
             v.processBlock(buf.data(), kBlock);
-            peakF0 = std::max(peakF0, bank.getModeFrequency(0));
+            peakF0 = std::max(peakF0, bank.getLiveModeFrequency(0));
         }
         return peakF0;
     };
@@ -561,7 +561,7 @@ TEST_CASE("Phase 8E: tension glide also fires on the slow (Feedback) path",
         float peakF0 = 0.0f;
         for (int b = 0; b < blocks; ++b) {
             v.processBlock(buf.data(), kBlock);
-            peakF0 = std::max(peakF0, bank.getModeFrequency(0));
+            peakF0 = std::max(peakF0, bank.getLiveModeFrequency(0));
         }
         return peakF0;
     };

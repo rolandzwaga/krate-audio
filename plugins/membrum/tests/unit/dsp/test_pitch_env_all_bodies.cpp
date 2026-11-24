@@ -119,12 +119,13 @@ TEST_CASE("H-3: pitch envelope sweeps the modal fundamental on every modal body"
             v.noteOn(1.0f);
 
             // Fundamental right after note-on -- the seed should already
-            // reflect the START pitch, not the body's natural f0.
-            const float startFreq = v.bodyBank().getSharedBank().getModeFrequency(0);
+            // reflect the START pitch, not the body's natural f0. Read the
+            // frequency the bank is RUNNING at, not its target (MB-026).
+            const float startFreq = v.bodyBank().getSharedBank().getLiveModeFrequency(0);
 
             // Render past the end of the sweep (60 ms ~= 2880 samples).
             (void)render(v, 4000);
-            const float endFreq = v.bodyBank().getSharedBank().getModeFrequency(0);
+            const float endFreq = v.bodyBank().getSharedBank().getLiveModeFrequency(0);
 
             INFO("body=" << bodyName(body)
                  << " startFreq=" << startFreq << " endFreq=" << endFreq);

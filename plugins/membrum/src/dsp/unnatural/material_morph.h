@@ -64,6 +64,9 @@ public:
 
     [[nodiscard]] bool isEnabled() const noexcept { return enabled_; }
 
+    /// The material process() holds once the morph has completed.
+    [[nodiscard]] float getEnd() const noexcept { return endMaterial_; }
+
     /// Trigger resets the envelope for a new note. Called from DrumVoice::noteOn().
     void trigger() noexcept
     {

@@ -177,6 +177,10 @@ add_executable(membrum_tests
     # Signal-path audit H-3 / M-1: pitch envelope + Material Morph on all bodies
     unit/dsp/test_pitch_env_all_bodies.cpp
 
+    # Fix plan T1.11 (MB-008, MB-026, MB-151, MB-159, MB-237): retunes on a
+    # fixed control grid, independent of the host block size
+    unit/dsp/test_pitch_env_block_path.cpp
+
     # Wave 2 V26: perceptual render test (default-kit pads sound like what they are)
     unit/dsp/test_render_perceptual.cpp
 

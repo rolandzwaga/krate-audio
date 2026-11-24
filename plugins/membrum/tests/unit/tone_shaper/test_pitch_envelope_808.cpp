@@ -6,6 +6,14 @@
 //   Trigger Impulse + Membrane at velocity 100.
 //   Measure fundamental pitch via short-time FFT over the first 50 ms.
 //   At t = 20 ms, the fundamental MUST be within ±10% of 50 Hz.
+// 160 / 50 Hz over 20 ms are SC-009's spec values
+// (specs/137-membrum-phase2-exciters-bodies/spec.md SC-009), a generic sweep,
+// not measured TR-808 values: the 808 bass drum rests near 49.5 Hz after an
+// attack jump of more than an octave lasting about 6 ms (Werner, Abel & Smith,
+// "A Physically-Informed, Circuit-Bendable, Digital Model of the Roland TR-808
+// Bass Drum Circuit", DAFx-14, 2014).
+// The sweep is checked on the per-sample process() path and on processBlock at
+// 64 and 512 samples, with the start pitch read after noteOn (MB-240).
 //
 // Also covers:
 //   - Disabled envelope returns Size-derived fundamental (contract item 6).
@@ -112,11 +120,35 @@ TEST_CASE("808Kick: PitchEnv Start=160 End=50 Time=20 ms gives ~50 Hz at t=20 ms
 
     voice.noteOn(100.0f / 127.0f);
 
-    // Render 200 ms to get a good post-sweep analysis window.
+    // MB-240: the start of the sweep must sound too: the bank's RUNNING mode 0
+    // sits at (at least 0.85 x) the 160 Hz start the moment noteOn returns.
+    const float startHz =
+        voice.getBodyBankForTest().getSharedBank().getLiveModeFrequency(0);
+    INFO("live mode-0 after noteOn: " << startHz << " Hz (expected >= 136 Hz)");
+    CHECK(startHz >= 0.85f * 160.0f);
+
+    // Render 200 ms to get a good post-sweep analysis window, through the
+    // per-sample process() path and through processBlock at host block sizes
+    // (MB-240: VoicePool renders through processBlock only).
     const int kTotalSamples = static_cast<int>(kSampleRate * 0.200);
     std::vector<float> buf(static_cast<std::size_t>(kTotalSamples), 0.0f);
-    for (int i = 0; i < kTotalSamples; ++i)
-        buf[static_cast<std::size_t>(i)] = voice.process();
+    auto renderBlocks = [&](int blockSize) {
+        for (int pos = 0; pos < kTotalSamples; pos += blockSize)
+            voice.processBlock(buf.data() + pos, std::min(blockSize, kTotalSamples - pos));
+    };
+    SECTION("process() per sample")
+    {
+        for (int i = 0; i < kTotalSamples; ++i)
+            buf[static_cast<std::size_t>(i)] = voice.process();
+    }
+    SECTION("processBlock, 64-sample blocks")
+    {
+        renderBlocks(64);
+    }
+    SECTION("processBlock, 512-sample blocks")
+    {
+        renderBlocks(512);
+    }
 
     REQUIRE_FALSE(hasNaNOrInf(buf));
 
@@ -176,7 +208,9 @@ TEST_CASE("808Kick: zero-duration edge case produces no NaN/Inf",
     Membrum::ToneShaper ts;
     ts.prepare(kSampleRate);
 
-    // Set a tiny non-zero time; should clamp to 1 ms internally.
+    // Set a tiny non-zero time. Nothing clamps it to 1 ms: 0.001 ms rounds to
+    // 0 samples (pitch_segment_envelope.h, msToSamples), so the envelope
+    // returns End at once.
     ts.setPitchEnvTimeMs(0.001f);
     ts.setPitchEnvStartHz(160.0f);
     ts.setPitchEnvEndHz(50.0f);

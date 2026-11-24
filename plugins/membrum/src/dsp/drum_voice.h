@@ -12,8 +12,9 @@
 // ImpactExciter + ModalResonatorBank path (FR-007, FR-031, FR-095).
 //
 // Phase 7 adds the Tone Shaper chain (Drive -> Wavefolder -> DCBlocker -> SVF)
-// and the control-plane Pitch Envelope, which runs BEFORE the body each sample
-// and feeds the current pitch Hz to the body's fundamental-frequency update
+// and the control-plane Pitch Envelope, which runs BEFORE the body on a fixed
+// 32-sample voice-time grid (T1.11, kControlGridSamples) and feeds the current
+// pitch Hz to the body's fundamental-frequency update
 // path (ModalResonatorBank::updateModes or WaveguideString::setFrequency).
 // Chain order is per research.md §8 (Buchla west-coast flow).
 // ==============================================================================
@@ -109,6 +110,23 @@ public:
     /// holds for moderate amplitudes (Avanzini-Marogna-Bank).
     static constexpr float kTensionPitchModMax = 1.19f;  // ~+3 semitones
 
+    /// T1.11 (MB-008, MB-026, MB-151, MB-159, MB-237): the pitch envelope,
+    /// tension glide, Material Morph and the wire-coupling energy follower run
+    /// on a fixed grid of voice time: a control step at every sample where
+    /// voiceSampleCount_ % kControlGridSamples == 0, whatever the host block
+    /// size. Each step that retunes the modal bank snaps its coefficients, so
+    /// the bank's per-call smoothing never turns the sweep into a lag of
+    /// 2 ms x host block. 32 samples is 0.73 ms at 44.1 kHz, the decimation
+    /// Marogna, Avanzini & Bank use for tension modulation (DAFx-10).
+    static constexpr int kControlGridSamples = 32;
+
+    /// T1.11: the Material Morph's dirty-gate step (material units, range
+    /// [0, 1]). A control step re-runs the body mapper only once the morph
+    /// has moved this far since its last push, or has reached its end value:
+    /// 1/256 of the range, inaudible as a step, and it keeps a morph's
+    /// mapper cost below the pre-T1.11 one-push-per-host-block rate.
+    static constexpr float kMorphDirtyStep = 1.0f / 256.0f;
+
     /// Apply the fast-release damping directly (used by VoicePool fast-release
     /// path). Like noteOff()'s body release, with a much faster rate.
     void fastReleaseDamp() noexcept
@@ -142,9 +160,12 @@ public:
         // secondarySize / secondaryMaterial parameters.
         secondaryBank_.prepare(sampleRate);
         // Phase 8E: 20 ms one-pole energy-follower coefficient.
-        //   tau ~ 20 ms -> alpha = exp(-1 / (0.02 * sr)).
-        energyAlpha_ = std::exp(-1.0f /
+        //   tau ~ 20 ms -> alpha = exp(-1 / (0.02 * sr)) per sample, raised to
+        //   the control grid (T1.11): the follower steps once per grid point.
+        const float energyAlpha = std::exp(-1.0f /
             (0.02f * static_cast<float>(sampleRate)));
+        energyAlphaGrid_ =
+            std::pow(energyAlpha, static_cast<float>(kControlGridSamples));
         toneShaper_.prepare(sampleRate);
         unnaturalZone_.prepare(sampleRate, voiceId);
         noiseLayer_.prepare(sampleRate, voiceId);
@@ -207,8 +228,8 @@ public:
     {
         // FR-054: Material Morph override. When enabled, the voice uses the
         // morph's start value as the effective Material at note-on; the body
-        // mapper is re-configured per block from the morph envelope via
-        // refreshBodyForMaterial(). When disabled, the DrumVoice's own
+        // mapper is re-configured on the control grid from the morph envelope
+        // via controlStep(). When disabled, the DrumVoice's own
         // material_ is used verbatim (Phase 1 path).
         unnaturalZone_.materialMorph.trigger();
         const float effectiveMaterial = unnaturalZone_.materialMorph.isEnabled()
@@ -246,7 +267,7 @@ public:
             bodyBank_.getPendingType(), size_);
         toneShaper_.setNaturalFundamentalHz(naturalFundamentalHz_);
 
-        // Cache the baseline mapper result for per-sample pitch-envelope and
+        // Cache the baseline mapper result for control-grid pitch-envelope and
         // Material-Morph updates. Audit H-3/M-1: this must reflect the body
         // that's ACTUALLY about to play (getPendingType() -- the deferred swap
         // applies inside configureForNoteOn() below), so the pitch-envelope
@@ -276,8 +297,26 @@ public:
         // Configure the body for this note (applies deferred body-model swap).
         // For Membrane: we pass the baseline pitchHz — the mapper currently
         // ignores this and derives f0 from size_ (unchanged Phase 1 behavior).
-        // The pitch envelope sweeping is done per-sample via updateFundamental.
+        // The pitch envelope sweep runs on the control grid (controlStep).
         bodyBank_.configureForNoteOn(params_, initialPitchHz);
+
+        // Audit H-3: if the pitch envelope is active, seed the body with the
+        // initial envelope Hz so the note starts at the START frequency rather
+        // than the body's natural f0 -- for EVERY body type, not just Membrane.
+        // retuneFundamental() scales the modal bank (Membrane/Plate/Shell/Bell/
+        // NoiseBody) or retunes the String waveguide as appropriate. T1.11
+        // (MB-237, MB-026): snap the bank onto the seeded targets, or the start
+        // pitch only becomes a target the bank never reaches. setModes just
+        // cleared the states, so the snap (inside pushModes) is click-free,
+        // and the strike-norm probe below measures the bank at the pitch the
+        // note starts at.
+        voiceSampleCount_  = 0;
+        lastPushedPitchHz_ = initialPitchHz;
+        lastPushedMorph_   = effectiveMaterial;
+        currentPitchRatio_ = 1.0f;
+        const bool seedPitch = toneShaper_.isPitchEnvActive();
+        if (seedPitch)
+            retuneFundamental(initialPitchHz);
 
         // D4 (06-orchestralKit-fix-plan.md): mallet contact time scales with
         // the struck body -- crotale-sized bodies get ~1 ms contacts, timpani
@@ -352,7 +391,8 @@ public:
                     ? suppliedBodyGain_
                     : measuredStrikeOutputGain(bank, params_,
                                                bodyBank_.getCurrentType(),
-                                               exciterBank_.getPendingType());
+                                               exciterBank_.getPendingType(),
+                                               seedPitch ? initialPitchHz : 0.0f);
                 bank.setOutputGain(g);
                 bank.setOutputSoftClipThreshold(0.0f);
                 usedBodyGain_ = g;
@@ -361,16 +401,6 @@ public:
             // configureSecondaryBank() below, once its modes (and hence
             // getInputGainSum()) are configured for THIS note -- setting it
             // here would use the previous note's mode profile.
-        }
-
-        // Audit H-3: if the pitch envelope is active, seed the body with the
-        // initial envelope Hz so the note starts at the START frequency rather
-        // than the body's natural f0 -- for EVERY body type, not just Membrane.
-        // retuneFundamental() scales the modal bank (Membrane/Plate/Shell/Bell/
-        // NoiseBody) or retunes the String waveguide as appropriate.
-        if (toneShaper_.isPitchEnvActive())
-        {
-            retuneFundamental(initialPitchHz);
         }
 
         // UnnaturalZone: set Mode Inject fundamental (per-voice f0) and
@@ -564,24 +594,20 @@ public:
         if (!active_)
             return 0.0f;
 
-        // Pitch envelope (control plane): update body fundamental BEFORE body
-        // processing so the current sample reflects the new pitch. Only when
-        // the pitch envelope is active — Phase 1 regression requires this path
-        // to be skipped when disabled.
-        if (toneShaper_.isPitchEnvActive())
+        // Pitch envelope, tension, Material Morph and the wire follower
+        // (control plane, T1.11): the same 32-sample voice-time grid as the
+        // block renderers, BEFORE the body so a grid sample already sounds at
+        // the new pitch; every other sample only advances the modulators.
+        // Skipped entirely when nothing modulates, so the default path stays
+        // bit-identical to Phase 1 (FR-055).
+        if (isControlGridActive())
         {
-            const float pitchHz = toneShaper_.processPitchEnvelope();
-            updateBodyFundamental(pitchHz);
+            if (voiceSampleCount_ % kControlGridSamples == 0)
+                controlStep(bodyBank_.getSharedBank());
+            else
+                tickModulators(1);
         }
-
-        // Material Morph (FR-054): per-sample refresh of the body mapper
-        // material when the morph is active. Disabled path is bit-identical
-        // to the Phase 1 signal (FR-055 default-off guarantee).
-        if (unnaturalZone_.materialMorph.isEnabled())
-        {
-            const float m = unnaturalZone_.materialMorph.process();
-            refreshBodyForMaterial(m);
-        }
+        ++voiceSampleCount_;
 
         // Exciter takes the body's last output as feedback (only FeedbackExciter
         // uses it; all other backends ignore it). The always-on click transient
@@ -604,11 +630,9 @@ public:
         // treat the combined signal (research-backed SNT pattern). The click
         // layer is also mixed directly here so it's heard as a broadband
         // transient independent of the body's modal response.
-        // wireGainMod_ carries the wire-coupling modulation. This per-sample
-        // process() path (used by unit tests / single-sample hosts) does not run
-        // the block-rate energy follower -- same convention as tension mod and
-        // the secondary shell bank, which are also block-path-only -- so
-        // wireGainMod_ stays 1.0 here and the buzz is un-modulated on this path.
+        // wireGainMod_ carries the wire-coupling modulation, updated by the
+        // energy follower on the control grid (controlStep), as on the block
+        // path. The secondary shell bank stays block-path-only.
         const float noiseSample =
             noiseLayer_.processSample() * noiseLayer_.standaloneGain()
             * noiseLayerGain_ * wireGainMod_;
@@ -638,19 +662,22 @@ public:
     // helpers.
     //
     // Two code paths:
-    //   - FAST PATH: used when pitch envelope + material morph + feedback
-    //     exciter are all inactive. The exciter runs per-sample into a scratch
-    //     buffer, then BodyBank::processBlock() routes the modal work through
-    //     ModalResonatorBank::processBlock (SIMD-accelerated via Highway),
-    //     then the unnatural + tone shaper + amp env post chain runs per-sample.
-    //     This is the path that brings the 144-combination CPU budget back
-    //     under the 1.25% per-voice target.
+    //   - FAST PATH: every exciter except FeedbackExciter. The exciter runs
+    //     per-sample into a scratch buffer, then BodyBank::processBlock()
+    //     routes the modal work through ModalResonatorBank::processBlock
+    //     (SIMD-accelerated via Highway), then the unnatural + tone shaper +
+    //     amp env post chain runs per-sample. This is the path that brings the
+    //     144-combination CPU budget back under the 1.25% per-voice target.
     //
-    //   - SLOW PATH: used when the pitch envelope is active for Membrane,
-    //     or Material Morph is active (both need per-sample mapper refresh),
-    //     or the active exciter is FeedbackExciter (needs strict per-sample
-    //     body feedback per research.md §3). Keeps the original nested-visit
-    //     per-sample inner loop for correctness.
+    //   - SLOW PATH: the active exciter is FeedbackExciter (needs strict
+    //     per-sample body feedback per research.md §3). Keeps the original
+    //     nested-visit per-sample inner loop for correctness.
+    //
+    // Both paths run the pitch envelope, tension, Material Morph and the wire
+    // follower on the kControlGridSamples voice-time grid (T1.11): while any
+    // of them is active, each chunk is cut at the next grid point and a grid
+    // point retunes and snaps the bank (controlStep), so the render does not
+    // depend on the host block size.
     static constexpr int kMaxBlockSize = 2048;
 
     void processBlock(float* out, int numSamples) noexcept
@@ -666,31 +693,23 @@ public:
         }
 
         const float level = level_;
-        // Audit H-3: the pitch envelope drives every body type now (modal
-        // bodies via the shared bank, String via its waveguide), so the path
-        // selection no longer special-cases Membrane.
-        const bool pitchEnvActive = toneShaper_.isPitchEnvActive();
-
-        const bool morphActive = unnaturalZone_.materialMorph.isEnabled();
         const bool feedbackExciter =
             exciterBank_.getCurrentType() == ExciterType::Feedback;
 
         // Decide fast vs slow path. Only strict per-sample FeedbackExciter
-        // semantics force the original nested-visit per-sample loop. Both
-        // MaterialMorph and the pitch envelope run on the fast path with
-        // block-rate refresh of the modal-bank coefficients — a 20 ms pitch
-        // sweep @ 44.1 kHz spans ~880 samples, so a 64-sample block refresh
-        // gives ~14 update points across the sweep (well below any audible
-        // stair-stepping), and a 300 ms morph spans ~13 000 samples.
+        // semantics force the original nested-visit per-sample loop. The
+        // pitch envelope, tension and Material Morph run on both paths on the
+        // 32-sample voice-time grid with a snap (controlStep): a 20 ms sweep
+        // @ 44.1 kHz gets ~28 retunes whatever the host block size.
         const bool useSlowPath = feedbackExciter;
 
         if (useSlowPath)
         {
-            processBlockSlow(out, numSamples, level, pitchEnvActive, morphActive);
+            processBlockSlow(out, numSamples, level);
         }
         else
         {
-            processBlockFast(out, numSamples, level, morphActive, pitchEnvActive);
+            processBlockFast(out, numSamples, level);
         }
 
         // Phase 8A.5 retirement: the amp envelope is now only a click-free
@@ -754,9 +773,7 @@ private:
     // slow path instead to preserve strict per-sample semantics.
     void processBlockFast(float* out,
                           int numSamples,
-                          float level,
-                          bool morphActive,
-                          bool pitchEnvActive) noexcept
+                          float level) noexcept
     {
         // Scratch buffers live as DrumVoice members so we don't pay a large
         // stack allocation per processBlock call (audio-thread friendly).
@@ -768,79 +785,16 @@ private:
         int offset = 0;
         int remaining = numSamples;
         float lastBody = bodyBank_.getLastOutput();
+        // T1.11: while a modulation runs, cut every chunk at the next point
+        // of the voice-time control grid; a chunk that starts on one runs
+        // controlStep first. Without modulation the chunking is unchanged.
+        const bool gridActive = isControlGridActive();
 
         while (remaining > 0)
         {
-            const int chunk = remaining < kMaxBlockSize ? remaining : kMaxBlockSize;
-
-            // --- Pitch envelope block-rate refresh (Phase 9 fast path). ----
-            // Advance the pitch envelope by one sample at the start of the
-            // chunk and push the resulting pitch into the modal bank once.
-            // A 20 ms sweep at 44.1 kHz produces ~14 refresh points across
-            // a 64-sample audio block — well below any audible stair-stepping.
-            // Phase 8E: block-rate pitch modulation from energy tracker.
-            // Observed real-drum behaviour (Avanzini et al., "Efficient
-            // synthesis of tension modulation ... based on energy
-            // estimation", JASA 2012) is an upward pitch jump at the strike
-            // that relaxes back as vibration energy decays. For a one-pole
-            // follower fed by |out|^2 (peaks at attack, decays with the
-            // body), `1 + amt * energyEnv` reproduces exactly that
-            // up-then-relax curve. Kirby & Sandler JASA 2021 describes the
-            // related phenomenon via DCT analysis but is not the source of
-            // this implementation.
-            // Tension modulation is a Membrane-only physics path (a separate
-            // audit item). Gating tensionActive on Membrane keeps it from
-            // leaking into the now-generalized pitch-envelope branch below for
-            // other bodies, and skips the energy follower's wasted work there.
-            const bool tensionActive =
-                tensionAmtEffective_ > 1e-6f
-                && bodyBank_.getCurrentType() == BodyModelType::Membrane;
-            const float tensionPitchMod =
-                tensionActive ? std::min(1.0f + tensionAmtEffective_ * energyEnv_,
-                                         kTensionPitchModMax)
-                              : 1.0f;
-            // Wire coupling drives the same modal-energy follower as tension mod
-            // (below), but ANY modal body participates -- the buzz tracks head
-            // motion regardless of Membrane-only tension physics.
-            const bool wireActive = wireCoupling_ > 1e-6f;
-
-            if (pitchEnvActive)
-            {
-                const float pitchHz =
-                    toneShaper_.processPitchEnvelope() * tensionPitchMod;
-                // Consume the remaining (chunk-1) envelope samples without
-                // reissuing updateModes, so the envelope stays in sync with
-                // the audio sample count.
-                for (int i = 1; i < chunk; ++i)
-                    (void)toneShaper_.processPitchEnvelope();
-                // Audit H-3: dispatches per body type (modal bank scale or
-                // String waveguide retune).
-                retuneFundamental(pitchHz);
-            }
-            else if (tensionActive)
-            {
-                // No pitch env: apply tension mod as a direct frequency scale
-                // around the body's natural fundamental. tensionActive already
-                // implies Membrane (gated above).
-                const float pitchHz = naturalFundamentalHz_ * tensionPitchMod;
-                updateModalFundamentalOnBank(bodyBank_.getSharedBank(), pitchHz);
-            }
-
-            // --- MaterialMorph block-rate refresh (Phase 9 fast path). -----
-            // Advance the morph envelope by one sample at the start of the
-            // chunk and refresh the body mapper once. The remaining samples
-            // in the chunk reuse this mapper state; per-sample resolution
-            // below a single audio block is imperceptible for a morph that
-            // spans hundreds of milliseconds.
-            if (morphActive)
-            {
-                const float m = unnaturalZone_.materialMorph.process();
-                for (int i = 1; i < chunk; ++i)
-                    (void)unnaturalZone_.materialMorph.process();
-                // Audit M-1: re-run the ACTIVE body's mapper (modal bodies push
-                // new modes; String re-applies its material-derived settings).
-                refreshBodyForMaterialOnBank(bodyBank_.getSharedBank(), m);
-            }
+            int chunk = remaining < kMaxBlockSize ? remaining : kMaxBlockSize;
+            if (gridActive)
+                chunk = beginControlChunk(bodyBank_.getSharedBank(), chunk);
 
             // --- Exciter phase: per-sample into scratch. ------------------
             // Single std::visit on the exciter for the whole chunk.
@@ -934,8 +888,8 @@ private:
             else
             {
                 noiseLayer_.processBlock(noiseScratch, chunk);
-                // Wire coupling: wireGainMod_ (block-rate, from the previous
-                // chunk's modal energy) scales the buzz so it tracks the head.
+                // Wire coupling: wireGainMod_ (from the modal energy at the
+                // last control-grid point) scales the buzz so it tracks the head.
                 // 1.0 when coupling is off => bit-exact legacy path.
                 const float gain =
                     noiseLayer_.standaloneGain() * noiseLayerGain_ * wireGainMod_;
@@ -979,26 +933,7 @@ private:
                 }
             }
 
-            // Audit N-1: one-pole follower on the bank's MODAL energy (not the
-            // radiated output^2). getModalEnergy() = sum of mode amplitude^2 is
-            // a smooth envelope and is invariant to the body output gain, so the
-            // tension glide is physically grounded (Avanzini-Marogna-Bank 2012)
-            // and no longer collapses when the gain budget changes. Read once
-            // per chunk (the energy envelope is sub-audio-rate) with the
-            // per-sample 20 ms coefficient raised to the chunk length. Runs only
-            // when tension is active so the default path stays zero-overhead.
-            if (tensionActive || wireActive)
-            {
-                const float e = bodyBank_.getSharedBank().getModalEnergy();
-                const float a = std::pow(energyAlpha_, static_cast<float>(chunk));
-                energyEnv_ = a * energyEnv_ + (1.0f - a) * e;
-                if (wireActive)
-                {
-                    wireEnergyPeak_ = std::max(wireEnergyPeak_, energyEnv_);
-                    wireGainMod_    = computeWireGainMod();
-                }
-            }
-
+            voiceSampleCount_ += chunk;
             offset    += chunk;
             remaining -= chunk;
         }
@@ -1006,55 +941,15 @@ private:
 
     // SLOW PATH: per-sample inner loop. Used when FeedbackExciter is the
     // active exciter (strict per-sample body-feedback semantics required per
-    // research.md §3). Pitch envelope and MaterialMorph refreshes are
-    // hoisted to block rate for consistency with the fast path — a 20 ms
-    // pitch sweep spans ~14 update points across a 64-sample audio block
-    // which is well below any audible stair-stepping.
+    // research.md §3). The pitch envelope, tension, Material Morph and the
+    // wire follower run on the same 32-sample voice-time control grid as the
+    // fast path (T1.11): while one is active the block is cut into sub-chunks
+    // at the grid points, each with its own block-rate smoothing pass.
     void processBlockSlow(float* out,
                           int numSamples,
-                          float level,
-                          bool pitchEnvActive,
-                          bool morphActive) noexcept
+                          float level) noexcept
     {
-        // Phase 8E tension modulation (Avanzini et al. JASA 2012): an energy-
-        // dependent upward pitch jump at the strike that relaxes as vibration
-        // energy decays. Mirrors the fast-path branch (processBlockFast) so the
-        // FeedbackExciter route is not silently missing the glide. Membrane-only
-        // physics path; `energyEnv_` carries over from the previous block and is
-        // updated by the follower at the end of this block.
-        const bool tensionActive =
-            tensionAmtEffective_ > 1e-6f
-            && bodyBank_.getCurrentType() == BodyModelType::Membrane;
-        const float tensionPitchMod =
-            tensionActive ? std::min(1.0f + tensionAmtEffective_ * energyEnv_,
-                                     kTensionPitchModMax)
-                          : 1.0f;
-        // Wire coupling mirrors the fast path -- any modal body participates.
-        const bool wireActive = wireCoupling_ > 1e-6f;
-
-        // Block-rate refresh (Phase 9): advance each modulator by one sample
-        // at the start of the block and refresh the modal bank once. The
-        // remaining modulator steps are consumed below (inside the inner
-        // loop) without reissuing updateModes. Audit H-3/M-1: both refreshes
-        // now dispatch per body type instead of early-returning off Membrane.
-        if (pitchEnvActive)
-        {
-            const float pitchHz =
-                toneShaper_.processPitchEnvelope() * tensionPitchMod;
-            retuneFundamental(pitchHz);
-        }
-        else if (tensionActive)
-        {
-            // No pitch env: apply tension as a direct frequency scale around
-            // the body's natural fundamental (tensionActive implies Membrane).
-            const float pitchHz = naturalFundamentalHz_ * tensionPitchMod;
-            updateModalFundamentalOnBank(bodyBank_.getSharedBank(), pitchHz);
-        }
-        if (morphActive)
-        {
-            const float m = unnaturalZone_.materialMorph.process();
-            refreshBodyForMaterialOnBank(bodyBank_.getSharedBank(), m);
-        }
+        const bool gridActive = isControlGridActive();
 
         // Phase 8D secondary (shell) bank gate, mirrored from the fast path.
         // Computed once per block; when engaged the per-sample loop drives a
@@ -1066,79 +961,82 @@ private:
         // Nested single-visit: one std::visit on the exciter, one on the body.
         // Inside both visits we hold typed references so every sample call is
         // a direct non-virtual call — no per-sample variant dispatch.
-        exciterBank_.withActive([this, out, numSamples, level, pitchEnvActive, morphActive, secondaryActive](auto& exciter) noexcept {
+        exciterBank_.withActive([this, out, numSamples, level, gridActive, secondaryActive](auto& exciter) noexcept {
             bodyBank_.withActive(
-                [this, out, numSamples, level, pitchEnvActive, morphActive, secondaryActive, &exciter](
+                [this, out, numSamples, level, gridActive, secondaryActive, &exciter](
                     auto& body, Krate::DSP::ModalResonatorBank& sharedBank) noexcept {
-                    // Phase 9 perf: hoist the modal bank's coefficient
-                    // smoothing out of the per-sample inner loop. Without this
-                    // the slow path's per-sample processSample() smooths
-                    // 3 floats * numModes per sample, which after the Phase 8B
-                    // mode-count bump (membrane 16->48, plate 16->48,
-                    // shell 12->32) blew the FeedbackExciter combo's per-voice
-                    // CPU budget. processSampleNoSmooth() below pairs with
-                    // this single block-rate prepare and additionally routes
-                    // through the SIMD modal kernel when bow taps are off.
-                    sharedBank.prepareBlockSmoothing();
-
-                    // Audit M-6: the secondary (shell) bank must run on the
-                    // slow path too -- it was previously dropped, so
-                    // FeedbackExciter + coupling pads silently lost all shell
-                    // character. Use the same block-rate smoothing hoist as the
-                    // body bank so the 24-mode shell doesn't reintroduce per-
-                    // sample smoothing cost on the budget-sensitive slow path.
-                    if (secondaryActive)
-                        secondaryBank_.prepareBlockSmoothing();
-
                     float lastBody  = bodyBank_.getLastOutput();
                     float lastShell = secondaryLastOutput_;
-                    for (int i = 0; i < numSamples; ++i)
+                    int offset = 0;
+                    while (offset < numSamples)
                     {
-                        // Consume the remaining modulator samples to keep the
-                        // envelope counters in sync with the audio clock.
-                        // The first sample's mapper refresh was done above;
-                        // from i==1 onward we just tick the modulators.
-                        if (pitchEnvActive && i > 0)
-                            (void)toneShaper_.processPitchEnvelope();
-                        if (morphActive && i > 0)
-                            (void)unnaturalZone_.materialMorph.process();
+                        // T1.11: one sub-chunk per control-grid interval while a
+                        // modulation runs; the whole block otherwise.
+                        int len = numSamples - offset;
+                        if (gridActive)
+                            len = beginControlChunk(sharedBank, len);
 
-                        const float clickSample =
-                            clickLayer_.processSample() * ClickLayer::kStandaloneOutputGain;
-                        const float excMain = exciter.process(lastBody);
-                        const float exc     = excMain + clickSample * 0.5f;
-                        const float bodyOut = body.processSampleNoSmooth(sharedBank, exc);
-                        lastBody            = bodyOut;
+                        // Phase 9 perf: hoist the modal bank's coefficient
+                        // smoothing out of the per-sample inner loop. Without this
+                        // the slow path's per-sample processSample() smooths
+                        // 3 floats * numModes per sample, which after the Phase 8B
+                        // mode-count bump (membrane 16->48, plate 16->48,
+                        // shell 12->32) blew the FeedbackExciter combo's per-voice
+                        // CPU budget. processSampleNoSmooth() below pairs with
+                        // this single block-rate prepare and additionally routes
+                        // through the SIMD modal kernel when bow taps are off.
+                        sharedBank.prepareBlockSmoothing();
 
-                        // Phase 8D shell stage (slow path). Feedforward
-                        // body -> shell, then a passive additive mix into the
-                        // body signal -- identical topology to the fast path
-                        // (processBlockFast), just per-sample instead of
-                        // block-rate. No return path into the body excitation.
-                        float bodyWithShell = bodyOut;
+                        // Audit M-6: the secondary (shell) bank must run on the
+                        // slow path too -- it was previously dropped, so
+                        // FeedbackExciter + coupling pads silently lost all shell
+                        // character. Use the same block-rate smoothing hoist as the
+                        // body bank so the 24-mode shell doesn't reintroduce per-
+                        // sample smoothing cost on the budget-sensitive slow path.
                         if (secondaryActive)
+                            secondaryBank_.prepareBlockSmoothing();
+
+                        for (int i = offset; i < offset + len; ++i)
                         {
-                            lastShell = secondaryBank_.processSampleNoSmooth(
-                                bodyOut * effectiveCoupling_);
-                            bodyWithShell += lastShell;
+                            const float clickSample =
+                                clickLayer_.processSample() * ClickLayer::kStandaloneOutputGain;
+                            const float excMain = exciter.process(lastBody);
+                            const float exc     = excMain + clickSample * 0.5f;
+                            const float bodyOut = body.processSampleNoSmooth(sharedBank, exc);
+                            lastBody            = bodyOut;
+
+                            // Phase 8D shell stage (slow path). Feedforward
+                            // body -> shell, then a passive additive mix into the
+                            // body signal -- identical topology to the fast path
+                            // (processBlockFast), just per-sample instead of
+                            // block-rate. No return path into the body excitation.
+                            float bodyWithShell = bodyOut;
+                            if (secondaryActive)
+                            {
+                                lastShell = secondaryBank_.processSampleNoSmooth(
+                                    bodyOut * effectiveCoupling_);
+                                bodyWithShell += lastShell;
+                            }
+
+                            // Parallel noise layer (Phase 7) sums into body
+                            // output before the UnnaturalZone chain; click layer
+                            // is mixed directly so it's heard as a transient.
+                            const float noiseSample =
+                                noiseLayer_.processSample() * noiseLayer_.standaloneGain()
+                                * noiseLayerGain_ * wireGainMod_;
+                            const float combinedBody = bodyWithShell + noiseSample + clickSample;
+
+                            // UnnaturalZone chain per contract: body + modeInject
+                            // → nonlinear coupling → tone shaper → env × level.
+                            const float injected = combinedBody + unnaturalZone_.modeInject.process();
+                            const float coupled  =
+                                unnaturalZone_.nonlinearCoupling.processSample(injected);
+                            const float shaped   = toneShaper_.processSample(coupled);
+                            const float env      = ampEnvelope_.process();
+                            out[i]               = Krate::DSP::hardClip(shaped * env * level);
                         }
-
-                        // Parallel noise layer (Phase 7) sums into body
-                        // output before the UnnaturalZone chain; click layer
-                        // is mixed directly so it's heard as a transient.
-                        const float noiseSample =
-                            noiseLayer_.processSample() * noiseLayer_.standaloneGain()
-                            * noiseLayerGain_ * wireGainMod_;
-                        const float combinedBody = bodyWithShell + noiseSample + clickSample;
-
-                        // UnnaturalZone chain per contract: body + modeInject
-                        // → nonlinear coupling → tone shaper → env × level.
-                        const float injected = combinedBody + unnaturalZone_.modeInject.process();
-                        const float coupled  =
-                            unnaturalZone_.nonlinearCoupling.processSample(injected);
-                        const float shaped   = toneShaper_.processSample(coupled);
-                        const float env      = ampEnvelope_.process();
-                        out[i]               = Krate::DSP::hardClip(shaped * env * level);
+                        voiceSampleCount_ += len;
+                        offset += len;
                     }
                     // T1.7 (MB-027): processSampleNoSmooth never culls silent
                     // modes, so flush once per block as the banks'
@@ -1154,22 +1052,6 @@ private:
                         secondaryLastOutput_ = lastShell;
                 });
         });
-
-        // Audit N-1 energy follower (mirrors processBlockFast). Tracks the
-        // bank's gain-invariant MODAL energy (not the radiated output^2) that
-        // feeds next block's tension pitch mod. Runs only when tension is active
-        // so the default slow path stays zero-overhead.
-        if (tensionActive || wireActive)
-        {
-            const float e = bodyBank_.getSharedBank().getModalEnergy();
-            const float a = std::pow(energyAlpha_, static_cast<float>(numSamples));
-            energyEnv_ = a * energyEnv_ + (1.0f - a) * e;
-            if (wireActive)
-            {
-                wireEnergyPeak_ = std::max(wireEnergyPeak_, energyEnv_);
-                wireGainMod_    = computeWireGainMod();
-            }
-        }
     }
 
 public:
@@ -1534,7 +1416,8 @@ private:
         Krate::DSP::ModalResonatorBank& bank,
         const VoiceCommonParams& p,
         BodyModelType body,
-        ExciterType exciter) noexcept
+        ExciterType exciter,
+        float startPitchHz) noexcept
     {
         const StrikeNormKey key{
             .body = body, .exciter = exciter, .material = p.material, .size = p.size, .decay = p.decay, .strikePos = p.strikePos, .modeStretch = p.modeStretch,
@@ -1546,7 +1429,8 @@ private:
             .fmRatio = exciterBank_.getPendingFMRatioNorm(),
             .frictionPressure = exciterBank_.getPendingFrictionNorm(),
             .feedbackAmount = exciterBank_.getPendingFeedbackNorm(),
-            .sampleRate = static_cast<float>(sampleRate_)};
+            .sampleRate = static_cast<float>(sampleRate_),
+            .startPitchHz = startPitchHz};
         if (!(key == strikeNormKey_)) {
             strikeNormGain_ = measuredStrikeOutputGainExcited(bank, exciter);
             strikeNormKey_  = key;
@@ -1712,52 +1596,198 @@ private:
     /// damping/air-loading/scatter). Audit H-3/M-1 theme: re-run the ACTIVE
     /// body's mapper so these edits reach every modal body, not only Membrane.
     /// String runs through its own waveguide setters and is left untouched here
-    /// (its sustained live retuning is a separate concern).
+    /// (its sustained live retuning is a separate concern). T1.12 (MB-161): the
+    /// re-map uses the material the voice is playing (the morph's last pushed
+    /// value while Material Morph is on), and pushModes keeps the current
+    /// pitch-envelope / tension ratio, so a live edit does not drop the voice
+    /// back to its natural pitch.
     void updateModalParameters() noexcept
     {
         const BodyModelType t = bodyBank_.getCurrentType();
         if (t == BodyModelType::String)
             return;
 
-        cachedMapperResult_ = mapModalBody(t, makeBodyParams(material_), 0.0f);
-        pushCachedModes(bodyBank_.getSharedBank());
+        const float material = unnaturalZone_.materialMorph.isEnabled()
+            ? lastPushedMorph_
+            : material_;
+        cachedMapperResult_ = mapModalBody(t, makeBodyParams(material), 0.0f);
+        pushModes(bodyBank_.getSharedBank());
     }
 
     /// Audit H-3: retune the active body to absolute pitchHz. Modal bodies
-    /// rescale their cached modes into the shared bank; the String waveguide
-    /// retunes via its frequency smoother. Used by the seed at noteOn and by
-    /// all three per-sample / block modulation paths.
+    /// store the ratio to the natural fundamental and push their cached modes
+    /// scaled by it; the String waveguide retunes via its frequency smoother.
+    /// Used by the seed at noteOn and by controlStep.
     void retuneFundamental(float pitchHz) noexcept
     {
         if (bodyBank_.getCurrentType() == BodyModelType::String)
+        {
             bodyBank_.setStringFrequency(pitchHz);
-        else
-            updateModalFundamentalOnBank(bodyBank_.getSharedBank(), pitchHz);
+            return;
+        }
+        setPitchRatio(pitchHz);
+        pushModes(bodyBank_.getSharedBank());
     }
 
-    /// Per-sample pitch-envelope dispatcher (process() per-sample path).
-    void updateBodyFundamental(float pitchHz) noexcept
+    /// currentPitchRatio_ = pitchHz / naturalFundamentalHz_ (the pitch
+    /// envelope and the tension factor relative to the body's natural f0).
+    void setPitchRatio(float pitchHz) noexcept
     {
-        retuneFundamental(pitchHz);
+        currentPitchRatio_ = (naturalFundamentalHz_ > 0.0f)
+            ? pitchHz / naturalFundamentalHz_
+            : 1.0f;
     }
 
-    /// Recompute modal-bank frequencies scaled by pitchHz / naturalFundamentalHz,
-    /// preserving filter state via updateModes(). Body-agnostic: cachedMapperResult_
-    /// holds whichever modal body is active (set at noteOn / morph refresh), so
-    /// scaling its frequencies retunes Plate/Shell/Bell/NoiseBody exactly as it
-    /// does Membrane. The sharedBank reference is passed in for the processBlock
-    /// inner loop, where the bodyBank_ visitor already holds one.
-    void updateModalFundamentalOnBank(Krate::DSP::ModalResonatorBank& sharedBank,
-                                      float pitchHz) noexcept
+    // ------------------------------------------------------------------
+    // T1.11 control grid (MB-008, MB-026, MB-151, MB-159, MB-237)
+    // ------------------------------------------------------------------
+
+    /// Phase 8E tension modulation is a Membrane-only physics path.
+    [[nodiscard]] bool isTensionActive() const noexcept
     {
-        if (naturalFundamentalHz_ <= 0.0f || cachedMapperResult_.numPartials <= 0)
+        return tensionAmtEffective_ > 1e-6f
+            && bodyBank_.getCurrentType() == BodyModelType::Membrane;
+    }
+
+    /// Wire coupling drives the same modal-energy follower as tension, but
+    /// ANY modal body participates.
+    [[nodiscard]] bool isWireActive() const noexcept { return wireCoupling_ > 1e-6f; }
+
+    /// True while anything runs on the control grid. False keeps every
+    /// renderer's pre-T1.11 chunking, so an unmodulated pad is bit-identical.
+    [[nodiscard]] bool isControlGridActive() const noexcept
+    {
+        return toneShaper_.isPitchEnvActive()
+            || unnaturalZone_.materialMorph.isEnabled()
+            || isTensionActive()
+            || isWireActive();
+    }
+
+    /// Advance the pitch envelope and the morph envelope by `n` samples
+    /// without retuning: every rendered sample that is not a grid point.
+    void tickModulators(int n) noexcept
+    {
+        if (toneShaper_.isPitchEnvActive())
+            for (int i = 0; i < n; ++i)
+                (void)toneShaper_.processPitchEnvelope();
+        if (unnaturalZone_.materialMorph.isEnabled())
+            for (int i = 0; i < n; ++i)
+                (void)unnaturalZone_.materialMorph.process();
+    }
+
+    /// Start a renderer chunk of at most `maxLen` samples while the grid is
+    /// active: cut it at the next grid point, run controlStep when it starts
+    /// on one, and advance the modulators over its other samples. Returns
+    /// the chunk length; the caller renders it and adds it to
+    /// voiceSampleCount_.
+    [[nodiscard]] int beginControlChunk(Krate::DSP::ModalResonatorBank& sharedBank,
+                                        int maxLen) noexcept
+    {
+        const int phase = static_cast<int>(voiceSampleCount_ % kControlGridSamples);
+        const int len = std::min(maxLen, kControlGridSamples - phase);
+        int ticks = len;
+        if (phase == 0)
+        {
+            controlStep(sharedBank);
+            --ticks;
+        }
+        tickModulators(ticks);
+        return len;
+    }
+
+    /// One control step at a grid point. Reading the pitch and morph envelopes
+    /// here counts as this sample's advance.
+    void controlStep(Krate::DSP::ModalResonatorBank& sharedBank) noexcept
+    {
+        // 1. Audit N-1: one-pole follower on the bank's MODAL energy (not the
+        // radiated output^2). getModalEnergy() = sum of mode amplitude^2 is a
+        // smooth envelope invariant to the body output gain, so the tension
+        // glide is physically grounded (Avanzini-Marogna-Bank 2012). One step
+        // per grid point with the per-sample 20 ms coefficient raised to the
+        // grid length, so the follower no longer depends on the host block.
+        const bool tension = isTensionActive();
+        const bool wire    = isWireActive();
+        if (tension || wire)
+        {
+            const float e = sharedBank.getModalEnergy();
+            energyEnv_ = energyAlphaGrid_ * energyEnv_ + (1.0f - energyAlphaGrid_) * e;
+            if (wire)
+            {
+                wireEnergyPeak_ = std::max(wireEnergyPeak_, energyEnv_);
+                wireGainMod_    = computeWireGainMod();
+            }
+        }
+
+        // 2. Pitch. Phase 8E (Avanzini et al., JASA 2012): an energy-dependent
+        // upward pitch jump at the strike that relaxes as vibration energy
+        // decays, `1 + amt * energyEnv` around the envelope or natural pitch.
+        const float basePitchHz = toneShaper_.isPitchEnvActive()
+            ? toneShaper_.processPitchEnvelope()
+            : naturalFundamentalHz_;
+        const float pitchHz = tension
+            ? basePitchHz * std::min(1.0f + tensionAmtEffective_ * energyEnv_,
+                                     kTensionPitchModMax)
+            : basePitchHz;
+
+        // 3. Material Morph.
+        const bool morph = unnaturalZone_.materialMorph.isEnabled();
+        const float m = morph ? unnaturalZone_.materialMorph.process() : lastPushedMorph_;
+
+        // 4. Dirty gate: retune only when the pitch or the morph moved. The
+        // morph re-runs the body mapper, the costly half of a step, so it
+        // pushes once the material has moved by kMorphDirtyStep (a 300 ms
+        // sweep over the whole range then pushes every ~1.2 ms) or has
+        // reached the morph's end value.
+        const bool pitchDirty =
+            std::abs(pitchHz - lastPushedPitchHz_) > 1e-6f * pitchHz;
+        const bool morphDirty = morph && m != lastPushedMorph_
+            && (std::abs(m - lastPushedMorph_) >= kMorphDirtyStep
+                || m == unnaturalZone_.materialMorph.getEnd());
+        if (!pitchDirty && !morphDirty)
             return;
 
-        const float ratio = pitchHz / naturalFundamentalHz_;
+        // T1.12 (MB-028, MB-161): the morph refresh only re-maps
+        // cachedMapperResult_ (unscaled); the pitch ratio is applied on top of
+        // it by the one push below, so neither feature overwrites the other.
+        const bool retune = pitchDirty || pitchHz != naturalFundamentalHz_;
+        if (morphDirty)
+        {
+            refreshBodyForMaterialOnBank(m);
+            lastPushedMorph_ = m;
+        }
+        if (bodyBank_.getCurrentType() == BodyModelType::String)
+        {
+            // The waveguide has its own frequency smoother (no snap), and its
+            // material refresh leaves the frequency alone.
+            if (retune)
+            {
+                bodyBank_.setStringFrequency(pitchHz);
+                lastPushedPitchHz_ = pitchHz;
+            }
+            return;
+        }
+        if (retune)
+        {
+            setPitchRatio(pitchHz);
+            lastPushedPitchHz_ = pitchHz;
+        }
+        pushModes(sharedBank);
+    }
+
+    /// The one push into the modal bank: cachedMapperResult_ (the unscaled
+    /// modes of the current material) with its frequencies scaled by
+    /// currentPitchRatio_, one state-preserving updateModes(), then a snap of
+    /// the smoothed coefficients onto the new targets, so the bank's per-call
+    /// smoothing step is a no-op and the render does not depend on how the
+    /// host splits blocks. Body-agnostic: the ratio retunes Plate/Shell/Bell/
+    /// NoiseBody exactly as it does Membrane. Used by the noteOn seed,
+    /// controlStep and the live parameter edits (updateModalParameters).
+    void pushModes(Krate::DSP::ModalResonatorBank& sharedBank) noexcept
+    {
         float scaled[Bodies::MapperResult::kMaxModes];
         const int n = cachedMapperResult_.numPartials;
         for (int k = 0; k < n; ++k)
-            scaled[k] = cachedMapperResult_.frequencies[k] * ratio;
+            scaled[k] = cachedMapperResult_.frequencies[k] * currentPitchRatio_;
 
         sharedBank.updateModes(
             scaled,
@@ -1766,20 +1796,15 @@ private:
             cachedMapperResult_.damping,
             cachedMapperResult_.stretch,
             cachedMapperResult_.scatter);
+        sharedBank.snapCoefficients();
     }
 
     /// FR-054 / Audit M-1: Material Morph refresh. Re-run the ACTIVE body's
-    /// mapper with the morph's current material value and push the new
-    /// coefficients into the bank via updateModes() (state-preserving). Works
-    /// for every body type: modal bodies refresh their modes; String re-applies
-    /// its material-derived brightness/decay through the waveguide.
-    void refreshBodyForMaterial(float material) noexcept
-    {
-        refreshBodyForMaterialOnBank(bodyBank_.getSharedBank(), material);
-    }
-
-    void refreshBodyForMaterialOnBank(Krate::DSP::ModalResonatorBank& sharedBank,
-                                      float material) noexcept
+    /// mapper with the morph's current material value. Modal bodies only
+    /// re-map cachedMapperResult_ (the caller pushes it once, scaled by the
+    /// current pitch ratio: pushModes); String re-applies its material-derived
+    /// brightness/decay through the waveguide.
+    void refreshBodyForMaterialOnBank(float material) noexcept
     {
         const BodyModelType t = bodyBank_.getCurrentType();
         const VoiceCommonParams p = makeBodyParams(material);
@@ -1791,20 +1816,6 @@ private:
         }
 
         cachedMapperResult_ = mapModalBody(t, p, /*pitchHz*/ 0.0f);
-        pushCachedModes(sharedBank);
-    }
-
-    /// Push cachedMapperResult_ into `sharedBank` via the state-preserving
-    /// updateModes() path. Shared by updateModalParameters / morph refresh.
-    void pushCachedModes(Krate::DSP::ModalResonatorBank& sharedBank) noexcept
-    {
-        sharedBank.updateModes(
-            cachedMapperResult_.frequencies,
-            cachedMapperResult_.amplitudes,
-            cachedMapperResult_.numPartials,
-            cachedMapperResult_.damping,
-            cachedMapperResult_.stretch,
-            cachedMapperResult_.scatter);
     }
 
     // Sub-components
@@ -1851,7 +1862,9 @@ private:
     // Reusable parameter bundle (populated on every noteOn to avoid alloc).
     VoiceCommonParams params_{};
 
-    // Cached baseline mapper result (used for per-sample pitch env scaling).
+    // The UNSCALED mapper result for the material the voice plays (set at
+    // noteOn, by the morph refresh and by updateModalParameters); pushModes
+    // scales it by currentPitchRatio_.
     Bodies::MapperResult cachedMapperResult_{};
 
     // Audit N-1: cache for the body's measured-strike output gain, used by a
@@ -1872,6 +1885,9 @@ private:
         // MB-021 / MB-032: the other exciter params and the sample rate.
         float fmRatio = 0.0f, frictionPressure = 0.0f, feedbackAmount = 0.0f;
         float sampleRate = 0.0f;
+        // T1.11 (MB-026): the seeded pitch-envelope start the probe measures
+        // the bank at (0 when the pitch envelope is off).
+        float startPitchHz = 0.0f;
         [[nodiscard]] bool operator==(const StrikeNormKey&) const = default;
     };
     StrikeNormKey strikeNormKey_{};
@@ -1917,7 +1933,17 @@ private:
     float tensionModAmt_        = 0.0f;  // per-pad depth (norm)
     float tensionAmtEffective_  = 0.0f;  // depth * velocity^2
     float energyEnv_            = 0.0f;  // one-pole energy follower
-    float energyAlpha_          = 0.0f;  // block-rate smoothing coeff
+    float energyAlphaGrid_      = 0.0f;  // follower coeff per control-grid step
+
+    // T1.11 control grid: samples rendered since noteOn, and the pitch (Hz,
+    // including the tension factor) and morph material last pushed into the
+    // body. Grid points sit at voiceSampleCount_ % kControlGridSamples == 0.
+    std::int64_t voiceSampleCount_  = 0;
+    float        lastPushedPitchHz_ = 0.0f;
+    float        lastPushedMorph_   = 0.0f;
+    // T1.12: lastPushedPitchHz_ / naturalFundamentalHz_, the ratio pushModes
+    // scales every re-mapped mode set by (noteOn seed, controlStep).
+    float        currentPitchRatio_ = 1.0f;
 
     // Voice identity
     std::uint32_t voiceId_    = 0;

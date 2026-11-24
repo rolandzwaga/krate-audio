@@ -258,14 +258,31 @@ TEST_CASE("Note-off release survives the pitch envelope at every host block size
     // default decay 0.3 the voice has already fallen 60 dB below its peak, and
     // under the pool's quiet-block auto-release, before the 200 ms note-off,
     // so there is no release left to measure.
-    PadConfig plain = detPad(BodyModelType::Membrane, ExciterType::Impulse);
-    plain.decay = 1.0f;
-    plain.material = 1.0f;
-    PadConfig swept = plain;
+    PadConfig base = detPad(BodyModelType::Membrane, ExciterType::Impulse);
+    base.decay = 1.0f;
+    base.material = 1.0f;
+    // The reference is the same pad with the pitch envelope held at the 80 Hz
+    // end pitch (start = end), so both renders release at the pitch the swept
+    // one ends at: the modal damping law depends on the frequency, and once the
+    // sweep really sounds (T1.11) the plain pad's 158 Hz ring is no longer a
+    // like-for-like reference (ruling 2026-11-24, Q2).
+    PadConfig plain = base;
+    plain.tsPitchEnvStart = static_cast<float>(hzToPitchNorm(80.0));
+    plain.tsPitchEnvEnd = static_cast<float>(hzToPitchNorm(80.0));
+    PadConfig swept = base;
     swept.tsPitchEnvStart = static_cast<float>(hzToPitchNorm(160.0));
     swept.tsPitchEnvEnd = static_cast<float>(hzToPitchNorm(80.0));
     // pad_config_apply.h: setPitchEnvTimeMs(tsPitchEnvTime * 500 ms).
-    swept.tsPitchEnvTime = 30.0f / 500.0f;
+    SECTION("sweep over before the note-off (30 ms)")
+    {
+        swept.tsPitchEnvTime = 30.0f / 500.0f;
+    }
+    SECTION("sweep still running at the note-off (400 ms): retunes after the note-off keep "
+            "the release (MB-269)")
+    {
+        swept.tsPitchEnvTime = 400.0f / 500.0f;
+    }
+    plain.tsPitchEnvTime = swept.tsPitchEnvTime;
 
     const long off = static_cast<long>(std::lround(0.2 * kSr));
     const long total = off + static_cast<long>(std::lround(1.5 * kSr));
@@ -282,7 +299,7 @@ TEST_CASE("Note-off release survives the pitch envelope at every host block size
                                    ? -1.0
                                    : static_cast<double>(rSwept.retiredAt - off) / kSr;
         INFO("block " << block << ": release to -60 dB with the pitch envelope "
-                      << mSwept.releaseS * 1000.0 << " ms, without " << mPlain.releaseS * 1000.0
+                      << mSwept.releaseS * 1000.0 << " ms, held at 80 Hz " << mPlain.releaseS * 1000.0
                       << " ms; retired " << retireS << " s after the note-off; level at the note-off "
                       << mSwept.levelAtOffDb << " / " << mPlain.levelAtOffDb << " dB re peak");
         REQUIRE(mSwept.allFinite);
