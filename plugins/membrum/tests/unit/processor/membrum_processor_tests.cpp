@@ -21,6 +21,7 @@
 
 #include "pluginterfaces/vst/ivstparameterchanges.h"
 #include "pluginterfaces/vst/ivstevents.h"
+#include "public.sdk/source/common/memorystream.h"
 
 #include <algorithm>
 #include <array>
@@ -28,6 +29,7 @@
 #include <cmath>
 #include <cstring>
 #include <cstdint>
+#include <cstdlib>
 #include <numeric>
 #include <vector>
 #include "vst_param_changes.h"
@@ -1265,4 +1267,249 @@ TEST_CASE("Phase 8C: kAirLoadingId processor dispatch routes to selected pad",
     INFO("airLoading before=" << before << " after=" << after);
     CHECK(after == Approx(1.0f).margin(1e-4f));
     CHECK(before != after);
+}
+
+// =============================================================================
+// T1.14 (MB-051 / MB-089 / MB-141): note events start at their sampleOffset, a
+// zero-sample process() call still applies flushed parameters and events, and
+// the render does not depend on the host block size.
+// =============================================================================
+
+namespace {
+
+constexpr double kTimingSampleRate = 48000.0;
+
+struct TimedNote
+{
+    long  pos      = 0;    // absolute sample position
+    int16 pitch    = 36;
+    float velocity = 1.0f; // 0 = note-off event
+};
+
+// A deterministic pad (noise and click layers off), as in the audit probes.
+Membrum::PadConfig detPad(Membrum::BodyModelType b = Membrum::BodyModelType::Membrane,
+                          Membrum::ExciterType e = Membrum::ExciterType::Impulse,
+                          float size = 0.5f)
+{
+    Membrum::PadConfig c;
+    c.bodyModel = b;
+    c.exciterType = e;
+    c.size = size;
+    c.noiseLayerMix = 0.0f;
+    c.clickLayerMix = 0.0f;
+    return c;
+}
+
+// Renders `total` samples of the left output in the fixture's block size, each
+// note placed into the block that holds it at sampleOffset = pos % blockSize.
+std::vector<float> renderTimedNotes(MembrumTestFixture& fix,
+                                    const std::vector<TimedNote>& notes,
+                                    long total)
+{
+    std::vector<float> out;
+    out.reserve(static_cast<size_t>(total));
+    const long bs = fix.blockSize;
+    for (long start = 0; start < total; start += bs)
+    {
+        fix.events.clear();
+        for (const auto& n : notes)
+        {
+            if (n.pos < start || n.pos >= start + bs)
+                continue;
+            const auto off = static_cast<int32>(n.pos - start);
+            if (n.velocity > 0.0f)
+                fix.events.addNoteOn(n.pitch, n.velocity, off);
+            else
+                fix.events.addNoteOff(n.pitch, off);
+        }
+        fix.processBlock();
+        const long n = std::min(bs, total - start);
+        out.insert(out.end(), fix.outL.begin(), fix.outL.begin() + n);
+    }
+    fix.events.clear();
+    return out;
+}
+
+long firstIndexAbove(const std::vector<float>& x, double thr, size_t from = 0)
+{
+    for (size_t i = from; i < x.size(); ++i)
+        if (std::abs(static_cast<double>(x[i])) > thr)
+            return static_cast<long>(i);
+    return -1;
+}
+
+long lastIndexAtOrAbove(const std::vector<float>& x, double thr)
+{
+    for (size_t i = x.size(); i > 0; --i)
+        if (std::abs(static_cast<double>(x[i - 1])) >= thr)
+            return static_cast<long>(i - 1);
+    return -1;
+}
+
+} // namespace
+
+TEST_CASE("Membrum: Note-on starts at its Event::sampleOffset",
+          "[membrum][processor][timing]")
+{
+    constexpr int32 kBs = 512;
+    for (const int32 off : {0, 1, 100, 300, 511})
+    {
+        MembrumTestFixture fix(kBs, kTimingSampleRate);
+        fix.processor.voicePoolForTest().padConfigMut(0) = detPad();
+        const auto out = renderTimedNotes(fix, {{off, 36, 1.0f}}, 2L * kBs);
+        const long first = firstIndexAbove(out, 1e-9);
+        INFO("sampleOffset " << off << ": first sample above 1e-9 at " << first);
+        REQUIRE(first >= off);
+        REQUIRE(first <= off + 2);
+    }
+}
+
+TEST_CASE("Membrum: Two hits in one block start at their own offsets",
+          "[membrum][processor][timing]")
+{
+    constexpr int32 kBs = 512;
+    auto render = [](const std::vector<TimedNote>& notes) {
+        MembrumTestFixture fix(kBs, kTimingSampleRate);
+        fix.processor.voicePoolForTest().padConfigMut(0) = detPad();
+        fix.processor.voicePoolForTest().padConfigMut(2) = detPad();
+        return renderTimedNotes(fix, notes, 2L * kBs);
+    };
+    const auto a = render({{0, 36, 1.0f}, {256, 38, 1.0f}});
+    const auto b = render({{0, 36, 1.0f}});
+    REQUIRE(a.size() == b.size());
+
+    long firstDiff = -1;
+    for (size_t i = 0; i < a.size(); ++i)
+    {
+        if (std::abs(static_cast<double>(a[i]) - static_cast<double>(b[i])) > 1e-9)
+        {
+            firstDiff = static_cast<long>(i);
+            break;
+        }
+    }
+    INFO("first sample where the second hit shows: " << firstDiff);
+    REQUIRE(firstDiff >= 256);
+    REQUIRE(firstDiff <= 258);
+}
+
+TEST_CASE("Membrum: A note-off in the same block as its note-on does not mute the hit",
+          "[membrum][processor][timing]")
+{
+    constexpr int32 kBs = 512;
+    auto render = [](const std::vector<TimedNote>& notes) {
+        MembrumTestFixture fix(kBs, kTimingSampleRate);
+        return renderTimedNotes(fix, notes, kBs);
+    };
+    const auto withOff    = render({{0, 36, 1.0f}, {400, 36, 0.0f}});
+    const auto withoutOff = render({{0, 36, 1.0f}});
+
+    double maxDiff = 0.0;
+    double peak = 0.0;
+    for (size_t i = 0; i < 400; ++i)
+    {
+        maxDiff = std::max(maxDiff, std::abs(static_cast<double>(withOff[i])
+                                             - static_cast<double>(withoutOff[i])));
+        peak = std::max(peak, std::abs(static_cast<double>(withoutOff[i])));
+    }
+    INFO("samples 0-399: max |difference| " << maxDiff << ", peak " << peak);
+    REQUIRE(peak > 1e-3);  // the hit sounds before the note-off
+    REQUIRE(maxDiff <= 1e-9);
+}
+
+TEST_CASE("Membrum: Render is invariant to the host block size",
+          "[membrum][processor][timing]")
+{
+    const std::vector<TimedNote> notes = {
+        {0, 36, 1.0f},     {3001, 38, 0.8f},  {7003, 41, 0.9f},  {12345, 43, 0.7f},
+        {20000, 36, 0.6f}, {26011, 38, 1.0f}, {33333, 41, 0.5f}, {40000, 43, 0.9f}};
+    const long total = static_cast<long>(4.0 * kTimingSampleRate);
+    const std::array<int32, 5> sizes = {32, 64, 256, 1024, 4096};
+
+    std::vector<std::vector<float>> renders;
+    for (const int32 bs : sizes)
+    {
+        MembrumTestFixture fix(bs, kTimingSampleRate);
+        auto& pool = fix.processor.voicePoolForTest();
+        // Notes 36 (default kick, pitch envelope) and 38 (default snare) keep
+        // the default kit; 41 is a String, 43 a NoiseBody.
+        pool.padConfigMut(5).bodyModel   = Membrum::BodyModelType::String;
+        pool.padConfigMut(5).exciterType = Membrum::ExciterType::Impulse;
+        pool.padConfigMut(7).bodyModel   = Membrum::BodyModelType::NoiseBody;
+        pool.padConfigMut(7).exciterType = Membrum::ExciterType::Mallet;
+        renders.push_back(renderTimedNotes(fix, notes, total));
+    }
+
+    constexpr double kTailThreshold = 3.16e-5;  // -90 dBFS
+    for (size_t i = 0; i < sizes.size(); ++i)
+    {
+        for (size_t j = i + 1; j < sizes.size(); ++j)
+        {
+            const auto& x = renders[i];
+            const auto& y = renders[j];
+            REQUIRE(x.size() == y.size());
+            double sumSq = 0.0;
+            double maxDiff = 0.0;
+            for (size_t s = 0; s < x.size(); ++s)
+            {
+                const double d = static_cast<double>(x[s]) - static_cast<double>(y[s]);
+                sumSq += d * d;
+                maxDiff = std::max(maxDiff, std::abs(d));
+            }
+            const double rms = std::sqrt(sumSq / static_cast<double>(x.size()));
+            const double rmsDb = 20.0 * std::log10(std::max(rms, 1e-30));
+            const long tailX = lastIndexAtOrAbove(x, kTailThreshold);
+            const long tailY = lastIndexAtOrAbove(y, kTailThreshold);
+            INFO("block " << sizes[i] << " vs " << sizes[j] << ": RMS difference "
+                 << rmsDb << " dBFS, max |difference| " << maxDiff
+                 << ", last sample >= -90 dBFS at " << tailX << " / " << tailY);
+            CHECK(rmsDb <= -80.0);
+            CHECK(tailX >= 0);
+            CHECK(std::labs(tailX - tailY) <= 32);
+        }
+    }
+}
+
+TEST_CASE("Membrum: A zero-sample process call applies flushed parameters and events",
+          "[membrum][processor][state]")
+{
+    MembrumTestFixture fix(512, kTimingSampleRate);
+    const auto materialId =
+        static_cast<ParamID>(Membrum::padParamId(3, Membrum::kPadMaterial));
+
+    TestParameterChanges flush;
+    flush.addChange(materialId, 0.83);
+    fix.events.clear();
+    fix.events.addNoteOn(36, 1.0f);
+
+    fix.data.numSamples = 0;
+    fix.data.numOutputs = 0;
+    fix.data.outputs = nullptr;
+    fix.data.inputParameterChanges = &flush;
+    REQUIRE(fix.processor.process(fix.data) == kResultOk);
+
+    fix.data.inputParameterChanges = nullptr;
+    fix.data.numSamples = fix.blockSize;
+    fix.data.numOutputs = 1;
+    fix.data.outputs = &fix.outputBus;
+    fix.events.clear();
+
+    CHECK(fix.processor.voicePoolForTest().padConfig(3).material
+          == Approx(0.83f).margin(1e-6f));
+
+    // The flushed change survives a state round trip.
+    MemoryStream stream;
+    REQUIRE(fix.processor.getState(&stream) == kResultOk);
+    stream.seek(0, IBStream::kIBSeekSet, nullptr);
+    {
+        MembrumTestFixture fix2(512, kTimingSampleRate);
+        REQUIRE(fix2.processor.setState(&stream) == kResultOk);
+        fix2.processBlock();  // the audio thread adopts the loaded state
+        CHECK(fix2.processor.voicePoolForTest().padConfig(3).material
+              == Approx(0.83f).margin(1e-6f));
+    }
+
+    // The flushed note sounds in the next normal block.
+    fix.processBlock();
+    INFO("first block after the flush: peak " << fix.peakAmplitude());
+    REQUIRE(fix.peakAmplitude() > 1e-3f);
 }

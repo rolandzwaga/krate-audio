@@ -397,27 +397,14 @@ void VoicePool::processBlock(float* outL, float* outR,
     // Render every active main voice, compute its per-block peak, then
     // accumulate into both output channels. DrumVoice is mono — the pool
     // mirrors mono-to-stereo here.
-    // Silence threshold below which a sustaining voice is considered
-    // "naturally finished" (FR-115). Phase 8A.5: the envelope no longer
-    // force-decays the voice (sustain = 1.0), so voices rely on this
-    // threshold to retire once the body's damping law has naturally
-    // brought the block peak below audibility.
     //
-    // Bumped from 1e-4 (-80 dBFS) to 1e-3 (-60 dBFS) -- the previous
-    // value was below the per-voice equilibrium that some pads settle
-    // at after rapid hits (toms with Phase 8D shell coupling can plateau
-    // at 0.003..0.007 per voice indefinitely under sustained envelope).
-    // Without crossing the threshold the auto-noteOff never fires, the
-    // damping accelerator never triggers, and the voice stays Active
-    // forever -- the user-reported "infinite ring" reproduced by the
-    // stress test in test_kit_switch_infinite_ring.cpp.
-    //
-    // -60 dBFS is the usual quiet-room floor and below the audible
-    // threshold for percussion content; cymbals/long-tail kits still
-    // ring through their natural decay, but they can't sit on a
-    // sub-audible plateau forever any more.
-    constexpr float kSilenceThreshold = 1.0e-3f;   // ~ -60 dBFS
-
+    // T1.13 (MB-052): the voice owns its auto-release
+    // (DrumVoice::kAutoReleaseThreshold, -60 dBFS held for 20 ms after a
+    // 10 ms onset grace, acting on a fixed grid of voice time). The pool
+    // used to release a voice after any host block whose peak was below
+    // -60 dBFS, so the voice length depended on the host block size and a
+    // 1-16 sample host cut hits at their onset. The per-block peak below
+    // only feeds voice stealing (currentLevel).
     for (int slot = 0; slot < maxPolyphony_; ++slot)
     {
         if (mainVoice(slot).isActive())
@@ -457,12 +444,6 @@ void VoicePool::processBlock(float* outL, float* outR,
                         auxR[bus][i] += scratch[i] * gainR;
                     }
                 }
-            }
-
-            if (peak < kSilenceThreshold &&
-                meta_[slot].state == VoiceSlotState::Active)
-            {
-                mainVoice(slot).noteOff();
             }
         }
         else if (meta_[slot].state == VoiceSlotState::Active)

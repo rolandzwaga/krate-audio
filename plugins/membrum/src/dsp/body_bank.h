@@ -179,15 +179,14 @@ public:
     /// Body-aware silence test for voice retirement (MB-106, MB-160), called
     /// once per rendered block. The String body runs its WaveguideString and
     /// never the shared bank, so the bank's mode count says nothing about it:
-    /// it is silent when the waveguide's control energy stayed below
-    /// kStringSilentEnergy at every sample of the block (this call restarts
-    /// that per-block maximum). Every other body is silent once the bank's
+    /// it is silent once the waveguide's control energy has stayed below
+    /// -100 dBFS RMS for StringBody::kSilentRunMs, counted per sample
+    /// (StringBody::isSilent). Every other body is silent once the bank's
     /// flushSilentModes() has retired every mode.
     [[nodiscard]] bool isBodySilent() noexcept
     {
         if (currentType_ == BodyModelType::String)
-            return std::get<StringBody>(alternatives_).takeEnergyMax()
-                   < kStringSilentEnergy;
+            return std::get<StringBody>(alternatives_).isSilent();
         return sharedBank_.getNumActiveModes() == 0;
     }
 
@@ -205,11 +204,6 @@ public:
     }
 
 private:
-    /// WaveguideString::getControlEnergy() is a one-pole (5 ms) average of the
-    /// squared output, i.e. a mean square. -100 dBFS RMS is an amplitude of
-    /// 10^(-100/20) = 1e-5, whose square is 1e-10.
-    static constexpr float kStringSilentEnergy = 1.0e-10f;
-
     /// Empty the shared bank's mode set (MB-106, MB-039). reset() only clears
     /// the oscillator states, so the previous body's mode count, active flags
     /// and frequencies survived a swap or a kit switch: a String voice on that

@@ -22,6 +22,7 @@
 #include <krate/dsp/processors/waveguide_string.h>
 
 #include <algorithm>
+#include <cmath>
 #include <cstdint>
 
 namespace Membrum {
@@ -30,32 +31,47 @@ struct StringBody
 {
     Krate::DSP::WaveguideString string_;
 
-    /// Largest WaveguideString::getControlEnergy() seen since the last
-    /// takeEnergyMax(). Voice retirement reads it once per host block
-    /// (MB-106, MB-160): tracking it per sample makes the silence decision
-    /// independent of the block size, where a value read only at the block's
-    /// end would sample the follower's ripple at block-size-dependent phases.
-    float energyMax_ = 0.0f;
+    /// WaveguideString::getControlEnergy() is a one-pole (5 ms) average of the
+    /// squared output, i.e. a mean square. -100 dBFS RMS is an amplitude of
+    /// 10^(-100/20) = 1e-5, whose square is 1e-10.
+    static constexpr float kSilentEnergy = 1.0e-10f;
+
+    /// How long the control energy must stay below kSilentEnergy before the
+    /// body counts as silent: longer than the follower's ripple (half a period
+    /// of the string, 25 ms at the 20 Hz floor of StringMapper, 6.25 ms at the
+    /// 80 Hz a Size of 1 maps to), so a ripple trough never reads as silence.
+    static constexpr float kSilentRunMs = 20.0f;
+
+    /// Consecutive samples whose control energy stayed below kSilentEnergy,
+    /// capped at silentRunSamples_. Voice retirement reads it once per host
+    /// block (MB-106, MB-160, T1.13 / MB-052): counted per sample, the run
+    /// starts at the same sample whatever the block size, so the silence
+    /// decision is reached at the first block end past one fixed voice time.
+    /// (A per-block maximum needed a whole silent block, which put block-64
+    /// and block-1024 retirement up to two 1024-sample blocks apart.)
+    int quietRun_         = 0;
+    int silentRunSamples_ = 960;
 
     void prepare(double sampleRate, std::uint32_t voiceId) noexcept
     {
         string_.prepare(sampleRate);
         string_.prepareVoice(voiceId);
-        energyMax_ = 0.0f;
+        silentRunSamples_ = static_cast<int>(
+            std::lround(static_cast<double>(kSilentRunMs) * 0.001 * sampleRate));
+        quietRun_ = 0;
     }
 
     void reset(Krate::DSP::ModalResonatorBank& /*sharedBank*/) noexcept
     {
         string_.silence();
-        energyMax_ = 0.0f;
+        quietRun_ = 0;
     }
 
-    /// The block's maximum control energy (a mean square); restarts the window.
-    [[nodiscard]] float takeEnergyMax() noexcept
+    /// True once the control energy has stayed below kSilentEnergy for
+    /// kSilentRunMs.
+    [[nodiscard]] bool isSilent() const noexcept
     {
-        const float e = energyMax_;
-        energyMax_ = 0.0f;
-        return e;
+        return quietRun_ >= silentRunSamples_;
     }
 
     /// Re-arm to the post-prepare state when BodyBank selects this body again
@@ -67,7 +83,7 @@ struct StringBody
     {
         string_.silence();
         string_.prepareVoice(voiceId);
-        energyMax_ = 0.0f;
+        quietRun_ = 0;
     }
 
     void configureForNoteOn(Krate::DSP::ModalResonatorBank& /*sharedBank*/,
@@ -86,6 +102,7 @@ struct StringBody
         // starts feeding samples through processSample, that transient
         // plus the external excitation drives the waveguide.
         string_.noteOn(r.frequencyHz, 1.0f);
+        quietRun_ = 0;   // a new note is not silent until its own run is
     }
 
     // IMPORTANT: IGNORES sharedBank (FR-023, shared-bank isolation contract).
@@ -122,7 +139,9 @@ private:
     [[nodiscard]] float processTracked(float excitation) noexcept
     {
         const float y = string_.process(excitation);
-        energyMax_ = std::max(energyMax_, string_.getControlEnergy());
+        quietRun_ = (string_.getControlEnergy() < kSilentEnergy)
+                        ? std::min(quietRun_ + 1, silentRunSamples_)
+                        : 0;
         return y;
     }
 };

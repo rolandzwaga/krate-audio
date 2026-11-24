@@ -120,6 +120,20 @@ public:
     /// Marogna, Avanzini & Bank use for tension modulation (DAFx-10).
     static constexpr int kControlGridSamples = 32;
 
+    /// T1.13 (MB-052): the voice's auto-release. Once the voice output (after
+    /// level, before pan: what VoicePool used to measure) has stayed below
+    /// kAutoReleaseThreshold (-60 dBFS) for kAutoReleaseHoldMs, the voice
+    /// calls noteOff() at the next point of the kControlGridSamples grid, but
+    /// never before kAutoReleaseGraceMs of voice time. The pool used to test
+    /// the peak of each host block, so the release depended on the buffer
+    /// size and a 1-sample host released every hit during its attack. The
+    /// hold is the low end of the 20-50 ms range (user ruling 2026-11-24):
+    /// 50 ms delayed the release of long tails, such as Orchestral pad 23,
+    /// past their -80 dBFS window in test_kit_switch_infinite_ring.cpp.
+    static constexpr float kAutoReleaseThreshold = 1.0e-3f;
+    static constexpr float kAutoReleaseGraceMs   = 10.0f;
+    static constexpr float kAutoReleaseHoldMs    = 20.0f;
+
     /// T1.11: the Material Morph's dirty-gate step (material units, range
     /// [0, 1]). A control step re-runs the body mapper only once the morph
     /// has moved this far since its last push, or has reached its end value:
@@ -152,6 +166,10 @@ public:
         // may land an ulp below.
         safetyNetSamples_ =
             static_cast<std::int64_t>(std::llround(kSafetyNetSeconds * sampleRate));
+        autoReleaseGraceSamples_ = static_cast<int>(
+            std::lround(static_cast<double>(kAutoReleaseGraceMs) * 0.001 * sampleRate));
+        autoReleaseHoldSamples_ = static_cast<int>(
+            std::lround(static_cast<double>(kAutoReleaseHoldMs) * 0.001 * sampleRate));
 
         exciterBank_.prepare(sampleRate, voiceId);
         bodyBank_.prepare(sampleRate, voiceId);
@@ -311,6 +329,8 @@ public:
         // and the strike-norm probe below measures the bank at the pitch the
         // note starts at.
         voiceSampleCount_  = 0;
+        quietRunSamples_   = 0;      // T1.13: re-arm the auto-release
+        releaseLatched_    = false;
         lastPushedPitchHz_ = initialPitchHz;
         lastPushedMorph_   = effectiveMaterial;
         currentPitchRatio_ = 1.0f;
@@ -524,15 +544,19 @@ public:
 
     void noteOff() noexcept
     {
+        // T1.13: a voice is released once, by MIDI or by its own auto-release
+        // (autoReleaseAtGridPoint), whichever comes first; noteOn re-arms it.
+        if (releaseLatched_)
+            return;
+        releaseLatched_ = true;
         exciterBank_.release();
         toneShaper_.noteOff();
         ampEnvelope_.gate(false);
         // Phase 8A.5 (STK Modal idiom): accelerate modal decay by adding
         // kNoteOffReleaseRate (52 ms extra T60 at every sample rate) to every
         // mode's damping law; the bank's flushSilentModes() then retires the
-        // voice once amplitudes fall below kSilenceThreshold. The call is
-        // idempotent, so the pool's repeated quiet-block noteOff() does not
-        // compound it (MB-034).
+        // voice once amplitudes fall below kSilenceThreshold. The bank call is
+        // idempotent too, so a second release never compounds it (MB-034).
         bodyBank_.getSharedBank().raiseReleaseDecayRate(kNoteOffReleaseRate);
     }
 
@@ -594,6 +618,9 @@ public:
         if (!active_)
             return 0.0f;
 
+        // T1.13: the auto-release acts at grid points of voice time.
+        autoReleaseAtGridPoint();
+
         // Pitch envelope, tension, Material Morph and the wire follower
         // (control plane, T1.11): the same 32-sample voice-time grid as the
         // block renderers, BEFORE the body so a grid sample already sounds at
@@ -652,7 +679,9 @@ public:
         // only on a pathological/runaway voice, never on a musical hit at the
         // Step-3/4 budget). The real ceiling is owned by the main-bus true-peak
         // limiter, not a per-voice softClip gain stage.
-        return Krate::DSP::hardClip(shaped * env * level_);
+        const float y = Krate::DSP::hardClip(shaped * env * level_);
+        trackQuietRun(&y, 1);
+        return y;
     }
 
     // Block-level audio-thread hot path (T043 / FR-001 / FR-002 / research.md §1,
@@ -737,9 +766,10 @@ public:
             silentSamples_ = 0;
         }
         // Safety net: if the body has been silent for a while AND the
-        // voice pool's auto-noteOff hasn't fired (because peak settled
-        // above the silence threshold from sustained noise / click /
-        // filter ringing), force-retire so we don't sit Active forever.
+        // voice's auto-release (T1.13, autoReleaseAtGridPoint) hasn't fired
+        // (because the output settled above kAutoReleaseThreshold from
+        // sustained noise / click / filter ringing), force-retire so we
+        // don't sit Active forever.
         // Without this the original "infinite tone" bug regresses on
         // any preset whose layered output settles above 1e-3 once the
         // body modes have died -- pad-click hosts never send noteOff,
@@ -792,7 +822,11 @@ private:
 
         while (remaining > 0)
         {
+            // T1.13: the auto-release acts at the chunk start, and the chunk
+            // ends at the next grid point where it could act.
+            autoReleaseAtGridPoint();
             int chunk = remaining < kMaxBlockSize ? remaining : kMaxBlockSize;
+            chunk = autoReleaseChunk(chunk);
             if (gridActive)
                 chunk = beginControlChunk(bodyBank_.getSharedBank(), chunk);
 
@@ -933,6 +967,7 @@ private:
                 }
             }
 
+            trackQuietRun(out + offset, chunk);
             voiceSampleCount_ += chunk;
             offset    += chunk;
             remaining -= chunk;
@@ -972,7 +1007,11 @@ private:
                     {
                         // T1.11: one sub-chunk per control-grid interval while a
                         // modulation runs; the whole block otherwise.
-                        int len = numSamples - offset;
+                        // T1.13: the auto-release acts at the sub-chunk start,
+                        // and the sub-chunk ends at the next grid point where
+                        // it could act.
+                        autoReleaseAtGridPoint();
+                        int len = autoReleaseChunk(numSamples - offset);
                         if (gridActive)
                             len = beginControlChunk(sharedBank, len);
 
@@ -1035,6 +1074,7 @@ private:
                             const float env      = ampEnvelope_.process();
                             out[i]               = Krate::DSP::hardClip(shaped * env * level);
                         }
+                        trackQuietRun(out + offset, len);
                         voiceSampleCount_ += len;
                         offset += len;
                     }
@@ -1695,6 +1735,51 @@ private:
         return len;
     }
 
+    // ------------------------------------------------------------------
+    // T1.13 auto-release (MB-052)
+    // ------------------------------------------------------------------
+
+    /// At a grid point of voice time, past the onset grace period, release
+    /// the voice once its output has stayed quiet for the hold time. Every
+    /// renderer calls this at the start of each chunk, before rendering it.
+    void autoReleaseAtGridPoint() noexcept
+    {
+        if (!releaseLatched_
+            && voiceSampleCount_ % kControlGridSamples == 0
+            && voiceSampleCount_ >= autoReleaseGraceSamples_
+            && quietRunSamples_ >= autoReleaseHoldSamples_)
+            noteOff();
+    }
+
+    /// The longest chunk (at most `maxLen`) a renderer may run before the
+    /// next grid point at which autoReleaseAtGridPoint() could fire: that is
+    /// the first grid point past the grace period that is at least the rest
+    /// of the hold time away. The release therefore starts at the same voice
+    /// sample whatever the host block size, while a loud voice still renders
+    /// in long chunks.
+    [[nodiscard]] int autoReleaseChunk(int maxLen) const noexcept
+    {
+        if (releaseLatched_)
+            return maxLen;
+        const std::int64_t now = voiceSampleCount_;
+        const std::int64_t earliest = std::max<std::int64_t>(
+            autoReleaseGraceSamples_,
+            now + std::max(1, autoReleaseHoldSamples_ - quietRunSamples_));
+        const std::int64_t gridPoint =
+            (earliest + kControlGridSamples - 1) / kControlGridSamples * kControlGridSamples;
+        return static_cast<int>(std::min<std::int64_t>(maxLen, gridPoint - now));
+    }
+
+    /// Extend or restart the run of output samples below the threshold. The
+    /// run is capped at the hold time: a longer run means nothing more.
+    void trackQuietRun(const float* y, int n) noexcept
+    {
+        int q = quietRunSamples_;
+        for (int i = 0; i < n; ++i)
+            q = (std::fabs(y[i]) < kAutoReleaseThreshold) ? q + 1 : 0;
+        quietRunSamples_ = std::min(q, autoReleaseHoldSamples_);
+    }
+
     /// One control step at a grid point. Reading the pitch and morph envelopes
     /// here counts as this sample's advance.
     void controlStep(Krate::DSP::ModalResonatorBank& sharedBank) noexcept
@@ -1944,6 +2029,15 @@ private:
     // T1.12: lastPushedPitchHz_ / naturalFundamentalHz_, the ratio pushModes
     // scales every re-mapped mode set by (noteOn seed, controlStep).
     float        currentPitchRatio_ = 1.0f;
+
+    // T1.13 auto-release: the grace and hold times in samples (set by
+    // prepare), the current run of consecutive output samples below
+    // kAutoReleaseThreshold, and whether the voice was released (by MIDI or
+    // by the auto-release) since its noteOn.
+    int  autoReleaseGraceSamples_ = 0;
+    int  autoReleaseHoldSamples_  = 0;
+    int  quietRunSamples_         = 0;
+    bool releaseLatched_          = false;
 
     // Voice identity
     std::uint32_t voiceId_    = 0;

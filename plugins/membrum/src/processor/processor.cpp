@@ -578,7 +578,9 @@ void Processor::consumePendingAudition()
     voicePool_.noteOn(static_cast<std::uint8_t>(midi), velNorm);
 }
 
-// Process MIDI events: note-on/note-off on any MIDI note in [36, 67]
+// Apply every MIDI event of the list at once, ignoring sampleOffset. Only the
+// zero-sample flush call uses it (T1.14 / MB-089); a rendering block applies
+// each event at its own sample inside the render loop of process().
 void Processor::processEvents(IEventList* events)
 {
     if (!events)
@@ -590,34 +592,40 @@ void Processor::processEvents(IEventList* events)
         Event event{};
         if (events->getEvent(i, event) != kResultOk)
             continue;
+        applyNoteEvent(event);
+    }
+}
 
-        switch (event.type)
-        {
-        case Event::kNoteOnEvent:
-        {
-            const int16 pitch = event.noteOn.pitch;
-            if (pitch < 36 || pitch > 67)
-                break;
-            if (event.noteOn.velocity <= 0.0f)
-            {
-                voicePool_.noteOff(static_cast<std::uint8_t>(pitch));
-                break;
-            }
-            voicePool_.noteOn(static_cast<std::uint8_t>(pitch),
-                              event.noteOn.velocity);
+// One MIDI event: note-on/note-off on any MIDI note in [36, 67]; a note-on
+// with velocity <= 0 is a note-off.
+void Processor::applyNoteEvent(const Event& event)
+{
+    switch (event.type)
+    {
+    case Event::kNoteOnEvent:
+    {
+        const int16 pitch = event.noteOn.pitch;
+        if (pitch < 36 || pitch > 67)
             break;
-        }
-        case Event::kNoteOffEvent:
+        if (event.noteOn.velocity <= 0.0f)
         {
-            const int16 pitch = event.noteOff.pitch;
-            if (pitch < 36 || pitch > 67)
-                break;
             voicePool_.noteOff(static_cast<std::uint8_t>(pitch));
             break;
         }
-        default:
+        voicePool_.noteOn(static_cast<std::uint8_t>(pitch),
+                          event.noteOn.velocity);
+        break;
+    }
+    case Event::kNoteOffEvent:
+    {
+        const int16 pitch = event.noteOff.pitch;
+        if (pitch < 36 || pitch > 67)
             break;
-        }
+        voicePool_.noteOff(static_cast<std::uint8_t>(pitch));
+        break;
+    }
+    default:
+        break;
     }
 }
 
@@ -633,9 +641,6 @@ tresult PLUGIN_API Processor::process(ProcessData& data)
     // The guard restores the host's FP environment on scope exit.
     const Krate::DSP::ScopedDenormalMode denormalGuard;
 
-    if (data.numSamples == 0)
-        return kResultOk;
-
     // T045: start CPU-usage timer (steady_clock::now is lock-free and
     // allocation-free on all supported platforms).
     const auto cpuT0 = std::chrono::steady_clock::now();
@@ -645,53 +650,115 @@ tresult PLUGIN_API Processor::process(ProcessData& data)
     consumePendingLoad();
 
     processParameterChanges(data.inputParameterChanges);
-    processEvents(data.inputEvents);
-    consumePendingAudition();
 
-    if (data.numOutputs > 0 && data.outputs != nullptr)
+    // T1.14 (MB-089): a zero-sample call is the host's parameter flush
+    // (ivstaudioprocessor.h, ProcessData::numSamples). Its parameter changes
+    // were applied above; its events apply at once. No render, meters or CPU
+    // timing.
+    if (data.numSamples <= 0)
     {
-        float* outL = data.outputs[0].channelBuffers32[0];
-        float* outR = data.outputs[0].channelBuffers32[1];
+        processEvents(data.inputEvents);
+        consumePendingAudition();
+        if (padsDirty_)
+            publishPadConfigs();
+        return kResultOk;
+    }
 
-        // FR-044 / FR-048: Extract auxiliary bus buffer pointers
-        const int numOutputBuses = std::min(static_cast<int>(data.numOutputs),
-                                            kMaxOutputBuses);
+    const bool hasMainOut = data.numOutputs > 0 && data.outputs != nullptr;
+    float* outL = nullptr;
+    float* outR = nullptr;
 
+    // FR-044 / FR-048: auxiliary bus buffer pointers from data.outputs[1..N]
+    int numOutputBuses = 0;
+    std::array<float*, kMaxOutputBuses> auxLPtrs{};
+    std::array<float*, kMaxOutputBuses> auxRPtrs{};
+
+    if (hasMainOut)
+    {
+        outL = data.outputs[0].channelBuffers32[0];
+        outR = data.outputs[0].channelBuffers32[1];
+        numOutputBuses = std::min(static_cast<int>(data.numOutputs), kMaxOutputBuses);
+
+        for (int b = 1; b < numOutputBuses; ++b)
+        {
+            if (data.outputs[b].channelBuffers32 != nullptr)
+            {
+                auxLPtrs[static_cast<std::size_t>(b)] =
+                    data.outputs[b].channelBuffers32[0];
+                auxRPtrs[static_cast<std::size_t>(b)] =
+                    data.outputs[b].channelBuffers32[1];
+
+                // Zero aux buffers once per block (host may not guarantee
+                // zeroed); the voice segments below accumulate into them.
+                if (auxLPtrs[static_cast<std::size_t>(b)] != nullptr)
+                    std::memset(auxLPtrs[static_cast<std::size_t>(b)], 0,
+                                static_cast<std::size_t>(data.numSamples) * sizeof(float));
+                if (auxRPtrs[static_cast<std::size_t>(b)] != nullptr)
+                    std::memset(auxRPtrs[static_cast<std::size_t>(b)], 0,
+                                static_cast<std::size_t>(data.numSamples) * sizeof(float));
+            }
+        }
+    }
+
+    // Render the voices over [start, start + len) of this block. Each segment
+    // is a normal VoicePool::processBlock call on buffers advanced by `start`.
+    const auto renderVoices = [&](int32 start, int32 len) {
+        if (!hasMainOut || len <= 0)
+            return;
         if (numOutputBuses <= 1)
         {
             // No aux buses available -- fall back to Phase 3 behavior
-            voicePool_.processBlock(outL, outR, data.numSamples);
+            voicePool_.processBlock(outL + start, outR + start, len);
+            return;
         }
-        else
+        std::array<float*, kMaxOutputBuses> segL{};
+        std::array<float*, kMaxOutputBuses> segR{};
+        for (int b = 1; b < numOutputBuses; ++b)
         {
-            // Build aux buffer pointer arrays from data.outputs[1..N]
-            std::array<float*, kMaxOutputBuses> auxLPtrs{};
-            std::array<float*, kMaxOutputBuses> auxRPtrs{};
+            const auto i = static_cast<std::size_t>(b);
+            segL[i] = auxLPtrs[i] != nullptr ? auxLPtrs[i] + start : nullptr;
+            segR[i] = auxRPtrs[i] != nullptr ? auxRPtrs[i] + start : nullptr;
+        }
+        voicePool_.processBlock(outL + start, outR + start,
+                                segL.data(), segR.data(),
+                                busActive_.data(), numOutputBuses, len);
+    };
 
-            for (int b = 1; b < numOutputBuses; ++b)
+    // An audition request (IMessage "AuditionPad") starts at sample 0.
+    consumePendingAudition();
+
+    // T1.14 (MB-051): every note event starts at its Event::sampleOffset. The
+    // block is rendered in segments split at the event offsets, the event
+    // applied between them. An out-of-order or out-of-range offset applies at
+    // the current position; nothing is rendered backwards. Iterates the host
+    // list in place: no allocation.
+    {
+        const int32 numSamples = data.numSamples;
+        int32 pos = 0;
+        if (data.inputEvents != nullptr)
+        {
+            const int32 numEvents = data.inputEvents->getEventCount();
+            for (int32 i = 0; i < numEvents; ++i)
             {
-                if (data.outputs[b].channelBuffers32 != nullptr)
+                Event event{};
+                if (data.inputEvents->getEvent(i, event) != kResultOk)
+                    continue;
+                const int32 off = std::clamp(event.sampleOffset, pos, numSamples - 1);
+                if (off > pos)
                 {
-                    auxLPtrs[static_cast<std::size_t>(b)] =
-                        data.outputs[b].channelBuffers32[0];
-                    auxRPtrs[static_cast<std::size_t>(b)] =
-                        data.outputs[b].channelBuffers32[1];
-
-                    // Zero aux buffers (host may not guarantee zeroed)
-                    if (auxLPtrs[static_cast<std::size_t>(b)] != nullptr)
-                        std::memset(auxLPtrs[static_cast<std::size_t>(b)], 0,
-                                    static_cast<std::size_t>(data.numSamples) * sizeof(float));
-                    if (auxRPtrs[static_cast<std::size_t>(b)] != nullptr)
-                        std::memset(auxRPtrs[static_cast<std::size_t>(b)], 0,
-                                    static_cast<std::size_t>(data.numSamples) * sizeof(float));
+                    renderVoices(pos, off - pos);
+                    pos = off;
                 }
+                applyNoteEvent(event);
             }
+        }
+        renderVoices(pos, numSamples - pos);
+    }
 
-            voicePool_.processBlock(outL, outR,
-                                    auxLPtrs.data(), auxRPtrs.data(),
-                                    busActive_.data(), numOutputBuses,
-                                    data.numSamples);
-
+    if (hasMainOut)
+    {
+        if (numOutputBuses > 1)
+        {
             // Set silence flags for aux buses
             for (int b = 1; b < numOutputBuses; ++b)
             {
@@ -812,12 +879,10 @@ tresult PLUGIN_API Processor::process(ProcessData& data)
     // Phase 6 (T045): publish MetersBlock via DataExchangeHandler.
     // Peak L/R over this block, active voice count, CPU permille placeholder.
     // ============================================================
-    if (dataExchangeHandler_ && data.numOutputs > 0 && data.outputs != nullptr)
+    if (dataExchangeHandler_ && hasMainOut)
     {
         float peakL = 0.0f;
         float peakR = 0.0f;
-        const float* outL = data.outputs[0].channelBuffers32[0];
-        const float* outR = data.outputs[0].channelBuffers32[1];
         for (int32 s = 0; s < data.numSamples; ++s)
         {
             const float aL = std::abs(outL[s]);

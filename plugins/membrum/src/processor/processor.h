@@ -10,6 +10,7 @@
 // ==============================================================================
 
 #include "pluginterfaces/vst/ivstaudioprocessor.h"
+#include "pluginterfaces/vst/ivstevents.h"
 #include "public.sdk/source/vst/vstaudioeffect.h"
 
 #include "dsp/drum_voice.h"
@@ -102,6 +103,8 @@ public:
 private:
     void processParameterChanges(Steinberg::Vst::IParameterChanges* paramChanges);
     void processEvents(Steinberg::Vst::IEventList* events);
+    /// One note event, applied at the current render position (T1.14).
+    void applyNoteEvent(const Steinberg::Vst::Event& event);
     void consumePendingAudition();
 
     /// Applies a parsed kit: the one apply that setState and a kit-preset
