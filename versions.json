@@ -279,29 +279,29 @@
       }
     },
     "Ruinae": {
-      "version": "1.1.0",
+      "version": "1.1.1",
       "download_url": "https://krateaudio.com/ruinae/",
       "release_notes": "",
-      "tag": "ruinae/v1.1.0",
-      "pub_date": "2026-11-23T20:06:05Z",
+      "tag": "ruinae/v1.1.1",
+      "pub_date": "2026-11-24T18:50:05Z",
       "channel": "stable",
-      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/ruinae/v1.1.0",
+      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/ruinae/v1.1.1",
       "description": "Chaos/Spectral Hybrid Synthesizer",
-      "notes_markdown": "### Added\n\n- **Four new spread curves for the Spectral delay** — Delay Spread Curve now also offers Exponential (the lows and mids return together, then the highs trail out), Steps (eight bands, each a separate echo, like a multitap arpeggiating the spectrum), Scatter (third-octave bands in a fixed shuffled order, the same on every echo) and Random (the bands keep gliding to new delays, so no two echoes are alike).\n- **Two new spread directions for the Spectral delay** — Delay Spread Dir now also offers Edges In (the lows and highs return first and the echo closes in on the mids) and Cross (the echo sweeps up on the left and down on the right at the same time).\n\n### Changed\n\n- **The Spectral delay's Spread now sweeps through the sound** *(shared DSP)* — Spread was laid out evenly in Hz, so everything below about 2 kHz, most of a synth patch, shared the first tenth of the spread time: Low > High came back as one plain echo with a faint treble trail, and High > Low and Center Out as one plain later echo. Spread is now laid out by octave, from 20 Hz to 20 kHz, so each echo audibly sweeps from low to high, high to low, or out from the middle. Logarithmic now really differs from Linear: it gives the low octaves most of the spread. Every patch that uses the Spectral delay with Spread sounds different; saved directions and curves are kept.\n\n### Fixed\n\n- **The Spectral delay's echo got 1 to 6 dB quieter with Spread** *(shared DSP)* — Each sound covers several neighbouring frequency bands; with Spread they left the delay at different moments, their phases stopped lining up and the sound partly cancelled itself, by an amount that jumped around with the exact Spread setting. The bands of one sound now leave together, and the echo keeps its level with Spread on.",
+      "notes_markdown": "### Fixed\n\n- **Opening the editor crashed Carla on Linux** *(shared editor)* — Carla hands a plugin its event loop only through the editor window, which left the GUI library without one, so opening the editor crashed the host. The editor now takes the event loop from its own window, keeps it working while several instances have their editors open, and lets go of it when the last editor closes. Hosts that worked before are unaffected.",
       "platforms": {
         "darwin-universal": {
-          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/ruinae/v1.1.0/Ruinae-1.1.0-macOS.pkg",
-          "size": 9282120,
-          "sha256": "a0ee297b58288045e7c9379c52f391bfe986fc925f2d94fb0cceaa1311cbbd1e",
-          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+Tbrn73yVlEsPjsR6k3FndnbDhfmo1IZzAelKl0laxSdVjhNrINxhyd+QpTTR2kZs1kNSa+7DYnOW8W2Q8Fw3LvGWQA=\ntrusted comment: krate:1:Ruinae:1.1.0:darwin-universal:Ruinae-1.1.0-macOS.pkg\na/JUsWsO0zoevxKnBMkmCN/aoSt7if8fo90ZunI0W+a1VlFVR5LSbGrhshZOLhmEAhWbcLSVZws0RoallMa6DA==\n",
+          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/ruinae/v1.1.1/Ruinae-1.1.1-macOS.pkg",
+          "size": 9282987,
+          "sha256": "e20208e4a8a900338624ab668e6fdeb12de5d20e3f14f9ab3e7dbd6f3dfa4a6f",
+          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+Tbrn54YEiullYB9h1VYqbx0So/+xhTdXGXTnv9/IgntjkYPw0DssIX27fjFekVNUhdjF1MQjLkCraTaXLmXbDhUegg=\ntrusted comment: krate:1:Ruinae:1.1.1:darwin-universal:Ruinae-1.1.1-macOS.pkg\nxphmmb4yDziCZCrC80JivoWYM1nE6jddqfA6L/rsVHQ6wEpJXiJU3i6e0M0Ir62voAVRhgJeRzi0XPq13ugnBQ==\n",
           "format": "pkg",
           "min_os": "26.5"
         },
         "linux-x86_64": {
-          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/ruinae/v1.1.0/Ruinae-1.1.0-Linux-x64.tar.gz",
-          "size": 2249362,
-          "sha256": "1c1bde2c3c7f7e310c066a0eb4aa79ee53712bfc50058187aac03e5516775647",
-          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+Tbrn1Tm6wt5x2r1Tx2bfymV1+VXTy4/oCvjdVih/tiEyRjCvB7PnlqEacCyreQuTCcs/qH9pRDWqq9KO7x6ZztSPgg=\ntrusted comment: krate:1:Ruinae:1.1.0:linux-x86_64:Ruinae-1.1.0-Linux-x64.tar.gz\ni9RXt56Ohb1qQWzGVyQgqBH3lvWY9SqvFpqXGZkv6zXZvFTzLLZiSfsTI6m62l7n3di1Gjw0T2C+LSc/fvZnDA==\n",
+          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/ruinae/v1.1.1/Ruinae-1.1.1-Linux-x64.tar.gz",
+          "size": 2257145,
+          "sha256": "4cde429e2dba2a50bc2411f0029c7f9c20cd1d0d93f6b256d289d6ac18c99cf3",
+          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+Tbrn5yrgb+SM3U53s7HdrryKTPPCkKjijG9TL7FQKZ+JOWtW8vrg4FvkuEwDKGXu8wM00YpqfVvB7ZBvHzGujtp4AM=\ntrusted comment: krate:1:Ruinae:1.1.1:linux-x86_64:Ruinae-1.1.1-Linux-x64.tar.gz\nMkCn1QH4H6bQrjgcklAsvFfiVSzYgqrQYxqVCwaV926VYNipg5TE+g9MS6AeLTEm3dow4Mj0P7wSUbyMtBLPAA==\n",
           "format": "tar.gz",
           "min_os": "2.38",
           "payload": {
@@ -310,10 +310,10 @@
           }
         },
         "windows-x86_64": {
-          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/ruinae/v1.1.0/Ruinae-1.1.0-Windows-x64.exe",
-          "size": 3858829,
-          "sha256": "a29f28f3812c31da32dbce50df17d2acd4511dd44855429a60bab9275d9219ab",
-          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+Tbrn4N0z0TKlPisqb3W7jf7FcpVxXx2oaSb+lp4jPJkZX7zp98rHxcAWiqS+tqkzV9BUHAt+Cz+wpa6N+2YiaYqpQc=\ntrusted comment: krate:1:Ruinae:1.1.0:windows-x86_64:Ruinae-1.1.0-Windows-x64.exe\nKjKdWcloVppWUN009ML422CRDR2pDOHJgf7DPHXPmTKEYx6FUL2vNfdg8WYkEpL/B1W7H/BAP5sQHZXQad9xAQ==\n",
+          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/ruinae/v1.1.1/Ruinae-1.1.1-Windows-x64.exe",
+          "size": 3856711,
+          "sha256": "4db2c5bfabcd04f33de91f5d4679194019b3068ba2942a03d7c332630ee30b1d",
+          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+TbrnyCYejkfPJXEmbDH9ld+ko1GwvNroo+O2U3w5ZGEBG4PO9yDkuKGicEYkg+OGlGwQJcqSNFDgnLXHg3Z4BaTvAQ=\ntrusted comment: krate:1:Ruinae:1.1.1:windows-x86_64:Ruinae-1.1.1-Windows-x64.exe\njCJqEaPuZrBLc6dkKmhffrWSkpIrRkwSW8hXnfQYjjyvhQTxHk0frg/RsaZ5Zf/KGvmS2iFiOUR9GLBpsMuuCA==\n",
           "format": "inno-exe"
         }
       },
