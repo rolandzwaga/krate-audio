@@ -95,6 +95,19 @@ public:
         dispatch([](auto& e) noexcept { e.reset(); });
     }
 
+    /// Re-arm EVERY alternative to its post-prepare state, allocation-free
+    /// (the same re-arm a type swap performs; reset() alone keeps the
+    /// Impulse / Mallet RNG position). The strike-norm probe voice calls it
+    /// before each measurement, so a config always measures the same value
+    /// whatever the probe measured before (T1.6).
+    void restartAll() noexcept
+    {
+        const std::uint32_t vid = voiceId_;
+        std::apply([vid](auto&... e) noexcept { (rearm(e, vid), ...); },
+                   alternatives_);
+        replaySecondaryParams();
+    }
+
     // Deferred: stores pendingType_ only. Swap happens at next trigger().
     void setExciterType(ExciterType type) noexcept
     {
@@ -176,6 +189,12 @@ public:
         return pendingNoiseBurstContactNorm_;
     }
 
+    /// Cached secondary exciter params, read by DrumVoice's strike-norm cache
+    /// key (MB-021: each one changes the probed strike peak).
+    [[nodiscard]] float getPendingFMRatioNorm() const noexcept { return pendingFMRatioNorm_; }
+    [[nodiscard]] float getPendingFrictionNorm() const noexcept { return pendingFrictionNorm_; }
+    [[nodiscard]] float getPendingFeedbackNorm() const noexcept { return pendingFeedbackNorm_; }
+
     /// Phase 7: forward the normalized noise-burst contact-time parameter to
     /// the NoiseBurst exciter. Cached so a later swap re-applies it.
     void setNoiseBurstContactMs(float normalized) noexcept
@@ -217,6 +236,19 @@ public:
     }
 
 private:
+    // Re-arm one alternative to its post-prepare state without allocating: an
+    // alternative with restart() re-seeds what its reset() keeps (Impulse /
+    // Mallet: the ImpactExciter RNG); every other alternative's reset()
+    // already restores its full post-prepare state.
+    template <typename E>
+    static void rearm(E& e, std::uint32_t vid) noexcept
+    {
+        if constexpr (requires { e.restart(vid); })
+            e.restart(vid);
+        else
+            e.reset();
+    }
+
     void replaySecondaryParams() noexcept
     {
         std::get<NoiseBurstExciter>(alternatives_).setContactMs(pendingNoiseBurstContactNorm_);
@@ -233,16 +265,9 @@ private:
         currentType_ = pendingType_;
 
         // Re-arm the resident alternative to its post-prepare state without
-        // allocating: an alternative with restart() re-seeds what its reset()
-        // keeps (Impulse / Mallet: the ImpactExciter RNG); every other
-        // alternative's reset() already restores its full post-prepare state.
+        // allocating (see rearm()).
         const std::uint32_t vid = voiceId_;
-        dispatch([vid](auto& e) noexcept {
-            if constexpr (requires { e.restart(vid); })
-                e.restart(vid);
-            else
-                e.reset();
-        });
+        dispatch([vid](auto& e) noexcept { rearm(e, vid); });
 
         // Replay the secondary exciter parameters so their host automation
         // values survive a type swap.

@@ -95,7 +95,10 @@ add_executable(membrum_tests
     unit/vst/test_pad_parameters.cpp
     unit/voice_pool/test_per_pad_dispatch.cpp
     unit/voice_pool/test_dead_exciter_params.cpp
+    unit/voice_pool/test_strike_norm.cpp
     unit/voice_pool/test_multi_bus_output.cpp
+    unit/voice_pool/test_voice_retirement.cpp
+    unit/voice_pool/test_voice_pool_allocator_lifecycle.cpp
     unit/vst/test_bus_activation.cpp
     unit/processor/test_default_kit.cpp
     unit/processor/test_tom_body_depth.cpp
@@ -182,6 +185,9 @@ add_executable(membrum_tests
 
     # Hand-clap acceptance tests (HAND-CLAP-PLAN)
     unit/dsp/test_clap_acceptance.cpp
+
+    # Fix plan T1.10 (MB-269, MB-107, MB-012, MB-034): note-off release in seconds
+    unit/dsp/test_note_off_release.cpp
 
     # Factory kit preset round-trip
     unit/preset/test_factory_kit_presets.cpp

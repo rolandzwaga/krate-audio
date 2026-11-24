@@ -21,6 +21,7 @@
 #include <krate/dsp/processors/modal_resonator_bank.h>
 #include <krate/dsp/processors/waveguide_string.h>
 
+#include <algorithm>
 #include <cstdint>
 
 namespace Membrum {
@@ -29,15 +30,32 @@ struct StringBody
 {
     Krate::DSP::WaveguideString string_;
 
+    /// Largest WaveguideString::getControlEnergy() seen since the last
+    /// takeEnergyMax(). Voice retirement reads it once per host block
+    /// (MB-106, MB-160): tracking it per sample makes the silence decision
+    /// independent of the block size, where a value read only at the block's
+    /// end would sample the follower's ripple at block-size-dependent phases.
+    float energyMax_ = 0.0f;
+
     void prepare(double sampleRate, std::uint32_t voiceId) noexcept
     {
         string_.prepare(sampleRate);
         string_.prepareVoice(voiceId);
+        energyMax_ = 0.0f;
     }
 
     void reset(Krate::DSP::ModalResonatorBank& /*sharedBank*/) noexcept
     {
         string_.silence();
+        energyMax_ = 0.0f;
+    }
+
+    /// The block's maximum control energy (a mean square); restarts the window.
+    [[nodiscard]] float takeEnergyMax() noexcept
+    {
+        const float e = energyMax_;
+        energyMax_ = 0.0f;
+        return e;
     }
 
     /// Re-arm to the post-prepare state when BodyBank selects this body again
@@ -49,6 +67,7 @@ struct StringBody
     {
         string_.silence();
         string_.prepareVoice(voiceId);
+        energyMax_ = 0.0f;
     }
 
     void configureForNoteOn(Krate::DSP::ModalResonatorBank& /*sharedBank*/,
@@ -74,7 +93,7 @@ struct StringBody
         Krate::DSP::ModalResonatorBank& /*sharedBank*/,
         float excitation) noexcept
     {
-        return string_.process(excitation);
+        return processTracked(excitation);
     }
 
     /// String body doesn't use the modal bank, so the no-smooth variant is
@@ -83,7 +102,7 @@ struct StringBody
         Krate::DSP::ModalResonatorBank& /*sharedBank*/,
         float excitation) noexcept
     {
-        return string_.process(excitation);
+        return processTracked(excitation);
     }
 
     // Block-rate entry point (Phase 9 SIMD emergency fallback / plan.md §SIMD).
@@ -96,7 +115,15 @@ struct StringBody
                       int numSamples) noexcept
     {
         for (int i = 0; i < numSamples; ++i)
-            out[i] = string_.process(excitation[i]);
+            out[i] = processTracked(excitation[i]);
+    }
+
+private:
+    [[nodiscard]] float processTracked(float excitation) noexcept
+    {
+        const float y = string_.process(excitation);
+        energyMax_ = std::max(energyMax_, string_.getControlEnergy());
+        return y;
     }
 };
 

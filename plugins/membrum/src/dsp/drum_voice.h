@@ -49,26 +49,36 @@
 
 namespace Membrum {
 
+/// Strike-normalisation output gains of one note: the primary body bank and
+/// the secondary (shell) bank. Measured by DrumVoice's probe; VoicePool keeps
+/// one per pad (StrikeNormTable) and supplies it at note-on.
+struct StrikeNormGains
+{
+    float body  = 1.0f;
+    float shell = 1.0f;
+};
+
 class DrumVoice
 {
 public:
     DrumVoice() = default;
 
-    /// Phase 8A.5: mode-radius scale applied on noteOff to accelerate decay
-    /// via the body's damping law (mirrors STK Modal::damp()).
-    /// For a typical Phase-1 default Membrane mode (radius ~ 0.99995),
-    /// scaling the radius by 0.997 brings the effective t60 to ~50 ms,
-    /// which keeps the pre-Phase-8A.5 "silent by 600 ms" behavioural tests
-    /// passing while still letting the body's damping law drive every
-    /// other part of the voice lifetime.
-    static constexpr float kNoteOffDampScale = 0.997f;
+    /// Phase 8A.5 / T1.10: release decay rate (s^-1) the modal bank adds to
+    /// every mode's damping law on noteOff, so the body finishes through its
+    /// own law (STK Modal::damp() idiom). 132.5 s^-1 = -ln(0.997) x 44100,
+    /// the former per-sample 0.997 radius scale at 44.1 kHz: an extra T60 of
+    /// ln(1000) / 132.5 = 52 ms. It is a rate in seconds, so the release
+    /// takes the same time at every sample rate (MB-012), and the bank keeps
+    /// it through every retune (MB-269).
+    static constexpr float kNoteOffReleaseRate = 132.5f;
 
-    /// Stronger scale used by VoicePool's fast-release (choke / steal)
-    /// path, where the voice must fade within ~5 ms to keep the residual
-    /// click below -30 dBFS. Radius = R * 0.88 gives a body T60 under
-    /// 1 ms on typical modes so the bank is essentially silent by the
-    /// time the fast-release ramp hits its 1e-6 floor.
-    static constexpr float kFastReleaseDampScale = 0.88f;
+    /// Stronger release rate (s^-1) for VoicePool's fast-release (choke /
+    /// steal) path, where the voice must fade within ~5 ms to keep the
+    /// residual click below -30 dBFS. 5637 s^-1 = -ln(0.88) x 44100 (the
+    /// former 0.88 per-sample scale at 44.1 kHz): an extra T60 of 1.2 ms at
+    /// every sample rate, so the bank is essentially silent by the time the
+    /// fast-release ramp hits its 1e-6 floor.
+    static constexpr float kFastReleaseRate = 5637.0f;
 
     /// Audit N-1: per-voice body STRIKE-peak budget. The measured-strike
     /// normalisation (see measuredStrikeOutputGain) trims the body so that a
@@ -99,11 +109,11 @@ public:
     /// holds for moderate amplitudes (Avanzini-Marogna-Bank).
     static constexpr float kTensionPitchModMax = 1.19f;  // ~+3 semitones
 
-    /// Apply the fast-release damp directly (used by VoicePool fast-release
-    /// path). Equivalent to noteOff() but uses a more aggressive scale.
+    /// Apply the fast-release damping directly (used by VoicePool fast-release
+    /// path). Like noteOff()'s body release, with a much faster rate.
     void fastReleaseDamp() noexcept
     {
-        bodyBank_.getSharedBank().damp(kFastReleaseDampScale);
+        bodyBank_.getSharedBank().raiseReleaseDecayRate(kFastReleaseRate);
     }
 
     // ------------------------------------------------------------------
@@ -120,6 +130,10 @@ public:
     {
         sampleRate_ = sampleRate;
         voiceId_    = voiceId;
+        // llround: at 48 kHz the product is an exact integer that the double
+        // may land an ulp below.
+        safetyNetSamples_ =
+            static_cast<std::int64_t>(std::llround(kSafetyNetSeconds * sampleRate));
 
         exciterBank_.prepare(sampleRate, voiceId);
         bodyBank_.prepare(sampleRate, voiceId);
@@ -161,6 +175,28 @@ public:
         ampEnvelope_.setSustain(1.0f);    // hold during gate
         ampEnvelope_.setRelease(300.0f);  // ms: same as pre-Phase-8A.5
         ampEnvelope_.setVelocityScaling(true);
+
+        // MB-032: a gain measured at the previous rate is wrong at this one.
+        invalidateStrikeNormCache();
+    }
+
+    /// Forget the standalone strike-norm cache, so the next noteOn re-measures.
+    void invalidateStrikeNormCache() noexcept { strikeNormKey_ = StrikeNormKey{}; }
+
+    /// One-shot: the next noteOn uses these strike-norm gains instead of
+    /// measuring (VoicePool supplies its per-pad table entry). Cleared by noteOn.
+    void setSuppliedStrikeNormGains(float body, float shell) noexcept
+    {
+        suppliedBodyGain_  = body;
+        suppliedShellGain_ = shell;
+        gainsSupplied_     = true;
+    }
+
+    /// The strike-norm gains the last noteOn applied (body, shell). Shell is
+    /// 1.0 when the note did not engage the secondary bank.
+    [[nodiscard]] StrikeNormGains lastStrikeNormGains() const noexcept
+    {
+        return {.body = usedBodyGain_, .shell = usedShellGain_};
     }
 
     // ------------------------------------------------------------------
@@ -243,6 +279,14 @@ public:
         // The pitch envelope sweeping is done per-sample via updateFundamental.
         bodyBank_.configureForNoteOn(params_, initialPitchHz);
 
+        // D4 (06-orchestralKit-fix-plan.md): mallet contact time scales with
+        // the struck body -- crotale-sized bodies get ~1 ms contacts, timpani
+        // keep the long soft thump. Cached in the bank, so it survives the
+        // deferred exciter swap inside trigger(). Set BEFORE the strike-norm
+        // probe below, so the probe strikes with this pad's own contact (it
+        // used to run with the previous note's hint: MB-003).
+        exciterBank_.setMalletBodySizeHint(size_);
+
         {
             // Phase 11 (spec 145): drop the modal bank's output soft-clip
             // entirely for non-feedback voices, and pre-scale the bank
@@ -273,6 +317,7 @@ public:
             {
                 bank.setOutputGain(1.0f);
                 bank.setOutputSoftClipThreshold(0.707f);
+                usedBodyGain_ = 1.0f;
             }
             else if (bodyBank_.getCurrentType() == BodyModelType::String)
             {
@@ -280,7 +325,8 @@ public:
                 // the bank's output gain never reaches the audio path. Keep the
                 // cheap impulse-bound norm (harmless; no modes are configured,
                 // getInputGainSum() returns 1.0).
-                bank.setOutputGain(kBodyHeadroom / bank.getInputGainSum());
+                usedBodyGain_ = kBodyHeadroom / bank.getInputGainSum();
+                bank.setOutputGain(usedBodyGain_);
                 bank.setOutputSoftClipThreshold(0.0f);
             }
             else
@@ -296,13 +342,20 @@ public:
                 // (see AUDIT-signal-path-2026-06-07.md N-1 design decision +
                 // J.O. Smith / Steiglitz constant-peak-gain resonator). Instead
                 // we measure the configured bank's peak response to a canonical
-                // strike once per mode-config and normalise kBodyHeadroom to it.
-                // Cached on the mapper inputs so repeated hits on an unchanged
-                // pad pay the probe render only once.
-                bank.setOutputGain(measuredStrikeOutputGain(bank, params_,
-                                                            bodyBank_.getCurrentType(),
-                                                            exciterBank_.getPendingType()));
+                // strike once per pad config and normalise kBodyHeadroom to it.
+                // In the plugin, VoicePool's StrikeNormTable measures it on a
+                // probe voice (in prepare, or on a worker after an edit) and
+                // supplies the per-pad gain here, so this note-on does not
+                // render. A DrumVoice used on its own measures here, cached on
+                // every input that changes the strike (MB-003 / MB-021).
+                const float g = gainsSupplied_
+                    ? suppliedBodyGain_
+                    : measuredStrikeOutputGain(bank, params_,
+                                               bodyBank_.getCurrentType(),
+                                               exciterBank_.getPendingType());
+                bank.setOutputGain(g);
                 bank.setOutputSoftClipThreshold(0.0f);
+                usedBodyGain_ = g;
             }
             // NOTE: the secondary (shell) bank's output gain is set AFTER
             // configureSecondaryBank() below, once its modes (and hence
@@ -332,12 +385,6 @@ public:
         unnaturalZone_.modeInject.trigger();
         unnaturalZone_.nonlinearCoupling.setVelocity(velocity);
         unnaturalZone_.nonlinearCoupling.reset();
-
-        // D4 (06-orchestralKit-fix-plan.md): mallet contact time scales with
-        // the struck body -- crotale-sized bodies get ~1 ms contacts, timpani
-        // keep the long soft thump. Cached in the bank, so it survives the
-        // deferred exciter swap inside trigger().
-        exciterBank_.setMalletBodySizeHint(size_);
 
         // Trigger exciter (applies deferred exciter-type swap).
         exciterBank_.trigger(velocity);
@@ -391,17 +438,22 @@ public:
         secondaryBank_.reset();
         secondaryLastOutput_ = 0.0f;
         effectiveCoupling_   = 0.0f;
+        usedShellGain_       = 1.0f;
         if (secondaryEnabled_ >= 0.5f && couplingStrength_ > 0.0f)
         {
             configureSecondaryBank();
             // Now that the shell modes are set for this note, apply the same
             // measured-strike normalisation as the body (audit N-1): the shell
             // is a modal bank too, so its resonant-strike peak likewise exceeds
-            // the Sum|a_k| impulse bound. Not cached -- the secondary path is
-            // off by default and only runs when coupling is enabled.
-            secondaryBank_.setOutputGain(
-                measuredStrikeOutputGain(secondaryBank_));
+            // the Sum|a_k| impulse bound. In the plugin the gain comes from
+            // VoicePool's per-pad StrikeNormTable (measured off the audio
+            // path); a DrumVoice used on its own measures it here, uncached.
+            const float sg = gainsSupplied_
+                ? suppliedShellGain_
+                : measuredStrikeOutputGain(secondaryBank_);
+            secondaryBank_.setOutputGain(sg);
             secondaryBank_.setOutputSoftClipThreshold(0.0f);
+            usedShellGain_ = sg;
             effectiveCoupling_ = effectiveCouplingStrength();
         }
 
@@ -435,8 +487,9 @@ public:
         ampEnvelope_.reset();
         ampEnvelope_.setVelocity(velocity);
         ampEnvelope_.gate(true);
-        silentBlockCount_ = 0;
+        silentSamples_ = 0;
         active_ = true;
+        gainsSupplied_ = false;  // one-shot: the next note measures or is supplied anew
     }
 
     void noteOff() noexcept
@@ -444,11 +497,13 @@ public:
         exciterBank_.release();
         toneShaper_.noteOff();
         ampEnvelope_.gate(false);
-        // Phase 8A.5 (STK Modal idiom): accelerate modal decay by scaling
-        // every active mode's radius. 0.993 yields ~50 ms effective release
-        // @ 44.1 kHz for typical modes; the bank's flushSilentModes() then
-        // retires the voice once amplitudes fall below kSilenceThreshold.
-        bodyBank_.getSharedBank().damp(kNoteOffDampScale);
+        // Phase 8A.5 (STK Modal idiom): accelerate modal decay by adding
+        // kNoteOffReleaseRate (52 ms extra T60 at every sample rate) to every
+        // mode's damping law; the bank's flushSilentModes() then retires the
+        // voice once amplitudes fall below kSilenceThreshold. The call is
+        // idempotent, so the pool's repeated quiet-block noteOff() does not
+        // compound it (MB-034).
+        bodyBank_.getSharedBank().raiseReleaseDecayRate(kNoteOffReleaseRate);
     }
 
     /// Hard wipe of every per-voice DSP state container. Used by
@@ -486,8 +541,18 @@ public:
         tensionAmtEffective_ = 0.0f;
         wireEnergyPeak_      = 0.0f;
         wireGainMod_         = 1.0f;
-        silentBlockCount_    = 0;
+        silentSamples_       = 0;
         active_              = false;
+    }
+
+    /// resetForKitSwitch() plus a full re-arm of every exciter alternative
+    /// (re-seeds the Impulse / Mallet RNG that reset() keeps). Used by the
+    /// strike-norm probe voice so a pad config measures one deterministic
+    /// gain, independent of what the probe measured before. Allocation-free.
+    void resetForStrikeProbe() noexcept
+    {
+        resetForKitSwitch();
+        exciterBank_.restartAll();
     }
 
     // ------------------------------------------------------------------
@@ -630,24 +695,27 @@ public:
 
         // Phase 8A.5 retirement: the amp envelope is now only a click-free
         // smoother + release curve, not a lifetime gate. The voice is
-        // finished once the bank's flushSilentModes() pass (called inside
-        // ModalResonatorBank::processBlock) reports zero active modes AND
-        // the envelope has completed its (optional) release. This is the
-        // STK / Chromaphone / Faust physmodels idiom -- the body's damping
-        // law IS the decay.
+        // finished once the body is silent AND the envelope has completed its
+        // (optional) release. This is the STK / Chromaphone / Faust physmodels
+        // idiom -- the body's damping law IS the decay. "Body silent" is
+        // body-aware (MB-106, MB-160): a modal body is silent once the bank's
+        // flushSilentModes() pass (run once per block by both renderers:
+        // inside ModalResonatorBank::processBlock on the fast path, after the
+        // per-sample loop in processBlockSlow) reports zero active modes; the
+        // String body, which never runs the bank, once its waveguide output
+        // has decayed below -100 dBFS RMS.
         //
         // Intentionally NOT gating retirement on noiseLayer_ / clickLayer_
         // because those layers have their own short envelopes that come
         // to rest at output=0 but hold in the Sustain stage rather than
         // transitioning to Idle. Their output is zero by design once the
         // configured decay has elapsed.
-        const auto& sharedBank = bodyBank_.getSharedBank();
-        const bool bankSilent = sharedBank.getNumActiveModes() == 0;
+        const bool bodySilent = bodyBank_.isBodySilent();
         const bool envFinished = !ampEnvelope_.isActive();
-        if (bankSilent && envFinished)
+        if (bodySilent && envFinished)
         {
             active_ = false;
-            silentBlockCount_ = 0;
+            silentSamples_ = 0;
         }
         // Safety net: if the body has been silent for a while AND the
         // voice pool's auto-noteOff hasn't fired (because peak settled
@@ -656,16 +724,21 @@ public:
         // Without this the original "infinite tone" bug regresses on
         // any preset whose layered output settles above 1e-3 once the
         // body modes have died -- pad-click hosts never send noteOff,
-        // so envFinished never becomes true on its own.
-        if (bankSilent)
+        // so envFinished never becomes true on its own. The net is counted in
+        // samples, so it is kSafetyNetSeconds (1.365 s) of body silence at
+        // every host block size and sample rate. ">=" retires at the end of
+        // the block in which the net is reached: with ">" every block size
+        // that divides the net would overshoot it by one whole block, an
+        // overshoot that differs per host block size.
+        if (bodySilent)
         {
-            ++silentBlockCount_;
-            if (silentBlockCount_ > 256)  // ≈1.4 s at 48 kHz / 256 blocks
+            silentSamples_ += numSamples;
+            if (silentSamples_ >= safetyNetSamples_)
                 active_ = false;
         }
         else
         {
-            silentBlockCount_ = 0;
+            silentSamples_ = 0;
         }
     }
 
@@ -1067,6 +1140,15 @@ private:
                         const float env      = ampEnvelope_.process();
                         out[i]               = Krate::DSP::hardClip(shaped * env * level);
                     }
+                    // T1.7 (MB-027): processSampleNoSmooth never culls silent
+                    // modes, so flush once per block as the banks'
+                    // processBlock does on the fast path. Without it the
+                    // active-mode count never reaches 0 and the voice never
+                    // retires. A String body leaves the shared bank unused;
+                    // the flush is then a no-op.
+                    sharedBank.flushSilentModes();
+                    if (secondaryActive)
+                        secondaryBank_.flushSilentModes();
                     bodyBank_.setLastOutput(lastBody);
                     if (secondaryActive)
                         secondaryLastOutput_ = lastShell;
@@ -1093,10 +1175,18 @@ private:
 public:
 
     /// Phase 8A.5: voice lifetime now tracks the modal bank, not the amp
-    /// envelope. The bank's flushSilentModes() path (run inside
-    /// processBlock) retires modes below kSilenceThreshold; this accessor
+    /// envelope. The bank's flushSilentModes() pass (run once per block by
+    /// both renderers, processBlockFast and processBlockSlow) retires modes
+    /// below kSilenceThreshold; this accessor
     /// reports the aggregate voice-active flag maintained by processBlock.
     [[nodiscard]] bool isActive() const noexcept { return active_; }
+
+    /// T1.6: VoicePool calls this on a slot's main voice right before it
+    /// re-configures the voice for a new note (applyPadConfigToSlot, then
+    /// noteOn). A retriggered or re-acquired voice can still read active, and
+    /// then every guarded body setter re-maps the modes that noteOn re-maps
+    /// anyway. noteOn sets the flag again.
+    void markInactiveForNoteOn() noexcept { active_ = false; }
 
     // ------------------------------------------------------------------
     // Phase 1 parameter setters (unchanged API; FR-007)
@@ -1271,32 +1361,53 @@ private:
     /// Only Membrane supports mid-note parameter updates in Phase 2; other bodies
     /// recompute via setModes on noteOn only — live-update path is deferred to a
     /// future phase.
+    // Probe window (MB-263): render at least `minSec`; then stop once no new
+    // maximum has appeared for 10 ms, and at the latest after 100 ms. A slow
+    // ring-up (Mallet / Plate and Mallet / Bell peak at 40-48 ms) keeps setting
+    // new maxima, so the window grows with it instead of cutting it at 30 ms.
+    static constexpr float kProbeQuietSec      = 0.010f;
+    static constexpr float kProbeMaxSec        = 0.100f;
+    static constexpr float kProbeMinExcitedSec = 0.060f;  // primary-body probe
+
     // Audit N-1: render a canonical strike through the (already mode-configured)
     // bank and return its raw peak. RT-safe: no allocation, the excitation is a
     // short raised-cosine generated per-sample, and the probe state is cleared
     // afterwards (reset() zeroes the oscillators but preserves the modes), so
-    // the real note proceeds from a clean bank. The probe window covers the
-    // input pulse plus the early resonant ring-up where the strike peak lives.
+    // the real note proceeds from a clean bank. The window covers the input
+    // pulse plus the resonant ring-up where the strike peak lives: at least
+    // 20 ms, then the adaptive stop above. The bank was just configured, so its
+    // smoothed coefficients already sit on their targets: one block-rate
+    // smoothing pass, then the SIMD per-sample kernel.
     [[nodiscard]] float probeStrikePeak(Krate::DSP::ModalResonatorBank& bank) const noexcept
     {
         const float sr = static_cast<float>(sampleRate_);
         const int strikeLen = std::max(1, static_cast<int>(0.002f * sr));  // 2 ms
-        const int probeLen  = std::max(strikeLen,
+        const int minLen    = std::max(strikeLen,
                                        static_cast<int>(0.020f * sr));     // 20 ms
+        const int quietLen  = std::max(1, static_cast<int>(kProbeQuietSec * sr));
+        const int maxLen    = std::max(minLen, static_cast<int>(kProbeMaxSec * sr));
 
         const float prevGain = bank.getOutputGain();
         const float prevClip = bank.getOutputSoftClipThreshold();
         bank.setOutputGain(1.0f);
         bank.setOutputSoftClipThreshold(0.0f);
+        bank.prepareBlockSmoothing();
 
         float peak = 0.0f;
-        for (int i = 0; i < probeLen; ++i) {
+        int lastMaxIndex = 0;
+        for (int i = 0; i < maxLen; ++i) {
+            if (i >= minLen && i - lastMaxIndex >= quietLen)
+                break;
             float in = 0.0f;
             if (i < strikeLen) {
                 const float ph = static_cast<float>(i) / static_cast<float>(strikeLen);
                 in = 0.5f * (1.0f - std::cos(2.0f * std::numbers::pi_v<float> * ph));
             }
-            peak = std::max(peak, std::abs(bank.processSample(in)));
+            const float a = std::abs(bank.processSampleNoSmooth(in));
+            if (a > peak) {
+                peak = a;
+                lastMaxIndex = i;
+            }
         }
 
         bank.reset();  // clear probe oscillator state, keep configured modes
@@ -1332,32 +1443,52 @@ private:
     {
         (void)exciterType;
         const float sr = static_cast<float>(sampleRate_);
-        // 30 ms window: long enough to span the NoiseBurst (up to ~15 ms) plus
-        // the body's early resonant ring-up where the strike peak lives.
-        const int probeLen = std::max(1, static_cast<int>(0.030f * sr));
+        // At least 60 ms: spans the NoiseBurst (up to ~15 ms) and the body's
+        // resonant ring-up, including the slow beating ring-up of a large
+        // Mallet / Plate (Orchestral 49 sits near its 20 ms level until 47 ms,
+        // then peaks at 47.8 ms: no new maximum for over 25 ms, so a 30 ms
+        // minimum with the 10 ms quiet stop still cut it, MB-263). Then the
+        // adaptive stop (no new maximum for 10 ms, 100 ms at most).
+        const int minLen   = std::max(1, static_cast<int>(kProbeMinExcitedSec * sr));
+        const int quietLen = std::max(1, static_cast<int>(kProbeQuietSec * sr));
+        const int maxLen   = std::max(minLen, static_cast<int>(kProbeMaxSec * sr));
 
         const float prevGain = bank.getOutputGain();
         const float prevClip = bank.getOutputSoftClipThreshold();
         bank.setOutputGain(1.0f);
         bank.setOutputSoftClipThreshold(0.0f);
+        // Freshly configured bank: smoothed coefficients already equal their
+        // targets, so one block-rate pass, then the SIMD per-sample kernel.
+        bank.prepareBlockSmoothing();
 
         // Reference velocity 1.0 = canonical hard strike (the level
         // kBodyHeadroom is defined against). Applies the deferred exciter swap.
+        // Reset first: a retrigger keeps exciter state the previous note left
+        // (the Friction bow's energy and rosin-noise position), which moved the
+        // probed peak by ~5 dB against a fresh voice (MB-021 test (b)).
+        exciterBank_.reset();
         exciterBank_.trigger(1.0f);
         clickLayer_.configure(clickLayerParams_);
         clickLayer_.trigger(1.0f);
 
         float peak     = 0.0f;
         float lastBody = 0.0f;
-        for (int i = 0; i < probeLen; ++i)
+        int lastMaxIndex = 0;
+        for (int i = 0; i < maxLen; ++i)
         {
+            if (i >= minLen && i - lastMaxIndex >= quietLen)
+                break;
             const float clickSample =
                 clickLayer_.processSample() * ClickLayer::kStandaloneOutputGain;
             // Non-feedback exciters ignore the feedback arg; Feedback never
             // reaches this path (it keeps the soft-clip branch instead).
             const float exc = exciterBank_.process(lastBody) + clickSample * 0.5f;
-            lastBody = bank.processSample(exc);
-            peak     = std::max(peak, std::abs(lastBody));
+            lastBody = bank.processSampleNoSmooth(exc);
+            const float a = std::abs(lastBody);
+            if (a > peak) {
+                peak = a;
+                lastMaxIndex = i;
+            }
         }
 
         // Leave the live components clean; noteOn() re-triggers both below.
@@ -1411,7 +1542,11 @@ private:
             .b1 = p.bodyDampingB1, .b3 = p.bodyDampingB3,
             .clickMix = clickLayerParams_.mix, .clickContact = clickLayerParams_.contactMs,
             .clickBright = clickLayerParams_.brightness,
-            .noiseBurstContact = exciterBank_.getPendingNoiseBurstContactNorm()};
+            .noiseBurstContact = exciterBank_.getPendingNoiseBurstContactNorm(),
+            .fmRatio = exciterBank_.getPendingFMRatioNorm(),
+            .frictionPressure = exciterBank_.getPendingFrictionNorm(),
+            .feedbackAmount = exciterBank_.getPendingFeedbackNorm(),
+            .sampleRate = static_cast<float>(sampleRate_)};
         if (!(key == strikeNormKey_)) {
             strikeNormGain_ = measuredStrikeOutputGainExcited(bank, exciter);
             strikeNormKey_  = key;
@@ -1719,9 +1854,12 @@ private:
     // Cached baseline mapper result (used for per-sample pitch env scaling).
     Bodies::MapperResult cachedMapperResult_{};
 
-    // Audit N-1: cache for the body's measured-strike output gain. Keyed on the
-    // mapper inputs that change the configured mode set; a repeated hit on an
-    // unchanged pad reuses the gain instead of re-running the probe render.
+    // Audit N-1: cache for the body's measured-strike output gain, used by a
+    // DrumVoice that is driven on its own (unit tests, tools/membrum-fit); in
+    // the plugin VoicePool supplies a per-pad gain instead. Keyed on the
+    // mapper inputs that change the configured mode set, the excitation-shaping
+    // params and the sample rate; a repeated hit on an unchanged config reuses
+    // the gain instead of re-running the probe render.
     struct StrikeNormKey {
         BodyModelType body = BodyModelType::kCount;  // sentinel = "no cache yet"
         ExciterType   exciter = ExciterType::kCount; // Fix D: excitation shape
@@ -1731,10 +1869,21 @@ private:
         // Fix D: excitation-shaping params that change the probed strike peak.
         float clickMix = 0.0f, clickContact = 0.0f, clickBright = 0.0f;
         float noiseBurstContact = 0.0f;
+        // MB-021 / MB-032: the other exciter params and the sample rate.
+        float fmRatio = 0.0f, frictionPressure = 0.0f, feedbackAmount = 0.0f;
+        float sampleRate = 0.0f;
         [[nodiscard]] bool operator==(const StrikeNormKey&) const = default;
     };
     StrikeNormKey strikeNormKey_{};
     float         strikeNormGain_ = 1.0f;
+
+    // One-shot strike-norm gains supplied by VoicePool for the next noteOn,
+    // and the gains the last noteOn applied (lastStrikeNormGains()).
+    float suppliedBodyGain_  = 0.0f;
+    float suppliedShellGain_ = 0.0f;
+    bool  gainsSupplied_     = false;
+    float usedBodyGain_      = 1.0f;
+    float usedShellGain_     = 1.0f;
 
     // Natural (Size-derived) body fundamental in Hz, computed at noteOn.
     float naturalFundamentalHz_ = 0.0f;
@@ -1776,12 +1925,19 @@ private:
 
     // State
     bool active_ = false;
-    /// Per-block counter incremented while bankSilent is true; cleared
-    /// otherwise. Used by the retirement safety-net so a voice whose
-    /// output peak settles above the voice-pool silence threshold (and
-    /// therefore never gets auto-noteOff'd) still retires after a few
-    /// blocks of body-modal silence.
-    int silentBlockCount_ = 0;
+    /// Samples rendered while the body has been silent; cleared otherwise.
+    /// Used by the retirement safety-net so a voice whose output peak
+    /// settles above the voice-pool silence threshold (and therefore never
+    /// gets auto-noteOff'd) still retires after safetyNetSamples_ of body
+    /// silence.
+    std::int64_t silentSamples_ = 0;
+    /// The safety net's length: 65536 samples at 48 kHz (1.365 s), the old
+    /// 256-block net at 48 kHz with 256-sample blocks (which retired after
+    /// 257 blocks, one block later), while the net no longer depends on the
+    /// block size. 65536 is a whole number of blocks for every power-of-two
+    /// block size up to 65536, so with ">=" no such host overshoots it.
+    static constexpr double kSafetyNetSeconds = 65536.0 / 48000.0;
+    std::int64_t safetyNetSamples_ = 65536;
 };
 
 } // namespace Membrum

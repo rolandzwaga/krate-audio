@@ -48,6 +48,7 @@
 // ==============================================================================
 
 #include "choke_group_table.h"
+#include "strike_norm_table.h"
 #include "voice_meta.h"
 #include "voice_stealing_policy.h"
 
@@ -125,6 +126,7 @@ public:
 
     /// Render every active and fast-releasing voice into `outL` / `outR`.
     /// Legacy overload (Phase 3 compat) -- routes all audio to main only.
+    /// Forwards to the multi-bus overload with one bus (one renderer).
     void processBlock(float* outL, float* outR, int numSamples) noexcept;
 
     /// FR-044: Extended processBlock with multi-bus output support.
@@ -264,6 +266,11 @@ public:
     /// Read access to the voice in a slot's shadow (fast-release) role.
     [[nodiscard]] const DrumVoice& releasingVoiceRef(int slot) const noexcept;
 
+    /// T1.6: per-pad strike-normalisation gains, measured off the note-on
+    /// path (prepare / worker thread). The Processor starts and stops its
+    /// worker; tests use its counters and drainOnce().
+    [[nodiscard]] StrikeNormTable& strikeNorm() noexcept { return strikeNorm_; }
+
 private:
     // ------------------------------------------------------------------
     // Private helpers (Phase 3.1)
@@ -272,7 +279,8 @@ private:
     /// Processor-layer-only Quietest victim selection (FR-122 / Clarification
     /// Q3). Returns the index of the Active slot with the lowest
     /// `currentLevel`, tiebreaking by oldest `noteOnSampleCount` (FR-128).
-    /// Returns -1 when no Active slot exists.
+    /// Slots triggered in the current block (not yet rendered, no measured
+    /// level) are skipped. Returns -1 when no candidate slot exists.
     [[nodiscard]] int selectQuietestActiveSlot() const noexcept;
 
     /// Phase 3.2 hook — hand a slot's main voice to its shadow role (an
@@ -382,6 +390,9 @@ private:
     // structs, one per GM drum map pad. Replaces the Phase 3 SharedParams.
     // ------------------------------------------------------------------
     std::array<PadConfig, kNumPads> padConfigs_{};
+
+    // T1.6: per-pad strike-norm gains (probe voices live on the heap).
+    StrikeNormTable strikeNorm_;
 
     // ------------------------------------------------------------------
     // Phase 5: Coupling engine (owned by Processor, non-owning pointer).

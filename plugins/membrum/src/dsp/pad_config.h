@@ -325,6 +325,10 @@ struct PadConfig
     float tsPitchEnvMidPitch    = 0.5f;  // norm -> 20..2000 Hz log (~141 Hz)
     float tsPitchEnvMidFraction = 0.5f;  // norm fraction of total time
     float tsPitchEnvCurve2      = 0.5f;  // norm -> 0 curveAmount (linear)
+
+    /// Member-wise comparison (the per-pad strike-norm table keys on the whole
+    /// config). The uint8_t members leave padding, so never memcmp a PadConfig.
+    [[nodiscard]] bool operator==(const PadConfig&) const = default;
 };
 
 /// Compute the VST3 parameter ID for a specific pad and offset.

@@ -1278,6 +1278,9 @@ tresult PLUGIN_API Processor::setupProcessing(ProcessSetup& setup)
     const std::scoped_lock lifecycle(lifecycleMutex_);
     consumePendingLoad();
 
+    // T1.6: no strike-norm measurement may run while the pool is re-prepared.
+    voicePool_.strikeNorm().stopWorker();
+
     sampleRate_ = setup.sampleRate;
     maxBlockSize_ = setup.maxSamplesPerBlock;
     voicePool_.prepare(sampleRate_, maxBlockSize_);
@@ -1310,6 +1313,9 @@ tresult PLUGIN_API Processor::setActive(TBool state)
     if (state)
     {
         voicePool_.prepare(sampleRate_, maxBlockSize_);
+        // T1.6: pads edited while processing runs are re-measured on this
+        // low-priority worker, off the audio thread.
+        voicePool_.strikeNorm().startWorker();
         voicePool_.setMaxPolyphony(maxPolyphony_.load());
         voicePool_.setVoiceStealingPolicy(
             static_cast<VoiceStealingPolicy>(voiceStealingPolicy_.load()));
@@ -1333,6 +1339,9 @@ tresult PLUGIN_API Processor::setActive(TBool state)
     }
     else
     {
+        // T1.6: processing has stopped; so does the strike-norm worker.
+        voicePool_.strikeNorm().stopWorker();
+
         // Phase 6 (T045): close the DataExchange queue cleanly.
         if (dataExchangeHandler_)
             dataExchangeHandler_->onDeactivate();

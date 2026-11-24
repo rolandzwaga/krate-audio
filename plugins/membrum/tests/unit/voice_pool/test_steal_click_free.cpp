@@ -17,39 +17,27 @@
 //           clickThreshold = 10^(-30/20) * incomingVoicePeak
 //                          ~= 0.0316228 * incomingVoicePeak
 //
-//   2. Render a "no steal" reference: run the exact same fill + warmup +
-//      baseline processBlock sequence as the steal scenario, then instead
-//      of triggering note 67 keep processing (the 4 voices continue their
-//      natural decay).
+//   2. Fill the 4-voice pool with long-ringing seed voices (pads 36-39) and
+//      render until every seed's block peak is below half the click
+//      threshold while all four are still sounding (T1.9: the pool must
+//      really be full, or no steal happens -- before MB-050 was fixed the
+//      seeds had retired and only a leaked allocator slot forced the steal).
+//      The warmup block count found here is reused by both references.
 //
-//   3. Run the real steal scenario: fill, warmup, baseline, trigger note
-//      67, capture the output. Both scenarios are identical up to the
-//      steal boundary, so the LAST pre-steal block is shared.
+//   3. Render a "no steal" reference: the exact same fill + warmup +
+//      baseline processBlock sequence, then keep processing without note
+//      67 (the 4 voices continue their natural decay).
 //
-//   4. Compute the click as:
-//           click[n] = | post[n] - noStealRef[n] |
-//      This is the total EXTRA signal the steal mechanism + new voice
-//      contributed beyond what would have happened without the steal.
-//      At each sample, the "extra" signal is the new voice's current
-//      output PLUS the fast-released stolen voice's DIFFERENCE from its
-//      natural-decay counterpart.
+//   4. Render a "silent new voice" reference: the same sequence, then the
+//      steal with pad 67's level at 0. The allocator events, the victim and
+//      the shadow fade are identical to the real steal; the new voice adds
+//      exactly 0.
 //
-//   5. To isolate the click (= the fade vs. natural difference) from
-//      the new voice's legitimate audio, we subtract the maximum of the
-//      isolated-new-voice envelope at each sample:
-//           click_cleaned[n] = max(0, |click[n]| - |newVoiceAlone[n]|)
-//
-//      `newVoiceAlone` is the new voice rendered on a FRESH pool (slot
-//      assignment and PRNG may differ slightly from the real case, so
-//      we compare magnitudes/envelopes rather than requiring bit-exact
-//      cancellation). The cleaned click is bounded above by
-//           (fade(n) - natural(n)) + (|isolated_new_voice(n)| -
-//                                     |real_new_voice(n)|)
-//      where the second term is small because both renders use the same
-//      shared parameters and the same trigger velocity.
-//
-//   6. The primary assertion is:
-//           max click_cleaned[n] over 5 ms window <= clickThreshold
+//   5. The click is the exact difference
+//           click[n] = silentNewVoice[n] - noStealRef[n]
+//                    = (fading stolen voice) - (stolen voice, natural)
+//      and the primary assertion is
+//           max |click[n]| over the 5 ms window <= clickThreshold
 //
 // Supplementary structural assertions (retained from the first iteration):
 //   - Exponential ramp shape matches the Option B formula (k^128 after one
@@ -74,21 +62,55 @@ namespace {
 
 constexpr int kBlockSize = 128;
 
-// Wall-clock warmup time. The pre-existing drum voices must decay well
-// below -30 dBFS (relative to the incoming voice) before the steal event
-// so that the fast-release fade residual stays under the FR-126 click
-// threshold. Phase 8A.5 (commit 89cf0c64) decoupled the amp envelope
-// from voice lifetime -- the body now rings at its own T60
-// (material=0.5/decay=0.3 defaults give a ~1 s modal ring-out) instead
-// of the old 200 ms envelope gate. 3 s of warmup puts the default drum
-// ~-50 dBFS deep, well under the -30 dBFS click threshold.
-constexpr double kWarmupSeconds = 3.0;
+// Seed voices (pads 36-39) ring long so they are still sounding -- and the
+// 4-voice pool really is full -- once they have decayed well below -30 dBFS
+// relative to the incoming voice. With the default decay (0.3) every seed
+// retires within 3 s (Phase 8A.5: the body rings at its own T60 and the pool
+// retires a voice below -60 dBFS), and a steal then needs no victim at all.
+constexpr float kSeedDecay = 1.0f;
 
-// Block count corresponding to `kWarmupSeconds` at the given sample rate.
-inline int warmupBlocksFor(double sampleRate) noexcept
+// A seed's block peak must be below this fraction of the click threshold
+// before the steal: the fade-vs-natural difference of the victim is bounded
+// by its own amplitude.
+constexpr float kSeedPeakFractionOfThreshold = 0.5f;
+
+// Upper bound on the adaptive warmup (seconds of audio).
+constexpr double kMaxWarmupSeconds = 30.0;
+
+const std::uint8_t kSeedNotes[4] = {36, 37, 38, 39};
+
+// Prepare a 4-voice pool, give the seed pads their long decay and trigger
+// the four seeds one block apart.
+void prepareSeededPool(Membrum::VoicePool&          pool,
+                       double                       sampleRate,
+                       Membrum::VoiceStealingPolicy policy,
+                       std::vector<float>&          outL,
+                       std::vector<float>&          outR)
 {
-    const int samples = static_cast<int>(std::ceil(kWarmupSeconds * sampleRate));
-    return std::max(1, (samples + kBlockSize - 1) / kBlockSize);
+    pool.prepare(sampleRate, kBlockSize);
+    pool.setMaxPolyphony(4);
+    pool.setVoiceStealingPolicy(policy);
+    for (const auto note : kSeedNotes)
+        pool.setPadConfigField(note - 36, Membrum::kPadDecay, kSeedDecay);
+
+    for (const auto note : kSeedNotes)
+    {
+        pool.noteOn(note, 0.9f);
+        pool.processBlock(outL.data(), outR.data(), kBlockSize);
+    }
+}
+
+// Highest block peak among the sounding main voices.
+float maxActiveLevel(const Membrum::VoicePool& pool) noexcept
+{
+    float m = 0.0f;
+    for (int slot = 0; slot < pool.maxPolyphony(); ++slot)
+    {
+        const auto& meta = pool.voiceMeta(slot);
+        if (meta.state == Membrum::VoiceSlotState::Active)
+            m = std::max(m, meta.currentLevel);
+    }
+    return m;
 }
 
 inline bool isFiniteSample(float x) noexcept
@@ -144,81 +166,35 @@ IsolatedRender renderIncomingVoiceIsolated(double sampleRate,
     return r;
 }
 
-// Reproduce the full steal flow but with every pre-existing voice at
-// level=0. The allocator still sees 4 active voices so the SAME steal
-// happens on the SAME slot, the main/shadow swap is identical, and the
-// new voice (note 67) ends up on a slot with the SAME voiceId, which
-// means its ImpactExciter RNG state and any other per-voice randomness
-// matches the real steal case BIT-FOR-BIT. The captured output therefore
-// contains ONLY the new voice's audible contribution (all silenced
-// pre-existing voices contribute 0 via `out = shaped * env * level`).
+// Reproduce the seed fill + `warmupBlocks` + baseline block of the real
+// steal scenario, then either
+//   - (withSilentSteal == false) keep processing without note 67: the
+//     "no-steal" reference, where the 4 seeds decay naturally; or
+//   - (withSilentSteal == true) trigger note 67 with its pad's level at 0:
+//     the allocator events, the victim and its shadow fade are the SAME as
+//     in the real steal (the seeds are bit-identical up to the steal), and
+//     the new voice contributes exactly 0 (`out = shaped * env * level`).
 std::vector<float>
-renderNewVoiceMatchingSteal(double                       sampleRate,
-                            Membrum::VoiceStealingPolicy policy,
-                            int                          captureBlocks)
+renderReference(double                       sampleRate,
+                Membrum::VoiceStealingPolicy policy,
+                int                          warmupBlocks,
+                bool                         withSilentSteal,
+                int                          captureBlocks)
 {
     Membrum::VoicePool pool;
-    pool.prepare(sampleRate, kBlockSize);
-    pool.setMaxPolyphony(4);
-    pool.setVoiceStealingPolicy(policy);
-
     std::vector<float> outL(static_cast<std::size_t>(kBlockSize), 0.0f);
     std::vector<float> outR(static_cast<std::size_t>(kBlockSize), 0.0f);
 
-    Membrum::TestHelpers::setAllPadsVoiceParams(pool, 0.5f, 0.5f, 0.3f, 0.3f, /*level*/ 0.0f);
-
-    const std::uint8_t seedNotes[4] = {36, 37, 38, 39};
-    for (int i = 0; i < 4; ++i)
-    {
-        pool.noteOn(seedNotes[i], 0.9f);
-        pool.processBlock(outL.data(), outR.data(), kBlockSize);
-    }
-    const int warmupBlocks = warmupBlocksFor(sampleRate);
+    prepareSeededPool(pool, sampleRate, policy, outL, outR);
     for (int b = 0; b < warmupBlocks; ++b)
         pool.processBlock(outL.data(), outR.data(), kBlockSize);
     pool.processBlock(outL.data(), outR.data(), kBlockSize);  // baseline block
 
-    Membrum::TestHelpers::setAllPadsVoiceParams(pool, 0.5f, 0.5f, 0.3f, 0.3f, /*level*/ 0.8f);
-    pool.noteOn(67, 0.9f);
-
-    std::vector<float> captured;
-    captured.reserve(static_cast<std::size_t>(captureBlocks * kBlockSize));
-    for (int b = 0; b < captureBlocks; ++b)
+    if (withSilentSteal)
     {
-        pool.processBlock(outL.data(), outR.data(), kBlockSize);
-        for (int i = 0; i < kBlockSize; ++i) captured.push_back(outL[i]);
+        pool.setPadConfigField(67 - 36, Membrum::kPadLevel, 0.0f);
+        pool.noteOn(67, 0.9f);
     }
-    return captured;
-}
-
-// Run the full steal scenario EXCEPT skip the final noteOn(67). This
-// gives a "no-steal" reference where the 4 pre-existing voices continue
-// to decay naturally across the sample interval that would have been the
-// steal. Used to measure the natural decay against which the click is
-// defined.
-std::vector<float>
-renderNoSteal(double                       sampleRate,
-              Membrum::VoiceStealingPolicy policy,
-              int                          captureBlocks)
-{
-    Membrum::VoicePool pool;
-    pool.prepare(sampleRate, kBlockSize);
-    pool.setMaxPolyphony(4);
-    pool.setVoiceStealingPolicy(policy);
-
-    std::vector<float> outL(static_cast<std::size_t>(kBlockSize), 0.0f);
-    std::vector<float> outR(static_cast<std::size_t>(kBlockSize), 0.0f);
-
-    const std::uint8_t seedNotes[4] = {36, 37, 38, 39};
-    for (int i = 0; i < 4; ++i)
-    {
-        pool.noteOn(seedNotes[i], 0.9f);
-        pool.processBlock(outL.data(), outR.data(), kBlockSize);
-    }
-    const int warmupBlocks = warmupBlocksFor(sampleRate);
-    for (int b = 0; b < warmupBlocks; ++b)
-        pool.processBlock(outL.data(), outR.data(), kBlockSize);
-    pool.processBlock(outL.data(), outR.data(), kBlockSize);  // baseline block
 
     std::vector<float> captured;
     captured.reserve(static_cast<std::size_t>(captureBlocks * kBlockSize));
@@ -240,6 +216,8 @@ struct StealResult
     float stealWindowAbsPeak     = 0.0f;   // abs peak in 5 ms window
     int   stealSlot              = -1;
     int   terminationSamples     = -1;
+    int   warmupBlocks           = -1;     // adaptive seed warmup (blocks)
+    int   activeBeforeSteal      = 0;      // must be 4: a real steal
     // FR-124 ramp-shape verification -- supplementary assertions.
     float gainAfterOneBlock      = -1.0f;
     bool  gainDecreasedEachBlock = true;
@@ -262,23 +240,24 @@ StealResult runClickFreeSteal(const StealCase& sc)
     // Step 2: run the real steal scenario.
     // -------------------------------------------------------------
     Membrum::VoicePool pool;
-    pool.prepare(sc.sampleRate, kBlockSize);
-    pool.setMaxPolyphony(4);
-    pool.setVoiceStealingPolicy(sc.policy);
-
     std::vector<float> outL(static_cast<std::size_t>(kBlockSize), 0.0f);
     std::vector<float> outR(static_cast<std::size_t>(kBlockSize), 0.0f);
 
-    const std::uint8_t seedNotes[4] = {36, 37, 38, 39};
-    for (int i = 0; i < 4; ++i)
-    {
-        pool.noteOn(seedNotes[i], 0.9f);
-        pool.processBlock(outL.data(), outR.data(), kBlockSize);
-    }
+    prepareSeededPool(pool, sc.sampleRate, sc.policy, outL, outR);
 
-    const int warmupBlocks = warmupBlocksFor(sc.sampleRate);
-    for (int b = 0; b < warmupBlocks; ++b)
+    // Adaptive warmup: render until every seed has decayed below half the
+    // click threshold. The seeds must all still be sounding then (checked
+    // by the caller through activeBeforeSteal).
+    const int maxWarmupBlocks =
+        static_cast<int>(std::ceil(kMaxWarmupSeconds * sc.sampleRate)) / kBlockSize;
+    const float seedPeakBar = kSeedPeakFractionOfThreshold * r.clickThreshold;
+    int warmupBlocks = 0;
+    while (maxActiveLevel(pool) >= seedPeakBar && warmupBlocks < maxWarmupBlocks)
+    {
         pool.processBlock(outL.data(), outR.data(), kBlockSize);
+        ++warmupBlocks;
+    }
+    r.warmupBlocks = warmupBlocks;
 
     // Baseline block.
     std::vector<float> preBlock(static_cast<std::size_t>(kBlockSize), 0.0f);
@@ -289,7 +268,8 @@ StealResult runClickFreeSteal(const StealCase& sc)
         if (a > r.baselinePeak) r.baselinePeak = a;
     }
 
-    // Trigger the steal.
+    // Trigger the steal (the pool must be full of sounding seeds).
+    r.activeBeforeSteal = pool.getActiveVoiceCount();
     pool.noteOn(67, 0.9f);
 
     for (int slot = 0; slot < 16; ++slot)
@@ -364,63 +344,52 @@ StealResult runClickFreeSteal(const StealCase& sc)
         for (float s : post) if (!isFiniteSample(s)) { r.allFinite = false; break; }
 
     // -------------------------------------------------------------
-    // Step 3: render the two references needed for the bit-exact
-    // double-subtraction click metric.
-    //   (a) newVoiceMatching: the full steal flow with all pre-existing
-    //       voices silenced (level=0). The allocator sees 4 voices so
-    //       the SAME steal happens on the SAME slot with the SAME PRNG
-    //       state for the new voice, but the only audible content is
-    //       the new voice itself.
-    //   (b) noStealRef: the same fill + warmup but WITHOUT triggering
-    //       note 67. All 4 pre-existing voices continue decaying
-    //       naturally. Slots 1-3 in the steal case evolve identically
-    //       to this reference because the steal only touches slot 0.
+    // Step 3: render the two references for the exact click metric, with
+    // the same seed fill + warmup + baseline block as the real steal.
+    //   (a) silentSteal: the steal with pad 67's level at 0. Same allocator
+    //       events, same victim, same shadow fade; the new voice adds 0.
+    //   (b) noStealRef: no note 67; all 4 seeds keep decaying naturally.
     // -------------------------------------------------------------
     const int captureBlocks = 4;  // 512 samples >= 5 ms at 96 kHz
-    const std::vector<float> newVoiceMatching =
-        renderNewVoiceMatchingSteal(sc.sampleRate, sc.policy, captureBlocks);
+    const std::vector<float> silentSteal =
+        renderReference(sc.sampleRate, sc.policy, warmupBlocks,
+                        /*withSilentSteal*/ true, captureBlocks);
     const std::vector<float> noStealRef =
-        renderNoSteal(sc.sampleRate, sc.policy, captureBlocks);
+        renderReference(sc.sampleRate, sc.policy, warmupBlocks,
+                        /*withSilentSteal*/ false, captureBlocks);
 
     // -------------------------------------------------------------
-    // Step 4: bit-exact click metric.
+    // Step 4: exact click metric.
     //
-    // Let  post             = (new voice) + (fading stolen) + (slots 1-3 natural)
-    //      newVoiceMatching = (new voice) + 0 + 0          (level=0 dummies)
-    //      noStealRef       = (stolen natural) + (slots 1-3 natural)
+    // Let  silentSteal = (fading stolen) + (other seeds natural)
+    //      noStealRef  = (stolen natural) + (other seeds natural)
     //
-    // Then post - newVoiceMatching = (fading stolen) + (slots 1-3 natural)
-    // and (post - newVoiceMatching) - noStealRef
-    //                              = (fading stolen) - (stolen natural)
+    // Then silentSteal - noStealRef = (fading stolen) - (stolen natural).
     //
     // This is THE click artifact: the difference between the fast-
     // released voice and what it would have produced had it continued
-    // naturally. Both pre-existing voice cancellations are bit-exact
-    // because slots 1-3 evolve identically in `post` and `noStealRef`
-    // (the steal only swaps slot 0's state), and the new voice
-    // cancellation is bit-exact because `newVoiceMatching` reproduces
-    // the same allocator events + shadow swap + per-voice PRNG state.
+    // naturally. The other seeds cancel bit-exactly because they evolve
+    // identically in both renders (the steal only touches the victim's
+    // slot).
     //
     // The click peak is the maximum absolute value of this exact
     // difference over the 5 ms window centred on the steal event.
-    // Pre-steal samples are identical in all three buffers, so the
-    // click is zero before the steal boundary.
+    // Pre-steal samples are identical in both buffers, so the click is
+    // zero before the steal boundary.
     // -------------------------------------------------------------
     const int halfWindow = static_cast<int>(
         std::ceil(0.0025 * sc.sampleRate));
 
     const int postLen = std::min({
         halfWindow,
-        static_cast<int>(post.size()),
         static_cast<int>(noStealRef.size()),
-        static_cast<int>(newVoiceMatching.size())
+        static_cast<int>(silentSteal.size())
     });
 
     float clickPeakSample = 0.0f;
     for (int i = 0; i < postLen; ++i)
     {
-        const float exactClick =
-            (post[i] - newVoiceMatching[i]) - noStealRef[i];
+        const float exactClick = silentSteal[i] - noStealRef[i];
         const float m = std::fabs(exactClick);
         if (m > clickPeakSample) clickPeakSample = m;
     }
@@ -471,32 +440,14 @@ TEST_CASE("VoicePool steal click-free across policies and sample rates",
 
     for (const auto& sc : cases)
     {
-        // Quietest policy picks a victim based on VoiceMeta.currentLevel,
-        // which the voice pool snapshots from the voice's scratch output
-        // (level-dependent). `renderNewVoiceMatchingSteal` silences the
-        // pre-existing voices via level=0 during warmup; the real steal
-        // renders them at level=0.8. The two scenarios therefore arrive
-        // at the Quietest pick with DIFFERENT currentLevel values and can
-        // select DIFFERENT slots for the new voice. That breaks the test's
-        // bit-identity subtraction (new-voice voiceId differs between
-        // scenarios), not the fast-release quality FR-126 measures.
-        // Skip the Quietest cases here -- the Oldest and Priority policies
-        // (level-independent) still cover the click-free contract. Fixing
-        // the Quietest coverage needs a voice-pool architectural change
-        // (use body RMS instead of scratch peak for currentLevel) that is
-        // out of scope for this re-baseline.
-        if (sc.policy == Membrum::VoiceStealingPolicy::Quietest)
-        {
-            WARN("Skipping " << sc.name << " -- Quietest policy's allocator "
-                 "pick differs between level=0 newVoiceMatching and level=0.8 "
-                 "real-steal scenarios (test architecture limitation under "
-                 "Phase 8A.5 body-driven voice lifetime).");
-            continue;
-        }
-
+        // T1.9: the click reference silences only the NEW voice (pad 67's
+        // level), so the seeds -- and with them the Quietest pick -- are
+        // identical in every render, and the Quietest cases run too.
         const StealResult r = runClickFreeSteal(sc);
 
         CAPTURE(sc.name,
+                r.warmupBlocks,
+                r.activeBeforeSteal,
                 r.incomingVoicePeak,
                 r.clickPeak,
                 r.clickThreshold,
@@ -510,6 +461,9 @@ TEST_CASE("VoicePool steal click-free across policies and sample rates",
 
         // Finite-output guard (FR-181).
         REQUIRE(r.allFinite);
+
+        // The four seeds were still sounding: a real steal, not an idle slot.
+        REQUIRE(r.activeBeforeSteal == 4);
 
         // New voice must have been allocated.
         REQUIRE(r.stealSlot >= 0);

@@ -218,13 +218,18 @@ public:
         prepared_ = true;
     }
 
-    /// Reset all filter states and envelope state to zero.
+    /// Reset all filter states and envelope state to zero. Ends any release
+    /// (`damp` / `raiseReleaseDecayRate`): the snapped radii carry none.
     void reset() noexcept
     {
         std::memset(sinState_, 0, sizeof(sinState_));
         std::memset(cosState_, 0, sizeof(cosState_));
         envelopeState_ = 0.0f;
         previousEnvelope_ = 0.0f;
+        if (releaseRate_ != 0.0f) {
+            releaseRate_ = 0.0f;
+            updateDampingLaw(storedDampingLaw_);
+        }
         // Snap smoothed arrays to targets
         std::memcpy(epsilon_, epsilonTarget_, sizeof(epsilon_));
         std::memcpy(radius_, radiusTarget_, sizeof(radius_));
@@ -269,6 +274,7 @@ public:
         std::memset(cosState_, 0, sizeof(cosState_));
         envelopeState_ = 0.0f;
         previousEnvelope_ = 0.0f;
+        releaseRate_ = 0.0f;  // a note-on ends any release
         computeModeCoefficients(frequencies, amplitudes, numPartials,
                                 damping.b1, damping.b3, stretch, scatter, true);
     }
@@ -365,6 +371,10 @@ public:
             float f_w = std::asin(eps * 0.5f) * sampleRate_
                         / std::numbers::pi_v<float>;
             float decayRate_k = b1 + b3 * f_w * f_w;
+            // A branch, not `+ 0`: a bank that never releases keeps its exact
+            // arithmetic under fast-math contraction.
+            if (releaseRate_ > 0.0f)
+                decayRate_k += releaseRate_;
             radiusTarget_[k] = std::exp(-decayRate_k / sampleRate_);
         }
     }
@@ -502,6 +512,12 @@ public:
     /// note-off idiom: multiply every active mode's radius (both smoothed and
     /// target) by `scale`, so the voice finishes through its own damping law
     /// instead of through an externally-applied amp-envelope release.
+    /// The scale is also stored as an added decay rate (`-ln(scale) * fs`,
+    /// s^-1), so the release survives later `updateModes` /
+    /// `updateDampingLaw` calls until the next `setModes` or `reset`.
+    /// Each call compounds, and the rate is per SAMPLE, so the same scale
+    /// releases faster at a higher sample rate: a caller that wants a release
+    /// time in seconds uses `raiseReleaseDecayRate` instead.
     /// @param scale in (0, 1]. 1.0 is a no-op; 0.97 shortens the effective
     /// T60 by a factor of ~30x for a nominal 500-sample release.
     void damp(float scale) noexcept
@@ -513,6 +529,37 @@ public:
             radiusTarget_[k] *= scale;
             radius_[k] *= scale;
         }
+        // Domain clamp: damp(0) is reachable and log(0) is not finite.
+        const float added = -std::log(std::max(scale, 1.0e-6f)) * sampleRate_;
+        releaseRate_ = std::min(releaseRate_ + added, kMaxReleaseRate);
+    }
+
+    /// Raise the bank's added release decay rate to `ratePerSecond` (s^-1,
+    /// applied to every mode on top of its damping law). The rate is in
+    /// seconds, so the release time does not depend on the sample rate, and
+    /// it is part of the law every retune applies, so `updateModes`,
+    /// `updateDampingLaw` and `snapCoefficients` keep it. Idempotent: a call
+    /// with a rate at or below the current one changes nothing, so a caller
+    /// may repeat it without compounding. `setModes` and `reset` end it.
+    void raiseReleaseDecayRate(float ratePerSecond) noexcept
+    {
+        const float r = std::clamp(ratePerSecond, 0.0f, kMaxReleaseRate);
+        if (r <= releaseRate_)
+            return;
+        const float f = std::exp(-(r - releaseRate_) / sampleRate_);
+        for (int k = 0; k < numModes_; ++k) {
+            if (!active_[k])
+                continue;
+            radiusTarget_[k] *= f;
+            radius_[k] *= f;
+        }
+        releaseRate_ = r;
+    }
+
+    /// @return the added release decay rate in s^-1 (0 when not releasing).
+    [[nodiscard]] float getReleaseDecayRate() const noexcept
+    {
+        return releaseRate_;
     }
 
     /// @return true if prepare() has been called
@@ -527,6 +574,19 @@ public:
     {
         if (k < 0 || k >= numModes_) return 0.0f;
         float eps = epsilonTarget_[k];
+        if (eps <= 0.0f) return 0.0f;
+        return std::asin(eps * 0.5f) * sampleRate_
+               / std::numbers::pi_v<float>;
+    }
+
+    /// Get the frequency (Hz) mode k is RUNNING at: the same formula as
+    /// `getModeFrequency`, applied to the smoothed coefficient instead of the
+    /// target. The two differ while a retune is still being smoothed in, and
+    /// agree after `snapCoefficients()`. Returns 0 if k is out of range.
+    [[nodiscard]] float getLiveModeFrequency(int k) const noexcept
+    {
+        if (k < 0 || k >= numModes_) return 0.0f;
+        float eps = epsilon_[k];
         if (eps <= 0.0f) return 0.0f;
         return std::asin(eps * 0.5f) * sampleRate_
                / std::numbers::pi_v<float>;
@@ -650,6 +710,9 @@ private:
     static constexpr float kControlEnergyTauMs = 5.0f;     // FR-023: fast energy follower
     static constexpr float kPerceptualEnergyTauMs = 30.0f;  // FR-023: slow energy follower
     static constexpr float kBowInjectionGain = 0.01f;      // FR-020: bow force injection scaling
+    /// Ceiling of the added release rate (s^-1): keeps it finite under
+    /// repeated `damp` calls; at any audio rate it already zeroes a radius.
+    static constexpr float kMaxReleaseRate = 1.0e6f;
 
     // Golden-ratio-derived scatter displacement constant
     static constexpr float kScatterD =
@@ -697,6 +760,10 @@ private:
     float storedDecayTime_ = 0.5f;
     float storedBrightness_ = 0.5f;
     DampingLaw storedDampingLaw_{.b1 = 2.0f, .b3 = 2.0e-5f};
+    /// Added release decay rate (s^-1) applied to every mode on top of the
+    /// damping law; set by `damp` / `raiseReleaseDecayRate`, cleared by
+    /// `setModes` and `reset`. 0 for a bank that never releases.
+    float releaseRate_ = 0.0f;
 
     // Bowed-mode coupling state (FR-020)
     std::array<BowedModeBPF, kNumBowedModes> bowedModeFilters_{};
@@ -821,6 +888,11 @@ private:
             // Frequency-dependent damping (FR-006, FR-014). f_w is in Hz, so b3
             // is in s (Hz convention), not the s/rad^2 of the angular form.
             float decayRate_k = b1 + b3 * f_w * f_w;
+            // The release (damp / raiseReleaseDecayRate) is part of the law,
+            // so a retune keeps it (MB-269). A branch, not `+ 0`: a bank that
+            // never releases keeps its exact arithmetic under fast-math.
+            if (releaseRate_ > 0.0f)
+                decayRate_k += releaseRate_;
             float R_k = std::exp(-decayRate_k / sampleRate_);
 
             // Coupled-form frequency coefficient

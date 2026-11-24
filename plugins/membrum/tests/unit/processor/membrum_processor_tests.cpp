@@ -812,8 +812,26 @@ TEST_CASE("Membrum: Size 0.0 peak > 400 Hz, Size 1.0 peak < 100 Hz (FR-033)",
 {
     constexpr int N = 4096;
 
-    auto samplesSmall = collectSamplesWithParam(Membrum::kSizeId, 0.0f, N);
-    auto samplesLarge = collectSamplesWithParam(Membrum::kSizeId, 1.0f, N);
+    // Measure the body: pad 0's pitch envelope (the default kick's 32 Hz
+    // sweep) and the noise and click layers are switched off in the same
+    // block, so the dominant frequency is the body's (T1.6 rulings,
+    // 2026-11-24; collectSamples above silences the layers the same way).
+    const auto collectBodyOnly = [](float size) {
+        MembrumTestFixture fix(static_cast<int32>(N), kTestSampleRate);
+        TestParameterChanges paramChanges;
+        paramChanges.addChange(Membrum::kSizeId, static_cast<ParamValue>(size));
+        paramChanges.addChange(
+            static_cast<ParamID>(Membrum::padParamId(0, Membrum::kPadTSPitchEnvTime)), 0.0);
+        paramChanges.addChange(Membrum::kNoiseLayerMixId, 0.0);
+        paramChanges.addChange(Membrum::kClickLayerMixId, 0.0);
+        fix.data.inputParameterChanges = &paramChanges;
+        fix.events.addNoteOn(36, 100.0f / 127.0f);
+        fix.processBlock();
+        return std::vector<float>(fix.outL.begin(), fix.outL.end());
+    };
+
+    auto samplesSmall = collectBodyOnly(0.0f);
+    auto samplesLarge = collectBodyOnly(1.0f);
 
     float freqSmall = dominantFrequency(samplesSmall, N, kTestSampleRate);
     float freqLarge = dominantFrequency(samplesLarge, N, kTestSampleRate);

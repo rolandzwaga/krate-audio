@@ -176,6 +176,8 @@ add_library(membrum_core STATIC
     src/ui/kit_meters_view.cpp
     src/voice_pool/voice_pool.h
     src/voice_pool/voice_pool.cpp
+    src/voice_pool/strike_norm_table.h
+    src/voice_pool/strike_norm_table.cpp
     src/voice_pool/voice_meta.h
     src/voice_pool/voice_stealing_policy.h
     src/voice_pool/choke_group_table.h

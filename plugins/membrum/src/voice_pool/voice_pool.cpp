@@ -13,6 +13,7 @@
 #include "../dsp/pad_config_apply.h"
 
 #include <algorithm>
+#include <cassert>
 #include <cmath>
 #include <cstdint>
 #include <cstring>
@@ -127,6 +128,10 @@ void VoicePool::prepare(double sampleRate, int maxBlockSize) noexcept
         releasingMeta_[i] = VoiceMeta{};
     }
 
+    // T1.6: measure every pad's strike-norm gains here, on the setup thread,
+    // so a note-on never renders the probe for an unchanged pad.
+    strikeNorm_.prepare(sampleRate_, padConfigs_);
+
     // Reset the allocator and seed the active voice count so it matches
     // `maxPolyphony_`.
     allocator_.reset();
@@ -164,15 +169,32 @@ void VoicePool::noteOn(std::uint8_t midiNote, float velocity) noexcept
     // no-op stub so the code path compiles.
     processChokeGroups(midiNote);
 
-    // Step 2: if Quietest policy AND the pool is already full, pre-select the
-    // quietest active slot and release it so the allocator sees an Idle slot
-    // (Clarification Q3 / FR-122). We must yield the slot to the allocator
+    // Step 2: Quietest pre-steal (Clarification Q3 / FR-122). Only when the
+    // allocator would really have to steal -- the pool is full AND the note
+    // is not already playing (a same-note retrigger is served on the note's
+    // own slot, so stealing another voice for it would kill it for nothing)
+    // -- pre-select the quietest rendered voice and release it so the
+    // allocator sees an Idle slot. We must yield the slot to the allocator
     // via noteOff + voiceFinished so the next allocator.noteOn() call can
-    // pick it up without issuing its own Steal event.
+    // pick it up without issuing its own Steal event. When no slot is freed
+    // here (pool not full, retrigger, or no voice with a measured level) the
+    // allocator's own Oldest steal applies.
     const bool poolFull =
         std::cmp_greater_equal(allocator_.getActiveVoiceCount(), maxPolyphony_);
 
-    if (stealingPolicy_ == VoiceStealingPolicy::Quietest && poolFull)
+    bool alreadyPlaying = false;
+    for (int i = 0; i < maxPolyphony_; ++i)
+    {
+        const auto idx = static_cast<std::size_t>(i);
+        if (allocator_.getVoiceState(idx) != Krate::DSP::VoiceState::Idle &&
+            allocator_.getVoiceNote(idx) == static_cast<int>(midiNote))
+        {
+            alreadyPlaying = true;
+            break;
+        }
+    }
+
+    if (stealingPolicy_ == VoiceStealingPolicy::Quietest && poolFull && !alreadyPlaying)
     {
         const int q = selectQuietestActiveSlot();
         if (q >= 0)
@@ -191,16 +213,17 @@ void VoicePool::noteOn(std::uint8_t midiNote, float velocity) noexcept
             meta_[q].state = VoiceSlotState::Free;
         }
     }
-    else
-    {
-        // FR-121 / FR-123: Oldest -> AllocationMode::Oldest;
-        //                  Priority -> AllocationMode::HighestNote.
-        const auto mode =
-            (stealingPolicy_ == VoiceStealingPolicy::Priority)
-                ? Krate::DSP::AllocationMode::HighestNote
-                : Krate::DSP::AllocationMode::Oldest;
-        allocator_.setAllocationMode(mode);
-    }
+
+    // FR-121 / FR-123: Oldest -> AllocationMode::Oldest;
+    //                  Priority -> AllocationMode::HighestNote;
+    //                  Quietest -> AllocationMode::Oldest, so the allocator
+    //                  never steals with a stale mode when the pre-steal
+    //                  above freed nothing.
+    const auto mode =
+        (stealingPolicy_ == VoiceStealingPolicy::Priority)
+            ? Krate::DSP::AllocationMode::HighestNote
+            : Krate::DSP::AllocationMode::Oldest;
+    allocator_.setAllocationMode(mode);
 
     // Step 3: the allocator picks / steals a slot.
     const auto clampedVel = std::clamp(velocity, 0.0f, 1.0f);
@@ -242,8 +265,22 @@ void VoicePool::noteOn(std::uint8_t midiNote, float velocity) noexcept
         {
             const int slot = static_cast<int>(ev.voiceIndex);
 
+            // T1.6: the voice is re-configured from scratch below, so its
+            // guarded body setters must not re-map modes for a still-active
+            // (retriggered / re-acquired) voice; noteOn re-maps them once.
+            mainVoice(slot).markInactiveForNoteOn();
+
             // Configure the voice from the pad's config (Phase 4 per-pad dispatch).
             applyPadConfigToSlot(slot, padIndex);
+            // T1.6: the pad's strike-norm gains come from the per-pad table
+            // (measured in prepare / on the worker), not from a probe render
+            // inside this note-on.
+            if (strikeNorm_.isPrepared())
+            {
+                const auto g = strikeNorm_.gainsForNoteOn(
+                    padIndex, padConfigs_[static_cast<std::size_t>(padIndex)]);
+                mainVoice(slot).setSuppliedStrikeNormGains(g.body, g.shell);
+            }
             mainVoice(slot).noteOn(clampedVel);
 
             // Phase 5: Register this voice's partials with the coupling engine.
@@ -319,8 +356,26 @@ void VoicePool::noteOff(std::uint8_t midiNote) noexcept
 
 void VoicePool::processBlock(float* outL, float* outR, int numSamples) noexcept
 {
+    // T1.9 (MB-118): one renderer. With a single bus the aux routing of the
+    // multi-bus overload never runs.
+    processBlock(outL, outR, nullptr, nullptr, nullptr, 1, numSamples);
+}
+
+// ------------------------------------------------------------------
+// Multi-bus processBlock (FR-044)
+// ------------------------------------------------------------------
+
+void VoicePool::processBlock(float* outL, float* outR,
+                             float** auxL, float** auxR,
+                             const bool* busActive,
+                             int numOutputBuses,
+                             int numSamples) noexcept
+{
     if (numSamples <= 0 || outL == nullptr || outR == nullptr)
         return;
+
+    // T1.6: queue edited pads for the strike-norm worker, adopt its results.
+    strikeNorm_.syncAll(padConfigs_);
 
     // Memory-safety guard: never render more samples than the scratch buffers
     // were sized for in prepare(). A spec-compliant host always passes
@@ -330,7 +385,7 @@ void VoicePool::processBlock(float* outL, float* outR, int numSamples) noexcept
     // a truncated block.
     numSamples = std::min(numSamples, maxBlockSize_);
 
-    // Zero the output buffers first (FR-165 per-block accumulate model).
+    // Zero the main output buffers (FR-165 per-block accumulate model).
     for (int i = 0; i < numSamples; ++i)
     {
         outL[i] = 0.0f;
@@ -362,121 +417,6 @@ void VoicePool::processBlock(float* outL, float* outR, int numSamples) noexcept
     // ring through their natural decay, but they can't sit on a
     // sub-audible plateau forever any more.
     constexpr float kSilenceThreshold = 1.0e-3f;   // ~ -60 dBFS
-
-    for (int slot = 0; slot < maxPolyphony_; ++slot)
-    {
-        if (mainVoice(slot).isActive())
-        {
-            mainVoice(slot).processBlock(scratch, numSamples);
-
-            // M-9: equal-power per-pad pan (DrumVoice is mono).
-            float gainL = 1.0f;
-            float gainR = 1.0f;
-            panGainsForNote(meta_[slot].originatingNote, gainL, gainR);
-
-            // FR-165: per-block peak into VoiceMeta.currentLevel. One pass
-            // through the scratch, then one write. Not per-sample. The peak is
-            // measured PRE-pan (the voice's intrinsic level) so stealing
-            // policies stay pan-independent.
-            float peak = 0.0f;
-            for (int i = 0; i < numSamples; ++i)
-            {
-                const float a = std::fabs(scratch[i]);
-                peak           = std::max(peak, a);
-                outL[i] += scratch[i] * gainL;
-                outR[i] += scratch[i] * gainR;
-            }
-            meta_[slot].currentLevel = peak;
-
-            // Auto-release once the voice has decayed below the silence
-            // threshold. Gate the envelope off from this side so the
-            // per-slot `isActive()` poll below eventually flips false.
-            if (peak < kSilenceThreshold &&
-                meta_[slot].state == VoiceSlotState::Active)
-            {
-                mainVoice(slot).noteOff();
-            }
-        }
-        else if (meta_[slot].state == VoiceSlotState::Active)
-        {
-            // Phase 5: Release coupling resonators for naturally finished voice.
-            if (couplingEngine_ != nullptr)
-                couplingEngine_->noteOff(slot);
-
-            // Voice naturally finished -- FR-115.
-            meta_[slot].state        = VoiceSlotState::Free;
-            meta_[slot].currentLevel = 0.0f;
-            allocator_.voiceFinished(static_cast<std::size_t>(slot));
-        }
-    }
-
-    // T3.2.6 / FR-124 / Q5: render every fast-releasing shadow voice, apply
-    // the per-sample exponential decay to the scratch buffer, then
-    // accumulate only the live (pre-floor) samples into the output per
-    // FR-124's "does NOT accumulate those zeroed samples into the output"
-    // clause.
-    for (int slot = 0; slot < kMaxVoices; ++slot)
-    {
-        if (releasingMeta_[slot].state != VoiceSlotState::FastReleasing)
-            continue;
-
-        // Render the shadow copy of the drum voice into scratchL_.
-        shadowVoice(slot).processBlock(scratch, numSamples);
-
-        // Apply the exponential fast-release ramp. Returns the count of
-        // samples before the 1e-6 floor triggered (numSamples if the fade
-        // continues into the next block).
-        const int liveCount = applyFastRelease(slot, scratch, numSamples);
-
-        // M-9: the fading shadow voice keeps its pad's pan position.
-        float gainL = 1.0f;
-        float gainR = 1.0f;
-        panGainsForNote(releasingMeta_[slot].originatingNote, gainL, gainR);
-
-        for (int i = 0; i < liveCount; ++i)
-        {
-            outL[i] += scratch[i] * gainL;
-            outR[i] += scratch[i] * gainR;
-        }
-
-        // When the slot has transitioned back to Free (floor triggered),
-        // the main-slot allocator bookkeeping was already cleared by
-        // `noteOn`'s Steal event handler. The shadow slot does not need
-        // its own voiceFinished() call because the main slot was
-        // already released from the allocator's perspective at the
-        // moment of the steal.
-    }
-
-    sampleCounter_ += static_cast<std::uint64_t>(numSamples);
-}
-
-// ------------------------------------------------------------------
-// Multi-bus processBlock (FR-044)
-// ------------------------------------------------------------------
-
-void VoicePool::processBlock(float* outL, float* outR,
-                             float** auxL, float** auxR,
-                             const bool* busActive,
-                             int numOutputBuses,
-                             int numSamples) noexcept
-{
-    if (numSamples <= 0 || outL == nullptr || outR == nullptr)
-        return;
-
-    // Memory-safety guard (see mono overload): clamp to the reserved scratch
-    // size so an out-of-contract oversized block cannot overflow the heap.
-    numSamples = std::min(numSamples, maxBlockSize_);
-
-    // Zero the main output buffers (FR-165 per-block accumulate model).
-    for (int i = 0; i < numSamples; ++i)
-    {
-        outL[i] = 0.0f;
-        outR[i] = 0.0f;
-    }
-
-    float* scratch = scratchL_.get();
-    // See mono path above for the rationale on this threshold.
-    constexpr float kSilenceThreshold = 1.0e-3f;
 
     for (int slot = 0; slot < maxPolyphony_; ++slot)
     {
@@ -527,9 +467,29 @@ void VoicePool::processBlock(float* outL, float* outR,
         }
         else if (meta_[slot].state == VoiceSlotState::Active)
         {
+            // Voice naturally finished -- FR-115.
+            // Phase 5 / T1.9 (MB-069): release its coupling resonators.
+            if (couplingEngine_ != nullptr)
+                couplingEngine_->noteOff(slot);
+
+            // T1.9 (MB-050 / MB-105): a voice that finishes while its MIDI
+            // note is still held leaves its allocator slot Active, and
+            // voiceFinished() ignores a slot that is not Releasing. Release
+            // the note first so the slot returns to Idle; the later MIDI
+            // note-off then finds no Active slot for it. A same-note
+            // retrigger reuses the note's own slot, so at most one slot
+            // holds this note.
+            const auto allocSlot = static_cast<std::size_t>(slot);
+            if (allocator_.getVoiceState(allocSlot) == Krate::DSP::VoiceState::Active)
+            {
+                [[maybe_unused]] const auto released =
+                    allocator_.noteOff(meta_[slot].originatingNote);
+                assert(released.size() <= 1);
+            }
+
             meta_[slot].state        = VoiceSlotState::Free;
             meta_[slot].currentLevel = 0.0f;
-            allocator_.voiceFinished(static_cast<std::size_t>(slot));
+            allocator_.voiceFinished(allocSlot);
         }
     }
 
@@ -862,13 +822,20 @@ void VoicePool::loadChokeGroupAssignments(
 int VoicePool::selectQuietestActiveSlot() const noexcept
 {
     // FR-122 / FR-128: lowest currentLevel; tiebreak oldest noteOnSampleCount,
-    // then ascending slot index.
+    // then ascending slot index. T1.9 (MB-049): a voice triggered in the
+    // current block (noteOnSampleCount == sampleCounter_) has not rendered
+    // yet, so it has no measured level -- its currentLevel 0 is not "quiet",
+    // it is the most recent hit. Such voices are never candidates; if every
+    // active voice was triggered in this block the function returns -1 and
+    // the allocator's Oldest steal applies.
     int   bestSlot  = -1;
     float bestLevel = 0.0f;
     std::uint64_t bestAge = 0;
     for (int slot = 0; slot < maxPolyphony_; ++slot)
     {
         if (meta_[slot].state != VoiceSlotState::Active)
+            continue;
+        if (meta_[slot].noteOnSampleCount == sampleCounter_)
             continue;
 
         const float level = meta_[slot].currentLevel;

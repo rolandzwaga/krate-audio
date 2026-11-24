@@ -82,6 +82,7 @@ public:
     void reset() noexcept
     {
         sharedBank_.reset();
+        clearSharedModes();
         dispatch([this](auto& b) noexcept { b.reset(sharedBank_); });
         lastOutput_ = 0.0f;
     }
@@ -175,6 +176,21 @@ public:
 
     [[nodiscard]] float getLastOutput() const noexcept { return lastOutput_; }
 
+    /// Body-aware silence test for voice retirement (MB-106, MB-160), called
+    /// once per rendered block. The String body runs its WaveguideString and
+    /// never the shared bank, so the bank's mode count says nothing about it:
+    /// it is silent when the waveguide's control energy stayed below
+    /// kStringSilentEnergy at every sample of the block (this call restarts
+    /// that per-block maximum). Every other body is silent once the bank's
+    /// flushSilentModes() has retired every mode.
+    [[nodiscard]] bool isBodySilent() noexcept
+    {
+        if (currentType_ == BodyModelType::String)
+            return std::get<StringBody>(alternatives_).takeEnergyMax()
+                   < kStringSilentEnergy;
+        return sharedBank_.getNumActiveModes() == 0;
+    }
+
     [[nodiscard]] BodyModelType getCurrentType() const noexcept { return currentType_; }
     [[nodiscard]] BodyModelType getPendingType() const noexcept { return pendingType_; }
 
@@ -189,11 +205,29 @@ public:
     }
 
 private:
+    /// WaveguideString::getControlEnergy() is a one-pole (5 ms) average of the
+    /// squared output, i.e. a mean square. -100 dBFS RMS is an amplitude of
+    /// 10^(-100/20) = 1e-5, whose square is 1e-10.
+    static constexpr float kStringSilentEnergy = 1.0e-10f;
+
+    /// Empty the shared bank's mode set (MB-106, MB-039). reset() only clears
+    /// the oscillator states, so the previous body's mode count, active flags
+    /// and frequencies survived a swap or a kit switch: a String voice on that
+    /// slot never retired and offered the old partials to coupling. setModes()
+    /// with 0 partials sets numModes_ and numActiveModes_ to 0 and deactivates
+    /// every mode. Modal bodies call setModes() again in configureForNoteOn().
+    void clearSharedModes() noexcept
+    {
+        static constexpr float kNone[1] = {0.0f};
+        sharedBank_.setModes(kNone, kNone, 0, 1.0f, 0.5f, 0.0f, 0.0f);
+    }
+
     void applyPendingSwap() noexcept
     {
         // Clear shared-bank state before installing the new body so the tail
         // of the previous body doesn't bleed into the new one.
         sharedBank_.reset();
+        clearSharedModes();
 
         if (pendingType_ == BodyModelType::kCount)
             pendingType_ = BodyModelType::Membrane;

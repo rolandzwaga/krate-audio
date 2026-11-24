@@ -1702,3 +1702,288 @@ TEST_CASE("ModalResonatorBank: snapCoefficients removes the block-partition depe
         REQUIRE(std::sqrt(sumSq / kNumSamples) > 1.0e-3);
     }
 }
+
+// =============================================================================
+// Persistent release (fix plan T1.10: MB-269, MB-012)
+// =============================================================================
+
+namespace {
+
+// The 48-mode ideal-membrane ratio set j_mn / j_01 (Membrum's
+// kMembraneRatios, plugins/membrum/src/dsp/membrane_modes.h; a DSP test cannot
+// include plugin code). Amplitudes are a smooth 1/sqrt(n) profile that keeps
+// every mode alive, the role the audit probe's Bessel weights floored at 0.02
+// played (specs/membrum-audit/probes/audit_retune_probe.cpp.txt, E3).
+constexpr std::array<float, 48> kReleaseMembraneRatios = {
+    1.0000f, 1.5933f, 2.1357f, 2.2954f, 2.6528f, 2.9173f, 3.1554f, 3.5001f,
+    3.5984f, 3.6475f, 4.0589f, 4.1316f, 4.2304f, 4.6009f, 4.6099f, 4.8320f,
+    4.9033f, 5.0838f, 5.1309f, 5.4124f, 5.5408f, 5.5535f, 5.6509f, 5.9765f,
+    6.0194f, 6.1528f, 6.1633f, 6.2097f, 6.4826f, 6.5282f, 6.6683f, 6.7453f,
+    6.8479f, 6.9428f, 7.0710f, 7.1712f, 7.3281f, 7.4063f, 7.4725f, 7.5193f,
+    7.6101f, 7.6655f, 7.8592f, 7.8925f, 8.0710f, 8.1350f, 8.1607f, 8.1611f};
+
+constexpr int kReleaseModes = 48;
+constexpr float kReleaseF0 = 150.0f;
+constexpr Krate::DSP::ModalResonatorBank::DampingLaw kReleaseLaw{.b1 = 2.0f, .b3 = 0.0f};
+
+struct ReleaseModeSet
+{
+    std::array<float, kMaxModes> freqs{};
+    std::array<float, kMaxModes> amps{};
+    ReleaseModeSet()
+    {
+        for (int k = 0; k < kReleaseModes; ++k)
+        {
+            const auto i = static_cast<std::size_t>(k);
+            freqs[i] = kReleaseMembraneRatios[i] * kReleaseF0;
+            amps[i] = 1.0f / std::sqrt(static_cast<float>(k + 1));
+        }
+    }
+};
+
+void configureReleaseBank(Krate::DSP::ModalResonatorBank& bank, double sampleRate,
+                          const ReleaseModeSet& ms)
+{
+    bank.prepare(sampleRate);
+    bank.setOutputGain(1.0f);
+    bank.setOutputSoftClipThreshold(0.0f);
+    bank.setModes(ms.freqs.data(), ms.amps.data(), kReleaseModes, kReleaseLaw, 0.0f, 0.0f);
+}
+
+void retuneReleaseBank(Krate::DSP::ModalResonatorBank& bank, const ReleaseModeSet& ms)
+{
+    bank.updateModes(ms.freqs.data(), ms.amps.data(), kReleaseModes, kReleaseLaw, 0.0f, 0.0f);
+}
+
+enum class ReleaseRetune : std::uint8_t
+{
+    None,              // no retune
+    UpdatePer64,       // updateModes every 64 samples (today's DrumVoice path)
+    UpdateSnapPer64,   // updateModes + snapCoefficients every 64 samples
+    UpdatePerSample    // updateModes every sample, processSample smoothing
+};
+
+// Strike, ring 50 ms, call `release` on the bank, then measure the seconds
+// until getModalEnergy() is 60 dB below its value at that call.
+template <typename ReleaseFn>
+double releaseTimeTo60dB(double sampleRate, ReleaseRetune retune, const ReleaseFn& release)
+{
+    const ReleaseModeSet ms;
+    Krate::DSP::ModalResonatorBank bank;
+    configureReleaseBank(bank, sampleRate, ms);
+
+    std::array<float, 64> in{};
+    std::array<float, 64> out{};
+    in[0] = 1.0f;
+    bank.processBlock(in.data(), out.data(), 16);
+    in[0] = 0.0f;
+    const int ring = static_cast<int>(0.05 * sampleRate);
+    for (int done = 0; done < ring;)
+    {
+        const int n = std::min(64, ring - done);
+        bank.processBlock(in.data(), out.data(), n);
+        done += n;
+    }
+
+    const float eRef = bank.getModalEnergy();
+    REQUIRE(eRef > 0.0f);
+    release(bank);
+
+    const int limit = static_cast<int>(5.0 * sampleRate);
+    int t = 0;
+    while (t < limit)
+    {
+        if (retune == ReleaseRetune::UpdatePerSample)
+        {
+            retuneReleaseBank(bank, ms);
+            (void)bank.processSample(0.0f);
+            t += 1;
+        }
+        else
+        {
+            if (retune == ReleaseRetune::UpdatePer64)
+                retuneReleaseBank(bank, ms);
+            if (retune == ReleaseRetune::UpdateSnapPer64)
+            {
+                retuneReleaseBank(bank, ms);
+                bank.snapCoefficients();
+            }
+            bank.processBlock(in.data(), out.data(), 64);
+            t += 64;
+        }
+        if (bank.getModalEnergy() < eRef * 1.0e-6f)
+            return static_cast<double>(t) / sampleRate;
+    }
+    return 5.0;
+}
+
+} // namespace
+
+TEST_CASE("ModalResonatorBank: damp() survives updateModes and snapCoefficients",
+          "[modal_resonator_bank][release]")
+{
+    const auto dampNoteOff = [](Krate::DSP::ModalResonatorBank& b) { b.damp(0.997f); };
+    const auto checkVariant = [&dampNoteOff](ReleaseRetune retune, const char* name) {
+        for (const double fs : {44100.0, 96000.0})
+        {
+            const double none = releaseTimeTo60dB(fs, ReleaseRetune::None, dampNoteOff);
+            const double t = releaseTimeTo60dB(fs, retune, dampNoteOff);
+            INFO("fs " << fs << ": no retune " << none << " s, " << name << " " << t << " s");
+            REQUIRE(none < 1.0);
+            CHECK(t <= 1.10 * none);
+            CHECK(t >= 0.90 * none);
+        }
+    };
+
+    SECTION("no retune (reference)")
+    {
+        for (const double fs : {44100.0, 96000.0})
+        {
+            const double none = releaseTimeTo60dB(fs, ReleaseRetune::None, dampNoteOff);
+            INFO("fs " << fs << ": no retune " << none << " s");
+            // -ln(0.997) * fs + b1 = total amplitude decay rate; energy -60 dB
+            // is ln(1e6) / (2 * rate).
+            const double rate = -std::log(0.997) * fs + 2.0;
+            CHECK(none <= 1.10 * std::log(1.0e6) / (2.0 * rate));
+            CHECK(none >= 0.90 * std::log(1.0e6) / (2.0 * rate));
+        }
+    }
+    SECTION("updateModes every 64 samples")
+    {
+        checkVariant(ReleaseRetune::UpdatePer64, "updateModes / 64");
+    }
+    SECTION("updateModes + snapCoefficients every 64 samples")
+    {
+        checkVariant(ReleaseRetune::UpdateSnapPer64, "updateModes + snap / 64");
+    }
+    SECTION("updateModes every sample with processSample smoothing")
+    {
+        checkVariant(ReleaseRetune::UpdatePerSample, "updateModes per sample");
+    }
+}
+
+TEST_CASE("ModalResonatorBank: raiseReleaseDecayRate is a release time in seconds",
+          "[modal_resonator_bank][release]")
+{
+    const auto raise = [](Krate::DSP::ModalResonatorBank& b) { b.raiseReleaseDecayRate(132.5f); };
+    // Energy -60 dB at an amplitude decay rate of 132.5 + b1 (= 2) s^-1.
+    const double expected = std::log(1.0e6) / (2.0 * (132.5 + 2.0));
+
+    std::vector<double> times;
+    for (const double fs : {44100.0, 96000.0, 192000.0})
+    {
+        const double plain = releaseTimeTo60dB(fs, ReleaseRetune::None, raise);
+        const double snapped = releaseTimeTo60dB(fs, ReleaseRetune::UpdateSnapPer64, raise);
+        INFO("fs " << fs << ": no retune " << plain << " s, updateModes + snap / 64 " << snapped
+                   << " s, expected " << expected << " s");
+        CHECK(plain == Approx(expected).epsilon(0.05));
+        CHECK(snapped == Approx(expected).epsilon(0.05));
+        times.push_back(plain);
+        times.push_back(snapped);
+    }
+    const auto [lo, hi] = std::minmax_element(times.begin(), times.end());
+    CHECK(*hi <= 1.05 * *lo);
+}
+
+TEST_CASE("ModalResonatorBank: a lower or equal release rate changes nothing",
+          "[modal_resonator_bank][release]")
+{
+    const ReleaseModeSet ms;
+    auto render = [&ms](bool repeat) {
+        Krate::DSP::ModalResonatorBank bank;
+        configureReleaseBank(bank, 48000.0, ms);
+        std::array<float, 2048> in{};
+        std::array<float, 2048> out{};
+        in[0] = 1.0f;
+        bank.processBlock(in.data(), out.data(), 512);
+        bank.raiseReleaseDecayRate(132.5f);
+        if (repeat)
+        {
+            bank.raiseReleaseDecayRate(132.5f);
+            bank.raiseReleaseDecayRate(50.0f);
+            bank.raiseReleaseDecayRate(0.0f);
+        }
+        REQUIRE(bank.getReleaseDecayRate() == 132.5f);
+        in[0] = 0.0f;
+        bank.processBlock(in.data(), out.data(), 2048);
+        return out;
+    };
+    const auto once = render(false);
+    const auto repeated = render(true);
+    float peak = 0.0f;
+    for (size_t i = 0; i < once.size(); ++i)
+    {
+        REQUIRE(once[i] == repeated[i]);
+        peak = std::max(peak, std::abs(once[i]));
+    }
+    REQUIRE(peak > 1.0e-3f);
+}
+
+TEST_CASE("ModalResonatorBank: setModes and reset end the release",
+          "[modal_resonator_bank][release]")
+{
+    const ReleaseModeSet ms;
+    std::array<float, 4096> in{};
+    in[0] = 1.0f;
+
+    auto ring = [&in](Krate::DSP::ModalResonatorBank& bank) {
+        std::array<float, 4096> out{};
+        bank.processBlock(in.data(), out.data(), static_cast<int>(out.size()));
+        return out;
+    };
+
+    Krate::DSP::ModalResonatorBank fresh;
+    configureReleaseBank(fresh, 48000.0, ms);
+    const auto reference = ring(fresh);
+
+    Krate::DSP::ModalResonatorBank bank;
+    configureReleaseBank(bank, 48000.0, ms);
+    (void)ring(bank);
+    bank.raiseReleaseDecayRate(132.5f);
+    REQUIRE(bank.getReleaseDecayRate() == 132.5f);
+
+    SECTION("setModes")
+    {
+        bank.setModes(ms.freqs.data(), ms.amps.data(), kReleaseModes, kReleaseLaw, 0.0f, 0.0f);
+    }
+    SECTION("reset")
+    {
+        bank.reset();
+    }
+    REQUIRE(bank.getReleaseDecayRate() == 0.0f);
+
+    const auto next = ring(bank);
+    float worst = 0.0f;
+    for (size_t i = 0; i < next.size(); ++i)
+        worst = std::max(worst, std::abs(next[i] - reference[i]));
+    INFO("worst |next note - fresh bank| = " << worst);
+    REQUIRE(worst <= 1.0e-6f);
+    // Non-vacuity: the reference still rings at its end.
+    REQUIRE(std::abs(reference[4000]) + std::abs(reference[4001]) + std::abs(reference[4002]) > 1.0e-3f);
+}
+
+TEST_CASE("ModalResonatorBank: getLiveModeFrequency reads the running coefficient",
+          "[modal_resonator_bank][release]")
+{
+    const ReleaseModeSet ms;
+    Krate::DSP::ModalResonatorBank bank;
+    configureReleaseBank(bank, 48000.0, ms);
+    // The two getters are separately inlined copies of one formula, so they
+    // are compared within a tolerance far below the retune step (fast-math).
+    REQUIRE(bank.getLiveModeFrequency(0) == Approx(bank.getModeFrequency(0)).epsilon(1.0e-6));
+
+    ReleaseModeSet higher;
+    for (auto& f : higher.freqs)
+        f *= 1.5f;
+    bank.updateModes(higher.freqs.data(), higher.amps.data(), kReleaseModes, kReleaseLaw, 0.0f, 0.0f);
+    INFO("after updateModes: live " << bank.getLiveModeFrequency(0) << " Hz, target "
+                                    << bank.getModeFrequency(0) << " Hz");
+    CHECK(bank.getLiveModeFrequency(0) < 0.9f * bank.getModeFrequency(0));
+    CHECK(bank.getLiveModeFrequency(0) == Approx(kReleaseF0).epsilon(0.001));
+    CHECK(bank.getModeFrequency(0) == Approx(1.5f * kReleaseF0).epsilon(0.001));
+
+    bank.snapCoefficients();
+    CHECK(bank.getLiveModeFrequency(0) == Approx(bank.getModeFrequency(0)).epsilon(1.0e-6));
+    CHECK(bank.getLiveModeFrequency(-1) == 0.0f);
+    CHECK(bank.getLiveModeFrequency(kReleaseModes) == 0.0f);
+}
