@@ -2,29 +2,29 @@
   "schema_version": 2,
   "plugins": {
     "Disrumpo": {
-      "version": "1.1.1",
+      "version": "1.1.2",
       "download_url": "https://krateaudio.com/disrumpo/",
       "release_notes": "",
-      "tag": "disrumpo/v1.1.1",
-      "pub_date": "2026-11-23T14:35:56Z",
+      "tag": "disrumpo/v1.1.2",
+      "pub_date": "2026-11-24T18:11:48Z",
       "channel": "stable",
-      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/disrumpo/v1.1.1",
+      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/disrumpo/v1.1.2",
       "description": "Multiband Morphing Distortion",
-      "notes_markdown": "### Fixed\n\n- **A preset loaded from the browser kept the previous preset's shape settings** — Loading from the preset browser did not run the same code as a project reload. Each node remembers its shape settings for every distortion type, and the sound engine kept the previous preset's settings for every type except the one in use, so changing a node's type afterwards (by hand or by automation) played stale settings, and the next project save stored them. A browser load now takes the same path as a project reload, and the browser's Save stores exactly what the sound engine holds.\n- **The Chaos distortion repeated a short cycle instead of evolving** *(shared DSP)* — In the Lorenz model at 44.1 and 48 kHz, the attractor was stepped too coarsely, briefly overshot its safety bound and was restarted about 36 times a second, so the distortion repeated the same 28 ms pattern. The attractor is now stepped finely enough at every sample rate and speed, and only a truly runaway state is restarted.\n- **The Stepped modulation curve overshot its amount by a third** *(shared DSP)* — With the source at full scale (a macro at 100 %, a square LFO), a route or macro with the Stepped curve gave 4/3 of its amount. Its top step is now exactly the amount, so such routes move less than before at full scale.\n- **Changing a modulation route's source or destination could jump** *(shared DSP)* — When a route switched source, destination or curve, it briefly applied the old route's amount to the new destination, which could cause a short burst or jump. A changed route now starts from its own amount.\n- **Small load fixes** — A new instance ran the Rungler at 200 Hz, outside its range, until its Rate knob was moved; it now starts at the 4.09 Hz the knob shows. A project could restore Folds and Bit Depth between the steps their knobs offer; they now load on a step, as a browser load does.",
+      "notes_markdown": "### Fixed\n\n- **Opening the editor crashed Carla on Linux** *(shared editor)* — Carla hands a plugin its event loop only through the editor window, which left the GUI library without one, so opening the editor crashed the host. The editor now takes the event loop from its own window, keeps it working while several instances have their editors open, and lets go of it when the last editor closes. Hosts that worked before are unaffected.",
       "platforms": {
         "darwin-universal": {
-          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/disrumpo/v1.1.1/Disrumpo-1.1.1-macOS.pkg",
-          "size": 8392917,
-          "sha256": "1d4e5185c8df24a51ad6df445c5cc30447eb36e8709345ccbbc00ce03878c0c7",
-          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+Tbrny1G+fA47LXERMaBzcvQ9tq6d4eLnStf/5fHShd5X1xsN/YpxkwxqbidK6hzTgxTY0U3kwGt/omVSS0KxYd5bAM=\ntrusted comment: krate:1:Disrumpo:1.1.1:darwin-universal:Disrumpo-1.1.1-macOS.pkg\nVVNA3qVxQxCbfYkzisCwmwHFuFMSZ/BEsC0enksRNNhciAAVfJc7rIqbAkrqpWigZI0uwOlWGRYdU6J7hsA/Aw==\n",
+          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/disrumpo/v1.1.2/Disrumpo-1.1.2-macOS.pkg",
+          "size": 8397174,
+          "sha256": "32d09c073077cee34bcf945d8c29b6ba5982770cb8b64e83ad39f6bed7ce9ebb",
+          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+TbrnxwwxTyHyJyZ/ND1cdEi+ZbgPA+dnmHFvsxqMZNOlqLk9FQ0wPmBo12YVAMgPpt6710bOd64Hhwu4xiBF3sHhg8=\ntrusted comment: krate:1:Disrumpo:1.1.2:darwin-universal:Disrumpo-1.1.2-macOS.pkg\nA3V+fWr0SI6Yl67ZLNprz58Pdn4T8EkV0+PZMBQgLliScoHtcM8QBpgaBsbiO+ryWOlBvdjGjUyNUEED++uBDw==\n",
           "format": "pkg",
           "min_os": "26.5"
         },
         "linux-x86_64": {
-          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/disrumpo/v1.1.1/Disrumpo-1.1.1-Linux-x64.tar.gz",
-          "size": 1819298,
-          "sha256": "ba0588f88f2b4dd95986a9d375f0e308765153f925bb7f2d43f3d547a24d90c3",
-          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+TbrnxyDTahadgNAcESKRsMtSLCa8OSzdX4aPcR5OPFF6EIvblKgd/dO4foDqs1fj8CfA5bUOf6iYSEcxISzIW0jAgs=\ntrusted comment: krate:1:Disrumpo:1.1.1:linux-x86_64:Disrumpo-1.1.1-Linux-x64.tar.gz\nqPRsCwTHIwlHwFmz24c8PkW4NI3H6SVjzVH8XrfOjcgAbpMDbOa7BnM8LyDk/HeZ4PEyRZlw+JLRoLUbp7I1BQ==\n",
+          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/disrumpo/v1.1.2/Disrumpo-1.1.2-Linux-x64.tar.gz",
+          "size": 1828156,
+          "sha256": "316844c234884c079f46f1eb16475fe8088f6890a7bfb43c7f072d363e4cb2f5",
+          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+Tbrn96FS54OwEu9+RA4q8LtbF6cFgVF4rrYVwBKAuxdj5Zr/Ca9G+vxwxMsRXDmP5T7xghDRtO+crtnBu2m3ARHaA4=\ntrusted comment: krate:1:Disrumpo:1.1.2:linux-x86_64:Disrumpo-1.1.2-Linux-x64.tar.gz\ny6mT8JtmMFbI1wmokBELbJjexDNi91uNSaDMqKyaAss6qhFvdahh/Td0Tq6apNlNDbOALz2tjD94wdkMMKmcBA==\n",
           "format": "tar.gz",
           "min_os": "2.38",
           "payload": {
@@ -33,10 +33,10 @@
           }
         },
         "windows-x86_64": {
-          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/disrumpo/v1.1.1/Disrumpo-1.1.1-Windows-x64.exe",
-          "size": 3593793,
-          "sha256": "55ceb5e03bd46a02380167e58eb01e6b9eb23ae89cac4eba9b3c578fff86bcc7",
-          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+Tbrn8wG4KcBJG8mfk+geQPTNHrUekO4cfcOEyii0lp4pUCi1to7Mkjk8o2vmQfAgi+rDdm5S0NJtPRxUlc+eDYuCAQ=\ntrusted comment: krate:1:Disrumpo:1.1.1:windows-x86_64:Disrumpo-1.1.1-Windows-x64.exe\nu5wxbaGTdYBnASLt6jo/DUrCZkSVZY6BKMiff3IxDgfSuOXjb5bHkmudRtaanbL8m3YceHKJWdUX71vNSN0nCw==\n",
+          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/disrumpo/v1.1.2/Disrumpo-1.1.2-Windows-x64.exe",
+          "size": 3597734,
+          "sha256": "8cbc57403f5eb7eb835de422619ff8cd3f3d8036270b619e4e1b5555d5aed47a",
+          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+Tbrn+jHWsx8SBJTYewivXCUVIrYUy8S2PB881T7cLfhu33RtRlxj+/mp2ChvEPFKi/GID1tpu16nIwAe+JXBpgseg8=\ntrusted comment: krate:1:Disrumpo:1.1.2:windows-x86_64:Disrumpo-1.1.2-Windows-x64.exe\nuw8e4VgTNcg6eS6B51qeoHnpoWlseKkkEVnP6tlhxkMSd+5pOzBa8sOxiEBJpc+XjxFv25CdKoD0qbnpKX/vBw==\n",
           "format": "inno-exe"
         }
       },
