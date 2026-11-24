@@ -48,29 +48,29 @@
       }
     },
     "Gradus": {
-      "version": "1.10.7",
+      "version": "1.10.8",
       "download_url": "https://krateaudio.com/gradus/",
       "release_notes": "",
-      "tag": "gradus/v1.10.7",
-      "pub_date": "2026-11-23T15:15:59Z",
+      "tag": "gradus/v1.10.8",
+      "pub_date": "2026-11-24T17:30:04Z",
       "channel": "stable",
-      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/gradus/v1.10.7",
+      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/gradus/v1.10.8",
       "description": "Step Arpeggiator",
-      "notes_markdown": "### Changed\n\n- **Swing now plays long step first, and keeps swinging with the host playing** *(shared arp engine)* — Free-running, each swung pair played its short step first while the gates and ratchets were sized for the long one. With the host transport running, Gradus re-locked to the host every block, which undid the swing and could fire two notes a few milliseconds apart. Each step now lasts its own swung length, the long step comes first in both cases, and gates and ratchets fit the step they belong to. Every swung preset and project swings the other way round from before.\n\n### Fixed\n\n- **A gate above 100 % on a single held key played staccato** *(shared arp engine)* — When the same pitch was struck again while its previous note was still held, that older note's note-off cut the new note at the old gate length, so a legato gate (101-200 %) turned into 50 % notes. A re-struck pitch now ends the old note first and the new note keeps its full gate.\n- **The first note after a pause could come late** *(shared arp engine)* — After all keys were released, the step counter stopped where it was, so the first note of the next phrase waited out the rest of that old step: up to 2 seconds at slow free rates. The first step now fires in the block the key is pressed.\n- **The arp drifted off tempo when not following the host** *(shared arp engine)* — Step lengths derived from the tempo were cut down to a whole sample instead of rounded, so with the transport stopped or a free-running arp each step could be one sample short and the pattern drifted against the tempo. Step lengths now round to the nearest sample and swung pairs add up exactly.\n- **Editing a Modifier lane step saved the wrong value** *(shared UI)* — A step clicked, pasted or transformed in the Modifier lane was saved as 17 times its flag value (the lane and the parameter used different scales). The sound was the same, but the saved value differed from the factory presets. The lane now saves the flags themselves.\n- **Speed-curve depth was 0 after reopening a project** — After a project reload the arpeggiator played every lane's speed curve at depth 0 until a speed-curve control was touched. The saved depths now apply as soon as the project loads.\n- **The Ratchet and Condition lanes swapped their speed-curve depths** — Each lane's depth knob drove the other lane. Each now drives its own. In older projects a curve drawn on the Ratchet tab may now show on the Condition tab, the lane it always played on.\n- **A preset loaded from the browser and one restored by the host could play differently** — Loading from the preset browser did not run the same code as a host restore, so ratchet shuffle, lane speeds and a few clamped values could differ between the two. Both now load identically. The factory presets now store the ratchet shuffle they play (50, 66.67 or 75 %).\n- **Resetting a lane speed to its default set it to 0.25x** — The eight lane-speed controls reported 0.25x to the host as their default, so a host \"reset to default\" (or double-click reset) slowed the lane to a quarter. Their default is now 1x, the speed a new instance starts at.",
+      "notes_markdown": "### Fixed\n\n- **Opening the editor crashed Carla on Linux** *(shared editor)* — Carla hands a plugin its event loop only through the editor window, which left the GUI library without one, so opening the editor crashed the host. The editor now takes the event loop from its own window, keeps it working while several instances have their editors open, and lets go of it when the last editor closes. Hosts that worked before are unaffected.",
       "platforms": {
         "darwin-universal": {
-          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/gradus/v1.10.7/Gradus-1.10.7-macOS.pkg",
-          "size": 6673844,
-          "sha256": "d320d0848f18caa48a002d9b674d74294954c230fda5adf36975990419a2e51c",
-          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+Tbrn3Wyu0+YXdH+XtpsV1FTUdGZ3rSpl9R+Zn9upAHRm+ZyoWHRuolkqGJdAL6kZ7m4NsGEgiTx8yGyJ3utB6gt2QU=\ntrusted comment: krate:1:Gradus:1.10.7:darwin-universal:Gradus-1.10.7-macOS.pkg\nh2pD7DuNeXe0Xh1AXfzI+z6cHRlSvvI0OSiJojmq9Qf1tsThllTIqA5WanEslM3UedUkIwXIPpG7hAsRJXEgCA==\n",
+          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/gradus/v1.10.8/Gradus-1.10.8-macOS.pkg",
+          "size": 6679922,
+          "sha256": "6e0f5ca1c5b76f2ee8258dc6f7f7c6133029ab2782b21173054d4c81478200bc",
+          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+Tbrn8+15E4h2Uj0GnirVF6NKQjBFOhsgDD+VTwsKMTfVm08bzi+Dvde54xuymAHmEkjicoeOhwJbm5u7XQwvmANyAA=\ntrusted comment: krate:1:Gradus:1.10.8:darwin-universal:Gradus-1.10.8-macOS.pkg\nYl79EJh/6rdKEXTO4grAr/2siPVemu89E1bNsTbecCTD921+Xvl5RbuDSrjF7qZxeLupCvepXStAH5mJqu8aDw==\n",
           "format": "pkg",
           "min_os": "26.5"
         },
         "linux-x86_64": {
-          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/gradus/v1.10.7/Gradus-1.10.7-Linux-x64.tar.gz",
-          "size": 1553967,
-          "sha256": "5b95ca89b9e8e9c8d1de96d15944b405ae13b78e0487e00cca9da0a39e69b41c",
-          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+Tbrn9ItogHDtjprrqrKnmcrOtu7jiluQRdzuSBZHnNlDC66x/w3Jc1Y+SQr/KZKGxq3VwQ7kWw/IXh0xe4nWvLGyQ8=\ntrusted comment: krate:1:Gradus:1.10.7:linux-x86_64:Gradus-1.10.7-Linux-x64.tar.gz\njMzkQRQV8Ky7uRjQ4GB1j9hy4tt1e4/ZGYMQW2JU6zbC/Q2C97+WYEy0X7UG4N4aGM+1v8CoJOEweYZikboqDQ==\n",
+          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/gradus/v1.10.8/Gradus-1.10.8-Linux-x64.tar.gz",
+          "size": 1561182,
+          "sha256": "25812881da6efd89a35792f533af3049795e5fc6fd0daec33eba6d8c0273de31",
+          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+Tbrn9GFay7XIIM3DqviqspwwbmHIEfx0K98RA/03zqhJJKa+qfcIrnBW0J2c/CN5KTvfQtfFFJk6BzxKPBHbafUjAE=\ntrusted comment: krate:1:Gradus:1.10.8:linux-x86_64:Gradus-1.10.8-Linux-x64.tar.gz\nBXDqNsW6wIfAuglrxWFUYxLil88BgXkdTAGgKshnGwJGXN0+SbDZAVXmKQDjmtt++/ODrRn4DdxVTHTwmZU9DA==\n",
           "format": "tar.gz",
           "min_os": "2.38",
           "payload": {
@@ -79,10 +79,10 @@
           }
         },
         "windows-x86_64": {
-          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/gradus/v1.10.7/Gradus-1.10.7-Windows-x64.exe",
-          "size": 3455741,
-          "sha256": "06ddef1f8ce1d52e17088eed453645cf14796b8f21189a2f3c52c35ff4cf56ca",
-          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+TbrnzZLlF8VOhpBGwDq76Qoquc/LtbV13YhJUS6+uonCCBlKL7by4YId4GWsg83yE5sk2v8OSXIpI1HJQT7ukfqbQo=\ntrusted comment: krate:1:Gradus:1.10.7:windows-x86_64:Gradus-1.10.7-Windows-x64.exe\nG7ChZHJGNZOinFQrihKLEfbOWhg/z9OY7qod5alCoIskQvagzrFM4mqePThX9d1ZdWy8mIlhX/BIfB3haRXaCQ==\n",
+          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/gradus/v1.10.8/Gradus-1.10.8-Windows-x64.exe",
+          "size": 3452775,
+          "sha256": "d137bb5f284c4830ba0d2d6ddbd1e8c8a2ed78821bbff21d9a587317c4503a28",
+          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+Tbrn5BFTXMPYgKg0Uvwa/v9Z89uYhv6P6TpQAMoL5puOH9IXWo5K7H+DiRsKbUzH5q/V2AIkW45PsZr8T28iHvgnAk=\ntrusted comment: krate:1:Gradus:1.10.8:windows-x86_64:Gradus-1.10.8-Windows-x64.exe\n9f2IP3IuR1I7oA6yv+pZVcOsqtui26hfwb68k4VD+GYS/+LFtGFRn30aZ5o958XLSpZpH9lqsKFvRX8IRlDfBA==\n",
           "format": "inno-exe"
         }
       },
