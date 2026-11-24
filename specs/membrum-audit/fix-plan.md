@@ -257,6 +257,7 @@ One row per verified finding (259), in report order: critical, high, medium, low
 | MB-266 | The quality lane's 'ok' verdicts for Filter Type / Cutoff / Resonance / Env (offsets 7-10, 17-20) measured the coefficient glide, not the parameter; the US5-2 unit test's 'filter still closed at t=1 ms' premise is false | medium | CONFIRMED | T8.3 | 8 |
 | MB-267 | SC-004 / SC-005 stay green because the exciter test measures the bare exciter's full-band centroid and the processor test was relaxed to 'either direction'; the spec 136 compliance row still claims > 2x | medium | CONFIRMED | T8.4 | 8 |
 | MB-269 | Any fix that makes modal retunes converge (snap or per-sample smoothing) turns note-off damp() into a no-op: measured -60 dB at 3.45 s instead of 0.052 s | medium | CONFIRMED | T1.10 | 1 |
+| MB-274 | Benchmark144 is red before and after the audit fixes: the heaviest exciter/body cells with Tone Shaper and Unnatural on read 1.24-1.44 % (up to 1.81 % under load) against the 1.25 % per-voice budget, and one cell carries a 2.0 % waiver (measured 2026-11-24, A/B c768e32b vs 30f96ea5; not in report.md, which ran no timing lane) | medium | CONFIRMED | T3.6 | 3 |
 | MB-062 | Default kit: Closed, Pedal and Open Hi-Hat render identically, and so do the Crash and Ride pads | medium | PLAUSIBLE | T5.8 | 5 |
 | MB-088 | MB-S03: Released builds wrote blob versions 1 and 2 (and per-pad IDs with stride 64); today's reader accepts only 5, so their projects and kits load silently as the default kit and automation lands on other pads | medium | PLAUSIBLE | T2.8 | 2 |
 | MB-107 | noteOff damp() is undone by the per-chunk updateModes() of the pitch envelope, morph or tension, so the release length depends on the host block size | medium | PLAUSIBLE | T1.10 | 1 |
@@ -3479,6 +3480,60 @@ This is a test-only task: no plugin source changes, so pluginval is skipped.
 **4. Acceptance**
 
 - The new case passes on the MSVC build and on the clang-cl `/fp:fast` proxy build. The default decoded stretch is exactly 1.0 (baseline 0.999999463558197) and the default Membrane stretch delta is 0 (baseline -3.5762786865234375e-7). No other test changes; rendered audio moves by less than -120 dBFS (the FR-055 identity cases in `test_mode_stretch.cpp:204-238` stay green).
+
+### T3.6 — Benchmark144: every exciter/body combination meets the 1.25 % per-voice budget without changing the sound
+
+**Findings:** MB-274 (medium, CONFIRMED by measurement in the main loop, 2026-11-24). Not in `report.md`: the audit ran no timing lane (`report.md:8307`). The user ruled on 2026-11-24 to add it as a task with the budget unchanged.
+
+**Flags:** CROSS-PLUGIN IMPACT only if the hot spot is fixed under `dsp/include` (then gate every consumer `header-consumers.js` names). Not PRESET-IMPACT: the rendered output must not change (step 3).
+
+**Prerequisites:** none beyond plan order. Phases 1 and 2 change the hot paths this task measures (T1.5 resident alternatives, T1.6 strike-norm table, T1.26 SVF, T2.5 voice indices), so it runs after them.
+
+**Estimate:** 360 minutes.
+
+**What is wrong today** (measured at `30f96ea5` and at `c768e32b`, before any fix; alone, pinned with `tools/pin-perf-cores.ps1`, 20 s settle between runs, alternating old and new builds):
+
+- `"Benchmark144: every combination under 1.25% CPU"` (`plugins/membrum/tests/perf/test_benchmark_144.cpp:287`) drives one bare `DrumVoice` per exciter × body × Tone Shaper × Unnatural combination (168 cells), 64-sample blocks, re-triggered about every 250 ms, against `kBudgetPercent = 1.25` (`:51`, SC-003 / FR-070).
+- It is red on both builds. Worst cells:
+  - Old build: Feedback + Membrane with ts and un on, 1.366 % and 1.441 %; 2 cells over 1.25 % in each run.
+  - New build: Feedback + Membrane with both on, 1.407 % (3 cells over); in the next run FMImpulse + Shell with both on, 1.244 % (0 over).
+  - Other cells seen over the budget in the T2.5 runs: FMImpulse + Shell, FMImpulse + NoiseBody, Feedback + Plate and Feedback + Shell, all with ts and un on (1.26 to 1.81 %).
+  - The mean over 168 cells is 0.604 % (old) and 0.579 % (new): the fixes did not cause it.
+- The heaviest cells sit about 0 to 15 % over the budget, and which cells go red changes from run to run.
+- The test also carries a pre-existing waiver: Feedback + NoiseBody with ts and un on is allowed up to 2.0 % (`:351-363`, `kFeedbackNoiseBodyTsUnWaiverPct`). Its comment names the cost: the Feedback exciter forces DrumVoice's per-sample slow path, and `ModalResonatorBank` runs `smoothCoefficients()` inside `processSample`.
+
+**1. Measure and profile (the red)**
+
+- Run the case alone 3 times, pinned (`pwsh -NoProfile -File tools/pin-perf-cores.ps1 -Exe build/windows-x64-release/bin/Release/membrum_tests.exe -InputFile <file holding the case name>`), with nothing else running and a 20 s pause between runs.
+- Record the per-cell table from `build/windows-x64-release/membrum_benchmark_results.csv` (timestamp, exciter, body, toneShaper, unnatural, cpu_percent): the worst 10 cells, the waived cell, and the mean.
+- Profile the worst four cells on a `/DEBUG` copy of the Release `membrum_tests.exe` (same optimisation, symbols added) and name the top functions by inclusive time. Read the `dsp-architecture` skill's performance section first.
+
+**2. Optimise**
+
+- Fix what the profile shows, keeping the output: no algorithm change, no block-rate shortcut for the per-sample feedback, no reduced mode count or workload.
+- Candidates the code already points at, not prescriptions:
+  - per-sample `smoothCoefficients()` in `ModalResonatorBank::processSample` when nothing is smoothing;
+  - the DrumVoice slow path the Feedback exciter forces;
+  - per-sample transcendental calls in the Tone Shaper and Unnatural chains.
+- A change under `dsp/include` is in scope (shared root-cause fixes are, by the user's standing rule); gate every consumer and run the other consumers' own timing cases too.
+
+**3. Output must not move**
+
+- Before the change, render every one of the 168 cells (the benchmark's `configureVoice` setup, 1 s, two velocities) from the unchanged build to WAV or float files under `f:/tmp/membrum-fix/T3.6/before/`. Render again from the changed build and compare per cell: max abs diff <= 1e-6 x the cell's peak.
+  - A temporary harness is fine; remove it before returning. Do not commit float goldens.
+- Every existing render, golden and approval test stays green without re-baselining.
+- A cell that cannot keep its output within that bound stops the task with `ruling_needed`: it would be a sound change.
+
+**4. Build, gate and acceptance**
+
+- Standard build and sharded gate (non-timing cases), pluginval for Membrum, clang-tidy for every target touched.
+- The timing lane: `node tools/run-cpu-tests.js membrum_tests` alone, then Benchmark144 alone and pinned 3 times.
+- Acceptance:
+  - In all 3 runs, every one of the 167 gated cells reads <= 1.25 %.
+  - Report the waived cell's reading. If it also reads <= 1.25 % in all 3 runs, remove the waiver (`:351-374`) so it is gated on the budget like every other cell. Otherwise keep the waiver unchanged and report its numbers.
+  - Never raise `kBudgetPercent` or the waiver, never shrink the workload. If the budget cannot be met, stop and report the per-cell table and the profile.
+- Commit message: the before and after per-cell tables (worst 10, waived cell, mean) and the profile's top functions.
+- Also report `[phase35-bench8]` and `[phase35-stress16]` before and after.
 
 ## Phase 4 — Physical-model corrections
 
