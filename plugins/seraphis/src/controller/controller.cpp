@@ -48,6 +48,7 @@
 // The live update check (2026-10-11): the Phase 8 FR-052 "compiled but unused"
 // ruling is superseded; the controller now owns an UpdateChecker like Iterum.
 #include "ui/update_banner_view.h"
+#include "ui/krate_vst3_editor.h"
 #include "update/seraphis_update_config.h"
 
 namespace Seraphis {
@@ -441,7 +442,7 @@ tresult PLUGIN_API Controller::getParamStringByValue(
 
 IPlugView* PLUGIN_API Controller::createView(FIDString name) {
     if (FIDStringsEqual(name, Vst::ViewType::kEditor)) {
-        return new VSTGUI::VST3Editor(this, "editor", "editor.uidesc");
+        return new Krate::Plugins::KrateVST3Editor(this, "editor", "editor.uidesc");
     }
     return nullptr;
 }

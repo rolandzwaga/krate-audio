@@ -44,6 +44,7 @@
 #include "ui/preset_browser_view.h"
 #include "ui/save_preset_dialog_view.h"
 #include "ui/update_banner_view.h"
+#include "ui/krate_vst3_editor.h"
 #include "update/ruinae_update_config.h"
 
 // Parameter pack headers (for registration and controller sync)
@@ -101,12 +102,12 @@ namespace {
 // Custom editor that intercepts right-clicks over StepPatternEditor.
 // VST3Editor::onMouseEvent consumes ALL right-clicks for context menus
 // before views see them, so we must handle it at this level.
-class RuinaeEditor : public VSTGUI::VST3Editor {
+class RuinaeEditor : public Krate::Plugins::KrateVST3Editor {
 public:
     RuinaeEditor(Steinberg::Vst::EditController* controller,
                  VSTGUI::UTF8StringPtr templateName,
                  VSTGUI::UTF8StringPtr xmlFile)
-        : VST3Editor(controller, templateName, xmlFile) {}
+        : KrateVST3Editor(controller, templateName, xmlFile) {}
 
     void onMouseEvent(VSTGUI::MouseEvent& event, VSTGUI::CFrame* frame) override {
         if (event.type == VSTGUI::EventType::MouseDown && event.buttonState.isRight()) {

@@ -23,6 +23,7 @@
 #include "ui/preset_browser_view.h"
 #include "ui/save_preset_dialog_view.h"
 #include "ui/update_banner_view.h"
+#include "ui/krate_vst3_editor.h"
 #include "display/shared_display_bridge.h"
 #include "display/display_bridge_log.h"
 
@@ -926,7 +927,7 @@ Steinberg::IPlugView* PLUGIN_API Controller::createView(Steinberg::FIDString nam
 {
     if (std::strcmp(name, Steinberg::Vst::ViewType::kEditor) == 0)
     {
-        return new VSTGUI::VST3Editor(this, "Editor", "editor.uidesc");
+        return new Krate::Plugins::KrateVST3Editor(this, "Editor", "editor.uidesc");
     }
     return nullptr;
 }

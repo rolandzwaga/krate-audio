@@ -51,6 +51,9 @@ add_library(KratePluginsShared STATIC
     # Update Banner UI
     src/ui/update_banner_view.h
 
+    # Editor every createView returns (Linux: host run loop bridge, below)
+    src/ui/krate_vst3_editor.h
+
     # Display Data Bridge (SharedDisplayBridge — Tier 3 visualizer fallback)
     src/display/shared_display_bridge.h
     src/display/shared_display_bridge.cpp
@@ -115,6 +118,10 @@ if(UNIX AND NOT APPLE)
     target_sources(KratePluginsShared PRIVATE
         src/update/libcurl_fetch.h
         src/update/libcurl_fetch.cpp
+        # VSTGUI's run loop for hosts that offer theirs only on IPlugFrame (Carla). The SDK defines the
+        # Linux::IRunLoop / IEventHandler / ITimerHandler iids only on Linux.
+        src/ui/host_run_loop_bridge.h
+        src/ui/host_run_loop_bridge.cpp
     )
     target_link_libraries(KratePluginsShared PRIVATE ${CMAKE_DL_LIBS})
 endif()
