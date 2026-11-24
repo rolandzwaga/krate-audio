@@ -32,6 +32,7 @@
 #include "ui/preset_browser_view.h"
 #include "ui/save_preset_dialog_view.h"
 #include "ui/update_banner_view.h"
+#include "ui/krate_vst3_editor.h"
 #include "update/disrumpo_update_config.h"
 #include "platform/accessibility_helper.h"
 #include "midi/midi_cc_manager.h"
@@ -864,7 +865,7 @@ void Controller::notifyMidiMappingChanged() {
 
 Steinberg::IPlugView* PLUGIN_API Controller::createView(Steinberg::FIDString name) {
     if (std::strcmp(name, Steinberg::Vst::ViewType::kEditor) == 0) {
-        auto* editor = new VSTGUI::VST3Editor(this, "editor", "editor.uidesc");
+        auto* editor = new Krate::Plugins::KrateVST3Editor(this, "editor", "editor.uidesc");
 
         {
             auto* mpParam = getParameterObject(

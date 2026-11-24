@@ -3707,32 +3707,43 @@ TEST_CASE("getState racing setState on another thread saves one whole state, nev
     const size_t trailerAt = refA.size() - 12;  // marker + 64-bit instance ID
     REQUIRE(refB.size() == refA.size());
 
+    // The loads must overlap the saves whatever the scheduler: under valgrind (one thread at a time, long slices)
+    // all 2000 loads finished before the saver first ran, 0 saves (valgrind nightly, 2026-11-24). So the loader
+    // waits for the saver to start, and keeps loading until it has also seen kMinSaves saves (capped).
+    constexpr size_t kMinSaves = 100;
+    constexpr int kMaxLoads = 200000;
     std::atomic<bool> stop{false};
-    size_t saves = 0;          // saver thread only, read after join
+    std::atomic<bool> saverRunning{false};
+    std::atomic<size_t> saves{0};
     size_t tornBody = 0;       // first difference before the instance-ID trailer
     size_t tornTrailer = 0;    // body whole, trailer of the other state
     size_t firstTornAt = SIZE_MAX;  // byte offset of the first torn save's mix point
     std::thread saver{[&] {
+        saverRunning.store(true, std::memory_order_release);
         while (!stop.load(std::memory_order_acquire)) {
             const auto s = getStateBytes(*rig.p);
-            ++saves;
+            saves.fetch_add(1, std::memory_order_relaxed);
             if (s == refA || s == refB) continue;
             const size_t at = std::max(firstDifference(s, refA), firstDifference(s, refB));
             if (firstTornAt == SIZE_MAX) firstTornAt = at;
             if (at < trailerAt) ++tornBody; else ++tornTrailer;
         }
     }};
+    while (!saverRunning.load(std::memory_order_acquire))
+        std::this_thread::yield();
     int failedLoads = 0;
-    for (int i = 0; i < kLoads; ++i)
-        if (!setStateBytes(*rig.p, (i % 2 == 0) ? b : a)) ++failedLoads;
+    int loads = 0;
+    for (; loads < kMaxLoads && (loads < kLoads || saves.load(std::memory_order_relaxed) < kMinSaves); ++loads)
+        if (!setStateBytes(*rig.p, (loads % 2 == 0) ? b : a)) ++failedLoads;
     stop.store(true, std::memory_order_release);
     saver.join();
+    const size_t saveCount = saves.load();
     std::printf("D-003 getState vs setState (processing stopped): %d loads, %zu saves, %zu torn in the body, "
                 "%zu with the other state's instance ID (want 0 and 0; first mix at byte %zu of %zu, trailer at "
                 "%zu), %d failed loads\n",
-                kLoads, saves, tornBody, tornTrailer, firstTornAt == SIZE_MAX ? size_t{0} : firstTornAt, refA.size(),
-                trailerAt, failedLoads);
-    CHECK(saves > 0u);
+                loads, saveCount, tornBody, tornTrailer, firstTornAt == SIZE_MAX ? size_t{0} : firstTornAt,
+                refA.size(), trailerAt, failedLoads);
+    CHECK(saveCount >= kMinSaves);
     CHECK(tornBody == 0u);
     CHECK(tornTrailer == 0u);
     CHECK(failedLoads == 0);

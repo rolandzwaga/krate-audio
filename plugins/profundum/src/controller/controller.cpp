@@ -54,6 +54,7 @@
 #include "ui/preset_browser_view.h"  // plugins/shared/src/ui (Phase 13 FR-030)
 #include "ui/spread_curve_view.h"
 #include "ui/update_banner_view.h"  // plugins/shared/src/ui: VersionLabel, UpdateBannerView, CheckForUpdatesButton
+#include "ui/krate_vst3_editor.h"
 #include "version.h"
 
 #include "pluginterfaces/vst/ivstattributes.h"
@@ -940,7 +941,7 @@ tresult PLUGIN_API Controller::getMidiControllerAssignment(int32 busIndex, int16
 
 IPlugView* PLUGIN_API Controller::createView(FIDString name) {
     if (FIDStringsEqual(name, Vst::ViewType::kEditor)) {
-        return new VSTGUI::VST3Editor(this, "editor", "editor.uidesc");
+        return new Krate::Plugins::KrateVST3Editor(this, "editor", "editor.uidesc");
     }
     return nullptr;
 }

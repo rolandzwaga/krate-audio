@@ -24,6 +24,7 @@
 #include "ui/preset_browser_view.h"
 #include "ui/save_preset_dialog_view.h"
 #include "ui/update_banner_view.h"
+#include "ui/krate_vst3_editor.h"
 #include "update/update_checker.h"
 #include "update/membrum_update_config.h"
 #include "version.h"
@@ -1005,7 +1006,7 @@ IPlugView* PLUGIN_API Controller::createView(const char* name)
     // Phase 6 (T028, FR-001): return a VST3Editor backed by editor.uidesc.
     if (name && std::strcmp(name, Steinberg::Vst::ViewType::kEditor) == 0)
     {
-        return new VSTGUI::VST3Editor(this, "EditorDefault", "editor.uidesc");
+        return new Krate::Plugins::KrateVST3Editor(this, "EditorDefault", "editor.uidesc");
     }
     return nullptr;
 }

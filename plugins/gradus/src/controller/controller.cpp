@@ -17,6 +17,7 @@
 #include "ui/preset_browser_view.h"
 #include "ui/save_preset_dialog_view.h"
 #include "ui/update_banner_view.h"
+#include "ui/krate_vst3_editor.h"
 #include "../ui/ring_display.h"
 #include "../ui/detail_strip.h"
 #include "../ui/speed_curve_editor.h"
@@ -256,7 +257,7 @@ IPlugView* PLUGIN_API Controller::createView(FIDString name)
 {
     if (FIDStringsEqual(name, ViewType::kEditor))
     {
-        auto* view = new VSTGUI::VST3Editor(this, "editor", "editor.uidesc");
+        auto* view = new Krate::Plugins::KrateVST3Editor(this, "editor", "editor.uidesc");
         return view;
     }
     return nullptr;

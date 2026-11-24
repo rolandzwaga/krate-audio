@@ -16,6 +16,7 @@
 #include "ui/save_preset_dialog_view.h"
 #include "ui/tap_pattern_editor.h"
 #include "ui/update_banner_view.h"
+#include "ui/krate_vst3_editor.h"
 
 #include "public.sdk/source/vst/vstparameters.h"
 #include "pluginterfaces/vst/ivstcomponent.h"
@@ -379,7 +380,7 @@ Steinberg::IPlugView* PLUGIN_API Controller::createView(
 #endif
 
         // Create VSTGUI editor from UIDescription file
-        auto* editor = new VSTGUI::VST3Editor(
+        auto* editor = new Krate::Plugins::KrateVST3Editor(
             this,                           // controller
             "Editor",                       // viewName (matches uidesc)
             "editor.uidesc"                 // UIDescription file
