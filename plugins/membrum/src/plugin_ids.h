@@ -187,6 +187,17 @@ enum ParameterIds : Steinberg::Vst::ParamID
     // Selected-pad proxy for kPadWireCoupling (per-pad offset 65).
     // RangeParameter [0, 1], default 0. Buzz-follows-body depth.
     kWireCouplingId               = 326,
+
+    // ====== Selected-pad macro and Coupling Amount proxies (MB-071) ======
+    // Selected-pad proxies for kPadCouplingAmount (offset 36) and the five
+    // macros kPadMacroTightness..kPadMacroComplexity (offsets 37-41). The
+    // editor binds these, so the knobs edit and show the selected pad.
+    kCouplingAmountId             = 330,
+    kMacroTightnessId             = 331,
+    kMacroBrightnessId            = 332,
+    kMacroBodySizeId              = 333,
+    kMacroPunchId                 = 334,
+    kMacroComplexityId            = 335,
 };
 
 // Compile-time collision guard: Phase 1 IDs (100-104) must not overlap Phase 2
@@ -268,5 +279,10 @@ static_assert(kPadPanId < kPadBaseId,
 // Wire-coupling collision guard: proxy ID sits below the per-pad base.
 static_assert(kWireCouplingId < kPadBaseId,
               "Wire-coupling proxy ID must not collide with per-pad range");
+
+// Macro / Coupling Amount proxy collision guard: IDs 330..335 sit below the
+// per-pad base.
+static_assert(kMacroComplexityId < kPadBaseId,
+              "Macro and Coupling Amount proxy IDs must not collide with per-pad range");
 
 } // namespace Membrum

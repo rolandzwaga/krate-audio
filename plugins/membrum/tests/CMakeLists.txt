@@ -93,6 +93,7 @@ add_executable(membrum_tests
     # Phase 4: PadConfig, per-pad parameters, multi-bus, presets
     unit/vst/test_pad_config.cpp
     unit/vst/test_pad_parameters.cpp
+    unit/vst/test_proxy_automation.cpp
     unit/voice_pool/test_per_pad_dispatch.cpp
     unit/voice_pool/test_dead_exciter_params.cpp
     unit/voice_pool/test_strike_norm.cpp

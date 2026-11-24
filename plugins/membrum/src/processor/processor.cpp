@@ -155,8 +155,8 @@ void Processor::processParameterChanges(IParameterChanges* paramChanges)
 
     int32 numParams = paramChanges->getParameterCount();
 
-    // Per-pad IDs, the selected-pad proxies and the macros all write pad
-    // configs: republish them for getState at the end of this block.
+    // Per-pad IDs (the macros among them) write pad configs: republish them
+    // for getState at the end of this block.
     if (numParams > 0)
         padsDirty_ = true;
 
@@ -279,139 +279,12 @@ void Processor::processParameterChanges(IParameterChanges* paramChanges)
         }
 
         // ------------------------------------------------------------------
-        // 3. Global proxy IDs (100-252) -- map to the selected pad.
-        //    In a DAW, the controller forwards these as per-pad params,
-        //    but the host also sends them directly to the processor.
-        //    We handle them by routing to the selected pad's config.
+        // 3. The selected-pad proxy IDs (Material, Body, the tone shaper,
+        //    ...) are UI-only binding targets (MB-072, MB-163): the controller
+        //    sends a proxy gesture on the selected pad's per-pad ID, so they
+        //    are not handled here and fall to default. The per-pad route above
+        //    is the only way a pad field changes (MB-131, MB-117).
         // ------------------------------------------------------------------
-        case kMaterialId:
-            voicePool_.setPadConfigField(selectedPadIndex_, kPadMaterial, fValue);
-            break;
-        case kSizeId:
-            voicePool_.setPadConfigField(selectedPadIndex_, kPadSize, fValue);
-            break;
-        case kDecayId:
-            voicePool_.setPadConfigField(selectedPadIndex_, kPadDecay, fValue);
-            break;
-        case kStrikePositionId:
-            voicePool_.setPadConfigField(selectedPadIndex_, kPadStrikePosition, fValue);
-            break;
-        case kLevelId:
-            voicePool_.setPadConfigField(selectedPadIndex_, kPadLevel, fValue);
-            break;
-        case kExciterTypeId:
-        {
-            const int idx = std::clamp(
-                static_cast<int>(value * static_cast<double>(ExciterType::kCount)),
-                0, static_cast<int>(ExciterType::kCount) - 1);
-            voicePool_.setPadConfigSelector(selectedPadIndex_, kPadExciterType, idx);
-            break;
-        }
-        case kBodyModelId:
-        {
-            const int idx = std::clamp(
-                static_cast<int>(value * static_cast<double>(BodyModelType::kCount)),
-                0, static_cast<int>(BodyModelType::kCount) - 1);
-            voicePool_.setPadConfigSelector(selectedPadIndex_, kPadBodyModel, idx);
-            break;
-        }
-        case kExciterFMRatioId:
-            voicePool_.setPadConfigField(selectedPadIndex_, kPadFMRatio, fValue);
-            break;
-        case kExciterFeedbackAmountId:
-            voicePool_.setPadConfigField(selectedPadIndex_, kPadFeedbackAmount, fValue);
-            break;
-        case kExciterNoiseBurstDurationId:
-            voicePool_.setPadConfigField(selectedPadIndex_, kPadNoiseBurstDuration, fValue);
-            break;
-        case kExciterFrictionPressureId:
-            voicePool_.setPadConfigField(selectedPadIndex_, kPadFrictionPressure, fValue);
-            break;
-        case kToneShaperFilterTypeId:
-            voicePool_.setPadConfigField(selectedPadIndex_, kPadTSFilterType, fValue);
-            break;
-        case kToneShaperFilterCutoffId:
-            voicePool_.setPadConfigField(selectedPadIndex_, kPadTSFilterCutoff, fValue);
-            break;
-        case kToneShaperFilterResonanceId:
-            voicePool_.setPadConfigField(selectedPadIndex_, kPadTSFilterResonance, fValue);
-            break;
-        case kToneShaperFilterEnvAmountId:
-            voicePool_.setPadConfigField(selectedPadIndex_, kPadTSFilterEnvAmount, fValue);
-            break;
-        case kToneShaperDriveAmountId:
-            voicePool_.setPadConfigField(selectedPadIndex_, kPadTSDriveAmount, fValue);
-            break;
-        case kToneShaperFoldAmountId:
-            voicePool_.setPadConfigField(selectedPadIndex_, kPadTSFoldAmount, fValue);
-            break;
-        case kToneShaperPitchEnvStartId:
-            voicePool_.setPadConfigField(selectedPadIndex_, kPadTSPitchEnvStart, fValue);
-            break;
-        case kToneShaperPitchEnvEndId:
-            voicePool_.setPadConfigField(selectedPadIndex_, kPadTSPitchEnvEnd, fValue);
-            break;
-        case kToneShaperPitchEnvTimeId:
-            voicePool_.setPadConfigField(selectedPadIndex_, kPadTSPitchEnvTime, fValue);
-            break;
-        case kToneShaperPitchEnvCurveId:
-            voicePool_.setPadConfigField(selectedPadIndex_, kPadTSPitchEnvCurve, fValue);
-            break;
-        case kToneShaperFilterEnvAttackId:
-            voicePool_.setPadConfigField(selectedPadIndex_, kPadTSFilterEnvAttack, fValue);
-            break;
-        case kToneShaperFilterEnvDecayId:
-            voicePool_.setPadConfigField(selectedPadIndex_, kPadTSFilterEnvDecay, fValue);
-            break;
-        case kToneShaperFilterEnvSustainId:
-            voicePool_.setPadConfigField(selectedPadIndex_, kPadTSFilterEnvSustain, fValue);
-            break;
-        case kToneShaperFilterEnvReleaseId:
-            voicePool_.setPadConfigField(selectedPadIndex_, kPadTSFilterEnvRelease, fValue);
-            break;
-        case kUnnaturalModeStretchId:
-            voicePool_.setPadConfigField(selectedPadIndex_, kPadModeStretch, fValue);
-            break;
-        case kUnnaturalDecaySkewId:
-            voicePool_.setPadConfigField(selectedPadIndex_, kPadDecaySkew, fValue);
-            break;
-        case kUnnaturalModeInjectAmountId:
-            voicePool_.setPadConfigField(selectedPadIndex_, kPadModeInjectAmount, fValue);
-            break;
-        case kUnnaturalNonlinearCouplingId:
-            voicePool_.setPadConfigField(selectedPadIndex_, kPadNonlinearCoupling, fValue);
-            break;
-        case kMorphEnabledId:
-            voicePool_.setPadConfigField(selectedPadIndex_, kPadMorphEnabled, fValue);
-            break;
-        case kMorphStartId:
-            voicePool_.setPadConfigField(selectedPadIndex_, kPadMorphStart, fValue);
-            break;
-        case kMorphEndId:
-            voicePool_.setPadConfigField(selectedPadIndex_, kPadMorphEnd, fValue);
-            break;
-        case kMorphDurationMsId:
-            voicePool_.setPadConfigField(selectedPadIndex_, kPadMorphDuration, fValue);
-            break;
-        case kMorphCurveId:
-            voicePool_.setPadConfigField(selectedPadIndex_, kPadMorphCurve, fValue);
-            break;
-        case kChokeGroupId:
-        {
-            const float clamped = std::clamp(fValue, 0.0f, 1.0f);
-            const int n = static_cast<int>(std::lround(clamped * 8.0f));
-            const int nClamped = std::clamp(n, 0, 8);
-            voicePool_.setPadChokeGroup(selectedPadIndex_, static_cast<std::uint8_t>(nClamped));
-            break;
-        }
-        // Phase 8 (US7 / FR-065): Output Bus selector proxy -- forward to the
-        // currently selected pad's kPadOutputBus field.
-        case kOutputBusId:
-        {
-            const float clamped = std::clamp(fValue, 0.0f, 1.0f);
-            voicePool_.setPadConfigField(selectedPadIndex_, kPadOutputBus, clamped);
-            break;
-        }
         case kSelectedPadId:
         {
             const float clamped = std::clamp(fValue, 0.0f, 1.0f);
@@ -450,96 +323,6 @@ void Processor::processParameterChanges(IParameterChanges* paramChanges)
             couplingDelayMs_.store(delayMs, std::memory_order_relaxed);
             break;
         }
-
-        // ---- Phase 7: parallel noise layer + click transient proxies ----
-        case kNoiseLayerMixId:
-            voicePool_.setPadConfigField(selectedPadIndex_, kPadNoiseLayerMix, fValue);
-            break;
-        case kNoiseLayerCutoffId:
-            voicePool_.setPadConfigField(selectedPadIndex_, kPadNoiseLayerCutoff, fValue);
-            break;
-        case kNoiseLayerResonanceId:
-            voicePool_.setPadConfigField(selectedPadIndex_, kPadNoiseLayerResonance, fValue);
-            break;
-        case kNoiseLayerDecayId:
-            voicePool_.setPadConfigField(selectedPadIndex_, kPadNoiseLayerDecay, fValue);
-            break;
-        case kNoiseLayerColorId:
-            voicePool_.setPadConfigField(selectedPadIndex_, kPadNoiseLayerColor, fValue);
-            break;
-        case kClickLayerMixId:
-            voicePool_.setPadConfigField(selectedPadIndex_, kPadClickLayerMix, fValue);
-            break;
-        case kClickLayerContactMsId:
-            voicePool_.setPadConfigField(selectedPadIndex_, kPadClickLayerContactMs, fValue);
-            break;
-        case kClickLayerBrightnessId:
-            voicePool_.setPadConfigField(selectedPadIndex_, kPadClickLayerBrightness, fValue);
-            break;
-
-        // ---- Phase 8A: per-mode damping law proxies ----
-        case kBodyDampingB1Id:
-            voicePool_.setPadConfigField(selectedPadIndex_, kPadBodyDampingB1, fValue);
-            break;
-        case kBodyDampingB3Id:
-            voicePool_.setPadConfigField(selectedPadIndex_, kPadBodyDampingB3, fValue);
-            break;
-
-        // ---- Phase 8C: air-loading + per-mode scatter proxies ----
-        case kAirLoadingId:
-            voicePool_.setPadConfigField(selectedPadIndex_, kPadAirLoading, fValue);
-            break;
-        case kModeScatterId:
-            voicePool_.setPadConfigField(selectedPadIndex_, kPadModeScatter, fValue);
-            break;
-
-        // ---- Phase 8D: head <-> shell coupling proxies ----
-        case kCouplingStrengthId:
-            voicePool_.setPadConfigField(selectedPadIndex_, kPadCouplingStrength, fValue);
-            break;
-        case kSecondaryEnabledId:
-            voicePool_.setPadConfigField(selectedPadIndex_, kPadSecondaryEnabled, fValue);
-            break;
-        case kSecondarySizeId:
-            voicePool_.setPadConfigField(selectedPadIndex_, kPadSecondarySize, fValue);
-            break;
-        case kSecondaryMaterialId:
-            voicePool_.setPadConfigField(selectedPadIndex_, kPadSecondaryMaterial, fValue);
-            break;
-
-        // ---- Phase 8E: nonlinear tension modulation proxy ----
-        case kTensionModAmtId:
-            voicePool_.setPadConfigField(selectedPadIndex_, kPadTensionModAmt, fValue);
-            break;
-
-        // ---- Phase 8F: per-pad enable toggle proxy ----
-        case kPadEnabledId:
-            voicePool_.setPadConfigField(selectedPadIndex_, kPadEnabled, fValue);
-            break;
-
-        // ---- Phase 10: three-point pitch envelope extension ----
-        case kPitchEnvKneeEnabledId:
-            voicePool_.setPadConfigField(selectedPadIndex_, kPadTSPitchEnvKneeEnabled, fValue);
-            break;
-        case kPitchEnvMidPitchId:
-            voicePool_.setPadConfigField(selectedPadIndex_, kPadTSPitchEnvMidPitch, fValue);
-            break;
-        case kPitchEnvMidFractionId:
-            voicePool_.setPadConfigField(selectedPadIndex_, kPadTSPitchEnvMidFraction, fValue);
-            break;
-        case kPitchEnvCurve2Id:
-            voicePool_.setPadConfigField(selectedPadIndex_, kPadTSPitchEnvCurve2, fValue);
-            break;
-
-        // ---- M-9: per-pad pan ----
-        case kPadPanId:
-            voicePool_.setPadConfigField(selectedPadIndex_, kPadPan, fValue);
-            break;
-
-        // ---- Wire coupling ----
-        case kWireCouplingId:
-            voicePool_.setPadConfigField(selectedPadIndex_, kPadWireCoupling, fValue);
-            break;
 
         // ---- Phase 9: global master output gain ----
         case kMasterGainId:
@@ -1229,13 +1012,9 @@ void Processor::applyKitSnapshot(const State::KitSnapshot& kit)
     // user's "infinite ring" reproduces exactly this scenario
     // (test_kit_switch_infinite_ring.cpp test 3).
     //
-    // Reset must come BEFORE setAmount(gcF) below; otherwise the smoother
-    // target we just set would be wiped by the reset.
-    couplingEngine_.reset();
-    couplingDelay_.reset();
-    energyEnvelope_ = 0.0f;
-
-    // Phase 5 globals.
+    // The reset must come BEFORE the amount is applied; otherwise the
+    // smoother target would be wiped by the reset. resetCouplingState() does
+    // both, in that order, with the kit's Global Coupling stored first.
     const float gcF = static_cast<float>(kit.globalCoupling);
     const float sbF = static_cast<float>(kit.snareBuzz);
     const float trF = static_cast<float>(kit.tomResonance);
@@ -1244,7 +1023,7 @@ void Processor::applyKitSnapshot(const State::KitSnapshot& kit)
     snareBuzz_.store(sbF, std::memory_order_relaxed);
     tomResonance_.store(trF, std::memory_order_relaxed);
     couplingDelayMs_.store(cdF, std::memory_order_relaxed);
-    couplingEngine_.setAmount(gcF);
+    resetCouplingState();
 
     // Phase 9: master gain.
     masterGainNorm_.store(static_cast<float>(kit.masterGainNorm),
@@ -1269,6 +1048,17 @@ void Processor::applyKitSnapshot(const State::KitSnapshot& kit)
     macroMapper_.invalidateCache();
     for (int p = 0; p < kNumPads; ++p)
         macroMapper_.syncCacheFromCfg(p, pads[static_cast<std::size_t>(p)]);
+}
+
+void Processor::resetCouplingState() noexcept
+{
+    // T1.19 (MB-067, MB-115, MB-094): SympatheticResonance::prepare and
+    // reset both clear the amount, so the stored Global Coupling is applied
+    // after the flush; otherwise coupling stays silent until the knob moves.
+    couplingEngine_.reset();
+    couplingDelay_.reset();
+    energyEnvelope_ = 0.0f;
+    couplingEngine_.setAmount(globalCoupling_.load(std::memory_order_relaxed));
 }
 
 void Processor::applyPadPresetSnapshot(int pad, const State::PadPresetSnapshot& preset)
@@ -1357,7 +1147,7 @@ tresult PLUGIN_API Processor::setupProcessing(ProcessSetup& setup)
     couplingEngine_.prepare(sampleRate_);
     couplingDelay_.prepare(sampleRate_, 0.002f);  // 2 ms max delay
     voicePool_.setCouplingEngine(&couplingEngine_);
-    energyEnvelope_ = 0.0f;
+    resetCouplingState();  // MB-067 / MB-115: re-applies Global Coupling
 
     // Gain-staging Step 1: main-bus true-peak brickwall limiter at -1 dBTP.
     busLimiter_.prepare(sampleRate_, static_cast<std::size_t>(maxBlockSize_));
@@ -1378,6 +1168,9 @@ tresult PLUGIN_API Processor::setActive(TBool state)
     if (state)
     {
         voicePool_.prepare(sampleRate_, maxBlockSize_);
+        // MB-094: the coupling resonators, delay and energy envelope go with
+        // the voices, and the stored Global Coupling stays live.
+        resetCouplingState();
         // T1.6: pads edited while processing runs are re-measured on this
         // low-priority worker, off the audio thread.
         voicePool_.strikeNorm().startWorker();

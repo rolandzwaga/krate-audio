@@ -7,6 +7,8 @@
 //       couplingDelay_.prepare() on every call to setupProcessing (FR-006).
 // T062: choke group fires noteOff() on the coupling engine in the choke
 //       fast-release path (edge case in spec).
+// T1.19 (MB-067, MB-115, MB-094): Global Coupling survives setupProcessing
+//       and setActive, and activation flushes the coupling state.
 // ==============================================================================
 
 #include <catch2/catch_test_macros.hpp>
@@ -14,15 +16,18 @@
 #include "processor/processor.h"
 #include "voice_pool/voice_pool.h"
 #include "../voice_pool/voice_pool_test_helpers.h"
+#include "dsp/default_kit.h"
 #include "dsp/pad_config.h"
 #include "dsp/exciter_type.h"
 #include "dsp/body_model_type.h"
 #include "plugin_ids.h"
+#include "state/state_codec.h"
 
 #include <krate/dsp/systems/sympathetic_resonance.h>
 
 #include "pluginterfaces/vst/ivstparameterchanges.h"
 #include "pluginterfaces/vst/ivstevents.h"
+#include "public.sdk/source/common/memorystream.h"
 
 #include <algorithm>
 #include <array>
@@ -62,8 +67,126 @@ using EventList = Krate::Test::EventListNoteIdEqPitch;
 using ParamQueue = Krate::Test::ParamValueQueue;
 using ParamChanges = Krate::Test::ParameterChanges;
 
+// ---- T1.19 lifecycle rig ----------------------------------------------------
+// Two output buses with every pad on aux bus 1. An aux assignment ADDS the
+// voice to its aux bus (FR-044, VoicePool::processBlock); the main bus keeps
+// it. Aux bus 1 therefore carries the voice sum, and the main bus the same sum
+// plus the coupling return, through the bus limiter (gain exactly 1 below its
+// ceiling) and the master gain. The coupling return is the main bus minus the
+// master gain times aux bus 1. Not copyable: data.outputs points into the rig.
+struct CouplingOnlyRig
+{
+    static constexpr int kBuses = 2;
+    std::array<std::vector<float>, kBuses> outL;
+    std::array<std::vector<float>, kBuses> outR;
+    std::array<std::array<float*, 2>, kBuses> channelPtrs{};
+    std::array<AudioBusBuffers, kBuses> outputBuses{};
+    EventList events;
+    ProcessData data{};
 
+    CouplingOnlyRig()
+    {
+        for (std::size_t b = 0; b < kBuses; ++b)
+        {
+            outL[b].assign(static_cast<std::size_t>(kBlockSize), 0.0f);
+            outR[b].assign(static_cast<std::size_t>(kBlockSize), 0.0f);
+            channelPtrs[b][0] = outL[b].data();
+            channelPtrs[b][1] = outR[b].data();
+            outputBuses[b].numChannels = 2;
+            outputBuses[b].channelBuffers32 = channelPtrs[b].data();
+            outputBuses[b].silenceFlags = 0;
+        }
+        data.processMode = kRealtime;
+        data.symbolicSampleSize = kSample32;
+        data.numSamples = kBlockSize;
+        data.numOutputs = kBuses;
+        data.outputs = outputBuses.data();
+        data.inputEvents = &events;
+    }
+    CouplingOnlyRig(const CouplingOnlyRig&) = delete;
+    CouplingOnlyRig& operator=(const CouplingOnlyRig&) = delete;
 
+    /// One block; returns the summed squared samples of the coupling return
+    /// (main bus minus master gain x aux bus 1, both channels).
+    double processMain(Membrum::Processor& p)
+    {
+        for (std::size_t b = 0; b < kBuses; ++b)
+        {
+            std::fill(outL[b].begin(), outL[b].end(), 0.0f);
+            std::fill(outR[b].begin(), outR[b].end(), 0.0f);
+        }
+        p.process(data);
+        // Master gain at its default (norm 0.5 = -6 dB), as process() forms it.
+        const float masterGain = std::pow(10.0f, (-24.0f + 36.0f * 0.5f) * 0.05f);
+        double e = 0.0;
+        for (std::size_t s = 0; s < static_cast<std::size_t>(kBlockSize); ++s)
+        {
+            const double cl = static_cast<double>(outL[0][s])
+                            - static_cast<double>(outL[1][s] * masterGain);
+            const double cr = static_cast<double>(outR[0][s])
+                            - static_cast<double>(outR[1][s] * masterGain);
+            e += cl * cl + cr * cr;
+        }
+        return e;
+    }
+
+    /// Every pad to aux bus 1, plus Global Coupling, in one block.
+    void routeToAuxAndSetCoupling(Membrum::Processor& p, double coupling)
+    {
+        const double bus1Norm =
+            1.0 / static_cast<double>(Membrum::kMaxOutputBuses - 1);
+        ParamChanges pc;
+        for (int pad = 0; pad < Membrum::kNumPads; ++pad)
+            pc.add(static_cast<ParamID>(
+                       Membrum::padParamId(pad, Membrum::kPadOutputBus)),
+                   bus1Norm);
+        pc.add(Membrum::kGlobalCouplingId, coupling);
+        data.inputParameterChanges = &pc;
+        (void)processMain(p);
+        data.inputParameterChanges = nullptr;
+    }
+
+    /// Notes 36 and 41 at velocity 1 in one block, then the RMS of the
+    /// coupling return over the next 50 blocks.
+    double playKickAndTomMainRms(Membrum::Processor& p)
+    {
+        events.addNoteOn(36, 1.0f);
+        events.addNoteOn(41, 1.0f);
+        (void)processMain(p);
+        events.clear();
+        double energy = 0.0;
+        constexpr int kBlocks = 50;
+        for (int b = 0; b < kBlocks; ++b)
+            energy += processMain(p);
+        return std::sqrt(energy / (2.0 * kBlocks * kBlockSize));
+    }
+};
+
+/// The default kit with every pad on aux bus 1 and the given Global Coupling,
+/// as a kit blob ready for Processor::setState.
+IPtr<MemoryStream> couplingKitBlob(double globalCoupling)
+{
+    std::array<Membrum::PadConfig, Membrum::kNumPads> pads;
+    Membrum::DefaultKit::apply(pads);
+
+    Membrum::State::KitSnapshot kit;
+    for (std::size_t i = 0; i < pads.size(); ++i)
+    {
+        kit.pads[i] = Membrum::State::toPadSnapshot(pads[i]);
+        kit.pads[i].outputBus = 1;
+    }
+    kit.globalCoupling = globalCoupling;
+
+    auto stream = owned(new MemoryStream());
+    REQUIRE(Membrum::State::writeKitBlob(stream, kit) == kResultOk);
+    stream->seek(0, IBStream::kIBSeekSet, nullptr);
+    return stream;
+}
+
+double ratioDb(double a, double b)
+{
+    return 20.0 * std::log10(a / b);
+}
 
 } // namespace
 
@@ -501,4 +624,168 @@ TEST_CASE("Coupling T062: voice steal fires coupling engine noteOff",
             break;
     }
     CHECK(couplingEngine.getActiveResonatorCount() == 0);
+}
+
+// =============================================================================
+// T1.19 -- MB-067 / MB-115: the stored Global Coupling survives a re-prepare.
+// =============================================================================
+// setupProcessing re-prepares the coupling engine, which drops its amount.
+// The processor must re-apply the stored Global Coupling, or coupling goes
+// silent after a rate change, an offline bounce or a project reload. The
+// coupling return (main bus minus master gain x aux bus 1, every pad on aux
+// bus 1) is compared against a Processor prepared directly at the final rate.
+
+TEST_CASE("Coupling: Global Coupling survives setActive(false) -> setupProcessing -> setActive(true)",
+          "[coupling][phase9][fr006][lifecycle]")
+{
+    // Processor under test: coupling set at 44.1 kHz, then the host's
+    // rate-change sequence to 96 kHz.
+    Membrum::Processor processor;
+    processor.initialize(nullptr);
+    {
+        auto setup = makeSetup(44100.0);
+        REQUIRE(processor.setupProcessing(setup) == kResultOk);
+    }
+    processor.setActive(true);
+    processor.activateBus(kAudio, kOutput, 1, true);
+
+    CouplingOnlyRig rig;
+    rig.routeToAuxAndSetCoupling(processor, 1.0);
+    for (int b = 0; b < 4; ++b)
+        (void)rig.processMain(processor);
+
+    processor.setActive(false);
+    {
+        auto setup = makeSetup(96000.0);
+        REQUIRE(processor.setupProcessing(setup) == kResultOk);
+    }
+    processor.setActive(true);
+    (void)rig.processMain(processor);  // the block the reference spends on params
+    const double rmsAfterRateChange = rig.playKickAndTomMainRms(processor);
+
+    // Reference: prepared at 96 kHz directly, same parameters and notes.
+    Membrum::Processor reference;
+    reference.initialize(nullptr);
+    {
+        auto setup = makeSetup(96000.0);
+        REQUIRE(reference.setupProcessing(setup) == kResultOk);
+    }
+    reference.setActive(true);
+    reference.activateBus(kAudio, kOutput, 1, true);
+    CouplingOnlyRig refRig;
+    refRig.routeToAuxAndSetCoupling(reference, 1.0);
+    const double rmsReference = refRig.playKickAndTomMainRms(reference);
+
+    CAPTURE(rmsAfterRateChange, rmsReference);
+    REQUIRE(rmsReference > 0.0);
+    REQUIRE(rmsAfterRateChange > 0.0);
+    CHECK(std::abs(ratioDb(rmsAfterRateChange, rmsReference)) <= 1.0);
+
+    processor.setActive(false);
+    processor.terminate();
+    reference.setActive(false);
+    reference.terminate();
+}
+
+TEST_CASE("Coupling: setState then setupProcessing keeps the loaded Global Coupling",
+          "[coupling][phase9][lifecycle]")
+{
+    // Project-reload order: the host loads the state before setupProcessing.
+    Membrum::Processor processor;
+    processor.initialize(nullptr);
+    {
+        auto blob = couplingKitBlob(0.5);
+        REQUIRE(processor.setState(blob) == kResultOk);
+    }
+    {
+        auto setup = makeSetup(44100.0);
+        REQUIRE(processor.setupProcessing(setup) == kResultOk);
+    }
+    processor.setActive(true);
+    processor.activateBus(kAudio, kOutput, 1, true);
+    CouplingOnlyRig rig;
+    (void)rig.processMain(processor);
+    const double rmsStateFirst = rig.playKickAndTomMainRms(processor);
+
+    // Reference: the same blob after setupProcessing.
+    Membrum::Processor reference;
+    reference.initialize(nullptr);
+    {
+        auto setup = makeSetup(44100.0);
+        REQUIRE(reference.setupProcessing(setup) == kResultOk);
+    }
+    {
+        auto blob = couplingKitBlob(0.5);
+        REQUIRE(reference.setState(blob) == kResultOk);
+    }
+    reference.setActive(true);
+    reference.activateBus(kAudio, kOutput, 1, true);
+    CouplingOnlyRig refRig;
+    (void)refRig.processMain(reference);
+    const double rmsReference = refRig.playKickAndTomMainRms(reference);
+
+    CAPTURE(rmsStateFirst, rmsReference);
+    REQUIRE(rmsReference > 0.0);
+    REQUIRE(rmsStateFirst > 0.0);
+    CHECK(std::abs(ratioDb(rmsStateFirst, rmsReference)) <= 1.0);
+
+    processor.setActive(false);
+    processor.terminate();
+    reference.setActive(false);
+    reference.terminate();
+}
+
+// =============================================================================
+// T1.19 -- MB-094: setActive(true) flushes the coupling state with the voices.
+// =============================================================================
+// Activation re-prepares every voice. The coupling resonators, the coupling
+// delay and the energy envelope must go with them, or the dead voices' ring
+// sounds on with no voice left.
+
+TEST_CASE("Coupling: setActive(true) flushes coupling resonators, delay and energy envelope",
+          "[coupling][phase9][lifecycle]")
+{
+    Membrum::Processor processor;
+    processor.initialize(nullptr);
+    {
+        auto setup = makeSetup(44100.0);
+        REQUIRE(processor.setupProcessing(setup) == kResultOk);
+    }
+    processor.setActive(true);
+    processor.activateBus(kAudio, kOutput, 1, true);
+
+    CouplingOnlyRig rig;
+    rig.routeToAuxAndSetCoupling(processor, 1.0);
+    rig.events.addNoteOn(36, 1.0f);
+    rig.events.addNoteOn(41, 1.0f);
+    (void)rig.processMain(processor);
+    rig.events.clear();
+    double ringing = 0.0;
+    for (int b = 0; b < 20; ++b)
+        ringing = rig.processMain(processor);
+    CAPTURE(ringing);
+    REQUIRE(processor.couplingEngineForTest().getActiveResonatorCount() > 0);
+
+    // Deactivate and reactivate without setupProcessing.
+    processor.setActive(false);
+    processor.setActive(true);
+
+    const int resonatorsAfter =
+        processor.couplingEngineForTest().getActiveResonatorCount();
+    (void)rig.processMain(processor);  // no events, no parameter changes
+
+    int nonZeroMain = 0;
+    for (std::size_t s = 0; s < static_cast<std::size_t>(kBlockSize); ++s)
+    {
+        if (rig.outL[0][s] != 0.0f) ++nonZeroMain;
+        if (rig.outR[0][s] != 0.0f) ++nonZeroMain;
+    }
+    CAPTURE(resonatorsAfter, nonZeroMain);
+    CHECK(resonatorsAfter == 0);
+    CHECK(processor.couplingEngineForTest().getActiveResonatorCount() == 0);
+    CHECK(processor.energyEnvelopeForTest() == 0.0f);
+    CHECK(nonZeroMain == 0);
+
+    processor.setActive(false);
+    processor.terminate();
 }

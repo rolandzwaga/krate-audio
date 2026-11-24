@@ -2905,7 +2905,7 @@
       "scope": "Krate::DSP::SympatheticResonance",
       "layer": "systems",
       "header": "dsp/include/krate/dsp/systems/sympathetic_resonance.h",
-      "line": 388
+      "line": 392
     },
     {
       "name": "RetiredGrainSpan",

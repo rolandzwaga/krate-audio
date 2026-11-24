@@ -27,6 +27,7 @@
 #include "pluginterfaces/vst/ivstevents.h"
 
 #include "vst_param_changes.h"
+#include "unit/controller/recording_component_handler.h"
 
 #include <algorithm>
 #include <array>
@@ -48,66 +49,7 @@ constexpr double kKbSampleRate = 48000.0;
 // A host's component handler: records every performEdit the controller sends,
 // so the test can forward them to the processor as a host would, and counts
 // the edit gestures, restartComponent flag words and setDirty calls.
-class KbRecordingHandler final : public IComponentHandler, public IComponentHandler2
-{
-public:
-    std::vector<std::pair<ParamID, ParamValue>> edits;
-    int beginEdits = 0;
-    int endEdits = 0;
-    std::vector<int32> restartFlags;
-    std::vector<bool> dirtyCalls;
-
-    tresult PLUGIN_API beginEdit(ParamID /*id*/) override
-    {
-        ++beginEdits;
-        return kResultOk;
-    }
-    tresult PLUGIN_API performEdit(ParamID id, ParamValue value) override
-    {
-        edits.emplace_back(id, value);
-        return kResultOk;
-    }
-    tresult PLUGIN_API endEdit(ParamID /*id*/) override
-    {
-        ++endEdits;
-        return kResultOk;
-    }
-    tresult PLUGIN_API restartComponent(int32 flags) override
-    {
-        restartFlags.push_back(flags);
-        return kResultOk;
-    }
-
-    // IComponentHandler2
-    tresult PLUGIN_API setDirty(TBool state) override
-    {
-        dirtyCalls.push_back(state != 0);
-        return kResultOk;
-    }
-    tresult PLUGIN_API requestOpenEditor(FIDString /*name*/) override { return kResultOk; }
-    tresult PLUGIN_API startGroupEdit() override { return kResultOk; }
-    tresult PLUGIN_API finishGroupEdit() override { return kResultOk; }
-
-    tresult PLUGIN_API queryInterface(const TUID iid, void** obj) override
-    {
-        if (FUnknownPrivate::iidEqual(iid, IComponentHandler::iid) ||
-            FUnknownPrivate::iidEqual(iid, FUnknown::iid))
-        {
-            *obj = static_cast<IComponentHandler*>(this);
-            return kResultOk;
-        }
-        if (FUnknownPrivate::iidEqual(iid, IComponentHandler2::iid))
-        {
-            *obj = static_cast<IComponentHandler2*>(this);
-            return kResultOk;
-        }
-        *obj = nullptr;
-        return kNoInterface;
-    }
-    // Owned by the test: reference counting is a no-op.
-    uint32 PLUGIN_API addRef() override { return 1; }
-    uint32 PLUGIN_API release() override { return 1; }
-};
+using KbRecordingHandler = Membrum::TestSupport::RecordingComponentHandler;
 
 class KbEventList final : public IEventList
 {

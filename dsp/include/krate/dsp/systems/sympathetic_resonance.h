@@ -109,6 +109,9 @@ public:
 
     /// Prepare for processing. Computes envelope coefficients, configures HPF.
     /// Must be called before process() or any noteOn/noteOff calls.
+    /// Clears the coupling amount: a prepared engine is bypassed, as after
+    /// reset(), until setAmount() is called again. Call setAmount() after
+    /// every prepare().
     /// @param sampleRate  Sample rate in Hz (44100-192000)
     void prepare(double sampleRate) noexcept {
         sampleRate_ = static_cast<float>(sampleRate);
@@ -123,6 +126,7 @@ public:
         // Configure amount smoother: 5ms smoothing time
         amountSmoother_.configure(5.0f, sampleRate_);
         amountSmoother_.snapTo(0.0f);
+        couplingGain_ = 0.0f;  // with the smoother: bypassed until setAmount
 
         // Initialize default Q
         userQ_ = 316.2f; // Default: 100 * 10^0.5

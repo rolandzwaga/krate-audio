@@ -114,6 +114,12 @@ private:
     /// thread, or while processing is stopped.
     void applyKitSnapshot(const State::KitSnapshot& kit);
 
+    /// Flushes the coupling engine, the coupling delay and the energy
+    /// envelope, then applies the stored Global Coupling (T1.19, MB-067,
+    /// MB-115, MB-094). Runs after every coupling prepare, on activation and
+    /// on a kit apply, so the stored amount is always the live one.
+    void resetCouplingState() noexcept;
+
     /// Applies a parsed pad preset to one pad through
     /// State::applyPadPresetSnapshot (the one pad-preset apply, R-203), then
     /// refreshes the pad's category, the coupling matrix and its macro cache.

@@ -644,6 +644,13 @@ TEST_CASE("Membrum: No NaN or Inf in output (SC-007, velocity=64, default params
 using TestParamValueQueue = Krate::Test::ParamValueQueue;
 using TestParameterChanges = Krate::Test::ParameterChanges;
 
+// The controller sends an edit of a selected-pad control on the selected
+// pad's per-pad ID; the processor ignores the proxy IDs (T1.20, MB-072).
+// These cases play pad 0 (note 36), the selected pad by default.
+static ParamID pad0Param(int offset)
+{
+    return static_cast<ParamID>(Membrum::padParamId(0, offset));
+}
 
 
 
@@ -658,8 +665,8 @@ static std::vector<float> collectSamples(float velocity, int numSamples,
     int32 bs = static_cast<int32>(numSamples);
     MembrumTestFixture fix(bs, sampleRate);
     TestParameterChanges paramChanges;
-    paramChanges.addChange(Membrum::kNoiseLayerMixId, 0.0);
-    paramChanges.addChange(Membrum::kClickLayerMixId, 0.0);
+    paramChanges.addChange(pad0Param(Membrum::kPadNoiseLayerMix), 0.0);
+    paramChanges.addChange(pad0Param(Membrum::kPadClickLayerMix), 0.0);
     fix.data.inputParameterChanges = &paramChanges;
     fix.events.addNoteOn(36, velocity);
     fix.processBlock();
@@ -779,8 +786,8 @@ TEST_CASE("Membrum: Material 1.0 (metallic) has higher spectral decay ratio than
 {
     constexpr int totalSamples = 8192;
 
-    auto samplesWoody = collectMultiBlockWithParam(Membrum::kMaterialId, 0.0f, totalSamples);
-    auto samplesMetallic = collectMultiBlockWithParam(Membrum::kMaterialId, 1.0f, totalSamples);
+    auto samplesWoody = collectMultiBlockWithParam(pad0Param(Membrum::kPadMaterial), 0.0f, totalSamples);
+    auto samplesMetallic = collectMultiBlockWithParam(pad0Param(Membrum::kPadMaterial), 1.0f, totalSamples);
 
     // Compare RMS of last 512 vs first 512 samples (spectral decay ratio)
     float woodyFirst = rmsRange(samplesWoody, 0, 512);
@@ -821,11 +828,11 @@ TEST_CASE("Membrum: Size 0.0 peak > 400 Hz, Size 1.0 peak < 100 Hz (FR-033)",
     const auto collectBodyOnly = [](float size) {
         MembrumTestFixture fix(static_cast<int32>(N), kTestSampleRate);
         TestParameterChanges paramChanges;
-        paramChanges.addChange(Membrum::kSizeId, static_cast<ParamValue>(size));
+        paramChanges.addChange(pad0Param(Membrum::kPadSize), static_cast<ParamValue>(size));
         paramChanges.addChange(
             static_cast<ParamID>(Membrum::padParamId(0, Membrum::kPadTSPitchEnvTime)), 0.0);
-        paramChanges.addChange(Membrum::kNoiseLayerMixId, 0.0);
-        paramChanges.addChange(Membrum::kClickLayerMixId, 0.0);
+        paramChanges.addChange(pad0Param(Membrum::kPadNoiseLayerMix), 0.0);
+        paramChanges.addChange(pad0Param(Membrum::kPadClickLayerMix), 0.0);
         fix.data.inputParameterChanges = &paramChanges;
         fix.events.addNoteOn(36, 100.0f / 127.0f);
         fix.processBlock();
@@ -931,9 +938,9 @@ static std::vector<float> collectSamplesStrikePosNoLayers(float strikePos,
     MembrumTestFixture fix(bs, sampleRate);
 
     TestParameterChanges paramChanges;
-    paramChanges.addChange(Membrum::kNoiseLayerMixId, 0.0);
-    paramChanges.addChange(Membrum::kClickLayerMixId, 0.0);
-    paramChanges.addChange(Membrum::kStrikePositionId, static_cast<ParamValue>(strikePos));
+    paramChanges.addChange(pad0Param(Membrum::kPadNoiseLayerMix), 0.0);
+    paramChanges.addChange(pad0Param(Membrum::kPadClickLayerMix), 0.0);
+    paramChanges.addChange(pad0Param(Membrum::kPadStrikePosition), static_cast<ParamValue>(strikePos));
     fix.data.inputParameterChanges = &paramChanges;
 
     fix.events.addNoteOn(36, 100.0f / 127.0f);
@@ -980,7 +987,7 @@ TEST_CASE("Membrum: Level 0.0 produces all-zero output (FR-036)",
           "[membrum][processor][params]")
 {
     constexpr int N = 2048;
-    auto samples = collectSamplesWithParam(Membrum::kLevelId, 0.0f, N);
+    auto samples = collectSamplesWithParam(pad0Param(Membrum::kPadLevel), 0.0f, N);
 
     float peak = 0.0f;
     for (float s : samples)
@@ -1001,11 +1008,11 @@ TEST_CASE("Membrum: No NaN/Inf at all-zero params (SC-007)",
 
     // Set all params to 0.0
     TestParameterChanges paramChanges;
-    paramChanges.addChange(Membrum::kMaterialId, 0.0);
-    paramChanges.addChange(Membrum::kSizeId, 0.0);
-    paramChanges.addChange(Membrum::kDecayId, 0.0);
-    paramChanges.addChange(Membrum::kStrikePositionId, 0.0);
-    paramChanges.addChange(Membrum::kLevelId, 0.0);
+    paramChanges.addChange(pad0Param(Membrum::kPadMaterial), 0.0);
+    paramChanges.addChange(pad0Param(Membrum::kPadSize), 0.0);
+    paramChanges.addChange(pad0Param(Membrum::kPadDecay), 0.0);
+    paramChanges.addChange(pad0Param(Membrum::kPadStrikePosition), 0.0);
+    paramChanges.addChange(pad0Param(Membrum::kPadLevel), 0.0);
     fix.data.inputParameterChanges = &paramChanges;
 
     fix.events.addNoteOn(36, 100.0f / 127.0f);
@@ -1031,11 +1038,11 @@ TEST_CASE("Membrum: No NaN/Inf at all-max params (SC-007)",
 
     // Set all params to 1.0
     TestParameterChanges paramChanges;
-    paramChanges.addChange(Membrum::kMaterialId, 1.0);
-    paramChanges.addChange(Membrum::kSizeId, 1.0);
-    paramChanges.addChange(Membrum::kDecayId, 1.0);
-    paramChanges.addChange(Membrum::kStrikePositionId, 1.0);
-    paramChanges.addChange(Membrum::kLevelId, 1.0);
+    paramChanges.addChange(pad0Param(Membrum::kPadMaterial), 1.0);
+    paramChanges.addChange(pad0Param(Membrum::kPadSize), 1.0);
+    paramChanges.addChange(pad0Param(Membrum::kPadDecay), 1.0);
+    paramChanges.addChange(pad0Param(Membrum::kPadStrikePosition), 1.0);
+    paramChanges.addChange(pad0Param(Membrum::kPadLevel), 1.0);
     fix.data.inputParameterChanges = &paramChanges;
 
     fix.events.addNoteOn(36, 100.0f / 127.0f);
@@ -1247,27 +1254,10 @@ TEST_CASE("Membrum: SC-003 CPU budget -- single voice < 0.5% CPU at 44.1 kHz",
     REQUIRE(durationMs < 50.0);
 }
 
-TEST_CASE("Phase 8C: kAirLoadingId processor dispatch routes to selected pad",
-          "[membrum][processor][phase8c][wiring]")
-{
-    MembrumTestFixture fix;
-
-    // Start: pad 0 selected. Default airLoading from PadConfig = 0.6.
-    const float before = fix.processor.voicePoolForTest().padConfig(0).airLoading;
-
-    // Send a parameter change for kAirLoadingId = 1.0.
-    TestParameterChanges paramChanges;
-    paramChanges.addChange(Membrum::kAirLoadingId, 1.0);
-    fix.data.inputParameterChanges = &paramChanges;
-    fix.processBlock();
-    fix.data.inputParameterChanges = nullptr;
-
-    // Verify the processor routed the change to the selected pad.
-    const float after = fix.processor.voicePoolForTest().padConfig(0).airLoading;
-    INFO("airLoading before=" << before << " after=" << after);
-    CHECK(after == Approx(1.0f).margin(1e-4f));
-    CHECK(before != after);
-}
+// The Phase 8C case "kAirLoadingId processor dispatch routes to selected pad"
+// pinned the processor-side proxy routing that T1.20 removed (MB-072, MB-131);
+// "Selected-pad proxy: the processor ignores a proxy ID"
+// (unit/vst/test_proxy_automation.cpp) replaces it.
 
 // =============================================================================
 // T1.14 (MB-051 / MB-089 / MB-141): note events start at their sampleOffset, a

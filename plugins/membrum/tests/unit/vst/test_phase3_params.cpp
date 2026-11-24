@@ -72,6 +72,8 @@ TEST_CASE("Phase 3 params: controller exposes Phase 2 count + 3",
 
     constexpr int kWireGlobals          = 1;
     constexpr int kWirePerPadParams     = 32 * 1;
+    // MB-071 adds the Coupling Amount and five macro selected-pad proxies.
+    constexpr int kMacroProxyGlobals    = 6;
     CHECK(controller.getParameterCount() ==
           kPhase2ParameterCount + kPhase3NewParameters + 1 + 32 * 36
           + kPhase5NewParameters + kPhase6US4Parameters
@@ -86,7 +88,8 @@ TEST_CASE("Phase 3 params: controller exposes Phase 2 count + 3",
           + kPhase9Globals
           + kPhase10Globals + kPhase10PerPadParams
           + kM9Globals + kM9PerPadParams
-          + kWireGlobals + kWirePerPadParams);
+          + kWireGlobals + kWirePerPadParams
+          + kMacroProxyGlobals);
 
     REQUIRE(controller.terminate() == kResultOk);
 }

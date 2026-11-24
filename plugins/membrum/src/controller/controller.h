@@ -97,6 +97,15 @@ public:
     Steinberg::tresult PLUGIN_API setParamNormalized(Steinberg::Vst::ParamID tag,
                                                       Steinberg::Vst::ParamValue value) override;
 
+    // MB-072 / MB-163: the selected-pad proxies are UI-only binding targets.
+    // A gesture on a proxy tag (VST3Editor controls, the custom views) is sent
+    // to the host on the selected pad's per-pad ID, latched at beginEdit so a
+    // gesture never splits across pads; every other tag passes through.
+    Steinberg::tresult beginEdit(Steinberg::Vst::ParamID tag) override;
+    Steinberg::tresult performEdit(Steinberg::Vst::ParamID tag,
+                                   Steinberg::Vst::ParamValue valueNormalized) override;
+    Steinberg::tresult endEdit(Steinberg::Vst::ParamID tag) override;
+
     // Override to produce human-readable value-popup strings for the ArcKnobs
     // in the Acoustic view (Hz / dB / bipolar % / Wood-Metal labels, etc.).
     // Falls back to EditControllerEx1's default formatting for all other tags.
@@ -166,6 +175,19 @@ public:
     /// const in the SDK.
     [[nodiscard]] bool isMembraneBodySelectedForTest() noexcept;
 
+    /// Test-only: reads and clears the deferred view-refresh word (filled when
+    /// setParamNormalized runs off the UI thread, as in a test); true when the
+    /// pitch-envelope display refresh was queued.
+    [[nodiscard]] bool takePitchEnvDisplayRefreshForTest() noexcept
+    {
+        return (pendingViewRefresh_.exchange(0) & kRefreshPitchEnvDisplay) != 0;
+    }
+
+    /// The pad-parameter offset a selected-pad proxy ID stands for, or -1 when
+    /// `tag` is not a proxy. The proxies are UI-only binding targets: a
+    /// gesture on one is sent to the host on the selected pad's per-pad ID.
+    [[nodiscard]] static int selectedPadProxyOffset(Steinberg::Vst::ParamID tag) noexcept;
+
     // Phase 4: pad preset providers (FR-060 through FR-063)
     /// Produces a 284-byte pad preset blob for the currently selected pad
     Steinberg::IBStream* padPresetStateProvider();
@@ -182,7 +204,18 @@ private:
     void forwardGlobalToPad(Steinberg::Vst::ParamID globalId,
                             Steinberg::Vst::ParamValue value);
 
+
     int selectedPadIndex_ = 0;
+    // Number of rows in the selected-pad proxy table (controller.cpp,
+    // kProxyMappings; a static_assert there keeps the two in step).
+    static constexpr std::size_t kSelectedPadProxyCount = 66;
+    // Pad latched at beginEdit per proxy-table row; -1 while no gesture is
+    // open on that proxy.
+    std::array<int, kSelectedPadProxyCount> proxyGesturePad_ = [] {
+        std::array<int, kSelectedPadProxyCount> pads{};
+        pads.fill(-1);
+        return pads;
+    }();
     // MB-087: per-pad mirror of the sound fields no parameter holds
     // (noiseLayerGain, the body-damping sentinel), filled by every load path
     // and read by the kit and pad preset save providers.

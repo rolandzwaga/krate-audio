@@ -38,6 +38,14 @@ namespace {
 using PV = Krate::Test::ParamValueQueue;
 using PC = Krate::Test::ParameterChanges;
 
+// The editor's Material Morph controls are bound to selected-pad proxies; the
+// controller sends their edits on the selected pad's per-pad ID (T1.20,
+// MB-072), which is what a host hands the processor. Pad 0 is selected here.
+ParamID pad0(int offset)
+{
+    return static_cast<ParamID>(Membrum::padParamId(0, offset));
+}
+
 
 
 
@@ -180,11 +188,11 @@ TEST_CASE("Morph host-sim 2 (AuditionPad message path): user clicks pad in edito
                 if (firstHit)
                 {
                     paramChanges.add(Membrum::kSelectedPadId,  0.0);
-                    paramChanges.add(Membrum::kMorphEnabledId, 1.0);
+                    paramChanges.add(pad0(Membrum::kPadMorphEnabled), 1.0);
                 }
                 paramChanges.add(Membrum::kSelectedPadId, 0.0);
-                paramChanges.add(Membrum::kMorphStartId,  morphStart);
-                paramChanges.add(Membrum::kMorphEndId,    morphEnd);
+                paramChanges.add(pad0(Membrum::kPadMorphStart),  morphStart);
+                paramChanges.add(pad0(Membrum::kPadMorphEnd),    morphEnd);
                 // Send the IMessage BEFORE process() -- matches the editor's
                 // synchronous sendMessage() pattern.
                 sendAuditionPadMessage(processor, 36);
@@ -252,9 +260,9 @@ TEST_CASE("Morph host-sim: XY-then-hit reproduces audibility through Processor::
             if (blockIdx == 0)
             {
                 pc.add(Membrum::kSelectedPadId,   0.0);   // pad index 0 / 31
-                pc.add(Membrum::kMorphEnabledId,  1.0);   // ON
-                pc.add(Membrum::kMorphStartId,    0.0);   // woody
-                pc.add(Membrum::kMorphEndId,      1.0);   // -> metallic
+                pc.add(pad0(Membrum::kPadMorphEnabled),  1.0);   // ON
+                pc.add(pad0(Membrum::kPadMorphStart),    0.0);   // woody
+                pc.add(pad0(Membrum::kPadMorphEnd),      1.0);   // -> metallic
             }
         });
 
@@ -264,8 +272,8 @@ TEST_CASE("Morph host-sim: XY-then-hit reproduces audibility through Processor::
             if (blockIdx == 0)
             {
                 pc.add(Membrum::kSelectedPadId, 0.0);
-                pc.add(Membrum::kMorphStartId, 1.0);      // metallic
-                pc.add(Membrum::kMorphEndId,   0.0);      // -> woody
+                pc.add(pad0(Membrum::kPadMorphStart), 1.0);      // metallic
+                pc.add(pad0(Membrum::kPadMorphEnd),   0.0);      // -> woody
             }
         });
 

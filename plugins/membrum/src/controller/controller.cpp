@@ -9,6 +9,7 @@
 #include "dsp/body_model_type.h"
 #include "state/state_codec.h"
 #include "controller_state_codec.h"
+#include "proxy_mappings.h"
 #include "ui/pad_grid_view.h"
 #include "ui/kit_meters_view.h"
 #include "ui/polyphony_slider.h"
@@ -48,6 +49,7 @@
 #include <cmath>
 #include <cstdio>
 #include <cstring>
+#include <iterator>
 #include <utility>
 #include <vector>
 
@@ -70,89 +72,47 @@ Controller::Controller() = default;
 Controller::~Controller() = default;
 
 // ==============================================================================
-// Global proxy parameter mapping table
-// Maps each global parameter ID to its corresponding PadParamOffset.
+// Global proxy parameter mapping table: kProxyMappings (proxy_mappings.h)
+// maps each global parameter ID to its corresponding PadParamOffset.
 // ==============================================================================
 namespace {
 
-struct ProxyMapping
+/// Row of `tag` in kProxyMappings, or -1 when it is not a proxy.
+int proxyRowIndex(ParamID tag) noexcept
 {
-    ParamID globalId;
-    int     padOffset;
-};
+    for (std::size_t row = 0; row < std::size(kProxyMappings); ++row)
+    {
+        if (kProxyMappings[row].globalId == tag)
+            return static_cast<int>(row);
+    }
+    return -1;
+}
 
-constexpr ProxyMapping kProxyMappings[] = {
-    {.globalId = kMaterialId,                   .padOffset = kPadMaterial },
-    {.globalId = kSizeId,                       .padOffset = kPadSize },
-    {.globalId = kDecayId,                      .padOffset = kPadDecay },
-    {.globalId = kStrikePositionId,             .padOffset = kPadStrikePosition },
-    {.globalId = kLevelId,                      .padOffset = kPadLevel },
-    {.globalId = kExciterTypeId,                .padOffset = kPadExciterType },
-    {.globalId = kBodyModelId,                  .padOffset = kPadBodyModel },
-    {.globalId = kExciterFMRatioId,             .padOffset = kPadFMRatio },
-    {.globalId = kExciterFeedbackAmountId,      .padOffset = kPadFeedbackAmount },
-    {.globalId = kExciterNoiseBurstDurationId,  .padOffset = kPadNoiseBurstDuration },
-    {.globalId = kExciterFrictionPressureId,    .padOffset = kPadFrictionPressure },
-    {.globalId = kToneShaperFilterTypeId,       .padOffset = kPadTSFilterType },
-    {.globalId = kToneShaperFilterCutoffId,     .padOffset = kPadTSFilterCutoff },
-    {.globalId = kToneShaperFilterResonanceId,  .padOffset = kPadTSFilterResonance },
-    {.globalId = kToneShaperFilterEnvAmountId,  .padOffset = kPadTSFilterEnvAmount },
-    {.globalId = kToneShaperDriveAmountId,      .padOffset = kPadTSDriveAmount },
-    {.globalId = kToneShaperFoldAmountId,       .padOffset = kPadTSFoldAmount },
-    {.globalId = kToneShaperPitchEnvStartId,    .padOffset = kPadTSPitchEnvStart },
-    {.globalId = kToneShaperPitchEnvEndId,      .padOffset = kPadTSPitchEnvEnd },
-    {.globalId = kToneShaperPitchEnvTimeId,     .padOffset = kPadTSPitchEnvTime },
-    {.globalId = kToneShaperPitchEnvCurveId,    .padOffset = kPadTSPitchEnvCurve },
-    {.globalId = kToneShaperFilterEnvAttackId,  .padOffset = kPadTSFilterEnvAttack },
-    {.globalId = kToneShaperFilterEnvDecayId,   .padOffset = kPadTSFilterEnvDecay },
-    {.globalId = kToneShaperFilterEnvSustainId, .padOffset = kPadTSFilterEnvSustain },
-    {.globalId = kToneShaperFilterEnvReleaseId, .padOffset = kPadTSFilterEnvRelease },
-    {.globalId = kUnnaturalModeStretchId,       .padOffset = kPadModeStretch },
-    {.globalId = kUnnaturalDecaySkewId,         .padOffset = kPadDecaySkew },
-    {.globalId = kUnnaturalModeInjectAmountId,  .padOffset = kPadModeInjectAmount },
-    {.globalId = kUnnaturalNonlinearCouplingId, .padOffset = kPadNonlinearCoupling },
-    {.globalId = kMorphEnabledId,               .padOffset = kPadMorphEnabled },
-    {.globalId = kMorphStartId,                 .padOffset = kPadMorphStart },
-    {.globalId = kMorphEndId,                   .padOffset = kPadMorphEnd },
-    {.globalId = kMorphDurationMsId,            .padOffset = kPadMorphDuration },
-    {.globalId = kMorphCurveId,                 .padOffset = kPadMorphCurve },
-    {.globalId = kChokeGroupId,                 .padOffset = kPadChokeGroup },
-    // Phase 8 (US7 / FR-065): Output Bus selector proxy.
-    {.globalId = kOutputBusId,                  .padOffset = kPadOutputBus },
-    // Phase 7: parallel noise layer + always-on click transient
-    {.globalId = kNoiseLayerMixId,              .padOffset = kPadNoiseLayerMix },
-    {.globalId = kNoiseLayerCutoffId,           .padOffset = kPadNoiseLayerCutoff },
-    {.globalId = kNoiseLayerResonanceId,        .padOffset = kPadNoiseLayerResonance },
-    {.globalId = kNoiseLayerDecayId,            .padOffset = kPadNoiseLayerDecay },
-    {.globalId = kNoiseLayerColorId,            .padOffset = kPadNoiseLayerColor },
-    {.globalId = kClickLayerMixId,              .padOffset = kPadClickLayerMix },
-    {.globalId = kClickLayerContactMsId,        .padOffset = kPadClickLayerContactMs },
-    {.globalId = kClickLayerBrightnessId,       .padOffset = kPadClickLayerBrightness },
-    // Phase 8A: per-mode damping law overrides (offsets 50, 51).
-    {.globalId = kBodyDampingB1Id,              .padOffset = kPadBodyDampingB1 },
-    {.globalId = kBodyDampingB3Id,              .padOffset = kPadBodyDampingB3 },
-    // Phase 8C: air-loading + per-mode scatter (offsets 52, 53).
-    {.globalId = kAirLoadingId,                 .padOffset = kPadAirLoading },
-    {.globalId = kModeScatterId,                .padOffset = kPadModeScatter },
-    // Phase 8D: head <-> shell coupling (offsets 54-57).
-    {.globalId = kCouplingStrengthId,           .padOffset = kPadCouplingStrength },
-    {.globalId = kSecondaryEnabledId,           .padOffset = kPadSecondaryEnabled },
-    {.globalId = kSecondarySizeId,              .padOffset = kPadSecondarySize },
-    {.globalId = kSecondaryMaterialId,          .padOffset = kPadSecondaryMaterial },
-    // Phase 8E: nonlinear tension modulation (offset 58).
-    {.globalId = kTensionModAmtId,              .padOffset = kPadTensionModAmt },
-    // Phase 8F: per-pad enable toggle (offset 59).
-    {.globalId = kPadEnabledId,                 .padOffset = kPadEnabled },
-    // Phase 10: three-point pitch envelope extension (offsets 60-63).
-    {.globalId = kPitchEnvKneeEnabledId,        .padOffset = kPadTSPitchEnvKneeEnabled },
-    {.globalId = kPitchEnvMidPitchId,           .padOffset = kPadTSPitchEnvMidPitch },
-    {.globalId = kPitchEnvMidFractionId,        .padOffset = kPadTSPitchEnvMidFraction },
-    {.globalId = kPitchEnvCurve2Id,             .padOffset = kPadTSPitchEnvCurve2 },
-    // M-9: per-pad pan (offset 64).
-    {.globalId = kPadPanId,                     .padOffset = kPadPan },
-    // Wire coupling (offset 65).
-    {.globalId = kWireCouplingId,               .padOffset = kPadWireCoupling },
-};
+const ProxyMapping* findProxyMapping(ParamID tag) noexcept
+{
+    const int row = proxyRowIndex(tag);
+    return row >= 0 ? &kProxyMappings[static_cast<std::size_t>(row)] : nullptr;
+}
+
+/// The proxy row bound to a pad-parameter offset, or nullptr when the offset
+/// has no selected-pad proxy.
+const ProxyMapping* findProxyMappingForPadOffset(int padOffset) noexcept
+{
+    for (const auto& mapping : kProxyMappings)
+    {
+        if (mapping.padOffset == padOffset)
+            return &mapping;
+    }
+    return nullptr;
+}
+
+// MB-072 / MB-163: the selected-pad proxies and Selected Pad are UI-only
+// binding targets, registered hidden and without kCanAutomate. A gesture on a
+// proxy reaches the host on the selected pad's per-pad ID (see beginEdit /
+// performEdit / endEdit), so automation is recorded on, and plays back to, the
+// pad that was edited. Not kIsReadOnly: the grid's Selected Pad performEdit
+// must still reach the processor (it saves selectedPadIndex in the kit blob).
+constexpr int32 kProxyParamFlags = ParameterInfo::kIsHidden;
 
 // Per-pad parameter name table
 struct PadParamSpec
@@ -271,6 +231,12 @@ void narrowToTChar(const char* src, TChar* dst, int maxLen)
 
 } // namespace
 
+int Controller::selectedPadProxyOffset(ParamID tag) noexcept
+{
+    const auto* mapping = findProxyMapping(tag);
+    return mapping != nullptr ? mapping->padOffset : -1;
+}
+
 tresult PLUGIN_API Controller::initialize(FUnknown* context)
 {
     auto result = EditControllerEx1::initialize(context);
@@ -278,27 +244,29 @@ tresult PLUGIN_API Controller::initialize(FUnknown* context)
         return result;
 
     // ---- Phase 1 parameters (global proxy, unchanged) ----
+    // Every selected-pad proxy is registered with kProxyParamFlags: a UI-only
+    // binding target, hidden and not automatable (MB-072 / MB-163).
     parameters.addParameter(
         new RangeParameter(STR16("Material"), kMaterialId, nullptr,
-                           0.0, 1.0, 0.5, 0, ParameterInfo::kCanAutomate));
+                           0.0, 1.0, 0.5, 0, kProxyParamFlags));
     parameters.addParameter(
         new RangeParameter(STR16("Size"), kSizeId, nullptr,
-                           0.0, 1.0, 0.5, 0, ParameterInfo::kCanAutomate));
+                           0.0, 1.0, 0.5, 0, kProxyParamFlags));
     parameters.addParameter(
         new RangeParameter(STR16("Resonance"), kDecayId, nullptr,
-                           0.0, 1.0, 0.3, 0, ParameterInfo::kCanAutomate));
+                           0.0, 1.0, 0.3, 0, kProxyParamFlags));
     parameters.addParameter(
         new RangeParameter(STR16("Strike Point"), kStrikePositionId, nullptr,
-                           0.0, 1.0, 0.3, 0, ParameterInfo::kCanAutomate));
+                           0.0, 1.0, 0.3, 0, kProxyParamFlags));
     parameters.addParameter(
         new RangeParameter(STR16("Level"), kLevelId, STR16("dB"),
-                           0.0, 1.0, 0.8, 0, ParameterInfo::kCanAutomate));
+                           0.0, 1.0, 0.8, 0, kProxyParamFlags));
 
     // ---- Phase 2 selectors (global proxy) ----
     {
         auto* excList = new StringListParameter(
             STR16("Exciter Type"), kExciterTypeId, nullptr,
-            ParameterInfo::kCanAutomate | ParameterInfo::kIsList);
+            kProxyParamFlags | ParameterInfo::kIsList);
         excList->appendString(STR16("Impulse"));
         excList->appendString(STR16("Mallet"));
         excList->appendString(STR16("NoiseBurst"));
@@ -311,7 +279,7 @@ tresult PLUGIN_API Controller::initialize(FUnknown* context)
     {
         auto* bodyList = new StringListParameter(
             STR16("Body Model"), kBodyModelId, nullptr,
-            ParameterInfo::kCanAutomate | ParameterInfo::kIsList);
+            kProxyParamFlags | ParameterInfo::kIsList);
         bodyList->appendString(STR16("Membrane"));
         bodyList->appendString(STR16("Plate"));
         bodyList->appendString(STR16("Shell"));
@@ -378,7 +346,7 @@ tresult PLUGIN_API Controller::initialize(FUnknown* context)
         parameters.addParameter(
             new RangeParameter(titleBuf, spec.id, unitPtr,
                                0.0, 1.0, spec.defaultValue, 0,
-                               ParameterInfo::kCanAutomate));
+                               kProxyParamFlags));
     }
 
     // Audit finding 11: Morph Enabled is a boolean toggle, so it must expose
@@ -390,7 +358,7 @@ tresult PLUGIN_API Controller::initialize(FUnknown* context)
     parameters.addParameter(
         new RangeParameter(STR16("Morph Enabled"), kMorphEnabledId, nullptr,
                            0.0, 1.0, 0.0, /*stepCount=*/1,
-                           ParameterInfo::kCanAutomate));
+                           kProxyParamFlags));
 
     // Morph Curve selector (binary: Linear / Exponential). Registered as a
     // StringListParameter so the Advanced template's COptionMenu can populate
@@ -399,7 +367,7 @@ tresult PLUGIN_API Controller::initialize(FUnknown* context)
     {
         auto* curveList = new StringListParameter(
             STR16("Morph Curve"), kMorphCurveId, nullptr,
-            ParameterInfo::kCanAutomate | ParameterInfo::kIsList);
+            kProxyParamFlags | ParameterInfo::kIsList);
         curveList->appendString(STR16("Linear"));
         curveList->appendString(STR16("Exponential"));
         parameters.addParameter(curveList);
@@ -413,7 +381,7 @@ tresult PLUGIN_API Controller::initialize(FUnknown* context)
     {
         auto* filterTypeList = new StringListParameter(
             STR16("Tone Shaper Filter Type"), kToneShaperFilterTypeId, nullptr,
-            ParameterInfo::kCanAutomate | ParameterInfo::kIsList);
+            kProxyParamFlags | ParameterInfo::kIsList);
         filterTypeList->appendString(STR16("Lowpass"));
         filterTypeList->appendString(STR16("Highpass"));
         filterTypeList->appendString(STR16("Bandpass"));
@@ -431,7 +399,7 @@ tresult PLUGIN_API Controller::initialize(FUnknown* context)
         new RangeParameter(STR16("Tone Shaper PitchEnv Curve"),
                            kToneShaperPitchEnvCurveId, nullptr,
                            0.0, 1.0, 0.5, 0,
-                           ParameterInfo::kCanAutomate));
+                           kProxyParamFlags));
 
     // ---- Phase 10: three-point pitch envelope ----
     // Knee toggle: float-as-bool. >= 0.5 = ON enables the middle breakpoint,
@@ -439,7 +407,7 @@ tresult PLUGIN_API Controller::initialize(FUnknown* context)
     {
         auto* kneeList = new StringListParameter(
             STR16("PitchEnv Knee"), kPitchEnvKneeEnabledId, nullptr,
-            ParameterInfo::kCanAutomate | ParameterInfo::kIsList);
+            kProxyParamFlags | ParameterInfo::kIsList);
         kneeList->appendString(STR16("Off"));
         kneeList->appendString(STR16("On"));
         parameters.addParameter(kneeList);
@@ -448,17 +416,17 @@ tresult PLUGIN_API Controller::initialize(FUnknown* context)
     parameters.addParameter(
         new RangeParameter(STR16("PitchEnv Mid"), kPitchEnvMidPitchId, STR16("Hz"),
                            0.0, 1.0, 0.5, 0,
-                           ParameterInfo::kCanAutomate));
+                           kProxyParamFlags));
     // Mid fraction: portion of total time spent in segment 1.
     parameters.addParameter(
         new RangeParameter(STR16("PitchEnv Mid Fraction"), kPitchEnvMidFractionId, nullptr,
                            0.0, 1.0, 0.5, 0,
-                           ParameterInfo::kCanAutomate));
+                           kProxyParamFlags));
     // Segment-2 curve amount (same encoding as the Phase-2 curve param).
     parameters.addParameter(
         new RangeParameter(STR16("PitchEnv Curve 2"), kPitchEnvCurve2Id, nullptr,
                            0.0, 1.0, 0.5, 0,
-                           ParameterInfo::kCanAutomate));
+                           kProxyParamFlags));
 
     // ---- Phase 3 parameters (polyphony / stealing / choke) ----
     parameters.addParameter(
@@ -483,7 +451,7 @@ tresult PLUGIN_API Controller::initialize(FUnknown* context)
     {
         auto* chokeList = new StringListParameter(
             STR16("Choke Group"), kChokeGroupId, nullptr,
-            ParameterInfo::kCanAutomate | ParameterInfo::kIsList);
+            kProxyParamFlags | ParameterInfo::kIsList);
         chokeList->appendString(STR16("None"));
         chokeList->appendString(STR16("CG1"));
         chokeList->appendString(STR16("CG2"));
@@ -497,10 +465,12 @@ tresult PLUGIN_API Controller::initialize(FUnknown* context)
     }
 
     // ---- Phase 4: kSelectedPadId ----
+    // Editor state, not sound: hidden and not automatable (MB-072), like the
+    // proxies it steers; its performEdit still reaches the processor.
     parameters.addParameter(
         new RangeParameter(STR16("Selected Pad"), kSelectedPadId, nullptr,
                            0.0, 31.0, 0.0, /*stepCount=*/31,
-                           ParameterInfo::kCanAutomate));
+                           kProxyParamFlags));
 
     // ---- Phase 5: Cross-Pad Coupling parameters ----
     // Coupling sends: register with [0, 100] + "%" so the ArcKnob popup and
@@ -577,7 +547,7 @@ tresult PLUGIN_API Controller::initialize(FUnknown* context)
     {
         auto* outputBusList = new StringListParameter(
             STR16("Output Bus"), kOutputBusId, nullptr,
-            ParameterInfo::kCanAutomate | ParameterInfo::kIsList);
+            kProxyParamFlags | ParameterInfo::kIsList);
         outputBusList->appendString(STR16("Main"));
         for (int i = 1; i < kMaxOutputBuses; ++i)
         {
@@ -593,81 +563,102 @@ tresult PLUGIN_API Controller::initialize(FUnknown* context)
     // ---- Phase 7 global proxies: parallel noise layer + click transient ----
     parameters.addParameter(
         new RangeParameter(STR16("Noise Mix"), kNoiseLayerMixId, nullptr,
-                           0.0, 1.0, 0.35, 0, ParameterInfo::kCanAutomate));
+                           0.0, 1.0, 0.35, 0, kProxyParamFlags));
     parameters.addParameter(
         new RangeParameter(STR16("Noise Cutoff"), kNoiseLayerCutoffId, STR16("Hz"),
-                           0.0, 1.0, 0.5, 0, ParameterInfo::kCanAutomate));
+                           0.0, 1.0, 0.5, 0, kProxyParamFlags));
     parameters.addParameter(
         new RangeParameter(STR16("Noise Resonance"), kNoiseLayerResonanceId, nullptr,
-                           0.0, 1.0, 0.2, 0, ParameterInfo::kCanAutomate));
+                           0.0, 1.0, 0.2, 0, kProxyParamFlags));
     parameters.addParameter(
         new RangeParameter(STR16("Noise Decay"), kNoiseLayerDecayId, STR16("ms"),
-                           0.0, 1.0, 0.3, 0, ParameterInfo::kCanAutomate));
+                           0.0, 1.0, 0.3, 0, kProxyParamFlags));
     parameters.addParameter(
         new RangeParameter(STR16("Noise Color"), kNoiseLayerColorId, nullptr,
-                           0.0, 1.0, 0.5, 0, ParameterInfo::kCanAutomate));
+                           0.0, 1.0, 0.5, 0, kProxyParamFlags));
     parameters.addParameter(
         new RangeParameter(STR16("Click Mix"), kClickLayerMixId, nullptr,
-                           0.0, 1.0, 0.5, 0, ParameterInfo::kCanAutomate));
+                           0.0, 1.0, 0.5, 0, kProxyParamFlags));
     parameters.addParameter(
         new RangeParameter(STR16("Click Contact"), kClickLayerContactMsId, STR16("ms"),
-                           0.0, 1.0, 0.3, 0, ParameterInfo::kCanAutomate));
+                           0.0, 1.0, 0.3, 0, kProxyParamFlags));
     parameters.addParameter(
         new RangeParameter(STR16("Click Brightness"), kClickLayerBrightnessId, nullptr,
-                           0.0, 1.0, 0.6, 0, ParameterInfo::kCanAutomate));
+                           0.0, 1.0, 0.6, 0, kProxyParamFlags));
 
     // ---- Phase 8A global proxies: per-mode damping law ----
     parameters.addParameter(
         new RangeParameter(STR16("Body Damping b1"), kBodyDampingB1Id, nullptr,
-                           0.0, 1.0, 0.5, 0, ParameterInfo::kCanAutomate));
+                           0.0, 1.0, 0.5, 0, kProxyParamFlags));
     parameters.addParameter(
         new RangeParameter(STR16("Body Damping b3"), kBodyDampingB3Id, nullptr,
-                           0.0, 1.0, 0.5, 0, ParameterInfo::kCanAutomate));
+                           0.0, 1.0, 0.5, 0, kProxyParamFlags));
 
     // ---- Phase 8C global proxies: air-loading + per-mode scatter ----
     parameters.addParameter(
         new RangeParameter(STR16("Air Loading"), kAirLoadingId, nullptr,
-                           0.0, 1.0, 0.6, 0, ParameterInfo::kCanAutomate));
+                           0.0, 1.0, 0.6, 0, kProxyParamFlags));
     parameters.addParameter(
         new RangeParameter(STR16("Mode Scatter"), kModeScatterId, nullptr,
-                           0.0, 1.0, 0.0, 0, ParameterInfo::kCanAutomate));
+                           0.0, 1.0, 0.0, 0, kProxyParamFlags));
 
     // ---- Phase 8D global proxies: head <-> shell coupling ----
     parameters.addParameter(
         new RangeParameter(STR16("Coupling Strength"), kCouplingStrengthId, nullptr,
-                           0.0, 1.0, 0.0, 0, ParameterInfo::kCanAutomate));
+                           0.0, 1.0, 0.0, 0, kProxyParamFlags));
     parameters.addParameter(
         new RangeParameter(STR16("Secondary Enabled"), kSecondaryEnabledId, nullptr,
-                           0.0, 1.0, 0.0, 1, ParameterInfo::kCanAutomate));
+                           0.0, 1.0, 0.0, 1, kProxyParamFlags));
     parameters.addParameter(
         new RangeParameter(STR16("Secondary Size"), kSecondarySizeId, nullptr,
-                           0.0, 1.0, 0.5, 0, ParameterInfo::kCanAutomate));
+                           0.0, 1.0, 0.5, 0, kProxyParamFlags));
     parameters.addParameter(
         new RangeParameter(STR16("Secondary Material"), kSecondaryMaterialId, nullptr,
-                           0.0, 1.0, 0.4, 0, ParameterInfo::kCanAutomate));
+                           0.0, 1.0, 0.4, 0, kProxyParamFlags));
 
     // ---- Phase 8E global proxy: nonlinear tension modulation ----
     parameters.addParameter(
         new RangeParameter(STR16("Tension Mod"), kTensionModAmtId, nullptr,
-                           0.0, 1.0, 0.0, 0, ParameterInfo::kCanAutomate));
+                           0.0, 1.0, 0.0, 0, kProxyParamFlags));
 
     // ---- Phase 8F global proxy: per-pad enable toggle ----
     // Discrete float-as-bool. Default 1.0 = enabled.
     parameters.addParameter(
         new RangeParameter(STR16("Pad Enabled"), kPadEnabledId, nullptr,
-                           0.0, 1.0, 1.0, /*stepCount=*/1, ParameterInfo::kCanAutomate));
+                           0.0, 1.0, 1.0, /*stepCount=*/1, kProxyParamFlags));
 
     // ---- M-9 global proxy: per-pad pan ----
     // Continuous [0, 1], default 0.5 = center.
     parameters.addParameter(
         new RangeParameter(STR16("Pan"), kPadPanId, nullptr,
-                           0.0, 1.0, 0.5, 0, ParameterInfo::kCanAutomate));
+                           0.0, 1.0, 0.5, 0, kProxyParamFlags));
 
     // ---- Wire-coupling global proxy: buzz-follows-body depth ----
     // Continuous [0, 1], default 0.0 = independent buzz (legacy).
     parameters.addParameter(
         new RangeParameter(STR16("Wire Coupling"), kWireCouplingId, nullptr,
-                           0.0, 1.0, 0.0, 0, ParameterInfo::kCanAutomate));
+                           0.0, 1.0, 0.0, 0, kProxyParamFlags));
+
+    // ---- MB-071: Coupling Amount and macro selected-pad proxies ----
+    // Title and default of each per-pad twin (kPadParamSpecs, offsets 36-41).
+    parameters.addParameter(
+        new RangeParameter(STR16("Coupling Amount"), kCouplingAmountId, nullptr,
+                           0.0, 1.0, 0.5, 0, kProxyParamFlags));
+    parameters.addParameter(
+        new RangeParameter(STR16("Tightness"), kMacroTightnessId, nullptr,
+                           0.0, 1.0, 0.5, 0, kProxyParamFlags));
+    parameters.addParameter(
+        new RangeParameter(STR16("Brightness"), kMacroBrightnessId, nullptr,
+                           0.0, 1.0, 0.5, 0, kProxyParamFlags));
+    parameters.addParameter(
+        new RangeParameter(STR16("Body Size"), kMacroBodySizeId, nullptr,
+                           0.0, 1.0, 0.5, 0, kProxyParamFlags));
+    parameters.addParameter(
+        new RangeParameter(STR16("Punch"), kMacroPunchId, nullptr,
+                           0.0, 1.0, 0.5, 0, kProxyParamFlags));
+    parameters.addParameter(
+        new RangeParameter(STR16("Complexity"), kMacroComplexityId, nullptr,
+                           0.0, 1.0, 0.5, 0, kProxyParamFlags));
 
     // ---- Phase 4/7/8A..8F/M-9/wire: 2112 per-pad parameters (32 pads x 66 offsets) ----
     for (int pad = 0; pad < kNumPads; ++pad)
@@ -878,7 +869,11 @@ tresult PLUGIN_API Controller::setParamNormalized(ParamID tag, ParamValue value)
         return result;
     }
 
-    // Handle global proxy param change: forward to selected pad's per-pad param
+    // Handle global proxy param change: forward to selected pad's per-pad param.
+    // The proxies are UI-only binding targets (MB-072 / MB-163): this mirror
+    // keeps the controller's per-pad value in step with the control, and the
+    // gesture itself reaches the host and the processor on the per-pad ID
+    // (beginEdit / performEdit / endEdit below). The processor ignores proxy IDs.
     for (const auto& mapping : kProxyMappings)
     {
         if (mapping.globalId == tag)
@@ -919,10 +914,27 @@ tresult PLUGIN_API Controller::setParamNormalized(ParamID tag, ParamValue value)
         }
     }
 
+    // MB-099: a per-pad write for the selected pad (host automation, a generic
+    // editor, host undo) refreshes the proxy the editor's control and displays
+    // are bound to. Through the derived setter, so the refresh hooks above run
+    // for the proxy tag; suppressProxyForward_ stops it forwarding back.
+    const int padOffset = padOffsetFromParamId(static_cast<int>(tag));
+    if (padOffset >= 0
+        && padIndexFromParamId(static_cast<int>(tag)) == selectedPadIndex_)
+    {
+        if (const auto* mapping = findProxyMappingForPadOffset(padOffset))
+        {
+            suppressProxyForward_ = true;
+            setParamNormalized(mapping->globalId, value);
+            suppressProxyForward_ = false;
+            if (mapping->globalId == kOutputBusId)
+                updateOutputBusTooltip();
+        }
+    }
+
     // Direct per-pad Output Bus / Choke Group edit (e.g. from automation
     // targeting a specific pad's per-pad parameter, not the global proxy):
     // refresh the grid's BUS / CG indicator for that pad.
-    const int padOffset = padOffsetFromParamId(static_cast<int>(tag));
     if (padOffset >= 0
         && (padOffset == kPadOutputBus || padOffset == kPadChokeGroup)
         && padGridView_ != nullptr)
@@ -943,6 +955,52 @@ tresult PLUGIN_API Controller::setParamNormalized(ParamID tag, ParamValue value)
     }
 
     return result;
+}
+
+// ==============================================================================
+// Edit gestures -- MB-072 / MB-163: a proxy gesture edits the per-pad ID
+// ==============================================================================
+// VST3Editor (and the custom views) bracket a control edit on its proxy tag
+// with beginEdit / performEdit / endEdit. The host must record it on the pad
+// that was edited, so a proxy tag is replaced by the per-pad ID of the pad
+// selected at beginEdit; that pad stays the target until endEdit. A
+// performEdit without a beginEdit targets the selected pad.
+
+tresult Controller::beginEdit(ParamID tag)
+{
+    static_assert(std::size(kProxyMappings) == kSelectedPadProxyCount,
+                  "kSelectedPadProxyCount must match the proxy table");
+    const int row = proxyRowIndex(tag);
+    if (row < 0)
+        return EditControllerEx1::beginEdit(tag);
+    const auto r = static_cast<std::size_t>(row);
+    proxyGesturePad_[r] = selectedPadIndex_;
+    return EditControllerEx1::beginEdit(static_cast<ParamID>(
+        padParamId(selectedPadIndex_, kProxyMappings[r].padOffset)));
+}
+
+tresult Controller::performEdit(ParamID tag, ParamValue valueNormalized)
+{
+    const int row = proxyRowIndex(tag);
+    if (row < 0)
+        return EditControllerEx1::performEdit(tag, valueNormalized);
+    const auto r = static_cast<std::size_t>(row);
+    const int pad = proxyGesturePad_[r] >= 0 ? proxyGesturePad_[r] : selectedPadIndex_;
+    return EditControllerEx1::performEdit(
+        static_cast<ParamID>(padParamId(pad, kProxyMappings[r].padOffset)),
+        valueNormalized);
+}
+
+tresult Controller::endEdit(ParamID tag)
+{
+    const int row = proxyRowIndex(tag);
+    if (row < 0)
+        return EditControllerEx1::endEdit(tag);
+    const auto r = static_cast<std::size_t>(row);
+    const int pad = proxyGesturePad_[r] >= 0 ? proxyGesturePad_[r] : selectedPadIndex_;
+    proxyGesturePad_[r] = -1;
+    return EditControllerEx1::endEdit(
+        static_cast<ParamID>(padParamId(pad, kProxyMappings[r].padOffset)));
 }
 
 // ==============================================================================

@@ -5,6 +5,17 @@ All notable changes to Membrum will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- **Automation of a pad control now stays on the pad it was recorded on** — The editor's pad controls (Material, Size, Decay, Exciter, Body, the tone shaper, the layers, routing and the rest) edited "the selected pad" through a shared set of parameters, and the host recorded automation on those shared parameters. On playback the lane changed whichever pad was selected at that moment, so a Decay ride drawn on the snare rewrote the kick once you clicked the kick. Turning a pad control now records the change on that pad's own parameter ("Pad 02 Decay", and so on), and the shared selected-pad parameters and Selected Pad are no longer automatable and are hidden from the host's parameter list. Host automation lanes recorded on the shared selected-pad parameters in earlier versions no longer play; re-record them, or draw them on the pad's own parameter. No parameter changed its ID or type.
+
+### Fixed
+
+- **The editor did not follow automation of the selected pad** — Automation, a generic editor or a host undo that changed the selected pad's own parameter changed the sound, but the editor's knob, menu and envelope display kept showing the old value. They now follow it.
+- **The macro knobs and Coupling Amount edited pad 1 whatever pad was selected** — Tightness, Brightness, Body Size, Punch, Complexity and the Advanced view's Coupling Amount knob were bound to pad 1's own parameters, so with the snare (or any other pad) selected they rewrote the kick and kept showing the kick's values. They now edit and show the selected pad, like the knobs beside them.
+
 ## [0.12.5] - 2026-11-23
 
 ### Fixed

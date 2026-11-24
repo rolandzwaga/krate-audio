@@ -425,8 +425,16 @@ Steinberg::tresult PLUGIN_API Controller::getParamStringByValue(
         break;
     }
 
+    // A selected-pad proxy not listed above (Coupling Amount, the macros)
+    // formats as the per-pad offset it stands for.
+    if (const int proxyOffset = selectedPadProxyOffset(tag); proxyOffset >= 0)
+    {
+        if (formatByPadOffset(proxyOffset, valueNormalized, string))
+            return kResultOk;
+    }
+
     // Per-pad parameter space (tag >= 1000). Strip the pad index and dispatch
-    // on the offset. Selected-pad proxies are the pad-0 slot.
+    // on the offset.
     if (tag >= static_cast<ParamID>(kPadBaseId))
     {
         const int offset =

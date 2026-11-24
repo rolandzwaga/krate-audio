@@ -2897,3 +2897,36 @@ TEST_CASE("SympatheticResonance: coupling gain at amount=1.0 is approximately -2
     REQUIRE(lastPeak < 0.15f);
     REQUIRE(lastPeak > 0.01f);
 }
+
+// =============================================================================
+// MB-067 / MB-115: a re-prepare drops the amount consistently
+// =============================================================================
+// prepare() snaps the amount smoother to 0. Before the fix it left
+// couplingGain_ at the previous amount, so isBypassed() read false while
+// process() scaled its input by a smoother parked at 0: a silent engine that
+// still ran its resonator loop. A prepared engine must be bypassed until
+// setAmount is called again, as after reset().
+
+TEST_CASE("SympatheticResonance: prepare leaves a consistent bypassed state until setAmount is called again",
+          "[systems][sympathetic]") {
+    SympatheticResonance sr;
+    sr.prepare(44100.0);
+    sr.setAmount(0.5f);
+    sr.noteOn(0, makeHarmonicPartials(220.0f));
+    for (int i = 0; i < 64; ++i) {
+        (void)sr.process(0.5f);
+    }
+
+    sr.prepare(96000.0);
+    REQUIRE(sr.isBypassed());
+
+    sr.setAmount(0.5f);
+    sr.noteOn(0, makeHarmonicPartials(220.0f));
+    REQUIRE_FALSE(sr.isBypassed());
+
+    std::vector<float> out;
+    processSineAndCollect(sr, 220.0f, 96000.0f, 4800, out);
+    const float peak = computePeak(out.data(), static_cast<int>(out.size()));
+    INFO("peak after re-prepare + setAmount = " << peak);
+    REQUIRE(peak > 0.0f);
+}

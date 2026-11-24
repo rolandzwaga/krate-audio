@@ -36,11 +36,11 @@
     <control-tag name="PitchEnvStart" tag="216"/>
     <control-tag name="PitchEnvEnd" tag="217"/>
     <control-tag name="PitchEnvTime" tag="218"/>
-    <control-tag name="MacroTightness" tag="1037"/>
-    <control-tag name="MacroBrightness" tag="1038"/>
-    <control-tag name="MacroBodySize" tag="1039"/>
-    <control-tag name="MacroPunch" tag="1040"/>
-    <control-tag name="MacroComplexity" tag="1041"/>
+    <control-tag name="MacroTightness" tag="331"/>
+    <control-tag name="MacroBrightness" tag="332"/>
+    <control-tag name="MacroBodySize" tag="333"/>
+    <control-tag name="MacroPunch" tag="334"/>
+    <control-tag name="MacroComplexity" tag="335"/>
     <!-- T061 (Phase 6 / US5): Choke Group selector binds to the Phase 4
          selected-pad proxy parameter (kChokeGroupId == 252). The proxy in
          Controller::setParamNormalized routes edits to the currently
@@ -89,8 +89,8 @@
     <control-tag name="ExciterFeedback" tag="203"/>
     <control-tag name="ExciterNoiseBurstDuration" tag="204"/>
     <control-tag name="ExciterFrictionPressure" tag="205"/>
-    <!-- Per-pad Coupling Amount (pad 0 offset 36 = selected-pad proxy) -->
-    <control-tag name="CouplingAmount" tag="1036"/>
+    <!-- Per-pad Coupling Amount: selected-pad proxy (kCouplingAmountId == 330) for offset 36 -->
+    <control-tag name="CouplingAmount" tag="330"/>
     <!-- Phase 7: parallel noise layer + always-on click transient (globals 290-297) -->
     <control-tag name="NoiseLayerMix" tag="290"/>
     <control-tag name="NoiseLayerCutoff" tag="291"/>

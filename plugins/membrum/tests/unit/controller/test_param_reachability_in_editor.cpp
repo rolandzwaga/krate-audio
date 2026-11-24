@@ -9,10 +9,9 @@
 //           * via the Phase 4 selected-pad proxy pattern (control-tag equals
 //             the global proxy ID; selectedPadIndex routes to the current pad),
 //             OR
-//           * via a pad-0-anchored per-pad control-tag for any pad (the editor
-//             binds pad 0's per-pad parameter IDs directly for selected-pad
-//             macros), OR
 //           * session-scoped (kUiModeId).
+//         No control-tag may bind a per-pad parameter ID directly: such a
+//         control would edit that one pad whatever is selected (MB-071).
 //
 //         In addition, the Extended-mode template must contain control-tags
 //         for every Unnatural Zone, raw physics, full Tone Shaper, full
@@ -25,6 +24,7 @@
 // ==============================================================================
 
 #include "controller/controller.h"
+#include "controller/proxy_mappings.h"
 #include "plugin_ids.h"
 #include "dsp/pad_config.h"
 
@@ -147,129 +147,15 @@ std::set<std::string> extractTagRefs(const std::string& templateXml)
     return names;
 }
 
-// Map of global proxy parameter ID -> pad offset (mirrors controller.cpp's
-// kProxyMappings). A global is reachable if the editor binds either the
-// global ID directly, the per-pad pad-0 anchor of its offset, or any other
-// anchor of the same offset.
-struct GlobalProxyPair { int globalId; int padOffset; };
-std::vector<GlobalProxyPair> globalProxyMap()
-{
-    return {
-        { kMaterialId, kPadMaterial },
-        { kSizeId, kPadSize },
-        { kDecayId, kPadDecay },
-        { kStrikePositionId, kPadStrikePosition },
-        { kLevelId, kPadLevel },
-        { kExciterTypeId, kPadExciterType },
-        { kBodyModelId, kPadBodyModel },
-        { kExciterFMRatioId, kPadFMRatio },
-        { kExciterFeedbackAmountId, kPadFeedbackAmount },
-        { kExciterNoiseBurstDurationId, kPadNoiseBurstDuration },
-        { kExciterFrictionPressureId, kPadFrictionPressure },
-        { kToneShaperFilterTypeId, kPadTSFilterType },
-        { kToneShaperFilterCutoffId, kPadTSFilterCutoff },
-        { kToneShaperFilterResonanceId, kPadTSFilterResonance },
-        { kToneShaperFilterEnvAmountId, kPadTSFilterEnvAmount },
-        { kToneShaperDriveAmountId, kPadTSDriveAmount },
-        { kToneShaperFoldAmountId, kPadTSFoldAmount },
-        { kToneShaperPitchEnvStartId, kPadTSPitchEnvStart },
-        { kToneShaperPitchEnvEndId, kPadTSPitchEnvEnd },
-        { kToneShaperPitchEnvTimeId, kPadTSPitchEnvTime },
-        { kToneShaperPitchEnvCurveId, kPadTSPitchEnvCurve },
-        { kToneShaperFilterEnvAttackId, kPadTSFilterEnvAttack },
-        { kToneShaperFilterEnvDecayId, kPadTSFilterEnvDecay },
-        { kToneShaperFilterEnvSustainId, kPadTSFilterEnvSustain },
-        { kToneShaperFilterEnvReleaseId, kPadTSFilterEnvRelease },
-        { kUnnaturalModeStretchId, kPadModeStretch },
-        { kUnnaturalDecaySkewId, kPadDecaySkew },
-        { kUnnaturalModeInjectAmountId, kPadModeInjectAmount },
-        { kUnnaturalNonlinearCouplingId, kPadNonlinearCoupling },
-        { kMorphEnabledId, kPadMorphEnabled },
-        { kMorphStartId, kPadMorphStart },
-        { kMorphEndId, kPadMorphEnd },
-        { kMorphDurationMsId, kPadMorphDuration },
-        { kMorphCurveId, kPadMorphCurve },
-        { kChokeGroupId, kPadChokeGroup },
-        // Phase 8 (T074 / US7 / FR-065): Output Bus selector global proxy.
-        { kOutputBusId, kPadOutputBus },
-        // Phase 7: parallel noise layer + always-on click transient proxies.
-        { kNoiseLayerMixId, kPadNoiseLayerMix },
-        { kNoiseLayerCutoffId, kPadNoiseLayerCutoff },
-        { kNoiseLayerResonanceId, kPadNoiseLayerResonance },
-        { kNoiseLayerDecayId, kPadNoiseLayerDecay },
-        { kNoiseLayerColorId, kPadNoiseLayerColor },
-        { kClickLayerMixId, kPadClickLayerMix },
-        { kClickLayerContactMsId, kPadClickLayerContactMs },
-        { kClickLayerBrightnessId, kPadClickLayerBrightness },
-        // Phase 8A: per-mode damping law global proxies.
-        { kBodyDampingB1Id, kPadBodyDampingB1 },
-        { kBodyDampingB3Id, kPadBodyDampingB3 },
-        // Phase 8C: air-loading + per-mode scatter global proxies.
-        { kAirLoadingId,    kPadAirLoading },
-        { kModeScatterId,   kPadModeScatter },
-        // Phase 8D: head <-> shell coupling global proxies.
-        { kCouplingStrengthId,   kPadCouplingStrength },
-        { kSecondaryEnabledId,   kPadSecondaryEnabled },
-        { kSecondarySizeId,      kPadSecondarySize },
-        { kSecondaryMaterialId,  kPadSecondaryMaterial },
-        // Phase 8E: nonlinear tension modulation.
-        { kTensionModAmtId,      kPadTensionModAmt },
-        // Phase 8F: per-pad enable toggle.
-        { kPadEnabledId,         kPadEnabled },
-        // Phase 10: three-point pitch envelope extension.
-        { kPitchEnvKneeEnabledId, kPadTSPitchEnvKneeEnabled },
-        { kPitchEnvMidPitchId,    kPadTSPitchEnvMidPitch },
-        { kPitchEnvMidFractionId, kPadTSPitchEnvMidFraction },
-        { kPitchEnvCurve2Id,      kPadTSPitchEnvCurve2 },
-        // M-9: per-pad pan.
-        { kPadPanId,              kPadPan },
-        // Wire coupling.
-        { kWireCouplingId,        kPadWireCoupling },
-    };
-}
-
-// Build the offset -> global proxy ID map (mirrors controller.cpp's
-// kProxyMappings table). Any per-pad parameter at an offset present in this
-// map is reachable via the selected-pad proxy when the global ID is wired
-// into the editor.
+// The pad offsets that have a selected-pad proxy (controller/proxy_mappings.h).
+// A per-pad parameter at one of these offsets is reachable through the proxy
+// when the editor binds kSelectedPadId.
 std::set<int> proxiedOffsets()
 {
-    return {
-        kPadMaterial, kPadSize, kPadDecay, kPadStrikePosition, kPadLevel,
-        kPadExciterType, kPadBodyModel,
-        kPadFMRatio, kPadFeedbackAmount, kPadNoiseBurstDuration, kPadFrictionPressure,
-        kPadTSFilterType, kPadTSFilterCutoff, kPadTSFilterResonance, kPadTSFilterEnvAmount,
-        kPadTSDriveAmount, kPadTSFoldAmount,
-        kPadTSPitchEnvStart, kPadTSPitchEnvEnd, kPadTSPitchEnvTime, kPadTSPitchEnvCurve,
-        kPadTSFilterEnvAttack, kPadTSFilterEnvDecay, kPadTSFilterEnvSustain, kPadTSFilterEnvRelease,
-        kPadModeStretch, kPadDecaySkew, kPadModeInjectAmount, kPadNonlinearCoupling,
-        kPadMorphEnabled, kPadMorphStart, kPadMorphEnd, kPadMorphDuration, kPadMorphCurve,
-        kPadChokeGroup,
-        // Phase 8 (T074 / US7 / FR-065): Output Bus offset is now proxied.
-        kPadOutputBus,
-        // Phase 7: parallel noise layer + always-on click transient offsets.
-        kPadNoiseLayerMix, kPadNoiseLayerCutoff, kPadNoiseLayerResonance,
-        kPadNoiseLayerDecay, kPadNoiseLayerColor,
-        kPadClickLayerMix, kPadClickLayerContactMs, kPadClickLayerBrightness,
-        // Phase 8A: per-mode damping law offsets.
-        kPadBodyDampingB1, kPadBodyDampingB3,
-        // Phase 8C: air-loading + per-mode scatter offsets.
-        kPadAirLoading, kPadModeScatter,
-        // Phase 8D: head <-> shell coupling offsets.
-        kPadCouplingStrength, kPadSecondaryEnabled,
-        kPadSecondarySize, kPadSecondaryMaterial,
-        // Phase 8E: nonlinear tension modulation offset.
-        kPadTensionModAmt,
-        // Phase 8F: per-pad enable toggle offset.
-        kPadEnabled,
-        // Phase 10: three-point pitch envelope extension offsets.
-        kPadTSPitchEnvKneeEnabled, kPadTSPitchEnvMidPitch,
-        kPadTSPitchEnvMidFraction, kPadTSPitchEnvCurve2,
-        // M-9: per-pad pan offset.
-        kPadPan,
-        // Wire coupling offset.
-        kPadWireCoupling,
-    };
+    std::set<int> offsets;
+    for (const auto& mapping : kProxyMappings)
+        offsets.insert(mapping.padOffset);
+    return offsets;
 }
 
 int offsetOfPadParam(int paramId)
@@ -300,25 +186,21 @@ TEST_CASE("editor.uidesc reaches every registered parameter (SC-002)",
 
     const auto controlTagIds = extractControlTagIds(xml);
 
-    // Collect the set of offsets that are reachable as pad-0-anchored
-    // per-pad control-tags in the editor (e.g. tag=1037 -> pad 0 offset 37).
-    std::set<int> reachableOffsetsViaPerPadTag;
+    // MB-071: a control-tag in the per-pad range binds one pad's parameter,
+    // so the control edits and shows that pad whatever is selected.
     for (int tag : controlTagIds) {
-        const int off = offsetOfPadParam(tag);
-        if (off >= 0)
-            reachableOffsetsViaPerPadTag.insert(off);
+        INFO("control-tag value " << tag << " lies in the per-pad range");
+        CHECK_FALSE((tag >= kPadBaseId && tag < kPadBaseId + kNumPads * kPadParamStride));
     }
 
     const auto proxied = proxiedOffsets();
 
-    // Global proxy IDs: a global is reachable if its corresponding pad offset
-    // is reachable through any pad-anchored control-tag in the editor.
-    const auto proxyMap = globalProxyMap();
+    // Global proxy IDs: a global is reachable if the editor binds it.
     std::set<int> reachableGlobalProxyIds;
-    for (const auto& pair : proxyMap) {
-        if (reachableOffsetsViaPerPadTag.count(pair.padOffset) != 0 ||
-            controlTagIds.count(pair.globalId) != 0)
-            reachableGlobalProxyIds.insert(pair.globalId);
+    for (const auto& mapping : kProxyMappings) {
+        const auto globalId = static_cast<int>(mapping.globalId);
+        if (controlTagIds.count(globalId) != 0)
+            reachableGlobalProxyIds.insert(globalId);
     }
 
     const int paramCount = ctl.getParameterCount();
@@ -345,14 +227,10 @@ TEST_CASE("editor.uidesc reaches every registered parameter (SC-002)",
         if (reachableGlobalProxyIds.count(id) != 0)
             continue;
 
-        // Per-pad parameter: reachable via (a) any pad-anchored per-pad tag
-        // for the same offset, or (b) a global proxy control-tag whose
-        // offset matches, or (c) kSelectedPadId control-tag plus the
-        // offset being in the proxied set.
+        // Per-pad parameter: reachable through the kSelectedPadId
+        // control-tag plus the offset being in the proxied set.
         const int offset = offsetOfPadParam(id);
         if (offset >= 0) {
-            if (reachableOffsetsViaPerPadTag.count(offset) != 0)
-                continue;
             if (proxied.count(offset) != 0 &&
                 controlTagIds.count(kSelectedPadId) != 0)
                 continue;

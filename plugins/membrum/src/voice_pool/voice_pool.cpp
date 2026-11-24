@@ -123,6 +123,11 @@ void VoicePool::prepare(double sampleRate, int maxBlockSize) noexcept
         const auto vid = static_cast<std::uint32_t>(i);
         mainVoice(i).prepare(sampleRate_, vid);
         shadowVoice(i).prepare(sampleRate_, vid);
+        // T1.19: DrumVoice::prepare keeps active_, so a voice still ringing at
+        // a deactivate or re-prepare would render on as an uncounted ghost
+        // (meta_ is cleared below: no noteOff, no auto-release reaches it).
+        mainVoice(i).resetForKitSwitch();
+        shadowVoice(i).resetForKitSwitch();
 
         meta_[i]          = VoiceMeta{};
         releasingMeta_[i] = VoiceMeta{};
