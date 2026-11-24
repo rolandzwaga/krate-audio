@@ -371,29 +371,29 @@
       }
     },
     "Vorago": {
-      "version": "1.0.5",
+      "version": "1.0.6",
       "download_url": "https://krateaudio.com/vorago/",
       "release_notes": "",
-      "tag": "vorago/v1.0.5",
-      "pub_date": "2026-11-23T16:55:08Z",
+      "tag": "vorago/v1.0.6",
+      "pub_date": "2026-11-24T20:09:28Z",
       "channel": "stable",
-      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/vorago/v1.0.5",
+      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/vorago/v1.0.6",
       "description": "Dark-Ambient Drone Instrument",
-      "notes_markdown": "### Fixed\n\n- **Notes held by the latch or the sustain pedal kept sounding after a browser preset load** — Loading a preset from the preset browser only changed the controls; the sound engine's own load code never ran, so latched and sustained notes from the previous preset carried on into the new one. A browser load now runs the same code as a project reload: it releases those notes and resets sustain and channel pressure. Older presets and projects are also converted by one shared routine on both paths, so they load the same way from the browser and from the host.",
+      "notes_markdown": "### Fixed\n\n- **Opening the editor crashed Carla on Linux** *(shared editor)* — Carla hands a plugin its event loop only through the editor window, which left the GUI library without one, so opening the editor crashed the host. The editor now takes the event loop from its own window, keeps it working while several instances have their editors open, and lets go of it when the last editor closes. Hosts that worked before are unaffected.",
       "platforms": {
         "darwin-universal": {
-          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/vorago/v1.0.5/Vorago-1.0.5-macOS.pkg",
-          "size": 7531857,
-          "sha256": "345fc9529cb2758b4dee2f709c6d7dc1bda6311cfde666738904c1dbd8eb770d",
-          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+Tbrn2GEmKn+dvKBJVE3gNPQ85fsIBtfL18TI8ZbpLcNoO8qC6UHOfzGjCTbuVZrkHBbzXhqQI2Vccpxs0znOU+S6Aw=\ntrusted comment: krate:1:Vorago:1.0.5:darwin-universal:Vorago-1.0.5-macOS.pkg\n31MuZtfcXH25fozNSQgu0/lc9y9tqhgLesxbwOnh7pUcf5LSYhqsLRP2y2r2L77jH+QVYxeK3yfsnw6MoVLUBg==\n",
+          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/vorago/v1.0.6/Vorago-1.0.6-macOS.pkg",
+          "size": 7534800,
+          "sha256": "1f36df5598954883578d51cdf968630615507123c459d827802058a6a52d2ca3",
+          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+Tbrn964GVk9TeRTTqmR0pq+dKVjgsNY1ZQSFNlgLiI3eqTYoPUzZV9WYzFQ2496rNA48F0MN/gKSOLv8Bk6mee6uAM=\ntrusted comment: krate:1:Vorago:1.0.6:darwin-universal:Vorago-1.0.6-macOS.pkg\nC/6D7r5osC7J2olf2PIhw32zof2B43Ya/GDFwjIVNfE6DPdBIWaC/owLMAIbzNubJUoJbBZVky3uavsFTqLrAw==\n",
           "format": "pkg",
           "min_os": "26.5"
         },
         "linux-x86_64": {
-          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/vorago/v1.0.5/Vorago-1.0.5-Linux-x64.tar.gz",
-          "size": 1739464,
-          "sha256": "a96047d2c86f47aae39edac6e70ecbb228e056fcea03fa5ea9a067b8b96781ff",
-          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+Tbrn5Osg5ur9EJ9mQhBqC8XKcVFj2iVq5y9gjw9/oTvHZ7CYr1TVVZ06KsLWgAAXAJiTg9rZWmFQQjwVkJko3hDkw8=\ntrusted comment: krate:1:Vorago:1.0.5:linux-x86_64:Vorago-1.0.5-Linux-x64.tar.gz\nmBVDcq9/Ci0ujjdXszIR3A6uDYa0cGtB+NPy2skoe8MM3YETk+scj8mbDNhcCwQnEE2K3MZI0vKr/NVs3kIcDA==\n",
+          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/vorago/v1.0.6/Vorago-1.0.6-Linux-x64.tar.gz",
+          "size": 1744491,
+          "sha256": "f6a2ad8cd3760c04494f8867b3b07ae61a56d127404e5d1e8b69278d31d5fecb",
+          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+Tbrn4GTMwBY8ofY9gSyZTXSUtUICSwB8zBGnhNBQMk1uwRyjZRJgg8xvspr5BiPAs1PjCQ916BkPGH6lKz8zmBj9w4=\ntrusted comment: krate:1:Vorago:1.0.6:linux-x86_64:Vorago-1.0.6-Linux-x64.tar.gz\nUIXuvXaOORA4AjL1nicQERK1U2RRDXxcrg958tu9VG3QZomXZEWU5chQDfnrGWRgR+go3vE5GokoC70jZ93xDw==\n",
           "format": "tar.gz",
           "min_os": "2.38",
           "payload": {
@@ -402,10 +402,10 @@
           }
         },
         "windows-x86_64": {
-          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/vorago/v1.0.5/Vorago-1.0.5-Windows-x64.exe",
-          "size": 3564902,
-          "sha256": "23502f5f6a835597f6f41626086f80d3adeeb5b5adb8fd2e164b26d532be11e2",
-          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+TbrnxqR1hk0UbaU4bNZADUCwtXrcTbuQy8iMQUW0EmJR5aAevPKQprMIwnpzPwijW6fHlBCaMLRSbPRiODrKPm7KgE=\ntrusted comment: krate:1:Vorago:1.0.5:windows-x86_64:Vorago-1.0.5-Windows-x64.exe\n5iykNmcLaxRZk2csbkWrAfuo+Tv6wHa2FBNdt+bRXHQpI3Tzkjp0Pn+3n48lOrgqE45Di6W1CpVFwdNkjFrjBA==\n",
+          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/vorago/v1.0.6/Vorago-1.0.6-Windows-x64.exe",
+          "size": 3565475,
+          "sha256": "04c3ff228f061ebd93df380b7c217517db3e468b541203fb44e7d725de072a36",
+          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+Tbrn/Our429vCQAM74lhajZYKlbkquGWeLHXAWtxqhHErN2ns4FWM3i10mjdoAgYHi5BLRZxmNtNcG/nWJCWIRLjwk=\ntrusted comment: krate:1:Vorago:1.0.6:windows-x86_64:Vorago-1.0.6-Windows-x64.exe\n5yDoqchWWae8OEpKRNaxXJ3AeRXd/i7yO9aGiYrCFv2FlU1NRQWuszBLT/VtE1zxCOvFsXPmEdAlUZ9uyvN1Bg==\n",
           "format": "inno-exe"
         }
       },
