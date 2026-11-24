@@ -51,11 +51,13 @@ struct NoiseBurstExciter
         noise_.setColor(Krate::DSP::NoiseColor::Violet);
         noise_.setSeed(0xB357u ^ voiceId);
         filter_.prepare(sampleRate);
-        // Bandpass so velocity maps to a narrow resonance that shifts the
-        // spectral-centroid strongly with velocity (FR-016/SC-004) while
-        // keeping the overall brightness higher than a lowpass impulse burst
-        // (US1-3).
-        filter_.setMode(Krate::DSP::SVFMode::Bandpass);
+        // Lowpass (Q 2, a mild resonant peak at the cutoff): the response this
+        // exciter has always shipped with. It used to request Bandpass, but the
+        // shared SVF's snapToTarget() restored the prepare-time Lowpass mix on
+        // every trigger (MB-273), so every hit ran through this Lowpass. Kept
+        // so the factory kits stay bit-identical (user ruling T1.26, option A);
+        // the velocity-driven cutoff still moves the centroid (FR-016/SC-004).
+        filter_.setMode(Krate::DSP::SVFMode::Lowpass);
         filter_.setResonance(2.0f);
         filter_.setCutoff(2000.0f);
         filter_.snapToTarget();
@@ -99,7 +101,7 @@ struct NoiseBurstExciter
         decayK_ = 6.9078f / static_cast<float>(decaySamples);
         sampleIdx_ = 0;
 
-        // Bandpass center: velocity 0.23 → ~1200 Hz, velocity 1.0 → ~8000 Hz.
+        // Lowpass cutoff: velocity 0.23 → ~1400 Hz, velocity 1.0 → 9600 Hz.
         // Wide range ensures the centroid ratio clears the SC-004 threshold
         // (≥ 2.0) and the overall centroid beats an Impulse transient.
         const float cutoff = 800.0f * std::pow(12.0f, velocity); // 800 → 9600

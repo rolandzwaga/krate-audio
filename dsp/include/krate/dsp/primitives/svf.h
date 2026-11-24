@@ -649,6 +649,16 @@ private:
                 m2_ = 1.0f;
                 break;
         }
+
+        // With smoothing off nothing ramps, so the targets are the live mix.
+        // Otherwise they keep the mix of the mode current at prepare(), and
+        // snapToTarget() or a later enableSmoothing(true) plays that mode
+        // (MB-273: Membrum's Bandpass exciter filters ran as Lowpass).
+        if (!smoothingEnabled_) {
+            m0Target_ = m0_;
+            m1Target_ = m1_;
+            m2Target_ = m2_;
+        }
     }
 
     /// @brief Compute mix coefficient targets for the current mode and k value.

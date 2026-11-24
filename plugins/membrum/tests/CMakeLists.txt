@@ -31,6 +31,7 @@ add_executable(membrum_tests
     unit/exciters/test_fm_impulse_exciter.cpp
     unit/exciters/test_feedback_exciter.cpp
     unit/exciters/test_velocity_mapping.cpp
+    unit/exciters/test_exciter_filter_mode.cpp
 
     # Phase 2: body tests
     unit/bodies/test_membrane_body.cpp

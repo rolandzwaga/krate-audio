@@ -2187,5 +2187,148 @@ TEST_CASE("SVF LP: snapToTarget() handles extreme cutoff jumps on retrigger",
 }
 
 // ==============================================================================
+// MB-273: with smoothing off, the mix targets follow the live mix
+// ==============================================================================
+// snapToTarget() copies the mix targets into the live mix. With smoothing off,
+// setMode / setResonance / setGain / setCutoff updated only the live mix, so
+// the targets kept the mix of the mode current at prepare() and the snap
+// played that mode instead (Membrum's Bandpass NoiseBurst and Clap ran as
+// Lowpass). The reference filter is configured before prepare(), which
+// computes every coefficient and every target from the final settings.
+
+namespace {
+
+struct SnapTestSettings {
+    SVFMode mode = SVFMode::Lowpass;
+    float q = SVF::kButterworthQ;
+    float gainDb = 0.0f;
+    float cutoffHz = 1000.0f;
+};
+
+std::vector<float> makeSnapTestNoise(size_t numSamples) {
+    std::mt19937 rng(0x5EEDu);
+    std::uniform_real_distribution<float> dist(-1.0f, 1.0f);
+    std::vector<float> noise(numSamples);
+    for (auto& s : noise) {
+        s = dist(rng);
+    }
+    return noise;
+}
+
+void configureBeforePrepare(SVF& filter, const SnapTestSettings& s) {
+    filter.setMode(s.mode);
+    filter.setResonance(s.q);
+    filter.setGain(s.gainDb);
+    filter.setCutoff(s.cutoffHz);
+    filter.prepare(kTestSampleRate);
+}
+
+/// Runs the same input through both filters; max |a - b| from compareFrom on.
+float maxAbsDiffThrough(SVF& a, SVF& b, const std::vector<float>& input,
+                        size_t compareFrom) {
+    float maxDiff = 0.0f;
+    for (size_t i = 0; i < input.size(); ++i) {
+        const float diff = std::abs(a.process(input[i]) - b.process(input[i]));
+        if (i >= compareFrom) {
+            maxDiff = std::max(maxDiff, diff);
+        }
+    }
+    return maxDiff;
+}
+
+}  // namespace
+
+TEST_CASE("SVF: with smoothing off, snapToTarget keeps the mix of the current mode",
+          "[primitives][svf]") {
+    constexpr size_t kNumSamples = 2048;
+    constexpr float kTolerance = 1e-6f;
+    const std::vector<float> noise = makeSnapTestNoise(kNumSamples);
+
+    SECTION("a mode change, for each of the eight modes") {
+        for (const SVFMode mode : {SVFMode::Lowpass, SVFMode::Highpass, SVFMode::Bandpass,
+                                   SVFMode::Notch, SVFMode::Allpass, SVFMode::Peak,
+                                   SVFMode::LowShelf, SVFMode::HighShelf}) {
+            const SnapTestSettings s{.mode = mode, .q = 2.0f, .gainDb = 6.0f,
+                                     .cutoffHz = 1500.0f};
+            SVF reference;
+            configureBeforePrepare(reference, s);
+
+            SVF underTest;
+            underTest.prepare(kTestSampleRate);  // Lowpass at prepare time
+            underTest.setMode(s.mode);
+            underTest.setResonance(s.q);
+            underTest.setGain(s.gainDb);
+            underTest.setCutoff(s.cutoffHz);
+            underTest.snapToTarget();
+
+            const float diff = maxAbsDiffThrough(reference, underTest, noise, 0);
+            INFO("mode " << static_cast<int>(mode) << ": max abs diff " << diff);
+            CHECK(diff <= kTolerance);
+        }
+    }
+
+    SECTION("a Q change in Bandpass and in Allpass") {
+        for (const SVFMode mode : {SVFMode::Bandpass, SVFMode::Allpass}) {
+            const SnapTestSettings s{.mode = mode, .q = 4.0f, .gainDb = 0.0f,
+                                     .cutoffHz = 1500.0f};
+            SVF reference;
+            configureBeforePrepare(reference, s);
+
+            SVF underTest;
+            underTest.setMode(mode);
+            underTest.setCutoff(s.cutoffHz);
+            underTest.prepare(kTestSampleRate);  // targets carry Q = 0.707
+            underTest.setResonance(s.q);
+            underTest.snapToTarget();
+
+            const float diff = maxAbsDiffThrough(reference, underTest, noise, 0);
+            INFO("mode " << static_cast<int>(mode) << ": max abs diff " << diff);
+            CHECK(diff <= kTolerance);
+        }
+    }
+
+    SECTION("a gain change in Peak, LowShelf and HighShelf") {
+        for (const SVFMode mode : {SVFMode::Peak, SVFMode::LowShelf, SVFMode::HighShelf}) {
+            const SnapTestSettings s{.mode = mode, .q = SVF::kButterworthQ, .gainDb = 9.0f,
+                                     .cutoffHz = 1500.0f};
+            SVF reference;
+            configureBeforePrepare(reference, s);
+
+            SVF underTest;
+            underTest.setMode(mode);
+            underTest.setCutoff(s.cutoffHz);
+            underTest.prepare(kTestSampleRate);  // targets carry 0 dB
+            underTest.setGain(s.gainDb);
+            underTest.snapToTarget();
+
+            const float diff = maxAbsDiffThrough(reference, underTest, noise, 0);
+            INFO("mode " << static_cast<int>(mode) << ": max abs diff " << diff);
+            CHECK(diff <= kTolerance);
+        }
+    }
+
+    SECTION("setMode(Bandpass) with smoothing off, then enableSmoothing(true)") {
+        constexpr size_t kSettle = 4096;
+        const std::vector<float> longNoise = makeSnapTestNoise(kSettle + kNumSamples);
+        const SnapTestSettings s{.mode = SVFMode::Bandpass, .q = 2.0f, .gainDb = 0.0f,
+                                 .cutoffHz = 1500.0f};
+        SVF reference;
+        configureBeforePrepare(reference, s);
+        reference.enableSmoothing(true);
+
+        SVF underTest;
+        underTest.setResonance(s.q);
+        underTest.setCutoff(s.cutoffHz);
+        underTest.prepare(kTestSampleRate);  // Lowpass at prepare time
+        underTest.setMode(SVFMode::Bandpass);
+        underTest.enableSmoothing(true);
+
+        const float diff = maxAbsDiffThrough(reference, underTest, longNoise, kSettle);
+        INFO("max abs diff after " << kSettle << " samples: " << diff);
+        CHECK(diff <= kTolerance);
+    }
+}
+
+// ==============================================================================
 // End of SVF Tests
 // ==============================================================================

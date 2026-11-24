@@ -9,10 +9,10 @@
 // room tail. This exciter models the burst TRAIN (the classic TR-808/909 comb
 // re-trigger); the diffuse tail is supplied downstream by the voice's parallel
 // NoiseLayer. Signal path per sample:
-//   NoiseOscillator (White) -> summed 4-burst raised-cosine/exp envelope -> SVF Bandpass
+//   NoiseOscillator (White) -> summed 4-burst raised-cosine/exp envelope -> SVF Lowpass
 //
 // Burst timing is FIXED (velocity-independent) so the "clap" rhythm is stable
-// across dynamics; velocity scales amplitude and shifts the bandpass center for
+// across dynamics; velocity scales amplitude and raises the lowpass cutoff for
 // the harder-hit "sharper crack". Onsets carry a mild non-uniform jitter
 // (spacings 10/11/12 ms) so the train is aperiodic, not a buzzy comb.
 //
@@ -59,8 +59,13 @@ struct ClapExciter
         noise_.setColor(Krate::DSP::NoiseColor::White);
         noise_.setSeed(0xC1A9u ^ voiceId);
         filter_.prepare(sampleRate);
-        filter_.setMode(Krate::DSP::SVFMode::Bandpass);
-        filter_.setResonance(1.0f);   // gentle single hump (Q~1); NOT ringing
+        // Lowpass at Q 1: the response this exciter has always shipped with. It
+        // used to request Bandpass, but the shared SVF's snapToTarget()
+        // restored the prepare-time Lowpass mix on every trigger (MB-273), so
+        // every hit ran through this Lowpass. Kept so the factory kits stay
+        // bit-identical (user ruling T1.26, option A).
+        filter_.setMode(Krate::DSP::SVFMode::Lowpass);
+        filter_.setResonance(1.0f);   // gentle, no ringing peak (Q~1)
         filter_.setCutoff(1600.0f);
         filter_.snapToTarget();
         reset();
@@ -107,7 +112,7 @@ struct ClapExciter
         // Velocity: overall amplitude 0.2 (soft) -> 1.0 (hard).
         amplitude_ = 0.2f + 0.8f * velocity;
 
-        // Brightness rises with velocity: bandpass center 1200 -> 2200 Hz. (Real
+        // Brightness rises with velocity: lowpass cutoff 1200 -> 2200 Hz. (Real
         // 909/hand-clap spectra peak ~1.5-2.5 kHz -- a darker band reads as a
         // muffled thud and drags the whole-render centroid below the test-3 gate.)
         const float cutoff = 1200.0f + 1000.0f * velocity;
