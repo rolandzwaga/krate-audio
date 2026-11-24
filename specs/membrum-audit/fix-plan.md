@@ -194,6 +194,7 @@ One row per verified finding (259), in report order: critical, high, medium, low
 | MB-258 | Physics (contradicted): Cross-pad coupling makes idle drums ring in sympathy ('kick makes snare wires buzz', Snare Buzz / Tom Resonance route energy through a category matrix into other pads' excitation) | high | CONFIRMED | T4.1 | 4 |
 | MB-260 | FMImpulse strike normalisation is measured only at velocity 1.0, but the FM carrier frequency moves with velocity: on Bell bodies a vel-100 hit lands up to 3.7x (+11.3 dB) over the body budget and reaches the limiter (Glass Bell Garden 46, Latin Perc 46, LinnDrum CR-78 40) | high | CONFIRMED | T1.18 | 1 |
 | MB-265 | Tone-shaper filter is nearly dead on any voice slot whose last filtered state was open: the SVF g-smoother takes 20-55 ms (not 5 ms) to come down, so a hat at LP 317 Hz plays 46 dB louder on a fresh slot than on a warm one | high | CONFIRMED | T1.15 | 1 |
+| MB-273 | Shared SVF with smoothing off: setMode / setGain / setResonance after prepare() leave the mix targets stale, and snapToTarget() restores them, so NoiseBurst, Clap and Friction hits run through the Lowpass mix instead of their Bandpass (found by the T1.5 implementer, 2026-11-24; not in report.md) | high | CONFIRMED | T1.26 | 1 |
 | MB-109 | Body-damping default is written four different ways; factory kits store explicit B1/B3 on 429 of 459 pads, so Decay does not change the modal ring | high | PLAUSIBLE | T1.23 | 1 |
 | MB-005 | Each voice steal or choke does std::swap of two 270 KB DrumVoice objects: a 270 KB temporary on the audio-thread stack and about 0.8 MB of copying per swap | medium | CONFIRMED | T2.5 | 2 |
 | MB-006 | AuditionPad and AuditionPadOff share one atomic word, so a pad press and release between two audio blocks overwrite each other | medium | CONFIRMED | T2.4 | 2 |
@@ -1692,6 +1693,84 @@ The new case is green; the existing `[voice_management]` cases (`unit/controller
 **4. Acceptance**
 
 All five new cases are green, and the existing `[xy_morph_pad]` and Ruinae editor cases stay green. Before: after a vertical drag `kMorphEndId`, the per-pad `kPadMorphEnd` and pad-preset slot 25 kept their old value and the cursor ignored pad switches; after: all three equal the dragged Y and the cursor shows the selected pad's values within one refresh.
+
+### T1.26 — Shared SVF: with smoothing off, snapToTarget() restores a stale mode mix, so Membrum's Bandpass exciter filters run as Lowpass
+
+**Findings:** MB-273 (high, CONFIRMED by code reading in the main loop, 2026-11-24). Not in `report.md`: the T1.5 implementer found it, and the user ruled on 2026-11-24 to add it as a task after the rest of phase 1. This section is its evidence.
+
+**Flags:** CROSS-PLUGIN IMPACT, PRESET-IMPACT.
+
+**Prerequisites:** T1.15 (the tone-shaper SVF fix, MB-265: the same class, and its tests read the SVF smoother).
+
+**Estimate:** 300 minutes.
+
+**What is wrong today** (anchors read at `6f35ea4d`):
+
+- `dsp/include/krate/dsp/primitives/svf.h`:
+  - `prepare()` (`:161-176`) sets the mix targets `m0Target_` / `m1Target_` / `m2Target_` to the mix of the mode current at that moment.
+  - With smoothing off (the default), these calls update the live mix `m0_` / `m1_` / `m2_` but never the targets:
+    - `setMode()` (`:188-195`) and `setGain()` (`:261-270`) call `updateMixCoefficients()` directly.
+    - `setCutoff()` and `setResonance()` (`:204-229`) reach it through `updateCoefficients()` → `updateDerivedCoefficients()` (`:469-486`).
+  - `snapToTarget()` (`:309-318`) copies the stale targets into the live mix and does not recompute it from `mode_`.
+  - Result: after a mode change made after `prepare()` (or a Q or gain change in a mode whose mix depends on `k_` or `A_`: Bandpass `m1 = k`, Allpass, Peak, the shelves), `snapToTarget()` plays the old mode's mix. It stays that way until the next `setCutoff` / `setResonance` / `setGain` / `reset`.
+  - `enableSmoothing(true)` after such a change ramps the mix toward the stale target as well.
+  - `reset()` (`:277-287`) is not affected: `updateDerivedCoefficients()` recomputes the mix from `mode_`.
+- Membrum, where this is audible on every hit. In each of these, `prepare` calls `setMode(Bandpass)` after `filter.prepare()`, and every trigger calls `setCutoff` and then `snapToTarget()`, so every hit runs through the Lowpass mix (m0 0, m1 0, m2 1):
+  - `NoiseBurstExciter`: `exciters/noise_burst_exciter.h:53-61`, `:106-107`.
+  - `ClapExciter`: `exciters/clap_exciter.h:62-65`, `:115`.
+  - `FrictionExciter` body filter: `exciters/friction_exciter.h:47-50`, `:88`.
+  - Not affected as far as the main loop read; confirm before relying on it:
+    - `NoiseLayer` (`noise_layer.h:47`) and `ClickLayer` (`click_layer.h:49`) set Bandpass but never call `snapToTarget`.
+    - `FeedbackExciter` uses Lowpass, which is the prepare-time default.
+    - `ToneShaper` enables smoothing, so its targets are computed.
+- Other plugins: `snapToTarget()` appears in about 40 headers under `dsp/include` and `plugins/` (not all of them on an SVF). Every SVF user that changes mode, Q or gain after `prepare()` with smoothing off and then calls `snapToTarget()`, or enables smoothing later, has the same defect.
+
+**1. Failing tests**
+
+- `dsp_primitives_tests`, in the existing SVF test file (`grep -rl "SVF" dsp/tests/unit/primitives`): `TEST_CASE("SVF: with smoothing off, snapToTarget keeps the mix of the current mode", "[primitives][svf]")`.
+  - Reference: an SVF configured with the same mode, Q, gain and cutoff before `prepare()`.
+  - Under test: an SVF prepared first in Lowpass, then configured, then `snapToTarget()`.
+  - Render the same 2048-sample noise through both and assert max abs diff <= 1e-6.
+  - SECTIONs:
+    - a mode change for each of the eight modes;
+    - a Q change in Bandpass and in Allpass;
+    - a gain change in Peak, LowShelf and HighShelf;
+    - `setMode(Bandpass)` with smoothing off, then `enableSmoothing(true)`, compared after 4096 samples.
+  - Red today: every non-Lowpass SECTION, and the Q and gain SECTIONs.
+- `membrum_tests`: `TEST_CASE("NoiseBurst, Clap and Friction exciters band-limit their burst around the filter centre", "[exciter][svf]")`.
+  - Per exciter, render one hit at 48 kHz.
+  - Measure the energy in a band an octave around the exciter's own cutoff against the energy below cutoff / 8.
+  - Assert the difference is at least the response of a 2-pole Bandpass at the exciter's Q at those frequencies, minus 6 dB. Compute it from the SVF formula in the test and print it.
+  - Red today: the Lowpass passes the low band at 0 dB.
+
+**2. Fix**
+
+- `svf.h` only:
+  - With smoothing off, keep the mix targets equal to the live mix wherever the live mix is recomputed (the smoothing-off branches of `setMode`, `setGain`, `setCutoff` and `setResonance`, or once inside `updateMixCoefficients()` behind `!smoothingEnabled_`).
+  - Smoothing-on behaviour stays byte-identical; the SVF tests for smoothing on must not move.
+  - Do not change `snapToTarget()`'s contract; correct its doc comment if it is wrong.
+- Before the edit, list every consumer:
+  - `node tools/header-consumers.js --tag '[membrum]' dsp/include/krate/dsp/primitives/svf.h` (expect most executables).
+  - `grep -rn "snapToTarget\|enableSmoothing" dsp/include plugins --include=*.h` restricted to SVF members.
+  - For each SVF site that changes mode, Q or gain after `prepare()` with smoothing off, write in the commit message whether its sound changes.
+
+**3. Build and gate**
+
+- Build and gate every executable `header-consumers.js` names, with `~[long]~[.]` appended to the filter.
+- PRESET-IMPACT, Membrum:
+  - The kit-quality before/after table goes into `preset_table`.
+  - The audible change (NoiseBurst, Clap and Friction pads become band-limited, as designed) is the finding's purpose, so it is collected under the standing ruling.
+- Other plugins:
+  - Any render, golden or approval test of another plugin that moves is a sound change outside Membrum. Stop with `ruling_needed` naming the plugin, the test and the measured difference.
+  - Never re-baseline another plugin's golden without a ruling.
+- pluginval for Membrum and for every plugin whose output changed. clang-tidy `-Target dsp` and `-Target membrum`.
+
+**4. Acceptance**
+
+- Both new cases are green.
+- The SVF smoothing-on tests are unchanged.
+- Before: NoiseBurst, Clap and Friction hits ran through the Lowpass mix. After: Bandpass, matching the reference SVF within 1e-6.
+- The commit message lists every SVF consumer site and whether its sound changed.
 
 ## Phase 2 — Medium and low defects
 
