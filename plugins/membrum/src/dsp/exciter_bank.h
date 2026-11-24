@@ -74,7 +74,6 @@ public:
     /// operator wavetables here, Impulse / Mallet size their comb delay).
     void prepare(double sampleRate, std::uint32_t voiceId) noexcept
     {
-        sampleRate_ = sampleRate;
         voiceId_    = voiceId;
         // Start every alternative from its constructed state, so each is
         // prepared exactly once, as a freshly swapped-in alternative used to
@@ -237,11 +236,10 @@ private:
         // allocating: an alternative with restart() re-seeds what its reset()
         // keeps (Impulse / Mallet: the ImpactExciter RNG); every other
         // alternative's reset() already restores its full post-prepare state.
-        const double sr        = sampleRate_;
         const std::uint32_t vid = voiceId_;
-        dispatch([sr, vid](auto& e) noexcept {
-            if constexpr (requires { e.restart(sr, vid); })
-                e.restart(sr, vid);
+        dispatch([vid](auto& e) noexcept {
+            if constexpr (requires { e.restart(vid); })
+                e.restart(vid);
             else
                 e.reset();
         });
@@ -254,7 +252,6 @@ private:
     Alternatives alternatives_{};
     ExciterType  currentType_ = ExciterType::Impulse;
     ExciterType  pendingType_ = ExciterType::Impulse;
-    double       sampleRate_  = 44100.0;
     float        pendingNoiseBurstContactNorm_ = 0.5f;  // Phase 7: cached across swaps.
     // Secondary exciter params, cached across swaps. Defaults reproduce the
     // historical hardcoded values: FM ratio 1.4 (norm 0.13333), feedback and

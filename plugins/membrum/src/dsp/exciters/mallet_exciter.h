@@ -51,10 +51,9 @@ struct MalletExciter
     /// Re-arm to the post-prepare state when ExciterBank selects this type
     /// again (audio thread); see ImpulseExciter::restart. The body-size hint
     /// is a host parameter and is kept.
-    void restart(double sampleRate, std::uint32_t voiceId) noexcept
+    void restart(std::uint32_t voiceId) noexcept
     {
-        core_.prepare(sampleRate, voiceId);
-        core_.reset();
+        core_.restart(voiceId);
     }
 
     /// D4 (06-orchestralKit-fix-plan.md): body-size contact hint. The fixed

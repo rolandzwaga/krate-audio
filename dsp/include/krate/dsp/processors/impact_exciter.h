@@ -104,6 +104,17 @@ public:
         combDelay_.reset();
     }
 
+    /// Return to the state prepare() leaves: re-seed the RNG for @p voiceId and
+    /// clear all internal state. Sizes no buffer and allocates nothing, so it
+    /// is real-time safe once prepare() has run. reset() alone keeps the RNG
+    /// position; trigger() sets every per-hit value (cutoff, comb delay, pulse
+    /// shape), so the next hit renders like a freshly prepared instance's.
+    void restart(uint32_t voiceId) noexcept
+    {
+        rng_.seed(voiceId);
+        reset();
+    }
+
     // =========================================================================
     // Triggering
     // =========================================================================

@@ -17,6 +17,8 @@
 
 #include <krate/dsp/processors/impact_exciter.h>
 
+#include <allocation_detector.h>
+
 #include <algorithm>
 #include <chrono>
 #include <cmath>
@@ -262,6 +264,51 @@ TEST_CASE("ImpactExciter reset clears active state", "[processors][impact_excite
     // All subsequent process() calls return 0
     for (int i = 0; i < 100; ++i) {
         REQUIRE(exciter.process(0.0f) == Approx(0.0f).margin(1e-10f));
+    }
+}
+
+TEST_CASE("ImpactExciter restart renders like a freshly prepared instance and allocates nothing",
+          "[processors][impact_exciter][rt-safety]")
+{
+    // Hardness 0.9 draws the bounce randomisation and position 0.13 runs the
+    // comb, so every piece of state prepare() sets is exercised.
+    constexpr std::uint32_t kVoiceId = 7u;
+    constexpr float kVel = 0.8f, kHard = 0.9f, kMass = 0.3f, kBright = 0.0f,
+                    kPos = 0.13f, kF0 = 220.0f;
+
+    Krate::DSP::ImpactExciter fresh;
+    fresh.prepare(kSampleRate, kVoiceId);
+    const auto reference = generateExciterBlock(fresh, kVel, kHard, kMass, kBright, kPos, kF0);
+
+    Krate::DSP::ImpactExciter used;
+    used.prepare(kSampleRate, kVoiceId);
+    (void)generateExciterBlock(used, 0.5f, 0.7f, 0.6f, 0.5f, 0.4f, 110.0f);
+    (void)generateExciterBlock(used, 1.0f, 1.0f, 0.1f, -0.5f, 0.2f, 330.0f);
+
+    SECTION("reset() alone keeps the RNG position (control: the restart is needed)")
+    {
+        used.reset();
+        const auto out = generateExciterBlock(used, kVel, kHard, kMass, kBright, kPos, kF0);
+        float maxDiff = 0.0f;
+        for (size_t i = 0; i < out.size(); ++i)
+            maxDiff = std::max(maxDiff, std::abs(out[i] - reference[i]));
+        CHECK(maxDiff > 1e-4f);
+    }
+
+    SECTION("restart() returns to the post-prepare state without allocating")
+    {
+        std::vector<float> out(reference.size(), 0.0f);
+        {
+            TestHelpers::AllocationScope scope;
+            used.restart(kVoiceId);
+            used.trigger(kVel, kHard, kMass, kBright, kPos, kF0);
+            used.processBlock(out.data(), static_cast<int>(out.size()));
+            CHECK(scope.getAllocationCount() == 0);
+        }
+        float maxDiff = 0.0f;
+        for (size_t i = 0; i < out.size(); ++i)
+            maxDiff = std::max(maxDiff, std::abs(out[i] - reference[i]));
+        CHECK(maxDiff <= 1e-6f);
     }
 }
 

@@ -33,14 +33,11 @@ struct ImpulseExciter
     }
 
     /// Re-arm to the post-prepare state when ExciterBank selects this type
-    /// again (audio thread). reset() keeps the RNG position, and
-    /// ImpactExciter::prepare is the only call that re-seeds it; at the rate
-    /// prepare() already sized the comb delay for, its DelayLine::prepare
-    /// resizes to the same size and allocates nothing.
-    void restart(double sampleRate, std::uint32_t voiceId) noexcept
+    /// again (audio thread): ImpactExciter::restart re-seeds the RNG that
+    /// reset() keeps, and allocates nothing.
+    void restart(std::uint32_t voiceId) noexcept
     {
-        core_.prepare(sampleRate, voiceId);
-        core_.reset();
+        core_.restart(voiceId);
     }
 
     void trigger(float velocity) noexcept
