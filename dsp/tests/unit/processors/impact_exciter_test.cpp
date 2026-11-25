@@ -1599,3 +1599,54 @@ TEST_CASE("ImpactExciter output has broadband energy across 0-8 kHz (FR-036)",
     REQUIRE(band3 / totalPower > 0.001f);  // Some energy in 4-6 kHz
     REQUIRE(band4 / totalPower > 0.0005f); // Some energy in 6-8 kHz
 }
+
+// =============================================================================
+// MB-022 (membrum audit T2.22): the SVF rings out after the pulse
+// =============================================================================
+
+TEST_CASE("ImpactExciter rings its lowpass out after the pulse instead of truncating it",
+          "[processors][impact_exciter]")
+{
+    // The arguments MalletExciter::trigger passes at velocity 0.1 with body-size
+    // hint 0.1: hardness 0.1 + 0.5 x 0.1, brightness -0.5 + 0.3 x 0.1, mass
+    // 0.3 x 0.2^3. The ~1.8 ms pulse is far shorter than the lag of its ~950 Hz
+    // lowpass, so the filter is mid-swing when the pulse ends.
+    constexpr int kNumSamples = 4096;
+    Krate::DSP::ImpactExciter exciter;
+    exciter.prepare(kSampleRate, 0);
+    exciter.trigger(0.1f, 0.15f, 0.0024f, -0.47f, 0.0f, 0.0f);
+
+    std::vector<float> out(static_cast<size_t>(kNumSamples), 0.0f);
+    int firstInactive = -1;
+    for (int i = 0; i < kNumSamples; ++i) {
+        out[static_cast<size_t>(i)] = exciter.process(0.0f);
+        if (firstInactive < 0 && !exciter.isActive())
+            firstInactive = i;
+    }
+
+    float peak = 0.0f;
+    int lastNonZero = -1;
+    int lastLoud = -1;
+    for (int i = 0; i < kNumSamples; ++i) {
+        const float a = std::abs(out[static_cast<size_t>(i)]);
+        peak = std::max(peak, a);
+        if (a > 0.0f)
+            lastNonZero = i;
+        if (a >= 1e-6f)
+            lastLoud = i;
+    }
+    REQUIRE(peak > 0.0f);
+    REQUIRE(lastNonZero >= 0);
+
+    const float ratio = std::abs(out[static_cast<size_t>(lastNonZero)]) / peak;
+    INFO("peak " << peak << ", last non-zero sample " << lastNonZero << " = "
+         << out[static_cast<size_t>(lastNonZero)] << ", ratio " << ratio
+         << ", last sample >= 1e-6 at " << lastLoud << ", first inactive at "
+         << firstInactive);
+    CHECK(ratio < 0.01f);
+
+    // Active until the output has fallen below 1e-6, and inactive by the end.
+    CHECK(firstInactive > lastLoud);
+    CHECK(firstInactive >= 0);
+    CHECK_FALSE(exciter.isActive());
+}

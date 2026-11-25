@@ -99,6 +99,8 @@ public:
         energy_ = 0.0f;
         pinkState_ = 0.0f;
         attackRampCounter_ = 0;
+        ringing_ = false;
+        quietSamples_ = 0;
 
         svf_.reset();
         combDelay_.reset();
@@ -157,6 +159,10 @@ public:
         pulseSamplesTotal_ = std::max(1, static_cast<int>(T * static_cast<float>(sampleRate_)));
         pulseSampleCounter_ = 0;
         pulseActive_ = true;
+
+        // A new hit ends the ring-out of the previous one (MB-022).
+        ringing_ = false;
+        quietSamples_ = 0;
 
         // FR-033: Attack ramp resets from zero on every trigger
         attackRampCounter_ = 0;
@@ -233,11 +239,15 @@ public:
     // =========================================================================
 
     /// Generate one sample of excitation signal.
+    /// After the pulse (and any bounce) ends, the SVF and the comb ring out
+    /// with zero input until the output stays below 1e-6 (-120 dBFS) for 64
+    /// samples plus the comb delay; only then does it return 0 and report
+    /// inactive (MB-022). The ring-out draws no RNG values.
     /// @param feedbackVelocity Resonator feedback velocity (unused by impact model,
     ///        accepted for unified exciter interface FR-016).
     [[nodiscard]] float process(float /*feedbackVelocity*/) noexcept
     {
-        if (!pulseActive_ && !bounceActive_)
+        if (!pulseActive_ && !bounceActive_ && !ringing_)
             return 0.0f;
 
         float output = 0.0f;
@@ -265,8 +275,11 @@ public:
 
             // Advance counter
             ++pulseSampleCounter_;
-            if (pulseSampleCounter_ >= pulseSamplesTotal_)
+            if (pulseSampleCounter_ >= pulseSamplesTotal_) {
                 pulseActive_ = false;
+                if (!bounceActive_)
+                    ringing_ = true;
+            }
         }
 
         // -- Micro-bounce --
@@ -280,8 +293,11 @@ public:
                 output += bounceSample;
 
                 ++bounceSampleCounter_;
-                if (bounceSampleCounter_ >= bounceSamplesTotal_)
+                if (bounceSampleCounter_ >= bounceSamplesTotal_) {
                     bounceActive_ = false;
+                    if (!pulseActive_)
+                        ringing_ = true;
+                }
             }
         }
 
@@ -311,6 +327,20 @@ public:
             output *= gain;
         }
 
+        // MB-022: ring-out ends once the output (comb's delayed copy included)
+        // has stayed below 1e-6 for 64 + combDelaySamples_ samples.
+        if (ringing_) {
+            if (std::abs(output) < 1e-6f) {
+                ++quietSamples_;
+                if (quietSamples_ >= 64 + combDelaySamples_) {
+                    ringing_ = false;
+                    return 0.0f;
+                }
+            } else {
+                quietSamples_ = 0;
+            }
+        }
+
         return output;
     }
 
@@ -328,7 +358,7 @@ public:
     // =========================================================================
 
     [[nodiscard]] bool isPrepared() const noexcept { return prepared_; }
-    [[nodiscard]] bool isActive() const noexcept { return pulseActive_ || bounceActive_; }
+    [[nodiscard]] bool isActive() const noexcept { return pulseActive_ || bounceActive_ || ringing_; }
 
 private:
     // -- Configuration --
@@ -376,6 +406,10 @@ private:
     // -- Attack ramp (FR-033) --
     int attackRampSamples_ = 1;
     int attackRampCounter_ = 0;
+
+    // -- Filter ring-out after the pulse (MB-022) --
+    bool ringing_ = false;
+    int quietSamples_ = 0;
 };
 
 } // namespace Krate::DSP

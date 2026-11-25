@@ -18,8 +18,11 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include "dsp/exciters/mallet_exciter.h"
+#include "exciter_test_helpers.h"
 
+#include <algorithm>
 #include <cmath>
+#include <cstddef>
 #include <vector>
 
 namespace {
@@ -105,4 +108,43 @@ TEST_CASE("Drum-sized hints keep the legacy soft mallet contact exactly", "[exci
         INFO("hint " << hint << ": fixed " << lenFixed << ", drum " << lenDrum);
         REQUIRE(lenDrum == lenFixed);
     }
+}
+
+TEST_CASE("MalletExciter: a soft hit on a small body ends without a step", "[membrum][exciter][mallet]")
+{
+    // MB-022 (membrum audit T2.22): the ~1.8 ms contact of a soft hit on a
+    // small body ends while ImpactExciter's lowpass is mid-swing. The
+    // excitation must end with the filter's own ring-down, not a step.
+    constexpr int kNumSamples = 4096;
+    Membrum::MalletExciter ex;
+    ex.prepare(kSampleRate, 0);
+    ex.setBodySizeHint(0.1f);
+    ex.trigger(0.1f);
+
+    std::vector<float> out(static_cast<std::size_t>(kNumSamples), 0.0f);
+    bool allFinite = true;
+    for (int i = 0; i < kNumSamples; ++i)
+    {
+        const float s = ex.process(0.0f);
+        allFinite = allFinite && membrum_exciter_tests::isFiniteSample(s);
+        out[static_cast<std::size_t>(i)] = s;
+    }
+    REQUIRE(allFinite);
+
+    float peak = 0.0f;
+    int lastNonZero = -1;
+    for (int i = 0; i < kNumSamples; ++i)
+    {
+        const float a = std::fabs(out[static_cast<std::size_t>(i)]);
+        peak = std::max(peak, a);
+        if (a > 0.0f)
+            lastNonZero = i;
+    }
+    REQUIRE(peak > 0.0f);
+    REQUIRE(lastNonZero >= 0);
+
+    const float ratio = std::fabs(out[static_cast<std::size_t>(lastNonZero)]) / peak;
+    INFO("peak " << peak << ", last non-zero sample " << lastNonZero << " = "
+         << out[static_cast<std::size_t>(lastNonZero)] << ", ratio " << ratio);
+    CHECK(ratio < 0.01f);
 }
