@@ -4,9 +4,9 @@
 // Covers:
 //   - FR-090: Parameterized over all 36 exciter×body combinations. For each:
 //     trigger at velocity 100, process 500 ms, assert peak ∈ (−60, 0) dBFS,
-//     no NaN/Inf/denormals (via bit-manipulation checks per CLAUDE.md
-//     "Cross-Platform Compatibility" — std::isnan is unreliable under
-//     -ffast-math).
+//     no NaN/Inf/denormals (NaN/Inf via Krate::DSP::detail::isFinite per
+//     CLAUDE.md "Cross-Platform Compatibility" — std::isnan and a local
+//     bit-mask are both folded under -ffast-math).
 //   - US3-1: Audio is produced with peak in (−60, 0) dBFS.
 //   - US3-2: No sample contains NaN/Inf/denormals across 500 ms.
 //   - US3-3: Exciter-type change while ringing — new exciter applies to the
@@ -19,8 +19,8 @@
 // IMPORTANT (per CLAUDE.md + testing-guide ANTI-PATTERNS #13):
 //   - No REQUIRE/CHECK inside sample loops. Collect metrics in the loop
 //     and assert once after the loop finishes.
-//   - NaN/Inf detection uses bit manipulation on raw float bits, NOT
-//     std::isnan / std::isfinite (which are broken under -ffast-math on MSVC).
+//   - NaN/Inf detection uses Krate::DSP::detail::isFinite (db_utils.h), NOT
+//     std::isnan / std::isfinite or a local bit-mask (folded under -ffast-math).
 // ==============================================================================
 
 #include <catch2/catch_test_macros.hpp>
@@ -30,6 +30,7 @@
 #include "dsp/exciter_type.h"
 
 #include <allocation_detector.h>
+#include <krate/dsp/core/db_utils.h>
 
 #include <array>
 #include <cstdint>
@@ -38,14 +39,11 @@
 
 namespace {
 
-// Bit-manipulation NaN/Inf detection. A 32-bit IEEE-754 float is NaN or Inf
-// iff its exponent bits are all 1 (0x7F800000). This stays correct under
-// -ffast-math where std::isnan() is broken on some compilers.
+// NaN/Inf check that survives -ffast-math: the shared detail::isFinite reads the bits through db_utils.h's
+// barrier. A local memcpy + mask (this helper's old body) is folded to "finite" by newer Apple clang.
 inline bool isNaNOrInfBits(float x) noexcept
 {
-    std::uint32_t bits = 0;
-    std::memcpy(&bits, &x, sizeof(bits));
-    return (bits & 0x7F800000u) == 0x7F800000u;
+    return !::Krate::DSP::detail::isFinite(x);
 }
 
 // Detect subnormal (denormal) floats: exponent bits == 0 AND mantissa != 0.

@@ -7,10 +7,10 @@
 //
 // In both cases, the software `kFastReleaseFloor = 1e-6f` guard inside
 // `VoicePool::applyFastRelease` MUST terminate the fade before any denormal
-// sample could be produced. The test is valid on any hardware -- the
-// bit-manipulation finite check is -ffast-math safe and the denormal
-// classification uses the IEEE-754 exponent bits directly, so we do NOT rely
-// on std::isnan / std::fpclassify (tasks.md §NaN Detection Pattern).
+// sample could be produced. The test is valid on any hardware -- the finite
+// check is Krate::DSP::detail::isFinite and the denormal classification reads
+// the IEEE-754 exponent bits through detail::opaqueFloatBits, so we do NOT rely
+// on std::isnan / std::fpclassify or a local bit-mask (both fold under -ffast-math).
 // ==============================================================================
 
 #include <catch2/catch_test_macros.hpp>
@@ -20,29 +20,27 @@
 
 #include <cmath>
 #include <cstdint>
-#include <cstring>
 #include <vector>
+#include <krate/dsp/core/db_utils.h>
 
 namespace {
 
 constexpr int kBlockSize = 128;
 
-// -ffast-math-safe finite-sample check (tasks.md §NaN Detection Pattern).
+// NaN/Inf check that survives -ffast-math: the shared detail::isFinite reads the bits through db_utils.h's
+// barrier. A local memcpy + mask (this helper's old body) is folded to "finite" by newer Apple clang.
 inline bool isFiniteSample(float x) noexcept
 {
-    std::uint32_t bits = 0;
-    std::memcpy(&bits, &x, sizeof(bits));
-    return (bits & 0x7F800000u) != 0x7F800000u;
+    return ::Krate::DSP::detail::isFinite(x);
 }
 
 // Returns true if x is a denormal (subnormal) IEEE-754 single-precision
 // value: exponent bits == 0 AND mantissa bits != 0. Zero is NOT considered
-// denormal. This does NOT rely on std::isfinite / std::fpclassify so it is
-// safe under -ffast-math.
+// denormal. The bits are read through db_utils.h's opaqueFloatBits barrier, so
+// the classification does not depend on the TU's floating-point flags.
 inline bool isDenormal(float x) noexcept
 {
-    std::uint32_t bits = 0;
-    std::memcpy(&bits, &x, sizeof(bits));
+    const std::uint32_t bits = ::Krate::DSP::detail::opaqueFloatBits(x);
     const std::uint32_t exponent = (bits >> 23) & 0xFFu;
     const std::uint32_t mantissa = bits & 0x7FFFFFu;
     return exponent == 0u && mantissa != 0u;

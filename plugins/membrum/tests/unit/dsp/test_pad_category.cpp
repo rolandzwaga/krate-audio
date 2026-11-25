@@ -5,8 +5,13 @@
 
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/catch_approx.hpp>
+#include "dsp/default_kit.h"
 #include "dsp/pad_config.h"
 #include "dsp/pad_category.h"
+
+#include <array>
+#include <cmath>
+#include <cstddef>
 
 using namespace Membrum;
 using Catch::Approx;
@@ -131,6 +136,41 @@ TEST_CASE("classifyPad: Priority - Kick fires before Snare when both conditions 
     cfg.tsPitchEnvTime = 0.2f;              // pitch envelope active
     cfg.exciterType = ExciterType::NoiseBurst; // noise exciter too
     REQUIRE(classifyPad(cfg) == PadCategory::Kick);
+}
+
+// Fix plan T3.3 (MB-183): the default kit's snares are Impulse + Membrane with
+// the noise layer as their wires, so they must classify Snare (they used to
+// fall through to Tom); the kick, the toms and the NoiseBody pads keep their
+// roles.
+TEST_CASE("classifyPad: default-kit roles (kick 36, snares 38/40, toms, hats)",
+          "[pad_category]")
+{
+    std::array<PadConfig, kNumPads> pads{};
+    DefaultKit::apply(pads);
+
+    CHECK(classifyPad(pads[0]) == PadCategory::Kick);
+    CHECK(classifyPad(pads[2]) == PadCategory::Snare);
+    CHECK(classifyPad(pads[4]) == PadCategory::Snare);
+    for (const int p : {5, 7, 9, 11, 12, 14})
+    {
+        INFO("tom pad " << p);
+        CHECK(classifyPad(pads[static_cast<std::size_t>(p)]) == PadCategory::Tom);
+    }
+    for (int p = 0; p < kNumPads; ++p)
+    {
+        if (pads[static_cast<std::size_t>(p)].bodyModel != BodyModelType::NoiseBody)
+            continue;
+        INFO("NoiseBody pad " << p);
+        CHECK(classifyPad(pads[static_cast<std::size_t>(p)]) == PadCategory::HatCymbal);
+    }
+}
+
+TEST_CASE("classifyPad: kick and snare end-pitch thresholds are 90 Hz and 180 Hz",
+          "[pad_category]")
+{
+    // Pitch-envelope end is stored as Hz = 20 * 100^n.
+    CHECK(kKickEndNorm == Approx(std::log(90.0 / 20.0) / std::log(100.0)).margin(1e-6));
+    CHECK(kSnareMaxEndNorm == Approx(std::log(180.0 / 20.0) / std::log(100.0)).margin(1e-6));
 }
 
 TEST_CASE("PadCategory kCount is 5", "[pad_category]")

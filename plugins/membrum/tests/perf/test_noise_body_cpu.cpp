@@ -14,7 +14,7 @@
 //     membrum_tests.exe "[.perf]"
 //
 // NO REQUIRE/CHECK inside the sample loop (testing-guide ANTI-PATTERNS #13).
-// NaN/Inf check via bit manipulation (CLAUDE.md cross-platform rule).
+// NaN/Inf check via Krate::DSP::detail::isFinite (CLAUDE.md cross-platform rule).
 // ==============================================================================
 
 #include <catch2/catch_test_macros.hpp>
@@ -26,9 +26,8 @@
 
 #include <array>
 #include <chrono>
-#include <cstdint>
 #include <cstdio>
-#include <cstring>
+#include <krate/dsp/core/db_utils.h>
 
 namespace {
 
@@ -42,11 +41,11 @@ constexpr int    kRetriggerEverySamples =
     static_cast<int>(kSampleRate * 0.25);
 constexpr double kBudgetPercent   = 1.25;
 
+// NaN/Inf check that survives -ffast-math: the shared detail::isFinite reads the bits through db_utils.h's
+// barrier. A local memcpy + mask (this helper's old body) is folded to "finite" by newer Apple clang.
 inline bool isNaNOrInfBits(float x) noexcept
 {
-    std::uint32_t bits = 0;
-    std::memcpy(&bits, &x, sizeof(bits));
-    return (bits & 0x7F800000u) == 0x7F800000u;
+    return !::Krate::DSP::detail::isFinite(x);
 }
 
 } // namespace

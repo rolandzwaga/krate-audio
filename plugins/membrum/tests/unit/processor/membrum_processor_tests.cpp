@@ -17,6 +17,7 @@
 #include "dsp/membrane_modes.h"
 #include "plugin_ids.h"
 
+#include <krate/dsp/core/db_utils.h>
 #include <krate/dsp/processors/modal_resonator_bank.h>
 
 #include "pluginterfaces/vst/ivstparameterchanges.h"
@@ -27,8 +28,6 @@
 #include <array>
 #include <chrono>
 #include <cmath>
-#include <cstring>
-#include <cstdint>
 #include <cstdlib>
 #include <numeric>
 #include <utility>
@@ -417,20 +416,16 @@ TEST_CASE("Membrum: Stereo output is mono duplicated to both channels (FR-012)",
 // Helpers for Phase 5 (User Story 3) -- velocity response tests
 // =============================================================================
 
-// NaN detection via bit manipulation (safe with -ffast-math)
+// NaN / Inf checks that survive -ffast-math: the shared detail::isNaN / isInf read the bits through db_utils.h's
+// barrier. A local memcpy + mask (these helpers' old bodies) is folded to "finite" by newer Apple clang.
 static bool isNaNBits(float val)
 {
-    uint32_t bits = 0;
-    std::memcpy(&bits, &val, sizeof(bits));
-    return (bits & 0x7F800000u) == 0x7F800000u && (bits & 0x007FFFFFu) != 0;
+    return ::Krate::DSP::detail::isNaN(val);
 }
 
-// Inf detection via bit manipulation (safe with -ffast-math)
 static bool isInfBits(float val)
 {
-    uint32_t bits = 0;
-    std::memcpy(&bits, &val, sizeof(bits));
-    return (bits & 0x7FFFFFFFu) == 0x7F800000u;
+    return ::Krate::DSP::detail::isInf(val);
 }
 
 // Peak amplitude in dBFS

@@ -17,7 +17,8 @@
 //
 // Guidelines (from CLAUDE.md + testing-guide):
 //   - No REQUIRE/CHECK inside sample loops — collect metrics, assert after.
-//   - Bit-manipulation NaN/Inf detection (no std::isnan under -ffast-math).
+//   - NaN/Inf detection via Krate::DSP::detail::isFinite (std::isnan and a
+//     local bit-mask are both folded under -ffast-math).
 // ==============================================================================
 
 #include <catch2/catch_test_macros.hpp>
@@ -27,17 +28,16 @@
 #include "dsp/exciter_type.h"
 
 #include <array>
-#include <cstdint>
-#include <cstring>
 #include <string>
+#include <krate/dsp/core/db_utils.h>
 
 namespace {
 
+// NaN/Inf check that survives -ffast-math: the shared detail::isFinite reads the bits through db_utils.h's
+// barrier. A local memcpy + mask (this helper's old body) is folded to "finite" by newer Apple clang.
 inline bool isNaNOrInfBits(float x) noexcept
 {
-    std::uint32_t bits = 0;
-    std::memcpy(&bits, &x, sizeof(bits));
-    return (bits & 0x7F800000u) == 0x7F800000u;
+    return !::Krate::DSP::detail::isFinite(x);
 }
 
 constexpr double kSampleRate = 44100.0;

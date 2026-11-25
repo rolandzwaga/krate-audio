@@ -23,10 +23,9 @@
 #include "pluginterfaces/vst/ivstevents.h"
 
 #include <allocation_detector.h>
+#include <krate/dsp/core/db_utils.h>
 
 #include <cmath>
-#include <cstdint>
-#include <cstring>
 #include <vector>
 #include "vst_param_changes.h"
 
@@ -197,15 +196,11 @@ TEST_CASE("Extreme macro automation at block rate produces clean audio, zero all
 
         for (int i = 0; i < kBlockSize; ++i)
         {
-            // NaN / Inf check via bit manipulation -- avoids std::isnan which
-            // may be stripped under -ffast-math. Per project policy we rely
-            // on float-bit inspection; MSVC defaults are fine.
-            std::uint32_t bits = 0;
-            std::memcpy(&bits, &outL[static_cast<std::size_t>(i)], sizeof(bits));
-            const std::uint32_t exp  = (bits >> 23) & 0xFFu;
-            const std::uint32_t mant = bits & 0x7FFFFFu;
-            if (exp == 0xFFu && mant != 0u) sawNaN = true;
-            if (exp == 0xFFu && mant == 0u) sawInf = true;
+            // NaN / Inf check through detail::isNaN / isInf, which read the bits through db_utils.h's barrier:
+            // std::isnan and a local memcpy + mask are both folded under -ffast-math by newer Apple clang.
+            const float s = outL[static_cast<std::size_t>(i)];
+            if (::Krate::DSP::detail::isNaN(s)) sawNaN = true;
+            if (::Krate::DSP::detail::isInf(s)) sawInf = true;
 
             const double a = std::abs(static_cast<double>(outL[static_cast<std::size_t>(i)]));
             if (a > maxAbsSample) maxAbsSample = a;

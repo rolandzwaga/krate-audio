@@ -23,6 +23,7 @@
 #include "plugin_ids.h"
 #include "state/state_codec.h"
 
+#include <krate/dsp/core/db_utils.h>
 #include <krate/dsp/systems/sympathetic_resonance.h>
 
 #include "pluginterfaces/vst/ivstparameterchanges.h"
@@ -316,8 +317,8 @@ TEST_CASE("Coupling T060: FR-073 coupling signal routes only to main bus",
     // energy composition and both contain finite, bounded signal.
     CHECK(aux1Energy > 0.0);   // voices route to aux as configured
     CHECK(mainEnergy > 0.0);   // coupling reaches main bus
-    CHECK(std::isfinite(mainEnergy));
-    CHECK(std::isfinite(aux1Energy));
+    CHECK(::Krate::DSP::detail::isFinite(mainEnergy));
+    CHECK(::Krate::DSP::detail::isFinite(aux1Energy));
 
     processor.setActive(false);
     processor.terminate();
@@ -405,8 +406,8 @@ TEST_CASE("Coupling T061: FR-006 setupProcessing re-prepares engine + delay on S
         processor.process(data);
         for (int s = 0; s < kBlockSize; ++s)
         {
-            if (!std::isfinite(outL[static_cast<size_t>(s)])) anyFinite = false;
-            if (!std::isfinite(outR[static_cast<size_t>(s)])) anyFinite = false;
+            if (!::Krate::DSP::detail::isFinite(outL[static_cast<size_t>(s)])) anyFinite = false;
+            if (!::Krate::DSP::detail::isFinite(outR[static_cast<size_t>(s)])) anyFinite = false;
             peak = std::max(peak, std::abs(outL[static_cast<size_t>(s)]));
             peak = std::max(peak, std::abs(outR[static_cast<size_t>(s)]));
         }
@@ -438,8 +439,8 @@ TEST_CASE("Coupling T061: FR-006 setupProcessing re-prepares engine + delay on S
         processor.process(data);
         for (int s = 0; s < kBlockSize; ++s)
         {
-            if (!std::isfinite(outL[static_cast<size_t>(s)])) anyFinite2 = false;
-            if (!std::isfinite(outR[static_cast<size_t>(s)])) anyFinite2 = false;
+            if (!::Krate::DSP::detail::isFinite(outL[static_cast<size_t>(s)])) anyFinite2 = false;
+            if (!::Krate::DSP::detail::isFinite(outR[static_cast<size_t>(s)])) anyFinite2 = false;
             peak2 = std::max(peak2, std::abs(outL[static_cast<size_t>(s)]));
             peak2 = std::max(peak2, std::abs(outR[static_cast<size_t>(s)]));
         }

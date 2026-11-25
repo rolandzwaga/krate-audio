@@ -26,8 +26,8 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
-#include <cstring>
 #include <vector>
+#include <krate/dsp/core/db_utils.h>
 
 using namespace Membrum;
 using Catch::Approx;
@@ -35,14 +35,11 @@ using Catch::Approx;
 // Helper: pad index from MIDI note
 static constexpr int pad(int midiNote) { return midiNote - 36; }
 
-// Helper: check float is finite (no NaN, no Inf) using bit manipulation
-// (safe under -ffast-math)
+// NaN/Inf check that survives -ffast-math: the shared detail::isFinite reads the bits through db_utils.h's
+// barrier. A local memcpy + mask (this helper's old body) is folded to "finite" by newer Apple clang.
 static bool isFiniteBits(float v)
 {
-    std::uint32_t bits = 0;
-    std::memcpy(&bits, &v, sizeof(bits));
-    // IEEE 754: exponent bits 23-30 all set = Inf or NaN
-    return (bits & 0x7F800000u) != 0x7F800000u;
+    return ::Krate::DSP::detail::isFinite(v);
 }
 
 TEST_CASE("DefaultKit::apply initializes all 32 pads", "[default_kit]")

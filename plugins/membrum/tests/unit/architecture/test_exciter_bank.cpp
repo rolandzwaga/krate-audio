@@ -15,20 +15,18 @@
 #include <algorithm>
 #include <array>
 #include <cstdint>
-#include <cstring>
 #include <string>
+#include <krate/dsp/core/db_utils.h>
 
 using Catch::Approx;
 
 namespace {
 
-// Bit-manipulation NaN/Inf check (CLAUDE.md cross-platform rule — -ffast-math
-// breaks std::isnan()).
+// NaN/Inf check that survives -ffast-math: the shared detail::isFinite reads the bits through db_utils.h's
+// barrier. A local memcpy + mask (this helper's old body) is folded to "finite" by newer Apple clang.
 inline bool isFiniteSample(float x) noexcept
 {
-    std::uint32_t bits = 0;
-    std::memcpy(&bits, &x, sizeof(bits));
-    return (bits & 0x7F800000u) != 0x7F800000u;
+    return ::Krate::DSP::detail::isFinite(x);
 }
 
 } // namespace
@@ -136,7 +134,7 @@ TEST_CASE("ExciterBank: isActive() reports false after envelope decays",
 // Sample-rate sweep across all 36 exciter × body combinations at
 // {22050, 44100, 48000, 96000, 192000} Hz. For each (rate, exciter, body):
 //   - prepare, noteOn, process 100 ms.
-//   - assert no NaN/Inf at any sample rate (bit manipulation check).
+//   - assert no NaN/Inf at any sample rate (detail::isFinite check).
 //   - assert at least one finite non-zero sample (voice is audible) — guards
 //     against a stale filter state at extreme rates producing silence.
 // ==============================================================================

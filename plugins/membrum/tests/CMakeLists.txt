@@ -297,22 +297,23 @@ else()
     )
 endif()
 
-# T047: NaN/Inf detection in membrum_processor_tests.cpp uses bit manipulation
-# (isNaNBits/isInfBits via memcpy + integer comparison), NOT std::isnan/std::isfinite.
-# Therefore, -fno-fast-math is NOT needed for this test file.
+# NaN/Inf guards in Membrum's fast-math test TUs (membrum_processor_tests.cpp and the rest) call
+# Krate::DSP::detail::isFinite / isNaN / isInf (core/db_utils.h), which read the bits through an
+# optimisation barrier. A local memcpy + mask is NOT safe: Apple clang under -ffast-math folds it to
+# "finite" (Membrum audit T3.1, MB-014 / MB-132). Those TUs therefore need no per-file IEEE flags.
 
-# Phase 3.2 (T3.2.2): test_fast_release_denormals.cpp classifies denormals via
-# IEEE-754 exponent bits (memcpy + mask), but tasks.md §NaN Detection Pattern
-# mandates that any test reasoning about non-finite or denormal floats be
-# compiled with -fno-fast-math so downstream optimisers cannot elide the
-# checks. This is a no-op on MSVC (which does not enable -ffast-math by
-# default) but required for Clang/GCC.
+# Phase 3.2 (T3.2.2): test_fast_release_denormals.cpp classifies denormals from the
+# IEEE-754 exponent bits (read through detail::opaqueFloatBits), and tasks.md §NaN
+# Detection Pattern mandates that any test reasoning about non-finite or denormal
+# floats be compiled IEEE so downstream optimisers cannot elide the checks. The IEEE
+# set is all three flags on one line (tools/lint-ieee-flag-sets.js). This is a no-op
+# on MSVC (which does not enable -ffast-math by default) but required for Clang/GCC.
 if(NOT MSVC)
     set_source_files_properties(
         unit/voice_pool/test_fast_release_denormals.cpp
         unit/processor/test_coupling_energy.cpp
         PROPERTIES
-            COMPILE_OPTIONS "-fno-fast-math;-ffp-contract=off"
+            COMPILE_OPTIONS "-fno-fast-math;-fno-finite-math-only;-ffp-contract=off"
     )
 endif()
 
@@ -335,6 +336,15 @@ endif()
 
 # CTest Integration
 catch_discover_tests(membrum_tests REPORTER console)
+
+# editor.uidesc geometry lint (Membrum audit T3.2, MB-195): no overlap outside the audited allow list, nothing out of bounds.
+find_program(KRATE_NODE_EXECUTABLE node)
+if(KRATE_NODE_EXECUTABLE)
+    add_test(NAME membrum_uidesc_inventory
+        COMMAND ${KRATE_NODE_EXECUTABLE} tools/uidesc-inventory.js plugins/membrum/resources/editor.uidesc --check
+                --allow plugins/membrum/tests/uidesc_overlaps_allowed.json
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+endif()
 
 # Precompiled Catch2 + STL when KRATE_TEST_PCH is ON (cmake/KrateTestPch.cmake); after the per-source flag blocks above.
 krate_test_pch(membrum_tests)

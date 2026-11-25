@@ -200,10 +200,12 @@ void Processor::processParameterChanges(IParameterChanges* paramChanges)
                     effectivePadCategory(padIdx);
                 couplingMatrixDirty = true;
             }
-            else if (padOff == kPadTSPitchEnvTime)
+            else if (padOff == kPadTSPitchEnvTime || padOff == kPadTSPitchEnvEnd ||
+                     padOff == kPadWireCoupling)
             {
                 voicePool_.setPadConfigField(padIdx, padOff, fValue);
-                // Phase 5: pitch env time change can affect pad category (Kick vs Tom)
+                // Phase 5 / T3.3 (MB-183): classifyPad reads the pitch-env time
+                // and end (Kick) and the wire coupling (Snare).
                 padCategories_[static_cast<size_t>(padIdx)] =
                     effectivePadCategory(padIdx);
                 couplingMatrixDirty = true;

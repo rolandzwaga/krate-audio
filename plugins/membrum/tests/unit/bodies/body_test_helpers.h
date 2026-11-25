@@ -7,7 +7,7 @@
 // multiple test compilation units do not cause ODR issues.
 //
 // Provides:
-//   - isFiniteSample(): bit-manipulation NaN/Inf check (per CLAUDE.md)
+//   - isFiniteSample(): NaN/Inf check via detail::isFinite (per CLAUDE.md)
 //   - goertzelMag(): single-bin Goertzel DFT magnitude (for modal ratio tests)
 //   - makeDefaultParams(): representative VoiceCommonParams for body tests
 //   - runBodyImpulse(): trigger BodyBank with an impulse and collect samples

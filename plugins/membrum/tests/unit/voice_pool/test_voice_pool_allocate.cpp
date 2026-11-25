@@ -13,21 +13,20 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
-#include <cstring>
 #include <memory>
 #include <vector>
+#include <krate/dsp/core/db_utils.h>
 
 namespace {
 
 constexpr double kTestSampleRate = 44100.0;
 constexpr int    kTestBlockSize  = 256;
 
-// -ffast-math-safe finite-sample check (tasks.md §NaN Detection Pattern).
+// NaN/Inf check that survives -ffast-math: the shared detail::isFinite reads the bits through db_utils.h's
+// barrier. A local memcpy + mask (this helper's old body) is folded to "finite" by newer Apple clang.
 inline bool isFiniteSample(float x) noexcept
 {
-    std::uint32_t bits = 0;
-    std::memcpy(&bits, &x, sizeof(bits));
-    return (bits & 0x7F800000u) != 0x7F800000u;
+    return ::Krate::DSP::detail::isFinite(x);
 }
 
 } // namespace

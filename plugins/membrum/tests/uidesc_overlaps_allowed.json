@@ -1,0 +1,965 @@
+{
+  "note": "Deliberate overlaps in resources/editor.uidesc, accepted by tools/uidesc-inventory.js --allow (ctest membrum_uidesc_inventory). Each is a decorative FieldsetContainer frame with the controls of its group drawn inside it (specs/membrum-audit/report.md, MB-195). Detail strings are exact: moving either view re-flags the overlap; a count that no longer matches is an allow-mismatch defect.",
+  "overlaps": [
+    {
+      "template": "SelectedPadSimple",
+      "detail": "FieldsetContainer Macros at 4,28,388,104 / CTextLabel Tightness at 8,108,56,14",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadSimple",
+      "detail": "FieldsetContainer Macros at 4,28,388,104 / ArcKnob MacroTightness at 8,52,56,56",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadSimple",
+      "detail": "FieldsetContainer Macros at 4,28,388,104 / CTextLabel Brightness at 80,108,56,14",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadSimple",
+      "detail": "FieldsetContainer Macros at 4,28,388,104 / ArcKnob MacroBrightness at 80,52,56,56",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadSimple",
+      "detail": "FieldsetContainer Macros at 4,28,388,104 / CTextLabel Body Size at 152,108,56,14",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadSimple",
+      "detail": "FieldsetContainer Macros at 4,28,388,104 / ArcKnob MacroBodySize at 152,52,56,56",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadSimple",
+      "detail": "FieldsetContainer Macros at 4,28,388,104 / CTextLabel Punch at 224,108,56,14",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadSimple",
+      "detail": "FieldsetContainer Macros at 4,28,388,104 / ArcKnob MacroPunch at 224,52,56,56",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadSimple",
+      "detail": "FieldsetContainer Macros at 4,28,388,104 / CTextLabel Complexity at 296,108,56,14",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadSimple",
+      "detail": "FieldsetContainer Macros at 4,28,388,104 / ArcKnob MacroComplexity at 296,52,56,56",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadSimple",
+      "detail": "FieldsetContainer Body at 4,140,388,104 / CTextLabel Material at 8,220,56,14",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadSimple",
+      "detail": "FieldsetContainer Body at 4,140,388,104 / ArcKnob Material at 8,164,56,56",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadSimple",
+      "detail": "FieldsetContainer Body at 4,140,388,104 / CTextLabel Size at 80,220,56,14",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadSimple",
+      "detail": "FieldsetContainer Body at 4,140,388,104 / ArcKnob Size at 80,164,56,56",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadSimple",
+      "detail": "FieldsetContainer Body at 4,140,388,104 / CTextLabel Decay at 152,220,56,14",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadSimple",
+      "detail": "FieldsetContainer Body at 4,140,388,104 / ArcKnob Decay at 152,164,56,56",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadSimple",
+      "detail": "FieldsetContainer Body at 4,140,388,104 / CTextLabel Strike at 224,220,56,14",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadSimple",
+      "detail": "FieldsetContainer Body at 4,140,388,104 / ArcKnob StrikePosition at 224,164,56,56",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadSimple",
+      "detail": "FieldsetContainer Body at 4,140,388,104 / CTextLabel Level at 296,220,56,14",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadSimple",
+      "detail": "FieldsetContainer Body at 4,140,388,104 / ArcKnob Level at 296,164,56,56",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadSimple",
+      "detail": "FieldsetContainer Pitch Envelope at 4,252,388,112 / PitchEnvelopeDisplay at 8,276,360,80",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadSimple",
+      "detail": "FieldsetContainer Routing at 4,372,388,72 / CTextLabel Output Bus at 8,388,80,14",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadSimple",
+      "detail": "FieldsetContainer Routing at 4,372,388,72 / COptionMenu OutputBusSel at 96,386,120,20",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadSimple",
+      "detail": "FieldsetContainer Routing at 4,372,388,72 / CTextLabel Choke Group at 8,414,80,14",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadSimple",
+      "detail": "FieldsetContainer Routing at 4,372,388,72 / COptionMenu ChokeGroupSel at 96,412,120,20",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadSimple",
+      "detail": "FieldsetContainer Routing at 4,372,388,72 / ArcKnob Pan at 320,384,40,40",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadSimple",
+      "detail": "FieldsetContainer Routing at 4,372,388,72 / CTextLabel Pan at 312,426,56,12",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadSimple",
+      "detail": "FieldsetContainer Source at 4,448,388,72 / CTextLabel Exciter at 8,464,80,14",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadSimple",
+      "detail": "FieldsetContainer Source at 4,448,388,72 / COptionMenu ExciterType at 96,462,120,20",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadSimple",
+      "detail": "FieldsetContainer Source at 4,448,388,72 / CTextLabel Body at 8,490,80,14",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadSimple",
+      "detail": "FieldsetContainer Source at 4,448,388,72 / COptionMenu BodyModel at 96,488,120,20",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Character at 4,28,200,134 / ArcKnob ModeStretch at 12,48,40,40",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Character at 4,28,200,134 / CTextLabel Stretch at 12,90,40,12",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Character at 4,28,200,134 / ArcKnob ModeInject at 60,48,40,40",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Character at 4,28,200,134 / CTextLabel Inject at 60,90,40,12",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Character at 4,28,200,134 / ArcKnob DecaySkew at 108,48,40,40",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Character at 4,28,200,134 / CTextLabel Skew at 108,90,40,12",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Character at 4,28,200,134 / ArcKnob NonlinearCoupling at 156,48,40,40",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Character at 4,28,200,134 / CTextLabel Nonlin at 156,90,40,12",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Material Morph at 208,28,184,134 / XYMorphPad MaterialMorph at 216,48,168,84",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Material Morph at 208,28,184,134 / ArcKnob MorphDuration at 216,136,22,22",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Material Morph at 208,28,184,134 / CTextLabel Dur at 240,142,18,10",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Material Morph at 208,28,184,134 / COptionMenu MorphCurve at 260,138,80,20",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Material Morph at 208,28,184,134 / ToggleButton MorphEnabled at 354,136,22,22",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Source at 4,166,388,96 / CTextLabel Exciter at 12,184,48,14",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Source at 4,166,388,96 / COptionMenu ExciterType at 60,182,96,20",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Source at 4,166,388,96 / CTextLabel Body at 172,184,40,14",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Source at 4,166,388,96 / COptionMenu BodyModel at 216,182,100,20",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Source at 4,166,388,96 / ArcKnob ExciterFMRatio at 12,212,32,32",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Source at 4,166,388,96 / CTextLabel FM at 12,246,32,10",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Source at 4,166,388,96 / ArcKnob ExciterFeedback at 54,212,32,32",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Source at 4,166,388,96 / CTextLabel FB at 54,246,32,10",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Source at 4,166,388,96 / ArcKnob ExciterNoiseBurstDuration at 96,212,32,32",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Source at 4,166,388,96 / CTextLabel Burst at 96,246,32,10",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Source at 4,166,388,96 / ArcKnob ExciterFrictionPressure at 138,212,32,32",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Source at 4,166,388,96 / CTextLabel Press at 138,246,32,10",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Physics at 4,266,388,138 / ArcKnob Material at 16,286,40,40",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Physics at 4,266,388,138 / CTextLabel Material at 16,328,40,12",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Physics at 4,266,388,138 / ArcKnob Size at 76,286,40,40",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Physics at 4,266,388,138 / CTextLabel Size at 76,328,40,12",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Physics at 4,266,388,138 / ArcKnob Decay at 136,286,40,40",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Physics at 4,266,388,138 / CTextLabel Decay at 136,328,40,12",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Physics at 4,266,388,138 / ArcKnob StrikePosition at 196,286,40,40",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Physics at 4,266,388,138 / CTextLabel Strike at 196,328,40,12",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Physics at 4,266,388,138 / ArcKnob Level at 256,286,40,40",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Physics at 4,266,388,138 / CTextLabel Level at 256,328,40,12",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Physics at 4,266,388,138 / ArcKnob CouplingAmount at 316,286,40,40",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Physics at 4,266,388,138 / CTextLabel Cpl Amt at 316,328,40,12",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Physics at 4,266,388,138 / ArcKnob BodyDampingB1 at 12,348,28,28",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Physics at 4,266,388,138 / CTextLabel Damp b1 at 12,378,28,10",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Physics at 4,266,388,138 / ArcKnob BodyDampingB3 at 54,348,28,28",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Physics at 4,266,388,138 / CTextLabel Damp b3 at 54,378,28,10",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Physics at 4,266,388,138 / ArcKnob AirLoading at 96,348,28,28",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Physics at 4,266,388,138 / CTextLabel Air at 96,378,28,10",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Physics at 4,266,388,138 / ArcKnob ModeScatter at 138,348,28,28",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Physics at 4,266,388,138 / CTextLabel Scat at 138,378,28,10",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Physics at 4,266,388,138 / ArcKnob CouplingStrength at 180,348,28,28",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Physics at 4,266,388,138 / CTextLabel Shell at 180,378,28,10",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Physics at 4,266,388,138 / ToggleButton SecondaryEnabled at 225,351,22,22",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Physics at 4,266,388,138 / CTextLabel 2nd at 222,378,28,10",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Physics at 4,266,388,138 / ArcKnob SecondarySize at 264,348,28,28",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Physics at 4,266,388,138 / CTextLabel 2Sz at 264,378,28,10",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Physics at 4,266,388,138 / ArcKnob SecondaryMaterial at 306,348,28,28",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Physics at 4,266,388,138 / CTextLabel 2Mat at 306,378,28,10",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Physics at 4,266,388,138 / ArcKnob TensionModAmt at 348,348,28,28",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Physics at 4,266,388,138 / CTextLabel Tens at 348,378,28,10",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Tone Shaper at 4,408,388,126 / COptionMenu FilterType at 12,426,80,20",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Tone Shaper at 4,408,388,126 / CTextLabel Type at 12,450,80,10",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Tone Shaper at 4,408,388,126 / ArcKnob FilterCutoff at 102,424,32,32",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Tone Shaper at 4,408,388,126 / CTextLabel Cutoff at 102,456,32,10",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Tone Shaper at 4,408,388,126 / ArcKnob FilterResonance at 144,424,32,32",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Tone Shaper at 4,408,388,126 / CTextLabel Reson at 144,456,32,10",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Tone Shaper at 4,408,388,126 / ArcKnob FilterEnvAmount at 186,424,32,32",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Tone Shaper at 4,408,388,126 / CTextLabel Env Amt at 186,456,32,10",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Tone Shaper at 4,408,388,126 / ArcKnob DriveAmount at 238,424,32,32",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Tone Shaper at 4,408,388,126 / CTextLabel Drive at 238,456,32,10",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Tone Shaper at 4,408,388,126 / ArcKnob FoldAmount at 280,424,32,32",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Tone Shaper at 4,408,388,126 / CTextLabel Fold at 280,456,32,10",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Tone Shaper at 4,408,388,126 / ADSRDisplay at 12,474,200,50",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Tone Shaper at 4,408,388,126 / CView FilterEnvExpandButton at 214,508,16,16",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Tone Shaper at 4,408,388,126 / ArcKnob FilterEnvAttack at 234,478,28,28",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Tone Shaper at 4,408,388,126 / CTextLabel A at 234,508,28,10",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Tone Shaper at 4,408,388,126 / ArcKnob FilterEnvDecay at 274,478,28,28",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Tone Shaper at 4,408,388,126 / CTextLabel D at 274,508,28,10",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Tone Shaper at 4,408,388,126 / ArcKnob FilterEnvSustain at 314,478,28,28",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Tone Shaper at 4,408,388,126 / CTextLabel S at 314,508,28,10",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Tone Shaper at 4,408,388,126 / ArcKnob FilterEnvRelease at 354,478,28,28",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Tone Shaper at 4,408,388,126 / CTextLabel R at 354,508,28,10",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Parallel Layers at 4,538,388,84 / CTextLabel Noise at 12,554,140,10",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Parallel Layers at 4,538,388,84 / ArcKnob NoiseLayerMix at 12,566,28,28",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Parallel Layers at 4,538,388,84 / CTextLabel Mix at 12,596,28,10",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Parallel Layers at 4,538,388,84 / ArcKnob NoiseLayerCutoff at 46,566,28,28",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Parallel Layers at 4,538,388,84 / CTextLabel Cutf at 46,596,28,10",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Parallel Layers at 4,538,388,84 / ArcKnob NoiseLayerResonance at 80,566,28,28",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Parallel Layers at 4,538,388,84 / CTextLabel Res at 80,596,28,10",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Parallel Layers at 4,538,388,84 / ArcKnob NoiseLayerDecay at 114,566,28,28",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Parallel Layers at 4,538,388,84 / CTextLabel Dec at 114,596,28,10",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Parallel Layers at 4,538,388,84 / ArcKnob NoiseLayerColor at 148,566,28,28",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Parallel Layers at 4,538,388,84 / CTextLabel Color at 148,596,28,10",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Parallel Layers at 4,538,388,84 / ArcKnob WireCoupling at 182,566,28,28",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Parallel Layers at 4,538,388,84 / CTextLabel Wire at 182,596,28,10",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Parallel Layers at 4,538,388,84 / CTextLabel Click at 234,554,140,10",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Parallel Layers at 4,538,388,84 / ArcKnob ClickLayerMix at 234,566,28,28",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Parallel Layers at 4,538,388,84 / CTextLabel Mix at 234,596,28,10",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Parallel Layers at 4,538,388,84 / ArcKnob ClickLayerContactMs at 268,566,28,28",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Parallel Layers at 4,538,388,84 / CTextLabel Cont at 268,596,28,10",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Parallel Layers at 4,538,388,84 / ArcKnob ClickLayerBrightness at 302,566,28,28",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Parallel Layers at 4,538,388,84 / CTextLabel Brt at 302,596,28,10",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Pitch Envelope at 4,626,388,86 / PitchEnvelopeDisplay at 12,642,240,60",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Pitch Envelope at 4,626,388,86 / COptionMenu PitchEnvKneeEnabled at 260,646,72,20",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Pitch Envelope at 4,626,388,86 / CTextLabel Knee at 260,670,72,10",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Routing at 4,716,388,70 / CTextLabel Output Bus at 12,734,80,14",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Routing at 4,716,388,70 / COptionMenu OutputBusSel at 100,732,120,20",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Routing at 4,716,388,70 / CTextLabel Choke Group at 12,760,80,14",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Routing at 4,716,388,70 / COptionMenu ChokeGroupSel at 100,758,120,20",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Routing at 4,716,388,70 / ArcKnob Pan at 320,726,40,40",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "SelectedPadAdvanced",
+      "detail": "FieldsetContainer Routing at 4,716,388,70 / CTextLabel Pan at 312,768,56,12",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "EditorDefault",
+      "detail": "FieldsetContainer Master at 4,28,232,76 / ArcKnob MasterGain at 92,42,56,56",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "EditorDefault",
+      "detail": "FieldsetContainer Master at 4,28,232,76 / CParamDisplay MasterGain at 156,60,68,20",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "EditorDefault",
+      "detail": "FieldsetContainer Kit Browser at 4,108,232,104 / CView KitBrowserView at 8,130,224,78",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "EditorDefault",
+      "detail": "FieldsetContainer Pad Browser at 4,216,232,78 / CView PadBrowserView at 8,238,224,52",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "EditorDefault",
+      "detail": "FieldsetContainer Voices at 4,298,232,120 / CView MaxPolyphony at 8,320,224,20",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "EditorDefault",
+      "detail": "FieldsetContainer Voices at 4,298,232,120 / CTextLabel Stealing at 8,364,80,14",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "EditorDefault",
+      "detail": "FieldsetContainer Voices at 4,298,232,120 / COptionMenu VoiceStealing at 96,362,136,20",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "EditorDefault",
+      "detail": "FieldsetContainer Voices at 4,298,232,120 / CTextLabel ActiveVoices: - at 8,392,224,14",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "EditorDefault",
+      "detail": "FieldsetContainer Coupling at 4,422,232,106 / ArcKnob GlobalCoupling at 8,444,48,44",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "EditorDefault",
+      "detail": "FieldsetContainer Coupling at 4,422,232,106 / CTextLabel Global at 8,488,48,12",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "EditorDefault",
+      "detail": "FieldsetContainer Coupling at 4,422,232,106 / CParamDisplay GlobalCoupling at 8,502,48,16",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "EditorDefault",
+      "detail": "FieldsetContainer Coupling at 4,422,232,106 / ArcKnob SnareBuzz at 64,444,48,44",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "EditorDefault",
+      "detail": "FieldsetContainer Coupling at 4,422,232,106 / CTextLabel Snare at 64,488,48,12",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "EditorDefault",
+      "detail": "FieldsetContainer Coupling at 4,422,232,106 / CParamDisplay SnareBuzz at 64,502,48,16",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "EditorDefault",
+      "detail": "FieldsetContainer Coupling at 4,422,232,106 / ArcKnob TomResonance at 120,444,48,44",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "EditorDefault",
+      "detail": "FieldsetContainer Coupling at 4,422,232,106 / CTextLabel Tom at 120,488,48,12",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "EditorDefault",
+      "detail": "FieldsetContainer Coupling at 4,422,232,106 / CParamDisplay TomResonance at 120,502,48,16",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "EditorDefault",
+      "detail": "FieldsetContainer Coupling at 4,422,232,106 / ArcKnob CouplingDelay at 176,444,48,44",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "EditorDefault",
+      "detail": "FieldsetContainer Coupling at 4,422,232,106 / CTextLabel Delay at 176,488,48,12",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "EditorDefault",
+      "detail": "FieldsetContainer Coupling at 4,422,232,106 / CParamDisplay CouplingDelay at 176,502,48,16",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "EditorDefault",
+      "detail": "FieldsetContainer Meter at 4,532,232,98 / CView MetersView at 8,554,224,32",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "EditorDefault",
+      "detail": "FieldsetContainer Meter at 4,532,232,98 / CTextLabel CPU: - at 8,594,224,14",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    },
+    {
+      "template": "EditorDefault",
+      "detail": "FieldsetContainer Meter at 4,532,232,98 / CTextLabel PresetStatus at 8,610,224,14",
+      "count": 1,
+      "reason": "Decorative FieldsetContainer frame drawn behind the controls of its group; the frame is transparent and draws only its outline and title (MB-195)."
+    }
+  ]
+}

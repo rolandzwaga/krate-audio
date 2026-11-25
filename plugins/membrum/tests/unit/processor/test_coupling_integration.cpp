@@ -397,6 +397,45 @@ TEST_CASE("Phase 4: classifyPad identifies Tom pads from default kit configurati
     CHECK(Membrum::classifyPad(hat) == Membrum::PadCategory::HatCymbal);
 }
 
+// Fix plan T3.3 (MB-183): the default kit's snares (Impulse + the noise layer as
+// wires) receive Snare Buzz from the kick, and an edit of a field the classifier
+// reads (pitch-envelope end, wire coupling) reclassifies the pad at once.
+TEST_CASE("Coupling integration: categories follow the default snares and pitch-end / wire edits",
+          "[coupling][pad_category]")
+{
+    CouplingIntegrationFixture fix;
+    for (int pad = 0; pad < Membrum::kNumPads; ++pad)
+        fix.setParam(static_cast<ParamID>(Membrum::padParamId(pad, Membrum::kPadCouplingAmount)),
+                     1.0);
+    fix.setParam(Membrum::kSnareBuzzId, 1.0);
+    fix.setParam(Membrum::kTomResonanceId, 1.0);
+    constexpr float kFull = Membrum::CouplingMatrix::kMaxCoefficient;
+
+    // Kick (pad 0) -> default snares (pads 2 and 4).
+    {
+        const auto& m = fix.processor.couplingMatrixForTest();
+        CHECK(m.getEffectiveGain(0, 2) == Approx(kFull));
+        CHECK(m.getEffectiveGain(0, 4) == Approx(kFull));
+        CHECK(m.getEffectiveGain(2, 5) == 0.0f); // a snare is not a tom
+    }
+
+    // Pad 0's pitch envelope now settles at ~318 Hz: no longer a kick, a tom.
+    fix.setParam(static_cast<ParamID>(Membrum::padParamId(0, Membrum::kPadTSPitchEnvEnd)), 0.6);
+    {
+        const auto& m = fix.processor.couplingMatrixForTest();
+        CHECK(m.getEffectiveGain(0, 2) == 0.0f);
+        CHECK(m.getEffectiveGain(0, 5) == Approx(kFull));
+    }
+
+    // Wire coupling on: the pad has snare wires, so it is a snare.
+    fix.setParam(static_cast<ParamID>(Membrum::padParamId(0, Membrum::kPadWireCoupling)), 0.5);
+    {
+        const auto& m = fix.processor.couplingMatrixForTest();
+        CHECK(m.getEffectiveGain(0, 5) == 0.0f);
+        CHECK(m.getEffectiveGain(5, 0) == 0.0f);
+    }
+}
+
 TEST_CASE("Phase 4: Tom Resonance knob at 50% yields Tom->Tom effectiveGain = 0.025 "
           "in processor matrix (T030)",
           "[coupling][phase4]")

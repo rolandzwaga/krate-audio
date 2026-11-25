@@ -27,6 +27,8 @@
 #include "dsp/exciter_type.h"
 #include "dsp/body_model_type.h"
 
+#include <krate/dsp/core/db_utils.h>
+
 #include <cmath>
 #include <vector>
 
@@ -95,8 +97,8 @@ double shellEnergyDelta(ExciterType exciter)
     const double off = measureEnergy(exciter, /*coupling*/ false);
     const double on  = measureEnergy(exciter, /*coupling*/ true);
     REQUIRE(off > 0.0);                 // sanity: voice produced sound
-    REQUIRE(std::isfinite(on));
-    REQUIRE(std::isfinite(off));
+    REQUIRE(::Krate::DSP::detail::isFinite(on));
+    REQUIRE(::Krate::DSP::detail::isFinite(off));
     return (on - off) / off;
 }
 

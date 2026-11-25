@@ -28,9 +28,10 @@
 #include "dsp/body_model_type.h"
 #include "dsp/tone_shaper.h"
 
+#include <krate/dsp/core/db_utils.h>
+
 #include <algorithm>
 #include <cmath>
-#include <cstdint>
 #include <vector>
 
 using Catch::Approx;
@@ -81,16 +82,12 @@ double peakFrequencyInWindow(const float* samples, int numSamples,
 
 bool hasNaNOrInf(const std::vector<float>& buf)
 {
+    // detail::isFinite reads the bits through db_utils.h's barrier; a local memcpy + mask is folded to "finite"
+    // under -ffast-math by newer Apple clang.
     for (float s : buf)
     {
-        std::uint32_t bits = 0;
-        std::memcpy(&bits, &s, sizeof(bits));
-        const std::uint32_t expMask = 0x7F800000u;
-        const std::uint32_t mantMask = 0x007FFFFFu;
-        const bool isInfOrNaN = (bits & expMask) == expMask;
-        if (isInfOrNaN)
+        if (!::Krate::DSP::detail::isFinite(s))
             return true;
-        (void)mantMask;
     }
     return false;
 }
@@ -224,10 +221,7 @@ TEST_CASE("808Kick: zero-duration edge case produces no NaN/Inf",
     for (int i = 0; i < 2000; ++i)
     {
         const float hz = ts.processPitchEnvelope();
-        std::uint32_t bits = 0;
-        std::memcpy(&bits, &hz, sizeof(bits));
-        const bool isInfOrNaN = (bits & 0x7F800000u) == 0x7F800000u;
-        if (isInfOrNaN) sawInvalid = true;
+        if (!::Krate::DSP::detail::isFinite(hz)) sawInvalid = true;
         if (hz < minHz) minHz = hz;
         if (hz > maxHz) maxHz = hz;
     }

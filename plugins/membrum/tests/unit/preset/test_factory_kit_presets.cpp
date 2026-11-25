@@ -17,6 +17,7 @@
 #include "dsp/bodies/body_damping_encoding.h"
 #include "dsp/default_kit.h"
 #include "dsp/macro_offsets.h"
+#include "dsp/pad_category.h"
 #include "dsp/pad_config.h"
 #include "plugin_ids.h"
 #include "preset/membrum_preset_container.h"
@@ -194,9 +195,9 @@ constexpr std::array<FactoryKitRef, 20> kFactoryKits{{
 
 constexpr std::size_t kFixtureFloatsPerPad = 59 + 1 + 5;
 
-KitSnapshot loadFactoryKit(const std::filesystem::path& root, const FactoryKitRef& ref)
+KitSnapshot loadKitPresetFile(const std::filesystem::path& file)
 {
-    const auto bytes = readFile(root / ref.category / (std::string(ref.name) + ".vstpreset"));
+    const auto bytes = readFile(file);
     REQUIRE(!bytes.empty());
     auto presetStream = owned(new MemoryStream(const_cast<std::uint8_t*>(bytes.data()),
                                                static_cast<TSize>(bytes.size())));
@@ -215,6 +216,11 @@ KitSnapshot loadFactoryKit(const std::filesystem::path& root, const FactoryKitRe
     KitSnapshot kit;
     REQUIRE(readKitBlob(&componentStream, kit) == kResultOk);
     return kit;
+}
+
+KitSnapshot loadFactoryKit(const std::filesystem::path& root, const FactoryKitRef& ref)
+{
+    return loadKitPresetFile(root / ref.category / (std::string(ref.name) + ".vstpreset"));
 }
 
 } // namespace
@@ -320,6 +326,119 @@ TEST_CASE("Factory kit presets: stored macros reach the sound and every kit play
     }
     CHECK(totalNonNeutral == 281);
     CHECK(totalKept == 133);
+}
+
+// ------------------------------------------------------------------------------
+// Fix plan T3.3 (MB-183): the coupling categories (Kick -> Snare carries Snare
+// Buzz, Tom -> Tom carries Tom Resonance) follow what each factory pad is. The
+// snares at note 38 (and Jazz Brushes 39 / 40, 808 40) are Snare whatever their
+// exciter, the kicks at note 36 are Kick, and the congas, bongos, timbales and
+// tablas of the three hand-drum kits are Tom, except a pad whose pitch envelope
+// settles at or below the kick threshold (a bass drum of that kit; printed).
+// ------------------------------------------------------------------------------
+TEST_CASE("Factory kits: PadCategory matches each pad's role", "[preset][pad_category]")
+{
+    using Membrum::PadCategory;
+    const auto root = factoryPresetRoot();
+    REQUIRE(!root.empty());
+
+    struct Expected
+    {
+        const char* kit;
+        int note;
+        PadCategory category;
+    };
+    constexpr std::array<Expected, 14> kExplicit{{
+        {"Acoustic Studio Kit", 38, PadCategory::Snare}, {"Jazz Brushes", 38, PadCategory::Snare},
+        {"Orchestral", 38, PadCategory::Snare},          {"Rock Big Room", 38, PadCategory::Snare},
+        {"Vintage Wood", 38, PadCategory::Snare},        {"808 Electronic Kit", 38, PadCategory::Snare},
+        {"909 Drum Machine", 38, PadCategory::Snare},    {"LinnDrum CR-78", 38, PadCategory::Snare},
+        {"Trap Modern", 38, PadCategory::Snare},         {"Jazz Brushes", 39, PadCategory::Snare},
+        {"Jazz Brushes", 40, PadCategory::Snare},        {"808 Electronic Kit", 40, PadCategory::Snare},
+        {"Latin Perc", 41, PadCategory::Tom},            {"Latin Perc", 42, PadCategory::Tom},
+    }};
+    std::array<bool, kExplicit.size()> seen{};
+
+    int kits = 0;
+    int kicks = 0;
+    int handDrumPads = 0;
+    for (const char* category : {"Acoustic", "Electronic", "Percussive", "Unnatural"})
+    {
+        const auto dir = root / category;
+        INFO("category folder " << dir.string());
+        REQUIRE(std::filesystem::is_directory(dir));
+        for (const auto& entry : std::filesystem::directory_iterator(dir))
+        {
+            if (!entry.is_regular_file() || entry.path().extension() != ".vstpreset")
+                continue;
+            ++kits;
+            const std::string kitName = entry.path().stem().string();
+            const KitSnapshot kit = loadKitPresetFile(entry.path());
+            const bool kickKit = std::string(category) == "Acoustic" ||
+                                 std::string(category) == "Electronic";
+            const bool handDrumKit =
+                kitName == "Hand Drums" || kitName == "Latin Perc" || kitName == "Tabla";
+
+            for (int p = 0; p < Membrum::kNumPads; ++p)
+            {
+                const auto& snap = kit.pads[static_cast<std::size_t>(p)];
+                if (snap.sound[51] < 0.5)
+                    continue; // disabled pad
+                Membrum::PadConfig base;
+                Membrum::State::applyPadSnapshot(snap, base);
+                const auto cfg = Membrum::applyMacroOffsets(base);
+                const PadCategory got = Membrum::classifyPad(cfg);
+                const int note = p + 36;
+                const bool membrane = cfg.bodyModel == Membrum::BodyModelType::Membrane;
+                INFO(kitName << " note " << note << ": exciter "
+                     << static_cast<int>(cfg.exciterType) << ", pitch env time "
+                     << cfg.tsPitchEnvTime << ", end "
+                     << 20.0 * std::pow(100.0, static_cast<double>(cfg.tsPitchEnvEnd))
+                     << " Hz, noise mix " << cfg.noiseLayerMix << ", noise gain "
+                     << cfg.noiseLayerGain << ", wire coupling " << cfg.wireCoupling
+                     << " -> category " << static_cast<int>(got));
+
+                bool isExplicit = false;
+                for (std::size_t e = 0; e < kExplicit.size(); ++e)
+                {
+                    if (kitName == kExplicit[e].kit && note == kExplicit[e].note)
+                    {
+                        CHECK(membrane);
+                        CHECK(got == kExplicit[e].category);
+                        seen[e] = true;
+                        isExplicit = true;
+                    }
+                }
+                if (isExplicit || !membrane)
+                    continue;
+
+                if (kickKit && note == 36)
+                {
+                    CHECK(got == PadCategory::Kick);
+                    ++kicks;
+                }
+                else if (handDrumKit)
+                {
+                    ++handDrumPads;
+                    const bool endsAtKickPitch = cfg.tsPitchEnvTime > 0.0f &&
+                                                 cfg.tsPitchEnvEnd <= Membrum::kKickEndNorm;
+                    if (got == PadCategory::Kick && endsAtKickPitch)
+                        WARN("exception (bass drum of the kit): " << kitName << " note "
+                             << note << " classifies Kick");
+                    else
+                        CHECK(got == PadCategory::Tom);
+                }
+            }
+        }
+    }
+    CHECK(kits == 20);
+    CHECK(kicks == 10);      // every Acoustic and Electronic kit has a Membrane kick at 36
+    CHECK(handDrumPads > 0);
+    for (std::size_t e = 0; e < kExplicit.size(); ++e)
+    {
+        INFO(kExplicit[e].kit << " note " << kExplicit[e].note << " is an enabled pad");
+        CHECK(seen[e]);
+    }
 }
 
 // ------------------------------------------------------------------------------

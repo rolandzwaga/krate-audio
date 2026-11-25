@@ -12,7 +12,7 @@
 //
 // IMPORTANT (testing-guide ANTI-PATTERNS #13):
 //   * No REQUIRE/CHECK inside sample-processing loops.
-//   * NaN/Inf detection via bit manipulation (fast-math compat).
+//   * NaN/Inf detection via Krate::DSP::detail::isFinite (fast-math safe).
 // ==============================================================================
 
 #include <catch2/catch_test_macros.hpp>
@@ -27,9 +27,9 @@
 #include <chrono>
 #include <cstdint>
 #include <cstdio>
-#include <cstring>
 #include <random>
 #include <vector>
+#include <krate/dsp/core/db_utils.h>
 
 namespace {
 
@@ -40,11 +40,11 @@ constexpr int    kTotalBlocks     =
     static_cast<int>((kSampleRate * kDurationSeconds) / kBlockSize);
 constexpr int    kPolyStress      = 16;
 
+// NaN/Inf check that survives -ffast-math: the shared detail::isFinite reads the bits through db_utils.h's
+// barrier. A local memcpy + mask (this helper's old body) is folded to "finite" by newer Apple clang.
 inline bool isNaNOrInfBits(float x) noexcept
 {
-    std::uint32_t bits = 0;
-    std::memcpy(&bits, &x, sizeof(bits));
-    return (bits & 0x7F800000u) == 0x7F800000u;
+    return !::Krate::DSP::detail::isFinite(x);
 }
 
 void configureStressPool(Membrum::VoicePool& pool)

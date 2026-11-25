@@ -6,8 +6,6 @@
   "dsp/tests/unit/systems/profundum_engine_probe_test.cpp": 2,
   "dsp/tests/unit/systems/vorago_engine_test.cpp": 1,
   "plugins/innexus/tests/unit/vst/waveguide_param_test.cpp": 6,
-  "plugins/membrum/tests/unit/processor/test_coupling_phase9_verification.cpp": 6,
-  "plugins/membrum/tests/unit/voice_pool/test_secondary_shell_paths.cpp": 2,
   "tests/test_helpers/buffer_comparison.h": 2,
   "tests/test_helpers/golden_reference.h": 4,
   "tests/test_helpers/signal_metrics.h": 5,

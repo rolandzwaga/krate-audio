@@ -19,8 +19,8 @@
 // IMPORTANT (CLAUDE.md / testing-guide ANTI-PATTERNS #13):
 //   - No REQUIRE/CHECK inside the sample-processing loops. Metrics are
 //     collected once per combination, asserts fire after the loop.
-//   - NaN/Inf is checked by bit manipulation (std::isnan broken under
-//     -ffast-math on MSVC).
+//   - NaN/Inf is checked by Krate::DSP::detail::isFinite (std::isnan and a
+//     local bit-mask are both folded under -ffast-math).
 // ==============================================================================
 
 #include <catch2/catch_test_macros.hpp>
@@ -32,13 +32,12 @@
 #include <algorithm>
 #include <array>
 #include <chrono>
-#include <cstdint>
 #include <cstdio>
-#include <cstring>
 #include <ctime>
 #include <filesystem>
 #include <fstream>
 #include <string>
+#include <krate/dsp/core/db_utils.h>
 
 namespace {
 
@@ -86,12 +85,11 @@ constexpr const char* bodyName(Membrum::BodyModelType t) noexcept
     }
 }
 
-// Bit-manipulation NaN/Inf check (see CLAUDE.md Cross-Platform Compatibility).
+// NaN/Inf check that survives -ffast-math: the shared detail::isFinite reads the bits through db_utils.h's
+// barrier. A local memcpy + mask (this helper's old body) is folded to "finite" by newer Apple clang.
 inline bool isNaNOrInfBits(float x) noexcept
 {
-    std::uint32_t bits = 0;
-    std::memcpy(&bits, &x, sizeof(bits));
-    return (bits & 0x7F800000u) == 0x7F800000u;
+    return !::Krate::DSP::detail::isFinite(x);
 }
 
 // Configure the voice for the (exciter, body, toneShaper, unnatural) cell.

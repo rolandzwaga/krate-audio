@@ -18,8 +18,8 @@
 // The SC-027a static_assert lives in voice_pool.h as a compile-time safety
 // net; the definitive runtime evidence is this fuzz test.
 //
-// NaN detection uses bit manipulation because -ffast-math breaks
-// std::isnan/std::isfinite on MSVC (CLAUDE.md Cross-Platform Compatibility).
+// NaN detection uses Krate::DSP::detail::isFinite because -ffast-math folds
+// std::isnan/std::isfinite and a local bit-mask (CLAUDE.md Cross-Platform Compatibility).
 //
 // NOTE: Global operator new/delete overrides live in test_allocation_matrix.cpp
 // in this same test binary. ODR-safe since they are defined exactly once per
@@ -35,9 +35,9 @@
 
 #include <array>
 #include <cstdint>
-#include <cstring>
 #include <random>
 #include <vector>
+#include <krate/dsp/core/db_utils.h>
 
 namespace {
 
@@ -47,12 +47,11 @@ constexpr double kDurationSeconds = 10.0;
 constexpr int    kNoteOnPeriodBlocks =
     4; // ~5 ms at 44.1 kHz / 128-sample blocks (128/44100 ~= 2.9 ms/block)
 
-// Bit-manipulation NaN/Inf check (CLAUDE.md Cross-Platform Compatibility).
+// NaN/Inf check that survives -ffast-math: the shared detail::isFinite reads the bits through db_utils.h's
+// barrier. A local memcpy + mask (this helper's old body) is folded to "finite" by newer Apple clang.
 inline bool isNaNOrInfBits(float x) noexcept
 {
-    std::uint32_t bits = 0;
-    std::memcpy(&bits, &x, sizeof(bits));
-    return (bits & 0x7F800000u) == 0x7F800000u;
+    return !::Krate::DSP::detail::isFinite(x);
 }
 
 } // namespace
