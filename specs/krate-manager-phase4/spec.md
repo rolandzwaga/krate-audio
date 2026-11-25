@@ -603,7 +603,8 @@ them. D3-D21 (and D12a) settle points the roadmap names but does not pin down. E
 ### F. Frontend toolchain (roadmap lines 468-469, 498, 989-991; D1-D3)
 
 - **FR-050** `package.json`: `"private": true`, `"type": "module"`, no `version` key (D18), no `dependencies` other
-  than `@tauri-apps/api` 2.12.4; `devDependencies` `@tauri-apps/cli` 2.12.4, `vite` 8.3.5, `vitest` 5.0.5, `jsdom`
+  than `@tauri-apps/api` at an exact X.Y.Z on the X.Y line of the workspace `tauri` crate (2.12.4 when written;
+  amended 2026-11-25, Dependabot PR #317: a pinned literal failed every patch bump); `devDependencies` `@tauri-apps/cli` 2.12.4, `vite` 8.3.5, `vitest` 5.0.5, `jsdom`
   29.1.1, `typescript` 6.0.3, `eslint` 10.14.0, `@eslint/js` 10.0.1, `typescript-eslint` 8.72.1, `@types/node` 26.6.6,
   all exact versions (an npm alias `npm:<package>@X.Y.Z` counts as exact: the TypeScript 7 upgrade, 2026-11-15, uses
   Microsoft's side-by-side layout, `@typescript/native` → `npm:typescript@7.0.2` for `tsc` and `typescript` →
