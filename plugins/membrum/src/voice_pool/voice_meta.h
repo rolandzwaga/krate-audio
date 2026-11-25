@@ -48,9 +48,11 @@ struct alignas(64) VoiceMeta
     std::uint8_t   originatingChoke  = 0;                       // FR-132 cached choke group at note-on
     VoiceSlotState state             = VoiceSlotState::Free;    // FR-172 slot lifecycle
     std::uint8_t   _pad              = 0;                       // reserved for Phase 4+ flags
-    // T2.3 (MB-054): a fading (shadow) voice keeps the pan gains and the
-    // output bus its pad had when the fade began, so a kit load that changes
-    // the pad's pan or bus does not step the fading tail.
+    // T2.25 (MB-056): the pan gains and the output bus are latched at
+    // note-on, so a mid-ring Pan or Output Bus edit does not step the gains
+    // or move the ringing tail between buses. T2.3 (MB-054): a fading
+    // (shadow) voice keeps them, so a kit load that changes the pad's pan or
+    // bus does not step the fading tail.
     float          panGainL          = 1.0f;
     float          panGainR          = 1.0f;
     std::uint8_t   outputBus         = 0;

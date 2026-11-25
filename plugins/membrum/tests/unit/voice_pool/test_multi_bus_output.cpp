@@ -12,6 +12,7 @@
 #include "voice_pool_test_helpers.h"
 #include "dsp/pad_config.h"
 
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <cstring>
@@ -321,4 +322,92 @@ TEST_CASE("Multi-bus: bus deactivation mid-session routes to main only", "[multi
     REQUIRE(computeRMS(bufs.mainL.data(), kBlockSize) > 0.0001f);
     CHECK(isSilent(bufs.auxLBufs[2].data(), kBlockSize));
     CHECK(isSilent(bufs.auxRBufs[2].data(), kBlockSize));
+}
+
+// T2.25 (MB-056): pan and output bus are latched at note-on. A mid-ring edit
+// of the pad's Output Bus or Pan must not move the ringing tail to another
+// aux bus (a hard stop on one bus, a hard start on the other) or step the
+// channel gains; the edit takes effect at the pad's next note-on.
+TEST_CASE("Multi-bus: a ringing voice keeps the output bus and pan it started with",
+          "[multi-bus][voice_pool]")
+{
+    using namespace Membrum;
+
+    constexpr int kNumBuses = 4;
+
+    VoicePool pool;
+    pool.prepare(48000.0, kBlockSize);
+    TestHelpers::setAllPadsVoiceParams(pool, 0.5f, 0.5f, 0.5f, 0.3f, 0.8f);
+    TestHelpers::setAllPadsExciterType(pool, ExciterType::Impulse);
+    TestHelpers::setAllPadsBodyModel(pool, BodyModelType::Membrane);
+
+    pool.setPadConfigField(0, kPadOutputBus, 2.0f / 15.0f);
+    pool.setPadConfigField(0, kPadPan, 0.5f);
+
+    MultiBusBuffers bufs;
+    const auto render = [&]
+    {
+        bufs.clear();
+        for (int b = 0; b < kNumBuses; ++b)
+            bufs.busActive[static_cast<std::size_t>(b)] = true;
+        pool.processBlock(bufs.mainL.data(), bufs.mainR.data(),
+                          bufs.auxLPtrs.data(), bufs.auxRPtrs.data(),
+                          bufs.busActive.data(), kNumBuses, kBlockSize);
+    };
+
+    pool.noteOn(36, 1.0f);
+    for (int b = 0; b < 4; ++b)
+        render();
+
+    // The previous block on aux 2: its last sample and its largest
+    // sample-to-sample step.
+    const std::array<float, kBlockSize> prevAux2 = bufs.auxLBufs[2];
+    REQUIRE(computeRMS(prevAux2.data(), kBlockSize) > 0.0001f);
+    float maxStep = 0.0f;
+    for (int i = 1; i < kBlockSize; ++i)
+        maxStep = std::max(maxStep,
+                           std::fabs(prevAux2[static_cast<std::size_t>(i)]
+                                     - prevAux2[static_cast<std::size_t>(i - 1)]));
+
+    // Mid-ring edit: move the pad to aux 3 and pan it hard left.
+    pool.setPadConfigField(0, kPadOutputBus, 3.0f / 15.0f);
+    pool.setPadConfigField(0, kPadPan, 0.0f);
+    render();
+
+    // Aux 3 stays silent: the ringing tail does not start there.
+    CHECK(isSilent(bufs.auxLBufs[3].data(), kBlockSize));
+    CHECK(isSilent(bufs.auxRBufs[3].data(), kBlockSize));
+
+    // Aux 2 keeps the tail, continuous with its previous block.
+    float aux2Max = 0.0f;
+    for (int i = 0; i < kBlockSize; ++i)
+        aux2Max = std::max(aux2Max, std::fabs(bufs.auxLBufs[2][static_cast<std::size_t>(i)]));
+    CHECK(aux2Max > 1e-4f);
+    const float jump = std::fabs(bufs.auxLBufs[2][0] - prevAux2[kBlockSize - 1]);
+    INFO("aux-2 boundary jump " << jump << ", largest step inside the previous block " << maxStep);
+    CHECK(jump <= maxStep);
+
+    // The main bus keeps the centre pan.
+    bool centred = true;
+    for (int i = 0; i < kBlockSize; ++i)
+        centred = centred && (bufs.mainL[static_cast<std::size_t>(i)]
+                              == bufs.mainR[static_cast<std::size_t>(i)]);
+    CHECK(centred);
+
+    // Let the voice finish (bounded: 20 s of audio), then strike again: the
+    // new hit uses the edited bus and pan.
+    constexpr int kMaxBlocks = static_cast<int>(20.0 * 48000.0) / kBlockSize;
+    int blocks = 0;
+    while (pool.isAnyVoiceActive() && blocks < kMaxBlocks)
+    {
+        render();
+        ++blocks;
+    }
+    REQUIRE_FALSE(pool.isAnyVoiceActive());
+
+    pool.noteOn(36, 1.0f);
+    render();
+    CHECK(computeRMS(bufs.auxLBufs[3].data(), kBlockSize) > 0.0001f);
+    CHECK(computeRMS(bufs.mainL.data(), kBlockSize) > 0.0001f);
+    CHECK(isSilent(bufs.mainR.data(), kBlockSize));
 }

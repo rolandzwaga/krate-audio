@@ -129,18 +129,38 @@ public:
     /// Render every active and fast-releasing voice into `outL` / `outR`.
     /// Legacy overload (Phase 3 compat) -- routes all audio to main only.
     /// Forwards to the multi-bus overload with one bus (one renderer).
-    void processBlock(float* outL, float* outR, int numSamples) noexcept;
+    /// `feedOffset`: see the multi-bus overload.
+    void processBlock(float* outL, float* outR, int numSamples,
+                      int feedOffset = 0) noexcept;
 
     /// FR-044: Extended processBlock with multi-bus output support.
     /// auxL/auxR: arrays of [numOutputBuses] buffer pointers.
     /// busActive: boolean array indicating which buses are active.
     /// After rendering each voice, audio is accumulated to main (always) and
     /// to auxL[pad.outputBus]/auxR[pad.outputBus] if the bus is active and > 0.
+    /// T2.27 (MB-066): the pre-pan voice sum of the call is written to
+    /// `couplingFeed()[feedOffset, feedOffset + numSamples)` (zeroed first);
+    /// a caller that renders one host block in segments passes each
+    /// segment's start so the feed covers the whole block.
     void processBlock(float* outL, float* outR,
                       float** auxL, float** auxR,
                       const bool* busActive,
                       int numOutputBuses,
-                      int numSamples) noexcept;
+                      int numSamples,
+                      int feedOffset = 0) noexcept;
+
+    /// T2.27 (MB-066): the pre-pan (mono) sum of every main and fast-releasing
+    /// voice, as written by `processBlock`. It feeds the coupling engine, so
+    /// a pad's sympathetic drive does not depend on its pan.
+    [[nodiscard]] const float* couplingFeed() const noexcept { return couplingFeed_.get(); }
+
+    /// Number of samples `couplingFeed()` holds (the size reserved in prepare).
+    [[nodiscard]] int couplingFeedSize() const noexcept { return maxBlockSize_; }
+
+    /// M-9: the equal-power per-pad pan law, referenced to unity at centre.
+    /// `panNorm` in [0, 1], 0.5 = centre (exactly 1.0 on both sides, by a
+    /// branch). gainL^2 + gainR^2 == 2: a hard pan is +3 dB on one side.
+    static void equalPowerPanGains(float panNorm, float& gainL, float& gainR) noexcept;
 
     // ------------------------------------------------------------------
     // Configuration -- audio thread via `processParameterChanges`
@@ -352,9 +372,9 @@ private:
 
     /// M-9: equal-power per-pad pan gains for a voice, looked up from the
     /// voice's originating note. `gainL`/`gainR` default to unity (center) for
-    /// notes outside the pad range. The law is referenced to unity-at-center so
-    /// a default (pan 0.5) pad reproduces the legacy mono-duplication mix
-    /// exactly (gainL == gainR == 1.0); hard-panned pads reach +3 dB on one
+    /// notes outside the pad range. The law (`equalPowerPanGains`) is
+    /// referenced to unity-at-center: a default (pan 0.5) pad gets exactly
+    /// gainL == gainR == 1.0 by a branch; hard-panned pads reach +3 dB on one
     /// side (constant power: gainL^2 + gainR^2 == 2).
     void panGainsForNote(std::uint8_t originatingNote,
                          float& gainL, float& gainR) const noexcept;
@@ -405,6 +425,8 @@ private:
     // ------------------------------------------------------------------
     std::unique_ptr<float[]> scratchL_{};
     std::unique_ptr<float[]> scratchR_{};
+    // T2.27 (MB-066): pre-pan voice sum for the coupling engine.
+    std::unique_ptr<float[]> couplingFeed_{};
 
     int    maxBlockSize_   = 0;
     double sampleRate_     = 44100.0;

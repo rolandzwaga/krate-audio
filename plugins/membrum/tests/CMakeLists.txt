@@ -117,6 +117,8 @@ add_executable(membrum_tests
     unit/processor/test_coupling_state.cpp
     unit/processor/test_coupling_energy.cpp
     unit/processor/test_coupling_fuzz.cpp
+    unit/processor/test_processor_host_contract.cpp
+    unit/vst/test_stepped_param_decode.cpp
     unit/processor/test_kit_preset_load_render.cpp
     unit/processor/test_output_level_measure.cpp
     unit/processor/test_kit_switch_infinite_ring.cpp
@@ -159,6 +161,8 @@ add_executable(membrum_tests
     unit/controller/test_controller_default_kit.cpp
     # Fix plan T2.18: parameter readouts mirror the DSP's laws
     unit/controller/test_param_readouts.cpp
+    # Fix plan T2.31: meter peaks survive between UI ticks, bus activation reaches the controller
+    unit/controller/test_meters_bridge.cpp
     unit/diagnose/test_orchestral_distortion.cpp
     unit/diagnose/test_body_resonant_peak.cpp
     unit/diagnose/test_snare_body_diagnose.cpp
@@ -169,6 +173,7 @@ add_executable(membrum_tests
     unit/dsp/test_fm_strike_velocity.cpp
     unit/ui/test_pad_grid_view.cpp
     unit/ui/test_pitch_envelope_display.cpp
+    unit/ui/test_inline_preset_browser.cpp
     unit/preset/test_kit_uimode_roundtrip.cpp
     unit/preset/test_kit_browser_load.cpp
     integration/test_editor_asan_lifecycle.cpp

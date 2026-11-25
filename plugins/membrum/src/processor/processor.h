@@ -4,7 +4,7 @@
 // Membrum Processor -- Phase 5
 // ==============================================================================
 // Phase 5 adds cross-pad sympathetic resonance (coupling). The coupling engine
-// (SympatheticResonance) processes after VoicePool output: mono sum -> delay ->
+// (SympatheticResonance) processes after VoicePool output: pre-pan voice sum -> delay ->
 // engine -> energy limiter -> add to L/R. Global coupling parameters (270-273)
 // control the coupling amount, snare buzz, tom resonance, and propagation delay.
 // ==============================================================================
@@ -26,6 +26,7 @@
 
 #include "state/state_codec.h"
 
+#include <algorithm>
 #include <array>
 #include <atomic>
 #include <chrono>
@@ -65,6 +66,15 @@ public:
     Steinberg::tresult PLUGIN_API setupProcessing(Steinberg::Vst::ProcessSetup& setup) override;
     Steinberg::tresult PLUGIN_API setActive(Steinberg::TBool state) override;
     Steinberg::tresult PLUGIN_API setProcessing(Steinberg::TBool state) override;
+
+    // Voices ring for up to about 35 s (decay clamp 5 s) and the coupling
+    // resonators ring after them, so no finite tail is right. Idle detection is
+    // the per-block silence flag set in Processor::process (T2.26).
+    Steinberg::uint32 PLUGIN_API getTailSamples() override
+    {
+        return Steinberg::Vst::kInfiniteTail;
+    }
+
     Steinberg::tresult PLUGIN_API connect(Steinberg::Vst::IConnectionPoint* other) override;
     Steinberg::tresult PLUGIN_API disconnect(Steinberg::Vst::IConnectionPoint* other) override;
 
@@ -88,6 +98,7 @@ public:
     Krate::DSP::SympatheticResonance& couplingEngineForTest() noexcept { return couplingEngine_; }
     const CouplingMatrix& couplingMatrixForTest() const noexcept { return couplingMatrix_; }
     float energyEnvelopeForTest() const noexcept { return energyEnvelope_; }
+    float applyEnergyLimiterForTest(float x) noexcept { return applyEnergyLimiter(x); }
     /// Test-only: how many times recomputeCouplingMatrix() has run (MB-075).
     std::uint32_t couplingMatrixRecomputeCountForTest() const noexcept
     {
@@ -371,19 +382,46 @@ private:
     /// is allocation-free on all supported platforms.
     float cpuPermilleEwma_ = 0.0f;
 
-    /// One-pole envelope follower energy limiter (FR-014, SC-007).
-    /// Caps coupling output below -20 dBFS.
+    /// T2.31 (MB-065): main-bus peaks and pad-glow buckets folded (max) over
+    /// every block since the last MetersBlock that was sent. A block the
+    /// DataExchange queue cannot take keeps its peak here for the next send.
+    /// Audio thread only; cleared on each successful send and in setActive.
+    float metersPeakAccL_ = 0.0f;
+    float metersPeakAccR_ = 0.0f;
+    std::array<std::uint8_t, kNumPads> metersGlowAcc_{};
+
+    /// Release time constant of the coupling energy limiter. T2.26 (MB-015):
+    /// a time in seconds, so it is the same at every host rate; 0.2267 s is
+    /// the former fixed 10,000-sample constant at 44.1 kHz.
+    static constexpr float kEnergyLimiterReleaseSec = 0.2267f;
+    /// Per-sample release coefficient at the current rate (setupProcessing).
+    float energyReleaseCoeff_ = 0.9999f;
+
+    /// T2.26 (MB-064, MB-182): samples for which no voice and no coupling
+    /// resonator has been active. The coupling loop stops once this reaches
+    /// couplingIdleHoldSamples_ (the 2 ms maximum coupling delay plus a
+    /// 100 ms hold, set in setupProcessing). Audio thread only.
+    int couplingIdleSamples_ = 0;
+    int couplingIdleHoldSamples_ = 0;
+
+    /// Envelope-follower energy limiter (FR-014, SC-007). Caps the coupling
+    /// output at -20 dBFS. T2.26 (MB-015): the attack is a peak hold (the
+    /// envelope never sits below |x|, so the cap holds from the first sample
+    /// at any rate) and the release is kEnergyLimiterReleaseSec.
     float applyEnergyLimiter(float sample) noexcept
     {
         constexpr float kThreshold = 0.1f;     // -20 dBFS
-        constexpr float kAttackCoeff = 0.001f;  // fast attack
-        constexpr float kReleaseCoeff = 0.9999f; // slow release
-        float absVal = std::abs(sample);
-        float coeff = absVal > energyEnvelope_ ? kAttackCoeff : kReleaseCoeff;
-        energyEnvelope_ += (1.0f - coeff) * (absVal - energyEnvelope_);
+        const float absVal = std::abs(sample);
+        if (absVal > energyEnvelope_)
+            energyEnvelope_ = absVal;
+        else
+            energyEnvelope_ += (1.0f - energyReleaseCoeff_) * (absVal - energyEnvelope_);
         if (energyEnvelope_ > kThreshold)
         {
-            return sample * (kThreshold / energyEnvelope_);
+            // The clamp removes the one-ulp overshoot of the gain's rounding,
+            // so the cap is exact.
+            return std::clamp(sample * (kThreshold / energyEnvelope_),
+                              -kThreshold, kThreshold);
         }
         return sample;
     }

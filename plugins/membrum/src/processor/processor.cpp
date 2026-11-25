@@ -244,9 +244,7 @@ void Processor::processParameterChanges(IParameterChanges* paramChanges)
         {
         case kMaxPolyphonyId:
         {
-            const float clamped = std::clamp(fValue, 0.0f, 1.0f);
-            const int n = 4 + static_cast<int>(std::lround(clamped * 12.0f));
-            const int nClamped = std::clamp(n, 4, 16);
+            const int nClamped = 4 + stepFromNormalized(static_cast<double>(fValue), 12);
             maxPolyphony_.store(nClamped);
             voicePool_.setMaxPolyphony(nClamped);
             break;
@@ -270,9 +268,7 @@ void Processor::processParameterChanges(IParameterChanges* paramChanges)
         // ------------------------------------------------------------------
         case kSelectedPadId:
         {
-            const float clamped = std::clamp(fValue, 0.0f, 1.0f);
-            selectedPadIndex_ = std::clamp(
-                static_cast<int>(std::lround(clamped * 31.0f)), 0, 31);
+            selectedPadIndex_ = stepFromNormalized(static_cast<double>(fValue), 31);
             break;
         }
 
@@ -498,7 +494,7 @@ tresult PLUGIN_API Processor::process(ProcessData& data)
         if (numOutputBuses <= 1)
         {
             // No aux buses available -- fall back to Phase 3 behavior
-            voicePool_.processBlock(outL + start, outR + start, len);
+            voicePool_.processBlock(outL + start, outR + start, len, start);
             return;
         }
         std::array<float*, kMaxOutputBuses> segL{};
@@ -511,7 +507,7 @@ tresult PLUGIN_API Processor::process(ProcessData& data)
         }
         voicePool_.processBlock(outL + start, outR + start,
                                 segL.data(), segR.data(),
-                                busActive_.data(), numOutputBuses, len);
+                                busActive_.data(), numOutputBuses, len, start);
     };
 
     // An audition request (IMessage "AuditionPad") starts at sample 0.
@@ -571,17 +567,40 @@ tresult PLUGIN_API Processor::process(ProcessData& data)
 
         // ============================================================
         // Phase 5: Coupling signal chain (FR-072)
-        // mono sum -> delay read -> delay write -> engine -> energy limiter -> add to L/R
+        // pre-pan voice sum -> delay read -> delay write -> engine -> energy limiter -> add to L/R
+        // T2.27 (MB-066): the feed is the pool's pre-pan voice sum, not
+        // (L + R) / 2 after the pan, so a panned pad drives coupling as hard
+        // as a centred one. At centre pan it equals the old (x + x) * 0.5.
         // Skip entire loop when engine is bypassed (global coupling = 0).
+        // T2.26 (MB-064): also skip it once no voice and no coupling
+        // resonator has been active for the idle hold (2 ms maximum delay +
+        // 100 ms), which drains the delay line and the anti-mud high-pass;
+        // the delay line is cleared when the skip starts, so the next hit
+        // starts from an empty line. A kit-switch fade always runs to its end.
         // ============================================================
-        if (!couplingEngine_.isBypassed())
+        const bool voicesIdle = !voicePool_.isAnyVoiceActive();
+        const bool couplingIdle = couplingEngine_.getActiveResonatorCount() == 0;
+        if (!(voicesIdle && couplingIdle))
+        {
+            couplingIdleSamples_ = 0;
+        }
+        else if (couplingIdleSamples_ < couplingIdleHoldSamples_)
+        {
+            couplingIdleSamples_ += data.numSamples;
+            if (couplingIdleSamples_ >= couplingIdleHoldSamples_)
+                couplingDelay_.reset();
+        }
+        if (!couplingEngine_.isBypassed()
+            && (couplingIdleSamples_ < couplingIdleHoldSamples_ || couplingFadeRemaining_ > 0))
         {
             const float delayMs = couplingDelayMs_.load(std::memory_order_relaxed);
             const float delaySamples = delayMs * static_cast<float>(sampleRate_) * 0.001f;
+            const float* feed = voicePool_.couplingFeed();
+            const int32 feedSize = voicePool_.couplingFeedSize();
 
             for (int32 s = 0; s < data.numSamples; ++s)
             {
-                const float mono = (outL[s] + outR[s]) * 0.5f;
+                const float mono = s < feedSize ? feed[s] : 0.0f;
                 const float delayed = couplingDelay_.readLinear(delaySamples);
                 couplingDelay_.write(mono);
                 float coupling = couplingEngine_.process(delayed);
@@ -690,9 +709,31 @@ tresult PLUGIN_API Processor::process(ProcessData& data)
             }
         }
 
-        data.outputs[0].silenceFlags =
-            (voicePool_.isAnyVoiceActive() || !couplingEngine_.isBypassed())
-                ? 0ULL : 3ULL;
+        // T2.26 (MB-064, MB-182): the main bus is flagged silent from what it
+        // holds, not from whether coupling is enabled. With no voice and no
+        // coupling resonator active, a block whose every sample is below
+        // -140 dBFS is zeroed and flagged; otherwise the flag is cleared.
+        bool mainSilent = false;
+        if (voicesIdle && couplingIdle)
+        {
+            constexpr float kSilenceThreshold = 1e-7f;  // -140 dBFS
+            mainSilent = true;
+            for (int32 s = 0; s < data.numSamples; ++s)
+            {
+                if (std::abs(outL[s]) >= kSilenceThreshold
+                    || std::abs(outR[s]) >= kSilenceThreshold)
+                {
+                    mainSilent = false;
+                    break;
+                }
+            }
+            if (mainSilent)
+            {
+                std::fill(outL, outL + data.numSamples, 0.0f);
+                std::fill(outR, outR + data.numSamples, 0.0f);
+            }
+        }
+        data.outputs[0].silenceFlags = mainSilent ? 3ULL : 0ULL;
     }
 
     // T2.3 (MB-054, MB-091): a coupling fade the loop above did not render
@@ -759,7 +800,8 @@ tresult PLUGIN_API Processor::process(ProcessData& data)
 
     // ============================================================
     // Phase 6 (T045): publish MetersBlock via DataExchangeHandler.
-    // Peak L/R over this block, active voice count, CPU permille placeholder.
+    // Peak L/R since the last sent block, active voice count, CPU permille,
+    // pad glow, output-bus activation.
     // ============================================================
     if (dataExchangeHandler_ && hasMainOut)
     {
@@ -797,29 +839,54 @@ tresult PLUGIN_API Processor::process(ProcessData& data)
                 std::clamp(cpuPermilleEwma_ + 0.5f, 0.0f, 65535.0f));
         }
 
+        // T2.31 (MB-065): fold this block's peaks and the glow snapshot into
+        // the accumulators, so a block the queue cannot take (it holds only a
+        // few blocks between UI drains) still reaches the meter in the next
+        // block that is sent.
+        metersPeakAccL_ = std::max(metersPeakAccL_, peakL);
+        metersPeakAccR_ = std::max(metersPeakAccR_, peakR);
+        std::array<std::uint8_t, kNumPads> buckets{};
+        padGlowPublisher_.snapshot(buckets);
+        for (std::size_t p = 0; p < buckets.size(); ++p)
+            metersGlowAcc_[p] = std::max(metersGlowAcc_[p], buckets[p]);
+
         auto block = dataExchangeHandler_->getCurrentOrNewBlock();
         if (block.blockID != Steinberg::Vst::InvalidDataExchangeBlockID
             && block.data != nullptr
             && block.size >= sizeof(MetersBlock))
         {
             MetersBlock mb;
-            mb.peakL        = peakL;
-            mb.peakR        = peakR;
+            mb.peakL        = metersPeakAccL_;
+            mb.peakR        = metersPeakAccR_;
             mb.activeVoices = static_cast<std::uint16_t>(
                                   voicePool_.getActiveVoiceCount());
             mb.cpuPermille  = cpuPermille;
 
-            // Snapshot the glow publisher directly into the block so the
+            // The folded glow buckets travel in the block so the
             // controller-side UI can mirror per-pad amplitude across the
             // separate-component boundary.
-            std::array<std::uint8_t, kNumPads> buckets{};
-            padGlowPublisher_.snapshot(buckets);
-            static_assert(sizeof(mb.padGlowBuckets) == sizeof(buckets),
+            static_assert(sizeof(mb.padGlowBuckets) == sizeof(metersGlowAcc_),
                           "MetersBlock glow bucket size must match kNumPads");
-            std::memcpy(mb.padGlowBuckets, buckets.data(), sizeof(buckets));
+            std::memcpy(mb.padGlowBuckets, metersGlowAcc_.data(), sizeof(metersGlowAcc_));
+
+            // T2.31 (MB-100): the host activates buses on the processor only;
+            // the controller learns them from this mask.
+            static_assert(kMaxOutputBuses <= 16, "busActiveMask is 16 bits wide");
+            std::uint16_t busMask = 0;
+            for (std::size_t b = 0; b < busActive_.size(); ++b)
+            {
+                if (busActive_[b])
+                    busMask = static_cast<std::uint16_t>(busMask | (1u << b));
+            }
+            mb.busActiveMask = static_cast<std::uint16_t>(busMask | 1u);
 
             std::memcpy(block.data, &mb, sizeof(MetersBlock));
-            dataExchangeHandler_->sendCurrentBlock();
+            if (dataExchangeHandler_->sendCurrentBlock())
+            {
+                metersPeakAccL_ = 0.0f;
+                metersPeakAccR_ = 0.0f;
+                metersGlowAcc_.fill(0);
+            }
         }
     }
 
@@ -1165,6 +1232,7 @@ void Processor::resetCouplingState() noexcept
     couplingEngine_.reset();
     couplingDelay_.reset();
     energyEnvelope_ = 0.0f;
+    couplingIdleSamples_ = 0;  // T2.26: the idle hold starts over
     couplingEngine_.setAmount(globalCoupling_.load(std::memory_order_relaxed));
     couplingFadeRemaining_ = 0;  // T2.3: a flush ends a kit-switch fade
 }
@@ -1257,6 +1325,11 @@ tresult PLUGIN_API Processor::setupProcessing(ProcessSetup& setup)
     couplingEngine_.prepare(sampleRate_);
     couplingDelay_.prepare(sampleRate_, 0.002f);  // 2 ms max delay
     voicePool_.setCouplingEngine(&couplingEngine_);
+    // T2.26 (MB-015, MB-064): the energy limiter's release and the idle hold
+    // of the coupling loop (2 ms maximum delay + 100 ms) at this rate.
+    energyReleaseCoeff_ =
+        std::exp(-1.0f / (kEnergyLimiterReleaseSec * static_cast<float>(sampleRate_)));
+    couplingIdleHoldSamples_ = static_cast<int>(std::ceil((0.002 + 0.1) * sampleRate_));
     resetCouplingState();  // MB-067 / MB-115: re-applies Global Coupling
 
     // T2.3: a kit-switch fade lasts the voices' fast release, plus margin.
@@ -1306,6 +1379,11 @@ tresult PLUGIN_API Processor::setActive(TBool state)
         // flight and the master gain starts at its target (no ramp).
         kitFadeRemaining_ = 0;
         snapMasterGain(masterGainFromNorm(masterGainNorm_.load(std::memory_order_relaxed)));
+
+        // T2.31: no peak from before this activation reaches the meter.
+        metersPeakAccL_ = 0.0f;
+        metersPeakAccR_ = 0.0f;
+        metersGlowAcc_.fill(0);
 
         // Phase 6 (T045): open the DataExchange queue for MetersBlock.
         if (dataExchangeHandler_)
@@ -1362,7 +1440,7 @@ tresult PLUGIN_API Processor::connect(IConnectionPoint* other)
             // sizeof(MetersBlock) rounded UP to the alignment: the SDK fallback
             // allocates each block with std::aligned_alloc(alignment, blockSize),
             // and macOS returns null for a size that is not a multiple of the
-            // alignment (44 % 32 = 12), so every lockBlock() failed and no meter
+            // alignment (48 % 32 = 16), so every lockBlock() failed and no meter
             // block ever reached the controller there.
             constexpr Steinberg::uint32 kAlignment = 32;
             constexpr Steinberg::uint32 kBlockSize =

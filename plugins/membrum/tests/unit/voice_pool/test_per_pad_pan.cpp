@@ -6,13 +6,15 @@
 // sat dead-center. M-9 adds a per-pad pan field + an equal-power pan law in the
 // pool's mix stage.
 //
-// Law (VoicePool::panGainsForNote): pan in [0, 1] normalized, 0.5 = center.
+// Law (VoicePool::equalPowerPanGains): pan in [0, 1] normalized, 0.5 = center.
 //   theta  = pan * pi/2
 //   gainL  = sqrt(2) * cos(theta)
 //   gainR  = sqrt(2) * sin(theta)
-// The sqrt(2) lifts the textbook -3 dB equal-power center back to 0 dB, so a
-// default (pan 0.5) pad is BIT-IDENTICAL to the legacy mono duplication
-// (gainL == gainR == 1.0). Constant power: gainL^2 + gainR^2 == 2 for all pan.
+// The sqrt(2) lifts the textbook -3 dB equal-power center back to 0 dB. The
+// center itself is a branch (T2.27): gainL == gainR == 1.0 exactly, so a
+// default (pan 0.5) pad is BIT-IDENTICAL to the legacy mono duplication.
+// Constant power: gainL^2 + gainR^2 == 2 for all pan, so a hard pan puts
+// +3 dB into one channel of the bus limiter.
 //
 // Assertions:
 //   - center (0.5): outL == outR sample-for-sample (legacy mono-dup), energy>0.
@@ -29,6 +31,7 @@
 #include "voice_pool/voice_pool.h"
 #include "voice_pool_test_helpers.h"
 
+#include <cmath>
 #include <cstdint>
 #include <vector>
 
@@ -135,4 +138,80 @@ TEST_CASE("VoicePool per-pad pan: constant power across pan positions (M-9)",
     // A hard-panned channel carries the FULL mono power == both center channels.
     REQUIRE(left.eL  == Catch::Approx(centerTotal).epsilon(1e-4));
     REQUIRE(right.eR == Catch::Approx(centerTotal).epsilon(1e-4));
+}
+
+// T2.27 (MB-066): the centre gains are exactly unity (a branch, not
+// sqrt(2) * cos(pi/4), which is 0.99999994 in float), and the law keeps
+// constant power gainL^2 + gainR^2 == 2 off centre.
+TEST_CASE("VoicePool per-pad pan: centre gains are exactly unity", "[voice_pool][pan]")
+{
+    float gainL = 0.0f;
+    float gainR = 0.0f;
+    Membrum::VoicePool::equalPowerPanGains(0.5f, gainL, gainR);
+    CAPTURE(gainL, gainR);
+    CHECK(gainL == 1.0f);
+    CHECK(gainR == 1.0f);
+
+    for (const float pan : {0.0f, 0.25f, 0.75f, 1.0f})
+    {
+        Membrum::VoicePool::equalPowerPanGains(pan, gainL, gainR);
+        const double power = static_cast<double>(gainL) * gainL
+                           + static_cast<double>(gainR) * gainR;
+        CAPTURE(pan, gainL, gainR, power);
+        CHECK(std::abs(power - 2.0) <= 1e-6);
+    }
+}
+
+// T2.25 (MB-056): the pan is latched at note-on. A mid-ring pan edit leaves
+// the ringing voice where it started (no per-block gain step); the pad's next
+// note-on plays at the new pan.
+TEST_CASE("VoicePool per-pad pan: a ringing voice keeps its note-on pan",
+          "[voice_pool][pan]")
+{
+    Membrum::VoicePool pool;
+    pool.prepare(kSampleRate, kBlockSize);
+    pool.setVoiceStealingPolicy(Membrum::VoiceStealingPolicy::Oldest);
+    Membrum::TestHelpers::setAllPadsVoiceParams(pool, 0.5f, 0.5f, 0.3f, 0.3f, 0.8f);
+    Membrum::TestHelpers::setAllPadsExciterType(pool, Membrum::ExciterType::Impulse);
+    Membrum::TestHelpers::setAllPadsBodyModel(pool, Membrum::BodyModelType::Membrane);
+    pool.setPadConfigField(0, Membrum::kPadPan, 0.5f);
+
+    std::vector<float> outL(static_cast<std::size_t>(kBlockSize), 0.0f);
+    std::vector<float> outR(static_cast<std::size_t>(kBlockSize), 0.0f);
+    const auto energy = [](const std::vector<float>& v)
+    {
+        double e = 0.0;
+        for (const float s : v)
+            e += static_cast<double>(s) * s;
+        return e;
+    };
+
+    pool.noteOn(36, 1.0f);
+    for (int b = 0; b < 4; ++b)
+        pool.processBlock(outL.data(), outR.data(), kBlockSize);
+
+    // Mid-ring: hard left. The ringing voice stays centred.
+    pool.setPadConfigField(0, Membrum::kPadPan, 0.0f);
+    pool.processBlock(outL.data(), outR.data(), kBlockSize);
+    REQUIRE(energy(outL) > 0.0);
+    bool centred = true;
+    for (std::size_t i = 0; i < outL.size(); ++i)
+        centred = centred && (outL[i] == outR[i]);
+    CHECK(centred);
+
+    // Let the voice finish (bounded: 20 s of audio), then strike again: the
+    // new hit is hard left.
+    const int maxBlocks = static_cast<int>(20.0 * kSampleRate) / kBlockSize;
+    int blocks = 0;
+    while (pool.isAnyVoiceActive() && blocks < maxBlocks)
+    {
+        pool.processBlock(outL.data(), outR.data(), kBlockSize);
+        ++blocks;
+    }
+    REQUIRE_FALSE(pool.isAnyVoiceActive());
+
+    pool.noteOn(36, 1.0f);
+    pool.processBlock(outL.data(), outR.data(), kBlockSize);
+    CHECK(energy(outL) > 0.0);
+    CHECK(energy(outR) == 0.0);
 }

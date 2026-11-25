@@ -175,10 +175,8 @@ buildPadSnapshotFromParams(const EditControllerEx1& ctrl, int pad,
     snap.sound[57] = paramless.noiseLayerGain;
 
     // Authoritative uint8 choke/bus (quantised from normalised).
-    snap.chokeGroup = static_cast<std::uint8_t>(
-        std::clamp(static_cast<int>(chokeNorm * 8.0 + 0.5), 0, 8));
-    snap.outputBus = static_cast<std::uint8_t>(
-        std::clamp(static_cast<int>(busNorm * 15.0 + 0.5), 0, 15));
+    snap.chokeGroup = static_cast<std::uint8_t>(stepFromNormalized(chokeNorm, 8));
+    snap.outputBus = static_cast<std::uint8_t>(stepFromNormalized(busNorm, 15));
 
     snap.couplingAmount = readParam(ctrl,
         static_cast<ParamID>(padParamId(pad, kPadCouplingAmount)));
@@ -313,8 +311,7 @@ buildSnapshot(const EditControllerEx1& ctrl, int selectedPadIndex,
 
     // Polyphony: stored as normalised over [4, 16].
     const double maxPolyNorm = readParam(ctrl, kMaxPolyphonyId);
-    kit.maxPolyphony = std::clamp(
-        4 + static_cast<int>(maxPolyNorm * 12.0 + 0.5), 4, 16);
+    kit.maxPolyphony = 4 + stepFromNormalized(maxPolyNorm, 12);
 
     const double stealNorm = readParam(ctrl, kVoiceStealingId);
     kit.voiceStealingPolicy = std::clamp(

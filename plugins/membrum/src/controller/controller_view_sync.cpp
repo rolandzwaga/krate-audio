@@ -73,9 +73,7 @@ void Controller::updateOutputBusTooltip() noexcept
     // The parameter is a 16-entry StringListParameter so its normalised value
     // maps to [0, kMaxOutputBuses - 1] via round-to-nearest.
     const auto norm = getParamNormalized(static_cast<ParamID>(kOutputBusId));
-    const int busIndex = std::clamp(
-        static_cast<int>(std::lround(norm * (kMaxOutputBuses - 1))),
-        0, kMaxOutputBuses - 1);
+    const int busIndex = stepFromNormalized(norm, kMaxOutputBuses - 1);
 
     if (busIndex >= 1 && !isBusActive(busIndex))
     {
@@ -131,6 +129,18 @@ void Controller::applyViewRefresh(std::uint32_t flags) noexcept
     if (flags & kRefreshFilterEnvDisplay) updateFilterEnvDisplay();
     if (flags & kRefreshPitchEnvDisplay)  updatePitchEnvelopeDisplay();
     if (flags & kRefreshMorphPad)         updateMorphPadPosition();
+    if (flags & kRefreshPresetBrowserNames) updatePresetBrowserNames();
+}
+
+void Controller::updatePresetBrowserNames() noexcept
+{
+    if (kitInlineBrowser_)
+        kitInlineBrowser_->setCurrentPreset(lastKitPresetName_, lastKitPresetPath_);
+    if (padInlineBrowser_)
+    {
+        const auto pad = static_cast<std::size_t>(std::clamp(selectedPadIndex_, 0, kNumPads - 1));
+        padInlineBrowser_->setCurrentPreset(padPresetNames_[pad], padPresetPaths_[pad]);
+    }
 }
 
 void Controller::drainPendingViewRefresh() noexcept
@@ -145,8 +155,8 @@ void Controller::drainPendingViewRefresh() noexcept
 // per-pad parameters exactly as the processor decodes them:
 //   exciterType, bodyModel   clamp(int(norm * kCount), 0, kCount - 1)
 //                            (processor.cpp processParameterChanges)
-//   chokeGroup               clamp(int(norm * 8 + 0.5), 0, 8)
-//   outputBus                clamp(int(norm * 15 + 0.5), 0, 15)
+//   chokeGroup               stepFromNormalized(norm, 8)
+//   outputBus                stepFromNormalized(norm, 15)
 //                            (VoicePool::setPadConfigField)
 //   tsPitchEnvTime           the normalized value.
 // The macros never switch the pitch envelope on or off (macro_offsets.h), so
@@ -167,10 +177,10 @@ void Controller::refreshGridMeta() noexcept
             0, exciterCount - 1));
         meta.bodyModel = decodeBodyModel(norm(pad, kPadBodyModel));
         meta.tsPitchEnvTime = static_cast<float>(norm(pad, kPadTSPitchEnvTime));
-        meta.chokeGroup = static_cast<std::uint8_t>(std::clamp(
-            static_cast<int>(norm(pad, kPadChokeGroup) * 8.0 + 0.5), 0, 8));
-        meta.outputBus = static_cast<std::uint8_t>(std::clamp(
-            static_cast<int>(norm(pad, kPadOutputBus) * 15.0 + 0.5), 0, 15));
+        meta.chokeGroup = static_cast<std::uint8_t>(
+            stepFromNormalized(norm(pad, kPadChokeGroup), 8));
+        meta.outputBus = static_cast<std::uint8_t>(
+            stepFromNormalized(norm(pad, kPadOutputBus), 15));
     }
 }
 

@@ -12,7 +12,20 @@
 #include "pluginterfaces/vst/vsttypes.h"
 #include "dsp/pad_config.h"
 
+#include <algorithm>
+
 namespace Membrum {
+
+/// Index a stepped parameter shows for a normalized value, with the SDK's
+/// convention (Steinberg::FromNormalized, public.sdk futils.h:96): the value
+/// floors into numSteps + 1 equal bins, so the host's display and the DSP
+/// agree at every intermediate automation value (T2.30, MB-080).
+[[nodiscard]] constexpr int stepFromNormalized(double norm, int numSteps) noexcept
+{
+    const double clamped = std::clamp(norm, 0.0, 1.0);
+    const int idx = static_cast<int>(clamped * (numSteps + 1));
+    return std::min(idx, numSteps);
+}
 
 // Processor Component ID
 static const Steinberg::FUID kProcessorUID(0x4D656D62, 0x72756D50, 0x726F6331, 0x00000136);

@@ -21,6 +21,7 @@
 
 #include <catch2/catch_test_macros.hpp>
 
+#include "processor/processor.h"
 #include "voice_pool/voice_pool.h"
 #include "dsp/pad_config.h"
 #include "dsp/exciter_type.h"
@@ -54,25 +55,6 @@ inline bool isFiniteSample(float x) noexcept
     std::uint32_t bits = 0;
     std::memcpy(&bits, &x, sizeof(bits));
     return (bits & 0x7F800000u) != 0x7F800000u;
-}
-
-// Simple, allocation-free energy limiter mirroring the one in
-// processor.cpp (::applyEnergyLimiter) so the fuzz test exercises the same
-// per-sample work.
-inline float fuzzEnergyLimiter(float sample, float& envelope) noexcept
-{
-    constexpr float kThreshold = 0.1f;  // -20 dBFS
-    constexpr float kAttack  = 0.01f;
-    constexpr float kRelease = 0.001f;
-    const float absSample = std::fabs(sample);
-    if (absSample > envelope)
-        envelope += (absSample - envelope) * kAttack;
-    else
-        envelope += (absSample - envelope) * kRelease;
-    const float gain = (envelope > kThreshold)
-        ? (kThreshold / envelope)
-        : 1.0f;
-    return sample * gain;
 }
 
 } // namespace
@@ -110,7 +92,20 @@ TEST_CASE("Coupling fuzz: SC-009 zero audio-thread allocations under random MIDI
 
     std::vector<float> outL(static_cast<size_t>(kBlockSize), 0.0f);
     std::vector<float> outR(static_cast<size_t>(kBlockSize), 0.0f);
-    float energyEnvelope = 0.0f;
+
+    // The Processor's own energy limiter (T2.26: no mirror copy that can
+    // drift), set up at the fuzz rate.
+    Membrum::Processor limiterHost;
+    limiterHost.initialize(nullptr);
+    Steinberg::Vst::ProcessSetup setup{};
+    setup.processMode = Steinberg::Vst::kRealtime;
+    setup.symbolicSampleSize = Steinberg::Vst::kSample32;
+    setup.maxSamplesPerBlock = kBlockSize;
+    setup.sampleRate = kSampleRate;
+    limiterHost.setupProcessing(setup);
+    const auto fuzzEnergyLimiter = [&limiterHost](float sample) noexcept {
+        return limiterHost.applyEnergyLimiterForTest(sample);
+    };
 
     // ---- WARM-UP (outside tracking scope) ----
     // Fire every pad multiple times so every voice slot has been stolen and
@@ -133,8 +128,7 @@ TEST_CASE("Coupling fuzz: SC-009 zero audio-thread allocations under random MIDI
                 const float delayed = couplingDelay.readLinear(
                     1.0f * static_cast<float>(kSampleRate) * 0.001f);
                 couplingDelay.write(mono);
-                const float c = fuzzEnergyLimiter(couplingEngine.process(delayed),
-                                                  energyEnvelope);
+                const float c = fuzzEnergyLimiter(couplingEngine.process(delayed));
                 outL[static_cast<size_t>(s)] += c;
                 outR[static_cast<size_t>(s)] += c;
             }
@@ -153,8 +147,7 @@ TEST_CASE("Coupling fuzz: SC-009 zero audio-thread allocations under random MIDI
                 const float delayed = couplingDelay.readLinear(
                     1.0f * static_cast<float>(kSampleRate) * 0.001f);
                 couplingDelay.write(mono);
-                const float c = fuzzEnergyLimiter(couplingEngine.process(delayed),
-                                                  energyEnvelope);
+                const float c = fuzzEnergyLimiter(couplingEngine.process(delayed));
                 outL[static_cast<size_t>(s)] += c;
                 outR[static_cast<size_t>(s)] += c;
             }
@@ -214,7 +207,7 @@ TEST_CASE("Coupling fuzz: SC-009 zero audio-thread allocations under random MIDI
                 1.0f * static_cast<float>(kSampleRate) * 0.001f);
             couplingDelay.write(mono);
             float coupling = couplingEngine.process(delayed);
-            coupling = fuzzEnergyLimiter(coupling, energyEnvelope);
+            coupling = fuzzEnergyLimiter(coupling);
             outL[static_cast<size_t>(s)] += coupling;
             outR[static_cast<size_t>(s)] += coupling;
 
@@ -224,6 +217,7 @@ TEST_CASE("Coupling fuzz: SC-009 zero audio-thread allocations under random MIDI
     }
 
     const size_t allocCount = detector.stopTracking();
+    limiterHost.terminate();
 
     CAPTURE(allocCount, kNumBlocks, noteOnCount, noteOffCount);
     // SC-009: zero heap allocations on the audio thread.

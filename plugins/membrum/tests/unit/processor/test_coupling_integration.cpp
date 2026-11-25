@@ -4,7 +4,7 @@
 // T018: Signal chain wiring -- noteOn with couplingEngine_ set causes noteOn on
 // SympatheticResonance; process() with global coupling > 0 adds non-zero energy
 // to output; process() with global coupling = 0 adds zero energy (SC-001);
-// mono sum (L+R)/2 feeds delay then engine (not raw L or R);
+// the pre-pan voice sum feeds delay then engine (T2.27: not the panned L/R);
 // SC-002: kick + snare buzz produces audible coupling contribution.
 // ==============================================================================
 
@@ -29,9 +29,11 @@
 #include <cstring>
 #include <cstdint>
 #include <numeric>
+#include <utility>
 #include <vector>
 #include "vst_param_changes.h"
 #include "vst_event_list.h"
+#include "../bodies/body_test_helpers.h"
 
 using namespace Steinberg;
 using namespace Steinberg::Vst;
@@ -284,10 +286,11 @@ TEST_CASE("Coupling integration: SC-002 kick triggers audible snare buzz",
     }
 }
 
-TEST_CASE("Coupling integration: mono sum (L+R)/2 feeds delay then engine",
+TEST_CASE("Coupling integration: pre-pan voice sum feeds delay then engine",
           "[coupling]")
 {
-    // This test verifies the signal chain order: mono sum -> delay read -> delay write -> engine
+    // This test verifies the signal chain order: pre-pan voice sum (T2.27,
+    // VoicePool::couplingFeed) -> delay read -> delay write -> engine
     // We verify this indirectly by checking the coupling output is consistent
     // with the expected signal flow
     CouplingIntegrationFixture fix;
@@ -305,6 +308,56 @@ TEST_CASE("Coupling integration: mono sum (L+R)/2 feeds delay then engine",
         energy += static_cast<double>(s) * s;
 
     CHECK(energy > 0.0);
+}
+
+// =============================================================================
+// T2.27 (MB-066): the coupling engine is driven by the pre-pan voice sum, so a
+// hard-panned pad excites sympathetic resonance exactly as much as a centred
+// one. Before, the feed was (outL + outR) / 2 after the pan: 3 dB lower at a
+// hard pan.
+// =============================================================================
+TEST_CASE("Coupling integration: coupling excitation does not depend on pad pan",
+          "[coupling][pan]")
+{
+    constexpr double kRate = 48000.0;
+    const auto renderTrace = [&](float pan)
+    {
+        CouplingIntegrationFixture fix(kTestBlockSize, kRate);
+        fix.setParam(Membrum::kGlobalCouplingId, 1.0);
+        fix.processor.voicePoolForTest().setPadConfigField(0, Membrum::kPadPan, pan);
+
+        fix.events.addNoteOn(36, 1.0f);
+        const int numBlocks = static_cast<int>(std::ceil(0.2 * kRate / kTestBlockSize));
+        std::vector<float> trace;
+        trace.reserve(static_cast<std::size_t>(numBlocks));
+        for (int b = 0; b < numBlocks; ++b)
+        {
+            fix.processBlock();
+            fix.events.clear();
+            trace.push_back(fix.processor.energyEnvelopeForTest());
+        }
+        return trace;
+    };
+
+    const std::vector<float> centre = renderTrace(0.5f);
+    const std::vector<float> left   = renderTrace(0.0f);
+    REQUIRE(centre.size() == left.size());
+    REQUIRE(*std::max_element(centre.begin(), centre.end()) > 0.0f);
+
+    int mismatches = 0;
+    double worstRel = 0.0;
+    for (std::size_t i = 0; i < centre.size(); ++i)
+    {
+        const double a = centre[i];
+        const double b = left[i];
+        const double scale = std::max(std::abs(a), std::abs(b));
+        const double rel = scale > 0.0 ? std::abs(a - b) / scale : 0.0;
+        worstRel = std::max(worstRel, rel);
+        if (rel > 1e-6)
+            ++mismatches;
+    }
+    CAPTURE(worstRel, centre.back(), left.back());
+    CHECK(mismatches == 0);
 }
 
 // =============================================================================
@@ -876,5 +929,163 @@ TEST_CASE("Phase 6 (T042): pad with couplingAmount=0 excluded as receiver (zero 
     {
         INFO("src=" << src << " dst=7 must be 0 when pad 7 amount = 0");
         CHECK(m.getEffectiveGain(src, 7) == 0.0f);
+    }
+}
+
+// =============================================================================
+// T2.26 (MB-015): the coupling energy limiter's release is a time in seconds,
+// so it is the same in milliseconds at every host rate; its attack is a peak
+// hold, so the -20 dBFS cap holds from the first sample.
+// =============================================================================
+TEST_CASE("Coupling integration: energy-limiter release time is the same in milliseconds at 44.1 and 192 kHz",
+          "[coupling][sample-rate]")
+{
+    for (const double rate : {44100.0, 192000.0})
+    {
+        INFO("sample rate " << rate);
+        {
+            CouplingIntegrationFixture fix(kTestBlockSize, rate);
+            for (int i = 0; i < 64; ++i)
+                (void)fix.processor.applyEnergyLimiterForTest(1.0f);
+            const float peak = fix.processor.energyEnvelopeForTest();
+            REQUIRE(peak > 0.0f);
+            const float target = peak * std::exp(-1.0f);
+
+            int count = 0;
+            const int maxCount = static_cast<int>(rate * 2.0);
+            while (fix.processor.energyEnvelopeForTest() > target && count < maxCount)
+            {
+                (void)fix.processor.applyEnergyLimiterForTest(0.0f);
+                ++count;
+            }
+            const double releaseMs = 1000.0 * static_cast<double>(count) / rate;
+            CAPTURE(peak, count, releaseMs);
+            CHECK(std::abs(releaseMs - 226.7) <= 0.05 * 226.7);
+        }
+        {
+            CouplingIntegrationFixture fix(kTestBlockSize, rate);
+            constexpr double kTwoPi = 6.283185307179586;
+            const int n = static_cast<int>(rate * 0.5);
+            float maxOut = 0.0f;
+            for (int i = 0; i < n; ++i)
+            {
+                const auto x = static_cast<float>(
+                    0.5 * std::sin(kTwoPi * 100.0 * static_cast<double>(i) / rate));
+                maxOut = std::max(maxOut,
+                                  std::abs(fix.processor.applyEnergyLimiterForTest(x)));
+            }
+            CAPTURE(maxOut);
+            CHECK(maxOut <= 0.1f);  // the -20 dBFS cap
+        }
+    }
+}
+
+// =============================================================================
+// T2.26 (MB-064, MB-182): with Global Coupling on, the main bus is flagged
+// silent once no voice and no coupling resonator is left and the block is
+// silent; the idle coupling loop stops after its hold.
+// =============================================================================
+TEST_CASE("Coupling integration: main bus is flagged silent once voices and coupling resonators have decayed",
+          "[coupling][silence]")
+{
+    constexpr double kRate = 48000.0;
+    constexpr int32 kBlock = 256;
+    CouplingIntegrationFixture fix(kBlock, kRate);
+    fix.setParam(Membrum::kGlobalCouplingId, 1.0);
+
+    fix.events.addNoteOn(36, 1.0f);
+    const int totalBlocks = static_cast<int>(std::ceil(10.0 * kRate / kBlock));
+    const int lastSecondStart = totalBlocks - static_cast<int>(std::ceil(kRate / kBlock));
+    int unflagged = 0;
+    int nonZero = 0;
+    for (int b = 0; b < totalBlocks; ++b)
+    {
+        fix.outputBus.silenceFlags = 0;
+        fix.processBlock();
+        fix.events.clear();
+        if (b < lastSecondStart)
+            continue;
+        if (fix.outputBus.silenceFlags != 3)
+            ++unflagged;
+        const bool allZero =
+            std::all_of(fix.outL.begin(), fix.outL.end(), [](float v) { return v == 0.0f; })
+            && std::all_of(fix.outR.begin(), fix.outR.end(), [](float v) { return v == 0.0f; });
+        if (!allZero)
+            ++nonZero;
+    }
+    CAPTURE(totalBlocks - lastSecondStart);
+    CHECK(unflagged == 0);
+    CHECK(nonZero == 0);
+}
+
+TEST_CASE("Coupling integration: idle processor with coupling on reports silence",
+          "[coupling][silence]")
+{
+    constexpr double kRate = 48000.0;
+    constexpr int32 kBlock = 256;
+    CouplingIntegrationFixture fix(kBlock, kRate);
+    fix.setParam(Membrum::kGlobalCouplingId, 1.0);
+
+    const int totalBlocks = static_cast<int>(std::ceil(5.0 * kRate / kBlock));
+    const int after200ms = static_cast<int>(std::ceil(0.2 * kRate / kBlock));
+    int flagged = 0;
+    int unflaggedAfter200ms = 0;
+    for (int b = 0; b < totalBlocks; ++b)
+    {
+        fix.outputBus.silenceFlags = 0;
+        fix.processBlock();
+        if (fix.outputBus.silenceFlags == 3)
+            ++flagged;
+        else if (b >= after200ms)
+            ++unflaggedAfter200ms;
+    }
+    CAPTURE(flagged, totalBlocks, unflaggedAfter200ms);
+    CHECK(static_cast<double>(flagged) >= 0.95 * static_cast<double>(totalBlocks));
+    CHECK(unflaggedAfter200ms == 0);
+}
+
+// =============================================================================
+// T2.28 (MB-016): the voice pool runs at the host rate. Pad 0 (default kick)
+// with tension modulation, pitch envelope, noise and click layers off is
+// sample-rate invariant inside 44.1-192 kHz; outside that range its pitch must
+// not move either (a private [22050, 192000] clamp detuned it by the ratio).
+// =============================================================================
+namespace {
+
+double renderPad0Fundamental(double rate)
+{
+    CouplingIntegrationFixture fix(kTestBlockSize, rate);
+    auto& pool = fix.processor.voicePoolForTest();
+    pool.setPadConfigField(0, Membrum::kPadTensionModAmt, 0.0f);
+    pool.setPadConfigField(0, Membrum::kPadTSPitchEnvTime, 0.0f);
+    pool.setPadConfigField(0, Membrum::kPadNoiseLayerMix, 0.0f);
+    pool.setPadConfigField(0, Membrum::kPadClickLayerMix, 0.0f);
+
+    fix.events.addNoteOn(36, 1.0f);
+    const int numBlocks = static_cast<int>(std::ceil(rate / kTestBlockSize));
+    const std::vector<float> out = fix.processNBlocks(numBlocks);
+    const auto nonFinite = std::count_if(out.begin(), out.end(), [](float s) {
+        return !Krate::DSP::detail::isFinite(s);
+    });
+    REQUIRE(nonFinite == 0);
+    return membrum_body_tests::findPeakFrequency(out.data(),
+                                                 static_cast<int>(rate),
+                                                 rate, 60.0, 100.0, 2048);
+}
+
+} // namespace
+
+TEST_CASE("Processor: pad pitch is the same at 384 kHz and 16 kHz as inside the clamp range",
+          "[processor][sample-rate]")
+{
+    const std::pair<double, double> pairs[] = {{192000.0, 384000.0}, {44100.0, 16000.0}};
+    for (const auto& [inside, outside] : pairs)
+    {
+        const double fInside = renderPad0Fundamental(inside);
+        const double fOutside = renderPad0Fundamental(outside);
+        const double cents = 1200.0 * std::log2(fOutside / fInside);
+        INFO("rates " << inside << " vs " << outside);
+        CAPTURE(fInside, fOutside, cents);
+        CHECK(std::abs(cents) <= 5.0);
     }
 }

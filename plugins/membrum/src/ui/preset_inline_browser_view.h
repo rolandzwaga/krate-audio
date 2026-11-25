@@ -10,6 +10,7 @@
 #include "vstgui/lib/cfont.h"
 
 #include <algorithm>
+#include <filesystem>
 #include <functional>
 #include <string>
 #include <utility>
@@ -31,9 +32,18 @@ public:
         buildChildren();
     }
 
+    /// Names the current preset without a path: Prev / Next then match by name.
     void setCurrentPresetName(const std::string& name)
     {
+        setCurrentPreset(name, {});
+    }
+
+    /// MB-103: the current preset by name (the label) and path (the identity
+    /// Prev / Next cycle from, since a user and a factory preset can share a name).
+    void setCurrentPreset(const std::string& name, const std::filesystem::path& path)
+    {
         currentName_ = name;
+        currentPath_ = path;
         if (nameLabel_) {
             const std::string display = name.empty() ? kEmptyLabel : name;
             nameLabel_->setText(VSTGUI::UTF8String(display));
@@ -43,6 +53,35 @@ public:
     [[nodiscard]] const std::string& currentPresetName() const noexcept
     {
         return currentName_;
+    }
+
+    [[nodiscard]] const std::filesystem::path& currentPresetPath() const noexcept
+    {
+        return currentPath_;
+    }
+
+    /// The index Prev (-1) / Next (+1) loads. The current preset is found by
+    /// path when `currentPath` is not empty, by name otherwise; with no match
+    /// (or nothing current) Next starts at 0 and Prev at the last preset.
+    [[nodiscard]] static int cycleIndex(const std::vector<Krate::Plugins::PresetInfo>& presets,
+                                        const std::filesystem::path& currentPath,
+                                        const std::string& currentName,
+                                        int direction) noexcept
+    {
+        const auto n = static_cast<int>(presets.size());
+        if (n == 0) return 0;
+        const int edge = (direction > 0) ? 0 : (n - 1);
+        if (currentPath.empty() && currentName.empty()) return edge;
+
+        const auto wanted = currentPath.lexically_normal();
+        const auto it = std::find_if(presets.begin(), presets.end(),
+            [&](const Krate::Plugins::PresetInfo& p) {
+                return currentPath.empty() ? p.name == currentName
+                                           : p.path.lexically_normal() == wanted;
+            });
+        if (it == presets.end()) return edge;
+        const int index = static_cast<int>(it - presets.begin());
+        return ((index + direction) % n + n) % n;
     }
 
 private:
@@ -116,22 +155,7 @@ private:
         auto presets = manager_->scanPresets();
         if (presets.empty()) return;
 
-        const auto n = static_cast<int>(presets.size());
-        int index = 0;
-        if (!currentName_.empty()) {
-            const auto it = std::find_if(presets.begin(), presets.end(),
-                [this](const Krate::Plugins::PresetInfo& p) {
-                    return p.name == currentName_;
-                });
-            if (it != presets.end()) {
-                index = static_cast<int>(it - presets.begin());
-                index = ((index + direction) % n + n) % n;
-            } else {
-                index = (direction > 0) ? 0 : (n - 1);
-            }
-        } else {
-            index = (direction > 0) ? 0 : (n - 1);
-        }
+        const int index = cycleIndex(presets, currentPath_, currentName_, direction);
 
         manager_->loadPreset(presets[static_cast<std::size_t>(index)]);
         // The load provider is responsible for calling setCurrentPresetName()
@@ -145,6 +169,7 @@ private:
     OutlineActionButton* nextBtn_ = nullptr;
     OutlineActionButton* browseBtn_ = nullptr;
     std::string currentName_;
+    std::filesystem::path currentPath_;
 };
 
 } // namespace Membrum::UI

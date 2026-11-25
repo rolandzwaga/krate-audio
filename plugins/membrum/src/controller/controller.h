@@ -11,6 +11,7 @@
 #include "controller/controller_state_codec.h"
 #include "dsp/pad_config.h"
 #include "dsp/pad_glow_publisher.h"
+#include "preset/preset_info.h"
 #include "processor/meters_block.h"
 
 #include "vstgui/plugin-bindings/vst3editor.h"
@@ -20,6 +21,7 @@
 #include <array>
 #include <atomic>
 #include <cstdint>
+#include <filesystem>
 #include <memory>
 #include <string>
 #include <thread>
@@ -123,10 +125,13 @@ public:
         Steinberg::Vst::String128 string) override;
 
     // Phase 4: Track bus activation state (FR-043).
-    // Note: In VST3 separate-component mode, activateBus is only called on the
-    // processor (IComponent). The controller can be notified via IMessage or
-    // by the host syncing component state. This method is provided for testing
-    // and can be called when bus activation changes are communicated.
+    // In VST3 separate-component mode, activateBus is only called on the
+    // processor (IComponent). The production source is the processor's
+    // MetersBlock::busActiveMask, applied in onDataExchangeBlocksReceived()
+    // through applyBusActivationMask() (T2.31; busActive_ and the FR-066
+    // tooltip only). This single-bus setter also resets pads routed to a
+    // deactivated bus to Main; only tests call it (see the FR-043 decision
+    // above its definition in controller.cpp).
     void notifyBusActivation(Steinberg::int32 busIndex, bool active);
 
     /// Query whether a specific output bus is currently active.
@@ -150,6 +155,21 @@ public:
     /// params with the plain setter (no performEdit, MB-152) and tells the
     /// host through restartComponent(kParamValuesChanged) and setDirty
     bool kitPresetLoadProvider(Steinberg::IBStream* stream);
+    /// What the PresetManager's load provider calls: the load above, then, on
+    /// success, the kit entry of the inline browser (MB-103). A kit load
+    /// replaces every pad's sound, so it clears every pad's entry.
+    bool kitPresetLoadProvider(Steinberg::IBStream* stream,
+                               const Krate::Plugins::PresetInfo& info);
+
+    /// MB-103 test-only: the names the inline browsers cycle from.
+    [[nodiscard]] const std::string& lastKitPresetNameForTest() const noexcept
+    {
+        return lastKitPresetName_;
+    }
+    [[nodiscard]] const std::string& padPresetNameForTest(int pad) const noexcept
+    {
+        return padPresetNames_[static_cast<std::size_t>(pad)];
+    }
 
     // Phase 6 (T046): IDataExchangeReceiver for MetersBlock.
     void PLUGIN_API queueOpened(
@@ -173,6 +193,16 @@ public:
 
     // Test-only accessors for cached meters.
     [[nodiscard]] const MetersBlock& cachedMetersForTest() const noexcept { return cachedMeters_; }
+    /// T2.31: the meter values the last UI tick pushed into the views.
+    [[nodiscard]] const MetersBlock& lastPushedMetersForTest() const noexcept { return lastPushedMeters_; }
+    /// T2.31: the controller-side glow mirror PadGridView polls.
+    [[nodiscard]] const PadGlowPublisher& padGlowMirrorForTest() const noexcept { return padGlowMirror_; }
+
+    /// T2.31 (MB-065 / MB-102): the poll timer's meter step. Pushes the
+    /// meters folded since the previous tick into the kit-column views, then
+    /// clears the folded peaks and glow buckets. UI thread.
+    void consumeMetersForUiTick() noexcept;
+    [[nodiscard]] int selectedPadIndexForTest() const noexcept { return selectedPadIndex_; }
 
     /// MB-085: true when the control bound to `tag` acts on the selected pad's
     /// sound in its current context. Context-only controls: FM / FB / Burst /
@@ -211,6 +241,10 @@ public:
     /// (no performEdit, MB-152) and tells the host through
     /// restartComponent(kParamValuesChanged) and setDirty
     bool padPresetLoadProvider(Steinberg::IBStream* stream);
+    /// What the PresetManager's load provider calls: the load above, then, on
+    /// success, the loaded pad's entry of the inline browser (MB-103).
+    bool padPresetLoadProvider(Steinberg::IBStream* stream,
+                               const Krate::Plugins::PresetInfo& info);
 
 private:
     // Phase 4: selected pad proxy logic helpers
@@ -283,7 +317,7 @@ private:
 
     // T060/T062 (Phase 6 / US5): active-voices readout label. Discovered in
     // verifyView() by the title prefix "ActiveVoices". Updated on the 30 Hz
-    // timer from cachedMeters_.activeVoices. Tolerant of a missing label.
+    // timer from the last received activeVoices. Tolerant of a missing label.
     VSTGUI::CTextLabel*              activeVoicesLabel_ = nullptr;
 
     // T056: small status label surfacing preset load failures. Discovered in
@@ -370,6 +404,13 @@ private:
     /// Leaves the cursor alone while the user drags it. Tolerant of a null pad.
     void updateMorphPadPosition() noexcept;
 
+    /// MB-103: push the kit entry and the selected pad's entry into the two
+    /// inline browsers. Tolerant of null views. UI thread.
+    void updatePresetBrowserNames() noexcept;
+
+    /// MB-103: forget every browser-loaded preset (kit and all pads).
+    void clearPresetBrowserEntries() noexcept;
+
     /// Audit finding 12: view mutations triggered by the SDK-`[UI-thread]`
     /// callbacks setParamNormalized() / setComponentState() are applied
     /// immediately when we are on the UI thread (the compliant-host case) and
@@ -385,6 +426,7 @@ private:
         kRefreshFilterEnvDisplay = 1u << 3,
         kRefreshPitchEnvDisplay  = 1u << 4,
         kRefreshMorphPad         = 1u << 5,
+        kRefreshPresetBrowserNames = 1u << 6,
     };
 
     /// Apply now (UI thread, or no editor open) or queue for the poll timer
@@ -412,9 +454,26 @@ private:
     int                              presetStatusClearTicks_ = 0;
 
     // Phase 6 (T046): last MetersBlock received via DataExchange. Updated on
-    // the UI thread by onDataExchangeBlocksReceived(); read by the 30 Hz
-    // poll timer to push values into the Kit Column meter/CPU views.
+    // the UI thread by onDataExchangeBlocksReceived(); read by tests. The
+    // 30 Hz poll timer pushes pendingMeters_ (the fold) instead.
     MetersBlock                      cachedMeters_{};
+
+    // T2.31: every block received since the last UI tick, folded (max of the
+    // peaks and glow buckets, last voice count / CPU / bus mask). Consumed and
+    // its peaks cleared by consumeMetersForUiTick(). UI thread only.
+    MetersBlock                      pendingMeters_{};
+
+    // T2.31: what the last UI tick pushed (read by tests).
+    MetersBlock                      lastPushedMeters_{};
+
+    // T2.31: the bus mask last applied to busActive_ (bus 0 only at start,
+    // matching busActive_'s initial value).
+    std::uint16_t                    appliedBusActiveMask_ = 1;
+
+    /// T2.31 (MB-100): set busActive_ from a MetersBlock bus mask (bus 0
+    /// always active) and refresh the Output Bus tooltip. Runs no FR-043
+    /// reset-to-Main loop (see the decision in controller.cpp).
+    void applyBusActivationMask(std::uint16_t mask) noexcept;
 
     // Controller-side mirror of the processor's PadGlowPublisher. The real
     // publisher lives on the audio thread inside the Processor; the UI cannot
@@ -460,8 +519,14 @@ private:
     // sync.
     Membrum::UI::InlinePresetBrowserView* kitInlineBrowser_ = nullptr;
     Membrum::UI::InlinePresetBrowserView* padInlineBrowser_ = nullptr;
+    // MB-103: the preset each browser last loaded, by name (the label) and path
+    // (what Prev / Next cycle from). Pad entries are per pad: the pad browser
+    // shows the selected pad's. A kit load, a project load and a pad switch
+    // keep them true to what the pad actually holds.
     std::string lastKitPresetName_;
-    std::string lastPadPresetName_;
+    std::filesystem::path lastKitPresetPath_;
+    std::array<std::string, kNumPads> padPresetNames_{};
+    std::array<std::filesystem::path, kNumPads> padPresetPaths_{};
 
     // T056: latched flag indicating the most recent PresetManager load failed
     // (e.g. malformed/truncated blob). Tests can poll this; UI surfaces it via

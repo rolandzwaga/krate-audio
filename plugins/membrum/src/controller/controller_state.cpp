@@ -97,7 +97,22 @@ tresult PLUGIN_API Controller::setComponentState(IBStream* state)
     // loaded selection, on the UI thread (MB-157).
     syncGlobalProxyFromPad(selectedPadIndex_);
 
+    // MB-103: a project load replaces every sound, so no browser-loaded
+    // preset name is true any more.
+    clearPresetBrowserEntries();
+    requestViewRefresh(kRefreshPresetBrowserNames);
+
     return kResultOk;
+}
+
+void Controller::clearPresetBrowserEntries() noexcept
+{
+    lastKitPresetName_.clear();
+    lastKitPresetPath_.clear();
+    for (auto& name : padPresetNames_)
+        name.clear();
+    for (auto& path : padPresetPaths_)
+        path.clear();
 }
 
 // ==============================================================================
@@ -118,6 +133,37 @@ IBStream* Controller::kitPresetStateProvider()
     Membrum::State::writeKitBlob(stream, kit);
     stream->seek(0, IBStream::kIBSeekSet, nullptr);
     return stream;
+}
+
+bool Controller::kitPresetLoadProvider(IBStream* stream,
+                                       const Krate::Plugins::PresetInfo& info)
+{
+    const bool ok = kitPresetLoadProvider(stream);
+    kitPresetLoadFailed_ = !ok;
+    if (ok)
+    {
+        // MB-103: the kit replaced every pad's sound, so no pad entry holds.
+        clearPresetBrowserEntries();
+        lastKitPresetName_ = info.name;
+        lastKitPresetPath_ = info.path;
+        requestViewRefresh(kRefreshPresetBrowserNames);
+    }
+    return ok;
+}
+
+bool Controller::padPresetLoadProvider(IBStream* stream,
+                                       const Krate::Plugins::PresetInfo& info)
+{
+    const bool ok = padPresetLoadProvider(stream);
+    padPresetLoadFailed_ = !ok;
+    if (ok)
+    {
+        const auto pad = static_cast<std::size_t>(std::clamp(selectedPadIndex_, 0, kNumPads - 1));
+        padPresetNames_[pad] = info.name;
+        padPresetPaths_[pad] = info.path;
+        requestViewRefresh(kRefreshPresetBrowserNames);
+    }
+    return ok;
 }
 
 bool Controller::kitPresetLoadProvider(IBStream* stream)

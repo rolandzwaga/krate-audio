@@ -19,6 +19,10 @@ constexpr VSTGUI::CColor kClipColor   = {230,  90,  90, 255 };
 
 constexpr float kClipThreshold = 0.9f;
 
+// T2.31 (MB-065): peak hold with a 20 dB/s fall at the 30 Hz UI tick,
+// 10^(-20 / 20 / 30) = 10^(-1/30) per tick.
+constexpr float kFallPerTick = 0.92612f;
+
 } // anonymous namespace
 
 KitMetersView::KitMetersView(const VSTGUI::CRect& size) noexcept
@@ -28,8 +32,9 @@ KitMetersView::KitMetersView(const VSTGUI::CRect& size) noexcept
 
 void KitMetersView::setPeaks(float peakL, float peakR) noexcept
 {
-    peakL_ = std::clamp(peakL, 0.0f, 1.0f);
-    peakR_ = std::clamp(peakR, 0.0f, 1.0f);
+    // A new peak shows at once; a lower one lets the shown peak fall.
+    peakL_ = std::max(std::clamp(peakL, 0.0f, 1.0f), peakL_ * kFallPerTick);
+    peakR_ = std::max(std::clamp(peakR, 0.0f, 1.0f), peakR_ * kFallPerTick);
     invalid();
 }
 

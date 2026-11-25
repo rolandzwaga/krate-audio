@@ -17,6 +17,8 @@
 #include "vstgui/lib/cfont.h"
 #include "vstgui/lib/cgraphicspath.h"
 
+#include "plugin_ids.h"
+
 #include <algorithm>
 #include <cstdio>
 
@@ -132,8 +134,8 @@ private:
     static int voiceCountFromNormalized(double n) noexcept
     {
         // Parameter is RangeParameter [4, 16]; normalized -> plain voices.
-        const int voices = static_cast<int>(std::lround(4.0 + n * 12.0));
-        return std::clamp(voices, 4, 16);
+        // Same decode as the host display and the processor (T2.30).
+        return 4 + stepFromNormalized(n, 12);
     }
 
     void applyMouse(const VSTGUI::CPoint& where)

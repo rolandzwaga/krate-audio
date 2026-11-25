@@ -11,6 +11,7 @@
 #include "voice_pool.h"
 
 #include "../dsp/macro_offsets.h"
+#include "../plugin_ids.h"
 #include "../dsp/pad_config_apply.h"
 
 #include <algorithm>
@@ -67,10 +68,6 @@ const DrumVoice& VoicePool::releasingVoiceRef(int slot) const noexcept
 
 void VoicePool::prepare(double sampleRate, int maxBlockSize) noexcept
 {
-    // Clamp sample rate to the supported range. The allocator does not
-    // depend on sample rate; the DrumVoice instances and the fast-release
-    // coefficient do.
-    sampleRate  = std::clamp(sampleRate, 22050.0, 192000.0);
     sampleRate_ = sampleRate;
 
     // Size the scratch buffers to the host's ACTUAL maximum block size. VST3
@@ -90,6 +87,7 @@ void VoicePool::prepare(double sampleRate, int maxBlockSize) noexcept
     // subsequent audio-thread calls are allocation-free.
     scratchL_ = std::make_unique<float[]>(static_cast<std::size_t>(maxBlockSize_));
     scratchR_ = std::make_unique<float[]>(static_cast<std::size_t>(maxBlockSize_));
+    couplingFeed_ = std::make_unique<float[]>(static_cast<std::size_t>(maxBlockSize_));
 
     // FR-124 (Option B) / FR-125: per-sample decay coefficient. `kFastReleaseSecs`
     // is the total wall-clock decay time to the 1e-6 denormal floor (NOT τ). For
@@ -314,6 +312,12 @@ void VoicePool::noteOn(std::uint8_t midiNote, float velocity) noexcept
             meta_[slot].noteOnSampleCount = sampleCounter_;
             meta_[slot].currentLevel      = 0.0f;
             meta_[slot].fastReleaseGain   = 1.0f;
+            // T2.25 (MB-056): pan and output bus are latched at note-on, so
+            // a mid-ring Pan or Output Bus edit neither steps the channel
+            // gains nor moves the ringing tail to another aux bus; the edit
+            // takes effect at the pad's next note-on.
+            panGainsForNote(midiNote, meta_[slot].panGainL, meta_[slot].panGainR);
+            meta_[slot].outputBus = padConfigs_[static_cast<std::size_t>(padIndex)].outputBus;
             break;
         }
         case Krate::DSP::VoiceEvent::Type::NoteOff:
@@ -395,11 +399,12 @@ void VoicePool::noteOff(std::uint8_t midiNote) noexcept
 // Audio processing
 // ------------------------------------------------------------------
 
-void VoicePool::processBlock(float* outL, float* outR, int numSamples) noexcept
+void VoicePool::processBlock(float* outL, float* outR, int numSamples,
+                             int feedOffset) noexcept
 {
     // T1.9 (MB-118): one renderer. With a single bus the aux routing of the
     // multi-bus overload never runs.
-    processBlock(outL, outR, nullptr, nullptr, nullptr, 1, numSamples);
+    processBlock(outL, outR, nullptr, nullptr, nullptr, 1, numSamples, feedOffset);
 }
 
 // ------------------------------------------------------------------
@@ -410,7 +415,8 @@ void VoicePool::processBlock(float* outL, float* outR,
                              float** auxL, float** auxR,
                              const bool* busActive,
                              int numOutputBuses,
-                             int numSamples) noexcept
+                             int numSamples,
+                             int feedOffset) noexcept
 {
     if (numSamples <= 0 || outL == nullptr || outR == nullptr)
         return;
@@ -433,6 +439,16 @@ void VoicePool::processBlock(float* outL, float* outR,
         outR[i] = 0.0f;
     }
 
+    // T2.27 (MB-066): the pre-pan voice sum feeds the coupling engine, so a
+    // pad's sympathetic drive does not depend on its pan. Written at this
+    // call's position in the host block, bounded by the size reserved in
+    // prepare().
+    const int feedStart = std::clamp(feedOffset, 0, maxBlockSize_);
+    const int feedCount = std::min(numSamples, maxBlockSize_ - feedStart);
+    float* feed = couplingFeed_.get() + feedStart;
+    for (int i = 0; i < feedCount; ++i)
+        feed[i] = 0.0f;
+
     float* scratch = scratchL_.get();
 
     // Render every active main voice, compute its per-block peak, then
@@ -452,10 +468,10 @@ void VoicePool::processBlock(float* outL, float* outR,
         {
             mainVoice(slot).processBlock(scratch, numSamples);
 
-            // M-9: equal-power per-pad pan (applied to main and aux alike).
-            float gainL = 1.0f;
-            float gainR = 1.0f;
-            panGainsForNote(meta_[slot].originatingNote, gainL, gainR);
+            // M-9: equal-power per-pad pan (applied to main and aux alike),
+            // latched at note-on (T2.25).
+            const float gainL = meta_[slot].panGainL;
+            const float gainR = meta_[slot].panGainR;
 
             float peak = 0.0f;
             for (int i = 0; i < numSamples; ++i)
@@ -465,15 +481,14 @@ void VoicePool::processBlock(float* outL, float* outR,
                 outL[i] += scratch[i] * gainL;
                 outR[i] += scratch[i] * gainR;
             }
+            for (int i = 0; i < feedCount; ++i)
+                feed[i] += scratch[i];
             meta_[slot].currentLevel = peak;
 
             // FR-044: accumulate to auxiliary bus if assigned and active
-            const int padIndex = static_cast<int>(meta_[slot].originatingNote)
-                                 - static_cast<int>(kFirstDrumNote);
-            if (padIndex >= 0 && padIndex < kNumPads)
+            // (the bus latched at note-on, T2.25).
             {
-                const int bus = static_cast<int>(
-                    padConfigs_[static_cast<std::size_t>(padIndex)].outputBus);
+                const int bus = static_cast<int>(meta_[slot].outputBus);
                 if (bus > 0 && bus < numOutputBuses &&
                     busActive != nullptr && busActive[bus] &&
                     auxL != nullptr && auxR != nullptr &&
@@ -524,8 +539,8 @@ void VoicePool::processBlock(float* outL, float* outR,
         shadowVoice(slot).processBlock(scratch, numSamples);
         const int liveCount = applyFastRelease(slot, scratch, numSamples);
 
-        // M-9: the fading shadow voice keeps its pad's pan position, as it
-        // was when the fade began (T2.3: a kit load may change the pad).
+        // M-9: the fading shadow voice keeps the pan latched at its note-on
+        // (T2.25; T2.3: a kit load may change the pad).
         const float gainL = releasingMeta_[slot].panGainL;
         const float gainR = releasingMeta_[slot].panGainR;
 
@@ -534,9 +549,12 @@ void VoicePool::processBlock(float* outL, float* outR,
             outL[i] += scratch[i] * gainL;
             outR[i] += scratch[i] * gainR;
         }
+        const int liveFeed = std::min(liveCount, feedCount);
+        for (int i = 0; i < liveFeed; ++i)
+            feed[i] += scratch[i];
 
         // FR-044: also route fast-releasing voices to their aux bus (the bus
-        // captured when the fade began, T2.3).
+        // latched at the voice's note-on, T2.25).
         {
             const int bus = static_cast<int>(releasingMeta_[slot].outputBus);
             if (bus > 0 && bus < numOutputBuses &&
@@ -637,7 +655,7 @@ void VoicePool::setPadConfigField(int padIndex, int offset, float normalizedValu
     case kPadChokeGroup:
     {
         const auto g = static_cast<std::uint8_t>(
-            std::clamp(static_cast<int>(normalizedValue * 8.0f + 0.5f), 0, 8));
+            stepFromNormalized(static_cast<double>(normalizedValue), 8));
         cfg.chokeGroup = g;
         chokeGroups_.setEntry(static_cast<std::size_t>(padIndex), g);
         break;
@@ -647,7 +665,7 @@ void VoicePool::setPadConfigField(int padIndex, int offset, float normalizedValu
     case kPadOutputBus:
     {
         cfg.outputBus = static_cast<std::uint8_t>(
-            std::clamp(static_cast<int>(normalizedValue * 15.0f + 0.5f), 0, 15));
+            stepFromNormalized(static_cast<double>(normalizedValue), 15));
         break;
     }
     case kPadFMRatio:             cfg.fmRatio = normalizedValue; break;
@@ -751,11 +769,26 @@ void VoicePool::panGainsForNote(std::uint8_t originatingNote,
 
     const float panNorm =
         std::clamp(padConfigs_[static_cast<std::size_t>(pad)].pan, 0.0f, 1.0f);
+    equalPowerPanGains(panNorm, gainL, gainR);
+}
 
+void VoicePool::equalPowerPanGains(float panNorm, float& gainL, float& gainR) noexcept
+{
     // Equal-power pan referenced to unity-at-center. theta sweeps [0, pi/2] as
     // pan sweeps [0, 1]; the sqrt(2) factor lifts the -3 dB center of a textbook
-    // equal-power law back to 0 dB so the default (pan 0.5) stays bit-identical
-    // to the old `outL += s; outR += s` mix. gainL^2 + gainR^2 == 2 for all pan.
+    // equal-power law back to 0 dB. gainL^2 + gainR^2 == 2 for all pan, so a
+    // hard pan puts +3 dB into one channel of the bus limiter.
+    // T2.27 (MB-066): the centre is exactly unity because of this branch:
+    // sqrt(2) * cos(pi/4) is 0.99999994 in float, and a value that must be
+    // exact at its neutral point comes from a branch, not from arithmetic
+    // (fast-math). The default (pan 0.5) therefore stays bit-identical to the
+    // old `outL += s; outR += s` mix.
+    if (panNorm == 0.5f)
+    {
+        gainL = 1.0f;
+        gainR = 1.0f;
+        return;
+    }
     constexpr float kHalfPi = std::numbers::pi_v<float> / 2.0f;
     const float theta = panNorm * kHalfPi;
     gainL = std::numbers::sqrt2_v<float> * std::cos(theta);
@@ -951,18 +984,12 @@ void VoicePool::beginFastRelease(int slot, bool force, bool linear) noexcept
     releasingMeta_[slot].currentLevel      = 0.0f;
     releasingMeta_[slot].state             = VoiceSlotState::FastReleasing;
     releasingMeta_[slot].linearFadeStep    = linear ? linearFadeStep_ : 0.0f;
-    // T2.3 (MB-054): the fade keeps the pan and bus the voice sounded with,
-    // even when a kit load changes the pad's config under it.
-    panGainsForNote(meta_[slot].originatingNote,
-                    releasingMeta_[slot].panGainL, releasingMeta_[slot].panGainR);
-    {
-        const int pad = static_cast<int>(meta_[slot].originatingNote)
-                      - static_cast<int>(kFirstDrumNote);
-        releasingMeta_[slot].outputBus =
-            (pad >= 0 && pad < kNumPads)
-                ? padConfigs_[static_cast<std::size_t>(pad)].outputBus
-                : std::uint8_t{0};
-    }
+    // T2.3 (MB-054) / T2.25 (MB-056): the fade keeps the pan and bus the
+    // voice sounded with (latched at its note-on), even when a kit load or an
+    // edit changed the pad's config under it.
+    releasingMeta_[slot].panGainL  = meta_[slot].panGainL;
+    releasingMeta_[slot].panGainR  = meta_[slot].panGainR;
+    releasingMeta_[slot].outputBus = meta_[slot].outputBus;
 
     // NOTE: We deliberately do NOT call mainVoice(slot).noteOff() here. The
     // voice in the main role is inactive (see above); a steal re-configures

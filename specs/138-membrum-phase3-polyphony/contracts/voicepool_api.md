@@ -16,7 +16,7 @@ This document is the in-plugin contract between `Membrum::Processor` and `Membru
 Called **once** from `Membrum::Processor::setupProcessing` and whenever the host changes sample rate or block size. This is the **only** method that may allocate memory — it allocates the stereo scratch buffer (`float[2][maxBlockSize]`) via `std::make_unique<float[]>`. All subsequent calls on the audio thread MUST be allocation-free.
 
 **Pre-conditions**:
-- `sampleRate ∈ [22050, 192000]` (implementation clamps if outside).
+- `sampleRate` is the host rate, used as given (no clamp): the pool runs at the same rate as the processor's coupling engine, coupling delay and bus limiter (MB-016).
 - `maxBlockSize ∈ [1, kVoicePoolMaxBlock]` where `kVoicePoolMaxBlock = 2048`.
 
 **Post-conditions**:

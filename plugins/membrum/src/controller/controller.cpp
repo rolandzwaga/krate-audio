@@ -768,14 +768,7 @@ tresult PLUGIN_API Controller::initialize(FUnknown* context)
     kitPresetManager_->setLoadProvider(
         [this](Steinberg::IBStream* stream,
                const Krate::Plugins::PresetInfo& info) -> bool {
-            const bool ok = kitPresetLoadProvider(stream);
-            kitPresetLoadFailed_ = !ok;
-            if (ok) {
-                lastKitPresetName_ = info.name;
-                if (kitInlineBrowser_)
-                    kitInlineBrowser_->setCurrentPresetName(info.name);
-            }
-            return ok;
+            return kitPresetLoadProvider(stream, info);
         });
 
     padPresetManager_ = std::make_unique<Krate::Plugins::PresetManager>(
@@ -791,14 +784,7 @@ tresult PLUGIN_API Controller::initialize(FUnknown* context)
             // FR-042 / FR-061: per-pad load applies sound params only; the
             // pad keeps its routing, coupling, macros, enable state and pan.
             // The processor's apply resyncs the pad's macro cache (R-203).
-            const bool ok = padPresetLoadProvider(stream);
-            padPresetLoadFailed_ = !ok;
-            if (ok) {
-                lastPadPresetName_ = info.name;
-                if (padInlineBrowser_)
-                    padInlineBrowser_->setCurrentPresetName(info.name);
-            }
-            return ok;
+            return padPresetLoadProvider(stream, info);
         });
 
     // Update checker
@@ -883,13 +869,14 @@ tresult PLUGIN_API Controller::setParamNormalized(ParamID tag, ParamValue value)
     if (tag == kSelectedPadId)
     {
         // Convert normalized [0,1] to pad index [0,31]
-        selectedPadIndex_ = std::clamp(
-            static_cast<int>(value * 31.0 + 0.5), 0, 31);
+        selectedPadIndex_ = stepFromNormalized(value, 31);
         // Audit finding 6: the grid highlight is otherwise only moved by a
         // mouse-down, so host automation / a remote selection change would
         // leave it stale. The sync requests kRefreshPadGrid, which moves the
         // highlight on the UI thread (MB-157).
         syncGlobalProxyFromPad(selectedPadIndex_);
+        // MB-103: the pad browser shows the newly selected pad's preset.
+        requestViewRefresh(kRefreshPresetBrowserNames);
         return result;
     }
 
@@ -1000,6 +987,27 @@ tresult Controller::endEdit(ParamID tag)
 // ==============================================================================
 // activateBus -- FR-043: track bus activation for Output Bus param validity
 // ==============================================================================
+//
+// T2.31 (MB-100), FR-043 decision: the production source of bus activation is
+// MetersBlock::busActiveMask, applied by applyBusActivationMask() below. It
+// updates busActive_ and the Output Bus tooltip (FR-066) only; it does NOT run
+// the reset-to-Main loop of notifyBusActivation(). FR-043's audible purpose is
+// already met by the processor: every voice is always written to the main bus
+// and an inactive aux bus is skipped (VoicePool::processBlock, the
+// busActive[bus] check). The loop writes EditControllerEx1::setParamNormalized
+// without performEdit, so it would split the controller's value from the
+// processor's, and it would permanently rewrite a user's saved routing
+// whenever a host toggles a bus. notifyBusActivation() keeps that loop for the
+// tests that call it; wiring it into production needs a user ruling.
+
+void Controller::applyBusActivationMask(std::uint16_t mask) noexcept
+{
+    for (std::size_t b = 0; b < busActive_.size(); ++b)
+        busActive_[b] = ((mask >> b) & 1u) != 0;
+    busActive_[0] = true;  // FR-043: bus 0 is always active
+    appliedBusActiveMask_ = mask;
+    updateOutputBusTooltip();
+}
 
 void Controller::notifyBusActivation(int32 busIndex, bool active)
 {
@@ -1306,7 +1314,7 @@ VSTGUI::CView* Controller::createCustomView(
                 if (kitPresetBrowserView_ && !kitPresetBrowserView_->isOpen())
                     kitPresetBrowserView_->open();
             });
-        view->setCurrentPresetName(lastKitPresetName_);
+        view->setCurrentPreset(lastKitPresetName_, lastKitPresetPath_);
         kitInlineBrowser_ = view;
         return view;
     }
@@ -1319,7 +1327,8 @@ VSTGUI::CView* Controller::createCustomView(
                 if (padPresetBrowserView_ && !padPresetBrowserView_->isOpen())
                     padPresetBrowserView_->open();
             });
-        view->setCurrentPresetName(lastPadPresetName_);
+        const auto pad = static_cast<std::size_t>(std::clamp(selectedPadIndex_, 0, kNumPads - 1));
+        view->setCurrentPreset(padPresetNames_[pad], padPresetPaths_[pad]);
         padInlineBrowser_ = view;
         return view;
     }
@@ -1557,7 +1566,7 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor)
     // sub-controller is needed for it.
     pollTimer_ = VSTGUI::owned(new VSTGUI::CVSTGUITimer(
         [this](VSTGUI::CVSTGUITimer* /*timer*/) {
-            // T046: read the last cached MetersBlock and push its values
+            // T046 / T2.31: push the MetersBlocks folded since the last tick
             // into the kit-column meter / CPU views. PadGridView drives its
             // own 30 Hz poll against PadGlowPublisher.
             if (activeEditor_ == nullptr)
@@ -1566,7 +1575,7 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor)
             // off-UI-thread setParamNormalized()/setComponentState() and apply
             // them here on the UI thread.
             drainPendingViewRefresh();
-            updateMeterViews(cachedMeters_);
+            consumeMetersForUiTick();
         },
         33 /* ~30 Hz */,
         true /* start immediately */));
@@ -1749,28 +1758,61 @@ void PLUGIN_API Controller::onDataExchangeBlocksReceived(
     Steinberg::Vst::DataExchangeBlock* blocks,
     Steinberg::TBool /*onBackgroundThread*/)
 {
-    // Use the most recent block (Innexus pattern); older blocks are stale.
+    // T2.31 (MB-065 / MB-102): fold every block into pendingMeters_ until the
+    // next UI tick consumes it: the max of the peaks and of each pad's glow
+    // bucket (a drum transient sits in one block of many), the last value of
+    // the voice count, CPU load and bus mask. cachedMeters_ keeps the last
+    // block received.
+    bool received = false;
     for (Steinberg::uint32 i = 0; i < numBlocks; ++i)
     {
         if (blocks[i].data != nullptr
             && blocks[i].size >= sizeof(MetersBlock))
         {
             std::memcpy(&cachedMeters_, blocks[i].data, sizeof(MetersBlock));
+            pendingMeters_.peakL = std::max(pendingMeters_.peakL, cachedMeters_.peakL);
+            pendingMeters_.peakR = std::max(pendingMeters_.peakR, cachedMeters_.peakR);
+            for (int pad = 0; pad < kNumPads; ++pad)
+            {
+                pendingMeters_.padGlowBuckets[pad] = std::max(
+                    pendingMeters_.padGlowBuckets[pad], cachedMeters_.padGlowBuckets[pad]);
+            }
+            pendingMeters_.activeVoices  = cachedMeters_.activeVoices;
+            pendingMeters_.cpuPermille   = cachedMeters_.cpuPermille;
+            pendingMeters_.busActiveMask = cachedMeters_.busActiveMask;
+            received = true;
         }
     }
+    if (!received)
+        return;
 
-    // Mirror the processor's pad-glow buckets into our controller-side
-    // publisher so PadGridView's polling path picks them up. The publish API
-    // wants a float amplitude; bucket/31 round-trips back to the same bucket
-    // on the next snapshot().
+    if (pendingMeters_.busActiveMask != appliedBusActiveMask_)
+        applyBusActivationMask(pendingMeters_.busActiveMask);
+
+    // Mirror the folded pad-glow buckets into our controller-side publisher
+    // so PadGridView's polling path picks them up. The publish API wants a
+    // float amplitude; bucket/31 round-trips back to the same bucket on the
+    // next snapshot().
     for (int pad = 0; pad < kNumPads; ++pad)
     {
-        const std::uint8_t bucket = cachedMeters_.padGlowBuckets[pad];
+        const std::uint8_t bucket = pendingMeters_.padGlowBuckets[pad];
         const float amp = (bucket == 0)
                         ? 0.0f
                         : static_cast<float>(bucket) / 31.0f;
         padGlowMirror_.publish(pad, amp);
     }
+}
+
+void Controller::consumeMetersForUiTick() noexcept
+{
+    updateMeterViews(pendingMeters_);
+    lastPushedMeters_ = pendingMeters_;
+    // The next tick shows only what arrives after this one; voice count, CPU
+    // load and bus mask keep their last values.
+    pendingMeters_.peakL = 0.0f;
+    pendingMeters_.peakR = 0.0f;
+    std::fill(std::begin(pendingMeters_.padGlowBuckets),
+              std::end(pendingMeters_.padGlowBuckets), std::uint8_t{0});
 }
 
 // ==============================================================================
