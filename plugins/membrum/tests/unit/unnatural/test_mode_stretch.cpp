@@ -14,12 +14,16 @@
 
 #include "dsp/bodies/membrane_mapper.h"
 #include "dsp/drum_voice.h"
+#include "dsp/pad_config.h"
+#include "dsp/pad_config_apply.h"
 #include "dsp/voice_common_params.h"
+#include "../bodies/body_test_helpers.h"
 
 #include <allocation_detector.h>
 
 #include <array>
 #include <cmath>
+#include <iomanip>
 #include <vector>
 #include <krate/dsp/core/db_utils.h>
 
@@ -240,4 +244,36 @@ TEST_CASE("UnnaturalZone DefaultsOff -- all-defaults produce identity within -12
     const float dbRms = rmsDb(baseline, explicitDefaults);
     INFO("RMS difference (baseline vs explicit defaults) = " << dbRms << " dBFS");
     CHECK(dbRms <= -120.0f);
+}
+
+// ==============================================================================
+// MB-133 (fix plan T3.5) -- the stored default modeStretch (normalised
+// 0.333333f) decodes to exactly 1.0, so the Membrane mapper adds no stretch
+// on the PadConfig path. A neutral point must be exact by a branch, not by
+// arithmetic that cancels (0.5f + 0.333333f * 1.5f = 0.99999946).
+// ==============================================================================
+
+TEST_CASE("Mode Stretch default PadConfig decodes to exactly 1.0 and adds no Membrane stretch",
+          "[unnatural][mode_stretch]")
+{
+    Membrum::DrumVoice voice;
+    voice.prepare(48000.0);
+    const Membrum::PadConfig cfg{};
+    Membrum::applyPadConfigToVoice(voice, cfg);
+
+    const float decoded = voice.unnaturalZone().getModeStretch();
+    INFO("decoded default modeStretch = " << std::setprecision(17)
+         << static_cast<double>(decoded));
+    REQUIRE(decoded == 1.0f);
+
+    auto a = membrum_body_tests::makeDefaultParams();
+    a.material = 0.5f;
+    auto b = a;
+    a.modeStretch = decoded;
+    b.modeStretch = 1.0f;
+    const float stretchA = Membrum::Bodies::MembraneMapper::map(a, 0.0f).stretch;
+    const float stretchB = Membrum::Bodies::MembraneMapper::map(b, 0.0f).stretch;
+    INFO("Membrane stretch delta = " << std::setprecision(17)
+         << static_cast<double>(stretchA) - static_cast<double>(stretchB));
+    REQUIRE(stretchA == stretchB);
 }

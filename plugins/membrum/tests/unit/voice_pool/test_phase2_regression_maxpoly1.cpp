@@ -44,9 +44,8 @@ TEST_CASE("VoicePool maxPolyphony=1 matches Phase 2 DrumVoice reference",
     // Material Morph) into the voice on every note-on. The bit-identity
     // contract therefore requires the bare reference to apply EXACTLY the
     // same setter sequence on the same construction-default values, so
-    // any normalised-cfg -> denormalised float precision losses (e.g.
-    // 0.5f + 0.333333f * 1.5f != 1.0f exactly) appear identically on both
-    // sides. Without this, macOS / ARM-Clang FMA precision differences
+    // any normalised-cfg -> denormalised float precision losses appear
+    // identically on both sides. Without this, macOS / ARM-Clang FMA precision differences
     // accumulate over the 22050-sample render to break the -90 dBFS
     // threshold. PadConfig defaults are mirrored verbatim so the bare
     // voice ends up bit-identical to a pool voice driven from a fresh
@@ -129,10 +128,11 @@ TEST_CASE("VoicePool maxPolyphony=1 matches Phase 2 DrumVoice reference",
     }
 
     // Phase 8G: Unnatural Zone propagation (modeStretch normalised over
-    // [0.5, 2.0] with 1.0 = physical / Phase 1 bit-identity; decaySkew
-    // bipolar over [-1, +1] from the [0, 1] norm).
+    // [0.5, 2.0], the default decoding to exactly 1.0 through the same
+    // branch as the pool (MB-133); decaySkew bipolar over [-1, +1] from the
+    // [0, 1] norm).
     voice.unnaturalZone().setModeStretch(
-        0.5f + std::clamp(kCfg.modeStretch, 0.0f, 1.0f) * 1.5f);
+        Membrum::modeStretchFromNorm(kCfg.modeStretch));
     voice.unnaturalZone().setDecaySkew(
         std::clamp(kCfg.decaySkew, 0.0f, 1.0f) * 2.0f - 1.0f);
     voice.unnaturalZone().modeInject.setAmount(

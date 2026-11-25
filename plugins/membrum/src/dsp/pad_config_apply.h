@@ -126,10 +126,11 @@ inline void applyPadConfigToVoice(DrumVoice& v, const PadConfig& cfg) noexcept
         2.0f * std::clamp(cfg.tsPitchEnvCurve2, 0.0f, 1.0f) - 1.0f);
 
     // ---- Unnatural Zone ----------------------------------------------------
-    // modeStretch is normalised over [0.5, 2.0] (1.0 = physical / Phase 1
-    // bit-identity); decaySkew is bipolar [-1, +1] from the [0, 1] norm.
-    v.unnaturalZone().setModeStretch(
-        0.5f + std::clamp(cfg.modeStretch, 0.0f, 1.0f) * 1.5f);
+    // modeStretch is normalised over [0.5, 2.0]; the stored default decodes
+    // to exactly 1.0 (physical) through the branch in modeStretchFromNorm,
+    // so the body mappers add no stretch on the PadConfig path (MB-133).
+    // decaySkew is bipolar [-1, +1] from the [0, 1] norm.
+    v.unnaturalZone().setModeStretch(modeStretchFromNorm(cfg.modeStretch));
     v.unnaturalZone().setDecaySkew(
         std::clamp(cfg.decaySkew, 0.0f, 1.0f) * 2.0f - 1.0f);
     v.unnaturalZone().modeInject.setAmount(

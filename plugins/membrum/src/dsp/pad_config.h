@@ -8,7 +8,9 @@
 #include "exciter_type.h"
 #include "body_model_type.h"
 #include "voice_common_params.h"
+#include <algorithm>
 #include <array>
+#include <cmath>
 #include <cstdint>
 
 namespace Membrum {
@@ -176,6 +178,29 @@ enum PadParamOffset : std::uint8_t  // NOLINT(cppcoreguidelines-use-enum-class)
     kPadWireCoupling          = 65,
     kPadActiveParamCountV12   = 66,  // offsets 0-65 are active after wire-coupling
 };
+
+/// Normalised Mode Stretch at the physical (neutral) stretch of 1.0 on the
+/// [0.5, 2.0] range. The stored default literal (PadConfig::modeStretch,
+/// 0.333333f) is a truncation of it and stays as it is: every saved state
+/// holds it.
+constexpr float kModeStretchUnityNorm = 1.0f / 3.0f;
+
+/// Window around kModeStretchUnityNorm, in normalised units (0.0015 % of the
+/// range, about 1.5e-5 of stretch: below any host knob step), that decodes to
+/// exactly 1.0.
+constexpr float kModeStretchUnityTolerance = 1.0e-5f;
+
+/// Denormalise Mode Stretch to [0.5, 2.0]. The neutral point is exact by a
+/// branch, not by arithmetic that cancels: 0.5f + 0.333333f * 1.5f is
+/// 0.99999946, and fast-math contraction moves that residual per platform
+/// (root CLAUDE.md, macOS fast-math rules; MB-133).
+[[nodiscard]] inline float modeStretchFromNorm(float norm) noexcept
+{
+    const float n = std::clamp(norm, 0.0f, 1.0f);
+    if (std::abs(n - kModeStretchUnityNorm) <= kModeStretchUnityTolerance)
+        return 1.0f;
+    return 0.5f + n * 1.5f;
+}
 
 /// Complete configuration for one drum pad. Pre-allocated, no dynamic memory.
 /// All float values are NORMALIZED [0.0, 1.0] -- denormalization happens

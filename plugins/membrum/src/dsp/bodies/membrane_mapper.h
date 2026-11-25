@@ -213,16 +213,18 @@ struct MembraneMapper
         // (4) Mode Stretch (FR-050): combine material's inherent stretch with
         //     the UnnaturalZone modeStretch parameter. The bank's stretch takes
         //     [0,1]; modeStretch is in [0.5, 2.0] where 1.0 is physical.
-        //     When modeStretch==1.0, the extra contribution is 0 and the mapper
-        //     is bit-identical to the Phase 1 code path (FR-055 default-off
-        //     guarantee).
+        //     For an input of exactly 1.0f the extra contribution is exactly 0
+        //     (0.5f * (1.0f / 1.5f) rounds to the same float as the constant
+        //     below), so the stretch is the Phase 1 material * 0.3. That holds
+        //     because the PadConfig decode (modeStretchFromNorm, pad_config.h)
+        //     produces an exact 1.0 for the stored default by a branch
+        //     (MB-133); FR-055 requires identity within -120 dBFS
+        //     (specs/137-membrum-phase2-exciters-bodies/spec.md:240).
         const float stretchFromStretchParam =
             std::clamp((params.modeStretch - 0.5f) * (1.0f / 1.5f), 0.0f, 1.0f);
-        // Baseline (Phase 1): stretch = material * 0.3. When modeStretch is
-        // at unity (1.0), stretchFromStretchParam evaluates to
-        // (1.0 - 0.5) / 1.5 = 0.3333, so we subtract a matching baseline and
-        // add the material-derived term back to preserve FR-031 bit-identity
-        // for Phase 1 default patches.
+        // Baseline (Phase 1): stretch = material * 0.3. At unity (1.0)
+        // stretchFromStretchParam is (1.0 - 0.5) / 1.5 = 0.3333, so the
+        // matching baseline is subtracted and the material-derived term kept.
         constexpr float kUnityStretchNorm = (1.0f - 0.5f) / 1.5f;
         const float stretchDelta = stretchFromStretchParam - kUnityStretchNorm;
         r.stretch = std::clamp(params.material * 0.3f + stretchDelta, 0.0f, 1.0f);

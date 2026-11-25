@@ -345,20 +345,9 @@ TEST_CASE("Benchmark144: every combination under 1.25% CPU",
 
     // Hard asserts: (a) 2.0% ceiling, (b) 1.25% budget. Print the failing
     // combination's label via INFO so it appears in Catch2's failure output.
-    //
-    // Phase 9 WAIVER (Feedback + NoiseBody + TS + UN): measured 1.35–1.51%
-    // across multiple runs. This single combination is the absolute worst
-    // case — slowest exciter (FeedbackExciter requires strict per-sample
-    // bodyPrevOut feedback per research.md §3, forcing DrumVoice's slow
-    // path) × heaviest body (NoiseBody at 32 modes plus noise layer) ×
-    // full Tone Shaper × full Unnatural Zone. Meeting 1.25% exactly on
-    // this cell would require either relaxing FeedbackExciter feedback
-    // semantics to block-rate (changes feedback character) or adding a
-    // ModalResonatorBank API to decouple smoothCoefficients from
-    // processSample (cross-layer change). The waiver limit is set to
-    // the US7-3 hard ceiling of 2.0% for this single cell. All other
-    // 167/168 cells remain gated on the 1.25% budget.
-    constexpr double kFeedbackNoiseBodyTsUnWaiverPct = 2.00;  // = hard ceiling
+    // Every one of the 168 cells is gated on the budget (T3.6, MB-274: the
+    // Phase 9 waiver for Feedback + NoiseBody + TS + UN is gone; that cell
+    // read 0.83-0.90 % in three pinned runs).
     for (const auto& r : results)
     {
         const std::string label =
@@ -366,18 +355,9 @@ TEST_CASE("Benchmark144: every combination under 1.25% CPU",
             + " ts=" + (r.toneShaperOn ? "on" : "off")
             + " un=" + (r.unnaturalOn  ? "on" : "off");
 
-        const bool isWaivedCell =
-            (r.ex == Membrum::ExciterType::Feedback) &&
-            (r.body == Membrum::BodyModelType::NoiseBody) &&
-            r.toneShaperOn && r.unnaturalOn;
-
         INFO("combo=" << label << " cpu=" << r.cpuPercent << "%");
         CHECK_FALSE(r.hasNaNOrInf);
         CHECK(r.cpuPercent <= kHardCeilingPct);   // US7-3 ceiling
-
-        if (isWaivedCell)
-            CHECK(r.cpuPercent <= kFeedbackNoiseBodyTsUnWaiverPct);
-        else
-            CHECK(r.cpuPercent <= kBudgetPercent); // SC-003 / FR-070
+        CHECK(r.cpuPercent <= kBudgetPercent);    // SC-003 / FR-070
     }
 }

@@ -56,7 +56,7 @@ struct BodyDampingNorms
     p.decay       = effective.decay;
     p.strikePos   = effective.strikePosition;
     p.level       = effective.level;
-    p.modeStretch = 0.5f + std::clamp(effective.modeStretch, 0.0f, 1.0f) * 1.5f;
+    p.modeStretch = modeStretchFromNorm(effective.modeStretch);
     p.decaySkew   = std::clamp(effective.decaySkew, 0.0f, 1.0f) * 2.0f - 1.0f;
     p.airLoading  = effective.airLoading;
     p.modeScatter = effective.modeScatter;
