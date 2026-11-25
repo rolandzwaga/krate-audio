@@ -10,9 +10,14 @@
 //   configureForNoteOn()
 //     -> setFrequency / setDecay / setBrightness / setPickPosition
 //     -> noteOn(f0, velocity)  (initializes delay-line lengths + loop state)
-// Phase 2 uses a fixed velocity=1.0 inside noteOn; the audible output is
-// driven by the exciter through processSample(excitation) which calls
-// waveguide_.process(excitation). The exciter already embeds user velocity.
+// T2.11 (MB-035, MB-212): noteOn writes its noise burst at the note's
+// velocity (setNoteVelocity, handed in by DrumVoice before the body is
+// configured), and the burst and the exciter's signal both enter the loop
+// scaled by kStringLoopHeadroom, so a full-velocity strike keeps the loop
+// junction below the waveguide's in-loop soft clip: the loop stays linear and
+// the clip is a safety rail only. DrumVoice measures the strike peak and sets
+// outputGain_ so the String body peaks at kBodyHeadroom like every modal body
+// (MB-175, MB-221).
 // ==============================================================================
 
 #include "../voice_common_params.h"
@@ -51,6 +56,32 @@ struct StringBody
     /// and block-1024 retirement up to two 1024-sample blocks apart.)
     int quietRun_         = 0;
     int silentRunSamples_ = 960;
+
+    /// T2.11 (MB-212): scale of everything fed into the waveguide loop (the
+    /// noteOn burst and the external excitation). WaveguideString writes a
+    /// burst of RMS velocity x excitationGain_ (about 1.4 at 80 Hz, peaks near
+    /// 4) and soft-clips the loop junction at 1.0; at 0.25 that peak sat on
+    /// the clip. The loop is linear, so the scale is exact and outputGain_
+    /// (the strike normalisation) restores the level. Chosen so a
+    /// velocity-1 Impulse strike at Size 1 (80 Hz, the hottest loop) stays
+    /// linear within -40 dB ("String body: velocity scales the string and the
+    /// loop stays linear").
+    static constexpr float kStringLoopHeadroom = 0.25f;
+
+    /// Velocity of the next noteOn's burst (DrumVoice sets it, clamped to
+    /// [0, 1], before configureForNoteOn).
+    float noteVelocity_ = 1.0f;
+
+    /// Strike-normalisation gain on the body output (DrumVoice: kBodyHeadroom
+    /// over the measured strike peak).
+    float outputGain_ = 1.0f;
+
+    void setNoteVelocity(float velocity) noexcept
+    {
+        noteVelocity_ = std::clamp(velocity, 0.0f, 1.0f);
+    }
+
+    void setOutputGain(float gain) noexcept { outputGain_ = gain; }
 
     void prepare(double sampleRate, std::uint32_t voiceId) noexcept
     {
@@ -97,11 +128,10 @@ struct StringBody
         string_.setBrightness(r.brightness);
         string_.setPickPosition(r.pickPosition);
 
-        // Initialize delay lines and loop state at the target frequency.
-        // The excitation noise burst it writes is fine; once the exciter
-        // starts feeding samples through processSample, that transient
-        // plus the external excitation drives the waveguide.
-        string_.noteOn(r.frequencyHz, 1.0f);
+        // Initialize delay lines and loop state at the target frequency, with
+        // the noise burst at the note's velocity inside the loop headroom;
+        // the exciter then drives the waveguide through processSample.
+        string_.noteOn(r.frequencyHz, noteVelocity_ * kStringLoopHeadroom);
         quietRun_ = 0;   // a new note is not silent until its own run is
     }
 
@@ -138,11 +168,11 @@ struct StringBody
 private:
     [[nodiscard]] float processTracked(float excitation) noexcept
     {
-        const float y = string_.process(excitation);
+        const float y = string_.process(excitation * kStringLoopHeadroom);
         quietRun_ = (string_.getControlEnergy() < kSilentEnergy)
                         ? std::min(quietRun_ + 1, silentRunSamples_)
                         : 0;
-        return y;
+        return y * outputGain_;
     }
 };
 

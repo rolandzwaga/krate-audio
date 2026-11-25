@@ -638,13 +638,9 @@ TEST_CASE("StrikeNormTable: worker thread against the audio thread under random 
             refs.push_back({rec.cfg, refVel, StrikeNormTable::measure(*probe, rec.cfg, refVel)});
             it = std::prev(refs.end());
         }
-        // A String body runs a waveguide, not the modal bank: its bank gain
-        // never reaches the audio and is not a strike-norm measurement (it is
-        // the impulse bound of whatever modes the bank held before), so only
-        // the shell gain is compared for it.
-        const bool bodyIsMeasured = rec.cfg.bodyModel != BodyModelType::String;
-        const bool bodyOk = !bodyIsMeasured ||
-                            rec.gains.body == Catch::Approx(it->gains.body).epsilon(1e-6);
+        // Every body, String included since T2.11, is a strike-norm
+        // measurement.
+        const bool bodyOk = rec.gains.body == Catch::Approx(it->gains.body).epsilon(1e-6);
         const bool shellOk = rec.gains.shell == Catch::Approx(it->gains.shell).epsilon(1e-6);
         if (!bodyOk || !shellOk)
         {

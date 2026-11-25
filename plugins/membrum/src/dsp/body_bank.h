@@ -159,6 +159,21 @@ public:
             std::get<StringBody>(alternatives_).string_.setFrequency(pitchHz);
     }
 
+    // T2.11 (MB-035): the note velocity of the String body's next noteOn
+    // burst. Set before configureForNoteOn; reaches the String body whatever
+    // body is current (the deferred swap happens inside configureForNoteOn).
+    void setStringNoteVelocity(float velocity) noexcept
+    {
+        std::get<StringBody>(alternatives_).setNoteVelocity(velocity);
+    }
+
+    // T2.11 (MB-175, MB-221): the String body itself, for DrumVoice's strike
+    // normalisation (its probe render and its output gain).
+    [[nodiscard]] StringBody& getStringBody() noexcept
+    {
+        return std::get<StringBody>(alternatives_);
+    }
+
     // Audit M-1: re-apply the String mapper's material-derived settings
     // (brightness / decay) for a live Material Morph WITHOUT re-triggering the
     // note. Frequency and pick position are intentionally left untouched so the

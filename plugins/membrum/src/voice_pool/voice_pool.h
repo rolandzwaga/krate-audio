@@ -33,9 +33,10 @@
 // takes the **per-slot single-fade reservation** path: exactly one fade-out
 // in flight per slot at a time. 16 main + 16 shadow voices are held here so
 // Phase 3.2's fast-release ramp can crossfade without touching `DrumVoice`
-// (FR-194), but `VoicePool::beginFastRelease` will reject re-entry on a slot
-// that is already `FastReleasing` (FR-127) -- ensuring the shadow footprint
-// stays bounded at `kMaxVoices` entries. The ~8.4 MiB heap peak is accepted
+// (FR-194), and a slot holds one fade at a time: `VoicePool::beginFastRelease`
+// either leaves an in-flight fade alone (FR-127) or, when forced (T2.6),
+// replaces it with the newer voice and truncates the older tail -- ensuring
+// the shadow footprint stays bounded at `kMaxVoices` entries. The ~8.4 MiB heap peak is accepted
 // as the memory cost; see `plan.md §Complexity Tracking` for the rationale.
 //
 // Phase 3.0: scaffolding only -- all methods are stubs. Real bodies land in
@@ -238,12 +239,14 @@ public:
     [[nodiscard]] int  maxPolyphony() const noexcept { return maxPolyphony_; }
     [[nodiscard]] bool isAnyVoiceActive() const noexcept;
 
-    /// Hard wipe of every main + shadow voice slot's DSP state plus the
-    /// allocator and metadata. Called by `Processor::setState` on kit
-    /// load so per-voice integrators / envelopes / banks from the prior
-    /// kit can't bleed into the new kit's first hits. Per-pad params are
-    /// re-applied by the next noteOn; this just wipes the audio state.
-    void resetAllVoicesForKitSwitch() noexcept;
+    /// Kit load (T2.3, MB-054): every sounding main voice moves to its shadow
+    /// role and fades out over the 5 ms fast release (forced), instead of
+    /// being cut. The voice left in each main role is wiped
+    /// (`DrumVoice::resetForKitSwitch`) so no envelope / bank / filter state
+    /// of the prior kit reaches the new kit's first hits; shadows already
+    /// fading keep fading. Clears the main metadata, resets the allocator and
+    /// re-applies the voice count. Audio thread, allocation-free.
+    void fadeOutAllVoicesForKitSwitch() noexcept;
 
     // ------------------------------------------------------------------
     // Phase 5: Coupling engine integration
@@ -255,6 +258,12 @@ public:
     {
         couplingEngine_ = engine;
     }
+
+    /// T2.3: registers the partials of every Active main voice with the
+    /// coupling engine, as noteOn does. The Processor calls it after the
+    /// engine was flushed at the end of a kit-switch coupling fade, so a note
+    /// struck during the fade keeps its sympathetic resonators.
+    void registerActiveVoicesWithCoupling() noexcept;
 
     // ------------------------------------------------------------------
     // Direct read access for the forEachMainVoice helper (unique_ptr
@@ -287,16 +296,31 @@ private:
     /// index exchange, no DrumVoice moves: audit MB-005) and start the
     /// fast-release ramp on it.
     ///
-    /// `force` (audit M-8): the default (false) keeps the FR-127 idempotent
-    /// short-circuit — a re-entrant call on a slot already FastReleasing
-    /// leaves the in-flight fade alone (used by the choke-completeness
-    /// re-scan). When true, a re-steal whose shadow is still busy from a
-    /// PRIOR steal re-snapshots the CURRENT (full-amplitude) main voice into
-    /// the shadow, so it fades smoothly and only the older, already-attenuated
-    /// tail is truncated — instead of hard-overwriting the ringing main voice
-    /// with the incoming note's attack (a click). The voice-steal path passes
-    /// true; choke and poly-shrink keep the idempotent default.
-    void beginFastRelease(int slot, bool force = false) noexcept;
+    /// `force` (audit M-8, T2.6): the default (false) keeps the FR-127
+    /// idempotent short-circuit — a re-entrant call on a slot already
+    /// FastReleasing leaves the in-flight fade alone; only the
+    /// choke-completeness re-scan uses it. When true, a release whose shadow
+    /// is still busy from a PRIOR release re-snapshots the CURRENT
+    /// (full-amplitude) main voice into the shadow, so it fades smoothly and
+    /// only the older, already-attenuated tail is truncated. Every caller
+    /// that releases a sounding main voice passes true: steal, choke,
+    /// Quietest pre-steal, polyphony shrink and kit load all mark the slot
+    /// Free afterwards, and an early return would leave the voice ringing
+    /// unramped in that Free slot or hard-overwritten by the next NoteOn.
+    ///
+    /// The voice left in the main role is always inactive: an idle voice is
+    /// left as it is, and the forced case's old shadow (still sounding) is
+    /// wiped with `DrumVoice::resetForKitSwitch`. A finished fade wipes its
+    /// shadow too (applyFastRelease), so a Free slot never holds a rendering
+    /// voice (T2.6, MB-053).
+    ///
+    /// `linear` (T2.3, kit load): the shadow fades with a linear gain ramp
+    /// from 1 to 0 over kFastReleaseSecs and its body is NOT fast-damped.
+    /// The exponential ramp plus fastReleaseDamp drops the voice by ~16 % in
+    /// its first sample, a step of -16 dB at a crest; a kit load cuts every
+    /// sounding voice at once, at any phase, so its fade must stay under the
+    /// -30 dB step bound relative to the voices' level.
+    void beginFastRelease(int slot, bool force = false, bool linear = false) noexcept;
 
     /// Phase 3.2 hook — per-sample exponential decay applied to `scratch`
     /// with `releasingMeta_[slot].fastReleaseGain`. Returns the number of
@@ -320,6 +344,10 @@ private:
     /// Apply pad N's configuration to a voice slot at noteOn time.
     /// Called internally by noteOn() using the midiNote-to-pad mapping.
     void applyPadConfigToSlot(int slot, int padIndex) noexcept;
+
+    /// Phase 5: registers the main voice's partials in `slot` with the
+    /// coupling engine when pad `padIndex` couples (couplingAmount > 0).
+    void registerCouplingPartials(int slot, int padIndex) noexcept;
 
     /// M-9: equal-power per-pad pan gains for a voice, looked up from the
     /// voice's originating note. `gainL`/`gainR` default to unity (center) for
@@ -380,6 +408,7 @@ private:
     int    maxBlockSize_   = 0;
     double sampleRate_     = 44100.0;
     float  fastReleaseK_   = 0.0f;  // exp(-1 / (tau * sampleRate))
+    float  linearFadeStep_ = 0.0f;  // T2.3: 1 / (kFastReleaseSecs * sampleRate)
 
     int                  maxPolyphony_  = 8;                           // FR-111
     VoiceStealingPolicy  stealingPolicy_= VoiceStealingPolicy::Oldest; // FR-120

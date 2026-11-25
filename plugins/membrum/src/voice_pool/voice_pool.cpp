@@ -100,6 +100,8 @@ void VoicePool::prepare(double sampleRate, int maxBlockSize) noexcept
     // any supported sample rate.
     fastReleaseK_ =
         std::exp(-kFastReleaseLnFloor / (kFastReleaseSecs * static_cast<float>(sampleRate_)));
+    // T2.3: the kit-load fade reaches 0 linearly in the same kFastReleaseSecs.
+    linearFadeStep_ = 1.0f / (kFastReleaseSecs * static_cast<float>(sampleRate_));
 
     // Prepare every main + shadow voice with voiceId = slot index. Main and
     // shadow slots at the same index share the same voiceId because the
@@ -210,7 +212,9 @@ void VoicePool::noteOn(std::uint8_t midiNote, float velocity) noexcept
                 couplingEngine_->noteOff(q);
 
             const uint8_t victimNote = meta_[q].originatingNote;
-            beginFastRelease(q);
+            // T2.6 (MB-148): forced, so a shadow still fading from an earlier
+            // release cannot leave the victim sounding in a Free slot.
+            beginFastRelease(q, /*force*/ true);
             (void)allocator_.noteOff(victimNote);
             allocator_.voiceFinished(static_cast<std::size_t>(q));
             // Mark the main slot Free so our own bookkeeping agrees with the
@@ -251,16 +255,15 @@ void VoicePool::noteOn(std::uint8_t midiNote, float velocity) noexcept
                 couplingEngine_->noteOff(static_cast<int>(ev.voiceIndex));
 
             // FR-126/FR-127: fade out the stolen voice through the shadow
-            // slot. The hot path must not touch `voices_[ev.voiceIndex]` after
-            // this — the new note will overwrite it below.
+            // slot. The voice left in the main role is inactive (T2.6); the
+            // NoteOn below re-configures it for the new note.
             //
             // Audit M-8: force=true so a same-slot re-steal whose shadow is
-            // still fading from a prior steal (e.g. fast same-note retrigger)
-            // re-snapshots the ringing main voice instead of letting the
-            // incoming attack hard-overwrite it (a click). A steal only ever
-            // targets a genuinely-Active voice — choke already frees + retires
-            // its victims before the allocator runs — so a busy shadow here is
-            // always the M-8 collision, never the choke-completeness re-scan.
+            // still fading from a prior release (e.g. fast same-note
+            // retrigger) re-snapshots the ringing main voice instead of letting
+            // the incoming attack hard-overwrite it (a click); only the older,
+            // already-attenuated shadow tail is truncated. Choke, Quietest
+            // pre-steal and polyphony shrink force the same way (T2.6).
             beginFastRelease(static_cast<int>(ev.voiceIndex), /*force*/ true);
             // After stealing we mark the main slot Free; the NoteOn event
             // that follows will transition it back to Active.
@@ -298,13 +301,7 @@ void VoicePool::noteOn(std::uint8_t midiNote, float velocity) noexcept
             // couplingAmount == 0.0, it is fully excluded from coupling --
             // skip resonator registration entirely. No CPU cost for silenced
             // pads.
-            if (couplingEngine_ != nullptr &&
-                applyMacroOffsets(padConfigs_[static_cast<std::size_t>(padIndex)])
-                        .couplingAmount > 0.0f)
-            {
-                auto partials = mainVoice(slot).getPartialInfo();
-                couplingEngine_->noteOn(slot, partials);
-            }
+            registerCouplingPartials(slot, padIndex);
 
             // Bookkeeping: populate the per-slot metadata for later stealing
             // decisions + choke lookups.
@@ -324,19 +321,53 @@ void VoicePool::noteOn(std::uint8_t midiNote, float velocity) noexcept
     }
 }
 
-void VoicePool::resetAllVoicesForKitSwitch() noexcept
+void VoicePool::fadeOutAllVoicesForKitSwitch() noexcept
 {
     for (int slot = 0; slot < kMaxVoices; ++slot)
     {
         if (couplingEngine_ != nullptr && meta_[slot].state != VoiceSlotState::Free)
             couplingEngine_->noteOff(slot);
+
+        // T2.3 (MB-054): a sounding voice moves to the shadow role and fades
+        // out over the fast-release time instead of being cut, with the
+        // linear kit-load ramp (see beginFastRelease). The forced path
+        // re-snapshots even when the shadow is still fading.
+        if (meta_[slot].state == VoiceSlotState::Active && mainVoice(slot).isActive())
+            beginFastRelease(slot, /*force*/ true, /*linear*/ true);
+
+        // The voice now in the main role (an idle voice, or the old shadow
+        // contents) is wiped, so no residue of the old kit reaches the new
+        // kit's first hit on this slot. Shadow voices fading from an earlier
+        // steal or choke keep fading.
         mainVoice(slot).resetForKitSwitch();
-        shadowVoice(slot).resetForKitSwitch();
-        meta_[slot]          = VoiceMeta{};
-        releasingMeta_[slot] = VoiceMeta{};
+        meta_[slot] = VoiceMeta{};
     }
     allocator_.reset();
     (void)allocator_.setVoiceCount(static_cast<std::size_t>(maxPolyphony_));
+}
+
+void VoicePool::registerCouplingPartials(int slot, int padIndex) noexcept
+{
+    if (couplingEngine_ != nullptr &&
+        applyMacroOffsets(padConfigs_[static_cast<std::size_t>(padIndex)])
+                .couplingAmount > 0.0f)
+    {
+        auto partials = mainVoice(slot).getPartialInfo();
+        couplingEngine_->noteOn(slot, partials);
+    }
+}
+
+void VoicePool::registerActiveVoicesWithCoupling() noexcept
+{
+    for (int slot = 0; slot < kMaxVoices; ++slot)
+    {
+        if (meta_[slot].state != VoiceSlotState::Active)
+            continue;
+        const int padIndex = static_cast<int>(meta_[slot].originatingNote)
+                           - static_cast<int>(kFirstDrumNote);
+        if (padIndex >= 0 && padIndex < kNumPads)
+            registerCouplingPartials(slot, padIndex);
+    }
 }
 
 void VoicePool::noteOff(std::uint8_t midiNote) noexcept
@@ -491,10 +522,10 @@ void VoicePool::processBlock(float* outL, float* outR,
         shadowVoice(slot).processBlock(scratch, numSamples);
         const int liveCount = applyFastRelease(slot, scratch, numSamples);
 
-        // M-9: the fading shadow voice keeps its pad's pan position.
-        float gainL = 1.0f;
-        float gainR = 1.0f;
-        panGainsForNote(releasingMeta_[slot].originatingNote, gainL, gainR);
+        // M-9: the fading shadow voice keeps its pad's pan position, as it
+        // was when the fade began (T2.3: a kit load may change the pad).
+        const float gainL = releasingMeta_[slot].panGainL;
+        const float gainR = releasingMeta_[slot].panGainR;
 
         for (int i = 0; i < liveCount; ++i)
         {
@@ -502,13 +533,10 @@ void VoicePool::processBlock(float* outL, float* outR,
             outR[i] += scratch[i] * gainR;
         }
 
-        // FR-044: also route fast-releasing voices to their aux bus
-        const int padIndex = static_cast<int>(releasingMeta_[slot].originatingNote)
-                             - static_cast<int>(kFirstDrumNote);
-        if (padIndex >= 0 && padIndex < kNumPads)
+        // FR-044: also route fast-releasing voices to their aux bus (the bus
+        // captured when the fade began, T2.3).
         {
-            const int bus = static_cast<int>(
-                padConfigs_[static_cast<std::size_t>(padIndex)].outputBus);
+            const int bus = static_cast<int>(releasingMeta_[slot].outputBus);
             if (bus > 0 && bus < numOutputBuses &&
                 busActive != nullptr && busActive[bus] &&
                 auxL != nullptr && auxR != nullptr &&
@@ -543,7 +571,10 @@ void VoicePool::setMaxPolyphony(int n) noexcept
     {
         if (ev.type == Krate::DSP::VoiceEvent::Type::NoteOff)
         {
-            beginFastRelease(static_cast<int>(ev.voiceIndex));
+            // T2.6 (MB-053 / MB-148): forced, so a released slot whose shadow
+            // is still fading cannot keep its voice above the new polyphony,
+            // where it would resume when the polyphony grows back.
+            beginFastRelease(static_cast<int>(ev.voiceIndex), /*force*/ true);
             meta_[ev.voiceIndex].state = VoiceSlotState::Free;
         }
     }
@@ -843,24 +874,26 @@ int VoicePool::selectQuietestActiveSlot() const noexcept
     return bestSlot;
 }
 
-void VoicePool::beginFastRelease(int slot, bool force) noexcept
+void VoicePool::beginFastRelease(int slot, bool force, bool linear) noexcept
 {
     if (slot < 0 || slot >= kMaxVoices)
         return;
 
     // FR-127: idempotent. If the shadow slot is already fast-releasing,
     // leave the in-flight fade alone so a re-entrant call (the choke-
-    // completeness re-scan) does NOT re-snapshot the gain.
+    // completeness re-scan, the only caller that does not force) does NOT
+    // re-snapshot the gain.
     //
-    // Audit M-8: the EXCEPTION is a voice-steal that re-steals this slot
-    // while its shadow is still fading from a PRIOR steal (`force == true`).
-    // The current main voice is a full-amplitude ring about to be hard-
-    // overwritten by the incoming note's attack; the existing shadow holds an
-    // older, already-attenuated tail. Re-snapshot so the louder ring fades
-    // smoothly through the shadow and only the quieter old tail is truncated —
-    // a far smaller discontinuity. Fall through to the swap + reset below; the
-    // old shadow voice ends up in the main slot and is cleanly overwritten by
-    // the incoming note's applyPadConfigToSlot + noteOn.
+    // Audit M-8 / T2.6 (MB-148): every caller that releases a sounding main
+    // voice passes `force == true` -- a steal, a choke, a Quietest pre-steal,
+    // a polyphony shrink and a kit load all mark the slot Free afterwards, so
+    // returning early would leave the voice ringing unramped in a Free slot
+    // (or let the next NoteOn on that slot hard-overwrite it). When this
+    // slot's shadow is still fading from a PRIOR release, the current main
+    // voice is re-snapshotted into the shadow so it fades smoothly, and only
+    // the older, already-attenuated tail is truncated -- a far smaller
+    // discontinuity. That old shadow voice lands in the main role and is
+    // wiped below.
     if (releasingMeta_[slot].state == VoiceSlotState::FastReleasing && !force)
         return;
 
@@ -872,22 +905,22 @@ void VoicePool::beginFastRelease(int slot, bool force) noexcept
     // points into another voice's storage. After the exchange:
     //   - shadowVoice(slot) is the currently-sounding voice (the "live"
     //     voice that must fade out).
-    //   - mainVoice(slot) is the slot's previous shadow voice -- either a
-    //     freshly-prepared idle DrumVoice (first steal on that slot) or a
-    //     naturally-ended fast-releasing voice from a prior fade (both of
-    //     which are valid DSP states ready to receive a new noteOn).
-    // The subsequent allocator NoteOn path calls
-    // `applyPadConfigToSlot(slot)` + `mainVoice(slot).noteOn(v)` which
-    // fully re-initializes the envelope and re-triggers the exciter, so
-    // any residual state in mainVoice(slot) is overwritten cleanly.
+    //   - mainVoice(slot) is the slot's previous shadow voice -- a
+    //     freshly-prepared idle DrumVoice (first release on that slot), a
+    //     finished fade (wiped by applyFastRelease, so inactive), or, in the
+    //     forced case, the old shadow still mid-fade.
     std::swap(mainIndex_[static_cast<std::size_t>(slot)],
               shadowIndex_[static_cast<std::size_t>(slot)]);
-    // The re-acquired main voice receives a fresh noteOn from the
-    // subsequent allocator NoteOn event, which fully re-initializes
-    // the envelope and re-triggers the exciter. We do NOT call
-    // noteOff() on it here: that would add unnecessary DSP state
-    // churn (small but non-zero) and could introduce bit-level
-    // differences versus a freshly-prepared DrumVoice.
+    // T2.6 (MB-053): the voice left in the main role is always inactive,
+    // whatever the caller does next. Only the forced case can bring a
+    // sounding voice here (the old shadow, mid-fade): wipe it, so a choke,
+    // pre-steal or shrink -- which mark the slot Free with no NoteOn after
+    // them -- cannot leave it rendering as a ghost, and a steal's NoteOn
+    // starts from a clean voice. An idle voice is left untouched (no
+    // noteOff, no reset), so it stays bit-identical to a freshly-prepared
+    // DrumVoice.
+    if (mainVoice(slot).isActive())
+        mainVoice(slot).resetForKitSwitch();
 
     // Phase 8A.5: the shadow voice (shadowVoice(slot)) is now the live
     // voice that must fade out. Under Option-D envelope (sustain = 1.0)
@@ -896,7 +929,11 @@ void VoicePool::beginFastRelease(int slot, bool force) noexcept
     // below the -30 dBFS click bound. Fire the aggressive fast-release
     // damp on the shadow's modal bank so the body decays within ~1 ms
     // (well inside the fast-release window) through its own damping law.
-    shadowVoice(slot).fastReleaseDamp();
+    // T2.3: a kit-load fade is linear and reaches exactly 0 in
+    // kFastReleaseSecs, so it needs no damping (the damp alone drops the body
+    // by ~11 % per sample at 48 kHz, a step at a crest).
+    if (!linear)
+        shadowVoice(slot).fastReleaseDamp();
 
     // Starting gain is UNITY. The shadow slot's DrumVoice already produces
     // the voice's absolute amplitude via its own envelopes and filters;
@@ -911,14 +948,25 @@ void VoicePool::beginFastRelease(int slot, bool force) noexcept
     releasingMeta_[slot].noteOnSampleCount = meta_[slot].noteOnSampleCount;
     releasingMeta_[slot].currentLevel      = 0.0f;
     releasingMeta_[slot].state             = VoiceSlotState::FastReleasing;
+    releasingMeta_[slot].linearFadeStep    = linear ? linearFadeStep_ : 0.0f;
+    // T2.3 (MB-054): the fade keeps the pan and bus the voice sounded with,
+    // even when a kit load changes the pad's config under it.
+    panGainsForNote(meta_[slot].originatingNote,
+                    releasingMeta_[slot].panGainL, releasingMeta_[slot].panGainR);
+    {
+        const int pad = static_cast<int>(meta_[slot].originatingNote)
+                      - static_cast<int>(kFirstDrumNote);
+        releasingMeta_[slot].outputBus =
+            (pad >= 0 && pad < kNumPads)
+                ? padConfigs_[static_cast<std::size_t>(pad)].outputBus
+                : std::uint8_t{0};
+    }
 
-    // NOTE: We deliberately do NOT call mainVoice(slot).noteOff() here.
-    // The main slot is about to be overwritten by the new note's
-    // `applySharedParamsToSlot` + `noteOn(velocity)` call, which will reset
-    // the amp envelope and exciter cleanly. Calling noteOff first would
-    // waste a few instructions and could affect envelope timing on the
-    // new note's attack. The shadow voice keeps its own independent state
-    // because it is a separate DrumVoice object.
+    // NOTE: We deliberately do NOT call mainVoice(slot).noteOff() here. The
+    // voice in the main role is inactive (see above); a steal re-configures
+    // it with `applyPadConfigToSlot` + `noteOn(velocity)`, and every other
+    // caller leaves the slot Free. The shadow voice keeps its own independent
+    // state because it is a separate DrumVoice object.
 }
 
 int VoicePool::applyFastRelease(int slot,
@@ -943,6 +991,33 @@ int VoicePool::applyFastRelease(int slot,
     const float k = fastReleaseK_;
 
     int liveCount = numSamples;
+
+    // T2.3: a kit-load fade lowers the gain linearly to 0 over
+    // kFastReleaseSecs (the samples after the end are zeroed and not
+    // accumulated, as for the exponential ramp below).
+    const float step = releasingMeta_[slot].linearFadeStep;
+    if (step > 0.0f)
+    {
+        for (int i = 0; i < numSamples; ++i)
+        {
+            scratch[i] *= gain;
+            gain -= step;
+            if (gain <= 0.5f * step)
+            {
+                gain = 0.0f;
+                for (int j = i + 1; j < numSamples; ++j)
+                    scratch[j] = 0.0f;
+                releasingMeta_[slot].state = VoiceSlotState::Free;
+                // T2.6 (MB-053): see the exponential branch below.
+                shadowVoice(slot).resetForKitSwitch();
+                liveCount = i + 1;
+                break;
+            }
+        }
+        releasingMeta_[slot].fastReleaseGain = gain;
+        return liveCount;
+    }
+
     for (int i = 0; i < numSamples; ++i)
     {
         scratch[i] *= gain;
@@ -954,6 +1029,11 @@ int VoicePool::applyFastRelease(int slot,
             for (int j = i + 1; j < numSamples; ++j)
                 scratch[j] = 0.0f;
             releasingMeta_[slot].state = VoiceSlotState::Free;
+            // T2.6 (MB-053): the fade only damps the shadow's bank; the voice
+            // itself would stay active with frozen state, and the next
+            // hand-over on this slot would bring it back into the main role
+            // as a ghost. A finished shadow is wiped and inactive.
+            shadowVoice(slot).resetForKitSwitch();
             liveCount = i + 1;
             break;
         }
@@ -1005,8 +1085,10 @@ void VoicePool::processChokeGroups(std::uint8_t newNote) noexcept
 
             // FR-134: reuse the Phase 3.2 fast-release path for click-free
             // group-wide mute. beginFastRelease swaps the main voice into
-            // the shadow slot and starts the 5 ms ramp.
-            beginFastRelease(slot);
+            // the shadow slot and starts the 5 ms ramp. T2.6 (MB-148):
+            // forced, so a shadow still fading from a steal on this slot
+            // cannot leave the choked voice ringing in a Free slot.
+            beginFastRelease(slot, /*force*/ true);
             // FR-133: mark the main slot Free so subsequent allocator
             // bookkeeping sees it as available. We also release the
             // allocator's view by issuing a noteOff + voiceFinished pair

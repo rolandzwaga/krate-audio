@@ -9,6 +9,8 @@
 
 #include "base/source/fstreamer.h"
 
+#include <krate/dsp/core/db_utils.h>
+
 #include <algorithm>
 #include <cstring>
 #include <type_traits>
@@ -99,6 +101,37 @@ void bodyDampingFromAbsolute(std::array<double, 59>& sound, const PadConfig& pla
     const auto norms = Bodies::encodeLegacyBodyDamping(played, sound[42], sound[43]);
     sound[42] = static_cast<double>(norms.b1);
     sound[43] = static_cast<double>(norms.b3);
+}
+
+/// Fix plan T2.2 (MB-010): a stored double that is NaN or +-Inf loads as
+/// `fallback`. A blob is untrusted input; std::clamp passes a NaN through.
+[[nodiscard]] double finiteOr(double value, double fallback) noexcept
+{
+    return Krate::DSP::detail::isFinite(value) ? value : fallback;
+}
+
+/// The defaults of the kit-level doubles (KitSnapshot's member initialisers).
+constexpr KitSnapshot kKitDefaults{};
+
+/// Replaces every non-finite sound slot with that slot's PadConfig default.
+/// `absoluteBodyDamping` (a version-5 blob): slots 42 / 43 held absolute body
+/// damping, where a negative value meant "derive", the default.
+void sanitiseSoundSlots(std::array<double, 59>& sound, bool absoluteBodyDamping) noexcept
+{
+    constexpr double kLegacyDerive = -1.0;
+    const PadSnapshot defaults = toPadSnapshot(PadConfig{});
+    for (std::size_t i = 0; i < sound.size(); ++i)
+    {
+        const bool legacyDamping = absoluteBodyDamping && (i == 42 || i == 43);
+        sound[i] = finiteOr(sound[i], legacyDamping ? kLegacyDerive : defaults.sound[i]);
+    }
+}
+
+/// A sound slot that applyPadSnapshot / applyPadPresetSnapshot load as a
+/// normalised [0, 1] field (T2.2: slots 0-27 and 30-33 were copied unclamped).
+[[nodiscard]] float unitSlot(double value) noexcept
+{
+    return std::clamp(static_cast<float>(value), 0.0f, 1.0f);
 }
 
 } // namespace
@@ -210,40 +243,40 @@ void applyPadSnapshot(const PadSnapshot& snap, PadConfig& cfg) noexcept
     cfg.exciterType = snap.exciterType;
     cfg.bodyModel   = snap.bodyModel;
 
-    cfg.material          = static_cast<float>(snap.sound[0]);
-    cfg.size              = static_cast<float>(snap.sound[1]);
-    cfg.decay             = static_cast<float>(snap.sound[2]);
-    cfg.strikePosition    = static_cast<float>(snap.sound[3]);
-    cfg.level             = static_cast<float>(snap.sound[4]);
-    cfg.tsFilterType      = static_cast<float>(snap.sound[5]);
-    cfg.tsFilterCutoff    = static_cast<float>(snap.sound[6]);
-    cfg.tsFilterResonance = static_cast<float>(snap.sound[7]);
-    cfg.tsFilterEnvAmount = static_cast<float>(snap.sound[8]);
-    cfg.tsDriveAmount     = static_cast<float>(snap.sound[9]);
-    cfg.tsFoldAmount      = static_cast<float>(snap.sound[10]);
-    cfg.tsPitchEnvStart   = static_cast<float>(snap.sound[11]);
-    cfg.tsPitchEnvEnd     = static_cast<float>(snap.sound[12]);
-    cfg.tsPitchEnvTime    = static_cast<float>(snap.sound[13]);
-    cfg.tsPitchEnvCurve   = static_cast<float>(snap.sound[14]);
-    cfg.tsFilterEnvAttack = static_cast<float>(snap.sound[15]);
-    cfg.tsFilterEnvDecay  = static_cast<float>(snap.sound[16]);
-    cfg.tsFilterEnvSustain = static_cast<float>(snap.sound[17]);
-    cfg.tsFilterEnvRelease = static_cast<float>(snap.sound[18]);
-    cfg.modeStretch       = static_cast<float>(snap.sound[19]);
-    cfg.decaySkew         = static_cast<float>(snap.sound[20]);
-    cfg.modeInjectAmount  = static_cast<float>(snap.sound[21]);
-    cfg.nonlinearCoupling = static_cast<float>(snap.sound[22]);
-    cfg.morphEnabled      = static_cast<float>(snap.sound[23]);
-    cfg.morphStart        = static_cast<float>(snap.sound[24]);
-    cfg.morphEnd          = static_cast<float>(snap.sound[25]);
-    cfg.morphDuration     = static_cast<float>(snap.sound[26]);
-    cfg.morphCurve        = static_cast<float>(snap.sound[27]);
+    cfg.material          = unitSlot(snap.sound[0]);
+    cfg.size              = unitSlot(snap.sound[1]);
+    cfg.decay             = unitSlot(snap.sound[2]);
+    cfg.strikePosition    = unitSlot(snap.sound[3]);
+    cfg.level             = unitSlot(snap.sound[4]);
+    cfg.tsFilterType      = unitSlot(snap.sound[5]);
+    cfg.tsFilterCutoff    = unitSlot(snap.sound[6]);
+    cfg.tsFilterResonance = unitSlot(snap.sound[7]);
+    cfg.tsFilterEnvAmount = unitSlot(snap.sound[8]);
+    cfg.tsDriveAmount     = unitSlot(snap.sound[9]);
+    cfg.tsFoldAmount      = unitSlot(snap.sound[10]);
+    cfg.tsPitchEnvStart   = unitSlot(snap.sound[11]);
+    cfg.tsPitchEnvEnd     = unitSlot(snap.sound[12]);
+    cfg.tsPitchEnvTime    = unitSlot(snap.sound[13]);
+    cfg.tsPitchEnvCurve   = unitSlot(snap.sound[14]);
+    cfg.tsFilterEnvAttack = unitSlot(snap.sound[15]);
+    cfg.tsFilterEnvDecay  = unitSlot(snap.sound[16]);
+    cfg.tsFilterEnvSustain = unitSlot(snap.sound[17]);
+    cfg.tsFilterEnvRelease = unitSlot(snap.sound[18]);
+    cfg.modeStretch       = unitSlot(snap.sound[19]);
+    cfg.decaySkew         = unitSlot(snap.sound[20]);
+    cfg.modeInjectAmount  = unitSlot(snap.sound[21]);
+    cfg.nonlinearCoupling = unitSlot(snap.sound[22]);
+    cfg.morphEnabled      = unitSlot(snap.sound[23]);
+    cfg.morphStart        = unitSlot(snap.sound[24]);
+    cfg.morphEnd          = unitSlot(snap.sound[25]);
+    cfg.morphDuration     = unitSlot(snap.sound[26]);
+    cfg.morphCurve        = unitSlot(snap.sound[27]);
     // Indices 28-29 are the float64 expression of chokeGroup/outputBus; the
     // uint8 fields below are authoritative, so we skip the float64 values.
-    cfg.fmRatio            = static_cast<float>(snap.sound[30]);
-    cfg.feedbackAmount     = static_cast<float>(snap.sound[31]);
-    cfg.noiseBurstDuration = static_cast<float>(snap.sound[32]);
-    cfg.frictionPressure   = static_cast<float>(snap.sound[33]);
+    cfg.fmRatio            = unitSlot(snap.sound[30]);
+    cfg.feedbackAmount     = unitSlot(snap.sound[31]);
+    cfg.noiseBurstDuration = unitSlot(snap.sound[32]);
+    cfg.frictionPressure   = unitSlot(snap.sound[33]);
     // Phase 7: parallel noise layer + click transient.
     cfg.noiseLayerMix        = std::clamp(static_cast<float>(snap.sound[34]), 0.0f, 1.0f);
     cfg.noiseLayerCutoff     = std::clamp(static_cast<float>(snap.sound[35]), 0.0f, 1.0f);
@@ -318,38 +351,38 @@ void applyPadPresetSnapshot(const PadPresetSnapshot& snap, PadConfig& cfg) noexc
     // Apply only the sound fields (indices 0-27, 30-33). Indices 28-29
     // (chokeGroup / outputBus as float64) are intentionally skipped per
     // FR-061: per-pad presets MUST NOT carry routing or choke data.
-    cfg.material           = static_cast<float>(snap.sound[0]);
-    cfg.size               = static_cast<float>(snap.sound[1]);
-    cfg.decay              = static_cast<float>(snap.sound[2]);
-    cfg.strikePosition     = static_cast<float>(snap.sound[3]);
-    cfg.level              = static_cast<float>(snap.sound[4]);
-    cfg.tsFilterType       = static_cast<float>(snap.sound[5]);
-    cfg.tsFilterCutoff     = static_cast<float>(snap.sound[6]);
-    cfg.tsFilterResonance  = static_cast<float>(snap.sound[7]);
-    cfg.tsFilterEnvAmount  = static_cast<float>(snap.sound[8]);
-    cfg.tsDriveAmount      = static_cast<float>(snap.sound[9]);
-    cfg.tsFoldAmount       = static_cast<float>(snap.sound[10]);
-    cfg.tsPitchEnvStart    = static_cast<float>(snap.sound[11]);
-    cfg.tsPitchEnvEnd      = static_cast<float>(snap.sound[12]);
-    cfg.tsPitchEnvTime     = static_cast<float>(snap.sound[13]);
-    cfg.tsPitchEnvCurve    = static_cast<float>(snap.sound[14]);
-    cfg.tsFilterEnvAttack  = static_cast<float>(snap.sound[15]);
-    cfg.tsFilterEnvDecay   = static_cast<float>(snap.sound[16]);
-    cfg.tsFilterEnvSustain = static_cast<float>(snap.sound[17]);
-    cfg.tsFilterEnvRelease = static_cast<float>(snap.sound[18]);
-    cfg.modeStretch        = static_cast<float>(snap.sound[19]);
-    cfg.decaySkew          = static_cast<float>(snap.sound[20]);
-    cfg.modeInjectAmount   = static_cast<float>(snap.sound[21]);
-    cfg.nonlinearCoupling  = static_cast<float>(snap.sound[22]);
-    cfg.morphEnabled       = static_cast<float>(snap.sound[23]);
-    cfg.morphStart         = static_cast<float>(snap.sound[24]);
-    cfg.morphEnd           = static_cast<float>(snap.sound[25]);
-    cfg.morphDuration      = static_cast<float>(snap.sound[26]);
-    cfg.morphCurve         = static_cast<float>(snap.sound[27]);
-    cfg.fmRatio            = static_cast<float>(snap.sound[30]);
-    cfg.feedbackAmount     = static_cast<float>(snap.sound[31]);
-    cfg.noiseBurstDuration = static_cast<float>(snap.sound[32]);
-    cfg.frictionPressure   = static_cast<float>(snap.sound[33]);
+    cfg.material           = unitSlot(snap.sound[0]);
+    cfg.size               = unitSlot(snap.sound[1]);
+    cfg.decay              = unitSlot(snap.sound[2]);
+    cfg.strikePosition     = unitSlot(snap.sound[3]);
+    cfg.level              = unitSlot(snap.sound[4]);
+    cfg.tsFilterType       = unitSlot(snap.sound[5]);
+    cfg.tsFilterCutoff     = unitSlot(snap.sound[6]);
+    cfg.tsFilterResonance  = unitSlot(snap.sound[7]);
+    cfg.tsFilterEnvAmount  = unitSlot(snap.sound[8]);
+    cfg.tsDriveAmount      = unitSlot(snap.sound[9]);
+    cfg.tsFoldAmount       = unitSlot(snap.sound[10]);
+    cfg.tsPitchEnvStart    = unitSlot(snap.sound[11]);
+    cfg.tsPitchEnvEnd      = unitSlot(snap.sound[12]);
+    cfg.tsPitchEnvTime     = unitSlot(snap.sound[13]);
+    cfg.tsPitchEnvCurve    = unitSlot(snap.sound[14]);
+    cfg.tsFilterEnvAttack  = unitSlot(snap.sound[15]);
+    cfg.tsFilterEnvDecay   = unitSlot(snap.sound[16]);
+    cfg.tsFilterEnvSustain = unitSlot(snap.sound[17]);
+    cfg.tsFilterEnvRelease = unitSlot(snap.sound[18]);
+    cfg.modeStretch        = unitSlot(snap.sound[19]);
+    cfg.decaySkew          = unitSlot(snap.sound[20]);
+    cfg.modeInjectAmount   = unitSlot(snap.sound[21]);
+    cfg.nonlinearCoupling  = unitSlot(snap.sound[22]);
+    cfg.morphEnabled       = unitSlot(snap.sound[23]);
+    cfg.morphStart         = unitSlot(snap.sound[24]);
+    cfg.morphEnd           = unitSlot(snap.sound[25]);
+    cfg.morphDuration      = unitSlot(snap.sound[26]);
+    cfg.morphCurve         = unitSlot(snap.sound[27]);
+    cfg.fmRatio            = unitSlot(snap.sound[30]);
+    cfg.feedbackAmount     = unitSlot(snap.sound[31]);
+    cfg.noiseBurstDuration = unitSlot(snap.sound[32]);
+    cfg.frictionPressure   = unitSlot(snap.sound[33]);
     // Phase 7: parallel noise layer + click transient (offsets 42-49).
     cfg.noiseLayerMix        = std::clamp(static_cast<float>(snap.sound[34]), 0.0f, 1.0f);
     cfg.noiseLayerCutoff     = std::clamp(static_cast<float>(snap.sound[35]), 0.0f, 1.0f);
@@ -489,6 +522,7 @@ tresult readKitBlob(IBStream* stream, KitSnapshot& kit)
             if (!readT(streamer, slot))
                 return kResultFalse;
         }
+        sanitiseSoundSlots(pad.sound, version == kBakedMacroBlobVersion);
         if (!readT(streamer, pad.chokeGroup)) return kResultFalse;
         if (!readT(streamer, pad.outputBus))  return kResultFalse;
         if (pad.chokeGroup > 8U)  pad.chokeGroup = 0;
@@ -509,33 +543,36 @@ tresult readKitBlob(IBStream* stream, KitSnapshot& kit)
     if (!readT(streamer, sb)) return kResultFalse;
     if (!readT(streamer, tr)) return kResultFalse;
     if (!readT(streamer, cd)) return kResultFalse;
-    kit.globalCoupling  = std::clamp(gc, 0.0, 1.0);
-    kit.snareBuzz       = std::clamp(sb, 0.0, 1.0);
-    kit.tomResonance    = std::clamp(tr, 0.0, 1.0);
-    kit.couplingDelayMs = std::clamp(cd, 0.5, 2.0);
+    // T2.2 (MB-010): a non-finite double loads as its default, then clamps.
+    kit.globalCoupling  = std::clamp(finiteOr(gc, kKitDefaults.globalCoupling), 0.0, 1.0);
+    kit.snareBuzz       = std::clamp(finiteOr(sb, kKitDefaults.snareBuzz), 0.0, 1.0);
+    kit.tomResonance    = std::clamp(finiteOr(tr, kKitDefaults.tomResonance), 0.0, 1.0);
+    kit.couplingDelayMs = std::clamp(finiteOr(cd, kKitDefaults.couplingDelayMs), 0.5, 2.0);
 
+    const PadSnapshot padDefaults = toPadSnapshot(PadConfig{});
     for (auto& pad : kit.pads)
     {
         double amt = 0.5;
         if (!readT(streamer, amt))
             return kResultFalse;
-        pad.couplingAmount = std::clamp(amt, 0.0, 1.0);
+        pad.couplingAmount = std::clamp(finiteOr(amt, padDefaults.couplingAmount), 0.0, 1.0);
     }
 
     for (auto& pad : kit.pads)
     {
-        for (double& m : pad.macros)
+        for (std::size_t j = 0; j < pad.macros.size(); ++j)
         {
+            double& m = pad.macros[j];
             if (!readT(streamer, m))
                 return kResultFalse;
-            m = std::clamp(m, 0.0, 1.0);
+            m = std::clamp(finiteOr(m, padDefaults.macros[j]), 0.0, 1.0);
         }
     }
 
     double mg = 0.5;
     if (!readT(streamer, mg))
         return kResultFalse;
-    kit.masterGainNorm = std::clamp(mg, 0.0, 1.0);
+    kit.masterGainNorm = std::clamp(finiteOr(mg, kKitDefaults.masterGainNorm), 0.0, 1.0);
 
     if (version == kBakedMacroBlobVersion)
     {
@@ -620,6 +657,7 @@ tresult readPadPresetBlob(IBStream* stream, PadPresetSnapshot& pad)
         if (!readT(streamer, slot))
             return kResultFalse;
     }
+    sanitiseSoundSlots(pad.sound, version == kBakedMacroBlobVersion);
 
     // Version 5 held absolute body damping values. A pad preset carries no
     // macros, so its fields are what it played.

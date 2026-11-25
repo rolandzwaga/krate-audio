@@ -37,6 +37,7 @@
 #include "unnatural/unnatural_zone.h"
 #include "voice_common_params.h"
 
+#include <krate/dsp/core/db_utils.h>
 #include <krate/dsp/primitives/adsr_envelope.h>
 #include <krate/dsp/processors/modal_resonator_bank.h>
 #include <krate/dsp/processors/waveguide_string.h>
@@ -87,8 +88,10 @@ public:
     /// per-element peak of -6 dBFS: drums have a 15-20 dB crest factor, so the
     /// transient PEAK must sit near the top for the RMS to land at a musical
     /// ~-18 to -24 dBFS; a -12 dBFS peak budget left the body ~15 dB too quiet.
-    /// The per-voice hardClip rail stays disengaged (0.5 << 1.0) and the
-    /// main-bus -1 dBTP true-peak limiter owns the N-voice coincident sum.
+    /// Every body is trimmed to it, the String waveguide included since T2.11
+    /// (probeStringStrikePeak), so the per-voice hardClip rail stays
+    /// disengaged (0.5 << 1.0) for all six bodies and the main-bus -1 dBTP
+    /// true-peak limiter owns the N-voice coincident sum.
     /// Final loudness make-up is master gain + per-pad Level (Phase-4 tuning),
     /// NOT this budget. (Was 0.25 / -12 dBFS, an impulse-peak budget mis-applied
     /// as a strike budget.)
@@ -334,6 +337,9 @@ public:
         // For Membrane: we pass the baseline pitchHz — the mapper currently
         // ignores this and derives f0 from size_ (unchanged Phase 1 behavior).
         // The pitch envelope sweep runs on the control grid (controlStep).
+        // T2.11 (MB-035): the String body writes its noteOn burst at the
+        // note's velocity.
+        bodyBank_.setStringNoteVelocity(velocity);
         bodyBank_.configureForNoteOn(params_, initialPitchHz);
 
         // Audit H-3: if the pitch envelope is active, seed the body with the
@@ -399,13 +405,25 @@ public:
             auto& bank = bodyBank_.getSharedBank();
             if (bodyBank_.getCurrentType() == BodyModelType::String)
             {
-                // String runs a WaveguideString, not the shared modal bank, so
-                // the bank's output gain never reaches the audio path. Keep the
-                // cheap impulse-bound norm (harmless; no modes are configured,
-                // getInputGainSum() returns 1.0).
-                usedBodyGain_ = kBodyHeadroom / bank.getInputGainSum();
-                bank.setOutputGain(usedBodyGain_);
+                // T2.11 (MB-175, MB-221): String runs a WaveguideString, not
+                // the shared modal bank, and is normalised like every modal
+                // body: the gain trims a canonical velocity-1 strike (burst,
+                // exciter and click, probeStringStrikePeak) to kBodyHeadroom
+                // and is applied on the String body's output. In the plugin
+                // VoicePool's StrikeNormTable measures it off the audio path
+                // and supplies it; a DrumVoice used on its own measures here,
+                // cached on the same StrikeNormKey. The shared bank's gain and
+                // clip never reach the audio path for String.
+                const float g = gainsSupplied_
+                    ? suppliedBodyGain_
+                    : measuredStrikeOutputGain(bank, params_, BodyModelType::String,
+                                               exciterBank_.getPendingType(),
+                                               seedPitch ? initialPitchHz : 0.0f,
+                                               velocity);
+                bodyBank_.getStringBody().setOutputGain(g);
+                bank.setOutputGain(kBodyHeadroom / bank.getInputGainSum());
                 bank.setOutputSoftClipThreshold(0.0f);
+                usedBodyGain_ = g;
             }
             else
             {
@@ -582,9 +600,10 @@ public:
     }
 
     /// Hard wipe of every per-voice DSP state container. Used by
-    /// VoicePool::resetAllVoicesForKitSwitch when the host loads a new
-    /// preset, so the next noteOn against the new kit starts from a
-    /// clean slate.
+    /// VoicePool::fadeOutAllVoicesForKitSwitch when the host loads a new
+    /// preset (on the voice left in each main role once the sounding one
+    /// fades in the shadow role), so the next noteOn against the new kit
+    /// starts from a clean slate.
     ///
     /// noteOn already resets most of these per-trigger, but kit-switch
     /// is a stronger guarantee: a voice slot that's been Active without
@@ -621,88 +640,29 @@ public:
     }
 
     /// resetForKitSwitch() plus a full re-arm of every exciter alternative
-    /// (re-seeds the Impulse / Mallet RNG that reset() keeps). Used by the
+    /// (re-seeds the Impulse / Mallet RNG that reset() keeps) and of the
+    /// String body (re-seeds its waveguide burst RNG, T2.11). Used by the
     /// strike-norm probe voice so a pad config measures one deterministic
     /// gain, independent of what the probe measured before. Allocation-free.
     void resetForStrikeProbe() noexcept
     {
         resetForKitSwitch();
         exciterBank_.restartAll();
+        bodyBank_.getStringBody().restart(voiceId_);
     }
 
     // ------------------------------------------------------------------
     // Processing
     // ------------------------------------------------------------------
 
+    /// One sample through the production renderer (T2.1, MB-041): a
+    /// one-sample processBlock, so the shell, tension, wire, pitch-envelope
+    /// and retirement stages are the ones VoicePool runs.
     [[nodiscard]] float process() noexcept
     {
-        if (!active_)
-            return 0.0f;
-
-        // T1.13: the auto-release acts at grid points of voice time.
-        autoReleaseAtGridPoint();
-
-        // Pitch envelope, tension, Material Morph and the wire follower
-        // (control plane, T1.11): the same 32-sample voice-time grid as the
-        // block renderers, BEFORE the body so a grid sample already sounds at
-        // the new pitch; every other sample only advances the modulators.
-        // Skipped entirely when nothing modulates, so the default path stays
-        // bit-identical to Phase 1 (FR-055).
-        if (isControlGridActive())
-        {
-            if (voiceSampleCount_ % kControlGridSamples == 0)
-                controlStep(bodyBank_.getSharedBank());
-            else
-                tickModulators(1);
-        }
-        ++voiceSampleCount_;
-
-        // Exciter takes the body's last output as feedback (only FeedbackExciter
-        // uses it; all other backends ignore it). The always-on click transient
-        // is sampled ONCE (with the standalone amplitude calibration applied)
-        // and routed two ways:
-        //   (a) half-amplitude into the excitation path so it drives the body's
-        //       modes (adds a ringing tail in the modal bank), and
-        //   (b) full-amplitude directly into the output bus so the beater
-        //       thwack itself is audible, not masked by the body's Q.
-        // This matches the commuted-synthesis convention of putting
-        // complexity in the excitation AND hearing the excitation itself.
-        const float clickSample =
-            clickLayer_.processSample() * ClickLayer::kStandaloneOutputGain;
-        const float excMain = exciterBank_.process(bodyBank_.getLastOutput());
-        const float exc     = excMain + clickSample * 0.5f;
-        const float body    = bodyBank_.processSample(exc);
-
-        // Parallel noise layer sums into the body output *before* the
-        // UnnaturalZone chain so ModeInject / NonlinearCoupling / ToneShaper
-        // treat the combined signal (research-backed SNT pattern). The click
-        // layer is also mixed directly here so it's heard as a broadband
-        // transient independent of the body's modal response.
-        // wireGainMod_ carries the wire-coupling modulation, updated by the
-        // energy follower on the control grid (controlStep), as on the block
-        // path. The secondary shell bank stays block-path-only.
-        const float noiseSample =
-            noiseLayer_.processSample() * noiseLayer_.standaloneGain()
-            * noiseLayerGain_ * wireGainMod_;
-        const float combinedBody = body + noiseSample + clickSample;
-
-        // UnnaturalZone chain per contract: body + modeInject → nonlinear
-        // coupling → tone shaper → amp env × level. When all Unnatural Zone
-        // defaults hold (modeInject.amount_==0 and nonlinearCoupling.amount_==0),
-        // the early-out paths make this chain bit-identical to "body → shaped
-        // → env×level" (FR-055).
-        const float injected = combinedBody + unnaturalZone_.modeInject.process();
-        const float coupled  = unnaturalZone_.nonlinearCoupling.processSample(injected);
-        const float shaped   = toneShaper_.processSample(coupled);
-        const float env      = ampEnvelope_.process();
-        // Gain-staging Step 2 (H-1/H-4): voice output is LINEAR. `level_` is a
-        // true attenuation before a transparent safety rail (hardClip engages
-        // only on a pathological/runaway voice, never on a musical hit at the
-        // Step-3/4 budget). The real ceiling is owned by the main-bus true-peak
-        // limiter, not a per-voice softClip gain stage.
-        const float y = Krate::DSP::hardClip(shaped * env * level_);
-        trackQuietRun(&y, 1);
-        return y;
+        float s = 0.0f;
+        processBlock(&s, 1);
+        return s;
     }
 
     // Block-level audio-thread hot path (T043 / FR-001 / FR-002 / research.md §1,
@@ -753,13 +713,22 @@ public:
         // @ 44.1 kHz gets ~28 retunes whatever the host block size.
         const bool useSlowPath = feedbackExciter;
 
-        if (useSlowPath)
+        const float railSum = useSlowPath ? processBlockSlow(out, numSamples, level)
+                                          : processBlockFast(out, numSamples, level);
+
+        // T2.2 (MB-010, MB-154): the voice's NaN rail, one check per block.
+        // `railSum` sums the samples BEFORE hardClip: hardClip is std::clamp,
+        // which maps +-Inf to +-1 and, under /fp:fast or -ffast-math, a NaN
+        // to a bound, so the clipped output alone cannot show a poisoned
+        // voice. A NaN or Inf anywhere in the block makes the sum non-finite:
+        // the block is silenced and the voice wiped and retired, so it
+        // neither outputs NaN nor stays active forever (flushSilentModes'
+        // `energy < threshold` is false for NaN).
+        if (!Krate::DSP::detail::isFinite(railSum))
         {
-            processBlockSlow(out, numSamples, level);
-        }
-        else
-        {
-            processBlockFast(out, numSamples, level);
+            std::fill(out, out + numSamples, 0.0f);
+            resetForKitSwitch();
+            return;
         }
 
         // Phase 8A.5 retirement: the amp envelope is now only a click-free
@@ -822,10 +791,13 @@ private:
     // actually consume bodyFeedback (see research.md §3 and the
     // ExciterBank::process documentation). For FeedbackExciter we use the
     // slow path instead to preserve strict per-sample semantics.
-    void processBlockFast(float* out,
-                          int numSamples,
-                          float level) noexcept
+    /// Returns the sum of the block's samples before hardClip (the NaN rail
+    /// in processBlock).
+    float processBlockFast(float* out,
+                           int numSamples,
+                           float level) noexcept
     {
+        float railSum = 0.0f;
         // Scratch buffers live as DrumVoice members so we don't pay a large
         // stack allocation per processBlock call (audio-thread friendly).
         float* excScratch   = excScratch_.data();
@@ -971,7 +943,9 @@ private:
                     const float combined = bodyScratch[i] + noiseScratch[i] + clickScratch[i];
                     const float shaped   = toneShaper_.processSample(combined);
                     const float env      = ampEnvelope_.process();
-                    out[offset + i]      = Krate::DSP::hardClip(shaped * env * level);
+                    const float y        = shaped * env * level;
+                    railSum += y;
+                    out[offset + i]      = Krate::DSP::hardClip(y);
                 }
             }
             else
@@ -984,7 +958,9 @@ private:
                         unnaturalZone_.nonlinearCoupling.processSample(injected);
                     const float shaped   = toneShaper_.processSample(coupled);
                     const float env      = ampEnvelope_.process();
-                    out[offset + i]      = Krate::DSP::hardClip(shaped * env * level);
+                    const float y        = shaped * env * level;
+                    railSum += y;
+                    out[offset + i]      = Krate::DSP::hardClip(y);
                 }
             }
 
@@ -993,6 +969,7 @@ private:
             offset    += chunk;
             remaining -= chunk;
         }
+        return railSum;
     }
 
     // SLOW PATH: per-sample inner loop. Used when FeedbackExciter is the
@@ -1001,10 +978,13 @@ private:
     // wire follower run on the same 32-sample voice-time control grid as the
     // fast path (T1.11): while one is active the block is cut into sub-chunks
     // at the grid points, each with its own block-rate smoothing pass.
-    void processBlockSlow(float* out,
-                          int numSamples,
-                          float level) noexcept
+    /// Returns the sum of the block's samples before hardClip (the NaN rail
+    /// in processBlock).
+    float processBlockSlow(float* out,
+                           int numSamples,
+                           float level) noexcept
     {
+        float railSum = 0.0f;
         const bool gridActive = isControlGridActive();
 
         // Phase 8D secondary (shell) bank gate, mirrored from the fast path.
@@ -1017,12 +997,14 @@ private:
         // Nested single-visit: one std::visit on the exciter, one on the body.
         // Inside both visits we hold typed references so every sample call is
         // a direct non-virtual call — no per-sample variant dispatch.
-        exciterBank_.withActive([this, out, numSamples, level, gridActive, secondaryActive](auto& exciter) noexcept {
+        exciterBank_.withActive([this, out, numSamples, level, gridActive, secondaryActive,
+                                 &railSum](auto& exciter) noexcept {
             bodyBank_.withActive(
-                [this, out, numSamples, level, gridActive, secondaryActive, &exciter](
+                [this, out, numSamples, level, gridActive, secondaryActive, &railSum, &exciter](
                     auto& body, Krate::DSP::ModalResonatorBank& sharedBank) noexcept {
                     float lastBody  = bodyBank_.getLastOutput();
                     float lastShell = secondaryLastOutput_;
+                    float blockSum  = 0.0f;
                     int offset = 0;
                     while (offset < numSamples)
                     {
@@ -1093,7 +1075,9 @@ private:
                                 unnaturalZone_.nonlinearCoupling.processSample(injected);
                             const float shaped   = toneShaper_.processSample(coupled);
                             const float env      = ampEnvelope_.process();
-                            out[i]               = Krate::DSP::hardClip(shaped * env * level);
+                            const float y        = shaped * env * level;
+                            blockSum += y;
+                            out[i]               = Krate::DSP::hardClip(y);
                         }
                         trackQuietRun(out + offset, len);
                         voiceSampleCount_ += len;
@@ -1111,8 +1095,10 @@ private:
                     bodyBank_.setLastOutput(lastBody);
                     if (secondaryActive)
                         secondaryLastOutput_ = lastShell;
+                    railSum = blockSum;
                 });
         });
+        return railSum;
     }
 
 public:
@@ -1520,10 +1506,95 @@ private:
             .startPitchHz = startPitchHz,
             .velocityStep = velocityStep};
         if (!(key == strikeNormKey_)) {
-            strikeNormGain_ = measuredStrikeOutputGainExcited(bank, exciter, probeVelocity);
+            // T2.11: the key holds every StringMapper input (Size, Material,
+            // Decay, Strike Position), so it serves the String body too.
+            strikeNormGain_ = (body == BodyModelType::String)
+                ? measuredStringStrikeGain(bank, probeVelocity, startPitchHz, velocity)
+                : measuredStrikeOutputGainExcited(bank, exciter, probeVelocity);
             strikeNormKey_  = key;
         }
         return strikeNormGain_;
+    }
+
+    // T2.11 (MB-175, MB-221): the String body's strike peak, measured like
+    // probeStrikePeakExcited: the live exciter and click layer at
+    // `probeVelocity` drive the String body for the same window, here with its
+    // noteOn burst restruck at `probeVelocity` and its output gain at 1.
+    // The waveguide loop is linear (kStringLoopHeadroom keeps it off its soft
+    // clip), so the peak scales with velocity. The noise burst sets most of
+    // the peak and its peak varies from burst to burst (one strike read the
+    // same pad 2-3 dB either side of the budget), so the probe strikes
+    // kStringProbeStrikes times and returns the mean peak. Allocation-free.
+    // The strikes advance the waveguide's noise generator by that many bursts
+    // (MB-025 owns noise seeding); the probe then leaves the string as this
+    // note's own noteOn leaves it: silenced, restruck at `noteVelocity`, and
+    // retuned to the seeded pitch-envelope start (`startPitchHz` > 0).
+    static constexpr int kStringProbeStrikes = 4;
+    [[nodiscard]] float probeStringStrikePeak(Krate::DSP::ModalResonatorBank& bank,
+                                              float probeVelocity, float startPitchHz,
+                                              float noteVelocity) noexcept
+    {
+        const float sr = static_cast<float>(sampleRate_);
+        const int minLen   = std::max(1, static_cast<int>(kProbeMinExcitedSec * sr));
+        const int quietLen = std::max(1, static_cast<int>(kProbeQuietSec * sr));
+        const int maxLen   = std::max(minLen, static_cast<int>(kProbeMaxSec * sr));
+
+        StringBody& body = bodyBank_.getStringBody();
+        const auto strike = [this, &body, &bank, startPitchHz](float v) noexcept {
+            body.string_.silence();
+            body.setNoteVelocity(v);
+            body.configureForNoteOn(bank, params_, 0.0f);
+            if (startPitchHz > 0.0f)
+                bodyBank_.setStringFrequency(startPitchHz);
+        };
+
+        body.setOutputGain(1.0f);
+        float peakSum = 0.0f;
+        for (int k = 0; k < kStringProbeStrikes; ++k)
+        {
+            strike(probeVelocity);
+            exciterBank_.reset();
+            exciterBank_.trigger(probeVelocity);
+            clickLayer_.configure(clickLayerParams_);
+            clickLayer_.trigger(probeVelocity);
+
+            float peak = 0.0f;
+            int lastMaxIndex = 0;
+            for (int i = 0; i < maxLen; ++i)
+            {
+                if (i >= minLen && i - lastMaxIndex >= quietLen)
+                    break;
+                const float clickSample =
+                    clickLayer_.processSample() * ClickLayer::kStandaloneOutputGain;
+                // Open loop for the Feedback exciter, as in probeStrikePeakExcited.
+                const float exc = exciterBank_.process(0.0f) + clickSample * 0.5f;
+                const float a = std::abs(body.processSample(bank, exc));
+                if (a > peak) {
+                    peak = a;
+                    lastMaxIndex = i;
+                }
+            }
+            peakSum += peak;
+        }
+
+        // Leave the live components clean; noteOn() re-triggers both below.
+        exciterBank_.reset();
+        clickLayer_.reset();
+        strike(noteVelocity);
+        return peakSum / static_cast<float>(kStringProbeStrikes);
+    }
+
+    // T2.11: output gain that trims the String body's measured strike peak to
+    // kBodyHeadroom x probeVelocity, with measuredStrikeOutputGainExcited's
+    // near-silent fallback.
+    [[nodiscard]] float measuredStringStrikeGain(Krate::DSP::ModalResonatorBank& bank,
+                                                 float probeVelocity, float startPitchHz,
+                                                 float noteVelocity) noexcept
+    {
+        const float peak = probeStringStrikePeak(bank, probeVelocity, startPitchHz, noteVelocity);
+        if (peak <= 1.0e-4f * probeVelocity)
+            return kBodyHeadroom / bank.getInputGainSum();
+        return kBodyHeadroom * probeVelocity / peak;
     }
 
     // Phase 8D: configure the secondary bank's modes from the per-pad

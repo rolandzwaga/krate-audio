@@ -7,6 +7,7 @@
 #include "dsp/pad_config.h"
 #include "dsp/exciter_type.h"
 #include "dsp/body_model_type.h"
+#include "state/default_kit_snapshot.h"
 #include "state/state_codec.h"
 #include "controller_state_codec.h"
 #include "proxy_mappings.h"
@@ -712,6 +713,31 @@ tresult PLUGIN_API Controller::initialize(FUnknown* context)
                                        ParameterInfo::kCanAutomate));
             }
         }
+    }
+
+    // T2.7 (MB-090): a fresh controller shows the kit a fresh processor plays
+    // (Processor::initialize installs the default kit), through the same
+    // apply setComponentState uses. Each per-pad parameter's default becomes
+    // its default-kit value too, so reset-to-default lands on the kit. The
+    // global proxies keep their registered defaults.
+    {
+        const auto kit = Membrum::State::makeDefaultKitSnapshot();
+        Membrum::ControllerState::ParamSetter setKitValue =
+            [this](ParamID id, double v) {
+                EditControllerEx1::setParamNormalized(id, v);
+                if (padIndexFromParamId(static_cast<int>(id)) >= 0)
+                {
+                    if (auto* param = getParameterObject(id))
+                        param->getInfo().defaultNormalizedValue = v;
+                }
+            };
+        Membrum::ControllerState::applySnapshot(kit, setKitValue,
+                                                {.applySelectedPad = true});
+        for (std::size_t p = 0; p < padParamless_.size(); ++p)
+            padParamless_[p] =
+                Membrum::ControllerState::paramlessFieldsFromSnapshot(kit.pads[p].sound);
+        selectedPadIndex_ = kit.selectedPadIndex;
+        syncGlobalProxyFromPad(selectedPadIndex_);
     }
 
     // ==========================================================================

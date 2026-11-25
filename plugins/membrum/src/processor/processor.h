@@ -64,6 +64,7 @@ public:
         Steinberg::Vst::SpeakerArrangement* outputs, Steinberg::int32 numOuts) override;
     Steinberg::tresult PLUGIN_API setupProcessing(Steinberg::Vst::ProcessSetup& setup) override;
     Steinberg::tresult PLUGIN_API setActive(Steinberg::TBool state) override;
+    Steinberg::tresult PLUGIN_API setProcessing(Steinberg::TBool state) override;
     Steinberg::tresult PLUGIN_API connect(Steinberg::Vst::IConnectionPoint* other) override;
     Steinberg::tresult PLUGIN_API disconnect(Steinberg::Vst::IConnectionPoint* other) override;
 
@@ -103,13 +104,24 @@ private:
     void processEvents(Steinberg::Vst::IEventList* events);
     /// One note event, applied at the current render position (T1.14).
     void applyNoteEvent(const Steinberg::Vst::Event& event);
+    /// Applies the queued editor audition events in order (T2.4). A pad-up
+    /// for a pad whose pad-down was applied in the same call stays queued
+    /// for the next call, so a click shorter than one block still sounds.
     void consumePendingAudition();
 
     /// Applies a parsed kit: the one apply that setState and a kit-preset
-    /// browser load ("LoadPresetState", R-202) share. Flushes the voices and
-    /// the coupling engine, installs every pad and global. Runs only through consumePendingLoad (MB-001): on the audio
+    /// browser load ("LoadPresetState", R-202) share. Fades the sounding
+    /// voices and the coupling tail out over 5 ms, then flushes the coupling
+    /// engine (T2.3); installs every pad and global. Runs only through consumePendingLoad (MB-001): on the audio
     /// thread, or while processing is stopped.
     void applyKitSnapshot(const State::KitSnapshot& kit);
+
+    /// The kit itself, without the audio-state reset: polyphony and stealing,
+    /// every pad, the choke table, the selected pad, the globals and master
+    /// gain, the pad categories and the coupling matrix. applyKitSnapshot
+    /// calls it; initialize installs the default kit through it alone (T2.7,
+    /// MB-116), before any DSP is prepared.
+    void installKit(const State::KitSnapshot& kit);
 
     /// Flushes the coupling engine, the coupling delay and the energy
     /// envelope, then applies the stored Global Coupling (T1.19, MB-067,
@@ -190,12 +202,61 @@ private:
     std::atomic<int> maxPolyphony_{8};           // FR-111 -- [4, 16]
     std::atomic<int> voiceStealingPolicy_{0};    // FR-120 -- VoiceStealingPolicy int
 
-    // Audition request from controller (IMessage "AuditionPad"). Encoding:
+    // ---- Editor audition events (T2.4, MB-006, MB-055) ----
+    // "AuditionPad" (pad-down) and "AuditionPadOff" (pad-up, velocity 0) from
+    // the controller. One word per event:
     //   bits 0..6  = MIDI pitch (0-127)
-    //   bits 7..13 = velocity (0-127)
-    //   bit  14    = pending flag
-    // Cleared by process() after consumption.
-    std::atomic<std::uint32_t> pendingAudition_{0};
+    //   bits 7..13 = velocity (0-127; 0 = pad-up)
+    //   bit  14    = valid flag
+    /// Lock-free single-producer single-consumer ring of audition words. The
+    /// producer is notify() on the message thread, the consumer process().
+    /// A full ring refuses the incoming event; an unread one is never
+    /// overwritten.
+    struct AuditionEventQueue
+    {
+        static constexpr std::uint32_t kCapacity = 16;  // power of two
+        static constexpr std::uint32_t kMask = kCapacity - 1u;
+
+        /// Producer only. False when the ring is full (the event is dropped).
+        bool push(std::uint32_t word) noexcept
+        {
+            const std::uint32_t w = write_.load(std::memory_order_relaxed);
+            const std::uint32_t r = read_.load(std::memory_order_acquire);
+            if (w - r >= kCapacity)
+                return false;
+            slots_[w & kMask] = word;
+            write_.store(w + 1u, std::memory_order_release);
+            return true;
+        }
+
+        /// Consumer only. The oldest unread word, left in the ring.
+        bool peek(std::uint32_t& word) const noexcept
+        {
+            const std::uint32_t r = read_.load(std::memory_order_relaxed);
+            if (r == write_.load(std::memory_order_acquire))
+                return false;
+            word = slots_[r & kMask];
+            return true;
+        }
+
+        /// Consumer only. Drops the word peek() returned.
+        void pop() noexcept
+        {
+            read_.store(read_.load(std::memory_order_relaxed) + 1u,
+                        std::memory_order_release);
+        }
+
+    private:
+        std::array<std::uint32_t, kCapacity> slots_{};
+        std::atomic<std::uint32_t> write_{0};
+        std::atomic<std::uint32_t> read_{0};
+    };
+    AuditionEventQueue auditionQueue_;
+    /// Set by setProcessing(false) / setActive(false): the next
+    /// consumePendingAudition() drops every queued event, so a request posted
+    /// while the host was not processing never fires on resume. Only the
+    /// consumer clears the ring.
+    std::atomic<bool> discardAudition_{false};
 
     // ---- Phase 4: per-pad parameters are stored in VoicePool::padConfigs_ ----
     // No individual atomic<float> fields for material/size/decay etc. anymore.
@@ -264,6 +325,40 @@ private:
 
     // Energy limiter state
     float energyEnvelope_ = 0.0f;
+
+    // ---- T2.3 (MB-054, MB-091): kit-switch fades. Audio thread only (or a
+    // lifecycle call while processing is stopped). ----
+    /// Length of a kit-switch fade in samples: the voices' 5 ms fast release
+    /// (kFastReleaseSecs) at the current rate, plus two samples of margin.
+    int   kitFadeSamples_ = 0;
+    /// Samples left in the coupling-return fade; at 0 the engine is flushed
+    /// and the new kit's Global Coupling applied (finishCouplingFade).
+    int   couplingFadeRemaining_ = 0;
+    /// Samples until the old kit's voices have faded; then the bus limiter
+    /// is reset when nothing sounds, so the new kit starts at unity gain.
+    int   kitFadeRemaining_ = 0;
+    /// Master gain applied to the last rendered sample. T2.10 (MB-059): a new
+    /// target starts a geometric ramp of kMasterGainRampSeconds (equal dB per
+    /// sample) from this value, carried across block boundaries, so the gain
+    /// curve does not depend on the host block size.
+    float masterGainApplied_ = 1.0f;
+    /// The gain the ramp ends on (the last target read from masterGainNorm_).
+    float masterGainTarget_ = 1.0f;
+    /// Per-sample gain ratio of the ramp in flight.
+    float masterGainRatio_ = 1.0f;
+    /// Samples left in the ramp; at 0 the gain is set to the target exactly.
+    int   masterGainRampRemaining_ = 0;
+    /// Ramp length in samples at the current rate (setupProcessing).
+    int   masterGainRampSamples_ = 0;
+
+    /// Applies `gain` at once, ending any ramp (activation, a rate change, a
+    /// kit load with nothing sounding).
+    void snapMasterGain(float gain) noexcept;
+
+    /// The coupling fade has ended: flush the engine (resetCouplingState,
+    /// which applies the stored Global Coupling) and re-register the voices
+    /// struck during the fade.
+    void finishCouplingFade() noexcept;
 
     // ---- Phase 6: publishers, meters DataExchange, editor state ----
     PadGlowPublisher         padGlowPublisher_;

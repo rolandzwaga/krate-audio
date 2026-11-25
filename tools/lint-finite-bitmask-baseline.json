@@ -38,7 +38,6 @@
   "plugins/innexus/tests/integration/test_harmonic_physics_integration.cpp": 1,
   "plugins/innexus/tests/integration/test_m6_pipeline_integration.cpp": 1,
   "plugins/innexus/tests/integration/test_physical_model_output_levels.cpp": 4,
-  "plugins/membrum/tests/approval/test_phase1_regression.cpp": 1,
   "plugins/membrum/tests/perf/test_benchmark_144.cpp": 1,
   "plugins/membrum/tests/perf/test_noise_body_cpu.cpp": 1,
   "plugins/membrum/tests/perf/test_polyphony_benchmark.cpp": 1,

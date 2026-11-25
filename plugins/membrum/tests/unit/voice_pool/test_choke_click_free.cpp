@@ -26,6 +26,8 @@
 #include "voice_pool/voice_pool.h"
 #include "voice_pool_test_helpers.h"
 
+#include <krate/dsp/core/db_utils.h>
+
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
@@ -43,10 +45,10 @@ inline bool isFiniteSample(float x) noexcept
     return (bits & 0x7F800000u) != 0x7F800000u;
 }
 
-inline int blocksForMs(double sampleRate, double ms)
+inline int blocksForMs(double sampleRate, double ms, int blockSize = kBlockSize)
 {
     const int samples = static_cast<int>(std::ceil(ms * 1e-3 * sampleRate));
-    return std::max(1, (samples + kBlockSize - 1) / kBlockSize);
+    return std::max(1, (samples + blockSize - 1) / blockSize);
 }
 
 // Render note 46 in full, wait 100 ms, then note 42, capture the post-choke
@@ -357,4 +359,340 @@ TEST_CASE("VoicePool choke: click <= -30 dBFS, terminates within 5 +/- 1 ms, "
     SECTION("44100 Hz") { runChokeCase(44100.0, "44100"); }
     SECTION("48000 Hz") { runChokeCase(48000.0, "48000"); }
     SECTION("96000 Hz") { runChokeCase(96000.0, "96000"); }
+}
+
+// ==============================================================================
+// T2.6 (MB-148) -- releasing a slot whose shadow is still fading
+// ==============================================================================
+// A steal leaves the slot's shadow fading for 5 ms. A choke, a Quietest
+// pre-steal or a polyphony shrink that releases the same slot inside that
+// window used to find the shadow busy: the non-forced hand-over returned
+// early, the slot was marked Free anyway, and the sounding voice was either
+// hard-overwritten by the next NoteOn on that slot (a click) or left ringing
+// unramped.
+//
+// Each SECTION renders the open hat (note 46, pad 10, level > 0, long decay)
+// twice: once released while its slot's shadow is busy (fading a silent seed),
+// once released the same way with a free shadow. In both the hat plays on a
+// never-used DrumVoice prepared with the same voiceId at the same age, so the
+// free-shadow render is the hat's normal 5 ms fast release. The click is the
+// difference between the two: the busy shadow may only truncate its own
+// (silent) tail, so the hat must fade exactly as it does with a free shadow.
+//
+//   click     = max |hatBusy - hatFree|          <= -30 dB of the hat's
+//                                                   pre-release peak
+//   residual  = max |hatBusy| from 6 ms onwards  <= -60 dB of that peak
+// ==============================================================================
+
+namespace {
+
+constexpr double kBusySampleRate = 48000.0;
+constexpr int    kBusyBlock      = 32;   // 0.67 ms: events land within 2 ms
+constexpr std::uint8_t kOpenHat  = 46;   // pad 10
+constexpr int    kOpenHatPad     = 10;
+
+enum class BusyRelease { Choke, QuietestPreSteal, Shrink };
+
+struct BusyRender
+{
+    std::vector<float> out;            // main L, from the first block on
+    int                releaseSample = -1;
+    int                hatSlot       = -1;
+    bool               shadowBusy    = false;
+    bool               allFinite     = true;
+};
+
+void configureBusyPool(Membrum::VoicePool& pool, BusyRelease kind, float hatLevel)
+{
+    pool.prepare(kBusySampleRate, kBusyBlock);
+    pool.setMaxPolyphony(kind == BusyRelease::Shrink ? 8 : 4);
+    pool.setVoiceStealingPolicy(kind == BusyRelease::QuietestPreSteal
+                                    ? Membrum::VoiceStealingPolicy::Quietest
+                                    : Membrum::VoiceStealingPolicy::Oldest);
+    Membrum::TestHelpers::setAllPadsVoiceParams(pool, 0.5f, 0.5f, 0.3f, 0.3f, 0.0f);
+    Membrum::TestHelpers::setAllPadsExciterType(pool, Membrum::ExciterType::Impulse);
+    Membrum::TestHelpers::setAllPadsBodyModel(pool, Membrum::BodyModelType::Membrane);
+    pool.setPadConfigField(kOpenHatPad, Membrum::kPadDecay, 1.0f);
+    pool.setPadConfigField(kOpenHatPad, Membrum::kPadLevel, hatLevel);
+    if (kind == BusyRelease::Choke)
+    {
+        // Only the choke case groups the hats: in the shrink case note 42 is
+        // one of the seeds, and the open hat must take its slot by a steal.
+        pool.setPadChokeGroup(kOpenHatPad, 1);  // open hat (46)
+        pool.setPadChokeGroup(6, 1);            // closed hat (42), level 0
+    }
+    if (kind == BusyRelease::QuietestPreSteal)
+    {
+        // Three audible seeds, so the hat is the quietest voice when the
+        // pre-steal picks its victim.
+        for (int p = 0; p < 3; ++p)
+            pool.setPadConfigField(p, Membrum::kPadLevel, 0.8f);
+    }
+}
+
+int slotPlaying(const Membrum::VoicePool& pool, std::uint8_t note)
+{
+    for (int s = 0; s < Membrum::kMaxVoices; ++s)
+    {
+        const auto& m = pool.voiceMeta(s);
+        if (m.state == Membrum::VoiceSlotState::Active && m.originatingNote == note)
+            return s;
+    }
+    return -1;
+}
+
+BusyRender renderBusyRelease(BusyRelease kind, bool busy, float hatLevel)
+{
+    Membrum::VoicePool pool;
+    configureBusyPool(pool, kind, hatLevel);
+
+    BusyRender r;
+    std::vector<float> outL(static_cast<std::size_t>(kBusyBlock), 0.0f);
+    std::vector<float> outR(static_cast<std::size_t>(kBusyBlock), 0.0f);
+    auto render = [&](int blocks) {
+        for (int b = 0; b < blocks; ++b)
+        {
+            pool.processBlock(outL.data(), outR.data(), kBusyBlock);
+            for (int i = 0; i < kBusyBlock; ++i)
+            {
+                const float s = outL[static_cast<std::size_t>(i)];
+                if (!Krate::DSP::detail::isFinite(s))
+                    r.allFinite = false;
+                r.out.push_back(s);
+            }
+        }
+    };
+
+    // Block 0: the seeds that fill the pool (silent, except the Quietest
+    // seeds). The free-shadow render leaves out the seed the hat displaces.
+    switch (kind)
+    {
+    case BusyRelease::Choke:
+        if (busy)
+            for (int n = 36; n <= 39; ++n)
+                pool.noteOn(static_cast<std::uint8_t>(n), 0.9f);
+        break;
+    case BusyRelease::QuietestPreSteal:
+        for (int n = 36; n <= (busy ? 39 : 38); ++n)
+            pool.noteOn(static_cast<std::uint8_t>(n), 0.9f);
+        break;
+    case BusyRelease::Shrink:
+        for (int n = 36; n <= (busy ? 43 : 39); ++n)
+            pool.noteOn(static_cast<std::uint8_t>(n), 0.9f);
+        break;
+    }
+    render(kind == BusyRelease::QuietestPreSteal ? 2 : 1);
+
+    if (kind == BusyRelease::Shrink && busy)
+    {
+        // Retrigger the seeds of slots 0..3 so slot 4 holds the oldest voice.
+        for (int n = 36; n <= 39; ++n)
+            pool.noteOn(static_cast<std::uint8_t>(n), 0.9f);
+    }
+
+    // The hat: busy -> it takes its slot by a steal (Oldest) or a pre-steal
+    // (Quietest) of a silent seed, whose shadow is now fading; free -> it
+    // takes an idle slot.
+    pool.noteOn(kOpenHat, 0.9f);
+    r.hatSlot = slotPlaying(pool, kOpenHat);
+    if (r.hatSlot >= 0)
+        r.shadowBusy = pool.releasingMeta(r.hatSlot).state ==
+                       Membrum::VoiceSlotState::FastReleasing;
+
+    // Release within 2 ms of the hat (two 0.67 ms blocks).
+    render(2);
+    r.releaseSample = static_cast<int>(r.out.size());
+    switch (kind)
+    {
+    case BusyRelease::Choke:            pool.noteOn(42, 0.9f); break;  // pad 6, level 0
+    case BusyRelease::QuietestPreSteal: pool.noteOn(41, 0.9f); break;  // pad 5, level 0
+    case BusyRelease::Shrink:           pool.setMaxPolyphony(4); break;
+    }
+
+    render(blocksForMs(kBusySampleRate, 20.0, kBusyBlock));
+    return r;
+}
+
+// The hat's own output: the render itself when every other voice is silent,
+// else the render minus the same render with the hat's level at 0 (the level
+// only scales the voice output, so everything else cancels).
+std::vector<float> hatOnly(BusyRelease kind, bool busy, const BusyRender& withHat)
+{
+    if (kind != BusyRelease::QuietestPreSteal)
+        return withHat.out;
+    const BusyRender noHat = renderBusyRelease(kind, busy, 0.0f);
+    REQUIRE(noHat.out.size() == withHat.out.size());
+    std::vector<float> hat(withHat.out.size());
+    for (std::size_t i = 0; i < hat.size(); ++i)
+        hat[i] = withHat.out[i] - noHat.out[i];
+    return hat;
+}
+
+void runBusyReleaseCase(BusyRelease kind)
+{
+    const float hatLevel = (kind == BusyRelease::QuietestPreSteal) ? 0.1f : 1.0f;
+
+    BusyRender busy    = renderBusyRelease(kind, /*busy*/ true, hatLevel);
+    BusyRender freeRef = renderBusyRelease(kind, /*busy*/ false, hatLevel);
+    REQUIRE(busy.allFinite);
+    REQUIRE(freeRef.allFinite);
+
+    // The scenario really meets a busy shadow, and the reference does not.
+    REQUIRE(busy.shadowBusy);
+    REQUIRE_FALSE(freeRef.shadowBusy);
+    REQUIRE(busy.hatSlot >= 0);
+    REQUIRE(busy.hatSlot == freeRef.hatSlot);
+    if (kind == BusyRelease::Shrink)
+        REQUIRE(busy.hatSlot >= 4);
+    REQUIRE(busy.releaseSample == freeRef.releaseSample);
+    REQUIRE(busy.out.size() == freeRef.out.size());
+
+    const std::vector<float> hatBusy = hatOnly(kind, true, busy);
+    const std::vector<float> hatFree = hatOnly(kind, false, freeRef);
+
+    float preReleasePeak = 0.0f;
+    for (int i = 0; i < freeRef.releaseSample; ++i)
+        preReleasePeak = std::max(preReleasePeak,
+                                  std::fabs(hatFree[static_cast<std::size_t>(i)]));
+    REQUIRE(preReleasePeak > 0.0f);
+
+    float click = 0.0f;
+    for (std::size_t i = 0; i < hatBusy.size(); ++i)
+        click = std::max(click, std::fabs(hatBusy[i] - hatFree[i]));
+
+    const int from6ms =
+        busy.releaseSample + static_cast<int>(std::ceil(0.006 * kBusySampleRate));
+    float residual = 0.0f;
+    for (std::size_t i = static_cast<std::size_t>(from6ms); i < hatBusy.size(); ++i)
+        residual = std::max(residual, std::fabs(hatBusy[i]));
+
+    const float clickBound    = 0.0316228f * preReleasePeak;  // -30 dB
+    const float residualBound = 0.001f * preReleasePeak;      // -60 dB
+    CAPTURE(busy.hatSlot, preReleasePeak, click, clickBound, residual, residualBound);
+    CHECK(residual <= residualBound);
+    CHECK(click <= clickBound);
+}
+
+} // namespace
+
+TEST_CASE("Choke into a slot whose shadow is still fading mutes the main voice within 6 ms",
+          "[voice_pool][choke][m8]")
+{
+    SECTION("choke into a busy shadow") { runBusyReleaseCase(BusyRelease::Choke); }
+    SECTION("Quietest pre-steal into a busy shadow")
+    {
+        runBusyReleaseCase(BusyRelease::QuietestPreSteal);
+    }
+    SECTION("polyphony shrink into a busy shadow") { runBusyReleaseCase(BusyRelease::Shrink); }
+}
+
+// ==============================================================================
+// T2.6 (MB-148) -- three same-slot steals inside one fast-release window
+// ==============================================================================
+// A same-note retrigger steals the note's own slot. Hits 1, 2 and 3 land
+// 1.33 ms apart, so hit 3 re-steals the slot while hit 1 is still fading in
+// the shadow (the M-8 collision, measured as in
+// test_fast_release_resteal_collision.cpp: a hit is isolated by rendering the
+// sequence again with that hit's level at 0, the level only scaling output).
+// Hit 3 hands hit 2 to the shadow and truncates hit 1's tail, which has faded
+// for one block by then: that truncation is the click, bounded at -30 dB of
+// the incoming hit's peak. Hit 2 must cross the hand-over continuously (the
+// resteal file's 0.20 step ratio), and no ghost voice may remain.
+// ==============================================================================
+
+namespace {
+
+constexpr int kTripleBlock = 64;  // 1.33 ms at 48 kHz
+
+std::vector<float> renderTripleSteal(const float (&levels)[3], int captureBlocks,
+                                     int* ghostsAfter = nullptr)
+{
+    Membrum::VoicePool pool;
+    pool.prepare(kBusySampleRate, kTripleBlock);
+    pool.setVoiceStealingPolicy(Membrum::VoiceStealingPolicy::Oldest);
+    Membrum::TestHelpers::setAllPadsVoiceParams(pool, 0.5f, 0.5f, 0.3f, 0.3f, 0.0f);
+    Membrum::TestHelpers::setAllPadsExciterType(pool, Membrum::ExciterType::Impulse);
+    Membrum::TestHelpers::setAllPadsBodyModel(pool, Membrum::BodyModelType::Membrane);
+
+    std::vector<float> outL(static_cast<std::size_t>(kTripleBlock), 0.0f);
+    std::vector<float> outR(static_cast<std::size_t>(kTripleBlock), 0.0f);
+    std::vector<float> captured;
+    for (int b = 0; b < captureBlocks; ++b)
+    {
+        if (b < 3)
+        {
+            pool.setPadConfigField(0, Membrum::kPadLevel, levels[b]);
+            pool.noteOn(36, 0.9f);
+        }
+        pool.processBlock(outL.data(), outR.data(), kTripleBlock);
+        captured.insert(captured.end(), outL.begin(), outL.end());
+    }
+    if (ghostsAfter != nullptr)
+    {
+        for (int b = 0; b < blocksForMs(kBusySampleRate, 100.0, kTripleBlock); ++b)
+            pool.processBlock(outL.data(), outR.data(), kTripleBlock);
+        *ghostsAfter = Membrum::TestHelpers::countGhosts(pool);
+    }
+    return captured;
+}
+
+} // namespace
+
+TEST_CASE("Three same-slot steals within 5 ms are click-free", "[voice_pool][steal][m8]")
+{
+    constexpr float kL = 0.8f;
+    const int captureBlocks = blocksForMs(kBusySampleRate, 10.0, kTripleBlock);
+
+    int ghosts = -1;
+    const float all[3]   = {kL, kL, kL};
+    const float no1[3]   = {0.0f, kL, kL};
+    const float no2[3]   = {kL, 0.0f, kL};
+    const float no3[3]   = {kL, kL, 0.0f};
+    const std::vector<float> post   = renderTripleSteal(all, captureBlocks, &ghosts);
+    const std::vector<float> noHit1 = renderTripleSteal(no1, captureBlocks);
+    const std::vector<float> noHit2 = renderTripleSteal(no2, captureBlocks);
+    const std::vector<float> noHit3 = renderTripleSteal(no3, captureBlocks);
+
+    const std::size_t n = post.size();
+    REQUIRE(n == noHit1.size());
+    REQUIRE(n == noHit2.size());
+    REQUIRE(n == noHit3.size());
+    for (float s : post)
+        REQUIRE(Krate::DSP::detail::isFinite(s));
+
+    std::vector<float> hit1(n);
+    std::vector<float> hit2(n);
+    float incomingPeak = 0.0f;
+    for (std::size_t i = 0; i < n; ++i)
+    {
+        hit1[i] = post[i] - noHit1[i];
+        hit2[i] = post[i] - noHit2[i];
+        incomingPeak = std::max(incomingPeak, std::fabs(post[i] - noHit3[i]));
+    }
+    REQUIRE(incomingPeak > 0.0f);
+
+    // Window around hit 3 (sample 2 * kTripleBlock): 4 samples before, 2.5 ms after.
+    const int b3   = 2 * kTripleBlock;
+    const int lo   = b3 - 4;
+    const int hi   = std::min(static_cast<int>(n),
+                              b3 + static_cast<int>(std::ceil(0.0025 * kBusySampleRate)));
+    float hit1Step = 0.0f;
+    float hit2Step = 0.0f;
+    for (int i = lo; i < hi; ++i)
+    {
+        const auto u = static_cast<std::size_t>(i);
+        hit1Step = std::max(hit1Step, std::fabs(hit1[u] - hit1[u - 1]));
+        hit2Step = std::max(hit2Step, std::fabs(hit2[u] - hit2[u - 1]));
+    }
+    float hit2PreLevel = 0.0f;
+    for (int i = kTripleBlock; i < b3; ++i)
+        hit2PreLevel = std::max(hit2PreLevel, std::fabs(hit2[static_cast<std::size_t>(i)]));
+    REQUIRE(hit2PreLevel > 0.0f);
+
+    const float clickBound = 0.0316228f * incomingPeak;  // -30 dB
+    const float hit2Ratio  = hit2Step / hit2PreLevel;
+    CAPTURE(incomingPeak, hit1Step, clickBound, hit2Step, hit2PreLevel, hit2Ratio, ghosts);
+    CHECK(hit1Step <= clickBound);
+    CHECK(hit2Ratio <= 0.20f);
+    CHECK(ghosts == 0);
 }

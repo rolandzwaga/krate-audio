@@ -39,5 +39,19 @@ inline void setAllPadsBodyModel(VoicePool& pool, BodyModelType model) noexcept
         pool.setPadConfigSelector(p, kPadBodyModel, static_cast<int>(model));
 }
 
+/// T2.6 (MB-053): main voices that still render while their slot is not
+/// Active (a "ghost": no auto-release, note-off or voice count reaches it).
+inline int countGhosts(VoicePool& pool) noexcept
+{
+    int n = 0;
+    for (int s = 0; s < kMaxVoices; ++s)
+    {
+        if (pool.mainVoiceRef(s).isActive() &&
+            pool.voiceMeta(s).state != VoiceSlotState::Active)
+            ++n;
+    }
+    return n;
+}
+
 } // namespace TestHelpers
 } // namespace Membrum

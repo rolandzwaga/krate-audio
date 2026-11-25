@@ -16,10 +16,13 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include "voice_pool/voice_pool.h"
+#include "dsp/drum_voice.h"
 #include "dsp/pad_config.h"
+#include "dsp/pad_config_apply.h"
 
 #include <algorithm>
 #include <cmath>
+#include <memory>
 #include <vector>
 
 using namespace Membrum;
@@ -95,5 +98,43 @@ TEST_CASE("N-1: modal body stays under the per-voice rail at level 1.0",
         //     than a half-velocity hit (the rail collapses this to ~1.0x).
         REQUIRE(peakV05 > 1.0e-4f);
         CHECK(peakV1 / peakV05 > 1.5f);
+    }
+}
+
+// T2.11 (MB-035, MB-175, MB-221): every body, the String waveguide included,
+// is normalised to the kBodyHeadroom strike budget. A DrumVoice on its own
+// (as audit probe 07a renders it): Impulse exciter, velocity 1.0, Level 1.0,
+// noise and click layers off, 0.5 s. Before T2.11 the String body peaked at
+// -0.02 dBFS (its waveguide was never normalised); the modal bodies read
+// -5.94 to -6.67 dBFS.
+TEST_CASE("N-1: every body, String included, strikes at the -6 dBFS budget",
+          "[body_headroom][string]")
+{
+    const double budgetDb = 20.0 * std::log10(static_cast<double>(DrumVoice::kBodyHeadroom));
+    for (int b = 0; b < static_cast<int>(BodyModelType::kCount); ++b)
+    {
+        PadConfig cfg;
+        cfg.bodyModel     = static_cast<BodyModelType>(b);
+        cfg.exciterType   = ExciterType::Impulse;
+        cfg.level         = 1.0f;
+        cfg.noiseLayerMix = 0.0f;
+        cfg.clickLayerMix = 0.0f;
+
+        auto voice = std::make_unique<DrumVoice>();
+        voice->prepare(kSR, 0u);
+        applyPadConfigToVoice(*voice, cfg);
+        voice->noteOn(1.0f);
+
+        std::vector<float> out(256);
+        float peak = 0.0f;
+        for (int s = 0; s < kTotal; s += 256)
+        {
+            voice->processBlock(out.data(), 256);
+            for (float x : out)
+                peak = std::max(peak, std::abs(x));
+        }
+        const double peakDb = 20.0 * std::log10(std::max(1.0e-12, static_cast<double>(peak)));
+        INFO("body " << b << " peak " << peakDb << " dBFS, budget " << budgetDb << " dBFS");
+        CHECK(std::abs(peakDb - budgetDb) <= 1.0);
     }
 }

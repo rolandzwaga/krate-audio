@@ -15,10 +15,19 @@
 #include "dsp/default_kit.h"
 #include "dsp/exciter_type.h"
 #include "dsp/body_model_type.h"
+#include "plugin_ids.h"
+#include "processor/processor.h"
 
+#include "vst_event_list.h"
+#include "vst_param_changes.h"
+
+#include "pluginterfaces/vst/ivstaudioprocessor.h"
+
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <cstring>
+#include <vector>
 
 using namespace Membrum;
 using Catch::Approx;
@@ -174,6 +183,99 @@ TEST_CASE("DefaultKit Hat choke group 1 - MIDI 42, 44, 46", "[default_kit]")
     REQUIRE(pads[pad(42)].chokeGroup == 1);  // Closed hi-hat
     REQUIRE(pads[pad(44)].chokeGroup == 1);  // Pedal hi-hat
     REQUIRE(pads[pad(46)].chokeGroup == 1);  // Open hi-hat
+}
+
+// T2.7 (MB-116): the default kit is installed through the canonical kit
+// apply, which also fills the choke table the note-on reads. Before the fix
+// only cfg.chokeGroup was set, so on a fresh instance (no setState) the closed
+// hat did not cut the open hat: -23.79 dB 20 ms after the choke (audit probe
+// choke:openhat46-by-42), against -175 dB after setState(getState()).
+TEST_CASE("DefaultKit: hi-hats choke on a fresh instance (FR-032)", "[default_kit][choke]")
+{
+    using namespace Steinberg;
+    using namespace Steinberg::Vst;
+
+    constexpr double kSR = 48000.0;
+    constexpr int    kBS = 32;
+    constexpr int    kChokeAt = 9600;   // 200 ms
+    constexpr int    kWin     = 960;    // 20 ms
+    constexpr int    kTotal   = kChokeAt + 2 * kWin;
+
+    Processor proc;
+    REQUIRE(proc.initialize(nullptr) == kResultOk);
+
+    // The fresh instance plays exactly the default kit (same sound as before).
+    std::array<PadConfig, kNumPads> expected{};
+    DefaultKit::apply(expected);
+    for (int i = 0; i < kNumPads; ++i)
+    {
+        INFO("pad " << i);
+        CHECK(proc.voicePoolForTest().padConfig(i) == expected[static_cast<std::size_t>(i)]);
+    }
+
+    ProcessSetup setup{};
+    setup.processMode        = kRealtime;
+    setup.symbolicSampleSize = kSample32;
+    setup.maxSamplesPerBlock = kBS;
+    setup.sampleRate         = kSR;
+    REQUIRE(proc.setupProcessing(setup) == kResultOk);
+    REQUIRE(proc.setActive(true) == kResultOk);
+
+    std::array<float, kBS> left{};
+    std::array<float, kBS> right{};
+    std::array<float*, 2> chans{left.data(), right.data()};
+    AudioBusBuffers bus{};
+    bus.numChannels      = 2;
+    bus.channelBuffers32 = chans.data();
+    Krate::Test::EventList events;
+    Krate::Test::ParameterChanges params;
+    ProcessData data{};
+    data.processMode           = kRealtime;
+    data.symbolicSampleSize    = kSample32;
+    data.numSamples            = kBS;
+    data.numOutputs            = 1;
+    data.outputs               = &bus;
+    data.inputParameterChanges = &params;
+    data.inputEvents           = &events;
+
+    std::vector<float> out;
+    out.reserve(static_cast<std::size_t>(kTotal));
+    for (int start = 0; start < kTotal; start += kBS)
+    {
+        if (start == 0)
+        {
+            // Closed hat silent, so the window after the choke holds only
+            // what is left of the open hat.
+            params.addChange(static_cast<ParamID>(padParamId(pad(42), kPadLevel)), 0.0);
+            events.addNoteOn(46, 1.0f, 0);
+        }
+        if (start == kChokeAt)
+            events.addNoteOn(42, 1.0f, 0);
+        left.fill(0.0f);
+        right.fill(0.0f);
+        REQUIRE(proc.process(data) == kResultOk);
+        events.clear();
+        params.clear();
+        for (int s = 0; s < kBS; ++s)
+            out.push_back(0.5f * (left[static_cast<std::size_t>(s)]
+                                  + right[static_cast<std::size_t>(s)]));
+    }
+
+    auto rmsDb = [&out](int from, int count) {
+        double sum = 0.0;
+        for (int s = from; s < from + count; ++s)
+            sum += static_cast<double>(out[static_cast<std::size_t>(s)])
+                 * static_cast<double>(out[static_cast<std::size_t>(s)]);
+        return 10.0 * std::log10(std::max(sum / count, 1e-30));
+    };
+    const double before = rmsDb(kChokeAt - kWin, kWin);
+    const double after  = rmsDb(kChokeAt + kWin, kWin);
+    INFO("open hat before the choke " << before << " dB, 20 ms after " << after << " dB");
+    REQUIRE(before > -90.0);           // the open hat still rings (about -65 dB)
+    CHECK(after <= before - 60.0);
+
+    REQUIRE(proc.setActive(false) == kResultOk);
+    REQUIRE(proc.terminate() == kResultOk);
 }
 
 TEST_CASE("DefaultKit non-hat pads have choke group 0", "[default_kit]")

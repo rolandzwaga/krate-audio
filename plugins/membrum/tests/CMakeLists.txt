@@ -80,6 +80,7 @@ add_executable(membrum_tests
     unit/voice_pool/test_fast_release_denormals.cpp
     unit/voice_pool/test_fast_release_double_steal.cpp
     unit/voice_pool/test_fast_release_resteal_collision.cpp
+    unit/voice_pool/test_shadow_ghost_voices.cpp
     unit/voice_pool/test_fast_release_no_voice_move.cpp
     unit/voice_pool/test_per_pad_pan.cpp
     unit/voice_pool/test_choke_group.cpp
@@ -137,6 +138,12 @@ add_executable(membrum_tests
     unit/processor/test_macro_automation_extreme.cpp
     unit/processor/test_publisher_lock_freedom.cpp
     unit/processor/test_preset_load_handoff.cpp
+    # Fix plan T2.3: a kit load fades ringing voices, the coupling tail, the limiter and the master gain
+    unit/processor/test_kit_switch_click.cpp
+    # Fix plan T2.4: audition pad-down / pad-up go through an SPSC queue
+    unit/processor/test_audition_queue.cpp
+    # Fix plan T2.10: the master gain ramps over 10 ms instead of stepping per block
+    unit/processor/test_master_gain_ramp.cpp
     unit/controller/test_phase6_parameters.cpp
     unit/controller/test_ui_mode_session_scope.cpp
     unit/controller/test_param_reachability_in_editor.cpp
@@ -147,6 +154,8 @@ add_executable(membrum_tests
     unit/controller/test_audit_ui_controller_batch.cpp
     unit/controller/test_polyphony_slider_binding.cpp
     unit/controller/test_xy_morph_pad_sync.cpp
+    # Fix plan T2.7: a fresh controller shows and defaults to the default kit
+    unit/controller/test_controller_default_kit.cpp
     unit/diagnose/test_orchestral_distortion.cpp
     unit/diagnose/test_body_resonant_peak.cpp
     unit/diagnose/test_snare_body_diagnose.cpp
@@ -172,6 +181,8 @@ add_executable(membrum_tests
 
     # Shared state/preset codec unit tests
     unit/state/test_state_codec.cpp
+    # T2.2 (MB-010, MB-154): non-finite / out-of-range state and the NaN rails
+    unit/state/test_nonfinite_state_sanitise.cpp
 
     # Phase 7: parallel noise layer + always-on click transient
     unit/dsp/test_noise_layer.cpp
@@ -193,6 +204,9 @@ add_executable(membrum_tests
     # Fix plan T1.11 (MB-008, MB-026, MB-151, MB-159, MB-237): retunes on a
     # fixed control grid, independent of the host block size
     unit/dsp/test_pitch_env_block_path.cpp
+
+    # Fix plan T2.1 (MB-041): process() and processBlock are one renderer
+    unit/dsp/test_renderer_equivalence.cpp
 
     # Wave 2 V26: perceptual render test (default-kit pads sound like what they are)
     unit/dsp/test_render_perceptual.cpp
@@ -288,6 +302,16 @@ if(NOT MSVC)
         unit/processor/test_coupling_energy.cpp
         PROPERTIES
             COMPILE_OPTIONS "-fno-fast-math;-ffp-contract=off"
+    )
+endif()
+
+# T2.2 (MB-010, MB-154): test_nonfinite_state_sanitise.cpp injects NaN and Inf
+# (built from bit patterns) into state blobs and pad configs: an IEEE TU.
+if(NOT MSVC)
+    set_source_files_properties(
+        unit/state/test_nonfinite_state_sanitise.cpp
+        PROPERTIES
+            COMPILE_OPTIONS "-fno-fast-math;-fno-finite-math-only;-ffp-contract=off"
     )
 endif()
 

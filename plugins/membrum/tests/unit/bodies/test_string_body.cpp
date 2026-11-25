@@ -408,3 +408,97 @@ TEST_CASE("StringBody: DrumVoice with Level=0 produces silent output (US4-5)",
     CHECK(allFinite);
     CHECK(peakAbs == 0.0f);
 }
+
+// ==============================================================================
+// T2.11 (MB-035, MB-212): the note velocity reaches the string, and the loop
+// stays linear (its in-loop soft clip never engages on a strike).
+// ==============================================================================
+namespace {
+
+// `n` samples of an Impulse exciter struck at `velocity`.
+std::vector<float> impulseExcitation(double sr, float velocity, int n)
+{
+    Membrum::ExciterBank ex;
+    ex.prepare(sr, 0u);
+    ex.setExciterType(Membrum::ExciterType::Impulse);
+    ex.trigger(velocity);
+    std::vector<float> out(static_cast<size_t>(n));
+    for (auto& x : out)
+        x = ex.process(0.0f);
+    return out;
+}
+
+// A freshly prepared StringBody (voice id 0, so every instance writes the same
+// burst noise) at `size`, struck at `velocity` and driven by `excitation`.
+std::vector<float> renderStringBody(double sr, float size, float velocity,
+                                    const std::vector<float>& excitation)
+{
+    Krate::DSP::ModalResonatorBank unused;
+    Membrum::StringBody body;
+    body.prepare(sr, 0u);
+    auto p = makeDefaultParams();
+    p.size = size;
+    body.setNoteVelocity(velocity);
+    body.configureForNoteOn(unused, p, 0.0f);
+    std::vector<float> out(excitation.size());
+    for (size_t i = 0; i < excitation.size(); ++i)
+        out[i] = body.processSample(unused, excitation[i]);
+    return out;
+}
+
+} // namespace
+
+TEST_CASE("String body: velocity scales the string and the loop stays linear",
+          "[string_body][velocity]")
+{
+    constexpr double kSR = 48000.0;
+    constexpr int    kN  = static_cast<int>(kSR * 0.1);  // first 100 ms
+
+    float size = 1.0f;  // 80 Hz: the hottest loop (largest excitation gain)
+    SECTION("Size 1 (80 Hz)") { size = 1.0f; }
+    SECTION("Size 0.5 (253 Hz)") { size = 0.5f; }
+    SECTION("Size 0 (800 Hz)") { size = 0.0f; }
+
+    const auto exc = impulseExcitation(kSR, 1.0f, kN);
+    std::vector<float> excQuiet(exc.size());
+    for (size_t i = 0; i < exc.size(); ++i)
+        excQuiet[i] = exc[i] * 0.01f;
+
+    const auto loud  = renderStringBody(kSR, size, 1.0f, exc);
+    const auto quiet = renderStringBody(kSR, size, 0.01f, excQuiet);
+
+    double sig = 0.0;
+    double err = 0.0;
+    for (size_t i = 0; i < loud.size(); ++i)
+    {
+        const double d = static_cast<double>(loud[i]) - 100.0 * static_cast<double>(quiet[i]);
+        sig += static_cast<double>(loud[i]) * static_cast<double>(loud[i]);
+        err += d * d;
+    }
+    REQUIRE(sig > 0.0);
+    const double errDb = 10.0 * std::log10(std::max(err, 1.0e-30) / sig);
+    INFO("Size " << size << ": |v1 - 100 x v0.01| relative to v1 = " << errDb << " dB");
+    CHECK(errDb <= -40.0);
+}
+
+TEST_CASE("String body: a velocity-0.24 strike peaks at least 6 dB below velocity 1.0",
+          "[string_body][velocity]")
+{
+    constexpr double kSR = 48000.0;
+    constexpr int    kN  = static_cast<int>(kSR * 0.1);
+
+    auto peakOf = [](const std::vector<float>& x) {
+        float p = 0.0f;
+        for (float s : x)
+            p = std::max(p, std::abs(s));
+        return p;
+    };
+    const float pLoud  = peakOf(renderStringBody(kSR, 0.5f, 1.0f,
+                                                 impulseExcitation(kSR, 1.0f, kN)));
+    const float pQuiet = peakOf(renderStringBody(kSR, 0.5f, 0.24f,
+                                                 impulseExcitation(kSR, 0.24f, kN)));
+    REQUIRE(pQuiet > 0.0f);
+    const double dropDb = 20.0 * std::log10(static_cast<double>(pLoud / pQuiet));
+    INFO("peak v1 " << pLoud << ", v0.24 " << pQuiet << ", drop " << dropDb << " dB");
+    CHECK(dropDb >= 6.0);
+}

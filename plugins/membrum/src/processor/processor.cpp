@@ -9,7 +9,6 @@
 
 #include "processor.h"
 #include "plugin_ids.h"
-#include "dsp/default_kit.h"
 #include "dsp/exciter_type.h"
 #include "dsp/body_model_type.h"
 #include "dsp/macro_offsets.h"
@@ -18,6 +17,7 @@
 #include "voice_pool/choke_group_table.h"
 #include "voice_pool/voice_stealing_policy.h"
 #include "processor/meters_block.h"
+#include "state/default_kit_snapshot.h"
 #include "state/state_codec.h"
 
 #include "pluginterfaces/base/ibstream.h"
@@ -32,6 +32,7 @@
 // zero-cost object off x86. Wrapping it in an arch #if breaks the arm64 build,
 // because process() names Krate::DSP::ScopedDenormalMode unconditionally.
 #include <krate/dsp/core/scoped_denormal_mode.h>
+#include <krate/dsp/core/db_utils.h>
 
 #include <algorithm>
 #include <array>
@@ -49,6 +50,20 @@ namespace Membrum {
 
 using namespace Steinberg;
 using namespace Steinberg::Vst;
+
+namespace {
+
+/// Phase 9: master gain, norm 0..1 -> dB -24..+12 -> linear.
+float masterGainFromNorm(float norm) noexcept
+{
+    const float dB = -24.0f + 36.0f * norm;
+    return std::pow(10.0f, dB * 0.05f);
+}
+
+/// T2.10 (MB-059): length of the master gain ramp.
+constexpr double kMasterGainRampSeconds = 0.010;
+
+} // namespace
 
 Processor::Processor()
     : pendingLoad_(std::make_unique<PendingLoad>())
@@ -87,13 +102,13 @@ tresult PLUGIN_API Processor::initialize(FUnknown* context)
     }
 
     // FR-030: Initialize all 32 pads with GM-inspired default templates.
-    // This is overwritten by setState() if a saved state is loaded.
-    DefaultKit::apply(voicePool_.padConfigsArray());
+    // This is overwritten by setState() if a saved state is loaded. T2.7
+    // (MB-116): through the kit install every other kit load uses, so the
+    // choke table, the pad categories and the coupling matrix follow the kit.
+    // No audio thread exists yet and nothing is prepared, so only the kit is
+    // installed; setupProcessing / setActive reset the audio state.
+    installKit(State::makeDefaultKitSnapshot());
     publishPadConfigs();
-
-    // Phase 5: Initialize pad categories from default kit configuration.
-    for (int i = 0; i < kNumPads; ++i)
-        padCategories_[static_cast<size_t>(i)] = effectivePadCategory(i);
 
     return kResultOk;
 }
@@ -309,24 +324,48 @@ void Processor::processParameterChanges(IParameterChanges* paramChanges)
         recomputeCouplingMatrix();
 }
 
-// Consume a pending audition request (posted via IMessage "AuditionPad") and
-// fire a voice note-on for it from the audio thread.
+// Apply the queued editor audition events ("AuditionPad" / "AuditionPadOff",
+// T2.4, MB-006, MB-055) in order, from the audio thread. Every event applies
+// at the block start, so a pad-up right behind its own pad-down would release
+// the voice before its first sample (the amp envelope would release from 0
+// and the click would be silent): such a pad-up, and everything queued after
+// it, waits for the next call. Requests posted while the host was not
+// processing are dropped (discardAudition_).
 void Processor::consumePendingAudition()
 {
-    const std::uint32_t word = pendingAudition_.exchange(0u, std::memory_order_acq_rel);
-    if ((word & 0x4000u) == 0u)
-        return;
-    const int midi  = static_cast<int>(word & 0x7Fu);
-    const int velByte = static_cast<int>((word >> 7) & 0x7Fu);
-    if (midi < 36 || midi > 67)
-        return;
-    if (velByte == 0)
+    std::uint32_t word = 0;
+    if (discardAudition_.exchange(false, std::memory_order_acq_rel))
     {
-        voicePool_.noteOff(static_cast<std::uint8_t>(midi));
+        while (auditionQueue_.peek(word))
+            auditionQueue_.pop();
         return;
     }
-    const float velNorm = static_cast<float>(velByte) / 127.0f;
-    voicePool_.noteOn(static_cast<std::uint8_t>(midi), velNorm);
+
+    std::uint32_t padsStarted = 0;  // bit p: pad p's pad-down applied in this call
+    while (auditionQueue_.peek(word))
+    {
+        const int midi  = static_cast<int>(word & 0x7Fu);
+        const int velByte = static_cast<int>((word >> 7) & 0x7Fu);
+        if ((word & 0x4000u) == 0u || midi < 36 || midi > 67)
+        {
+            auditionQueue_.pop();
+            continue;
+        }
+        const std::uint32_t padBit = 1u << static_cast<unsigned>(midi - 36);
+        if (velByte == 0)
+        {
+            if ((padsStarted & padBit) != 0u)
+                return;  // the pad-up of a click shorter than this block: next call
+            voicePool_.noteOff(static_cast<std::uint8_t>(midi));
+        }
+        else
+        {
+            const float velNorm = static_cast<float>(velByte) / 127.0f;
+            voicePool_.noteOn(static_cast<std::uint8_t>(midi), velNorm);
+            padsStarted |= padBit;
+        }
+        auditionQueue_.pop();
+    }
 }
 
 // Apply every MIDI event of the list at once, ignoring sampleOffset. Only the
@@ -547,8 +586,40 @@ tresult PLUGIN_API Processor::process(ProcessData& data)
                 couplingDelay_.write(mono);
                 float coupling = couplingEngine_.process(delayed);
                 coupling = applyEnergyLimiter(coupling);
+                // T2.3 (MB-054): after a kit load the old kit's coupling
+                // tail fades linearly over 5 ms; then the engine is flushed
+                // and takes the new kit's amount (finishCouplingFade).
+                if (couplingFadeRemaining_ > 0)
+                {
+                    coupling *= static_cast<float>(couplingFadeRemaining_)
+                              / static_cast<float>(kitFadeSamples_);
+                    if (--couplingFadeRemaining_ == 0)
+                        finishCouplingFade();
+                }
                 outL[s] += coupling;
                 outR[s] += coupling;
+            }
+        }
+
+        // ============================================================
+        // T2.2 (MB-010, MB-154): the main bus NaN rail, one check per block,
+        // before the limiter. The voice rail (DrumVoice::processBlock) cleans
+        // each voice; this catches what reaches the bus another way (the
+        // coupling return). A NaN or Inf anywhere makes the sum non-finite:
+        // silence the block and flush the limiter and the coupling state
+        // (engine, delay, energy envelope), so neither the -20 dBFS coupling
+        // cap nor the bus stays latched. Every reset is allocation-free.
+        // ============================================================
+        {
+            float busSum = 0.0f;
+            for (int32 s = 0; s < data.numSamples; ++s)
+                busSum += outL[s] + outR[s];
+            if (!Krate::DSP::detail::isFinite(busSum))
+            {
+                std::fill(outL, outL + data.numSamples, 0.0f);
+                std::fill(outR, outR + data.numSamples, 0.0f);
+                busLimiter_.reset();
+                resetCouplingState();
             }
         }
 
@@ -567,13 +638,51 @@ tresult PLUGIN_API Processor::process(ProcessData& data)
         // observes the post-master signal so the UI level reflects what
         // the host actually receives.
         // ============================================================
+        // T2.10 (MB-059): a new target (host automation, a kit load) starts a
+        // 10 ms geometric ramp (equal dB per sample) from the gain applied to
+        // the last sample; the ramp runs across block boundaries, so the curve
+        // does not depend on the host block size, and a new target mid-ramp
+        // restarts from the current value. The ramp ends on the target exactly.
+        // T2.3 (MB-091): while the old kit's voices fade out after a kit load
+        // no new target is taken, so the fading tail is not raised; the ramp
+        // follows the fade.
         {
-            const float norm = masterGainNorm_.load(std::memory_order_relaxed);
-            const float dB   = -24.0f + 36.0f * norm;
-            const float gain = std::pow(10.0f, dB * 0.05f);
-            if (gain != 1.0f)
+            if (kitFadeRemaining_ == 0)
             {
-                for (int32 s = 0; s < data.numSamples; ++s)
+                const float target =
+                    masterGainFromNorm(masterGainNorm_.load(std::memory_order_relaxed));
+                if (target != masterGainTarget_)
+                {
+                    masterGainTarget_ = target;
+                    if (masterGainRampSamples_ > 1 && target != masterGainApplied_)
+                    {
+                        masterGainRatio_ = std::pow(
+                            target / masterGainApplied_,
+                            1.0f / static_cast<float>(masterGainRampSamples_));
+                        masterGainRampRemaining_ = masterGainRampSamples_;
+                    }
+                    else
+                    {
+                        masterGainApplied_ = target;
+                        masterGainRampRemaining_ = 0;
+                    }
+                }
+            }
+
+            int32 s = 0;
+            for (; s < data.numSamples && masterGainRampRemaining_ > 0; ++s)
+            {
+                if (--masterGainRampRemaining_ == 0)
+                    masterGainApplied_ = masterGainTarget_;
+                else
+                    masterGainApplied_ *= masterGainRatio_;
+                outL[s] *= masterGainApplied_;
+                outR[s] *= masterGainApplied_;
+            }
+            if (s < data.numSamples && masterGainApplied_ != 1.0f)
+            {
+                const float gain = masterGainApplied_;
+                for (; s < data.numSamples; ++s)
                 {
                     outL[s] *= gain;
                     outR[s] *= gain;
@@ -584,6 +693,28 @@ tresult PLUGIN_API Processor::process(ProcessData& data)
         data.outputs[0].silenceFlags =
             (voicePool_.isAnyVoiceActive() || !couplingEngine_.isBypassed())
                 ? 0ULL : 3ULL;
+    }
+
+    // T2.3 (MB-054, MB-091): a coupling fade the loop above did not render
+    // (the engine went bypassed under automation, or there is no main bus)
+    // has nothing audible left: end it now.
+    if (couplingFadeRemaining_ > 0 && (!hasMainOut || couplingEngine_.isBypassed()))
+        finishCouplingFade();
+
+    // Once the old kit's voices and coupling tail have faded, clear the bus
+    // limiter's gain reduction so the new kit's first hit is not ducked by
+    // the old kit's last one. Only when nothing sounds: resetting the gain
+    // under a sounding voice (one struck during the fade) would step it, and
+    // that voice keeps the limiter's normal release instead.
+    if (kitFadeRemaining_ > 0)
+    {
+        kitFadeRemaining_ -= data.numSamples;
+        if (kitFadeRemaining_ <= 0)
+        {
+            kitFadeRemaining_ = 0;
+            if (couplingFadeRemaining_ == 0 && !voicePool_.isAnyVoiceActive())
+                busLimiter_.reset();
+        }
     }
 
     // ============================================================
@@ -937,15 +1068,73 @@ tresult PLUGIN_API Processor::setState(IBStream* state)
 
 void Processor::applyKitSnapshot(const State::KitSnapshot& kit)
 {
-    // Hard reset every voice slot's DSP state (envelopes, modal banks,
-    // filters, coupling integrators) so the prior kit's residual audio
-    // state can't bleed into the new kit's first hits. Per-pad params
-    // are re-applied by the next noteOn; this only wipes the *audio
-    // path* state -- the DSP equivalent of pressing "panic" on the
-    // pool. Resolves the user-reported intermittent tonal beep that
-    // appears after kit switch + rapid hits.
-    voicePool_.resetAllVoicesForKitSwitch();
+    // T2.3 (MB-054, MB-091): what sounds at the switch fades instead of
+    // being cut. Read before the voices move to their fades.
+    const bool couplingRings = !couplingEngine_.isBypassed()
+                            && couplingEngine_.getActiveResonatorCount() > 0;
+    const bool audible = voicePool_.isAnyVoiceActive() || couplingRings;
 
+    // Every sounding voice fades out linearly over the 5 ms fast-release time
+    // (VoicePool::fadeOutAllVoicesForKitSwitch, through the steal / choke
+    // shadow slots) and every voice left in a main role is wiped, so the prior
+    // kit's residual audio state (envelopes, modal banks, filters) can't
+    // bleed into the new kit's first hits -- the "panic" that resolved the
+    // user-reported tonal beep after kit switch + rapid hits, without the
+    // click of cutting ringing voices. Per-pad params are re-applied by the
+    // next noteOn.
+    voicePool_.fadeOutAllVoicesForKitSwitch();
+    kitFadeRemaining_ = kitFadeSamples_;
+
+    installKit(kit);
+
+    // Flush the global SympatheticResonance engine BEFORE installing the
+    // new kit's coupling amount. The engine's resonator pool holds
+    // orphaned resonators (filter state in y1s_/y2s_) from voices the
+    // prior kit triggered. SympatheticResonance::noteOff(voiceId) detaches
+    // the owner but leaves actives_[idx] = true, so those resonators keep
+    // ringing at their Q-determined decay rate. If the prior kit had a
+    // large globalCoupling and the new kit has a smaller one (or zero),
+    // the orphans never get re-driven and keep producing a sustained
+    // tonal residue above the silence threshold -- voices register fresh
+    // partials but the engine's existing state dominates the output. The
+    // user's "infinite ring" reproduces exactly this scenario
+    // (test_kit_switch_infinite_ring.cpp test 3).
+    //
+    // The reset must come BEFORE the amount is applied; otherwise the
+    // smoother target would be wiped by the reset. resetCouplingState() does
+    // both, in that order, with the kit's Global Coupling stored first
+    // (installKit).
+    //
+    // T2.3 (MB-054): while the prior kit's resonators ring, the flush waits
+    // for a 5 ms linear fade of the coupling return (process()); its end runs
+    // resetCouplingState() with the new kit's amount (finishCouplingFade). A
+    // fade already in flight keeps going and ends with the newest amount.
+    if (couplingRings && kitFadeSamples_ > 0)
+    {
+        if (couplingFadeRemaining_ == 0)
+            couplingFadeRemaining_ = kitFadeSamples_;
+    }
+    else if (couplingFadeRemaining_ == 0)
+    {
+        resetCouplingState();
+    }
+
+    // Phase 9: master gain. process() ramps to it; with nothing sounding
+    // there is nothing to step, and the new gain applies at once.
+    if (!audible)
+        snapMasterGain(masterGainFromNorm(static_cast<float>(kit.masterGainNorm)));
+}
+
+void Processor::snapMasterGain(float gain) noexcept
+{
+    masterGainApplied_ = gain;
+    masterGainTarget_ = gain;
+    masterGainRatio_ = 1.0f;
+    masterGainRampRemaining_ = 0;
+}
+
+void Processor::installKit(const State::KitSnapshot& kit)
+{
     // Polyphony / stealing.
     maxPolyphony_.store(kit.maxPolyphony);
     voiceStealingPolicy_.store(kit.voiceStealingPolicy);
@@ -967,33 +1156,12 @@ void Processor::applyKitSnapshot(const State::KitSnapshot& kit)
 
     selectedPadIndex_ = kit.selectedPadIndex;
 
-    // Flush the global SympatheticResonance engine BEFORE installing the
-    // new kit's coupling amount. The engine's resonator pool holds
-    // orphaned resonators (filter state in y1s_/y2s_) from voices the
-    // prior kit triggered. SympatheticResonance::noteOff(voiceId) detaches
-    // the owner but leaves actives_[idx] = true, so those resonators keep
-    // ringing at their Q-determined decay rate. If the prior kit had a
-    // large globalCoupling and the new kit has a smaller one (or zero),
-    // the orphans never get re-driven and keep producing a sustained
-    // tonal residue above the silence threshold -- voices register fresh
-    // partials but the engine's existing state dominates the output. The
-    // user's "infinite ring" reproduces exactly this scenario
-    // (test_kit_switch_infinite_ring.cpp test 3).
-    //
-    // The reset must come BEFORE the amount is applied; otherwise the
-    // smoother target would be wiped by the reset. resetCouplingState() does
-    // both, in that order, with the kit's Global Coupling stored first.
-    const float gcF = static_cast<float>(kit.globalCoupling);
-    const float sbF = static_cast<float>(kit.snareBuzz);
-    const float trF = static_cast<float>(kit.tomResonance);
-    const float cdF = static_cast<float>(kit.couplingDelayMs);
-    globalCoupling_.store(gcF, std::memory_order_relaxed);
-    snareBuzz_.store(sbF, std::memory_order_relaxed);
-    tomResonance_.store(trF, std::memory_order_relaxed);
-    couplingDelayMs_.store(cdF, std::memory_order_relaxed);
-    resetCouplingState();
-
-    // Phase 9: master gain.
+    // Globals. The coupling engine takes Global Coupling when applyKitSnapshot
+    // (or setupProcessing / setActive) resets it.
+    globalCoupling_.store(static_cast<float>(kit.globalCoupling), std::memory_order_relaxed);
+    snareBuzz_.store(static_cast<float>(kit.snareBuzz), std::memory_order_relaxed);
+    tomResonance_.store(static_cast<float>(kit.tomResonance), std::memory_order_relaxed);
+    couplingDelayMs_.store(static_cast<float>(kit.couplingDelayMs), std::memory_order_relaxed);
     masterGainNorm_.store(static_cast<float>(kit.masterGainNorm),
                           std::memory_order_relaxed);
 
@@ -1012,6 +1180,13 @@ void Processor::resetCouplingState() noexcept
     couplingDelay_.reset();
     energyEnvelope_ = 0.0f;
     couplingEngine_.setAmount(globalCoupling_.load(std::memory_order_relaxed));
+    couplingFadeRemaining_ = 0;  // T2.3: a flush ends a kit-switch fade
+}
+
+void Processor::finishCouplingFade() noexcept
+{
+    resetCouplingState();
+    voicePool_.registerActiveVoicesWithCoupling();
 }
 
 void Processor::applyPadPresetSnapshot(int pad, const State::PadPresetSnapshot& preset)
@@ -1098,6 +1273,16 @@ tresult PLUGIN_API Processor::setupProcessing(ProcessSetup& setup)
     voicePool_.setCouplingEngine(&couplingEngine_);
     resetCouplingState();  // MB-067 / MB-115: re-applies Global Coupling
 
+    // T2.3: a kit-switch fade lasts the voices' fast release, plus margin.
+    kitFadeSamples_ =
+        static_cast<int>(std::ceil(static_cast<double>(kFastReleaseSecs) * sampleRate_)) + 2;
+    kitFadeRemaining_ = 0;
+
+    // T2.10 (MB-059): the master gain ramp length at this rate; no ramp from a
+    // stale value across a rate change.
+    masterGainRampSamples_ = static_cast<int>(std::lround(kMasterGainRampSeconds * sampleRate_));
+    snapMasterGain(masterGainFromNorm(masterGainNorm_.load(std::memory_order_relaxed)));
+
     // Gain-staging Step 1: main-bus true-peak brickwall limiter at -1 dBTP.
     busLimiter_.prepare(sampleRate_, static_cast<std::size_t>(maxBlockSize_));
     busLimiter_.setCeilingDb(-1.0f);
@@ -1131,6 +1316,11 @@ tresult PLUGIN_API Processor::setActive(TBool state)
         // not inherit stale gain reduction or oversampler history.
         busLimiter_.reset();
 
+        // T2.3: nothing sounds after the re-prepare above, so no fade is in
+        // flight and the master gain starts at its target (no ramp).
+        kitFadeRemaining_ = 0;
+        snapMasterGain(masterGainFromNorm(masterGainNorm_.load(std::memory_order_relaxed)));
+
         // Phase 6 (T045): open the DataExchange queue for MetersBlock.
         if (dataExchangeHandler_)
         {
@@ -1146,6 +1336,10 @@ tresult PLUGIN_API Processor::setActive(TBool state)
     }
     else
     {
+        // T2.4: an audition request posted from here on is stale by the
+        // time processing resumes; the next process() drops it.
+        discardAudition_.store(true, std::memory_order_release);
+
         // T1.6: processing has stopped; so does the strike-norm worker.
         voicePool_.strikeNorm().stopWorker();
 
@@ -1157,6 +1351,16 @@ tresult PLUGIN_API Processor::setActive(TBool state)
         padGlowPublisher_.reset();
     }
     return kResultOk;
+}
+
+tresult PLUGIN_API Processor::setProcessing(TBool state)
+{
+    // T2.4 (MB-055): an audition request posted while the host is not
+    // processing must not fire on resume; the next process() drops the queue
+    // (it is the queue's only consumer).
+    if (!state)
+        discardAudition_.store(true, std::memory_order_release);
+    return AudioEffect::setProcessing(state);
 }
 
 // ==============================================================================
@@ -1228,8 +1432,8 @@ tresult PLUGIN_API Processor::notify(Steinberg::Vst::IMessage* message)
             0x4000u
             | (static_cast<std::uint32_t>(midi & 0x7F))
             | ((static_cast<std::uint32_t>(velocity & 0x7F)) << 7);
-        pendingAudition_.store(word, std::memory_order_release);
-        return kResultOk;
+        // T2.4: queued, never overwritten; a full queue refuses the event.
+        return auditionQueue_.push(word) ? kResultOk : kResultFalse;
     }
 
     if (std::strcmp(id, "AuditionPadOff") == 0)
@@ -1238,14 +1442,13 @@ tresult PLUGIN_API Processor::notify(Steinberg::Vst::IMessage* message)
         if (attrs == nullptr) return kResultOk;
         Steinberg::int64 midi = 0;
         attrs->getInt("midi", midi);
-        // Encode velocity=0 in the pending-audition word so the audio-thread
+        // Encode velocity=0 in the audition word so the audio-thread
         // consume path takes the noteOff branch (same as a MIDI release).
         const std::uint32_t word =
             0x4000u
             | (static_cast<std::uint32_t>(midi & 0x7F))
             | (0u << 7);  // velocity 0
-        pendingAudition_.store(word, std::memory_order_release);
-        return kResultOk;
+        return auditionQueue_.push(word) ? kResultOk : kResultFalse;
     }
 
     // LoadPresetState: a kit-preset browser load (R-202). The controller hands
