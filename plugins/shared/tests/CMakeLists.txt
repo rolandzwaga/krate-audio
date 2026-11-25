@@ -98,6 +98,7 @@ if(UNIX AND NOT APPLE)
     target_sources(shared_tests PRIVATE
         test_libcurl_fetch.cpp
         test_host_run_loop_bridge.cpp   # Carla's IPlugFrame-only run loop (Linux iids)
+        test_x11_frame_lifecycle.cpp    # editor reopen / queued X events on a real X display (CI: xvfb-run)
     )
     target_link_libraries(shared_tests PRIVATE httplib::httplib)
 endif()
