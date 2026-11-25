@@ -48,29 +48,29 @@
       }
     },
     "Gradus": {
-      "version": "1.10.8",
+      "version": "1.10.9",
       "download_url": "https://krateaudio.com/gradus/",
       "release_notes": "",
-      "tag": "gradus/v1.10.8",
-      "pub_date": "2026-11-24T17:30:04Z",
+      "tag": "gradus/v1.10.9",
+      "pub_date": "2026-11-25T12:41:45Z",
       "channel": "stable",
-      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/gradus/v1.10.8",
+      "release_notes_url": "https://github.com/rolandzwaga/krate-audio/releases/tag/gradus/v1.10.9",
       "description": "Step Arpeggiator",
-      "notes_markdown": "### Fixed\n\n- **Opening the editor crashed Carla on Linux** *(shared editor)* — Carla hands a plugin its event loop only through the editor window, which left the GUI library without one, so opening the editor crashed the host. The editor now takes the event loop from its own window, keeps it working while several instances have their editors open, and lets go of it when the last editor closes. Hosts that worked before are unaffected.",
+      "notes_markdown": "### Fixed\n\n- **Reopening the editor on Linux crashed the host, opened it black or drew it without text** *(shared editor)* — The GUI library closes its display connection when the last editor closes but left its drawing state for that connection behind; a later editor could inherit it, and the host aborted or the editor drew without its labels (seen in Carla and Ardour). That state is now cleared before the connection closes. The editor also stayed black after a reopen until its window was moved, because display events already received were not handled until new ones arrived; they are now handled while the editor is open.",
       "platforms": {
         "darwin-universal": {
-          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/gradus/v1.10.8/Gradus-1.10.8-macOS.pkg",
-          "size": 6679922,
-          "sha256": "6e0f5ca1c5b76f2ee8258dc6f7f7c6133029ab2782b21173054d4c81478200bc",
-          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+Tbrn8+15E4h2Uj0GnirVF6NKQjBFOhsgDD+VTwsKMTfVm08bzi+Dvde54xuymAHmEkjicoeOhwJbm5u7XQwvmANyAA=\ntrusted comment: krate:1:Gradus:1.10.8:darwin-universal:Gradus-1.10.8-macOS.pkg\nYl79EJh/6rdKEXTO4grAr/2siPVemu89E1bNsTbecCTD921+Xvl5RbuDSrjF7qZxeLupCvepXStAH5mJqu8aDw==\n",
+          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/gradus/v1.10.9/Gradus-1.10.9-macOS.pkg",
+          "size": 6679911,
+          "sha256": "e5e7a0ccc7217bac1626691b24ab5b8e0966a3033ace5056e7c6049f13d42ce5",
+          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+Tbrn73DQa0C6f4oWoMmZ3B/Gh+ObRojn7gHeOqZjhHvQL5pCv8gO712q3jsDMHb8+CGwzrDaNJzPeTAOiZmEjCaZgE=\ntrusted comment: krate:1:Gradus:1.10.9:darwin-universal:Gradus-1.10.9-macOS.pkg\ndBbi9Y/CqBFB9r5byec0HaKqjuiMrBgJcYrJirxGRMYxnCvMmtDuoYiOOjetYN+BIEGSfrKyI1VON8CYJRGZBg==\n",
           "format": "pkg",
           "min_os": "26.5"
         },
         "linux-x86_64": {
-          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/gradus/v1.10.8/Gradus-1.10.8-Linux-x64.tar.gz",
-          "size": 1561182,
-          "sha256": "25812881da6efd89a35792f533af3049795e5fc6fd0daec33eba6d8c0273de31",
-          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+Tbrn9GFay7XIIM3DqviqspwwbmHIEfx0K98RA/03zqhJJKa+qfcIrnBW0J2c/CN5KTvfQtfFFJk6BzxKPBHbafUjAE=\ntrusted comment: krate:1:Gradus:1.10.8:linux-x86_64:Gradus-1.10.8-Linux-x64.tar.gz\nBXDqNsW6wIfAuglrxWFUYxLil88BgXkdTAGgKshnGwJGXN0+SbDZAVXmKQDjmtt++/ODrRn4DdxVTHTwmZU9DA==\n",
+          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/gradus/v1.10.9/Gradus-1.10.9-Linux-x64.tar.gz",
+          "size": 1562499,
+          "sha256": "97b7872c1cee18753f070fb0873fd9d11cd64f5e3614d98da418820da5b4cb8f",
+          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+Tbrn+3xASP9rQP35U2QY4pRxXKeVILKRgnRIMz4lJx5sPdsv+eY3upntMZTEqxRDfOzcZ8PwDGe5D//la+fOuKKKQ4=\ntrusted comment: krate:1:Gradus:1.10.9:linux-x86_64:Gradus-1.10.9-Linux-x64.tar.gz\nsP/jy0AYTkniEeMNoMDoZmZtAVAG68e/o8wMeeF/u3jOTGUdHi8C77z6TaS/T8KFbdh3F95Ae06ehmQENYvtAg==\n",
           "format": "tar.gz",
           "min_os": "2.38",
           "payload": {
@@ -79,10 +79,10 @@
           }
         },
         "windows-x86_64": {
-          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/gradus/v1.10.8/Gradus-1.10.8-Windows-x64.exe",
-          "size": 3452775,
-          "sha256": "d137bb5f284c4830ba0d2d6ddbd1e8c8a2ed78821bbff21d9a587317c4503a28",
-          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+Tbrn5BFTXMPYgKg0Uvwa/v9Z89uYhv6P6TpQAMoL5puOH9IXWo5K7H+DiRsKbUzH5q/V2AIkW45PsZr8T28iHvgnAk=\ntrusted comment: krate:1:Gradus:1.10.8:windows-x86_64:Gradus-1.10.8-Windows-x64.exe\n9f2IP3IuR1I7oA6yv+pZVcOsqtui26hfwb68k4VD+GYS/+LFtGFRn30aZ5o958XLSpZpH9lqsKFvRX8IRlDfBA==\n",
+          "url": "https://github.com/rolandzwaga/krate-audio/releases/download/gradus/v1.10.9/Gradus-1.10.9-Windows-x64.exe",
+          "size": 3457212,
+          "sha256": "7cdac140fd509f58ed764deee3348cafa5e9728081c10dfd92e6d9880b48637a",
+          "signature": "untrusted comment: signature from rsign secret key\nRUS8c0IR+Tbrn49OjVNHhA7Nr7vgDoCU9HV2+LL4LZdqZQXtCO3NCcdqY4Wy8uvv9AUJ23bA9VcpXf/YDm3172evIyMhgwOsEgw=\ntrusted comment: krate:1:Gradus:1.10.9:windows-x86_64:Gradus-1.10.9-Windows-x64.exe\nYbciNMMnny2gHDPECIXApHHU7IfTcVpYkLCeM1BCN2oYVsJcKALtuIpkeYjZ8KjYuF6FnWo3ORBWyK6Z9G4lAg==\n",
           "format": "inno-exe"
         }
       },
