@@ -772,7 +772,8 @@ eslint_config: String, changelog: String, version: String }` from `apps/krate-ma
   member manifest has a `[lints]` section containing `workspace = true`.
 - **FR-022**: in every member manifest, every line containing `test-support` sits in a `[dev-dependencies]` section,
   except core's `[features]`. That section's non-blank lines are exactly `test-support = []`.
-- **FR-050**: `dependencies` deep-equals `{"@tauri-apps/api": "2.12.4"}`. Every `devDependencies` value matches
+- **FR-050**: `dependencies` has the one key `@tauri-apps/api`, an exact X.Y.Z on the X.Y line of the workspace
+  `tauri` crate (was: deep-equals `{"@tauri-apps/api": "2.12.4"}`; amended 2026-11-25, PR #317). Every `devDependencies` value matches
   `^[0-9]+\.[0-9]+\.[0-9]+$` (no `^`, `~`, range or tag). There is no `version` key, and no key `@tauri-apps/plugin-*`
   in either map. `scripts` deep-equals FR-050's six.
 - **FR-051**: `compilerOptions` has `strict`, `noUnusedLocals`, `noUnusedParameters`, `noFallthroughCasesInSwitch`,

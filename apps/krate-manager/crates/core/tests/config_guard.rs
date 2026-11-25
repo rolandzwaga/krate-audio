@@ -1608,12 +1608,34 @@ fn check_app_meta(f: &AppMetaFiles) -> Vec<String> {
         }
     }
 
-    // FR-050.
+    // FR-050: the one runtime dependency is @tauri-apps/api, an exact X.Y.Z on the X.Y line of the Rust `tauri`
+    // crate it talks to (Dependabot moves the patch; a pinned literal failed every such bump, PR #317).
     let package = &f.package_json;
-    if package.get("dependencies") != Some(&json!({ "@tauri-apps/api": "2.12.4" })) {
+    let tauri_minor = section_lines(&f.workspace_cargo_toml, "[workspace.dependencies]")
+        .into_iter()
+        .find(|line| key_of(line) == "tauri")
+        .and_then(|line| quoted(line).next())
+        .and_then(|version| version.rsplit_once('.'))
+        .map(|(minor, _)| minor.to_owned());
+    let api = package
+        .get("dependencies")
+        .and_then(Value::as_object)
+        .filter(|dependencies| dependencies.len() == 1)
+        .and_then(|dependencies| dependencies.get("@tauri-apps/api"))
+        .and_then(Value::as_str);
+    let on_tauri_minor = |version: &str| {
+        is_exact_version(version)
+            && tauri_minor.as_deref().is_some_and(|minor| {
+                version
+                    .strip_prefix(minor)
+                    .is_some_and(|rest| rest.starts_with('.'))
+            })
+    };
+    if !api.is_some_and(on_tauri_minor) {
         m.push(format!(
-            "package.json dependencies is {}, expected only @tauri-apps/api 2.12.4 (FR-050)",
-            show(package.get("dependencies"))
+            "package.json dependencies is {}, expected only @tauri-apps/api at an exact X.Y.Z on the tauri crate's {} line (FR-050)",
+            show(package.get("dependencies")),
+            tauri_minor.as_deref().unwrap_or("(unknown)")
         ));
     }
     match package.get("devDependencies").and_then(Value::as_object) {
@@ -2772,6 +2794,22 @@ fn planted_app_metadata_changes_fail_the_guard() {
             &["`@tauri-apps/plugin-opener`"],
             |f| {
                 f.package_json["dependencies"]["@tauri-apps/plugin-opener"] = json!("2.5.0");
+            },
+        ),
+        (
+            "@tauri-apps/api off the tauri crate's line",
+            &["expected only @tauri-apps/api"],
+            |f| {
+                f.package_json["dependencies"]["@tauri-apps/api"] = json!("2.11.0");
+            },
+        ),
+        (
+            "@tauri-apps/api as a range",
+            &["expected only @tauri-apps/api"],
+            |f| {
+                let current = f.package_json["dependencies"]["@tauri-apps/api"].clone();
+                f.package_json["dependencies"]["@tauri-apps/api"] =
+                    json!(format!("^{}", current.as_str().unwrap_or_default()));
             },
         ),
         ("vite ^8.3.5", &["devDependencies `vite`"], |f| {
