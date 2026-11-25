@@ -80,8 +80,14 @@ inline void applyPadConfigToVoice(DrumVoice& v, const PadConfig& cfg) noexcept
         v.toneShaper().setFilterType(
             static_cast<ToneShaperFilterType>(filterTypeIdx));
     }
-    v.toneShaper().setFilterCutoff(
-        20.0f * std::pow(1000.0f, std::clamp(cfg.tsFilterCutoff, 0.0f, 1.0f)));
+    // The 20 kHz endpoint is a branch, not pow(1000, 1.0): the macOS fast-math
+    // rewrite exp2(n * log2 1000) lands at 19999.998 and loses the Lowpass
+    // bypass (MB-013). Every other value maps exactly as before.
+    {
+        const float n = std::clamp(cfg.tsFilterCutoff, 0.0f, 1.0f);
+        v.toneShaper().setFilterCutoff(n >= 1.0f ? 20000.0f
+                                                 : 20.0f * std::pow(1000.0f, n));
+    }
     v.toneShaper().setFilterResonance(cfg.tsFilterResonance);
     v.toneShaper().setFilterEnvAmount(cfg.tsFilterEnvAmount * 2.0f - 1.0f);
     // Filter envelope time scaling: cubic decode (norm^3 * maxMs) to match the

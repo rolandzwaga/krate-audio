@@ -35,9 +35,8 @@ class UpdateBannerView;
 
 namespace Steinberg { class IBStream; }  // NOLINT(cppcoreguidelines-virtual-class-destructor): SDK interface
 
-namespace Membrum::State { struct KitSnapshot; }
 namespace Membrum::UI { class PadGridView; class KitMetersView; class InlinePresetBrowserView; class ADSRExpandedOverlayView; }
-namespace Krate::Plugins { class PitchEnvelopeDisplay; class XYMorphPad; class ADSRDisplay; class OutlineActionButton; }
+namespace Krate::Plugins { class PitchEnvelopeDisplay; class XYMorphPad; class ADSRDisplay; }
 
 namespace VSTGUI { class CTextLabel; class CControl; }  // NOLINT(cppcoreguidelines-virtual-class-destructor): VSTGUI classes
 
@@ -92,6 +91,15 @@ public:
     // {xyMorphPad_, morph*View_, filterEnv*Display_, pitchEnvelopeDisplay_,
     // outputBusSelView_, ...}, and the next setParamNormalized() crashes.
     void viewWillDelete(VSTGUI::CView* view) override;
+
+    // IDependent: while the editor is open the controller depends on the
+    // context-only proxies (MB-085). VST3Editor's ParameterChangeListener
+    // re-enables the mouse on every control of a parameter that changes (and
+    // on each control it binds while a template builds), so each change queues
+    // kRefreshContextControls for the poll timer, which re-dims after the
+    // listener has run. Forwards to EditControllerEx1::update.
+    void PLUGIN_API update(Steinberg::FUnknown* changedUnknown,
+                           Steinberg::int32 message) override;
 
     // Phase 4: Override setParamNormalized to implement proxy logic
     Steinberg::tresult PLUGIN_API setParamNormalized(Steinberg::Vst::ParamID tag,
@@ -166,14 +174,20 @@ public:
     // Test-only accessors for cached meters.
     [[nodiscard]] const MetersBlock& cachedMetersForTest() const noexcept { return cachedMeters_; }
 
-    /// Test-only: returns true when the currently-selected pad's BodyModel is
-    /// Membrane. Several UI gates share this predicate (pitch-envelope section
-    /// dim, Material Morph toggle visibility) because the corresponding DSP
-    /// paths are Membrane-only. The accessor lets unit tests assert the
-    /// decision without a live editor frame populating the cached view
-    /// pointers. Not const because EditController::getParamNormalized() is not
-    /// const in the SDK.
-    [[nodiscard]] bool isMembraneBodySelectedForTest() noexcept;
+    /// MB-085: true when the control bound to `tag` acts on the selected pad's
+    /// sound in its current context. Context-only controls: FM / FB / Burst /
+    /// Press (202-205) only on their own exciter; Air (302) and Tens (308)
+    /// only on Membrane; Shell (304) only with 2nd on; 2Sz / 2Mat (306 / 307)
+    /// only with 2nd on and Shell > 0; noise Cutf / Res / Dec / Color
+    /// (291-294) only at noise mix > 0; Wire (326) only at noise mix > 0 on a
+    /// body other than String. Every other tag is live. Reads only the
+    /// selected-pad proxies; used by the editor's dimming and by tests. Not
+    /// const because EditController::getParamNormalized() is not const.
+    [[nodiscard]] bool isContextControlLiveForTest(Steinberg::Vst::ParamID tag) noexcept;
+
+    /// Test-only: applies the view refreshes queued for the poll timer, as its
+    /// next tick does (no timer runs in a headless test).
+    void drainPendingViewRefreshForTest() noexcept { drainPendingViewRefresh(); }
 
     /// Test-only: reads and clears the deferred view-refresh word (filled when
     /// setParamNormalized runs off the UI thread, as in a test); true when the
@@ -240,6 +254,18 @@ private:
     // owned by VSTGUI's view tree; zeroed in willClose().
     Membrum::UI::PadGridView*        padGridView_    = nullptr;
 
+    // MB-101: what the pad grid draws for each pad, decoded from the
+    // controller's own per-pad parameters by refreshGridMeta(): exciterType,
+    // bodyModel and tsPitchEnvTime (the category glyph), chokeGroup and
+    // outputBus (the CG / BUS indicators). The grid's meta provider returns
+    // &gridMeta_[pad]. Written on the UI thread only (createCustomView,
+    // kRefreshPadGrid).
+    std::array<PadConfig, kNumPads>  gridMeta_{};
+
+    /// Decode gridMeta_ from the per-pad parameters with the processor's
+    /// decodes; nothing crosses into the processor.
+    void refreshGridMeta() noexcept;
+
     // Phase 6 (T046): cached view pointers (lifetime owned by VSTGUI view
     // tree; zeroed in willClose()). The KitMetersView is constructed from
     // createCustomView; the CPU label is a CTextLabel discovered via
@@ -252,17 +278,6 @@ private:
     // callbacks there. Lifetime is owned by VSTGUI's view tree; zeroed in
     // willClose().
     Krate::Plugins::PitchEnvelopeDisplay* pitchEnvelopeDisplay_ = nullptr;
-
-    // Pitch-envelope auxiliary controls cached so updatePitchEnvControlsEnabled()
-    // can dim/disable the entire section when the selected pad's BodyModel is
-    // not Membrane (pitch envelope only retargets f0 on Membrane bodies; see
-    // drum_voice.h:486). The Knee menu + label live only in the Advanced
-    // template, so the pointers may be null when the Simple template is shown.
-    VSTGUI::CControl*    pitchEnvKneeView_  = nullptr;
-    VSTGUI::CTextLabel*  pitchEnvKneeLabel_ = nullptr;
-
-    // Mode toggle button (Acoustic / Extended). Lifetime owned by VSTGUI view tree.
-    Krate::Plugins::OutlineActionButton*  modeToggleButton_ = nullptr;
 
     VSTGUI::CTextLabel*              cpuLabel_       = nullptr;
 
@@ -294,13 +309,6 @@ private:
     VSTGUI::CControl*                morphCurveView_       = nullptr;
     VSTGUI::CTextLabel*              morphDurLabel_        = nullptr;
 
-    // MorphEnabled power-button toggle (Advanced template). Hidden when the
-    // selected pad's BodyModel is not Membrane, since Material Morph's mode
-    // refresh path only supports Membrane bodies (drum_voice.h:1238). Hiding
-    // the toggle prevents users enabling a section that would be silently
-    // inert on Plate / Shell / String / Bell / NoiseBody.
-    VSTGUI::CControl*                morphEnabledToggleView_ = nullptr;
-
     // Tone Shaper Filter ADSR display (Advanced template). Cached in
     // verifyView() so setParamNormalized() / syncGlobalProxyFromPad can push
     // the current attack/decay/sustain/release values into the display.
@@ -325,22 +333,21 @@ private:
     /// setParamNormalized on kMorphEnabledId writes.
     void updateMorphControlsEnabled() noexcept;
 
-    /// Reflect the current kBodyModelId selection (per the global proxy that
-    /// tracks the selected pad) onto the cached pitch-envelope views: dim and
-    /// disable mouse when the selected body is not Membrane, since the pitch
-    /// envelope only retargets the modal bank's f0 for Membrane bodies (see
-    /// drum_voice.h:486). Tolerant of missing views. Called from didOpen,
-    /// verifyView, syncGlobalProxyFromPad, and setParamNormalized on
-    /// kBodyModelId writes.
-    void updatePitchEnvControlsEnabled() noexcept;
+    /// MB-085: walk the open editor's view tree and apply
+    /// applyContextControlState() to every CControl. Caches no view pointer,
+    /// so a template swap cannot leave a dangling one. No-op without an open
+    /// editor. Called from didOpen and through kRefreshContextControls.
+    void updateContextControlsEnabled() noexcept;
 
-    /// Hide the Material Morph power toggle when the selected pad's BodyModel
-    /// is not Membrane. Material Morph's body-mapper refresh is Membrane-only
-    /// (drum_voice.h:1238), so on other bodies the toggle would be inert; we
-    /// hide rather than dim so the user cannot turn the section on at all.
-    /// Tolerant of a missing view. Called from the same sites as
-    /// updatePitchEnvControlsEnabled().
-    void updateMorphEnabledToggleVisibility() noexcept;
+    /// For a context-only control (see isContextControlLiveForTest): alpha 1.0
+    /// and mouse on when live, alpha 0.35 and mouse off when not; invalid()
+    /// only when either changed. Leaves every other control untouched.
+    void applyContextControlState(VSTGUI::CControl* control) noexcept;
+
+    /// Add (didOpen) or remove (willClose) the controller as a dependent of
+    /// the context-only proxy Parameter objects; see update().
+    void setContextParamDependency(bool on) noexcept;
+    bool contextParamDependency_ = false;
 
     /// Push the current tone-shaper filter-envelope norm values into the
     /// cached ADSRDisplay, converting to true DSP milliseconds (attack x500,
@@ -373,26 +380,27 @@ private:
     enum ViewRefreshFlags : std::uint32_t  // NOLINT(cppcoreguidelines-use-enum-class,performance-enum-size)
     {
         kRefreshMorphControls    = 1u << 0,
-        kRefreshPitchEnvControls = 1u << 1,
-        kRefreshMorphToggleVis   = 1u << 2,
+        kRefreshContextControls  = 1u << 1,
+        kRefreshPadGrid          = 1u << 2,
         kRefreshFilterEnvDisplay = 1u << 3,
         kRefreshPitchEnvDisplay  = 1u << 4,
         kRefreshMorphPad         = 1u << 5,
     };
 
-    /// Apply now (UI thread) or queue for the poll timer (other thread).
+    /// Apply now (UI thread, or no editor open) or queue for the poll timer
+    /// (another thread while an editor is open).
     void requestViewRefresh(std::uint32_t flags) noexcept;
 
     /// Invoke the helper for each set bit. Always runs on the UI thread.
     void applyViewRefresh(std::uint32_t flags) noexcept;
 
-    /// Phase 8F: push the per-pad enable flags from a freshly-loaded
-    /// KitSnapshot into the PadGridView mirror. Both load paths
-    /// (setComponentState, kitPresetLoadProvider) write through setters
-    /// that bypass the derived setParamNormalized override, so the per-pad
-    /// enable hook in the override never fires during preset load --
-    /// hence this explicit push. Tolerant of a null grid view.
-    void pushKitEnabledToGrid(const Membrum::State::KitSnapshot& kit) noexcept;
+    /// Take the queued refresh word and apply it; the poll timer's tick.
+    void drainPendingViewRefresh() noexcept;
+
+    /// MB-101 / MB-157 (kRefreshPadGrid): refreshGridMeta(), then push the
+    /// selected pad and the 32 enable flags into the grid and invalidate it.
+    /// Spec 141 FR-011 / Phase 8F. Tolerant of a null grid view.
+    void updatePadGrid() noexcept;
 
     /// Phase 8 (T074 / US7 / FR-066): push a warning tooltip onto the cached
     /// Output Bus selector view when the selected aux bus index >= 1 and the

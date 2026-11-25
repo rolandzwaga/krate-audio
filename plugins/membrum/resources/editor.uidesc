@@ -251,7 +251,7 @@
         <view class="CTextLabel" title="Scat"                   origin="138, 378" size="28, 10" font="label-font" font-color="text-secondary" transparent="true" horizontal-alignment="center"/>
         <view class="ArcKnob" control-tag="CouplingStrength"    origin="180, 348" size="28, 28" arc-color="accent" arc-width="2.5"/>
         <view class="CTextLabel" title="Shell"                  origin="180, 378" size="28, 10" font="label-font" font-color="text-secondary" transparent="true" horizontal-alignment="center"/>
-        <view class="ArcKnob" control-tag="SecondaryEnabled"    origin="222, 348" size="28, 28" arc-color="accent" arc-width="2.5"/>
+        <view class="ToggleButton" control-tag="SecondaryEnabled" origin="225, 351" size="22, 22" icon-style="power" on-color="accent" off-color="text-secondary" stroke-width="2"/>
         <view class="CTextLabel" title="2nd"                    origin="222, 378" size="28, 10" font="label-font" font-color="text-secondary" transparent="true" horizontal-alignment="center"/>
         <view class="ArcKnob" control-tag="SecondarySize"       origin="264, 348" size="28, 28" arc-color="accent" arc-width="2.5"/>
         <view class="CTextLabel" title="2Sz"                    origin="264, 378" size="28, 10" font="label-font" font-color="text-secondary" transparent="true" horizontal-alignment="center"/>

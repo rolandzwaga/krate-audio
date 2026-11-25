@@ -35,6 +35,12 @@ public:
     /// Number of integer-harmonic partials injected when enabled.
     static constexpr int kNumPartials = 8;
 
+    /// Fix plan T2.16 (MB-045, MB-177): worst-case peak of the injected series
+    /// at amount 1. Equals DrumVoice::kBodyHeadroom, the -6 dBFS strike-peak
+    /// budget the body is normalised to (drum_voice.h static_asserts the two
+    /// stay equal; this header cannot include drum_voice.h, which includes it).
+    static constexpr float kTargetPeak = 0.5f;
+
     void prepare(double sampleRate, std::uint32_t voiceId) noexcept
     {
         sampleRate_ = sampleRate;
@@ -45,12 +51,13 @@ public:
         updateEnvCoeff();  // D2: coeff depends on the sample rate
 
         // Build the static harmonic frame shape. Amplitudes follow the natural
-        // harmonic falloff 1/k (-6 dB/oct, the sawtooth/bowed spectrum), then
-        // normalized so the bank's internal RMS normalization produces a modest
-        // output level. The earlier 1/k^2 (-12 dB/oct) was the triangle/plucked
-        // spectrum, which is fundamental-dominated and dull (audit §3-B); 1/k
-        // gives the injected series a brighter, more distinctive timbre. Phases
-        // are overwritten on every trigger().
+        // harmonic falloff 1/k (-6 dB/oct, the sawtooth/bowed spectrum). The
+        // earlier 1/k^2 (-12 dB/oct) was the triangle/plucked spectrum, which is
+        // fundamental-dominated and dull (audit §3-B); 1/k gives the injected
+        // series a brighter, more distinctive timbre. Phases are overwritten on
+        // every trigger(). The bank plays these amplitudes as-is (trigger()
+        // skips its RMS normaliser); the level is set by outputScale_ below.
+        float amplitudeSum = 0.0f;
         for (int k = 0; k < kNumPartials; ++k)
         {
             const int harmonicIndex = k + 1;
@@ -64,7 +71,13 @@ public:
             frame_.partials[k].age                 = 0;
             frame_.partials[k].frequency           = 0.0f;
             frame_.partials[k].sourceId            = 0;
+            amplitudeSum += frame_.partials[k].amplitude;
         }
+        // T2.16: the 1/k series sums to 2.718, its worst-case in-phase peak.
+        // Scale it so that peak equals the body budget at amount 1; the bank
+        // output was previously added unscaled onto the 0.5-normalised body
+        // and pinned the voice on its hardClip rail.
+        outputScale_ = kTargetPeak / amplitudeSum;
         frame_.numPartials     = kNumPartials;
         frame_.f0              = fundamentalHz_;
         frame_.f0Confidence    = 1.0f;
@@ -121,8 +134,9 @@ public:
         const float f0 = (fundamentalHz_ > 0.0f) ? fundamentalHz_ : 440.0f;
         frame_.f0      = f0;
 
-        // skipNormalization=true because we pre-chose small per-partial
-        // amplitudes; the adaptive normalizer would boost them unexpectedly.
+        // skipNormalization=true: the bank plays the 1/k amplitudes as given
+        // and process() scales the sum to the body budget (outputScale_); the
+        // bank's adaptive RMS normaliser would override that level.
         bank_.loadFrame(frame_, f0, /*skipNormalization=*/true);
 
         // D2: re-arm the decay envelope for this note.
@@ -139,7 +153,7 @@ public:
         if (amount_ == 0.0f)
             return 0.0f;
 
-        const float s = amount_ * env_ * bank_.process();
+        const float s = amount_ * outputScale_ * env_ * bank_.process();
         env_ *= envCoeff_;
         return s;
     }
@@ -157,6 +171,7 @@ private:
     Krate::DSP::HarmonicFrame          frame_{};
 
     float  amount_        = 0.0f;
+    float  outputScale_   = 1.0f;   // T2.16: kTargetPeak / sum of amplitudes, set in prepare()
     float  fundamentalHz_ = 440.0f;
     float  decayT60Sec_   = 1.5f;   // D2 default: finite even if never wired
     float  env_           = 1.0f;

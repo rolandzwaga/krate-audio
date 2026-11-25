@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <cstdint>
 
 // ==============================================================================
@@ -21,5 +22,13 @@ enum class BodyModelType : std::uint8_t
 
 static_assert(static_cast<int>(BodyModelType::kCount) == 6,
               "BodyModelType::kCount must reflect the number of alternatives");
+
+/// Body-model normalized parameter value -> type, with the processor's clamp.
+[[nodiscard]] inline BodyModelType decodeBodyModel(double norm) noexcept
+{
+    const int count = static_cast<int>(BodyModelType::kCount);
+    return static_cast<BodyModelType>(
+        std::clamp(static_cast<int>(norm * static_cast<double>(count)), 0, count - 1));
+}
 
 } // namespace Membrum

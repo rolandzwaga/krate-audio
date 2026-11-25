@@ -11,6 +11,14 @@
 //       continuous range.
 //   #17 Choke Group proxy must be a StringListParameter with friendly labels,
 //       with a normalized<->index mapping identical to the old stepped Range.
+//
+// Membrum audit fix plan T2.20:
+//   MB-101 the production grid's meta provider returned null, so the category
+//          glyph and the CG / BUS indicators (spec 141 FR-011 (c)(d)(e)) were
+//          never drawn.
+//   MB-157 grid mutations from setParamNormalized / setComponentState must go
+//          through the deferred view refresh (finding 12) like every other
+//          view mutation.
 // ==============================================================================
 
 #include <catch2/catch_test_macros.hpp>
@@ -19,14 +27,26 @@
 #include "controller/controller.h"
 #include "ui/pad_grid_view.h"
 #include "state/state_codec.h"
+#include "dsp/body_model_type.h"
+#include "dsp/default_kit.h"
+#include "dsp/exciter_type.h"
+#include "dsp/pad_config.h"
 #include "plugin_ids.h"
 
+#include <editor_lifecycle_harness.h>
+#include <editor_screenshot.h>
+
+#include "base/source/updatehandler.h"
+#include "vstgui/lib/cframe.h"
 #include "vstgui/lib/cview.h"
+#include "vstgui/plugin-bindings/vst3editor.h"
 #include "vstgui/uidescription/uiattributes.h"
 #include "public.sdk/source/common/memorystream.h"
 #include "pluginterfaces/base/ibstream.h"
 
+#include <array>
 #include <string>
+#include <thread>
 
 using namespace Steinberg;
 using namespace Steinberg::Vst;
@@ -173,4 +193,107 @@ TEST_CASE("Audit #17: Choke Group proxy is a StringList with friendly labels",
     }
 
     REQUIRE(controller.terminate() == kResultOk);
+}
+
+// ------------------------------------------------------------------------------
+// MB-101 -- the production grid reads each pad's choke group, output bus and
+// category from the controller's per-pad parameters (spec 141 FR-011 (c)(d)(e),
+// acceptance scenario: pad 4 shows "CG2" / "BUS3").
+// ------------------------------------------------------------------------------
+TEST_CASE("Pad grid shows the choke group, output bus and category of each pad",
+          "[membrum][controller][pad_grid]")
+{
+    Membrum::Controller controller;
+    REQUIRE(controller.initialize(nullptr) == kResultOk);
+
+    auto grid = makeGrid(controller);
+    const auto padTag = [](int pad, int offset) {
+        return static_cast<ParamID>(Membrum::padParamId(pad, offset));
+    };
+
+    controller.setParamNormalized(padTag(4, Membrum::kPadChokeGroup), 2.0 / 8.0);
+    controller.setParamNormalized(padTag(4, Membrum::kPadOutputBus), 3.0 / 15.0);
+
+    const Membrum::PadConfig* cfg = grid->padConfigFor(4);
+    REQUIRE(cfg != nullptr);
+    CHECK(cfg->chokeGroup == 2);
+    CHECK(cfg->outputBus == 3);
+    CHECK(Membrum::UI::chokeGroupIndicatorText(cfg->chokeGroup) == "CG2");
+    CHECK(Membrum::UI::outputBusIndicatorText(cfg->outputBus) == "BUS3");
+
+    // Pad 4 takes the default kit's kick (pad 0): Membrane, Impulse, pitch
+    // envelope on. Selectors encode at the centre of their slot, as the
+    // controller's state codec writes them.
+    std::array<Membrum::PadConfig, Membrum::kNumPads> kit{};
+    Membrum::DefaultKit::apply(kit);
+    const Membrum::PadConfig& kick = kit[0];
+    controller.setParamNormalized(
+        padTag(4, Membrum::kPadExciterType),
+        (static_cast<double>(kick.exciterType) + 0.5)
+            / static_cast<double>(Membrum::ExciterType::kCount));
+    controller.setParamNormalized(
+        padTag(4, Membrum::kPadBodyModel),
+        (static_cast<double>(kick.bodyModel) + 0.5)
+            / static_cast<double>(Membrum::BodyModelType::kCount));
+    controller.setParamNormalized(padTag(4, Membrum::kPadTSPitchEnvTime),
+                                  static_cast<double>(kick.tsPitchEnvTime));
+
+    cfg = grid->padConfigFor(4);
+    REQUIRE(cfg != nullptr);
+    CHECK(Membrum::UI::categoryGlyphForConfig(*cfg) == "K");
+    // The routing fields set above are kept.
+    CHECK(cfg->chokeGroup == 2);
+    CHECK(cfg->outputBus == 3);
+
+    REQUIRE(controller.terminate() == kResultOk);
+}
+
+// ------------------------------------------------------------------------------
+// MB-157 -- with the editor open, a setParamNormalized from a thread other than
+// the UI thread leaves the grid alone; the poll timer's drain applies it.
+// ------------------------------------------------------------------------------
+TEST_CASE("Pad grid mutations from a non-UI thread are deferred to the UI thread",
+          "[membrum][controller][pad_grid][threading]")
+{
+    namespace Shots = ::Krate::TestSupport::Screenshots;
+
+    UpdateHandler::instance();
+    auto controller = Steinberg::owned(new Membrum::Controller());
+    REQUIRE(controller->initialize(nullptr) == kResultOk);
+    {
+        Krate::TestSupport::ensureVstguiInitialized();
+        const std::string uidesc = std::string(MEMBRUM_RESOURCES_DIR) + "/editor.uidesc";
+        auto* editor = new VSTGUI::VST3Editor(controller.get(), "EditorDefault", uidesc.c_str());
+        IPlugView* view = editor;
+        REQUIRE(view->attached(nullptr, Krate::TestSupport::nativePlatformType()) == kResultTrue);
+        VSTGUI::CFrame* cframe = editor->getFrame();
+        REQUIRE(cframe != nullptr);
+        VSTGUI::CViewContainer* root =
+            cframe->getView(0) != nullptr ? cframe->getView(0)->asViewContainer() : nullptr;
+        REQUIRE(root != nullptr);
+        // A headless frame has no window, so CFrame::open never attaches the tree.
+        if (!root->isAttached())
+            root->attached(cframe);
+        UpdateHandler::instance()->triggerDeferedUpdates();
+
+        auto* grid = Shots::findFirst<Membrum::UI::PadGridView>(root);
+        REQUIRE(grid != nullptr);
+        REQUIRE(grid->selectedPadIndex() == 0);
+
+        std::thread worker([&controller] {
+            controller->setParamNormalized(Membrum::kSelectedPadId, 19.0 / 31.0);
+        });
+        worker.join();
+
+        // Nothing touched the view off the UI thread.
+        CHECK(grid->selectedPadIndex() == 0);
+
+        // The poll timer's next tick (no timer runs headless) applies it.
+        controller->drainPendingViewRefreshForTest();
+        CHECK(grid->selectedPadIndex() == 19);
+
+        view->removed();
+        view->release();
+    }
+    REQUIRE(controller->terminate() == kResultOk);
 }

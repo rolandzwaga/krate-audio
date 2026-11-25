@@ -294,8 +294,11 @@ void VoicePool::noteOn(std::uint8_t midiNote, float velocity) noexcept
             mainVoice(slot).noteOn(clampedVel);
 
             // Phase 5: Register this voice's partials with the coupling engine.
-            // The engine will create sympathetic resonators at the voice's
-            // modal frequencies (FR-041: velocity scales coupling excitation).
+            // The engine will create sympathetic resonators at the frequencies
+            // the voice settles at (DrumVoice::getPartialInfo). The partials
+            // carry no velocity: velocity scales coupling only through the
+            // voice's output level, which Processor::process feeds to the
+            // engine as its excitation.
             //
             // Phase 6 (US4 / FR-023 CPU optimization): if the struck pad has
             // couplingAmount == 0.0, it is fully excluded from coupling --

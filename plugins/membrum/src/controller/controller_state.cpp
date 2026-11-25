@@ -92,12 +92,10 @@ tresult PLUGIN_API Controller::setComponentState(IBStream* state)
             Membrum::ControllerState::paramlessFieldsFromSnapshot(kit.pads[p].sound);
 
     selectedPadIndex_ = kit.selectedPadIndex;
-    pushKitEnabledToGrid(kit);
+    // The sync requests kRefreshPadGrid: the grid takes the loaded enable
+    // flags, category glyphs, CG / BUS indicators and (audit finding 6) the
+    // loaded selection, on the UI thread (MB-157).
     syncGlobalProxyFromPad(selectedPadIndex_);
-    // Audit finding 6: a loaded project may select a non-zero pad; move the
-    // grid highlight to match instead of leaving it on the last clicked cell.
-    if (padGridView_ != nullptr)
-        padGridView_->setSelectedPadIndex(selectedPadIndex_);
 
     return kResultOk;
 }
@@ -188,10 +186,9 @@ bool Controller::kitPresetLoadProvider(IBStream* stream)
             kit.uiMode >= 1 ? 1.0 : 0.0);
     }
 
-    pushKitEnabledToGrid(kit);
-
     // Kit preset deliberately preserves the user's current selectedPadIndex_
-    // (FR-052), so the global proxy sync uses the EXISTING value.
+    // (FR-052), so the global proxy sync uses the EXISTING value. The sync
+    // also refreshes the pad grid (kRefreshPadGrid).
     syncGlobalProxyFromPad(selectedPadIndex_);
 
     // A preset change inside the plugin: the host re-reads every parameter

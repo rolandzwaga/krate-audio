@@ -343,10 +343,16 @@ TEST_CASE("Retirement: a String voice offers no stale modal partials to coupling
     Membrum::DrumVoice v;
     membraneThenStringNote(v, false);
 
+    // T2.17 (MB-068): the String voice offers its own harmonics instead, the
+    // waveguide f0 800 x 0.1^0.5 = 252.98 Hz at the default Size (the stale
+    // Membrane modes start at 500 x 0.1^0.5 = 158.1 Hz).
+    const float f0 = 800.0f * std::pow(0.1f, 0.5f);
     const auto info = v.getPartialInfo();
     for (std::size_t k = 0; k < info.frequencies.size(); ++k)
     {
-        INFO("partial " << k << " = " << info.frequencies[k] << " Hz");
-        CHECK(info.frequencies[k] == 0.0f);
+        const float expected = f0 * static_cast<float>(k + 1);
+        INFO("partial " << k << " = " << info.frequencies[k] << " Hz, expected "
+                        << expected << " Hz");
+        CHECK(std::fabs(info.frequencies[k] - expected) <= 0.01f * expected);
     }
 }

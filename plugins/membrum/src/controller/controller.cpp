@@ -107,6 +107,16 @@ const ProxyMapping* findProxyMappingForPadOffset(int padOffset) noexcept
     return nullptr;
 }
 
+/// MB-101 / MB-157: the pad-parameter offsets the pad grid draws from: the
+/// category glyph (exciter, body, pitch-envelope time), the CG / BUS
+/// indicators and the enable glyph.
+constexpr bool padOffsetShownOnGrid(int padOffset) noexcept
+{
+    return padOffset == kPadExciterType || padOffset == kPadBodyModel
+        || padOffset == kPadTSPitchEnvTime || padOffset == kPadChokeGroup
+        || padOffset == kPadOutputBus || padOffset == kPadEnabled;
+}
+
 // MB-072 / MB-163: the selected-pad proxies and Selected Pad are UI-only
 // binding targets, registered hidden and without kCanAutomate. A gesture on a
 // proxy reaches the host on the selected pad's per-pad ID (see beginEdit /
@@ -813,17 +823,17 @@ tresult PLUGIN_API Controller::setParamNormalized(ParamID tag, ParamValue value)
     if (tag == static_cast<ParamID>(kMorphEnabledId))
         requestViewRefresh(kRefreshMorphControls);
 
-    // Body model gate for the pitch-envelope section: the envelope only
-    // retargets f0 on Membrane bodies (drum_voice.h:486), so dim/disable the
-    // controls when any other body type is selected. Fires on the global proxy
-    // tag whether the change came from the user, automation, preset load, or
-    // syncGlobalProxyFromPad's pad-switch sync.
-    if (tag == static_cast<ParamID>(kBodyModelId))
+    // MB-085: the context-only controls (exciter-secondary knobs, Air, Tens,
+    // the shell knobs, the noise-layer knobs and Wire) follow the exciter,
+    // the body, 2nd, Shell and the noise mix. Re-dim them when any of those
+    // proxies moves (user, automation, preset load, the MB-099 mirror).
+    if (tag == static_cast<ParamID>(kExciterTypeId)
+        || tag == static_cast<ParamID>(kBodyModelId)
+        || tag == static_cast<ParamID>(kSecondaryEnabledId)
+        || tag == static_cast<ParamID>(kCouplingStrengthId)
+        || tag == static_cast<ParamID>(kNoiseLayerMixId))
     {
-        // Same gate hides the Material Morph power toggle on non-Membrane
-        // bodies (drum_voice.h:1238): the morph's body-mapper refresh is
-        // Membrane-only, so the toggle would enable an inert section.
-        requestViewRefresh(kRefreshPitchEnvControls | kRefreshMorphToggleVis);
+        requestViewRefresh(kRefreshContextControls);
     }
 
     // Tone Shaper filter-envelope display: repaint the curve whenever any of
@@ -875,13 +885,11 @@ tresult PLUGIN_API Controller::setParamNormalized(ParamID tag, ParamValue value)
         // Convert normalized [0,1] to pad index [0,31]
         selectedPadIndex_ = std::clamp(
             static_cast<int>(value * 31.0 + 0.5), 0, 31);
-        syncGlobalProxyFromPad(selectedPadIndex_);
         // Audit finding 6: the grid highlight is otherwise only moved by a
         // mouse-down, so host automation / a remote selection change would
-        // leave it stale. Push the new index into the grid (null-guarded;
-        // setSelectedPadIndex bounds-checks and no-ops when unchanged).
-        if (padGridView_ != nullptr)
-            padGridView_->setSelectedPadIndex(selectedPadIndex_);
+        // leave it stale. The sync requests kRefreshPadGrid, which moves the
+        // highlight on the UI thread (MB-157).
+        syncGlobalProxyFromPad(selectedPadIndex_);
         return result;
     }
 
@@ -901,17 +909,11 @@ tresult PLUGIN_API Controller::setParamNormalized(ParamID tag, ParamValue value)
             EditControllerEx1::setParamNormalized(padId, value);
             suppressProxyForward_ = false;
 
-            // FR-065 (spec 141, Phase 8 / US7): when the Output Bus proxy
-            // changes, refresh the pad grid so its "BUS{N}" indicator picks
-            // up the new value live via IDependent-style invalidation.
-            // Same treatment for Choke Group keeps the "CG{N}" indicator in
-            // sync without a per-pad tag scan.
-            if ((mapping.globalId == kOutputBusId
-                 || mapping.globalId == kChokeGroupId)
-                && padGridView_ != nullptr)
-            {
-                padGridView_->notifyMetaChanged(selectedPadIndex_);
-            }
+            // Spec 141 FR-011 (MB-101 / MB-157): the pad grid draws the
+            // category glyph, the CG / BUS indicators and the enable glyph
+            // from these fields; refresh it on the UI thread.
+            if (padOffsetShownOnGrid(mapping.padOffset))
+                requestViewRefresh(kRefreshPadGrid);
             // FR-066: when the Output Bus proxy changes, refresh the warning
             // tooltip on the Output Bus selector in case the new selection
             // targets an inactive aux bus.
@@ -939,27 +941,12 @@ tresult PLUGIN_API Controller::setParamNormalized(ParamID tag, ParamValue value)
         }
     }
 
-    // Direct per-pad Output Bus / Choke Group edit (e.g. from automation
-    // targeting a specific pad's per-pad parameter, not the global proxy):
-    // refresh the grid's BUS / CG indicator for that pad.
-    if (padOffset >= 0
-        && (padOffset == kPadOutputBus || padOffset == kPadChokeGroup)
-        && padGridView_ != nullptr)
-    {
-        const int padIdx = padIndexFromParamId(static_cast<int>(tag));
-        if (padIdx >= 0)
-            padGridView_->notifyMetaChanged(padIdx);
-    }
-
-    // Phase 8F: per-pad enable toggle. Push the new value into the grid
-    // view so the cell dim / power glyph state tracks every source of
-    // change (user click on the glyph, host automation, preset load).
-    if (padOffset == kPadEnabled && padGridView_ != nullptr)
-    {
-        const int padIdx = padIndexFromParamId(static_cast<int>(tag));
-        if (padIdx >= 0)
-            padGridView_->setPadEnabled(padIdx, value >= 0.5);
-    }
+    // Direct per-pad edit of a field the grid draws (automation targeting a
+    // pad's per-pad parameter, the grid's enable glyph): the category glyph,
+    // the CG / BUS indicators (spec 141 FR-011) and the Phase 8F enable state
+    // follow every source of change. Applied on the UI thread (MB-157).
+    if (padOffsetShownOnGrid(padOffset))
+        requestViewRefresh(kRefreshPadGrid);
 
     return result;
 }
@@ -1069,13 +1056,16 @@ void Controller::syncGlobalProxyFromPad(int padIndex)
     // The sync loop above calls the base class setter directly, which bypasses
     // the derived setParamNormalized() override and its per-tag hooks. Reflect
     // the freshly-synced state onto every gated section/display so the visuals
-    // track pad selection: Material Morph dim/enable + toggle visibility, the
-    // filter- and pitch-envelope displays, and the pitch-env Body gate. Routed
+    // track pad selection: Material Morph dim/enable, the filter- and
+    // pitch-envelope displays, the context-only control dimming, and the pad
+    // grid (selection highlight, enable flags, category glyphs and CG / BUS
+    // indicators, which the load paths write through the base setter). Routed
     // through requestViewRefresh so a non-compliant host calling
-    // setComponentState off the UI thread defers the mutation (finding 12).
+    // setComponentState off the UI thread defers the mutation (finding 12,
+    // MB-157).
     requestViewRefresh(kRefreshMorphControls | kRefreshFilterEnvDisplay
-                       | kRefreshPitchEnvDisplay | kRefreshPitchEnvControls
-                       | kRefreshMorphToggleVis | kRefreshMorphPad);
+                       | kRefreshPitchEnvDisplay | kRefreshContextControls
+                       | kRefreshMorphPad | kRefreshPadGrid);
 }
 
 void Controller::forwardGlobalToPad(ParamID globalId, ParamValue value)
@@ -1140,10 +1130,19 @@ VSTGUI::CView* Controller::createCustomView(
         // publisher each audio block; onDataExchangeBlocksReceived() re-applies
         // those buckets to `padGlowMirror_` so the view's existing 30 Hz
         // snapshot()-based polling path lights up pads in sync with audio.
+        //
+        // MB-101: the meta provider reads gridMeta_, the controller's decode
+        // of each pad's exciter, body, pitch-envelope time, choke group and
+        // output bus, so the grid draws the category glyph and the CG / BUS
+        // indicators (spec 141 FR-011 (c)(d)(e)). kRefreshPadGrid keeps it
+        // current; padConfigFor bounds-checks the index first.
+        refreshGridMeta();
         auto* view = new UI::PadGridView(
             viewRect,
             /*glowPublisher*/ &padGlowMirror_,
-            /*metaProvider*/ [](int) -> const PadConfig* { return nullptr; });
+            /*metaProvider*/ [this](int pad) -> const PadConfig* {
+                return &gridMeta_[static_cast<std::size_t>(pad)];
+            });
 
         // FR-012: clicking a pad drives kSelectedPadId through the standard
         // beginEdit/performEdit/endEdit sequence.
@@ -1277,7 +1276,6 @@ VSTGUI::CView* Controller::createCustomView(
             endEdit(kUiModeId);
             view->setTitle(next >= 0.5 ? "Simple" : "Advanced");
         });
-        modeToggleButton_ = view;
         return view;
     }
     // Expand button for the Tone Shaper filter envelope. Clicking opens the
@@ -1408,40 +1406,12 @@ VSTGUI::CView* Controller::verifyView(VSTGUI::CView* view,
         // Simple<->Advanced template switch (or any other rebuild) does not
         // strand it at its hard-coded constructor defaults.
         updatePitchEnvelopeDisplay();
-        // Apply the current Body gate so the freshly-built display starts in
-        // the right dim/enabled state (e.g. when the selected pad's body is
-        // not Membrane).
-        updatePitchEnvControlsEnabled();
     }
 
-    // Pitch-envelope Knee menu (Advanced template only). Cached by control-tag
-    // so updatePitchEnvControlsEnabled() can cascade the Body gate across the
-    // whole section. Tagged here separately from the Material Morph block to
-    // keep the conditional simple.
+    // MB-085: a context-only control starts dimmed or live for the selected
+    // pad as the template (re)builds; no pointer is cached.
     if (auto* ctrl = dynamic_cast<VSTGUI::CControl*>(view))
-    {
-        if (ctrl->getTag() == static_cast<int32>(kPitchEnvKneeEnabledId))
-        {
-            pitchEnvKneeView_ = ctrl;
-            ctrl->registerViewListener(this);
-            updatePitchEnvControlsEnabled();
-        }
-    }
-
-    // "Knee" label sits next to the PitchEnvKneeEnabled menu in the Advanced
-    // template; dim it alongside the rest of the pitch-env section. It is the
-    // only CTextLabel in the uidesc with this title, so a title match is
-    // unambiguous.
-    if (auto* label = dynamic_cast<VSTGUI::CTextLabel*>(view))
-    {
-        VSTGUI::UTF8StringPtr t = label->getText();
-        if (t != nullptr && std::strcmp(t, "Knee") == 0)
-        {
-            pitchEnvKneeLabel_ = label;
-            label->registerViewListener(this);
-            updatePitchEnvControlsEnabled();
-        }
-    }
+        applyContextControlState(ctrl);
 
     // MaterialMorph XY pad (Advanced template). The shared XYMorphPad drives
     // its X-axis via the CControl tag (MaterialMorph -> kMorphStartId) and its
@@ -1486,12 +1456,6 @@ VSTGUI::CView* Controller::verifyView(VSTGUI::CView* view,
             morphCurveView_ = ctrl;
             ctrl->registerViewListener(this);
             morphViewCached = true;
-        }
-        else if (tag == static_cast<int32>(kMorphEnabledId))
-        {
-            morphEnabledToggleView_ = ctrl;
-            ctrl->registerViewListener(this);
-            updateMorphEnabledToggleVisibility();
         }
     }
 
@@ -1564,29 +1528,13 @@ void Controller::viewWillDelete(VSTGUI::CView* view)
 
     if (view == outputBusSelView_)         outputBusSelView_         = nullptr;
     if (view == pitchEnvelopeDisplay_)     pitchEnvelopeDisplay_     = nullptr;
-    if (view == pitchEnvKneeView_)         pitchEnvKneeView_         = nullptr;
-    if (view == pitchEnvKneeLabel_)        pitchEnvKneeLabel_        = nullptr;
     if (view == xyMorphPad_)               xyMorphPad_               = nullptr;
     if (view == morphDurationView_)        morphDurationView_        = nullptr;
     if (view == morphCurveView_)           morphCurveView_           = nullptr;
     if (view == morphDurLabel_)            morphDurLabel_            = nullptr;
-    if (view == morphEnabledToggleView_)   morphEnabledToggleView_   = nullptr;
     if (view == filterEnvDisplay_)         filterEnvDisplay_         = nullptr;
 
     view->unregisterViewListener(this);
-}
-
-void Controller::pushKitEnabledToGrid(
-    const Membrum::State::KitSnapshot& kit) noexcept
-{
-    if (padGridView_ == nullptr)
-        return;
-    for (int pad = 0; pad < kNumPads; ++pad)
-    {
-        // Slot 51 of PadSnapshot::sound is the per-pad enable flag (Phase 8F).
-        padGridView_->setPadEnabled(
-            pad, kit.pads[static_cast<std::size_t>(pad)].sound[51] >= 0.5);
-    }
 }
 
 void Controller::didOpen(VSTGUI::VST3Editor* editor)
@@ -1617,19 +1565,8 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor)
             // Audit finding 12: drain any view refreshes queued by an
             // off-UI-thread setParamNormalized()/setComponentState() and apply
             // them here on the UI thread.
-            const auto pending =
-                pendingViewRefresh_.exchange(0, std::memory_order_relaxed);
-            if (pending != 0)
-                applyViewRefresh(pending);
+            drainPendingViewRefresh();
             updateMeterViews(cachedMeters_);
-            // Belt-and-braces refresh of the Material Morph power-toggle
-            // visibility. UIViewSwitchContainer's animated template swap can
-            // strand the freshly-built toggle in the wrong visibility state
-            // even though verifyView already called the helper -- some hosts
-            // run the swap after our delegate hook returns. The poll tick
-            // catches that within ~33 ms; the helper is a no-op when the
-            // cached pointer is null or the toggle state already matches.
-            updateMorphEnabledToggleVisibility();
         },
         33 /* ~30 Hz */,
         true /* start immediately */));
@@ -1725,12 +1662,11 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor)
     // Same for the pitch-envelope display in whichever template was just
     // built (Simple or Advanced).
     updatePitchEnvelopeDisplay();
-    // Apply the Body gate to the freshly-built pitch-env section so it opens
-    // in the correct dim/enabled state for the selected pad's body type.
-    updatePitchEnvControlsEnabled();
-    // And hide the Material Morph toggle if the selected pad is currently on
-    // a non-Membrane body.
-    updateMorphEnabledToggleVisibility();
+    // Dim the context-only controls for the selected pad's exciter, body,
+    // shell and noise settings, and re-dim them whenever VST3Editor's
+    // parameter listener re-enables one (see update()).
+    updateContextControlsEnabled();
+    setContextParamDependency(true);
 
     // Start update check and banner polling
     if (updateChecker_)
@@ -1756,6 +1692,7 @@ void Controller::willClose(VSTGUI::VST3Editor* /*editor*/)
         updateBannerView_ = nullptr;
     }
     activeEditor_      = nullptr;
+    setContextParamDependency(false);
     // Audit finding 12: drop any queued view refreshes and forget the UI thread
     // id so a refresh queued against this (now torn-down) editor cannot leak
     // into a freshly-opened one. didOpen() re-applies all sections directly.

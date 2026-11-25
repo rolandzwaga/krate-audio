@@ -425,8 +425,11 @@ public:
         }
 
         // ----- SVF Filter -----
-        // Bypass when cutoff is at its max (>= 20 kHz) AND filter env amount is 0.
-        const bool filterBypass = (filterCutoffHz_ >= 20000.0f)
+        // Bypass is the FR-045 identity of the Lowpass at its maximum cutoff
+        // (>= 20 kHz) with filter env amount 0. Highpass and Bandpass always
+        // run the SVF, so their cutoff knob stays continuous (MB-044).
+        const bool filterBypass = (filterType_ == ToneShaperFilterType::Lowpass)
+                                  && (filterCutoffHz_ >= 20000.0f)
                                   && (filterEnvAmount_ == 0.0f);
         if (!filterBypass)
         {
@@ -470,6 +473,7 @@ public:
     {
         return driveAmount_ == 0.0f
                && foldAmount_ == 0.0f
+               && filterType_ == ToneShaperFilterType::Lowpass
                && filterCutoffHz_ >= 20000.0f
                && filterEnvAmount_ == 0.0f
                && pitchEnvTimeMs_ == 0.0f;

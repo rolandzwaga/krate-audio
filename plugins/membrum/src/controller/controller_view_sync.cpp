@@ -41,6 +41,7 @@
 #include "vstgui/lib/cframe.h"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstdio>
 #include <cstring>
@@ -109,19 +110,84 @@ void Controller::updateOutputBusTooltip() noexcept
 void Controller::requestViewRefresh(std::uint32_t flags) noexcept
 {
     if (std::this_thread::get_id() == uiThreadId_)
+    {
         applyViewRefresh(flags);
-    else
-        pendingViewRefresh_.fetch_or(flags, std::memory_order_relaxed);
+        return;
+    }
+    pendingViewRefresh_.fetch_or(flags, std::memory_order_relaxed);
+    // MB-157: with no editor open no poll timer drains the word and no view
+    // is on screen, so apply now as well (a grid built by createCustomView
+    // before the editor opens still follows every change). The queued bits
+    // stay: a later editor's first tick re-applies them, which is idempotent.
+    if (activeEditor_ == nullptr)
+        applyViewRefresh(flags);
 }
 
 void Controller::applyViewRefresh(std::uint32_t flags) noexcept
 {
     if (flags & kRefreshMorphControls)    updateMorphControlsEnabled();
-    if (flags & kRefreshPitchEnvControls) updatePitchEnvControlsEnabled();
-    if (flags & kRefreshMorphToggleVis)   updateMorphEnabledToggleVisibility();
+    if (flags & kRefreshContextControls)  updateContextControlsEnabled();
+    if (flags & kRefreshPadGrid)          updatePadGrid();
     if (flags & kRefreshFilterEnvDisplay) updateFilterEnvDisplay();
     if (flags & kRefreshPitchEnvDisplay)  updatePitchEnvelopeDisplay();
     if (flags & kRefreshMorphPad)         updateMorphPadPosition();
+}
+
+void Controller::drainPendingViewRefresh() noexcept
+{
+    const auto pending = pendingViewRefresh_.exchange(0, std::memory_order_relaxed);
+    if (pending != 0)
+        applyViewRefresh(pending);
+}
+
+// ------------------------------------------------------------------------------
+// MB-101: the pad grid's per-pad meta, decoded from the controller's own
+// per-pad parameters exactly as the processor decodes them:
+//   exciterType, bodyModel   clamp(int(norm * kCount), 0, kCount - 1)
+//                            (processor.cpp processParameterChanges)
+//   chokeGroup               clamp(int(norm * 8 + 0.5), 0, 8)
+//   outputBus                clamp(int(norm * 15 + 0.5), 0, 15)
+//                            (VoicePool::setPadConfigField)
+//   tsPitchEnvTime           the normalized value.
+// The macros never switch the pitch envelope on or off (macro_offsets.h), so
+// the category these fields give is the one the processor classifies.
+// ------------------------------------------------------------------------------
+void Controller::refreshGridMeta() noexcept
+{
+    const auto norm = [this](int pad, int offset) {
+        return getParamNormalized(static_cast<ParamID>(padParamId(pad, offset)));
+    };
+    const int exciterCount = static_cast<int>(ExciterType::kCount);
+    for (int pad = 0; pad < kNumPads; ++pad)
+    {
+        auto& meta = gridMeta_[static_cast<std::size_t>(pad)];
+        meta.exciterType = static_cast<ExciterType>(std::clamp(
+            static_cast<int>(norm(pad, kPadExciterType)
+                             * static_cast<double>(exciterCount)),
+            0, exciterCount - 1));
+        meta.bodyModel = decodeBodyModel(norm(pad, kPadBodyModel));
+        meta.tsPitchEnvTime = static_cast<float>(norm(pad, kPadTSPitchEnvTime));
+        meta.chokeGroup = static_cast<std::uint8_t>(std::clamp(
+            static_cast<int>(norm(pad, kPadChokeGroup) * 8.0 + 0.5), 0, 8));
+        meta.outputBus = static_cast<std::uint8_t>(std::clamp(
+            static_cast<int>(norm(pad, kPadOutputBus) * 15.0 + 0.5), 0, 15));
+    }
+}
+
+void Controller::updatePadGrid() noexcept
+{
+    if (padGridView_ == nullptr)
+        return;
+    refreshGridMeta();
+    padGridView_->setSelectedPadIndex(selectedPadIndex_);
+    for (int pad = 0; pad < kNumPads; ++pad)
+    {
+        padGridView_->setPadEnabled(
+            pad, getParamNormalized(static_cast<ParamID>(
+                     padParamId(pad, kPadEnabled))) >= 0.5);
+    }
+    // The glyph and the CG / BUS text come from gridMeta_ at draw time.
+    padGridView_->invalid();
 }
 
 void Controller::updateMorphPadPosition() noexcept
@@ -160,72 +226,144 @@ void Controller::updateMorphControlsEnabled() noexcept
 }
 
 // ------------------------------------------------------------------------------
-// Reflect the BodyModel selection (via the global proxy that tracks the
-// selected pad) onto the cached pitch-envelope views. The pitch envelope only
-// retargets the modal bank's f0 for Membrane bodies -- on Plate/Shell/String/
-// Bell/NoiseBody it advances but its output is ignored (see drum_voice.h:486).
-// Dim + block mouse input for the entire section when the selected body is
-// not Membrane so the UI cannot suggest controls that have no audible effect.
+// MB-085: context-only controls. The pitch envelope and Material Morph drive
+// every body (drum_voice.h: retuneFundamental, refreshBodyForMaterialOnBank),
+// so they are not in this table. Each control below acts in one context only
+// and is dimmed (alpha 0.35, mouse off) everywhere else:
+//   FM / FB / Burst / Press: their own exciter only (exciter_bank.h forwards
+//     each setter only to its own alternative).
+//   Air: read only by membrane_mapper.h. Tens: Membrane-only in drum_voice.h.
+//   Shell: needs 2nd on. 2Sz / 2Mat: need 2nd on AND Shell > 0 (drum_voice.h
+//     secondaryEnabled_ >= 0.5 && couplingStrength_ > 0).
+//   Noise Cutf / Res / Dec / Color: need noise mix > 0.
+//   Wire: modulates the noise layer from the modal energy, so it needs noise
+//     mix > 0 and a body other than String (computeWireGainMod).
 // ------------------------------------------------------------------------------
-bool Controller::isMembraneBodySelectedForTest() noexcept
+namespace {
+
+constexpr std::array<ParamID, 14> kContextOnlyTags{
+    kExciterFMRatioId,   kExciterFeedbackAmountId, kExciterNoiseBurstDurationId,
+    kExciterFrictionPressureId, kAirLoadingId,     kTensionModAmtId,
+    kCouplingStrengthId, kSecondarySizeId,         kSecondaryMaterialId,
+    kNoiseLayerCutoffId, kNoiseLayerResonanceId,   kNoiseLayerDecayId,
+    kNoiseLayerColorId,  kWireCouplingId};
+
+bool isContextOnlyTag(ParamID tag) noexcept
 {
-    // Mirror the processor's normalized-to-discrete clamp (processor.cpp:288):
-    // bodyIdx = clamp(static_cast<int>(norm * kCount), 0, kCount - 1). Membrane
-    // is 0, which corresponds to norm < 1/6.
-    const auto bodyNorm =
-        getParamNormalized(static_cast<ParamID>(kBodyModelId));
-    const int bodyIdx = std::clamp(
-        static_cast<int>(bodyNorm * static_cast<double>(BodyModelType::kCount)),
-        0,
-        static_cast<int>(BodyModelType::kCount) - 1);
-    return bodyIdx == static_cast<int>(BodyModelType::Membrane);
+    return std::find(kContextOnlyTags.begin(), kContextOnlyTags.end(), tag)
+           != kContextOnlyTags.end();
 }
 
-void Controller::updatePitchEnvControlsEnabled() noexcept
+template <typename Fn>
+void forEachControl(VSTGUI::CViewContainer* container, const Fn& fn)
 {
-    const bool enabled = isMembraneBodySelectedForTest();
-    const float alpha  = enabled ? 1.0f : 0.35f;
-
-    auto apply = [enabled, alpha](VSTGUI::CView* v) {
-        if (v == nullptr) return;
-        if (v->getAlphaValue() == alpha
-            && v->getMouseEnabled() == enabled)
-            return;
-        v->setAlphaValue(alpha);
-        v->setMouseEnabled(enabled);
-        v->invalid();
-    };
-
-    apply(pitchEnvelopeDisplay_);
-    apply(pitchEnvKneeView_);
-    apply(pitchEnvKneeLabel_);
+    container->forEachChild([&fn](VSTGUI::CView* child) {
+        if (auto* control = dynamic_cast<VSTGUI::CControl*>(child))
+            fn(control);
+        if (auto* sub = child->asViewContainer())
+            forEachControl(sub, fn);
+    });
 }
 
-// ------------------------------------------------------------------------------
-// Hide the Material Morph power toggle when the selected pad's body is not
-// Membrane. Material Morph's body-mapper refresh only supports Membrane bodies
-// (drum_voice.h:1238) -- on every other body the morph counter ticks but the
-// mode bank is never re-mapped, so the section is inert. Hiding the toggle
-// removes the only entry point for enabling that inert path.
-//
-// We deliberately preserve the underlying kMorphEnabledId parameter value
-// across body switches: a pad set to Membrane with morph ON, then flipped to
-// Plate, will re-show the toggle (still ON) when flipped back. That keeps
-// preset state stable and avoids surprising the user with a parameter write
-// triggered purely by a body change.
-// ------------------------------------------------------------------------------
-void Controller::updateMorphEnabledToggleVisibility() noexcept
+} // namespace
+
+bool Controller::isContextControlLiveForTest(ParamID tag) noexcept
 {
-    if (morphEnabledToggleView_ == nullptr)
+    if (!isContextOnlyTag(tag))
+        return true;
+
+    // Decode the exciter and body the way the processor does:
+    // clamp(int(norm * kCount), 0, kCount - 1).
+    const int exciterCount = static_cast<int>(ExciterType::kCount);
+    const auto exciter = static_cast<ExciterType>(std::clamp(
+        static_cast<int>(getParamNormalized(static_cast<ParamID>(kExciterTypeId))
+                         * static_cast<double>(exciterCount)),
+        0, exciterCount - 1));
+    const BodyModelType body =
+        decodeBodyModel(getParamNormalized(static_cast<ParamID>(kBodyModelId)));
+    const bool secondaryOn =
+        getParamNormalized(static_cast<ParamID>(kSecondaryEnabledId)) >= 0.5;
+    const bool shellOn =
+        getParamNormalized(static_cast<ParamID>(kCouplingStrengthId)) > 0.0;
+    const bool noiseOn =
+        getParamNormalized(static_cast<ParamID>(kNoiseLayerMixId)) > 0.0;
+
+    switch (tag)
+    {
+    case kExciterFMRatioId:            return exciter == ExciterType::FMImpulse;
+    case kExciterFeedbackAmountId:     return exciter == ExciterType::Feedback;
+    case kExciterNoiseBurstDurationId: return exciter == ExciterType::NoiseBurst;
+    case kExciterFrictionPressureId:   return exciter == ExciterType::Friction;
+    case kAirLoadingId:
+    case kTensionModAmtId:             return body == BodyModelType::Membrane;
+    case kCouplingStrengthId:          return secondaryOn;
+    case kSecondarySizeId:
+    case kSecondaryMaterialId:         return secondaryOn && shellOn;
+    case kNoiseLayerCutoffId:
+    case kNoiseLayerResonanceId:
+    case kNoiseLayerDecayId:
+    case kNoiseLayerColorId:           return noiseOn;
+    case kWireCouplingId:              return noiseOn && body != BodyModelType::String;
+    default:                           return true;
+    }
+}
+
+void Controller::applyContextControlState(VSTGUI::CControl* control) noexcept
+{
+    if (control == nullptr || control->getTag() < 0)
         return;
-    const bool visible = isMembraneBodySelectedForTest();
-    // Always call setVisible() rather than short-circuiting on the current
-    // isVisible() state: UIViewSwitchContainer's template build can leave the
-    // toggle in a transient non-default state at the moment verifyView fires,
-    // and a short-circuit there strands the toggle hidden until the next
-    // explicit param edit. setVisible() is cheap and idempotent.
-    morphEnabledToggleView_->setVisible(visible);
-    morphEnabledToggleView_->invalid();
+    const auto tag = static_cast<ParamID>(control->getTag());
+    if (!isContextOnlyTag(tag))
+        return;
+    const bool live = isContextControlLiveForTest(tag);
+    const float alpha = live ? 1.0f : 0.35f;
+    if (control->getAlphaValue() == alpha && control->getMouseEnabled() == live)
+        return;
+    control->setAlphaValue(alpha);
+    control->setMouseEnabled(live);
+    control->invalid();
+}
+
+void Controller::updateContextControlsEnabled() noexcept
+{
+    if (activeEditor_ == nullptr)
+        return;
+    auto* frame = activeEditor_->getFrame();
+    if (frame == nullptr)
+        return;
+    forEachControl(frame, [this](VSTGUI::CControl* control) {
+        applyContextControlState(control);
+    });
+}
+
+void Controller::setContextParamDependency(bool on) noexcept
+{
+    if (on == contextParamDependency_)
+        return;
+    contextParamDependency_ = on;
+    for (const ParamID tag : kContextOnlyTags)
+    {
+        auto* parameter = getParameterObject(tag);
+        if (parameter == nullptr)
+            continue;
+        if (on)
+            parameter->addDependent(this);
+        else
+            parameter->removeDependent(this);
+    }
+}
+
+void PLUGIN_API Controller::update(FUnknown* changedUnknown, int32 message)
+{
+    EditControllerEx1::update(changedUnknown, message);
+    if (message != IDependent::kChanged)
+        return;
+    // Always queued, never applied here: the controller can be notified before
+    // VST3Editor's ParameterChangeListener, which then re-enables the mouse.
+    const auto* parameter = FCast<Parameter>(changedUnknown);
+    if (parameter != nullptr && isContextOnlyTag(parameter->getInfo().id))
+        pendingViewRefresh_.fetch_or(kRefreshContextControls,
+                                     std::memory_order_relaxed);
 }
 
 // ------------------------------------------------------------------------------

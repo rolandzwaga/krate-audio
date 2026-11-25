@@ -97,6 +97,11 @@ public:
     /// as a strike budget.)
     static constexpr float kBodyHeadroom = 0.5f;  // -6 dBFS strike-peak budget
 
+    // Fix plan T2.16 (MB-045): ModeInject scales its series' worst-case peak
+    // to this same budget (it is added after the normalised body).
+    static_assert(ModeInject::kTargetPeak == kBodyHeadroom,
+                  "ModeInject::kTargetPeak must equal DrumVoice::kBodyHeadroom");
+
     /// Audit N-1: tension-modulation energy scale. `tensionPitchMod = 1 +
     /// (knob * this) * modalEnergy`, with modalEnergy from the bank's
     /// gain-invariant getModalEnergy(). Calibrated so a full-knob hard hit
@@ -1297,16 +1302,43 @@ public:
     [[nodiscard]] const ExciterBank& exciterBank() const noexcept { return exciterBank_; }
     [[nodiscard]] const BodyBank& bodyBank() const noexcept { return bodyBank_; }
 
-    /// Extract the first N partial frequencies from the body's modal bank.
-    /// Returns a SympatheticPartialInfo with up to kSympatheticPartialCount freqs.
-    /// Used by VoicePool coupling hooks to register resonators on noteOn.
+    /// The first kSympatheticPartialCount frequencies the struck body SETTLES
+    /// at, for the coupling engine's sympathetic resonators (T2.17, MB-068).
+    /// VoicePool registers them right after noteOn() and again for every
+    /// ringing voice when a kit-switch coupling fade ends, so this describes
+    /// the note as struck and is valid at any time from noteOn() on.
+    ///   * Settled pitch: the pitch envelope's END Hz when the envelope is on,
+    ///     else the natural (Size-derived) fundamental. The bank meanwhile
+    ///     holds the sweep's current pitch (its START Hz at noteOn).
+    ///   * String: the waveguide's f0 and its harmonics. The String body never
+    ///     configures the shared modal bank, so the bank says nothing about it;
+    ///     naturalFundamentalHz_ is the StringMapper's f0 (800 x 0.1^size).
+    ///   * Modal bodies: the bank's mode k, scaled from the pitch the bank
+    ///     currently holds (currentPitchRatio_ x the natural fundamental,
+    ///     including any tension factor) to the settled pitch. The scaling is
+    ///     exact because the bank's stretch and scatter warps multiply each
+    ///     mode's frequency (ModalResonatorBank::computeModeCoefficients). A
+    ///     mode the bank culled (above Nyquist at the held pitch) reads 0 and
+    ///     stays 0.
     [[nodiscard]] Krate::DSP::SympatheticPartialInfo getPartialInfo() const noexcept
     {
         Krate::DSP::SympatheticPartialInfo info{};
+        const float settledHz = toneShaper_.isPitchEnvActive()
+            ? toneShaper_.getPitchEnvEndHz()
+            : naturalFundamentalHz_;
+        if (bodyBank_.getCurrentType() == BodyModelType::String)
+        {
+            for (int k = 0; k < Krate::DSP::kSympatheticPartialCount; ++k)
+                info.frequencies[static_cast<size_t>(k)] =
+                    settledHz * static_cast<float>(k + 1);
+            return info;
+        }
+        const float heldHz = currentPitchRatio_ * naturalFundamentalHz_;
+        const float scale  = heldHz > 0.0f ? settledHz / heldHz : 1.0f;
         const auto& bank = bodyBank_.getSharedBank();
         for (int k = 0; k < Krate::DSP::kSympatheticPartialCount; ++k)
         {
-            info.frequencies[static_cast<size_t>(k)] = bank.getModeFrequency(k);
+            info.frequencies[static_cast<size_t>(k)] = bank.getModeFrequency(k) * scale;
         }
         return info;
     }

@@ -15,15 +15,20 @@
 #include <catch2/catch_approx.hpp>
 
 #include "dsp/unnatural/mode_inject.h"
+#include "dsp/default_kit.h"
 #include "dsp/drum_voice.h"
+#include "dsp/pad_config.h"
+#include "dsp/pad_config_apply.h"
 
 #include <allocation_detector.h>
+#include <audio_features.h>
 
 #include <algorithm>
 #include <array>
 #include <cmath>
 #include <cstdint>
 #include <cstring>
+#include <memory>
 #include <vector>
 
 namespace {
@@ -249,4 +254,104 @@ TEST_CASE("UnnaturalZone ModeInject -- DrumVoice amount==0 matches baseline",
     const double rmsDbv = (rms < 1e-12) ? -240.0 : 20.0 * std::log10(rms);
     INFO("pristine vs baseline RMS = " << rmsDbv << " dBFS");
     CHECK(rmsDbv <= -120.0);
+}
+
+// ==============================================================================
+// Fix plan T2.16 (MB-045, MB-177): the injected harmonic series is scaled to
+// the body's -6 dBFS strike-peak budget (DrumVoice::kBodyHeadroom). Before the
+// fix the 1/k series (sum 2.718) was added unscaled after the 0.5-normalised
+// body, so amount 1 pinned the voice on its hardClip rail (audit probe tests
+// 5/10: peak 0.403 at amount 0 vs 1.000 at amount 1, 804 samples on the rail).
+// ==============================================================================
+
+TEST_CASE("UnnaturalZone ModeInject -- full amount stays inside the body budget",
+          "[unnatural][modeinject]")
+{
+    struct Result
+    {
+        float peak     = 0.0f;
+        int   railHits = 0;
+    };
+
+    auto render = [](float amount) {
+        auto voice = std::make_unique<Membrum::DrumVoice>();
+        voice->prepare(kSampleRate, /*voiceId*/ 0u);
+        voice->setBodyModel(Membrum::BodyModelType::Membrane);
+        voice->setExciterType(Membrum::ExciterType::Impulse);
+        voice->setMaterial(0.5f);
+        voice->setDecay(0.8f);
+        voice->setLevel(0.8f);
+        voice->setNoiseLayerMix(0.0f);
+        voice->setClickLayerMix(0.0f);
+        voice->unnaturalZone().modeInject.setAmount(amount);
+        voice->noteOn(1.0f);
+
+        constexpr int kBlock = 256;
+        const int total = static_cast<int>(kSampleRate); // 1 s
+        std::vector<float> out(static_cast<std::size_t>(total), 0.0f);
+        for (int off = 0; off < total; off += kBlock)
+            voice->processBlock(out.data() + off, std::min(kBlock, total - off));
+
+        Result r;
+        for (float s : out)
+        {
+            const float a = std::fabs(s);
+            r.peak = std::max(r.peak, a);
+            if (a >= 0.999f)
+                ++r.railHits;
+        }
+        return r;
+    };
+
+    const Result dry  = render(0.0f);
+    const Result full = render(1.0f);
+    const double dryDb  = Krate::Test::linToDbfs(dry.peak);
+    const double fullDb = Krate::Test::linToDbfs(full.peak);
+    INFO("amount 0 peak " << dry.peak << " (" << dryDb << " dBFS), amount 1 peak "
+         << full.peak << " (" << fullDb << " dBFS), samples at |x| >= 0.999: "
+         << full.railHits);
+    REQUIRE(dry.peak > 0.0f);
+    REQUIRE(full.railHits == 0);
+    REQUIRE(std::abs(fullDb - dryDb) <= 6.0);
+}
+
+TEST_CASE("UnnaturalZone ModeInject -- default-kit closed hat level steps stay under 6 dB",
+          "[unnatural][modeinject]")
+{
+    constexpr double kSr = 48000.0;
+    std::array<Membrum::PadConfig, Membrum::kNumPads> kit{};
+    Membrum::DefaultKit::apply(kit);
+    const Membrum::PadConfig hat = kit[6]; // MIDI 42, closed hi-hat
+
+    constexpr std::array<float, 5> amounts{0.0f, 0.25f, 0.5f, 0.75f, 1.0f};
+    std::array<double, 5> rmsDb{};
+    for (std::size_t a = 0; a < amounts.size(); ++a)
+    {
+        Membrum::PadConfig cfg = hat;
+        cfg.modeInjectAmount = amounts[a];
+        auto voice = std::make_unique<Membrum::DrumVoice>();
+        voice->prepare(kSr, /*voiceId*/ 0u);
+        Membrum::applyPadConfigToVoice(*voice, cfg);
+        voice->noteOn(1.0f);
+
+        constexpr int kBlock = 256;
+        const int total = static_cast<int>(kSr * 0.5); // 500 ms
+        std::vector<float> out(static_cast<std::size_t>(total), 0.0f);
+        for (int off = 0; off < total; off += kBlock)
+            voice->processBlock(out.data() + off, std::min(kBlock, total - off));
+
+        double acc = 0.0;
+        for (float s : out)
+            acc += static_cast<double>(s) * static_cast<double>(s);
+        rmsDb[a] = Krate::Test::linToDbfs(std::sqrt(acc / static_cast<double>(total)));
+    }
+
+    for (std::size_t a = 1; a < amounts.size(); ++a)
+    {
+        const double step = rmsDb[a] - rmsDb[a - 1];
+        INFO("rms500 dBFS at amount 0/0.25/0.5/0.75/1: " << rmsDb[0] << " / " << rmsDb[1]
+             << " / " << rmsDb[2] << " / " << rmsDb[3] << " / " << rmsDb[4]
+             << "; step " << amounts[a - 1] << " -> " << amounts[a] << " = " << step << " dB");
+        REQUIRE(std::abs(step) < 6.0);
+    }
 }

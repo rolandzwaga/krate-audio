@@ -8,6 +8,7 @@
 #include "dsp/bodies/membrane_mapper.h"  // Body Damping b1 / b3 encoding (T1.23)
 #include "dsp/exciter_type.h"
 #include "dsp/body_model_type.h"
+#include "dsp/bodies/natural_fundamental.h"  // Size -> Hz law (T2.18)
 #include "state/state_codec.h"
 #include "controller_state_codec.h"
 #include "ui/pad_grid_view.h"
@@ -64,11 +65,13 @@ using namespace Steinberg::Vst;
 // "Acoustic" template: five macro knobs (bipolar %), Material (Wood <-> Metal),
 // Size (Hz, log-mapped), Decay (%), Strike Position (Center <-> Edge), Level
 // (dB). Per-pad macro / physics params route through here for any pad slot
-// because we dispatch on the offset within the 64-param stride. Anything else
+// because we dispatch on the offset within the 128-param stride. Anything else
 // falls back to the SDK default formatter.
 //
 // The numeric mappings MUST stay in sync with:
-//   drum_voice.h::updateModalParameters (Size -> 500 * 0.1^norm Hz)
+//   dsp/bodies/natural_fundamental.h    (Size -> Hz, per body model)
+//   dsp/pad_config_apply.h              (filter-envelope cubic times, pitch-
+//                                        envelope Hz / ms)
 //   macro_mapper.cpp                    (macros are centred at 0.5)
 // ==============================================================================
 namespace {
@@ -141,12 +144,9 @@ void formatBodyDampingB3(Steinberg::Vst::ParamValue norm, Steinberg::Vst::String
     writeString128(out, text);
 }
 
-// Linear ms mapping; auto-switches to seconds past 1000 ms.
-void formatLinearMs(Steinberg::Vst::ParamValue norm,
-                    float minMs, float maxMs,
-                    Steinberg::Vst::String128 out)
+// Milliseconds text; auto-switches to seconds past 1000 ms.
+void writeMs(float ms, Steinberg::Vst::String128 out)
 {
-    const float ms = minMs + static_cast<float>(norm) * (maxMs - minMs);
     char text[32];
     if (ms >= 1000.0f)
         std::snprintf(text, sizeof(text), "%.2f s", ms / 1000.0f);
@@ -157,6 +157,22 @@ void formatLinearMs(Steinberg::Vst::ParamValue norm,
     else
         std::snprintf(text, sizeof(text), "%.2f ms", ms);
     writeString128(out, text);
+}
+
+// Linear ms mapping.
+void formatLinearMs(Steinberg::Vst::ParamValue norm,
+                    float minMs, float maxMs,
+                    Steinberg::Vst::String128 out)
+{
+    writeMs(minMs + static_cast<float>(norm) * (maxMs - minMs), out);
+}
+
+// Cubic ms mapping: ms = norm^3 * maxMs (pad_config_apply.h filter envelope).
+void formatCubicMs(Steinberg::Vst::ParamValue norm, float maxMs,
+                   Steinberg::Vst::String128 out)
+{
+    const float n = std::clamp(static_cast<float>(norm), 0.0f, 1.0f);
+    writeMs(n * n * n * maxMs, out);
 }
 
 // Log ms mapping: ms = minMs * (maxMs/minMs)^norm.
@@ -254,12 +270,13 @@ void formatStrikePosition(Steinberg::Vst::ParamValue norm, Steinberg::Vst::Strin
     writeString128(out, text);
 }
 
-void formatSizeHz(Steinberg::Vst::ParamValue norm, Steinberg::Vst::String128 out)
+void formatSizeHz(BodyModelType body, Steinberg::Vst::ParamValue norm,
+                  Steinberg::Vst::String128 out)
 {
     // Size reads in the knob's direction (0% smallest -> 100% largest) with the
-    // actual body fundamental appended as a hint. Hz formula matches
-    // drum_voice.h: naturalFundamentalHz = 500 * 0.1^size.
-    const float hz = 500.0f * std::pow(0.1f, static_cast<float>(norm));
+    // actual body fundamental appended as a hint; the Hz is the voice's own
+    // law (Bodies::naturalFundamentalHz, per body model).
+    const float hz = Bodies::naturalFundamentalHz(body, static_cast<float>(norm));
     const int pct = static_cast<int>(norm * 100.0 + 0.5);
     char text[32];
     if (hz >= 100.0f)
@@ -299,6 +316,7 @@ void formatLinearDb(Steinberg::Vst::ParamValue norm,
 // Simple- or Advanced-view ArcKnob parameter; false otherwise so the caller
 // can fall through to the SDK default.
 bool formatByPadOffset(int offset,
+                       BodyModelType body,
                        Steinberg::Vst::ParamValue norm,
                        Steinberg::Vst::String128 out)
 {
@@ -306,7 +324,7 @@ bool formatByPadOffset(int offset,
     {
     // --- Simple view primaries ------------------------------------------
     case kPadMaterial:         formatMaterial(norm, out);        return true;
-    case kPadSize:             formatSizeHz(norm, out);          return true;
+    case kPadSize:             formatSizeHz(body, norm, out);    return true;
     case kPadDecay:            formatPercent(norm, out);         return true;
     case kPadStrikePosition:   formatStrikePosition(norm, out);  return true;
     case kPadLevel:            formatLevelDb(norm, out);         return true;
@@ -321,9 +339,15 @@ bool formatByPadOffset(int offset,
     // --- Tone Shaper (Advanced) -----------------------------------------
     case kPadTSFilterCutoff:    formatLogHz(norm, 20.0f, 20000.0f, out); return true;
     case kPadTSFilterEnvAmount: formatBipolarPercent(norm, out);         return true;
-    case kPadTSFilterEnvAttack: formatLinearMs(norm, 0.0f,  500.0f, out); return true;
+    case kPadTSFilterEnvAttack: formatCubicMs(norm,  500.0f, out); return true;
     case kPadTSFilterEnvDecay:
-    case kPadTSFilterEnvRelease: formatLinearMs(norm, 0.0f, 2000.0f, out); return true;
+    case kPadTSFilterEnvRelease: formatCubicMs(norm, 2000.0f, out); return true;
+
+    // Pitch envelope (pad_config_apply.h: 20 * 100^n Hz, time n * 500 ms)
+    case kPadTSPitchEnvStart:
+    case kPadTSPitchEnvEnd:
+    case kPadTSPitchEnvMidPitch: formatLogHz(norm, 20.0f, 2000.0f, out); return true;
+    case kPadTSPitchEnvTime:     formatLinearMs(norm, 0.0f, 500.0f, out); return true;
 
     // --- Unnatural Zone / Morph -----------------------------------------
     case kPadModeStretch:   formatMultiplier(norm, 0.5f, 2.0f, out);  return true;
@@ -392,7 +416,10 @@ Steinberg::tresult PLUGIN_API Controller::getParamStringByValue(
     {
     // Phase 1 primaries
     case kMaterialId:        formatMaterial(valueNormalized, string);       return kResultOk;
-    case kSizeId:            formatSizeHz(valueNormalized, string);         return kResultOk;
+    case kSizeId:
+        formatSizeHz(decodeBodyModel(getParamNormalized(kBodyModelId)),
+                     valueNormalized, string);
+        return kResultOk;
     case kDecayId:           formatPercent(valueNormalized, string);        return kResultOk;
     case kStrikePositionId:  formatStrikePosition(valueNormalized, string); return kResultOk;
     case kLevelId:           formatLevelDb(valueNormalized, string);        return kResultOk;
@@ -404,9 +431,15 @@ Steinberg::tresult PLUGIN_API Controller::getParamStringByValue(
     // Tone Shaper
     case kToneShaperFilterCutoffId:    formatLogHz(valueNormalized, 20.0f, 20000.0f, string);  return kResultOk;
     case kToneShaperFilterEnvAmountId: formatBipolarPercent(valueNormalized, string);          return kResultOk;
-    case kToneShaperFilterEnvAttackId: formatLinearMs(valueNormalized, 0.0f, 500.0f,  string); return kResultOk;
+    case kToneShaperFilterEnvAttackId: formatCubicMs(valueNormalized, 500.0f,  string); return kResultOk;
     case kToneShaperFilterEnvDecayId:
-    case kToneShaperFilterEnvReleaseId: formatLinearMs(valueNormalized, 0.0f, 2000.0f, string); return kResultOk;
+    case kToneShaperFilterEnvReleaseId: formatCubicMs(valueNormalized, 2000.0f, string); return kResultOk;
+
+    // Pitch envelope (pad_config_apply.h)
+    case kToneShaperPitchEnvStartId:
+    case kToneShaperPitchEnvEndId:
+    case kPitchEnvMidPitchId:  formatLogHz(valueNormalized, 20.0f, 2000.0f, string); return kResultOk;
+    case kToneShaperPitchEnvTimeId: formatLinearMs(valueNormalized, 0.0f, 500.0f, string); return kResultOk;
 
     // Unnatural Zone / Material Morph
     case kUnnaturalModeStretchId: formatMultiplier(valueNormalized, 0.5f, 2.0f, string);    return kResultOk;
@@ -466,7 +499,9 @@ Steinberg::tresult PLUGIN_API Controller::getParamStringByValue(
     // formats as the per-pad offset it stands for.
     if (const int proxyOffset = selectedPadProxyOffset(tag); proxyOffset >= 0)
     {
-        if (formatByPadOffset(proxyOffset, valueNormalized, string))
+        if (formatByPadOffset(proxyOffset,
+                              decodeBodyModel(getParamNormalized(kBodyModelId)),
+                              valueNormalized, string))
             return kResultOk;
     }
 
@@ -476,7 +511,10 @@ Steinberg::tresult PLUGIN_API Controller::getParamStringByValue(
     {
         const int offset =
             (static_cast<int>(tag) - kPadBaseId) % kPadParamStride;
-        if (formatByPadOffset(offset, valueNormalized, string))
+        const int padIndex = (static_cast<int>(tag) - kPadBaseId) / kPadParamStride;
+        const auto body = decodeBodyModel(
+            getParamNormalized(static_cast<ParamID>(padParamId(padIndex, kPadBodyModel))));
+        if (formatByPadOffset(offset, body, valueNormalized, string))
             return kResultOk;
     }
 

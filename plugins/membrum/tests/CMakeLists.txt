@@ -157,6 +157,8 @@ add_executable(membrum_tests
     unit/controller/test_xy_morph_pad_sync.cpp
     # Fix plan T2.7: a fresh controller shows and defaults to the default kit
     unit/controller/test_controller_default_kit.cpp
+    # Fix plan T2.18: parameter readouts mirror the DSP's laws
+    unit/controller/test_param_readouts.cpp
     unit/diagnose/test_orchestral_distortion.cpp
     unit/diagnose/test_body_resonant_peak.cpp
     unit/diagnose/test_snare_body_diagnose.cpp
@@ -220,6 +222,9 @@ add_executable(membrum_tests
 
     # Fix plan T1.10 (MB-269, MB-107, MB-012, MB-034): note-off release in seconds
     unit/dsp/test_note_off_release.cpp
+
+    # Fix plan T2.17 (MB-068): coupling resonators at the settled body frequencies
+    unit/dsp/test_coupling_partials.cpp
 
     # Factory kit preset round-trip
     unit/preset/test_factory_kit_presets.cpp
