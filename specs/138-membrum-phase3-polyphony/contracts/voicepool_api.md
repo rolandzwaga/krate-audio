@@ -63,7 +63,7 @@ Called **once** from `Membrum::Processor::setupProcessing` and whenever the host
 
 ### `void VoicePool::noteOff(std::uint8_t midiNote) noexcept`
 
-**Behavior** (FR-114): percussion is no-op for note-off at the voice level. The pool calls `allocator_.noteOff(midiNote)` purely for allocator bookkeeping, but **does not** gate the amp envelope off on the matching `DrumVoice`. The voice continues decaying naturally until its amp envelope reaches the silence threshold, at which point `VoicePool::processBlock` observes `!voices_[i].isActive()` and calls `allocator_.voiceFinished(i)` to free the slot (FR-115).
+**Behavior** (FR-114): percussion is no-op for note-off at the voice level. The pool calls `allocator_.noteOff(midiNote)` purely for allocator bookkeeping, but **does not** gate the amp envelope off on the matching `DrumVoice`. The voice continues decaying naturally until its amp envelope reaches the silence threshold, at which point `VoicePool::processBlock` observes `!voices_[i].isActive()` and calls `allocator_.voiceFinished(i)` to free the slot (FR-115). Since the 2026-11-25 ruling (Membrum audit fix plan T2.9) the pool also calls `DrumVoice::releaseExciter()` on the matching voice, which releases a sustaining exciter (Friction's bow) and is a no-op for every other exciter; the voice retires through its own auto-release.
 
 **Invariants**: no allocation, no locks, no exceptions, `noexcept`.
 

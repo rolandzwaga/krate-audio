@@ -114,12 +114,12 @@ struct StateFixture
 } // namespace
 
 // ==============================================================================
-// kCurrentStateVersion sanity check. Pre-release reset pins this at 1; the
-// previous "FR-050 / >= 5" assertion no longer applies because legacy state
-// support has been dropped.
+// kCurrentStateVersion sanity check: the current format version is 6 (fix
+// plan T1.22). The released versions 1, 2 and 5 are read and mapped
+// (state/state_codec.h).
 // ==============================================================================
 
-TEST_CASE("kCurrentStateVersion is the pinned pre-release value",
+TEST_CASE("kCurrentStateVersion is the current format version",
           "[coupling_state][phase7][state]")
 {
     STATIC_REQUIRE(Membrum::kCurrentStateVersion == 6);

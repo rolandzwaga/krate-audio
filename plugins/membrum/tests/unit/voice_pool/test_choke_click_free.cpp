@@ -190,13 +190,19 @@ std::vector<float> renderNote42WithMatchingSlot(double sampleRate,
     // Idle voice = slot 1 (lowest timestamp among idle voices).
     pool.noteOn(46, 0.9f);
     pool.noteOff(46);  // user note-off: allocator marks slot 0 Releasing
-    // Run the voice's envelope through decay + release long enough for
-    // the auto-release + voiceFinished chain to reclaim slot 0 and mark
-    // it Idle with timestamp = 1 (while slot 1 still has timestamp = 0).
-    // Decay = 200 ms, release = 300 ms, plus a generous margin.
-    const int warmupBlocks = blocksForMs(sampleRate, 1000.0);
-    for (int b = 0; b < warmupBlocks; ++b)
+    // Render until the auto-release + voiceFinished chain has reclaimed
+    // slot 0 and marked it Idle with timestamp = 1 (while slot 1 still has
+    // timestamp = 0). The note-off does not shorten the hit (FR-114, fix plan
+    // T2.9), so this waits for the natural decay (about 1.7 s here); 20 s is
+    // the retirement guarantee of test_voice_retirement.cpp.
+    const int warmupCap = blocksForMs(sampleRate, 20000.0);
+    int warmupBlocks = 0;
+    while (pool.isAnyVoiceActive() && warmupBlocks < warmupCap)
+    {
         pool.processBlock(outL.data(), outR.data(), kBlockSize);
+        ++warmupBlocks;
+    }
+    REQUIRE_FALSE(pool.isAnyVoiceActive());
 
     pool.noteOn(42, 0.9f);
 

@@ -610,6 +610,25 @@ TEST_CASE("Coupling T062: voice steal fires coupling engine noteOff",
     // Drain: all resonators should eventually decay to 0 if every stolen voice
     // had coupling noteOff called. Must drive couplingEngine.process() for
     // envelopes to decay.
+    //
+    // FR-114 (fix plan T2.9): the note-offs above no longer end the hits; each
+    // voice rings its natural decay and the pool releases its resonators when
+    // it retires (about 1.6 s here). So first render until every voice has
+    // retired (20 s: the retirement guarantee of test_voice_retirement.cpp),
+    // then give the resonators the same 4 s to drain as before.
+    const int retireCap = static_cast<int>(kSampleRate * 20.0) / kBlockSize;
+    for (int b = 0; b < retireCap && pool.isAnyVoiceActive(); ++b)
+    {
+        pool.processBlock(outL.data(), outR.data(), kBlockSize);
+        for (int s = 0; s < kBlockSize; ++s)
+        {
+            const float mono = (outL[static_cast<size_t>(s)] +
+                                outR[static_cast<size_t>(s)]) * 0.5f;
+            (void)couplingEngine.process(mono);
+        }
+    }
+    REQUIRE_FALSE(pool.isAnyVoiceActive());
+
     const int decayBlocks2 = static_cast<int>(kSampleRate * 4.0) / kBlockSize;
     for (int b = 0; b < decayBlocks2; ++b)
     {

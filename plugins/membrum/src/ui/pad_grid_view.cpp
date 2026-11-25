@@ -299,9 +299,8 @@ int PadGridView::handleMouseDown(VSTGUI::CPoint localPoint,
             auditionCallback_(padIdx, kAuditionVelocity);
     }
     // Remember which pad is held so onMouseUpEvent can fire a matching
-    // noteOff. The user can sustain a pad for as long as they hold the
-    // mouse button, which is essential for hearing morph / pitch-envelope
-    // trajectories that span hundreds of milliseconds.
+    // noteOff. Under FR-114 that note-off releases only a sustaining
+    // exciter (Friction's bow); the hit itself plays its full decay.
     auditionHeldPad_ = padIdx;
     return padIdx;
 }
@@ -381,11 +380,9 @@ void PadGridView::onMouseDownEvent(VSTGUI::MouseDownEvent& event)
 
 void PadGridView::onMouseUpEvent(VSTGUI::MouseUpEvent& event)
 {
-    // Release the held pad's voice on mouse-up so the user can sustain a
-    // pad for as long as the mouse button is down. Without this, the
-    // audition fires noteOn but never noteOff -- the voice rings to
-    // natural decay, which can clip the audible morph / pitch-envelope
-    // trajectory the user is trying to evaluate.
+    // Send the held pad's note-off on mouse-up, as a MIDI key release would
+    // (FR-114: it releases a sustaining exciter; the hit rings its full
+    // decay either way).
     if (auditionHeldPad_ >= 0)
     {
         if (auditionOffCallback_)

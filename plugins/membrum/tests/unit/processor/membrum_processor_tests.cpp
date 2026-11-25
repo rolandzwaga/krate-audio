@@ -2,8 +2,8 @@
 // Membrum Processor Tests -- Phase 4 (User Story 2) + Phase 5 (User Story 3)
 // ==============================================================================
 // T029: MIDI note produces drum sound, non-36 notes ignored, velocity 0 = note-off,
-//       note-off triggers release (not abrupt cut), rapid retrigger, zero-length blocks,
-//       ADSR default values behavioral test.
+//       note-off leaves the hit to its natural decay (FR-114), rapid retrigger,
+//       zero-length blocks, ADSR default values behavioral test.
 // T043: Velocity response -- amplitude difference, spectral centroid, edge cases, NaN check
 //
 // FR-010, FR-011, FR-012, FR-013, FR-014, FR-037, FR-038
@@ -31,6 +31,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <numeric>
+#include <utility>
 #include <vector>
 #include "vst_param_changes.h"
 #include "vst_event_list.h"
@@ -226,40 +227,65 @@ TEST_CASE("Membrum: Velocity 0 note-on treated as note-off (FR-013)",
 }
 
 // =============================================================================
-// T029(d): Note-off triggers release, output does not instantly drop to zero
+// T029(d): Note-off leaves the hit to its natural decay
 // =============================================================================
+// FR-013 and FR-038 (Phase 1) said a note-off starts the amp envelope's
+// release. FR-114 (Phase 3) supersedes them for percussion voices (user ruling
+// 2026-11-25, fix plan T2.9): a MIDI note-off releases only a sustaining
+// exciter, so on the default kick (Impulse) it leaves the hit unchanged.
 
-TEST_CASE("Membrum: Note-off triggers natural decay, not abrupt cut (FR-013)",
-          "[membrum][processor][midi]")
+// Note 36 at velocity 100/127 in block 0; a note-off at the start of block
+// `noteOffBlock` when it is >= 0. Returns `numBlocks` blocks of the left channel.
+static std::vector<float> renderKickWithNoteOff(int32 blockSize, int numBlocks, int noteOffBlock)
 {
-    MembrumTestFixture fix(512);
-
-    // Trigger note
-    fix.events.addNoteOn(36, 100.0f / 127.0f);
-    fix.processBlock();
-    float peakDuring = fix.peakAmplitude();
-    REQUIRE(peakDuring > 0.0f); // Sanity: sound is playing
-
-    // Send note-off
-    fix.events.clear();
-    fix.events.addNoteOff(36);
-    fix.processBlock();
-
-    // After note-off, output should still be non-zero (release phase active)
-    float peakAfterOff = fix.peakAmplitude();
-    REQUIRE(peakAfterOff > 0.0f);
-
-    // Process ~100ms more of audio (about 4410 samples at 44.1kHz)
-    // Sound should still be present (R=300ms)
-    int blocksFor100ms = static_cast<int>(0.1 * kTestSampleRate / 512.0);
-    float peakLater = 0.0f;
-    for (int b = 0; b < blocksFor100ms; ++b)
+    MembrumTestFixture fix(blockSize);
+    std::vector<float> out;
+    out.reserve(static_cast<size_t>(numBlocks) * static_cast<size_t>(blockSize));
+    for (int b = 0; b < numBlocks; ++b)
     {
         fix.events.clear();
+        if (b == 0)
+            fix.events.addNoteOn(36, 100.0f / 127.0f);
+        if (b == noteOffBlock)
+            fix.events.addNoteOff(36);
         fix.processBlock();
-        peakLater = std::max(peakLater, fix.peakAmplitude());
+        out.insert(out.end(), fix.outL.begin(), fix.outL.end());
     }
-    REQUIRE(peakLater > 0.0f);
+    return out;
+}
+
+// Largest |a - b| and the peak of a over [from, end).
+static std::pair<float, float> maxDiffAndPeak(const std::vector<float>& a,
+                                              const std::vector<float>& b,
+                                              size_t from)
+{
+    float maxDiff = 0.0f;
+    float peak = 0.0f;
+    for (size_t i = from; i < a.size(); ++i)
+    {
+        maxDiff = std::max(maxDiff, std::abs(a[i] - b[i]));
+        peak = std::max(peak, std::abs(a[i]));
+    }
+    return {maxDiff, peak};
+}
+
+TEST_CASE("Membrum: Note-off leaves the hit to its natural decay (FR-013 superseded by FR-114)",
+          "[membrum][processor][midi]")
+{
+    constexpr int32 bs = 512;
+    const int numBlocks = static_cast<int>(0.6 * kTestSampleRate / bs);  // ~600 ms
+    const auto held = renderKickWithNoteOff(bs, numBlocks, -1);
+    const auto released = renderKickWithNoteOff(bs, numBlocks, 1);
+
+    // The hit still sounds well after the note-off ...
+    const size_t from100ms = static_cast<size_t>(0.1 * kTestSampleRate);
+    const auto [maxDiff, peakLater] = maxDiffAndPeak(held, released, 0);
+    const float peakAfter100ms = maxDiffAndPeak(held, released, from100ms).second;
+    INFO("peak " << peakLater << ", peak after 100 ms " << peakAfter100ms
+                 << ", largest difference with / without the note-off " << maxDiff);
+    REQUIRE(peakAfter100ms > 0.001f);
+    // ... and is the same hit as without the note-off.
+    REQUIRE(maxDiff == 0.0f);
 }
 
 // =============================================================================
@@ -338,54 +364,28 @@ TEST_CASE("Membrum: Retrigger while active restarts voice (FR-014)",
 // T029(h): ADSR default values behavioral test (FR-038)
 // =============================================================================
 
-TEST_CASE("Membrum: ADSR defaults -- release phase active after note-off (FR-038)",
+TEST_CASE("Membrum: ADSR defaults -- a note-off at 100 ms leaves the hit unchanged (FR-038 superseded by FR-114)",
           "[membrum][processor][adsr]")
 {
-    // Use 128-sample blocks for finer time resolution
+    // 128-sample blocks: the note-off lands at ~100 ms. FR-114 supersedes
+    // FR-038's release-on-note-off for percussion voices (see T029(d)).
     constexpr int32 bs = 128;
-    MembrumTestFixture fix(bs);
+    const int blocksTo100ms = static_cast<int>(0.1 * kTestSampleRate / static_cast<double>(bs));
+    const int numBlocks = static_cast<int>(0.7 * kTestSampleRate / static_cast<double>(bs));
+    const auto held = renderKickWithNoteOff(bs, numBlocks, -1);
+    const auto released = renderKickWithNoteOff(bs, numBlocks, blocksTo100ms);
 
-    // Trigger note at t=0
-    fix.events.addNoteOn(36, 100.0f / 127.0f);
-    fix.processBlock();
-
-    // Process until ~100ms (about 4410 samples = ~34 blocks of 128)
-    int blocksTo100ms = static_cast<int>(0.1 * kTestSampleRate / static_cast<double>(bs));
-    for (int b = 1; b < blocksTo100ms; ++b)
-    {
-        fix.events.clear();
-        fix.processBlock();
-    }
-
-    // Send note-off at ~100ms
-    fix.events.clear();
-    fix.events.addNoteOff(36);
-    fix.processBlock();
-
-    // Process until ~200ms total (~100ms after note-off, well within R=300ms release)
-    int blocksTo200ms = blocksTo100ms;
-    float peakAt200ms = 0.0f;
-    for (int b = 0; b < blocksTo200ms; ++b)
-    {
-        fix.events.clear();
-        fix.processBlock();
-        peakAt200ms = std::max(peakAt200ms, fix.peakAmplitude());
-    }
-    // Output MUST still be non-zero at 200ms (release phase still active)
-    REQUIRE(peakAt200ms > 0.0f);
-
-    // Process until ~600ms total (~500ms after note-off, well past R=300ms)
-    int blocksTo600ms = static_cast<int>(0.4 * kTestSampleRate / static_cast<double>(bs));
-    float peakAt600ms = 0.0f;
-    for (int b = 0; b < blocksTo600ms; ++b)
-    {
-        fix.events.clear();
-        fix.processBlock();
-        peakAt600ms = std::max(peakAt600ms, fix.peakAmplitude());
-    }
-
-    // By 600ms, output should be near-silent (< -60 dBFS = 0.001)
-    REQUIRE(peakAt600ms < 0.001f);
+    // 500 ms after the note-off the kick still rings (the old release had it
+    // below -60 dBFS by then), and the whole render equals the held note.
+    const size_t from500msAfterOff =
+        static_cast<size_t>(blocksTo100ms) * static_cast<size_t>(bs)
+        + static_cast<size_t>(0.5 * kTestSampleRate);
+    const auto [maxDiff, peak] = maxDiffAndPeak(held, released, 0);
+    const float peakLate = maxDiffAndPeak(held, released, from500msAfterOff).second;
+    INFO("peak " << peak << ", peak from ~500 ms " << peakLate
+                 << ", largest difference with / without the note-off " << maxDiff);
+    REQUIRE(peakLate > 0.001f);
+    REQUIRE(maxDiff == 0.0f);
 }
 
 // =============================================================================
@@ -1128,6 +1128,172 @@ TEST_CASE("Membrum: Extreme sample rate 192000 Hz -- no crash or NaN",
     REQUIRE_FALSE(hasNaN);
     REQUIRE_FALSE(hasInf);
     REQUIRE(fix.peakAmplitude() > 0.0f);
+}
+
+// =============================================================================
+// Fix plan T2.12 (MB-171): the default kick's pitch does not depend on the
+// sample rate. The tension glide is driven by the bank's modal energy, which
+// grows with the square of the rate; the voice normalises it to 44.1 kHz.
+// =============================================================================
+
+namespace {
+
+// 4 s of the default kit's kick (note 36, velocity 1.0, block 512), with the
+// pad's tension as in the kit or at 0.
+std::vector<float> renderSrKick(double sampleRate, bool tensionZero)
+{
+    constexpr int32 bs = 512;
+    MembrumTestFixture fix(bs, sampleRate);
+    TestParameterChanges paramChanges;
+    if (tensionZero)
+        paramChanges.addChange(pad0Param(Membrum::kPadTensionModAmt), 0.0);
+    fix.data.inputParameterChanges = &paramChanges;
+    fix.events.addNoteOn(36, 1.0f);
+    fix.processBlock();
+    fix.data.inputParameterChanges = nullptr;
+    fix.events.clear();
+    std::vector<float> all(fix.outL.begin(), fix.outL.end());
+    const auto total = static_cast<size_t>(4.0 * sampleRate);
+    while (all.size() < total)
+    {
+        fix.processBlock();
+        all.insert(all.end(), fix.outL.begin(), fix.outL.end());
+    }
+    return all;
+}
+
+constexpr double kSrKickTwoPi = 6.283185307179586;
+
+// DTFT magnitude of an already windowed segment at one frequency.
+double srKickDtftMag(const std::vector<double>& seg, double f, double sampleRate)
+{
+    const double w = kSrKickTwoPi * f / sampleRate;
+    const double c = std::cos(w);
+    const double s = std::sin(w);
+    double re = 1.0;
+    double im = 0.0;
+    double ar = 0.0;
+    double ai = 0.0;
+    for (const double v : seg)
+    {
+        ar += v * re;
+        ai -= v * im;
+        const double nr = re * c - im * s;
+        im = re * s + im * c;
+        re = nr;
+    }
+    return std::sqrt(ar * ar + ai * ai);
+}
+
+// Fundamental of the kick in the 80-580 ms window (the audit probe's window):
+// a 10-cent grid over 30-400 Hz, then a golden-section refinement.
+double srKickFundamentalHz(const std::vector<float>& x, double sampleRate)
+{
+    const auto start = static_cast<size_t>(0.08 * sampleRate);
+    const auto len   = static_cast<size_t>(0.5 * sampleRate);
+    REQUIRE(x.size() >= start + len);
+    std::vector<double> seg(len);
+    for (size_t i = 0; i < len; ++i)
+        seg[i] = static_cast<double>(x[start + i])
+                 * (0.5 - 0.5 * std::cos(kSrKickTwoPi * static_cast<double>(i)
+                                         / static_cast<double>(len - 1)));
+    double bestF = 30.0;
+    double bestM = -1.0;
+    constexpr int kGridSteps = 448;  // 30 Hz * 2^(448 * 10 / 1200) = 398 Hz
+    for (int k = 0; k <= kGridSteps; ++k)
+    {
+        const double f = 30.0 * std::pow(2.0, static_cast<double>(k) * 10.0 / 1200.0);
+        const double m = srKickDtftMag(seg, f, sampleRate);
+        if (m > bestM) { bestM = m; bestF = f; }
+    }
+    double lo = bestF * std::pow(2.0, -10.0 / 1200.0);
+    double hi = bestF * std::pow(2.0, 10.0 / 1200.0);
+    constexpr double kGolden = 0.6180339887;
+    for (int it = 0; it < 40; ++it)
+    {
+        const double a = hi - kGolden * (hi - lo);
+        const double b = lo + kGolden * (hi - lo);
+        if (srKickDtftMag(seg, a, sampleRate) > srKickDtftMag(seg, b, sampleRate))
+            hi = b;
+        else
+            lo = a;
+    }
+    return 0.5 * (lo + hi);
+}
+
+// Time (s) until the 10 ms RMS envelope stays 60 dB below its maximum
+// (the audit probe's decay60). -1 = never within the render.
+double srKickDecay60(const std::vector<float>& x, double sampleRate)
+{
+    const auto win = static_cast<size_t>(sampleRate * 0.01);
+    const size_t nw = x.size() / win;
+    std::vector<double> r(nw, 0.0);
+    double mx = 0.0;
+    for (size_t w = 0; w < nw; ++w)
+    {
+        double sq = 0.0;
+        for (size_t i = 0; i < win; ++i)
+            sq += static_cast<double>(x[w * win + i]) * static_cast<double>(x[w * win + i]);
+        r[w] = std::sqrt(sq / static_cast<double>(win));
+        mx = std::max(mx, r[w]);
+    }
+    const double thr = mx * 1.0e-3;
+    size_t last = 0;
+    for (size_t w = 0; w < nw; ++w)
+        if (r[w] > thr) last = w;
+    if (last + 1 >= nw)
+        return -1.0;
+    return static_cast<double>(last + 1) * static_cast<double>(win) / sampleRate;
+}
+
+} // namespace
+
+TEST_CASE("Membrum: default kick pitch does not depend on the sample rate",
+          "[membrum][processor][sample_rate]")
+{
+    const std::array<double, 4> rates{44100.0, 48000.0, 96000.0, 192000.0};
+    std::array<double, 4> fOn{}, fOff{}, ratio{};
+    for (size_t i = 0; i < rates.size(); ++i)
+    {
+        const auto on  = renderSrKick(rates[i], false);
+        const auto off = renderSrKick(rates[i], true);
+        fOn[i]  = srKickFundamentalHz(on, rates[i]);
+        fOff[i] = srKickFundamentalHz(off, rates[i]);
+        const double dOn  = srKickDecay60(on, rates[i]);
+        const double dOff = srKickDecay60(off, rates[i]);
+        INFO("sr " << rates[i] << ": f0 tension on " << fOn[i] << " Hz, off " << fOff[i]
+             << " Hz; decay60 on " << dOn << " s, off " << dOff << " s");
+        REQUIRE(dOn > 0.0);
+        REQUIRE(dOff > 0.0);
+        ratio[i] = dOn / dOff;
+    }
+    auto spreadCents = [](const std::array<double, 4>& f) {
+        double lo = 0.0;
+        double hi = 0.0;
+        for (const double v : f)
+        {
+            const double c = 1200.0 * std::log2(v / f[0]);
+            lo = std::min(lo, c);
+            hi = std::max(hi, c);
+        }
+        return hi - lo;
+    };
+    const double offSpread = spreadCents(fOff);
+    const double onSpread  = spreadCents(fOn);
+    const double ratioSpread =
+        *std::max_element(ratio.begin(), ratio.end())
+        / *std::min_element(ratio.begin(), ratio.end()) - 1.0;
+    INFO("f0 tension on (Hz) " << fOn[0] << " / " << fOn[1] << " / " << fOn[2] << " / " << fOn[3]
+         << ", spread " << onSpread << " cents");
+    INFO("f0 tension 0 (Hz) " << fOff[0] << " / " << fOff[1] << " / " << fOff[2] << " / "
+         << fOff[3] << ", spread " << offSpread << " cents");
+    INFO("decay60 ratio on/off " << ratio[0] << " / " << ratio[1] << " / " << ratio[2] << " / "
+         << ratio[3] << ", spread " << ratioSpread * 100.0 << " %");
+    // The tension-0 control must itself be rate-independent (T1.11's control
+    // grid); otherwise the tension measurement below means nothing.
+    REQUIRE(offSpread <= 5.0);
+    CHECK(onSpread <= 5.0);
+    CHECK(ratioSpread <= 0.10);
 }
 
 // =============================================================================

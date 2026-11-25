@@ -126,9 +126,8 @@ public:
     using AuditionCallback = std::function<void(int padIndex, float velocity)>;
 
     /// Fires on mouse-up after a previous audition. Implementations should
-    /// send a noteOff for the pad so the voice releases naturally instead
-    /// of ringing until its modal envelope expires. Lets the user "hold"
-    /// a pad for sustained auditing of the body / morph state.
+    /// send a noteOff for the pad, as a MIDI key release would (FR-114: it
+    /// releases a sustaining exciter; the hit plays its full decay).
     using AuditionOffCallback = std::function<void(int padIndex)>;
 
     /// Phase 8F: fires when the user clicks the small power glyph in the

@@ -9,9 +9,10 @@
 // helpers to eliminate the previous 4-6x duplication of the pad-sound-
 // parameter serialisation block.
 //
-// Current version: v3 (M-9). The plugin has not shipped, so there is no
-// legacy state to support -- the codec emits and accepts a single version.
-// PadSnapshot::sound carries 57 slots (M-9 added per-pad pan at index 56).
+// Current version: 6 (kBlobVersion). PadSnapshot::sound carries 59 slots.
+// Released builds wrote 1 (v0.9.0, v0.9.1; 52 slots), 2 (v0.10.1, v0.10.2;
+// 56 slots) and 5 (v0.12.0 - v0.12.5; 59 slots); all three are read and mapped
+// into the current meaning. 3 and 4 were never released and are rejected.
 // ==============================================================================
 
 #include "dsp/exciter_type.h"
@@ -104,6 +105,17 @@ struct PadPresetSnapshot
 // On-wire version constants. Writers write the current version; a version a
 // released build wrote is read and mapped into the current meaning, any other
 // version is rejected.
+//   1: 52-slot sound array, pad presets 51 slots (released v0.9.0, v0.9.1).
+//   2: 56-slot sound array (released v0.10.1, v0.10.2).
+//      readKitBlob and readPadPresetBlob map a version-1 or -2 pad onto the
+//      version-5 meaning (fix plan T2.8): the slots it lacks get the value
+//      that reproduces the old build (knee off, pan centre, noiseLayerGain 1,
+//      wireCoupling 0), version 1's pitch-envelope curve (Exp / Lin) and
+//      linear filter-envelope times are converted, and FM Ratio, Feedback
+//      Amount and Friction Pressure, which those builds never applied, are
+//      set to what they played (ratio 1.4, 0, 0). The version-5 migration
+//      below then applies.
+//   3, 4: never released; rejected.
 //   5: wire-coupling, 59-slot sound array (released v0.12.0 - v0.12.5). A
 //      pad's macro-target sound fields hold what the pad played: the macro
 //      deltas already baked in.
@@ -130,7 +142,7 @@ constexpr Steinberg::int32 kPadBlobVersion = 6;
 //   Per pad (32 times):
 //     [int32 exciterType]
 //     [int32 bodyModel]
-//     [57 x float64 sound (see PadSnapshot)]
+//     [59 x float64 sound (see PadSnapshot); 52 in version 1, 56 in 2]
 //     [uint8 chokeGroup]
 //     [uint8 outputBus]
 //   [int32 selectedPadIndex]
@@ -142,9 +154,9 @@ constexpr Steinberg::int32 kPadBlobVersion = 6;
 //     [int32 uiMode]
 //
 // writeKitBlob: always succeeds for a valid stream.
-// readKitBlob:  accepts kBlobVersion and version 5 (its sound fields mapped to
-//               base values). Returns kResultFalse on any other version or on
-//               a short read.
+// readKitBlob:  accepts kBlobVersion and the released versions 1, 2 and 5
+//               (mapped as above). Returns kResultFalse on any other version
+//               or on a short read, and then leaves `kit` as it was.
 //               uiMode is OPTIONAL on read -- if the stream is exhausted
 //               after the master-gain field, kit.hasSession=false and uiMode
 //               stays at its default.
@@ -159,11 +171,12 @@ Steinberg::tresult readKitBlob(Steinberg::IBStream* stream,
 // ============================================================================
 // Per-pad preset codec.
 // Layout:
-//   [int32 version == kPadBlobVersion, or 5 on read]
+//   [int32 version == kPadBlobVersion; 1, 2 or 5 on read]
 //   [int32 exciterType]
 //   [int32 bodyModel]
-//   [57 x float64 sound]
-// Total: 468 bytes.
+//   [59 x float64 sound; 51 in version 1, 56 in 2]
+// Total: 484 bytes (12 + 8 x the slot count in versions 1 and 2). A rejected
+// or short blob leaves `pad` as it was.
 // ============================================================================
 
 Steinberg::tresult writePadPresetBlob(Steinberg::IBStream* stream,

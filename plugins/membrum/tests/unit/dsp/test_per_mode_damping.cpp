@@ -535,6 +535,59 @@ TEST_CASE("Phase 8E: Tom tension modulation drifts pitch vs velocity",
     CHECK(highGlideSemis < 2.5f);
 }
 
+// Fix plan T2.12 (MB-033): the glide above was calibrated at 44.1 kHz, and the
+// modal energy that drives it grows with the square of the sample rate (the
+// bank injects per sample with no 1/sr factor). Same setup and measurement as
+// the 44.1 kHz case, with the block length scaled so every rate renders the
+// same ~200 ms in the same number of blocks.
+TEST_CASE("Phase 8E: tension glide depth does not depend on the sample rate",
+          "[phase8e][drum_voice][tension][sample_rate]")
+{
+    using Membrum::DrumVoice;
+    auto peakTomF0 = [](double sampleRate, float velocity) {
+        DrumVoice v;
+        v.prepare(sampleRate, 0u);
+        v.setMaterial(0.4f); v.setSize(0.5f); v.setDecay(0.5f);
+        v.setStrikePosition(0.3f); v.setLevel(0.8f);
+        v.setExciterType(Membrum::ExciterType::Mallet);
+        v.setBodyModel(Membrum::BodyModelType::Membrane);
+        v.setTensionModAmt(1.0f);
+        v.setNoiseLayerMix(0.0f); v.setClickLayerMix(0.0f);
+        v.noteOn(velocity);
+        auto& bank = v.getBodyBankForTest().getSharedBank();
+        const int block = static_cast<int>(std::lround(256.0 * sampleRate / 44100.0));
+        std::vector<float> buf(static_cast<size_t>(block), 0.0f);
+        const int blocks = 35;  // ~200 ms at every rate
+        float peakF0 = 0.0f;
+        for (int b = 0; b < blocks; ++b) {
+            v.processBlock(buf.data(), block);
+            peakF0 = std::max(peakF0, bank.getLiveModeFrequency(0));
+        }
+        return peakF0;
+    };
+    auto glideSemis = [&](double sampleRate) {
+        const float baseF0 = peakTomF0(sampleRate, 0.02f);
+        const float highF0 = peakTomF0(sampleRate, 1.0f);
+        REQUIRE(baseF0 > 40.0f);
+        REQUIRE(highF0 > 40.0f);
+        return 12.0f * std::log2(highF0 / baseF0);
+    };
+
+    const float ref = glideSemis(44100.0);
+    INFO("44.1 kHz glide = " << ref << " semitones");
+    REQUIRE(ref > 1.0f);
+    REQUIRE(ref < 2.5f);
+    for (const double sr : {22050.0, 96000.0, 192000.0})
+    {
+        const float g = glideSemis(sr);
+        INFO("sr = " << sr << " Hz: glide = " << g << " semitones, ratio to 44.1 kHz = "
+             << g / ref);
+        CHECK(std::fabs(g / ref - 1.0f) <= 0.20f);
+        CHECK(g > 1.0f);
+        CHECK(g < 2.5f);
+    }
+}
+
 // Phase 8E + audit "tension slow-path": the same velocity-dependent pitch
 // glide must also fire on the SLOW path (per-sample FeedbackExciter). Before
 // the slow-path completion fix, processBlockSlow had no tension code at all,

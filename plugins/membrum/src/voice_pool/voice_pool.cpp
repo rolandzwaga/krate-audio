@@ -372,18 +372,17 @@ void VoicePool::registerActiveVoicesWithCoupling() noexcept
 
 void VoicePool::noteOff(std::uint8_t midiNote) noexcept
 {
-    // FR-114 pre-Phase-8A.5: percussion was a no-op at the voice level
-    // because the amp envelope's fixed 200 ms decay force-silenced the
-    // voice. Phase 8A.5 removed that forced decay, so noteOff now must
-    // propagate to the voice -- DrumVoice::noteOff gates off the amp
-    // envelope (release fires) and fires ModalResonatorBank::damp() so
-    // the body completes its release through its own damping law.
+    // FR-114 (ruling 2026-11-25, fix plan T2.9): a MIDI note-off on a drum
+    // voice releases only a sustaining exciter (Friction's bow). The amp
+    // envelope, tone shaper and body are not gated or damped, so a short
+    // note plays the full hit; the voice retires through its own
+    // auto-release (DrumVoice::noteOff from autoReleaseAtGridPoint).
     for (int slot = 0; slot < maxPolyphony_; ++slot)
     {
         if (meta_[slot].state == VoiceSlotState::Active
             && meta_[slot].originatingNote == midiNote)
         {
-            mainVoice(slot).noteOff();
+            mainVoice(slot).releaseExciter();
         }
     }
     (void)allocator_.noteOff(midiNote);

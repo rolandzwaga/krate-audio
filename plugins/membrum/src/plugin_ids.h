@@ -23,9 +23,11 @@ static const Steinberg::FUID kControllerUID(0x4D656D62, 0x72756D43, 0x74726C31, 
 // VST3 subcategories: Instrument|Drum
 static constexpr auto kSubCategories = "Instrument|Drum";
 
-// State version for serialization. Single, current format -- the plugin has
-// not shipped, so no legacy versions are accepted on read. Phase 10 bumped
-// this from 1 to 2 to accompany the per-pad sound-slot widening (52 -> 56).
+// State version for serialization. Writers write this version; readers also
+// accept every version a released build wrote -- 1 (v0.9.0, v0.9.1), 2
+// (v0.10.1, v0.10.2) and 5 (v0.12.0 - v0.12.5) -- and map it into the current
+// layout (state/state_codec.h); 3 and 4 were never released and are rejected.
+// Phase 10 bumped this from 1 to 2 to accompany the per-pad sound-slot widening (52 -> 56).
 // M-9 bumped 2 -> 3 to accompany the per-pad pan slot (56 -> 57) and the
 // per-pad param-stride widening (64 -> 128). snare-body bumped 3 -> 4 for the
 // per-pad noiseLayerGain slot (57 -> 58). wire-coupling bumped 4 -> 5 for the

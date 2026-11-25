@@ -124,7 +124,7 @@ The CI pipeline builds Membrum on all platforms (Windows, macOS, Linux), runs it
 - **FR-010**: Processor MUST accept MIDI note-on events on MIDI note 36 (C1) and trigger a single drum voice.
 - **FR-011**: Processor MUST ignore MIDI notes other than 36 in Phase 1 (no crash, no output).
 - **FR-012**: Processor MUST produce stereo audio output from the drum voice (mono voice signal sent to both channels).
-- **FR-013**: Processor MUST handle note-off (explicit note-off or velocity-0 note-on) by triggering the amp ADSR release phase — NOT by abruptly cutting audio.
+- **FR-013**: Processor MUST handle note-off (explicit note-off or velocity-0 note-on) by triggering the amp ADSR release phase — NOT by abruptly cutting audio. *Superseded for percussion voices by FR-114 (Phase 3, `specs/138-membrum-phase3-polyphony/spec.md`; ruling 2026-11-25, Membrum audit fix plan T2.9): a MIDI note-off releases only a sustaining exciter and leaves the hit to its natural decay.*
 - **FR-014**: Processor MUST correctly handle rapid retriggering of MIDI note 36 (new note-on restarts the voice without accumulating leaked voices).
 - **FR-015**: Processor MUST process parameter changes from the host via `processParameterChanges()`, denormalizing values from 0.0–1.0 to their physical ranges.
 - **FR-016**: Processor MUST implement state save/load (`getState`/`setState`) with version field for forward compatibility.
@@ -162,7 +162,7 @@ The CI pipeline builds Membrum on all platforms (Windows, macOS, Linux), runs it
   - **Brightness**: `lerp(0.15, 0.4, velocity)` — soft hits = dark excitation, hard hits = bright excitation (octave offset on SVF cutoff)
   - **Mass**: fixed at 0.3 (~4ms pulse, good balance between click and mush)
   - **Position/f0**: fixed at 0.0/0.0 (comb filter disabled in Phase 1)
-- **FR-038**: The amp ADSR envelope MUST have Phase 1 default values suitable for a membrane drum: A=0ms (instant attack), D=200ms, S=0.0, R=300ms. These are hardcoded defaults; the ADSR parameters are not exposed to the host in Phase 1.
+- **FR-038**: The amp ADSR envelope MUST have Phase 1 default values suitable for a membrane drum: A=0ms (instant attack), D=200ms, S=0.0, R=300ms. These are hardcoded defaults; the ADSR parameters are not exposed to the host in Phase 1. *Superseded for percussion voices by FR-114 (ruling 2026-11-25, Membrum audit fix plan T2.9): a MIDI note-off does not start the R stage; the release runs only when the voice's own auto-release fires.*
 - **FR-039**: Voice MUST be real-time safe: no allocations, locks, exceptions, or I/O in the `process()` path. Modal bank and exciter pre-allocated.
 
 #### CI & Infrastructure

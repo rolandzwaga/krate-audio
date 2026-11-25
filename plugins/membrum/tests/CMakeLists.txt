@@ -16,6 +16,7 @@ add_executable(membrum_tests
     unit/processor/membrum_processor_tests.cpp
     unit/processor/test_morph_host_simulation.cpp
     unit/processor/test_snare_body_balance.cpp
+    unit/processor/test_note_off_policy.cpp
 
     # Phase 2: architecture refactor tests
     unit/architecture/test_exciter_bank.cpp
@@ -131,7 +132,7 @@ add_executable(membrum_tests
     unit/processor/test_macro_mapper.cpp
     # Fix plan T1.22: macros are offsets on stored base values
     unit/processor/test_macro_offsets.cpp
-    unit/processor/test_state_v6_migration.cpp
+    unit/processor/test_state_version.cpp
     # Fix plan T1.23: body damping B1/B3 relative to the derived law
     unit/processor/test_body_damping_encoding.cpp
     unit/processor/test_pad_glow_publisher.cpp

@@ -389,18 +389,22 @@ TEST_CASE("Tone-shaper filter sounds the same on a fresh and a warm voice slot",
         pool.padConfigMut(0) = lp300ClickPad(0.0f, cutoffNormFor(300.0));    // note 36, LP
         pool.padConfigMut(1) = lp300ClickPad(0.5f, cutoffNormFor(14000.0));  // note 37, HP
 
+        // Hits 3 s apart: a note-off does not shorten the hit (FR-114, fix plan
+        // T2.9), and each pad rings about 1.7 s before its voice retires, so
+        // the next pad's hit finds the slot free again.
+        constexpr int kGap = 3 * kSec;
         std::vector<Ev> evs;
         evs.push_back(paramAt(0, Membrum::kMaxPolyphonyId, 0.0));
         evs.push_back(paramAt(0, Membrum::kVoiceStealingId, 1.0));
         evs.push_back(noteOnAt(0, 36));
         evs.push_back(noteOffAt(kOff, 36));
-        evs.push_back(noteOnAt(kSec, 36));
-        evs.push_back(noteOffAt(kSec + kOff, 36));
-        evs.push_back(noteOnAt(2 * kSec, 37));
-        evs.push_back(noteOffAt(2 * kSec + kOff, 37));
-        evs.push_back(noteOnAt(3 * kSec, 36));
-        evs.push_back(noteOffAt(3 * kSec + kOff, 36));
-        const Render r = render(rig, evs, 4 * kSec);
+        evs.push_back(noteOnAt(kGap, 36));
+        evs.push_back(noteOffAt(kGap + kOff, 36));
+        evs.push_back(noteOnAt(2 * kGap, 37));
+        evs.push_back(noteOffAt(2 * kGap + kOff, 37));
+        evs.push_back(noteOnAt(3 * kGap, 36));
+        evs.push_back(noteOffAt(3 * kGap + kOff, 36));
+        const Render r = render(rig, evs, 4 * kGap);
 
         REQUIRE(r.hitSlot.size() == 4);
         INFO("slots " << r.hitSlot[0] << " / " << r.hitSlot[1] << " / "
@@ -412,11 +416,11 @@ TEST_CASE("Tone-shaper filter sounds the same on a fresh and a warm voice slot",
 
         constexpr int n5 = 240;  // 5 ms
         const double pkFresh  = peakDb(r.mono, 0, n5);
-        const double pkRepeat = peakDb(r.mono, kSec, n5);
-        const double pkAfter  = peakDb(r.mono, 3 * kSec, n5);
+        const double pkRepeat = peakDb(r.mono, kGap, n5);
+        const double pkAfter  = peakDb(r.mono, 3 * kGap, n5);
         const double rmFresh  = rmsDb(r.mono, 0, n5);
-        const double rmRepeat = rmsDb(r.mono, kSec, n5);
-        const double rmAfter  = rmsDb(r.mono, 3 * kSec, n5);
+        const double rmRepeat = rmsDb(r.mono, kGap, n5);
+        const double rmAfter  = rmsDb(r.mono, 3 * kGap, n5);
         INFO("0-5 ms peak fresh / repeat / after HP: " << pkFresh << " / " << pkRepeat
              << " / " << pkAfter << " dBFS");
         INFO("0-5 ms RMS  fresh / repeat / after HP: " << rmFresh << " / " << rmRepeat

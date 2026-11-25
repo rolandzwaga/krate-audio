@@ -2,8 +2,8 @@
 // Per-pad preset save/load tests (Phase 6 / T039)
 // ==============================================================================
 // Verifies:
-//   - Pad preset StateProvider produces 460-byte blob (Phase 10)
-//     (version int32 + exciterType int32 + bodyModel int32 + 56 float64)
+//   - Pad preset StateProvider produces a 484-byte blob
+//     (version int32 + exciterType int32 + bodyModel int32 + 59 float64)
 //   - Pad preset LoadProvider applies to selected pad only, other 31 unchanged
 //   - Choke group and output bus are NOT modified by pad preset load
 //   - Pad preset loaded onto pad 15 matches original pad 1 sound params
@@ -72,10 +72,10 @@ MemoryStream* buildPadPresetBlob(int32 exciterType, int32 bodyModel,
 } // namespace
 
 // ==============================================================================
-// T039: Pad preset StateProvider produces exactly 460 bytes (56 sound slots, Phase 10).
+// T039: Pad preset StateProvider produces exactly 484 bytes (59 sound slots).
 // ==============================================================================
 
-TEST_CASE("Pad preset: StateProvider produces exactly 460 bytes",
+TEST_CASE("Pad preset: StateProvider produces exactly 484 bytes",
           "[membrum][preset][pad_preset]")
 {
     Membrum::Controller controller;
@@ -98,7 +98,7 @@ TEST_CASE("Pad preset: StateProvider produces exactly 460 bytes",
     REQUIRE(controller.terminate() == kResultOk);
 }
 
-TEST_CASE("Pad preset: blob format is version + exciterType + bodyModel + 56 float64",
+TEST_CASE("Pad preset: blob format is version + exciterType + bodyModel + 59 float64",
           "[membrum][preset][pad_preset]")
 {
     Membrum::Controller controller;

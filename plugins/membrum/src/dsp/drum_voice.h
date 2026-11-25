@@ -107,6 +107,14 @@ public:
     /// ~1.5 semitones; the glide is clamped below for runaway energy.)
     static constexpr float kTensionEnergyScale = 3.3e-5f;
 
+    /// Fix plan T2.12 (MB-033, MB-171): kTensionEnergyScale was calibrated at
+    /// 44.1 kHz. The bank adds `gain * excitation` every sample with no 1/sr
+    /// factor and the exciters' pulses last a fixed time, so the modal energy
+    /// of one strike grows with the square of the sample rate. prepare()
+    /// derives energyRateNorm_ = (kTensionCalibrationRate / sr)^2, which maps
+    /// the energy reading back to the calibration rate.
+    static constexpr double kTensionCalibrationRate = 44100.0;
+
     /// Audit N-1: hard ceiling on the tension pitch-glide factor (~3 semitones)
     /// so a pathologically hot strike cannot drive the fundamental into a
     /// non-physical sweep. Real membranes saturate; the linear energy law only
@@ -187,6 +195,18 @@ public:
             (0.02f * static_cast<float>(sampleRate)));
         energyAlphaGrid_ =
             std::pow(energyAlpha, static_cast<float>(kControlGridSamples));
+        // T2.12: exactly 1 at the calibration rate by a branch (fast-math may
+        // turn the division into a reciprocal multiply that misses 1.0), so
+        // 44.1 kHz renders stay bit-identical.
+        if (sampleRate == kTensionCalibrationRate)
+        {
+            energyRateNorm_ = 1.0f;
+        }
+        else
+        {
+            const double r = kTensionCalibrationRate / sampleRate;
+            energyRateNorm_ = static_cast<float>(r * r);
+        }
         toneShaper_.prepare(sampleRate);
         unnaturalZone_.prepare(sampleRate, voiceId);
         noiseLayer_.prepare(sampleRate, voiceId);
@@ -598,6 +618,13 @@ public:
         // idempotent too, so a second release never compounds it (MB-034).
         bodyBank_.getSharedBank().raiseReleaseDecayRate(kNoteOffReleaseRate);
     }
+
+    /// FR-114 (fix plan T2.9, ruling 2026-11-25): a MIDI note-off on a drum
+    /// voice releases only a sustaining exciter (Friction's bow); the amp
+    /// envelope, tone shaper and body decay naturally, so a short note plays
+    /// the full hit. The voice still retires through noteOff() from its own
+    /// auto-release. Every other exciter's release() is a no-op.
+    void releaseExciter() noexcept { exciterBank_.release(); }
 
     /// Hard wipe of every per-voice DSP state container. Used by
     /// VoicePool::fadeOutAllVoicesForKitSwitch when the host loads a new
@@ -1913,7 +1940,10 @@ private:
         const bool wire    = isWireActive();
         if (tension || wire)
         {
-            const float e = sharedBank.getModalEnergy();
+            // T2.12: energy at the 44.1 kHz calibration rate (see
+            // kTensionCalibrationRate); wire coupling divides by its own
+            // running peak, so the constant factor cancels there.
+            const float e = sharedBank.getModalEnergy() * energyRateNorm_;
             energyEnv_ = energyAlphaGrid_ * energyEnv_ + (1.0f - energyAlphaGrid_) * e;
             if (wire)
             {
@@ -2142,6 +2172,7 @@ private:
     float tensionAmtEffective_  = 0.0f;  // depth * velocity^2
     float energyEnv_            = 0.0f;  // one-pole energy follower
     float energyAlphaGrid_      = 0.0f;  // follower coeff per control-grid step
+    float energyRateNorm_       = 1.0f;  // (44.1 kHz / sr)^2, T2.12
 
     // T1.11 control grid: samples rendered since noteOn, and the pitch (Hz,
     // including the tension factor) and morph material last pushed into the

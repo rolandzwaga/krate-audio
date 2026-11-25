@@ -354,34 +354,40 @@ Membrum::State::KitSnapshot rawSnapshot(std::vector<char> bytes)
 
 // Fingerprints of notes 36 and 38 (1 s at velocity 0.8, a fresh processor
 // loaded with state_v5_macros.bin), captured on the code before T1.22.
+// Re-captured after fix plan T2.12 (MB-033, MB-171): the tension glide's modal
+// energy is now normalised to its 44.1 kHz calibration rate, so at this
+// fixture's 48 kHz both pads glide (44.1 / 48)^2 = 0.844 as deep as before.
+// The T1.22 code matched the pre-T1.22 capture within tolerance up to T2.12;
+// T2.12 moved the kick's checkpoints by up to 0.056 (the shallower glide
+// shifts its phase) and its rms by -0.03 %, the snare's by under 0.001.
 RenderFingerprint fixtureFingerprint36()
 {
     RenderFingerprint fp;
-    fp.rms = 0.0391502087;
-    fp.peak = 0.271602988;
-    fp.meanAbs = 0.0192590071;
-    fp.totalVariation = 7.56436017;
-    fp.checkpoints = {-8.00471633e-10f, 0.0907932296f, -0.0800138786f, -0.10773246f,
-                      -0.00389413675f, 0.0353759974f, -0.0326498412f, 0.0149046723f,
-                      -0.000246857031f, -0.0102336872f, 0.0152278142f, -0.0146536501f,
-                      0.0115573127f, -0.00657388195f, 0.00114142871f, 0.00285632117f,
-                      -0.00534008769f, 0.00660762144f, -0.0064645349f, 0.00534646213f,
-                      -0.0039113313f, 0.00234944583f, -0.000882462715f, -0.000193318963f,
-                      0.000856285333f, -0.00119885709f, 0.00123786309f, -0.00105721015f,
-                      0.000794986147f, -0.000509569771f, 0.000239032626f, -3.57553436e-05f};
+    fp.rms = 0.0391369412;
+    fp.peak = 0.270674795;
+    fp.meanAbs = 0.0192599126;
+    fp.totalVariation = 7.48490713;
+    fp.checkpoints = {-8.00471633e-10f, 0.0655947402f, -0.098483935f, -0.093538411f,
+                      0.0517391413f, 0.0277256481f, -0.0376882516f, 0.0303231962f,
+                      -0.0166413169f, 0.0036201484f, 0.00628040964f, -0.0131501006f,
+                      0.015389164f, -0.0144585948f, 0.012111634f, -0.00850270316f,
+                      0.00459346967f, -0.00135716598f, -0.00114084408f, 0.00281052291f,
+                      -0.00349591859f, 0.00346232182f, -0.00303256302f, 0.0023088539f,
+                      -0.00149115256f, 0.000782378891f, -0.000215002292f, -0.000185601049f,
+                      0.000384445651f, -0.000432662695f, 0.000394638279f, -0.000288127834f};
     return fp;
 }
 
 RenderFingerprint fixtureFingerprint38()
 {
     RenderFingerprint fp;
-    fp.rms = 0.0119471537;
-    fp.peak = 0.220545009;
-    fp.meanAbs = 0.00214164303;
-    fp.totalVariation = 26.7017971;
-    fp.checkpoints = {-1.33540198e-05f, -0.0244827475f, 0.00859569665f, 0.000523929775f,
-                      -0.000770995917f, -0.000251841673f, 2.08035362e-05f, -1.11809493e-06f,
-                      2.39934241e-08f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+    fp.rms = 0.0119519119;
+    fp.peak = 0.220531419;
+    fp.meanAbs = 0.0021430719;
+    fp.totalVariation = 26.7021002;
+    fp.checkpoints = {-1.33540198e-05f, -0.0252828542f, 0.00834581256f, 0.000584130757f,
+                      -0.000750123756f, -0.000253424427f, 2.07775611e-05f, -1.1181063e-06f,
+                      2.39934543e-08f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
                       0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
                       0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
     return fp;

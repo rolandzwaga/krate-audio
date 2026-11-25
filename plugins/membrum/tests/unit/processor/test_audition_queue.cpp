@@ -68,7 +68,9 @@ tresult postAuditionOff(Membrum::Processor& processor, int midi)
     return processor.notify(msg);
 }
 
-std::unique_ptr<Membrum::Processor> makeAuditionProcessor()
+// `frictionPadA`: pad A bows (Friction exciter), the one exciter a note-off
+// still releases under FR-114 (fix plan T2.9), so its Off is audible.
+std::unique_ptr<Membrum::Processor> makeAuditionProcessor(bool frictionPadA = false)
 {
     auto processor = std::make_unique<Membrum::Processor>();
     REQUIRE(processor->initialize(nullptr) == kResultOk);
@@ -84,6 +86,9 @@ std::unique_ptr<Membrum::Processor> makeAuditionProcessor()
     auto& pool = processor->voicePoolForTest();
     pool.setPadConfigField(kAqPadA - 36, Membrum::kPadPan, 0.0f);
     pool.setPadConfigField(kAqPadB - 36, Membrum::kPadPan, 1.0f);
+    if (frictionPadA)
+        pool.setPadConfigSelector(kAqPadA - 36, Membrum::kPadExciterType,
+                                  static_cast<int>(Membrum::ExciterType::Friction));
     processor->publishPadConfigsForTest();
     return processor;
 }
@@ -142,6 +147,22 @@ double decay60Seconds(const std::vector<float>& x)
     return static_cast<double>(last + 1) / kAqRate;
 }
 
+// RMS of (a - b) in dB re the RMS of b (-300 dB for identical signals).
+double differenceDb(const std::vector<float>& a, const std::vector<float>& b)
+{
+    double sumD = 0.0;
+    double sumB = 0.0;
+    for (std::size_t i = 0; i < std::min(a.size(), b.size()); ++i)
+    {
+        const double d = static_cast<double>(a[i]) - static_cast<double>(b[i]);
+        sumD += d * d;
+        sumB += static_cast<double>(b[i]) * static_cast<double>(b[i]);
+    }
+    if (sumD <= 0.0)
+        return -300.0;
+    return 10.0 * std::log10(sumD / std::max(sumB, 1.0e-30));
+}
+
 // One audition event posted before block `block`.
 struct AuditionEvent
 {
@@ -158,9 +179,10 @@ struct AuditionRender
 
 // Renders `blocks` blocks on a fresh processor, posting each event before its
 // block (in list order).
-AuditionRender renderAuditionSchedule(const std::vector<AuditionEvent>& events, int blocks)
+AuditionRender renderAuditionSchedule(const std::vector<AuditionEvent>& events, int blocks,
+                                      bool frictionPadA = false)
 {
-    auto processor = makeAuditionProcessor();
+    auto processor = makeAuditionProcessor(frictionPadA);
     AuditionRender out;
     out.left.reserve(static_cast<std::size_t>(blocks * kAqBlock));
     out.right.reserve(static_cast<std::size_t>(blocks * kAqBlock));
@@ -215,28 +237,36 @@ TEST_CASE("Audition: a pad-down and pad-up between two blocks still sound the pa
 TEST_CASE("Audition: an Off for pad A and an On for pad B in one block are both applied",
           "[audition][threading]")
 {
+    // Pad A bows (Friction): under FR-114 (fix plan T2.9) a note-off releases
+    // only a sustaining exciter, so the bow is what makes A's Off audible. The
+    // Off lands at 26.7 ms, inside the ~41 ms bow.
     constexpr int kSwitchBlock = 5;
     const auto both = renderAuditionSchedule(
         {{0, kAqPadA, true}, {kSwitchBlock, kAqPadA, false}, {kSwitchBlock, kAqPadB, true}},
-        kAqRenderBlocks);
+        kAqRenderBlocks, /*frictionPadA*/ true);
     // Reference: Off(A) alone in block 5.
     const auto offAlone = renderAuditionSchedule(
-        {{0, kAqPadA, true}, {kSwitchBlock, kAqPadA, false}}, kAqRenderBlocks);
+        {{0, kAqPadA, true}, {kSwitchBlock, kAqPadA, false}}, kAqRenderBlocks,
+        /*frictionPadA*/ true);
     // Reference: A never released.
-    const auto noOff = renderAuditionSchedule({{0, kAqPadA, true}}, kAqRenderBlocks);
+    const auto noOff = renderAuditionSchedule({{0, kAqPadA, true}}, kAqRenderBlocks,
+                                              /*frictionPadA*/ true);
 
     const auto switchSample = static_cast<std::size_t>(kSwitchBlock * kAqBlock);
     const float bPeakRight = peakOf(both.right, switchSample, both.right.size());
-    const double decayBoth  = decay60Seconds(both.left);
-    const double decayAlone = decay60Seconds(offAlone.left);
-    const double decayNoOff = decay60Seconds(noOff.left);
-    std::printf("[audition-queue] Off(A)+On(B): B right peak %.6f; A decay60 %.4f s, "
-                "Off(A) alone %.4f s, no Off %.4f s\n",
-                static_cast<double>(bPeakRight), decayBoth, decayAlone, decayNoOff);
+    const double bothVsAlone  = differenceDb(both.left, offAlone.left);
+    const double noOffVsAlone = differenceDb(noOff.left, offAlone.left);
+    std::printf("[audition-queue] Off(A)+On(B): B right peak %.6f; pad A (left) re Off(A) "
+                "alone: with On(B) %.2f dB, with no Off %.2f dB\n",
+                static_cast<double>(bPeakRight), bothVsAlone, noOffVsAlone);
 
+    // The bow is a small part of the hit: releasing it early moves pad A's
+    // render by about -61 dB. With On(B) in the same block A must match the
+    // Off-alone render (measured -140 dB); a lost Off would leave it at the
+    // no-Off difference instead.
     CHECK(bPeakRight > kAqMinus60Db);
-    CHECK(withinFivePercent(decayBoth, decayAlone));
-    CHECK(decayNoOff > 1.5 * decayAlone);
+    CHECK(bothVsAlone <= -120.0);   // A's Off applied as when it arrives alone
+    CHECK(noOffVsAlone >= -100.0);  // and the Off changes A's render
 }
 
 TEST_CASE("Audition: two pad-downs in one block start two voices", "[audition][threading]")

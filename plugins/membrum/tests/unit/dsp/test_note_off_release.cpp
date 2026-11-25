@@ -143,8 +143,9 @@ struct PoolRender
     long retiredAt = -1;  // first sample index (block end) at which no voice was active after the note-off
 };
 
-// VoicePool at `sampleRate`, pad 0 = `cfg`, note 36 velocity 1, MIDI note-off
-// at `noteOffSample` (the block split there), host blocks of `block` samples.
+// VoicePool at `sampleRate`, pad 0 = `cfg`, note 36 velocity 1, the voice's
+// release (DrumVoice::noteOff, as its auto-release fires it) at
+// `noteOffSample` (the block split there), host blocks of `block` samples.
 //
 // The FIRST block is at least kOnsetBlock samples. The pool auto-releases a
 // voice whose host-block peak is below 1e-3, and the amp envelope restarts
@@ -174,7 +175,14 @@ PoolRender renderPoolWithNoteOff(const PadConfig& cfg, double sampleRate, long n
     {
         if (!offSent && rendered >= noteOffSample)
         {
-            pool->noteOff(36);
+            // The voice's own release (DrumVoice::noteOff), the one its
+            // auto-release fires. A MIDI note-off no longer releases a drum
+            // voice (FR-114, fix plan T2.9), so pool->noteOff(36) would leave
+            // nothing to measure.
+            pool->forEachMainVoice([](Membrum::DrumVoice& v) {
+                if (v.isActive())
+                    v.noteOff();
+            });
             offSent = true;
         }
         long limit = totalSamples - rendered;

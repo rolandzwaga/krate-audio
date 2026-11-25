@@ -116,9 +116,10 @@ public:
     /// Processor drops notes outside that range before calling this.
     void noteOn(std::uint8_t midiNote, float velocity) noexcept;
 
-    /// Percussion note-off: bookkeeping only (FR-114). The voice continues
-    /// decaying naturally until its amp envelope hits the silence threshold,
-    /// at which point `processBlock` frees the slot.
+    /// Percussion note-off (FR-114): allocator bookkeeping, plus the release
+    /// of a sustaining exciter (Friction's bow). The voice continues decaying
+    /// naturally until its own auto-release retires it, at which point
+    /// `processBlock` frees the slot.
     void noteOff(std::uint8_t midiNote) noexcept;
 
     // ------------------------------------------------------------------

@@ -831,21 +831,7 @@ tresult PLUGIN_API Processor::process(ProcessData& data)
     return kResultOk;
 }
 
-// ==============================================================================
-// State v4 -- data-model.md
-// ==============================================================================
-// Binary layout (v4):
-//   [int32] version = 4
-//   [int32] maxPolyphony [4, 16]
-//   [int32] voiceStealingPolicy [0, 2]
-//   For each of 32 pads:
-//     [int32]  exciterType
-//     [int32]  bodyModel
-//     [34 x float64] sound params (offsets 2-35 as normalized float64)
-//     [uint8]  chokeGroup
-//     [uint8]  outputBus
-//   [int32] selectedPadIndex [0, 31]
-// ==============================================================================
+// State layout and the versions read: state/state_codec.h.
 
 // ==============================================================================
 // Preset-load hand-off (MB-001)

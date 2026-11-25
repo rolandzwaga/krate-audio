@@ -5,8 +5,11 @@
 // plan T1.22), FR-084 (bit-exact round-trip of state blobs including macros),
 // and session-scoped param exclusion (kUiModeId never in IBStream).
 //
-// kCurrentStateVersion (6) and the released version 5 are read; the
-// version-5 migration is pinned in test_macro_offsets.cpp.
+// Writers write kCurrentStateVersion (6). Readers accept it and every version
+// a released build wrote: 1 (v0.9.0, v0.9.1), 2 (v0.10.1, v0.10.2) and 5
+// (v0.12.0 - v0.12.5), each mapped into the current layout (fix plan T1.22,
+// T2.8). The version-5 migration is pinned in test_macro_offsets.cpp, the
+// codec-level version 1 / 2 read paths in test_state_codec.cpp.
 // ==============================================================================
 
 #include <catch2/catch_approx.hpp>
@@ -18,6 +21,7 @@
 #include "plugin_ids.h"
 #include "processor/processor.h"
 #include "voice_pool/voice_pool.h"
+#include "unit/state/vstpreset_chunk.h"
 
 #include "pluginterfaces/base/ibstream.h"
 #include "pluginterfaces/vst/ivstevents.h"
@@ -29,6 +33,7 @@
 #include <cmath>
 #include <cstdint>
 #include <cstring>
+#include <filesystem>
 #include <vector>
 
 using namespace Steinberg;
@@ -100,6 +105,11 @@ std::vector<std::uint8_t> readAllBytes(MemoryStream& stream)
     int32 got = 0;
     stream.read(out.data(), static_cast<int32>(size), &got);
     return out;
+}
+
+std::filesystem::path goldenDir()
+{
+    return std::filesystem::path(MEMBRUM_RESOURCES_DIR) / ".." / "tests" / "golden";
 }
 
 } // namespace
@@ -213,26 +223,101 @@ TEST_CASE("State (FR-084): blob wraps macros + sound slots + master gain, no ove
 }
 
 // ==============================================================================
-// Version rejection: kCurrentStateVersion and the released version 5 are
-// accepted; every other version (unreleased or future) returns kResultFalse.
+// Version rejection: kCurrentStateVersion and the released versions 1, 2 and
+// 5 are read (versions 1 and 2 only from a well-formed blob of their layout,
+// see the next case); every version no release wrote (3, 4) or newer than the
+// current one returns kResultFalse and leaves the previous kit as it was.
 // ==============================================================================
 
 TEST_CASE("State: setState rejects every version it cannot map",
           "[phase6_state][state_v6][state]")
 {
     V6Fixture fx;
-    for (int32 v : {0, 1, 2, 3, 4, 7, 8, 9, 10, 11, 12, 13, 14, 15, 99, -1})
+    // A previous kit that is not the default one.
+    fx.processor.voicePoolForTest().padConfigsArray()[0].material = 0.123f;
+    fx.processor.publishPadConfigsForTest();
+    MemoryStream beforeStream;
+    REQUIRE(fx.processor.getState(&beforeStream) == kResultOk);
+    const auto before = readAllBytes(beforeStream);
+
+    for (int32 v : {0, 3, 4, 7, 8, 9, 10, 11, 12, 13, 14, 15, 99, -1})
     {
         std::vector<std::uint8_t> buf;
         appendBytes(buf, &v, sizeof(v));
         // Pad out with zeros to look like a plausibly-sized blob.
-        buf.resize(128, std::uint8_t{0});
+        buf.resize(17016, std::uint8_t{0});
 
         MemoryStream stream;
         loadIntoStream(stream, buf);
         INFO("rejecting version " << v);
         CHECK(fx.processor.setState(&stream) == kResultFalse);
+        fx.processEmptyBlock();
+
+        MemoryStream afterStream;
+        REQUIRE(fx.processor.getState(&afterStream) == kResultOk);
+        CHECK(readAllBytes(afterStream) == before);
     }
+}
+
+// ==============================================================================
+// Fix plan T2.8 (MB-088, MB-119, MB-153): a project or kit saved by a released
+// 0.9.x or 0.10.x build loads on both sides instead of falling back to the
+// default kit.
+// ==============================================================================
+
+TEST_CASE("State: setState and setComponentState load a kit saved by v0.10.2",
+          "[state][migration]")
+{
+    const char* fileName = nullptr;
+    int32 version = 0;
+    std::size_t slots = 0;
+    SECTION("v0.10.2 (blob version 2)")
+    {
+        fileName = "kit_v2_v0.10.2_acoustic_studio.vstpreset";
+        version = 2;
+        slots = 56;
+    }
+    SECTION("v0.9.0 (blob version 1)")
+    {
+        fileName = "kit_v1_v0.9.0_acoustic_studio.vstpreset";
+        version = 1;
+        slots = 52;
+    }
+
+    auto chunk = Membrum::TestHelpers::componentChunkFromFile(goldenDir() / fileName);
+    REQUIRE(chunk != nullptr);
+    const auto bytes = readAllBytes(*chunk);
+    int32 storedVersion = 0;
+    std::memcpy(&storedVersion, bytes.data(), sizeof(storedVersion));
+    REQUIRE(storedVersion == version);
+    // Pad 1's material: header (12) + pad 0's block (4 + 4 + slots x 8 + 2)
+    // + pad 1's exciter and body (8); sound slot 0.
+    const std::size_t materialAt = 12 + (8 + slots * 8 + 2) + 8;
+    double rawMaterial = 0.0;
+    std::memcpy(&rawMaterial, bytes.data() + materialAt, sizeof(rawMaterial));
+
+    V6Fixture fx;
+    chunk->seek(0, IBStream::kIBSeekSet, nullptr);
+    REQUIRE(fx.processor.setState(chunk) == kResultOk);
+    fx.processEmptyBlock();
+    CHECK(fx.processor.voicePoolForTest().padConfig(1).material ==
+          Approx(rawMaterial).margin(1e-6));
+
+    MemoryStream saved;
+    REQUIRE(fx.processor.getState(&saved) == kResultOk);
+    const auto savedBytes = readAllBytes(saved);
+    int32 savedVersion = 0;
+    std::memcpy(&savedVersion, savedBytes.data(), sizeof(savedVersion));
+    CHECK(savedVersion == Membrum::kCurrentStateVersion);
+
+    Membrum::Controller controller;
+    REQUIRE(controller.initialize(nullptr) == kResultOk);
+    chunk->seek(0, IBStream::kIBSeekSet, nullptr);
+    CHECK(controller.setComponentState(chunk) == kResultOk);
+    CHECK(controller.getParamNormalized(static_cast<ParamID>(
+              Membrum::padParamId(1, Membrum::kPadMaterial))) ==
+          Approx(rawMaterial).margin(1e-6));
+    REQUIRE(controller.terminate() == kResultOk);
 }
 
 // ==============================================================================

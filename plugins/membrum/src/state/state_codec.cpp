@@ -12,6 +12,7 @@
 #include <krate/dsp/core/db_utils.h>
 
 #include <algorithm>
+#include <cmath>
 #include <cstring>
 #include <type_traits>
 
@@ -62,6 +63,79 @@ void writeT(IBStreamer& s, const T& src) noexcept
 
 /// The released version whose kit fields hold what a pad played.
 constexpr int32 kBakedMacroBlobVersion = 5;
+
+/// Sound slots per pad that a kit blob of `version` carries, or 0 for a version
+/// no release wrote (rejected). Released builds wrote 1 (v0.9.0, v0.9.1), 2
+/// (v0.10.1, v0.10.2) and 5 (v0.12.0 - v0.12.5); fix plan T2.8.
+[[nodiscard]] std::size_t kitSoundSlots(int32 version) noexcept
+{
+    switch (version)
+    {
+    case 1:                      return 52;  // through the Phase 8F enabled flag
+    case 2:                      return 56;  // + the Phase 10 pitch-envelope knee
+    case kBakedMacroBlobVersion:
+    case kBlobVersion:           return std::tuple_size_v<decltype(PadSnapshot::sound)>;
+    default:                     return 0;
+    }
+}
+
+/// Sound slots of a pad-preset blob of `version`, or 0 (rejected). Version 1
+/// did not carry the kit-level enabled flag (slot 51).
+[[nodiscard]] std::size_t padPresetSoundSlots(int32 version) noexcept
+{
+    switch (version)
+    {
+    case 1:                      return 51;
+    case 2:                      return 56;
+    case kBakedMacroBlobVersion:
+    case kPadBlobVersion:        return std::tuple_size_v<decltype(PadPresetSnapshot::sound)>;
+    default:                     return 0;
+    }
+}
+
+/// Fix plan T2.8: maps a version-1 or version-2 pad's sound slots (`stored` of
+/// them read) onto the version-5 meaning, so the version-5 migration below
+/// then runs as for a v0.12 blob. The slots a version did not carry get the
+/// value that makes this engine do what the old build did, and the slots whose
+/// meaning changed since are converted to keep the plain value the old build
+/// used. Engine changes that alter how an unchanged value sounds are not
+/// migrated.
+void legacySoundToV5(std::array<double, 59>& sound, std::size_t stored, int32 version) noexcept
+{
+    // Slots 51-58 by index - 51, PadConfig's neutral values of the fields
+    // added after version 1.
+    constexpr std::array<double, 8> kAddedSlots{
+        1.0,  // 51 enabled (a version-1 pad preset did not carry it)
+        0.0,  // 52 pitch-envelope knee off: one segment, as before Phase 10
+        0.5,  // 53 mid pitch (unused with the knee off)
+        0.5,  // 54 mid fraction (unused with the knee off)
+        0.5,  // 55 segment-2 curve: linear (unused with the knee off)
+        0.5,  // 56 pan centre: the old mono duplication
+        1.0,  // 57 noiseLayerGain: no multiplier existed
+        0.0,  // 58 wireCoupling 0: independent buzz (legacy)
+    };
+    for (std::size_t i = stored; i < sound.size(); ++i)
+        sound[i] = kAddedSlots[i - 51];
+
+    if (version == 1)
+    {
+        // v0.9.x read the pitch-envelope curve as Exponential (< 0.5) or
+        // Linear; 0.10.0 made it a curve amount and remapped its factory kits
+        // Exp -> 0.15 (amount -0.7), Lin -> 0.5 (linear).
+        sound[14] = sound[14] < 0.5 ? 0.15 : 0.5;
+        // v0.9.x decoded filter-envelope attack, decay and release linearly
+        // (ms = n x max); since 0.10.0 cubically (ms = n^3 x max).
+        for (const std::size_t i : {std::size_t{15}, std::size_t{16}, std::size_t{18}})
+            sound[i] = std::cbrt(std::clamp(sound[i], 0.0, 1.0));
+    }
+    // v0.9.x and v0.10.x stored FM Ratio, Feedback Amount and Friction
+    // Pressure but never forwarded them to the exciter: it played the 1.4
+    // modulator ratio and velocity-only drive and pressure.
+    constexpr float kLegacyFMRatioNorm = (1.4f - 1.0f) / 3.0f;  // ratio 1 + 3n
+    sound[30] = static_cast<double>(kLegacyFMRatioNorm);
+    sound[31] = 0.0;
+    sound[33] = 0.0;
+}
 
 /// Version 5 stored a pad's macro-target fields with the macro deltas baked in
 /// (what it played); version 6 stores base values that the macros offset. Map
@@ -482,18 +556,23 @@ tresult writeKitBlob(IBStream* stream, const KitSnapshot& kit)
     return kResultOk;
 }
 
-tresult readKitBlob(IBStream* stream, KitSnapshot& kit)
-{
-    if (!stream)
-        return kResultFalse;
+namespace {
 
+/// readKitBlob's body: writes `kit` as it reads, so the caller passes a copy.
+tresult readKitBlobInto(IBStream* stream, KitSnapshot& kit)
+{
     IBStreamer streamer(stream, kLittleEndian);
 
     int32 version = 0;
     if (!readT(streamer, version))
         return kResultFalse;
-    if (version != kBlobVersion && version != kBakedMacroBlobVersion)
+    const std::size_t storedSlots = kitSoundSlots(version);
+    if (storedSlots == 0)
         return kResultFalse;
+    // Every released version before the current one: absolute body damping
+    // and macro deltas baked into the fields (the version-5 meaning, which
+    // versions 1 and 2 are mapped onto).
+    const bool released = version != kBlobVersion;
 
     int32 maxPoly = 8;
     int32 stealPolicy = 0;
@@ -517,12 +596,14 @@ tresult readKitBlob(IBStream* stream, KitSnapshot& kit)
         pad.exciterType = static_cast<ExciterType>(excI);
         pad.bodyModel   = static_cast<BodyModelType>(bodyI);
 
-        for (double& slot : pad.sound)
+        for (std::size_t i = 0; i < storedSlots; ++i)
         {
-            if (!readT(streamer, slot))
+            if (!readT(streamer, pad.sound[i]))
                 return kResultFalse;
         }
-        sanitiseSoundSlots(pad.sound, version == kBakedMacroBlobVersion);
+        if (storedSlots < pad.sound.size())
+            legacySoundToV5(pad.sound, storedSlots, version);
+        sanitiseSoundSlots(pad.sound, released);
         if (!readT(streamer, pad.chokeGroup)) return kResultFalse;
         if (!readT(streamer, pad.outputBus))  return kResultFalse;
         if (pad.chokeGroup > 8U)  pad.chokeGroup = 0;
@@ -574,7 +655,7 @@ tresult readKitBlob(IBStream* stream, KitSnapshot& kit)
         return kResultFalse;
     kit.masterGainNorm = std::clamp(finiteOr(mg, kKitDefaults.masterGainNorm), 0.0, 1.0);
 
-    if (version == kBakedMacroBlobVersion)
+    if (released)
     {
         for (auto& pad : kit.pads)
         {
@@ -598,6 +679,21 @@ tresult readKitBlob(IBStream* stream, KitSnapshot& kit)
         kit.hasSession = false;
     }
 
+    return kResultOk;
+}
+
+} // namespace
+
+tresult readKitBlob(IBStream* stream, KitSnapshot& kit)
+{
+    if (!stream)
+        return kResultFalse;
+
+    // A rejected or short blob leaves the caller's snapshot as it was.
+    KitSnapshot read = kit;
+    if (readKitBlobInto(stream, read) != kResultOk)
+        return kResultFalse;
+    kit = read;
     return kResultOk;
 }
 
@@ -636,11 +732,16 @@ tresult readPadPresetBlob(IBStream* stream, PadPresetSnapshot& pad)
     int32 version = 0;
     if (!readT(streamer, version))
         return kResultFalse;
-    // A pad preset carries no macros; a version-5 one only has its body
-    // damping slots re-encoded (below).
-    if (version != kPadBlobVersion && version != kBakedMacroBlobVersion)
+    // A pad preset carries no macros; a released one (versions 1, 2, 5) only
+    // has its body damping slots re-encoded (below), after versions 1 and 2
+    // are mapped onto the version-5 meaning.
+    const std::size_t storedSlots = padPresetSoundSlots(version);
+    if (storedSlots == 0)
         return kResultFalse;
+    const bool released = version != kPadBlobVersion;
 
+    // Read into a copy: a short blob leaves the caller's snapshot as it was.
+    PadPresetSnapshot read = pad;
     int32 excI = 0;
     int32 bodyI = 0;
     if (!readT(streamer, excI))  return kResultFalse;
@@ -649,24 +750,27 @@ tresult readPadPresetBlob(IBStream* stream, PadPresetSnapshot& pad)
                       static_cast<int32>(ExciterType::kCount) - 1);
     bodyI = std::clamp(bodyI, int32{0},
                        static_cast<int32>(BodyModelType::kCount) - 1);
-    pad.exciterType = static_cast<ExciterType>(excI);
-    pad.bodyModel   = static_cast<BodyModelType>(bodyI);
+    read.exciterType = static_cast<ExciterType>(excI);
+    read.bodyModel   = static_cast<BodyModelType>(bodyI);
 
-    for (double& slot : pad.sound)
+    for (std::size_t i = 0; i < storedSlots; ++i)
     {
-        if (!readT(streamer, slot))
+        if (!readT(streamer, read.sound[i]))
             return kResultFalse;
     }
-    sanitiseSoundSlots(pad.sound, version == kBakedMacroBlobVersion);
+    if (storedSlots < read.sound.size())
+        legacySoundToV5(read.sound, storedSlots, version);
+    sanitiseSoundSlots(read.sound, released);
 
-    // Version 5 held absolute body damping values. A pad preset carries no
-    // macros, so its fields are what it played.
-    if (version == kBakedMacroBlobVersion)
+    // Released versions held absolute body damping values. A pad preset
+    // carries no macros, so its fields are what it played.
+    if (released)
     {
         PadConfig played;
-        applyPadPresetSnapshot(pad, played);
-        bodyDampingFromAbsolute(pad.sound, played);
+        applyPadPresetSnapshot(read, played);
+        bodyDampingFromAbsolute(read.sound, played);
     }
+    pad = read;
     return kResultOk;
 }
 

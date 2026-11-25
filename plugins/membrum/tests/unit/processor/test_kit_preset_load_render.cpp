@@ -280,7 +280,10 @@ TEST_CASE("Kit-preset load: per-pad pitch envelope reaches the modal bank "
     // Read back the bank's mode 0 frequency for one pad. Triggers a noteOn,
     // runs one block (configures the bank), and inspects the active voice.
     auto bankMode0Hz = [&](int16 midi) -> float {
-        // Drain any prior voice tails so they don't bleed in.
+        // Drain any prior voice tails so they don't bleed in. A note-off does
+        // not shorten a drum hit (FR-114, fix plan T2.9), so render until the
+        // prior voice has retired through its own auto-release (capped at
+        // 20 s, the retirement guarantee of test_voice_retirement.cpp).
         for (int n = 36; n <= 67; ++n) {
             fix.events.clear();
             fix.events.noteOn(static_cast<int16>(n), 0.0f);
@@ -288,6 +291,10 @@ TEST_CASE("Kit-preset load: per-pad pitch envelope reaches the modal bank "
         }
         fix.events.clear();
         for (int b = 0; b < 50; ++b) fix.processBlock();
+        const int retireCap = static_cast<int>(20.0 * kSampleRate / kBlockSize);
+        for (int b = 0; b < retireCap && fix.processor.voicePoolForTest().isAnyVoiceActive(); ++b)
+            fix.processBlock();
+        REQUIRE_FALSE(fix.processor.voicePoolForTest().isAnyVoiceActive());
         fix.events.clear();
         fix.events.noteOn(midi, 1.0f);
         fix.processBlock();
