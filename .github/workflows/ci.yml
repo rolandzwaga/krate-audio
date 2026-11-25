@@ -1620,7 +1620,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # The test binaries link VSTGUI, so the X11 / cairo / gtkmm runtime libraries must be present to load
-      # them; the -dev packages carry those runtime libraries (same list as the build job).
+      # them; the -dev packages carry those runtime libraries (same list as the build job). xvfb + xauth: the
+      # shared_tests [x11] cases open real editors into an X window (Run shard wraps the shards in xvfb-run).
       # Capped and retried: one shard of run 37924744923 sat in this step for hours while the other seven
       # finished it in seconds. The cap turns a hang into a red job that can be re-run; the lock timeout
       # covers the dpkg lock being held by the image's own background apt.
@@ -1633,7 +1634,7 @@ jobs:
               libx11-dev libxcb1-dev libxkbcommon-x11-dev libx11-xcb-dev \
               libxcb-util1 libxcb-util-dev libxcb-keysyms1-dev libxcb-cursor-dev \
               libxcb-xkb-dev libxkbcommon-dev libfontconfig1-dev libfreetype6-dev \
-              libcairo2-dev libgtkmm-3.0-dev libsqlite3-dev && break
+              libcairo2-dev libgtkmm-3.0-dev libsqlite3-dev xvfb xauth && break
             echo "::warning::apt attempt $attempt failed; retrying"
             [ "$attempt" = 3 ] && exit 1
             sleep 20
@@ -1655,7 +1656,9 @@ jobs:
         env:
           ASAN_OPTIONS: ${{ inputs.sanitize && 'detect_leaks=0:abort_on_error=1:halt_on_error=1:strict_string_checks=1:detect_stack_use_after_return=1' || '' }}
           UBSAN_OPTIONS: ${{ inputs.sanitize && 'print_stacktrace=1:halt_on_error=1' || '' }}
-        run: node tools/ci-test-shard.js --os linux --bin "build/bin/${{ env.BUILD_TYPE }}" --manifest build/test-manifest.txt --shard ${{ matrix.shard }} --count ${{ inputs.long-tests && 20 || 8 }} --long "${{ inputs.long-tests }}" --sanitize "${{ inputs.sanitize }}" --log-dir build/test-logs
+          # The shared_tests [x11] cases skip without a display; here a missing display fails them instead.
+          KRATE_REQUIRE_X11: '1'
+        run: xvfb-run -a node tools/ci-test-shard.js --os linux --bin "build/bin/${{ env.BUILD_TYPE }}" --manifest build/test-manifest.txt --shard ${{ matrix.shard }} --count ${{ inputs.long-tests && 20 || 8 }} --long "${{ inputs.long-tests }}" --sanitize "${{ inputs.sanitize }}" --log-dir build/test-logs
       - name: Upload shard log
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

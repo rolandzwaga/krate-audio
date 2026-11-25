@@ -122,6 +122,9 @@ if(UNIX AND NOT APPLE)
         # Linux::IRunLoop / IEventHandler / ITimerHandler iids only on Linux.
         src/ui/host_run_loop_bridge.h
         src/ui/host_run_loop_bridge.cpp
+        # Finishes cairo's state for VSTGUI's X connection before VSTGUI closes it (reopen crash, VSTGUI #376/#377)
+        src/ui/x11_frame_lifecycle.h
+        src/ui/x11_frame_lifecycle.cpp
     )
     target_link_libraries(KratePluginsShared PRIVATE ${CMAKE_DL_LIBS})
 endif()

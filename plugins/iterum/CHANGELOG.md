@@ -5,6 +5,12 @@ All notable changes to Iterum will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.2] - 2026-11-25
+
+### Fixed
+
+- **Reopening the editor on Linux crashed the host, opened it black or drew it without text** *(shared editor)* — The GUI library closes its display connection when the last editor closes but left its drawing state for that connection behind; a later editor could inherit it, and the host aborted or the editor drew without its labels (seen in Carla and Ardour). That state is now cleared before the connection closes. The editor also stayed black after a reopen until its window was moved, because display events already received were not handled until new ones arrived; they are now handled while the editor is open.
+
 ## [1.1.1] - 2026-11-24
 
 ### Fixed
