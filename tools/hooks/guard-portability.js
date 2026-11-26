@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // ==============================================================================
-// guard-portability.js  —  PreToolUse hook (Bash)
+// guard-portability.js  —  PreToolUse hook (Bash, PowerShell)
 // ==============================================================================
 // Blocks `git commit` when a staged C++ translation unit fails to compile under
 // GCC. A local Windows build cannot find this class of error at all: MSVC

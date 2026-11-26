@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // ==============================================================================
-// guard-ci-gates.js  —  PreToolUse hook (Bash)
+// guard-ci-gates.js  —  PreToolUse hook (Bash, PowerShell)
 // ==============================================================================
 // Runs the cheap, deterministic CI gates before `git commit` and blocks when any
 // of them fails. Every check here costs milliseconds locally and a full CI

@@ -31,7 +31,8 @@ const WORK_TREE = new RegExp(String.raw`(?:^|\s)--work-tree(?:=|\s+)(${ARG})`);
 // Where a command starts: the line, after && || ; or inside ( ... ) and { ... }. `$(` is a command substitution: its cd
 // does not move the commit.
 const START = String.raw`(?:^|&&|\|\||;|\n|(?<!\$)\(|\{)\s*`;
-const CD = new RegExp(String.raw`${START}(?:cd|pushd)\s+(${ARG})\s*(?=&&|;|\n)`, 'g');
+// bash cd / pushd and their PowerShell forms (a commit can come through either shell tool).
+const CD = new RegExp(String.raw`${START}(?:cd|pushd|chdir|sl|Set-Location|Push-Location)\s+(?:-(?:Literal)?Path\s+)?(${ARG})\s*(?=&&|;|\n)`, 'g');
 const ENV_WORK_TREE = new RegExp(String.raw`${START}(?:env\s+)?(?:[A-Za-z_]\w*=${ARG}?\s+)*?GIT_WORK_TREE=(${ARG})\s+(?:[A-Za-z_]\w*=${ARG}?\s+)*$`);
 
 /// The checkout this hook file belongs to.
@@ -82,4 +83,9 @@ function commitRoot(payload, cmd) {
     return topLevel(commitDir(cmd, cwd) || cwd) || hookRoot();
 }
 
-module.exports = { commitRoot, commitDir, hookRoot };
+/// A path argument of the commit command (a -F message file), resolved where the commit runs.
+function resolveArg(cmd, cwd, arg) {
+    return path.resolve(commitDir(cmd, cwd) || cwd || process.cwd(), fromShellPath(unquote(arg)));
+}
+
+module.exports = { commitRoot, commitDir, hookRoot, resolveArg, ARG };

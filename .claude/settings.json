@@ -20,6 +20,15 @@
         "hooks": [
           {
             "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/tools/hooks/guard-heredoc.js\""
+          }
+        ]
+      },
+      {
+        "matcher": "Bash|PowerShell",
+        "hooks": [
+          {
+            "type": "command",
             "command": "node \"$CLAUDE_PROJECT_DIR/tools/hooks/guard-changelog.js\""
           },
           {
@@ -33,13 +42,8 @@
           },
           {
             "type": "command",
-            "command": "node \"$CLAUDE_PROJECT_DIR/tools/hooks/guard-heredoc.js\""
-          }
-        ]
-      },
-      {
-        "matcher": "Bash|PowerShell",
-        "hooks": [
+            "command": "node \"$CLAUDE_PROJECT_DIR/tools/hooks/guard-wsl-shutdown.js\""
+          },
           {
             "type": "command",
             "command": "node \"$CLAUDE_PROJECT_DIR/tools/hooks/guard-tidy-scope.js\""

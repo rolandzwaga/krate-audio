@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // ==============================================================================
-// guard-changelog.js  —  PreToolUse hook (Bash)
+// guard-changelog.js  —  PreToolUse hook (Bash, PowerShell)
 // ==============================================================================
 // Release discipline: a commit whose message says "release X.Y.Z" for a plugin
 // MUST have the matching "## [X.Y.Z]" section already present in that plugin's
@@ -21,7 +21,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { commitRoot } = require('./commit-root.js');
+const { commitRoot, resolveArg, ARG } = require('./commit-root.js');
 
 function readStdin() {
     return new Promise((resolve) => {
@@ -33,9 +33,25 @@ function readStdin() {
     });
 }
 
+const MESSAGE_FILE = new RegExp(String.raw`(?:^|\s)(?:-[A-Za-z]*F|--file)(?:=|\s+)(${ARG})`);
+
+// The message of `git commit -F <file>` / `--file=<file>`, read where the commit runs (a relative path is relative
+// to the committing directory, which is a worktree for an agent in a fix lane). Agents commit this way because
+// heredocs are blocked, so without it this gate never saw their commits. '' when there is no readable file.
+function messageFromFile(cmd, cwd) {
+    const at = cmd.search(/\bgit\b[^\n]*?\bcommit\b/);
+    const m = at < 0 ? null : MESSAGE_FILE.exec(cmd.slice(at));
+    if (!m || m[1] === '-') return '';
+    try {
+        return fs.readFileSync(resolveArg(cmd, cwd, m[1]), 'utf8');
+    } catch {
+        return '';
+    }
+}
+
 // Extract the commit message text from a `git commit -m "..."` (or -m '...', or a
-// heredoc/@'...'@). Returns '' if this isn't a git commit or no message found.
-function extractCommitMessage(cmd) {
+// heredoc/@'...'@, or -F <file>). Returns '' if this isn't a git commit or no message found.
+function extractCommitMessage(cmd, cwd) {
     if (!/\bgit\b[^\n]*\bcommit\b/.test(cmd)) return '';
     // -m "..." or -m '...'
     const dq = cmd.match(/-m\s+"([\s\S]*?)"/);
@@ -47,7 +63,7 @@ function extractCommitMessage(cmd) {
     if (heredoc) return heredoc[1];
     const psHereString = cmd.match(/@'\r?\n([\s\S]*?)\r?\n'@/);
     if (psHereString) return psHereString[1];
-    return '';
+    return messageFromFile(cmd, cwd);
 }
 
 // The checkout whose CHANGELOG counts: the one that commits (a worktree commits its own tree). Set per call.
@@ -90,7 +106,7 @@ function listPluginDirs() {
     const cmd = (payload && payload.tool_input && payload.tool_input.command) || '';
     if (!cmd) process.exit(0);
 
-    const msg = extractCommitMessage(cmd);
+    const msg = extractCommitMessage(cmd, payload && typeof payload.cwd === 'string' ? payload.cwd : null);
     if (!msg) process.exit(0);
     root = commitRoot(payload, cmd);
 

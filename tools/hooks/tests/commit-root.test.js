@@ -83,6 +83,13 @@ test('cd inside a subshell, a brace group, on its own line, or as pushd', () => 
     same(root(main, `pushd "${lane}" && git commit -m x`), lane);
 });
 
+test('PowerShell forms of cd', () => {
+    same(root(main, `Set-Location "${lane}"; git commit -m x`), lane);
+    same(root(main, `Set-Location -Path '${lane}'; git commit -m x`), lane);
+    same(root(main, `Push-Location "${lane}"; git commit -m x`), lane);
+    same(root(main, `sl "${lane}"; git commit -m x`), lane);
+});
+
 test('a cd inside a command substitution does not move the commit', () => {
     same(root(lane, `MSG=$(cd "${main}" && cat msg.txt); git commit -m "$MSG"`), lane);
 });

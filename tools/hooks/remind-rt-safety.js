@@ -11,7 +11,8 @@
 // Deliberately does NOT grep for new/malloc/lock — those appear legitimately in
 // prepare()/ctors/member decls, so a content grep produces false-positive noise
 // the agent learns to ignore. This only nudges toward the review; it does not
-// judge the code. It is non-blocking (exit 0) and fires at most once per session.
+// judge the code. It is non-blocking (exit 0) and fires at most once per session
+// for the main conversation and once for each subagent (parallel implementers).
 //
 // Reads the PostToolUse JSON envelope on stdin; emits an additionalContext note
 // via hookSpecificOutput. Any parse failure exits 0 (fail-open — a hook must
@@ -58,9 +59,13 @@ function isAudioPath(normalized) {
   const normalized = String(filePath).replace(/\\/g, '/');
   if (!filePath || !isAudioPath(normalized)) process.exit(0);
 
-  // Fire at most once per session: marker keyed by session_id in the temp dir.
-  const session = String((payload && payload.session_id) || 'nosession').replace(/[^\w.-]/g, '_');
-  const marker = path.join(os.tmpdir(), `krate-rtsafety-${session}.marker`);
+  // Fire at most once per READER: the main conversation, and each subagent. A subagent's tool calls carry an
+  // agent_id; with the marker keyed by session alone, only the first of several parallel implementers was reminded
+  // (and none of them, once the main conversation had been).
+  const safe = (v) => String(v).replace(/[^\w.-]/g, '_');
+  const session = safe((payload && payload.session_id) || 'nosession');
+  const agent = payload && payload.agent_id ? `-${safe(payload.agent_id)}` : '';
+  const marker = path.join(os.tmpdir(), `krate-rtsafety-${session}${agent}.marker`);
   try {
     if (fs.existsSync(marker)) process.exit(0);
     fs.writeFileSync(marker, ''); // touch — presence is the only signal
@@ -74,7 +79,7 @@ function isAudioPath(normalized) {
     'process()/the render path. Before finishing, apply the RT-safety review lens ' +
     '(code-review skill -> DSP-REVIEW.md; canonical rules in dsp-architecture/REALTIME-SAFETY.md), ' +
     'and remember the DSP layer-dependency rule (a lint enforces it: node tools/lint-layers.js). ' +
-    'This note fires once per session.';
+    'This note fires once per session, and once per subagent.';
 
   process.stdout.write(
     JSON.stringify({
