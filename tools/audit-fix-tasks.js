@@ -12,6 +12,11 @@
 //   node tools/audit-fix-tasks.js <dir> --phase 2          one phase
 //   node tools/audit-fix-tasks.js <dir> --tasks T1.3,T2.1  named tasks
 //   node tools/audit-fix-tasks.js <dir> --expect T1.1,...  also require exactly these ids
+//   node tools/audit-fix-tasks.js <dir> --complete         also require a FINISHED audit: report.md and
+//                                                          fix-plan.md beside <dir>, no part folders left, every
+//                                                          plan task with a brief and the reverse, no
+//                                                          "PART MISSING" / "BRIEF MISSING" marker. The fix
+//                                                          workflow passes it: it must not start on a partial audit.
 //   node tools/audit-fix-tasks.js --self-test
 //
 // Prints {"tasks":[...]} (compact; --pretty to indent), ordered by phase then
@@ -139,13 +144,49 @@ const order = (a, b) => {
     return ap - bp || an - bn;
 };
 
+/// Signs that the audit which wrote the briefs ran to its end. The briefs are written a batch at a time near the end
+/// of the audit, so a valid-looking but partial set exists while it still runs and after it dies there. The audit
+/// joins report.md and fix-plan.md last and deletes its part folders only after a clean join.
+function completeness(dir, ids) {
+    const problems = [];
+    const audit = path.dirname(path.resolve(dir));
+    const marker = /^>\s*(PART|BRIEF) MISSING:/m;
+    const read = (file) => {
+        try {
+            return fs.readFileSync(file, 'utf8');
+        } catch {
+            return null;
+        }
+    };
+    const texts = {};
+    for (const name of ['report.md', 'fix-plan.md']) {
+        texts[name] = read(path.join(audit, name));
+        if (texts[name] === null) problems.push(`audit not finished: ${name} is missing in ${audit}`);
+        else if (marker.test(texts[name])) problems.push(`audit not finished: ${name} holds a "${marker.exec(texts[name])[1]} MISSING" marker (a writer failed; rerun the audit's synthesis)`);
+    }
+    for (const parts of ['report-parts', 'fix-plan-parts']) {
+        if (fs.existsSync(path.join(audit, parts))) problems.push(`audit not finished: ${parts} still exists in ${audit} (the parts were not joined, or the join check failed)`);
+    }
+    if (texts['fix-plan.md'] !== null) {
+        const planned = new Set([...texts['fix-plan.md'].matchAll(/^### (T\d+\.\d+) /gm)].map((m) => m[1]));
+        for (const id of ids) if (!planned.has(id)) problems.push(`audit not finished: brief ${id} has no task heading in fix-plan.md`);
+        for (const id of planned) if (!ids.includes(id)) problems.push(`audit not finished: fix-plan.md task ${id} has no brief`);
+    }
+    for (const id of ids) {
+        const text = read(path.join(dir, `${id}.md`));
+        if (text !== null && marker.test(text)) problems.push(`audit not finished: ${id}.md holds a "${marker.exec(text)[1]} MISSING" marker (rerun the audit's synthesis for this task)`);
+    }
+    return problems;
+}
+
 function run(argv) {
     const dir = argv.find((a) => !a.startsWith('--') && argv[argv.indexOf(a) - 1] !== '--phase' && argv[argv.indexOf(a) - 1] !== '--tasks' && argv[argv.indexOf(a) - 1] !== '--expect');
     const opt = (name) => (argv.includes(name) ? argv[argv.indexOf(name) + 1] : undefined);
-    if (!dir) return { code: 2, err: ['usage: node tools/audit-fix-tasks.js <tasks-dir> [--phase N | --tasks T1.1,T1.2] [--expect ids] [--pretty]'] };
+    if (!dir) return { code: 2, err: ['usage: node tools/audit-fix-tasks.js <tasks-dir> [--phase N | --tasks T1.1,T1.2] [--expect ids] [--complete] [--pretty]'] };
     const loaded = load(dir);
     const problems = validate(loaded);
     const all = loaded.tasks.map((t) => t.record).filter((r) => r && typeof r === 'object' && ID.test(String(r.task_id))).sort(order);
+    if (argv.includes('--complete')) problems.push(...completeness(dir, all.map((t) => t.task_id)));
     const expect = opt('--expect');
     if (expect !== undefined) {
         const want = expect.split(',').map((s) => s.trim()).filter(Boolean);
@@ -225,6 +266,48 @@ function selfTest() {
         reset();
         assert.match(errors().join('\n'), /no T<phase>\.<n>\.md brief found/);
         assert.strictEqual(run([]).code, 2);
+
+        // --complete: the audit that wrote the briefs ran to its end.
+        const audit = path.join(tmp, 'audit');
+        const tdir = path.join(audit, 'tasks');
+        fs.mkdirSync(tdir, { recursive: true });
+        const brief = (rec, extra = '') =>
+            fs.writeFileSync(path.join(tdir, `${rec.task_id}.md`), `# ${rec.task_id}\n\n\`\`\`json\n${JSON.stringify(rec)}\n\`\`\`\n${extra}`);
+        const plan = (text) => fs.writeFileSync(path.join(audit, 'fix-plan.md'), text);
+        const goodPlan = '# plan\n\n## Phase 1\n\n### T1.1 — a\n\ntext\n\n### T1.2 — b\n';
+        brief(base);
+        brief({ ...base, task_id: 'T1.2', finding_ids: ['INX-002'] });
+        plan(goodPlan);
+        fs.writeFileSync(path.join(audit, 'report.md'), '# report\n');
+        const incomplete = () => (run([tdir, '--complete']).err || []).join('\n');
+        assert.strictEqual(run([tdir, '--complete']).code, 0, incomplete());
+
+        fs.rmSync(path.join(audit, 'report.md'));
+        assert.match(incomplete(), /report\.md is missing/);
+        assert.strictEqual(run([tdir]).code, 0, 'without --complete only the briefs are checked');
+        fs.writeFileSync(path.join(audit, 'report.md'), '# report\n\n> PART MISSING: 300-findings.md — the writer agent failed\n');
+        assert.match(incomplete(), /report\.md holds a "PART MISSING" marker/);
+        fs.writeFileSync(path.join(audit, 'report.md'), '# report\n');
+
+        fs.mkdirSync(path.join(audit, 'fix-plan-parts'));
+        assert.match(incomplete(), /fix-plan-parts still exists/);
+        fs.rmSync(path.join(audit, 'fix-plan-parts'), { recursive: true });
+        fs.mkdirSync(path.join(audit, 'report-parts'));
+        assert.match(incomplete(), /report-parts still exists/);
+        fs.rmSync(path.join(audit, 'report-parts'), { recursive: true });
+
+        fs.rmSync(path.join(audit, 'fix-plan.md'));
+        assert.match(incomplete(), /fix-plan\.md is missing/);
+        plan('# plan\n\n### T1.1 — a\n');
+        assert.match(incomplete(), /brief T1\.2 has no task heading in fix-plan\.md/);
+        plan(`${goodPlan}\n### T1.3 — c\n`);
+        assert.match(incomplete(), /fix-plan\.md task T1\.3 has no brief/);
+        plan(goodPlan);
+
+        brief(base, '\n> BRIEF MISSING: the writer agent failed; rerun the synthesis for this task.\n');
+        assert.match(incomplete(), /T1\.1\.md holds a "BRIEF MISSING" marker/);
+        brief(base);
+        assert.strictEqual(run([tdir, '--complete']).code, 0, incomplete());
     } finally {
         fs.rmSync(tmp, { recursive: true, force: true });
     }
