@@ -7,11 +7,15 @@
 // git worktree (a parallel fix lane) was then judged against the wrong tree and
 // the wrong index.
 //
-// The root is the top level of the directory the commit runs in:
-//   1. `git -C <dir> ... commit`      (an agent committing in a lane)
-//   2. the last `cd <dir>` before it  (`cd <lane> && git commit ...`)
-//   3. the tool call's cwd            (the hook envelope's `cwd`)
-//   4. the checkout this file lives in, when none of those is a git checkout.
+// The root is the top level of the directory the commit runs in. Starting from
+// the tool call's cwd (the hook envelope's `cwd`), in the order the shell and
+// git apply them:
+//   1. every `cd <dir>` / `pushd <dir>` before the commit, also inside ( ) or { }
+//   2. `git -C <dir> ... commit`      (an agent committing in a lane)
+//   3. `--work-tree <dir>`, or `GIT_WORK_TREE=<dir>` in front of the command
+// and the checkout this file lives in when that is not a git checkout.
+// Not followed: a cd in an EARLIER tool call (the envelope's cwd covers it when
+// the shell kept it), `export GIT_WORK_TREE=...`, a bare `--git-dir`.
 // ==============================================================================
 'use strict';
 
@@ -20,9 +24,15 @@ const fs = require('fs');
 const path = require('path');
 
 const ARG = String.raw`(?:"[^"]*"|'[^']*'|[^\s;&|]+)`;
-const GIT_COMMIT = new RegExp(String.raw`\bgit((?:\s+(?:-[Cc]\s+${ARG}|--?[\w-]+(?:=\S+)?))*)\s+commit\b`);
+// `git <global options> commit`. Options that take a separate value are named, so the value is not read as the subcommand.
+const GIT_COMMIT = new RegExp(String.raw`\bgit((?:\s+(?:(?:-[Cc]|--work-tree|--git-dir|--namespace)\s+${ARG}|--?[\w-]+(?:=${ARG})?))*)\s+commit\b`);
 const DASH_C = new RegExp(String.raw`(?:^|\s)-C\s+(${ARG})`, 'g');
-const CD = new RegExp(String.raw`(?:^|&&|\|\||;|\n)\s*cd\s+(${ARG})\s*(?=&&|;|\n)`, 'g');
+const WORK_TREE = new RegExp(String.raw`(?:^|\s)--work-tree(?:=|\s+)(${ARG})`);
+// Where a command starts: the line, after && || ; or inside ( ... ) and { ... }. `$(` is a command substitution: its cd
+// does not move the commit.
+const START = String.raw`(?:^|&&|\|\||;|\n|(?<!\$)\(|\{)\s*`;
+const CD = new RegExp(String.raw`${START}(?:cd|pushd)\s+(${ARG})\s*(?=&&|;|\n)`, 'g');
+const ENV_WORK_TREE = new RegExp(String.raw`${START}(?:env\s+)?(?:[A-Za-z_]\w*=${ARG}?\s+)*?GIT_WORK_TREE=(${ARG})\s+(?:[A-Za-z_]\w*=${ARG}?\s+)*$`);
 
 /// The checkout this hook file belongs to.
 function hookRoot() {
@@ -48,8 +58,11 @@ function commitDir(cmd, cwd) {
     if (!m) return null;
     let dir = cwd || process.cwd();
     const step = (arg) => { dir = path.resolve(dir, fromShellPath(unquote(arg))); };
-    for (const cd of cmd.slice(0, m.index).matchAll(CD)) step(cd[1]);
+    const before = cmd.slice(0, m.index);
+    for (const cd of before.matchAll(CD)) step(cd[1]);
     for (const c of m[1].matchAll(DASH_C)) step(c[1]);
+    const workTree = WORK_TREE.exec(m[1]) || ENV_WORK_TREE.exec(before);
+    if (workTree) step(workTree[1]);
     return dir;
 }
 

@@ -75,6 +75,38 @@ test('git -C applies after an earlier cd', () => {
     same(root(lane, `cd "${tmp}" && git -C main commit -m x`), main);
 });
 
+test('cd inside a subshell, a brace group, on its own line, or as pushd', () => {
+    same(root(main, `(cd "${lane}" && git commit -m x)`), lane);
+    same(root(main, `( cd "${lane}"; git commit -m x )`), lane);
+    same(root(main, `{ cd "${lane}"; git commit -m x; }`), lane);
+    same(root(main, `cd "${lane}"\ngit add -- a.txt\ngit commit -F msg.txt`), lane);
+    same(root(main, `pushd "${lane}" && git commit -m x`), lane);
+});
+
+test('a cd inside a command substitution does not move the commit', () => {
+    same(root(lane, `MSG=$(cd "${main}" && cat msg.txt); git commit -m "$MSG"`), lane);
+});
+
+test('a cd named in the commit message does not move the commit', () => {
+    same(root(main, `git -C "${lane}" commit -m "see cd ${main} && git commit"`), lane);
+});
+
+test('--work-tree and GIT_WORK_TREE name the committing tree', () => {
+    const gitDir = path.join(main, '.git', 'worktrees', path.basename(lane));
+    same(root(main, `git --git-dir="${gitDir}" --work-tree="${lane}" commit -m x`), lane);
+    same(root(main, `git --work-tree "${lane}" commit -m x`), lane);
+    same(root(main, `GIT_WORK_TREE="${lane}" git commit -m x`), lane);
+    same(root(main, `cd "${tmp}" && GIT_DIR=x GIT_WORK_TREE='${lane}' git commit -m x`), lane);
+});
+
+test('every git commit shape is recognised as a commit', () => {
+    const { commitDir } = require(path.join(HOOKS, 'commit-root.js'));
+    for (const cmd of ['git commit -m x', 'git -C a commit', 'git -c user.name=x commit', 'git --work-tree a commit', 'git --no-pager commit -F m'])
+        assert.notStrictEqual(commitDir(cmd, main), null, cmd);
+    for (const cmd of ['git add .claude/workflows/pre-commit-audit.js', 'git log --grep commit', 'echo commit', 'git cherry-pick -n abc'])
+        assert.strictEqual(commitDir(cmd, main), null, cmd);
+});
+
 test('falls back to the hook checkout when nothing resolves', () => {
     same(root(undefined, 'git commit -m x'), hookRoot());
     same(root(path.join(tmp, 'missing'), 'git commit -m x'), hookRoot());
