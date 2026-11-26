@@ -14,6 +14,13 @@ hooks **fail open** (exit 0) on any parse/IO error — a hook must never wedge t
 | [`guard-test-scope.js`](guard-test-scope.js) | PreToolUse | `Bash` / `PowerShell` running `run-gate.js` / `run-cpu-tests.js --scope all`, `node tools/run-close-lanes.js`, or an unselected `ctest` | **Blocks** unless the line carries `# gate-all-ok: <reason>`: the runners run only the cases the change reaches by default (`tools/affected-tests.js`); CI twin `tools/lint-test-scope.js` |
 | [`remind-rt-safety.js`](remind-rt-safety.js) | PostToolUse | `Edit` / `Write` / `MultiEdit` under `**/src/processor/**`, `**/src/engine/**`, or `dsp/` (excl. `dsp/tests/`) | **Reminds** (once/session) to apply the RT-safety review lens + layer rule; never blocks |
 
+**The commit hooks judge the checkout that commits.** `guard-changelog.js`, `guard-ci-gates.js` and
+`guard-portability.js` take the repo root from the commit itself ([`commit-root.js`](commit-root.js)):
+`git -C <dir> commit`, then a `cd <dir>` before it, then the tool call's `cwd`, and only then the checkout
+this directory lives in. A commit made in a git worktree (a parallel fix lane of
+`.claude/workflows/innexus-fix.js`) is therefore checked against that worktree's index and tree, with its
+own copies of the gate scripts. Tests: `node --test tools/hooks/tests/commit-root.test.js`.
+
 The RT-safety reminder deliberately does **not** grep for `new`/`malloc`/`lock` — those appear
 legitimately in `prepare()`/ctors/member decls, so a content grep produces false-positive noise the
 agent learns to ignore. It only nudges toward the review when an audio/DSP path is touched; the hard

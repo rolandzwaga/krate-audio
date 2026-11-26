@@ -21,6 +21,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { commitRoot } = require('./commit-root.js');
 
 function readStdin() {
     return new Promise((resolve) => {
@@ -49,9 +50,10 @@ function extractCommitMessage(cmd) {
     return '';
 }
 
+// The checkout whose CHANGELOG counts: the one that commits (a worktree commits its own tree). Set per call.
+let root = path.resolve(__dirname, '..', '..');
 function repoRoot() {
-    // hook lives at <root>/tools/hooks/guard-changelog.js
-    return path.resolve(__dirname, '..', '..');
+    return root;
 }
 
 function changelogHas(pluginDir, version) {
@@ -90,6 +92,7 @@ function listPluginDirs() {
 
     const msg = extractCommitMessage(cmd);
     if (!msg) process.exit(0);
+    root = commitRoot(payload, cmd);
 
     // Find "release X.Y.Z" (X.Y.Z, optionally with a -suffix)
     const rel = msg.match(/release\s+v?(\d+\.\d+\.\d+(?:-[\w.]+)?)/i);

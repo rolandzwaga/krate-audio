@@ -26,6 +26,7 @@
 const { execFileSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
+const { commitRoot, commitDir, hookRoot } = require('./commit-root.js');
 
 // Generators whose output CI compares against the committed copy.
 const GENERATORS = [
@@ -121,14 +122,16 @@ function runCargoFmt(dir, check) {
     }
 }
 
-/// Links <root>/<dep>/node_modules into an exported tree; returns the links made (removed before the tree is).
+/// Links <checkout>/<dep>/node_modules into the tree the suites run in; returns the links made (removed before the
+/// tree is). The modules come from the committing checkout, or from the session's checkout when the commit is made
+/// in a worktree, which has no node_modules of its own.
 function linkNodeModules(root, dir, suites) {
     const links = [];
-    if (path.resolve(dir) === path.resolve(root)) return links;
     for (const dep of new Set(suites.flatMap((s) => s.deps))) {
-        const target = path.join(root, dep, 'node_modules');
         const link = path.join(dir, dep, 'node_modules');
-        if (!fs.existsSync(target) || fs.existsSync(link)) continue;
+        const target = [root, hookRoot()].map((r) => path.join(r, dep, 'node_modules'))
+            .find((t) => path.resolve(t) !== path.resolve(link) && fs.existsSync(t));
+        if (!target || fs.existsSync(link)) continue;
         try {
             fs.symlinkSync(target, link, 'junction');
             links.push(link);
@@ -192,11 +195,6 @@ function readStdin() {
     });
 }
 
-function repoRoot() {
-    // hook lives at <root>/tools/hooks/guard-ci-gates.js
-    return path.resolve(__dirname, '..', '..');
-}
-
 /// The tree the gates judge: what is being COMMITTED. With unstaged edits or untracked files in the working tree
 /// (an active phase's work in progress), the generators would index files that are not in the commit and block it
 /// for them (2026-10-26: Profundum Phase 14's untracked header made symbols.json "stale" for an unrelated tooling
@@ -233,7 +231,7 @@ function stagedTree(root) {
 function isGitCommit(cmd) {
     // `commit` must be the git subcommand (after optional global options), not any word on the line:
     // `git add .claude/workflows/pre-commit-audit.js` was blocked as a commit (2026-10-26).
-    if (!/\bgit(?:\s+(?:-[Cc]\s+\S+|--?[\w-]+(?:=\S+)?))*\s+commit\b/.test(cmd)) return false;
+    if (commitDir(cmd, null) === null) return false;
     // `git log`, `git show <commit>`, `git rev-parse` etc. can mention "commit"
     // in a path or message without being a commit themselves.
     if (/\bgit\s+(log|show|diff|rev-parse|rev-list|status|cherry)\b/.test(cmd)) return false;
@@ -274,7 +272,9 @@ function runGate(root, script, args, env) {
     const cmd = (payload && payload.tool_input && payload.tool_input.command) || '';
     if (!cmd || !isGitCommit(cmd)) process.exit(0);
 
-    const root = repoRoot();
+    // The checkout that commits, not the one this hook file lives in: a commit made in a git worktree (a parallel fix
+    // lane) is judged on that worktree's index, with that worktree's copies of the gate scripts.
+    const root = commitRoot(payload, cmd);
     const staged = stagedPaths(root);
     const triggered = (s) => {
         const filters = pushPathFilters(root, s.workflow);

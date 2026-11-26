@@ -24,6 +24,7 @@
 const { execFileSync, spawnSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
+const { commitRoot } = require('./commit-root.js');
 
 function readStdin() {
     return new Promise((resolve) => {
@@ -33,10 +34,6 @@ function readStdin() {
         process.stdin.on('end', () => resolve(data));
         if (process.stdin.isTTY) resolve('');
     });
-}
-
-function repoRoot() {
-    return path.resolve(__dirname, '..', '..');
 }
 
 function isGitCommit(cmd) {
@@ -56,7 +53,8 @@ function isGitCommit(cmd) {
     const cmd = (payload && payload.tool_input && payload.tool_input.command) || '';
     if (!cmd || !isGitCommit(cmd)) process.exit(0);
 
-    const root = repoRoot();
+    // The checkout that commits: a worktree's staged files are checked in that worktree.
+    const root = commitRoot(payload, cmd);
     const checker = path.join(root, 'tools', 'check-portability.js');
     if (!fs.existsSync(checker)) process.exit(0);
 

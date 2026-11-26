@@ -398,11 +398,17 @@ endfunction()
 # .../Krate Audio/<target> — call with no options. Membrum nests presets under
 # "resources/presets/Kit Presets" and the runtime scans a "Kits" subdir, so it passes
 # SRC_SUBDIR "Kit Presets" DEST_SUBDIR "Kits".
+#
+# -DVSTWORK_INSTALL_PRESETS=OFF skips the copy. A build in a git worktree (a parallel
+# fix lane) sets it together with -DVSTWORK_COPY_TO_VST3_FOLDER=OFF: several lanes
+# building at once must not write the same system folders, and a lane's unreviewed
+# presets must not replace the installed ones.
 # ------------------------------------------------------------------------------
 function(krate_plugin_install_presets target)
     cmake_parse_arguments(KPIP "" "SRC_SUBDIR;DEST_SUBDIR" "" ${ARGN})
+    option(VSTWORK_INSTALL_PRESETS "Copy factory presets to the system preset folder after build" ON)
 
-    if(NOT SMTG_WIN)
+    if(NOT SMTG_WIN OR NOT VSTWORK_INSTALL_PRESETS)
         return()
     endif()
 
